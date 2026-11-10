@@ -74,8 +74,8 @@ class Char1632TestCase(TestBase):
         self.expect(
             "frame variable as16 as32",
             patterns=[
-                "\(char16_t\[[0-9]+\]\) as16 = ",
-                "\(char32_t\[[0-9]+\]\) as32 = ",
+                r"\(char16_t\[[0-9]+\]\) as16 = ",
+                r"\(char32_t\[[0-9]+\]\) as32 = ",
             ],
             substrs=['u"ﺸﺵۻ"', 'U"ЕЙРГЖО"'],
         )
@@ -103,18 +103,16 @@ class Char1632TestCase(TestBase):
         self.expect(
             "frame variable as16 as32",
             patterns=[
-                "\(char16_t\[[0-9]+\]\) as16 = ",
-                "\(char32_t\[[0-9]+\]\) as32 = ",
+                r"\(char16_t\[[0-9]+\]\) as16 = ",
+                r"\(char32_t\[[0-9]+\]\) as32 = ",
             ],
             substrs=['"色ハ匂ヘト散リヌルヲ"', '"෴"'],
         )
 
         # check that zero values are properly handles
         self.expect_expr("cs16_zero", result_summary="U+0000 u'\\0'")
-        self.expect_expr("cs32_zero", result_summary="U+0x00000000 U'\\0'")
+        self.expect_expr("cs32_zero", result_summary="U+0000 U'\\0'")
 
         # Check that we can run expressions that return charN_t
         self.expect_expr("u'a'", result_type="char16_t", result_summary="U+0061 u'a'")
-        self.expect_expr(
-            "U'a'", result_type="char32_t", result_summary="U+0x00000061 U'a'"
-        )
+        self.expect_expr("U'a'", result_type="char32_t", result_summary="U+0061 U'a'")

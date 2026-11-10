@@ -26,13 +26,13 @@ public:
   bool isRootNode(const ObjectProxy &Node) const final {
     return false; // TreeSchema doesn't have a root node.
   }
-  bool isNode(const ObjectProxy &Node) const final;
+  LLVM_ABI bool isNode(const ObjectProxy &Node) const final;
 
-  TreeSchema(ObjectStore &CAS);
+  LLVM_ABI TreeSchema(ObjectStore &CAS);
 
-  size_t getNumTreeEntries(TreeProxy Tree) const;
+  LLVM_ABI size_t getNumTreeEntries(TreeProxy Tree) const;
 
-  Error
+  LLVM_ABI Error
   forEachTreeEntry(TreeProxy Tree,
                    function_ref<Error(const NamedTreeEntry &)> Callback) const;
 
@@ -44,18 +44,19 @@ public:
   ///
   /// Passes the \p TreeNodeProxy if the entry is a \p TreeEntry::Tree,
   /// otherwise passes \p None.
-  Error walkFileTreeRecursively(
+  LLVM_ABI Error walkFileTreeRecursively(
       ObjectStore &CAS, ObjectRef Root,
       function_ref<Error(const NamedTreeEntry &, std::optional<TreeProxy>)>
           Callback);
 
-  std::optional<size_t> lookupTreeEntry(TreeProxy Tree, StringRef Name) const;
-  NamedTreeEntry loadTreeEntry(TreeProxy Tree, size_t I) const;
+  LLVM_ABI std::optional<size_t> lookupTreeEntry(TreeProxy Tree,
+                                                 StringRef Name) const;
+  LLVM_ABI NamedTreeEntry loadTreeEntry(TreeProxy Tree, size_t I) const;
 
-  Expected<TreeProxy> load(ObjectRef Object) const;
-  Expected<TreeProxy> load(ObjectProxy Object) const;
+  LLVM_ABI Expected<TreeProxy> load(ObjectRef Object) const;
+  LLVM_ABI Expected<TreeProxy> load(ObjectProxy Object) const;
 
-  Expected<TreeProxy> create(ArrayRef<NamedTreeEntry> Entries = std::nullopt);
+  LLVM_ABI Expected<TreeProxy> create(ArrayRef<NamedTreeEntry> Entries = {});
 
 private:
   static constexpr StringLiteral SchemaName = "llvm::cas::schema::tree::v1";

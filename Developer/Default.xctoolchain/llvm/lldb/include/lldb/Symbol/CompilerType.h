@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "lldb/Utility/Scalar.h"
 #include "lldb/lldb-private.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/Casting.h"
@@ -42,10 +43,7 @@ public:
   ///
   /// \see lldb_private::TypeSystemClang::GetType(clang::QualType)
   CompilerType(lldb::TypeSystemWP type_system,
-               lldb::opaque_compiler_type_t type)
-    : m_type_system(type_system), m_type(type) {
-    assert(Verify() && "verification failed");
-  }
+               lldb::opaque_compiler_type_t type);
 
   /// This is a minimal wrapper of a TypeSystem shared pointer as
   /// returned by CompilerType which conventien dyn_cast support.
@@ -88,10 +86,8 @@ public:
     lldb::TypeSystemSP GetSharedPointer() const { return m_typesystem_sp; }
   };
 
-  CompilerType(TypeSystemSPWrapper type_system, lldb::opaque_compiler_type_t type)
-    : m_type_system(type_system.GetSharedPointer()), m_type(type) {
-    assert(Verify() && "verification failed");
-  }
+  CompilerType(TypeSystemSPWrapper type_system,
+               lldb::opaque_compiler_type_t type);
 
   CompilerType(const CompilerType &rhs)
       : m_type_system(rhs.m_type_system), m_type(rhs.m_type) {}
@@ -146,11 +142,25 @@ public:
 
   bool IsConst() const;
 
-  bool IsCStringType(uint32_t &length) const;
-
   bool IsDefined() const;
 
-  bool IsFloatingPointType(uint32_t &count, bool &is_complex) const;
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  /// If the CompilerType is a PointerType and BoundsSafety PointerAttribute
+  /// Indexable set returns true otherwise returns false.
+  bool IsBoundsSafetyIndexable() const;
+
+  /// If the CompilerType is a PointerType and BoundsSafety PointerAttribute
+  /// BidiIndexable set returns true otherwise returns false.
+  bool IsBoundsSafetyBidiIndexable() const;
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
+  bool IsComplexType() const;
+
+  /// Returns \c true for floating point types (including complex floats).
+  bool IsFloatingPointType() const;
+
+  /// Returns \c true for non-complex float types.
+  bool IsRealFloatingPointType() const;
 
   bool IsFunctionType() const;
 
@@ -202,6 +212,58 @@ public:
   bool IsTypedefType() const;
 
   bool IsVoidType() const;
+
+  /// This is used when you don't care about the signedness of the integer.
+  bool IsInteger() const;
+
+  /// This is used when you don't care about the signedness of the enum.
+  bool IsEnumerationType() const;
+
+  bool IsUnscopedEnumerationType() const;
+
+  bool IsIntegerOrUnscopedEnumerationType() const;
+
+  bool IsSigned() const;
+
+  bool IsNullPtrType() const;
+
+  bool IsBoolean() const;
+
+  bool IsEnumerationIntegerTypeSigned() const;
+
+  bool IsScalarOrUnscopedEnumerationType() const;
+
+  bool IsPromotableIntegerType() const;
+
+  bool IsPointerToVoid() const;
+
+  bool IsRecordType() const;
+
+  //// Checks whether `target_base` is a virtual base of `type` (direct or
+  /// indirect). If it is, stores the first virtual base type on the path from
+  /// `type` to `target_type`. Parameter "virtual_base" is where the first
+  /// virtual base type gets stored. Parameter "carry_virtual" is used to
+  /// denote that we're in a recursive check of virtual base classes and we
+  /// have already seen a virtual base class (so should only check direct
+  /// base classes).
+  /// Note: This may only be defined in TypeSystemClang.
+  bool IsVirtualBase(CompilerType target_base, CompilerType *virtual_base,
+                     bool carry_virtual = false) const;
+
+  /// This may only be defined in TypeSystemClang.
+  bool IsContextuallyConvertibleToBool() const;
+
+  bool IsBasicType() const;
+
+  std::string TypeDescription();
+
+  bool CompareTypes(CompilerType rhs) const;
+
+  const char *GetTypeTag();
+
+  /// Go through the base classes and count non-empty ones.
+  uint32_t GetNumberOfNonEmptyBaseClasses();
+
   /// \}
 
   /// Type Completion.
@@ -216,12 +278,23 @@ public:
   size_t GetPointerByteSize() const;
   /// \}
 
+  unsigned GetPtrAuthKey() const;
+
+  unsigned GetPtrAuthDiscriminator() const;
+
+  bool GetPtrAuthAddressDiversity() const;
+
   /// Accessors.
   /// \{
 
   /// Returns a shared pointer to the type system. The
   /// TypeSystem::TypeSystemSPWrapper can be compared for equality.
   TypeSystemSPWrapper GetTypeSystem() const;
+
+  template <typename TypeSystemType>
+  std::shared_ptr<TypeSystemType> GetTypeSystem() const {
+    return GetTypeSystem().dyn_cast_or_null<TypeSystemType>();
+  }
 
   ConstString GetTypeName(bool BaseOnly = false) const;
 
@@ -302,6 +375,23 @@ public:
   /// an invalid type.
   CompilerType AddVolatileModifier() const;
 
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  /// If this is a PointerType return a new CompilerType that has the
+  /// BoundsSafetyPointerAttributes Indexable added to this type
+  /// otherwise return an invalid type.
+  CompilerType AddBoundsSafetyIndexableAttribute() const;
+
+  /// If this is a PointerType return a new CompilerType that has the
+  /// BoundsSafetyPointerAttributes BidiIndexable added to this type
+  /// otherwise return an invalid type.
+  CompilerType AddBoundsSafetyBidiIndexableAttribute() const;
+
+  /// If this is a PointerType return a new CompilerType that has the
+  /// BoundsSafetyPointerAttributes UnsafeIndexable added to this type
+  /// otherwise return an invalid type.
+  CompilerType AddBoundsSafetyUnspecifiedAttribute() const;
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
   /// Return a new CompilerType that is the atomic type of this type. If this
   /// type is not valid or the type system doesn't support atomic types, this
   /// returns an invalid type.
@@ -325,6 +415,12 @@ public:
 
   /// Create related types using the current type's AST
   CompilerType GetBasicTypeFromAST(lldb::BasicType basic_type) const;
+
+  /// Return a new CompilerType adds a ptrauth modifier from the given 32-bit
+  /// opaque payload to this type if this type is valid and the type system
+  /// supports ptrauth modifiers, else return an invalid type. Note that this
+  /// does not check if this type is a pointer.
+  CompilerType AddPtrAuthModifier(uint32_t payload) const;
   /// \}
 
   /// Exploring the type.
@@ -332,14 +428,16 @@ public:
   struct IntegralTemplateArgument;
 
   /// Return the size of the type in bytes.
-  std::optional<uint64_t> GetByteSize(ExecutionContextScope *exe_scope) const;
+  llvm::Expected<uint64_t> GetByteSize(ExecutionContextScope *exe_scope) const;
+
   /// Return the size of the type in bits.
-  std::optional<uint64_t> GetBitSize(ExecutionContextScope *exe_scope) const;
+  llvm::Expected<uint64_t> GetBitSize(ExecutionContextScope *exe_scope) const;
+
   /// Return the stride of the type in bits.
   std::optional<uint64_t>
   GetByteStride(ExecutionContextScope *exe_scope) const;
-
-  lldb::Encoding GetEncoding(uint64_t &count) const;
+  
+  lldb::Encoding GetEncoding() const;
 
   lldb::Format GetFormat() const;
 
@@ -375,11 +473,12 @@ public:
   CompilerType GetVirtualBaseClassAtIndex(size_t idx,
                                           uint32_t *bit_offset_ptr) const;
 
-  uint32_t GetIndexOfFieldWithName(const char *name,
-                                   CompilerType *field_compiler_type = nullptr,
-                                   uint64_t *bit_offset_ptr = nullptr,
-                                   uint32_t *bitfield_bit_size_ptr = nullptr,
-                                   bool *is_bitfield_ptr = nullptr) const;
+  CompilerDecl GetStaticFieldWithName(llvm::StringRef name) const;
+
+  llvm::Expected<CompilerType>
+  GetDereferencedType(ExecutionContext *exe_ctx, std::string &deref_name,
+                      uint32_t &deref_byte_size, int32_t &deref_byte_offset,
+                      ValueObject *valobj, uint64_t &language_flags) const;
 
   llvm::Expected<CompilerType> GetChildCompilerTypeAtIndex(
       ExecutionContext *exe_ctx, size_t idx, bool transparent_pointers,
@@ -392,20 +491,26 @@ public:
 
   /// Lookup a child given a name. This function will match base class names and
   /// member member names in "clang_type" only, not descendants.
-  uint32_t GetIndexOfChildWithName(llvm::StringRef name,
-                                   ExecutionContext *exe_ctx,
-                                   bool omit_empty_base_classes) const;
+  llvm::Expected<uint32_t>
+  GetIndexOfChildWithName(llvm::StringRef name, ExecutionContext *exe_ctx,
+                          bool omit_empty_base_classes) const;
 
   /// Lookup a child member given a name. This function will match member names
   /// only and will descend into "clang_type" children in search for the first
   /// member in this class, or any base class that matches "name".
+  ///
+  /// \param child_indexes returns an index path for the result.
+  /// \returns 0 if unsuccessful, otherwise the length of the index path.
+  ///
   /// TODO: Return all matches for a given name by returning a
-  /// vector<vector<uint32_t>>
-  /// so we catch all names that match a given child name, not just the first.
+  /// vector<vector<uint32_t>> so we catch all names that match a
+  /// given child name, not just the first.
   size_t
   GetIndexOfChildMemberWithName(llvm::StringRef name, ExecutionContext *exe_ctx,
                                 bool omit_empty_base_classes,
                                 std::vector<uint32_t> &child_indexes) const;
+
+  CompilerType GetDirectNestedTypeWithName(llvm::StringRef name) const;
 
   /// Return the number of template arguments the type has.
   /// If expand_pack is true, then variadic argument packs are automatically
@@ -445,25 +550,15 @@ public:
   LLVM_DUMP_METHOD void dump() const;
 #endif
 
-  void DumpValue(ExecutionContext *exe_ctx, Stream *s, lldb::Format format,
-                 const DataExtractor &data, lldb::offset_t data_offset,
-                 size_t data_byte_size, uint32_t bitfield_bit_size,
-                 uint32_t bitfield_bit_offset, bool show_types,
-                 bool show_summary, bool verbose, uint32_t depth);
-
   bool DumpTypeValue(Stream *s, lldb::Format format, const DataExtractor &data,
                      lldb::offset_t data_offset, size_t data_byte_size,
                      uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
                      ExecutionContextScope *exe_scope, bool is_base_class);
 
-  void DumpSummary(ExecutionContext *exe_ctx, Stream *s,
-                   const DataExtractor &data, lldb::offset_t data_offset,
-                   size_t data_byte_size);
-
   /// Dump to stdout.
   void DumpTypeDescription(
       lldb::DescriptionLevel level = lldb::eDescriptionLevelFull,
-            ExecutionContextScope *exe_scope = nullptr) const;
+      ExecutionContextScope *exe_scope = nullptr) const;
 
   /// Print a description of the type to a stream. The exact implementation
   /// varies, but the expectation is that eDescriptionLevelFull returns a
@@ -499,7 +594,7 @@ bool operator==(const CompilerType &lhs, const CompilerType &rhs);
 bool operator!=(const CompilerType &lhs, const CompilerType &rhs);
 
 struct CompilerType::IntegralTemplateArgument {
-  llvm::APSInt value;
+  Scalar value;
   CompilerType type;
 };
 

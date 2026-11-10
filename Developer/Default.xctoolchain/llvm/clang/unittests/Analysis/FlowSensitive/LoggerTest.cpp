@@ -5,7 +5,6 @@
 #include "clang/Analysis/FlowSensitive/DataflowLattice.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
-#include <optional>
 
 namespace clang::dataflow::test {
 namespace {
@@ -58,14 +57,15 @@ public:
 private:
   llvm::raw_string_ostream OS;
 
-  void beginAnalysis(const ControlFlowContext &,
+  void beginAnalysis(const AdornedCFG &,
                      TypeErasedDataflowAnalysis &) override {
     logText("beginAnalysis()");
   }
   void endAnalysis() override { logText("\nendAnalysis()"); }
 
-  void enterBlock(const CFGBlock &B) override {
-    OS << "\nenterBlock(" << B.BlockID << ")\n";
+  void enterBlock(const CFGBlock &B, bool PostVisit) override {
+    OS << "\nenterBlock(" << B.BlockID << ", " << (PostVisit ? "true" : "false")
+       << ")\n";
   }
   void enterElement(const CFGElement &E) override {
     // we don't want the trailing \n
@@ -89,7 +89,7 @@ private:
 AnalysisInputs<TestAnalysis> makeInputs() {
   const char *Code = R"cpp(
 int target(bool b, int p, int q) {
-  return b ? p : q;    
+  return b ? p : q;
 }
 )cpp";
   static const std::vector<std::string> Args = {
@@ -114,7 +114,7 @@ TEST(LoggerTest, Sequence) {
 
   EXPECT_EQ(Log, R"(beginAnalysis()
 
-enterBlock(4)
+enterBlock(4, false)
 recordState(Elements=0, Branches=0, Joins=0)
 enterElement(b)
 transfer()
@@ -122,22 +122,23 @@ recordState(Elements=1, Branches=0, Joins=0)
 enterElement(b (ImplicitCastExpr, LValueToRValue, _Bool))
 transfer()
 recordState(Elements=2, Branches=0, Joins=0)
+recordState(Elements=2, Branches=0, Joins=0)
 
-enterBlock(3)
-transferBranch(0)
-recordState(Elements=2, Branches=1, Joins=0)
-enterElement(q)
-transfer()
-recordState(Elements=3, Branches=1, Joins=0)
-
-enterBlock(2)
+enterBlock(2, false)
 transferBranch(1)
 recordState(Elements=2, Branches=1, Joins=0)
 enterElement(p)
 transfer()
 recordState(Elements=3, Branches=1, Joins=0)
 
-enterBlock(1)
+enterBlock(3, false)
+transferBranch(0)
+recordState(Elements=2, Branches=1, Joins=0)
+enterElement(q)
+transfer()
+recordState(Elements=3, Branches=1, Joins=0)
+
+enterBlock(1, false)
 recordState(Elements=6, Branches=2, Joins=1)
 enterElement(b ? p : q)
 transfer()
@@ -148,9 +149,18 @@ recordState(Elements=8, Branches=2, Joins=1)
 enterElement(return b ? p : q;)
 transfer()
 recordState(Elements=9, Branches=2, Joins=1)
+enterElement([Parm: q] (Lifetime ends))
+transfer()
+recordState(Elements=10, Branches=2, Joins=1)
+enterElement([Parm: p] (Lifetime ends))
+transfer()
+recordState(Elements=11, Branches=2, Joins=1)
+enterElement([Parm: b] (Lifetime ends))
+transfer()
+recordState(Elements=12, Branches=2, Joins=1)
 
-enterBlock(0)
-recordState(Elements=9, Branches=2, Joins=1)
+enterBlock(0, false)
+recordState(Elements=12, Branches=2, Joins=1)
 
 endAnalysis()
 )");

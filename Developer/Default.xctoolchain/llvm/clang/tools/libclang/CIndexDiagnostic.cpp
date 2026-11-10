@@ -70,6 +70,7 @@ public:
 
   unsigned getCategory() const override { return 0; }
   CXString getCategoryText() const override { return cxstring::createEmpty(); }
+  CXString getCategoryURL() const override { return cxstring::createEmpty(); }
 
   unsigned getNumRanges() const override { return 0; }
   CXSourceRange getRange(unsigned Range) const override {
@@ -85,19 +86,19 @@ public:
 };    
     
 class CXDiagnosticRenderer : public DiagnosticNoteRenderer {
-public:  
-  CXDiagnosticRenderer(const LangOptions &LangOpts,
-                       DiagnosticOptions *DiagOpts,
+public:
+  CXDiagnosticRenderer(const LangOptions &LangOpts, DiagnosticOptions &DiagOpts,
                        CXDiagnosticSetImpl *mainSet)
-  : DiagnosticNoteRenderer(LangOpts, DiagOpts),
-    CurrentSet(mainSet), MainSet(mainSet) {}
+      : DiagnosticNoteRenderer(LangOpts, DiagOpts), CurrentSet(mainSet),
+        MainSet(mainSet) {}
 
   ~CXDiagnosticRenderer() override {}
 
   void beginDiagnostic(DiagOrStoredDiag D,
                        DiagnosticsEngine::Level Level) override {
 
-    const StoredDiagnostic *SD = D.dyn_cast<const StoredDiagnostic*>();
+    const StoredDiagnostic *SD =
+        dyn_cast_if_present<const StoredDiagnostic *>(D);
     if (!SD)
       return;
     
@@ -199,10 +200,10 @@ CXDiagnosticSetImpl *cxdiag::lazyCreateDiags(CXTranslationUnit TU,
   if (!TU->Diagnostics) {
     CXDiagnosticSetImpl *Set = new CXDiagnosticSetImpl();
     TU->Diagnostics = Set;
-    IntrusiveRefCntPtr<DiagnosticOptions> DOpts = new DiagnosticOptions;
-    CXDiagnosticRenderer Renderer(AU->getASTContext().getLangOpts(),
-                                  &*DOpts, Set);
-    
+    DiagnosticOptions DOpts;
+    CXDiagnosticRenderer Renderer(AU->getASTContext().getLangOpts(), DOpts,
+                                  Set);
+
     for (ASTUnit::stored_diag_iterator it = AU->stored_diag_begin(),
          ei = AU->stored_diag_end(); it != ei; ++it) {
       Renderer.emitStoredDiagnostic(*it);
@@ -430,7 +431,13 @@ CXString clang_getDiagnosticCategoryText(CXDiagnostic Diag) {
     return D->getCategoryText();
   return cxstring::createEmpty();
 }
-  
+
+CXString clang_getDiagnosticCategoryURL(CXDiagnostic Diag) {
+  if (CXDiagnosticImpl *D = static_cast<CXDiagnosticImpl *>(Diag))
+    return D->getCategoryURL();
+  return cxstring::createEmpty();
+}
+
 unsigned clang_getDiagnosticNumRanges(CXDiagnostic Diag) {
   if (CXDiagnosticImpl *D = static_cast<CXDiagnosticImpl *>(Diag))
     return D->getNumRanges();

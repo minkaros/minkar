@@ -8,8 +8,9 @@ from lldbsuite.test.decorators import *
 
 class TestSwiftForwardInteropCxxLangOpt(TestBase):
 
+    @skipEmbeddedSwift
     @swiftTest
-    @expectedFailureAll(setting=('symbols.swift-precise-compiler-invocation', 'false'))
+    @skipIfWindows
     def test_class(self):
         """
         Test that C++ interoperability is enabled on a per-CU basis.
@@ -26,7 +27,7 @@ class TestSwiftForwardInteropCxxLangOpt(TestBase):
         self.expect('expr 0')
         lldbutil.continue_to_breakpoint(process, dylib_bkpt)
         self.expect('expr 1')
-        self.filecheck('platform shell cat ""%s"' % log, __file__)
+        self.filecheck_log(log, __file__)
 #       CHECK: SwiftASTContextForExpressions(module: "a", cu: "main.swift")::LogConfiguration(){{.*}}Swift/C++ interop : on
 #       CHECK:  SwiftASTContextForExpressions(module: "Dylib", cu: "Dylib.swift")::LogConfiguration(){{.*}}Swift/C++ interop : off
 

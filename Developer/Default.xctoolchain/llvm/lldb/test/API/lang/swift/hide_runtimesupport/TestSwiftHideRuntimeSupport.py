@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftHideRuntimeSupport(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_hide_runtime_support(self):
         """Test that we hide runtime support values"""

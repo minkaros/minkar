@@ -16,13 +16,13 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 import os
 
 
 class TestSwiftDeploymentTarget(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @skipIfDarwinEmbedded # This test uses macOS triples explicitly.
     @skipIf(macos_version=["<", "11.1"])
@@ -34,6 +34,7 @@ class TestSwiftDeploymentTarget(TestBase):
                                           lldb.SBFileSpec('main.swift'))
         self.expect("expression f", substrs=['i = 23'])
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @skipIfDarwinEmbedded # This test uses macOS triples explicitly.
     @skipIf(macos_version=["<", "11.1"])
@@ -47,6 +48,7 @@ class TestSwiftDeploymentTarget(TestBase):
         lldbutil.continue_to_breakpoint(process, bkpt)
         self.expect("expression self", substrs=['i = 23'])
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @skipIfDarwinEmbedded # This test uses macOS triples explicitly.
     @skipIf(macos_version=["<", "11.1"])
@@ -63,14 +65,14 @@ class TestSwiftDeploymentTarget(TestBase):
             self, "break here", lldb.SBFileSpec("main.swift")
         )
         self.expect("expression f", substrs=["i = 23"])
-        self.filecheck('platform shell cat ""%s"' % log, __file__)
-#       CHECK: SwiftASTContextForExpressions::SetTriple({{.*}}apple-macosx11.0.0
-#       CHECK-NOT: SwiftASTContextForExpressions::RegisterSectionModules("a.out"){{.*}} AST Data blobs
+        self.filecheck_log(log, __file__)
+#       CHECK: SwiftASTContextForExpressions(module: "a", cu: "main.swift")::SetTriple({{.*}}apple-macosx11.0.0
+#       CHECK-NOT: SwiftASTContextForExpressions(module: "a", cu: "main.swift")::RegisterSectionModules("a.out"){{.*}} AST Data blobs
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin  # This test uses macOS triples explicitly.
     @skipIfDarwinEmbedded
     @skipIf(macos_version=["<", "11.1"])
-    @skipIf(setting=("symbols.swift-precise-compiler-invocation", "false"))
     @swiftTest
     def test_swift_precise_compiler_invocation_triple(self):
         """
@@ -89,8 +91,6 @@ class TestSwiftDeploymentTarget(TestBase):
             substrs=["-apple-macosx11.1.0"],
         )
         self.expect("expression self", substrs=["i = 23"])
-        self.filecheck(
-            f'platform shell cat "{log}"', __file__, "-check-prefix=CHECK-PRECISE"
-        )
-#       CHECK-PRECISE: SwiftASTContextForExpressions(module: "NewerTarget", cu: "NewerTarget.swift")::CreateInstance() -- Fully specified target triple {{.*}}-apple-macosx11.1.0
+        self.filecheck_log(log, __file__, "-check-prefix=CHECK-PRECISE")
+#       CHECK-PRECISE: SwiftASTContextForExpressions(module: "NewerTarget", cu: "NewerTarget.swift")::CreateInstance() -- Fully specified triple {{.*}}-apple-macosx11.1.0
 #       CHECK-PRECISE: SwiftASTContextForExpressions(module: "NewerTarget", cu: "NewerTarget.swift")::SetTriple("{{.*}}-apple-macosx11.1.0")

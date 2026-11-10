@@ -59,7 +59,7 @@ private:
   StringRef getSymbolName(const SymbolRef &Symbol) const;
   uint8_t getSymbolType(const SymbolRef &Symbol) const;
 
-  void printSymbols() override;
+  void printSymbols(bool ExtraSymInfo) override;
   void printSymbols(std::optional<SymbolComparator> SymComp) override;
   void printDynamicSymbols() override;
   void printDynamicSymbols(std::optional<SymbolComparator> SymComp) override;
@@ -152,18 +152,21 @@ const EnumEntry<uint32_t> MachOHeaderCpuSubtypesX64[] = {
 };
 
 const EnumEntry<uint32_t> MachOHeaderCpuSubtypesARM[] = {
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_ALL),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V4T),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5TEJ),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_XSCALE),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7S),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7K),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6M),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7M),
-  LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7EM),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_ALL),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V4T),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V5TEJ),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_XSCALE),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7S),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7K),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V6M),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7M),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V7EM),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V8M_MAIN),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V8M_BASE),
+    LLVM_READOBJ_ENUM_ENT(MachO, CPU_SUBTYPE_ARM_V8_1M_MAIN),
 };
 
 const EnumEntry<uint32_t> MachOHeaderCpuSubtypesARM64[] = {
@@ -632,7 +635,9 @@ bool MachODumper::compareSymbolsByType(SymbolRef LHS, SymbolRef RHS) const {
   return getSymbolType(LHS) < getSymbolType(RHS);
 }
 
-void MachODumper::printSymbols() { printSymbols(std::nullopt); }
+void MachODumper::printSymbols(bool /*ExtraSymInfo*/) {
+  printSymbols(std::nullopt);
+}
 
 void MachODumper::printSymbols(std::optional<SymbolComparator> SymComp) {
   ListScope Group(W, "Symbols");
@@ -732,10 +737,10 @@ void MachODumper::printStackMap() const {
 
   if (Obj->isLittleEndian())
     prettyPrintStackMap(
-        W, StackMapParser<support::little>(StackMapContentsArray));
+        W, StackMapParser<llvm::endianness::little>(StackMapContentsArray));
   else
     prettyPrintStackMap(
-        W, StackMapParser<support::big>(StackMapContentsArray));
+        W, StackMapParser<llvm::endianness::big>(StackMapContentsArray));
 }
 
 void MachODumper::printCGProfile() {
@@ -758,8 +763,8 @@ void MachODumper::printCGProfile() {
   StringRef CGProfileContents =
       unwrapOrError(Obj->getFileName(), CGProfileSection.getContents());
   BinaryStreamReader Reader(CGProfileContents, Obj->isLittleEndian()
-                                                   ? llvm::support::little
-                                                   : llvm::support::big);
+                                                   ? llvm::endianness::little
+                                                   : llvm::endianness::big);
 
   ListScope L(W, "CGProfile");
   while (!Reader.empty()) {

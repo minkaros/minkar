@@ -13,9 +13,8 @@
 #include "llvm/DWARFLinker/Classic/DWARFStreamer.h"
 #include "llvm/DWARFLinker/Parallel/DWARFLinker.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
-#include "llvm/DebugInfo/DWARF/DWARFExpression.h"
+#include "llvm/DebugInfo/DWARF/LowLevel/DWARFExpression.h"
 #include "llvm/Object/ObjectFile.h"
-#include "llvm/Support/Endian.h"
 #include <memory>
 #include <vector>
 
@@ -339,9 +338,9 @@ Error linkDebugInfoImpl(object::ObjectFile &File, const Options &Options,
   Triple TargetTriple = File.makeTriple();
   std::unique_ptr<classic::DwarfStreamer> Streamer;
   if (Expected<std::unique_ptr<classic::DwarfStreamer>> StreamerOrErr =
-          classic::DwarfStreamer::createStreamer(
-              TargetTriple, Linker::OutputFileType::Object, OutStream, nullptr,
-              ReportWarn))
+          classic::DwarfStreamer::createStreamer(TargetTriple,
+                                                 Linker::OutputFileType::Object,
+                                                 OutStream, ReportWarn))
     Streamer = std::move(*StreamerOrErr);
   else
     return StreamerOrErr.takeError();

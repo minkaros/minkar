@@ -18,13 +18,17 @@
 
 #include "clang-c/Dependencies.h"
 
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/SerializedDiagnosticPrinter.h"
 #include "clang/Tooling/DependencyScanning/DependencyScanningService.h"
 #include "clang/Tooling/DependencyScanning/DependencyScanningTool.h"
 #include "clang/Tooling/DependencyScanning/DependencyScanningWorker.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CAS/CASProvidingFileSystem.h"
 #include "llvm/CAS/CachingOnDiskFileSystem.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Option/OptTable.h"
 #include "llvm/Support/Process.h"
 
 using namespace clang;
@@ -34,374 +38,12 @@ namespace {
 struct DependencyScannerServiceOptions {
   ScanningOutputFormat ConfiguredFormat = ScanningOutputFormat::Full;
   CASOptions CASOpts;
+  ScanningOptimizations OptimizeArgs = ScanningOptimizations::Default;
   std::shared_ptr<cas::ObjectStore> CAS;
   std::shared_ptr<cas::ActionCache> Cache;
+  std::optional<bool> CacheNegativeStats;
 
   ScanningOutputFormat getFormat() const;
-};
-} // end anonymous namespace
-
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScannerServiceOptions,
-                                   CXDependencyScannerServiceOptions)
-
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScanningService,
-                                   CXDependencyScannerService)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScanningWorker,
-                                   CXDependencyScannerWorker)
-
-inline ScanningOutputFormat unwrap(CXDependencyMode Format) {
-  switch (Format) {
-  case CXDependencyMode_Flat:
-    return ScanningOutputFormat::Make;
-  case CXDependencyMode_Full:
-    return ScanningOutputFormat::Full;
-  }
-}
-
-static CXOutputKind wrap(ModuleOutputKind MOK) {
-  switch (MOK) {
-  case ModuleOutputKind::ModuleFile:
-    return CXOutputKind_ModuleFile;
-  case ModuleOutputKind::DependencyFile:
-    return CXOutputKind_Dependencies;
-  case ModuleOutputKind::DependencyTargets:
-    return CXOutputKind_DependenciesTarget;
-  case ModuleOutputKind::DiagnosticSerializationFile:
-    return CXOutputKind_SerializedDiagnostics;
-  }
-  llvm::report_fatal_error("unhandled ModuleOutputKind");
-}
-
-void clang_experimental_ModuleDependencySet_dispose(
-    CXModuleDependencySet *MDS) {
-  for (int I = 0; I < MDS->Count; ++I) {
-    CXModuleDependency &MD = MDS->Modules[I];
-    clang_disposeString(MD.Name);
-    clang_disposeString(MD.ContextHash);
-    clang_disposeString(MD.ModuleMapPath);
-    clang_disposeStringSet(MD.FileDeps);
-    clang_disposeStringSet(MD.ModuleDeps);
-    clang_disposeStringSet(MD.BuildArguments);
-  }
-  delete[] MDS->Modules;
-  delete MDS;
-}
-
-CXDependencyScannerServiceOptions
-clang_experimental_DependencyScannerServiceOptions_create() {
-  return wrap(new DependencyScannerServiceOptions);
-}
-
-void clang_experimental_DependencyScannerServiceOptions_dispose(
-    CXDependencyScannerServiceOptions Opts) {
-  delete unwrap(Opts);
-}
-
-void clang_experimental_DependencyScannerServiceOptions_setDependencyMode(
-    CXDependencyScannerServiceOptions Opts, CXDependencyMode Mode) {
-  unwrap(Opts)->ConfiguredFormat = unwrap(Mode);
-}
-
-void clang_experimental_DependencyScannerServiceOptions_setCASDatabases(
-    CXDependencyScannerServiceOptions Opts, CXCASDatabases CDBs) {
-  cas::WrappedCASDatabases &DBs = *cas::unwrap(CDBs);
-  unwrap(Opts)->CASOpts = DBs.CASOpts;
-  unwrap(Opts)->CAS = DBs.CAS;
-  unwrap(Opts)->Cache = DBs.Cache;
-}
-
-void clang_experimental_DependencyScannerServiceOptions_setCASOptions(
-    CXDependencyScannerServiceOptions Opts, CXCASOptions CASOpts) {
-  unwrap(Opts)->CASOpts = *cas::unwrap(CASOpts);
-}
-
-void clang_experimental_DependencyScannerServiceOptions_setObjectStore(
-    CXDependencyScannerServiceOptions Opts, CXCASObjectStore CAS) {
-  unwrap(Opts)->CAS = cas::unwrap(CAS)->CAS;
-  unwrap(Opts)->CASOpts.CASPath = cas::unwrap(CAS)->CASPath;
-}
-void clang_experimental_DependencyScannerServiceOptions_setActionCache(
-    CXDependencyScannerServiceOptions Opts, CXCASActionCache Cache) {
-  unwrap(Opts)->Cache = cas::unwrap(Cache)->Cache;
-  unwrap(Opts)->CASOpts.CASPath = cas::unwrap(Cache)->CachePath;
-}
-
-CXDependencyScannerService
-clang_experimental_DependencyScannerService_create_v0(CXDependencyMode Format) {
-  // FIXME: Pass default CASOpts and nullptr as CachingOnDiskFileSystem now.
-  CASOptions CASOpts;
-  IntrusiveRefCntPtr<llvm::cas::CachingOnDiskFileSystem> FS;
-  return wrap(new DependencyScanningService(
-      ScanningMode::DependencyDirectivesScan, unwrap(Format), CASOpts,
-      /*CAS=*/nullptr, /*ActionCache=*/nullptr, FS));
-}
-
-ScanningOutputFormat DependencyScannerServiceOptions::getFormat() const {
-  if (ConfiguredFormat != ScanningOutputFormat::Full)
-    return ConfiguredFormat;
-
-  if (!CAS || !Cache)
-    return ConfiguredFormat;
-
-  if (llvm::sys::Process::GetEnv("CLANG_CACHE_USE_INCLUDE_TREE"))
-    return ScanningOutputFormat::FullIncludeTree;
-
-  if (llvm::sys::Process::GetEnv("CLANG_CACHE_USE_CASFS_DEPSCAN"))
-    return ScanningOutputFormat::FullTree;
-
-  // Use include-tree by default.
-  return ScanningOutputFormat::FullIncludeTree;
-}
-
-CXDependencyScannerService
-clang_experimental_DependencyScannerService_create_v1(
-    CXDependencyScannerServiceOptions Opts) {
-  // FIXME: Pass default CASOpts and nullptr as CachingOnDiskFileSystem now.
-  std::shared_ptr<llvm::cas::ObjectStore> CAS = unwrap(Opts)->CAS;
-  std::shared_ptr<llvm::cas::ActionCache> Cache = unwrap(Opts)->Cache;
-  IntrusiveRefCntPtr<llvm::cas::CachingOnDiskFileSystem> FS;
-  ScanningOutputFormat Format = unwrap(Opts)->getFormat();
-  bool IsCASFSOutput = Format == ScanningOutputFormat::Tree ||
-                       Format == ScanningOutputFormat::FullTree;
-  if (CAS && Cache && IsCASFSOutput) {
-    assert(unwrap(Opts)->CASOpts.getKind() != CASOptions::UnknownCAS &&
-           "CAS and ActionCache must match CASOptions");
-    FS = llvm::cantFail(
-        llvm::cas::createCachingOnDiskFileSystem(CAS));
-  }
-  return wrap(new DependencyScanningService(
-      ScanningMode::DependencyDirectivesScan, Format, unwrap(Opts)->CASOpts,
-      std::move(CAS), std::move(Cache), std::move(FS)));
-}
-
-void clang_experimental_DependencyScannerService_dispose_v0(
-    CXDependencyScannerService Service) {
-  delete unwrap(Service);
-}
-
-void clang_experimental_FileDependencies_dispose(CXFileDependencies *ID) {
-  clang_disposeString(ID->ContextHash);
-  clang_disposeStringSet(ID->FileDeps);
-  clang_disposeStringSet(ID->ModuleDeps);
-  clang_disposeStringSet(ID->BuildArguments);
-  delete ID;
-}
-
-void clang_experimental_FileDependenciesList_dispose(
-    CXFileDependenciesList *FD) {
-  for (size_t I = 0; I < FD->NumCommands; ++I) {
-    clang_disposeString(FD->Commands[I].ContextHash);
-    clang_disposeStringSet(FD->Commands[I].FileDeps);
-    clang_disposeStringSet(FD->Commands[I].ModuleDeps);
-    clang_disposeString(FD->Commands[I].Executable);
-    clang_disposeStringSet(FD->Commands[I].BuildArguments);
-  }
-  delete[] FD->Commands;
-  delete FD;
-}
-
-CXDependencyScannerWorker clang_experimental_DependencyScannerWorker_create_v0(
-    CXDependencyScannerService Service) {
-  ScanningOutputFormat Format = unwrap(Service)->getFormat();
-  bool IsIncludeTreeOutput = Format == ScanningOutputFormat::IncludeTree ||
-                             Format == ScanningOutputFormat::FullIncludeTree;
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
-      llvm::vfs::createPhysicalFileSystem();
-  if (IsIncludeTreeOutput)
-    FS = llvm::cas::createCASProvidingFileSystem(unwrap(Service)->getCAS(),
-                                                 std::move(FS));
-
-  return wrap(new DependencyScanningWorker(*unwrap(Service), FS));
-}
-
-void clang_experimental_DependencyScannerWorker_dispose_v0(
-    CXDependencyScannerWorker Worker) {
-  delete unwrap(Worker);
-}
-
-using HandleTUDepsCallback = llvm::function_ref<void(TranslationUnitDeps)>;
-
-static CXErrorCode getFullDependencies(DependencyScanningWorker *Worker,
-                                       ArrayRef<std::string> Compilation,
-                                       const char *WorkingDirectory,
-                                       CXModuleDiscoveredCallback *MDC,
-                                       void *Context, CXString *Error,
-                                       DiagnosticConsumer *DiagConsumer,
-                                       LookupModuleOutputCallback LookupOutput,
-                                       std::optional<StringRef> ModuleName,
-                                       HandleTUDepsCallback HandleTUDeps) {
-  llvm::DenseSet<ModuleID> AlreadySeen;
-  FullDependencyConsumer DepConsumer(AlreadySeen);
-  auto Controller = DependencyScanningTool::createActionController(
-      *Worker, std::move(LookupOutput));
-
-#ifndef NDEBUG
-  bool HasDiagConsumer = DiagConsumer;
-  bool HasError = Error;
-  assert(HasDiagConsumer ^ HasError && "Both DiagConsumer and Error provided");
-#endif
-
-  if (DiagConsumer) {
-    bool Result =
-        Worker->computeDependencies(WorkingDirectory, Compilation, DepConsumer,
-                                    *Controller, *DiagConsumer, ModuleName);
-    if (!Result)
-      return CXError_Failure;
-  } else if (Error) {
-    auto Result = Worker->computeDependencies(
-        WorkingDirectory, Compilation, DepConsumer, *Controller, ModuleName);
-    if (Result) {
-      *Error = cxstring::createDup(llvm::toString(std::move(Result)));
-      return CXError_Failure;
-    }
-  }
-
-  TranslationUnitDeps TU = DepConsumer.takeTranslationUnitDeps();
-
-  if (MDC && !TU.ModuleGraph.empty()) {
-    CXModuleDependencySet *MDS = new CXModuleDependencySet;
-    MDS->Count = TU.ModuleGraph.size();
-    MDS->Modules = new CXModuleDependency[MDS->Count];
-    for (int I = 0; I < MDS->Count; ++I) {
-      CXModuleDependency &M = MDS->Modules[I];
-      ModuleDeps &MD = TU.ModuleGraph[I];
-      M.Name = cxstring::createDup(MD.ID.ModuleName);
-      M.ContextHash = cxstring::createDup(MD.ID.ContextHash);
-      M.ModuleMapPath = cxstring::createDup(MD.ClangModuleMapFile);
-      M.FileDeps = cxstring::createSet(MD.FileDeps);
-      std::vector<std::string> Modules;
-      for (ModuleID &MID : MD.ClangModuleDeps)
-        Modules.push_back(MID.ModuleName + ":" + MID.ContextHash);
-      M.ModuleDeps = cxstring::createSet(Modules);
-      M.BuildArguments = cxstring::createSet(MD.getBuildArguments());
-    }
-    MDC(Context, MDS);
-  }
-
-  HandleTUDeps(std::move(TU));
-  return CXError_Success;
-}
-
-static CXErrorCode getFileDependencies(CXDependencyScannerWorker W, int argc,
-                                       const char *const *argv,
-                                       const char *WorkingDirectory,
-                                       CXModuleDiscoveredCallback *MDC,
-                                       void *Context, CXString *Error,
-                                       DiagnosticConsumer *DiagConsumer,
-                                       LookupModuleOutputCallback LookupOutput,
-                                       std::optional<StringRef> ModuleName,
-                                       HandleTUDepsCallback HandleTUDeps) {
-  if (!W || argc < 2 || !argv)
-    return CXError_InvalidArguments;
-
-  DependencyScanningWorker *Worker = unwrap(W);
-
-  if (Worker->getScanningFormat() != ScanningOutputFormat::Full &&
-      Worker->getScanningFormat() != ScanningOutputFormat::FullTree &&
-      Worker->getScanningFormat() != ScanningOutputFormat::FullIncludeTree)
-    return CXError_InvalidArguments;
-
-  std::vector<std::string> Compilation{argv, argv + argc};
-
-  return getFullDependencies(Worker, Compilation, WorkingDirectory, MDC,
-                             Context, Error, DiagConsumer, LookupOutput,
-                             ModuleName, HandleTUDeps);
-}
-
-namespace {
-class OutputLookup {
-public:
-  OutputLookup(void *MLOContext, CXModuleLookupOutputCallback *MLO)
-      : MLOContext(MLOContext), MLO(MLO) {}
-  std::string lookupModuleOutput(const ModuleID &ID, ModuleOutputKind MOK);
-
-private:
-  llvm::DenseMap<ModuleID, std::string> PCMPaths;
-  void *MLOContext;
-  CXModuleLookupOutputCallback *MLO;
-};
-} // end anonymous namespace
-
-CXFileDependencies *
-clang_experimental_DependencyScannerWorker_getFileDependencies_v3(
-    CXDependencyScannerWorker W, int argc, const char *const *argv,
-    const char *ModuleName, const char *WorkingDirectory, void *MDCContext,
-    CXModuleDiscoveredCallback *MDC, void *MLOContext,
-    CXModuleLookupOutputCallback *MLO, unsigned, CXString *Error) {
-  OutputLookup OL(MLOContext, MLO);
-  auto LookupOutputs = [&](const ModuleID &ID, ModuleOutputKind MOK) {
-    return OL.lookupModuleOutput(ID, MOK);
-  };
-  CXFileDependencies *FDeps = nullptr;
-  CXErrorCode Result = getFileDependencies(
-      W, argc, argv, WorkingDirectory, MDC, MDCContext, Error, nullptr,
-      LookupOutputs,
-      ModuleName ? std::optional<StringRef>(ModuleName) : std::nullopt,
-      [&](TranslationUnitDeps TU) {
-        assert(!TU.DriverCommandLine.empty());
-        std::vector<std::string> Modules;
-        for (const ModuleID &MID : TU.ClangModuleDeps)
-          Modules.push_back(MID.ModuleName + ":" + MID.ContextHash);
-        FDeps = new CXFileDependencies;
-        FDeps->ContextHash = cxstring::createDup(TU.ID.ContextHash);
-        FDeps->FileDeps = cxstring::createSet(TU.FileDeps);
-        FDeps->ModuleDeps = cxstring::createSet(Modules);
-        FDeps->BuildArguments = cxstring::createSet(TU.DriverCommandLine);
-      });
-  assert(Result != CXError_Success || FDeps);
-  (void)Result;
-  return FDeps;
-}
-
-CXErrorCode clang_experimental_DependencyScannerWorker_getFileDependencies_v4(
-    CXDependencyScannerWorker W, int argc, const char *const *argv,
-    const char *ModuleName, const char *WorkingDirectory, void *MDCContext,
-    CXModuleDiscoveredCallback *MDC, void *MLOContext,
-    CXModuleLookupOutputCallback *MLO, unsigned, CXFileDependenciesList **Out,
-    CXString *Error) {
-  OutputLookup OL(MLOContext, MLO);
-  auto LookupOutputs = [&](const ModuleID &ID, ModuleOutputKind MOK) {
-    return OL.lookupModuleOutput(ID, MOK);
-  };
-
-  if (!Out)
-    return CXError_InvalidArguments;
-  *Out = nullptr;
-
-  CXErrorCode Result = getFileDependencies(
-      W, argc, argv, WorkingDirectory, MDC, MDCContext, Error, nullptr,
-      LookupOutputs,
-      ModuleName ? std::optional<StringRef>(ModuleName) : std::nullopt,
-      [&](TranslationUnitDeps TU) {
-        assert(TU.DriverCommandLine.empty());
-        std::vector<std::string> Modules;
-        for (const ModuleID &MID : TU.ClangModuleDeps)
-          Modules.push_back(MID.ModuleName + ":" + MID.ContextHash);
-        auto *Commands = new CXTranslationUnitCommand[TU.Commands.size()];
-        for (size_t I = 0, E = TU.Commands.size(); I < E; ++I) {
-          Commands[I].ContextHash = cxstring::createDup(TU.ID.ContextHash);
-          Commands[I].FileDeps = cxstring::createSet(TU.FileDeps);
-          Commands[I].ModuleDeps = cxstring::createSet(Modules);
-          Commands[I].Executable =
-              cxstring::createDup(TU.Commands[I].Executable);
-          Commands[I].BuildArguments =
-              cxstring::createSet(TU.Commands[I].Arguments);
-        }
-        *Out = new CXFileDependenciesList{TU.Commands.size(), Commands};
-      });
-
-  return Result;
-}
-
-namespace {
-
-struct DependencyScannerWorkerScanSettings {
-  int argc;
-  const char *const *argv;
-  const char *ModuleName;
-  const char *WorkingDirectory;
-  void *MLOContext;
-  CXModuleLookupOutputCallback *MLO;
 };
 
 struct CStringsManager {
@@ -443,6 +85,175 @@ struct CStringsManager {
     return createCStringsRef(*OwnedStdStr.back());
   }
 };
+} // end anonymous namespace
+
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScannerServiceOptions,
+                                   CXDependencyScannerServiceOptions)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScanningService,
+                                   CXDependencyScannerService)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScanningWorker,
+                                   CXDependencyScannerWorker)
+
+inline ScanningOutputFormat unwrap(CXDependencyMode Format) {
+  switch (Format) {
+  case CXDependencyMode_Flat:
+    return ScanningOutputFormat::Make;
+  case CXDependencyMode_Full:
+    return ScanningOutputFormat::Full;
+  }
+}
+
+static CXOutputKind wrap(ModuleOutputKind MOK) {
+  switch (MOK) {
+  case ModuleOutputKind::ModuleFile:
+    return CXOutputKind_ModuleFile;
+  case ModuleOutputKind::DependencyFile:
+    return CXOutputKind_Dependencies;
+  case ModuleOutputKind::DependencyTargets:
+    return CXOutputKind_DependenciesTarget;
+  case ModuleOutputKind::DiagnosticSerializationFile:
+    return CXOutputKind_SerializedDiagnostics;
+  }
+  llvm::report_fatal_error("unhandled ModuleOutputKind");
+}
+
+CXDependencyScannerServiceOptions
+clang_experimental_DependencyScannerServiceOptions_create() {
+  return wrap(new DependencyScannerServiceOptions);
+}
+
+void clang_experimental_DependencyScannerServiceOptions_dispose(
+    CXDependencyScannerServiceOptions Opts) {
+  delete unwrap(Opts);
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setDependencyMode(
+    CXDependencyScannerServiceOptions Opts, CXDependencyMode Mode) {
+  unwrap(Opts)->ConfiguredFormat = unwrap(Mode);
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setCASDatabases(
+    CXDependencyScannerServiceOptions Opts, CXCASDatabases CDBs) {
+  cas::WrappedCASDatabases &DBs = *cas::unwrap(CDBs);
+  unwrap(Opts)->CASOpts = DBs.CASOpts;
+  unwrap(Opts)->CAS = DBs.CAS;
+  unwrap(Opts)->Cache = DBs.Cache;
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setCASOptions(
+    CXDependencyScannerServiceOptions Opts, CXCASOptions CASOpts) {
+  unwrap(Opts)->CASOpts = *cas::unwrap(CASOpts);
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setCWDOptimization(
+    CXDependencyScannerServiceOptions Opts, int Value) {
+  auto Mask =
+      Value != 0 ? ScanningOptimizations::All : ScanningOptimizations::None;
+  auto OptArgs = unwrap(Opts)->OptimizeArgs;
+  unwrap(Opts)->OptimizeArgs = (OptArgs & ~ScanningOptimizations::IgnoreCWD) |
+                               (ScanningOptimizations::IgnoreCWD & Mask);
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setObjectStore(
+    CXDependencyScannerServiceOptions Opts, CXCASObjectStore CAS) {
+  unwrap(Opts)->CAS = cas::unwrap(CAS)->CAS;
+  unwrap(Opts)->CASOpts.CASPath = cas::unwrap(CAS)->CASPath;
+}
+void clang_experimental_DependencyScannerServiceOptions_setActionCache(
+    CXDependencyScannerServiceOptions Opts, CXCASActionCache Cache) {
+  unwrap(Opts)->Cache = cas::unwrap(Cache)->Cache;
+  unwrap(Opts)->CASOpts.CASPath = cas::unwrap(Cache)->CachePath;
+}
+
+void clang_experimental_DependencyScannerServiceOptions_setCacheNegativeStats(
+    CXDependencyScannerServiceOptions Opts, bool CacheNegativeStats) {
+  unwrap(Opts)->CacheNegativeStats = CacheNegativeStats;
+}
+
+CXDependencyScannerService
+clang_experimental_DependencyScannerService_create_v0(CXDependencyMode Format) {
+  // FIXME: Pass default CASOpts now.
+  CASOptions CASOpts;
+  return wrap(new DependencyScanningService(
+      ScanningMode::DependencyDirectivesScan, unwrap(Format), CASOpts,
+      /*CAS=*/nullptr, /*ActionCache=*/nullptr));
+}
+
+ScanningOutputFormat DependencyScannerServiceOptions::getFormat() const {
+  if (ConfiguredFormat != ScanningOutputFormat::Full)
+    return ConfiguredFormat;
+
+  if (!CAS || !Cache)
+    return ConfiguredFormat;
+
+  return ScanningOutputFormat::FullIncludeTree;
+}
+
+CXDependencyScannerService
+clang_experimental_DependencyScannerService_create_v1(
+    CXDependencyScannerServiceOptions Opts) {
+  // FIXME: Pass default CASOpts now.
+  std::shared_ptr<llvm::cas::ObjectStore> CAS = unwrap(Opts)->CAS;
+  std::shared_ptr<llvm::cas::ActionCache> Cache = unwrap(Opts)->Cache;
+  return wrap(new DependencyScanningService(
+      ScanningMode::DependencyDirectivesScan, unwrap(Opts)->getFormat(), unwrap(Opts)->CASOpts,
+      std::move(CAS), std::move(Cache), unwrap(Opts)->OptimizeArgs, /*EagerLoadModules=*/false,
+      /*TraceVFS=*/false, llvm::sys::toTimeT(std::chrono::system_clock::now()),
+      unwrap(Opts)->CacheNegativeStats ? *unwrap(Opts)->CacheNegativeStats
+                                       : shouldCacheNegativeStatsDefault()));
+}
+
+void clang_experimental_DependencyScannerService_dispose_v0(
+    CXDependencyScannerService Service) {
+  delete unwrap(Service);
+}
+
+CXDependencyScannerWorker clang_experimental_DependencyScannerWorker_create_v0(
+    CXDependencyScannerService S) {
+  ScanningOutputFormat Format = unwrap(S)->getFormat();
+  bool IsIncludeTreeOutput = Format == ScanningOutputFormat::IncludeTree ||
+                             Format == ScanningOutputFormat::FullIncludeTree;
+  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
+      llvm::vfs::createPhysicalFileSystem();
+  if (IsIncludeTreeOutput)
+    FS = llvm::cas::createCASProvidingFileSystem(unwrap(S)->getCAS(),
+                                                 std::move(FS));
+
+  return wrap(new DependencyScanningWorker(*unwrap(S), FS));
+}
+
+void clang_experimental_DependencyScannerWorker_dispose_v0(
+    CXDependencyScannerWorker Worker) {
+  delete unwrap(Worker);
+}
+
+namespace {
+class OutputLookup {
+public:
+  OutputLookup(void *MLOContext, std::variant<CXModuleLookupOutputCallback *,
+                                              CXModuleLookupOutputCallback_v2 *>
+                                     MLO)
+      : MLOContext(MLOContext), MLO(MLO) {}
+  std::string lookupModuleOutput(const ModuleDeps &MD, ModuleOutputKind MOK);
+
+private:
+  llvm::DenseMap<ModuleID, std::string> PCMPaths;
+  void *MLOContext;
+  std::variant<CXModuleLookupOutputCallback *,
+               CXModuleLookupOutputCallback_v2 *>
+      MLO;
+};
+
+struct DependencyScannerWorkerScanSettings {
+  int argc;
+  const char *const *argv;
+  const char *ModuleName;
+  const char *WorkingDirectory;
+  void *MLOContext;
+  std::variant<CXModuleLookupOutputCallback *,
+               CXModuleLookupOutputCallback_v2 *>
+      MLO;
+};
 
 struct DependencyGraph {
   TranslationUnitDeps TUDeps;
@@ -461,7 +272,7 @@ struct DependencyGraph {
 };
 
 struct DependencyGraphModule {
-  ModuleDeps *ModDeps;
+  const ModuleDeps *ModDeps;
   CStringsManager StrMgr{};
 };
 
@@ -502,11 +313,13 @@ enum CXErrorCode clang_experimental_DependencyScannerWorker_getDepGraph(
   const char *ModuleName = Settings.ModuleName;
   const char *WorkingDirectory = Settings.WorkingDirectory;
   void *MLOContext = Settings.MLOContext;
-  CXModuleLookupOutputCallback *MLO = Settings.MLO;
+  std::variant<CXModuleLookupOutputCallback *,
+               CXModuleLookupOutputCallback_v2 *>
+      MLO = Settings.MLO;
 
   OutputLookup OL(MLOContext, MLO);
-  auto LookupOutputs = [&](const ModuleID &ID, ModuleOutputKind MOK) {
-    return OL.lookupModuleOutput(ID, MOK);
+  auto LookupOutputs = [&](const ModuleDeps &MD, ModuleOutputKind MOK) {
+    return OL.lookupModuleOutput(MD, MOK);
   };
 
   if (!Out)
@@ -514,24 +327,57 @@ enum CXErrorCode clang_experimental_DependencyScannerWorker_getDepGraph(
   *Out = nullptr;
 
   DependencyGraph *DepGraph = new DependencyGraph();
+  *Out = wrap(DepGraph);
 
   // We capture diagnostics as a serialized diagnostics buffer, so that we don't
   // need to keep a valid SourceManager in order to access diagnostic locations.
-  auto DiagOpts = llvm::makeIntrusiveRefCnt<DiagnosticOptions>();
+  DiagnosticOptions DiagOpts;
   auto DiagOS =
       std::make_unique<llvm::raw_svector_ostream>(DepGraph->SerialDiagBuf);
   std::unique_ptr<DiagnosticConsumer> SerialDiagConsumer =
-      serialized_diags::create("<diagnostics>", DiagOpts.get(),
+      serialized_diags::create("<diagnostics>", DiagOpts,
                                /*MergeChildRecords=*/false, std::move(DiagOS));
 
-  CXErrorCode Result = getFileDependencies(
-      W, argc, argv, WorkingDirectory, /*MDC=*/nullptr, /*MDCContext=*/nullptr,
-      /*Error=*/nullptr, SerialDiagConsumer.get(), LookupOutputs,
-      ModuleName ? std::optional<StringRef>(ModuleName) : std::nullopt,
-      [&](TranslationUnitDeps TU) { DepGraph->TUDeps = std::move(TU); });
+  if (!W || argc < 2 || !argv)
+    return CXError_InvalidArguments;
 
-  *Out = wrap(DepGraph);
-  return Result;
+  DependencyScanningWorker *Worker = unwrap(W);
+
+  if (Worker->getScanningFormat() != ScanningOutputFormat::Full &&
+      Worker->getScanningFormat() != ScanningOutputFormat::FullIncludeTree)
+    return CXError_InvalidArguments;
+
+  std::vector<std::string> Compilation{argv, argv + argc};
+
+  llvm::DenseSet<ModuleID> AlreadySeen;
+  FullDependencyConsumer DepConsumer(AlreadySeen);
+  auto Controller = DependencyScanningTool::createActionController(
+      *Worker, std::move(LookupOutputs));
+
+  bool Result = false;
+  if (ModuleName) {
+    Result = Worker->initializeCompilerInstanceWithContext(
+        WorkingDirectory, Compilation, SerialDiagConsumer.get());
+    if (!Result)
+      return CXError_Failure;
+    Result = Worker->computeDependenciesByNameWithContext(
+        StringRef(ModuleName), DepConsumer, *Controller);
+    if (!Result)
+      return CXError_Failure;
+    Result = Worker->finalizeCompilerInstance();
+    if (!Result)
+      return CXError_Failure;
+  } else {
+    Result =
+        Worker->computeDependencies(WorkingDirectory, Compilation, DepConsumer,
+                                    *Controller, *SerialDiagConsumer);
+  }
+
+  if (!Result)
+    return CXError_Failure;
+
+  DepGraph->TUDeps = DepConsumer.takeTranslationUnitDeps();
+  return CXError_Success;
 }
 
 void clang_experimental_DepGraph_dispose(CXDepGraph Graph) {
@@ -545,6 +391,12 @@ size_t clang_experimental_DepGraph_getNumModules(CXDepGraph Graph) {
 
 CXDepGraphModule clang_experimental_DepGraph_getModule(CXDepGraph Graph,
                                                        size_t Index) {
+  return clang_experimental_DepGraph_getModuleTopological(Graph, Index);
+}
+
+CXDepGraphModule
+clang_experimental_DepGraph_getModuleTopological(CXDepGraph Graph,
+                                                 size_t Index) {
   TranslationUnitDeps &TUDeps = unwrap(Graph)->TUDeps;
   return wrap(new DependencyGraphModule{&TUDeps.ModuleGraph[Index]});
 }
@@ -555,19 +407,19 @@ void clang_experimental_DepGraphModule_dispose(CXDepGraphModule CXDepMod) {
 
 const char *
 clang_experimental_DepGraphModule_getName(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   return ModDeps.ID.ModuleName.c_str();
 }
 
 const char *
 clang_experimental_DepGraphModule_getContextHash(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   return ModDeps.ID.ContextHash.c_str();
 }
 
 const char *
 clang_experimental_DepGraphModule_getModuleMapPath(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   if (ModDeps.ClangModuleMapFile.empty())
     return nullptr;
   return ModDeps.ClangModuleMapFile.c_str();
@@ -575,30 +427,42 @@ clang_experimental_DepGraphModule_getModuleMapPath(CXDepGraphModule CXDepMod) {
 
 CXCStringArray
 clang_experimental_DepGraphModule_getFileDeps(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
-  return unwrap(CXDepMod)->StrMgr.createCStringsRef(ModDeps.FileDeps);
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  std::vector<std::string> FileDeps;
+  ModDeps.forEachFileDep([&](StringRef File) { FileDeps.emplace_back(File); });
+  return unwrap(CXDepMod)->StrMgr.createCStringsOwned(std::move(FileDeps));
 }
 
 CXCStringArray
 clang_experimental_DepGraphModule_getModuleDeps(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   std::vector<std::string> Modules;
   Modules.reserve(ModDeps.ClangModuleDeps.size());
-  for (const ModuleID &MID : ModDeps.ClangModuleDeps)
+  for (const auto &MID : ModDeps.ClangModuleDeps)
     Modules.push_back(MID.ModuleName + ":" + MID.ContextHash);
   return unwrap(CXDepMod)->StrMgr.createCStringsOwned(std::move(Modules));
 }
 
+bool clang_experimental_DepGraphModule_isInStableDirs(
+    CXDepGraphModule CXDepMod) {
+  return unwrap(CXDepMod)->ModDeps->IsInStableDirectories;
+}
+
 CXCStringArray
 clang_experimental_DepGraphModule_getBuildArguments(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   return unwrap(CXDepMod)->StrMgr.createCStringsRef(
       ModDeps.getBuildArguments());
 }
 
+const char *clang_experimental_DepGraphModule_getFileSystemRootID(
+    CXDepGraphModule CXDepMod) {
+  return nullptr;
+}
+
 const char *
 clang_experimental_DepGraphModule_getIncludeTreeID(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   if (ModDeps.IncludeTreeID)
     return ModDeps.IncludeTreeID->c_str();
   return nullptr;
@@ -606,10 +470,14 @@ clang_experimental_DepGraphModule_getIncludeTreeID(CXDepGraphModule CXDepMod) {
 
 const char *
 clang_experimental_DepGraphModule_getCacheKey(CXDepGraphModule CXDepMod) {
-  ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
   if (ModDeps.ModuleCacheKey)
     return ModDeps.ModuleCacheKey->c_str();
   return nullptr;
+}
+
+int clang_experimental_DepGraphModule_isCWDIgnored(CXDepGraphModule CXDepMod) {
+  return unwrap(CXDepMod)->ModDeps->IgnoreCWD;
 }
 
 size_t clang_experimental_DepGraph_getNumTUCommands(CXDepGraph Graph) {
@@ -661,6 +529,11 @@ CXCStringArray clang_experimental_DepGraph_getTUModuleDeps(CXDepGraph Graph) {
   return unwrap(Graph)->StrMgr.createCStringsOwned(std::move(Modules));
 }
 
+const char *
+clang_experimental_DepGraph_getTUFileSystemRootID(CXDepGraph Graph) {
+  return nullptr;
+}
+
 const char *clang_experimental_DepGraph_getTUIncludeTreeID(CXDepGraph Graph) {
   TranslationUnitDeps &TUDeps = unwrap(Graph)->TUDeps;
   if (TUDeps.IncludeTreeID)
@@ -673,31 +546,518 @@ const char *clang_experimental_DepGraph_getTUContextHash(CXDepGraph Graph) {
   return TUDeps.ID.ContextHash.c_str();
 }
 
+void clang_experimental_DependencyScannerWorkerScanSettings_setModuleLookupCallback(
+    CXDependencyScannerWorkerScanSettings CXSettings,
+    CXModuleLookupOutputCallback_v2 *MLO) {
+  DependencyScannerWorkerScanSettings &Settings = *unwrap(CXSettings);
+  Settings.MLO = MLO;
+}
+
 CXDiagnosticSet clang_experimental_DepGraph_getDiagnostics(CXDepGraph Graph) {
   return unwrap(Graph)->getDiagnosticSet();
 }
 
-static std::string lookupModuleOutput(const ModuleID &ID, ModuleOutputKind MOK,
-                                      void *MLOContext,
-                                      CXModuleLookupOutputCallback *MLO) {
+static std::string
+lookupModuleOutput(const ModuleDeps &MD, ModuleOutputKind MOK, void *MLOContext,
+                   std::variant<CXModuleLookupOutputCallback *,
+                                CXModuleLookupOutputCallback_v2 *>
+                       MLO) {
   SmallVector<char, 256> Buffer(256);
-  size_t Len = MLO(MLOContext, ID.ModuleName.c_str(), ID.ContextHash.c_str(),
-                   wrap(MOK), Buffer.data(), Buffer.size());
+  auto GetLengthFromOutputCallback = [&]() {
+    return std::visit(llvm::makeVisitor(
+                          [&](CXModuleLookupOutputCallback *) -> size_t {
+                            return std::get<CXModuleLookupOutputCallback *>(
+                                MLO)(MLOContext, MD.ID.ModuleName.c_str(),
+                                     MD.ID.ContextHash.c_str(), wrap(MOK),
+                                     Buffer.data(), Buffer.size());
+                          },
+                          [&](CXModuleLookupOutputCallback_v2 *) -> size_t {
+                            return std::get<CXModuleLookupOutputCallback_v2 *>(
+                                MLO)(MLOContext,
+                                     wrap(new DependencyGraphModule{&MD}),
+                                     wrap(MOK), Buffer.data(), Buffer.size());
+                          }),
+                      MLO);
+  };
+
+  size_t Len = GetLengthFromOutputCallback();
   if (Len > Buffer.size()) {
     Buffer.resize(Len);
-    Len = MLO(MLOContext, ID.ModuleName.c_str(), ID.ContextHash.c_str(),
-              wrap(MOK), Buffer.data(), Buffer.size());
+    Len = GetLengthFromOutputCallback();
   }
+
   return std::string(Buffer.begin(), Len);
 }
 
-std::string OutputLookup::lookupModuleOutput(const ModuleID &ID,
+std::string OutputLookup::lookupModuleOutput(const ModuleDeps &MD,
                                              ModuleOutputKind MOK) {
   if (MOK != ModuleOutputKind::ModuleFile)
-    return ::lookupModuleOutput(ID, MOK, MLOContext, MLO);
+    return ::lookupModuleOutput(MD, MOK, MLOContext, MLO);
   // PCM paths are looked up repeatedly, so cache them.
-  auto PCMPath = PCMPaths.insert({ID, ""});
+  auto PCMPath = PCMPaths.insert({MD.ID, ""});
   if (PCMPath.second)
-    PCMPath.first->second = ::lookupModuleOutput(ID, MOK, MLOContext, MLO);
+    PCMPath.first->second = ::lookupModuleOutput(MD, MOK, MLOContext, MLO);
   return PCMPath.first->second;
+}
+
+namespace {
+typedef std::vector<DependencyScanningFilesystemSharedCache::OutOfDateEntry>
+    DependencyScannerFSOutOfDateEntrySet;
+
+typedef DependencyScanningFilesystemSharedCache::OutOfDateEntry
+    DependencyScannerFSOutOfDateEntry;
+} // namespace
+
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScannerFSOutOfDateEntrySet,
+                                   CXDepScanFSOutOfDateEntrySet)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScannerFSOutOfDateEntry,
+                                   CXDepScanFSOutOfDateEntry)
+
+CXDepScanFSOutOfDateEntrySet
+clang_experimental_DependencyScannerService_getFSCacheOutOfDateEntrySet(
+    CXDependencyScannerService S) {
+  DependencyScanningService &Service = *unwrap(S);
+
+  // Note that it is critical that this FS is the same as the default virtual
+  // file system we pass to the DependencyScanningWorkers.
+  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
+      llvm::vfs::createPhysicalFileSystem();
+
+  DependencyScannerFSOutOfDateEntrySet *OODEntrySet =
+      new DependencyScannerFSOutOfDateEntrySet();
+  *OODEntrySet = Service.getSharedCache().getOutOfDateEntries(*FS);
+
+  return wrap(OODEntrySet);
+}
+
+size_t clang_experimental_DepScanFSCacheOutOfDateEntrySet_getNumOfEntries(
+    CXDepScanFSOutOfDateEntrySet Entries) {
+  return unwrap(Entries)->size();
+}
+
+CXDepScanFSOutOfDateEntry
+clang_experimental_DepScanFSCacheOutOfDateEntrySet_getEntry(
+    CXDepScanFSOutOfDateEntrySet Entries, size_t Idx) {
+  DependencyScannerFSOutOfDateEntrySet *EntSet = unwrap(Entries);
+  return wrap(&(*EntSet)[Idx]);
+}
+
+CXDepScanFSCacheOutOfDateKind
+clang_experimental_DepScanFSCacheOutOfDateEntry_getKind(
+    CXDepScanFSOutOfDateEntry Entry) {
+  DependencyScannerFSOutOfDateEntry *E = unwrap(Entry);
+  auto &Info = E->Info;
+  return std::visit(
+      llvm::makeVisitor(
+          [](const DependencyScannerFSOutOfDateEntry::NegativelyCachedInfo
+                 &Info) { return NegativelyCached; },
+          [](const DependencyScannerFSOutOfDateEntry::SizeChangedInfo &Info) {
+            return SizeChanged;
+          }),
+      Info);
+}
+
+CXString clang_experimental_DepScanFSCacheOutOfDateEntry_getPath(
+    CXDepScanFSOutOfDateEntry Entry) {
+  return cxstring::createRef(unwrap(Entry)->Path);
+}
+
+static DependencyScannerFSOutOfDateEntry::SizeChangedInfo *
+getOutOfDateEntrySizeChangedInfo(DependencyScannerFSOutOfDateEntry *E) {
+  auto *SizeInfo =
+      std::get_if<DependencyScannerFSOutOfDateEntry::SizeChangedInfo>(&E->Info);
+  assert(SizeInfo && "Wrong entry kind to get size changed info!");
+  return SizeInfo;
+}
+
+uint64_t clang_experimental_DepScanFSCacheOutOfDateEntry_getCachedSize(
+    CXDepScanFSOutOfDateEntry Entry) {
+  DependencyScannerFSOutOfDateEntry *E = unwrap(Entry);
+  return getOutOfDateEntrySizeChangedInfo(E)->CachedSize;
+}
+
+uint64_t clang_experimental_DepScanFSCacheOutOfDateEntry_getActualSize(
+    CXDepScanFSOutOfDateEntry Entry) {
+  DependencyScannerFSOutOfDateEntry *E = unwrap(Entry);
+  return getOutOfDateEntrySizeChangedInfo(E)->ActualSize;
+}
+
+void clang_experimental_DepScanFSCacheOutOfDateEntrySet_disposeSet(
+    CXDepScanFSOutOfDateEntrySet Entries) {
+  delete unwrap(Entries);
+}
+
+namespace {
+struct DependencyScannerReproducerOptions {
+  std::vector<std::string> BuildArgs;
+  std::optional<std::string> ModuleName;
+  std::optional<std::string> WorkingDirectory;
+  std::optional<std::string> ReproducerLocation;
+  bool UseUniqueReproducerName;
+  CASOptions CASOpts;
+  std::shared_ptr<cas::ObjectStore> CAS;
+  std::shared_ptr<cas::ActionCache> Cache;
+
+  DependencyScannerReproducerOptions(int argc, const char *const *argv,
+                                     const char *ModuleName,
+                                     const char *WorkingDirectory,
+                                     const char *ReproducerLocation,
+                                     bool UseUniqueReproducerName)
+      : UseUniqueReproducerName(UseUniqueReproducerName) {
+    if (argv)
+      BuildArgs.assign(argv, argv + argc);
+    if (ModuleName)
+      this->ModuleName = ModuleName;
+    if (WorkingDirectory)
+      this->WorkingDirectory = WorkingDirectory;
+    if (ReproducerLocation)
+      this->ReproducerLocation = ReproducerLocation;
+  }
+};
+
+// Helper class to capture a returnable error code and to return a formatted
+// message in a provided CXString pointer.
+class MessageEmitter {
+  const CXErrorCode ErrorCode;
+  CXString *OutputString;
+  std::string Buffer;
+  llvm::raw_string_ostream Stream;
+
+public:
+  MessageEmitter(CXErrorCode Code, CXString *Output)
+      : ErrorCode(Code), OutputString(Output), Stream(Buffer) {}
+  ~MessageEmitter() {
+    if (OutputString)
+      *OutputString = clang::cxstring::createDup(Buffer.c_str());
+  }
+
+  operator CXErrorCode() const { return ErrorCode; }
+
+  template <typename T> MessageEmitter &operator<<(const T &t) {
+    Stream << t;
+    return *this;
+  }
+};
+} // end anonymous namespace
+
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScannerReproducerOptions,
+                                   CXDependencyScannerReproducerOptions)
+
+CXDependencyScannerReproducerOptions
+clang_experimental_DependencyScannerReproducerOptions_create(
+    int argc, const char *const *argv, const char *ModuleName,
+    const char *WorkingDirectory, const char *ReproducerLocation,
+    bool UseUniqueReproducerName) {
+  return wrap(new DependencyScannerReproducerOptions{
+      argc, argv, ModuleName, WorkingDirectory, ReproducerLocation,
+      UseUniqueReproducerName});
+}
+
+void clang_experimental_DependencyScannerReproducerOptions_setCASOptions(
+    CXDependencyScannerReproducerOptions CXOptions, CXCASDatabases CDBs,
+    CXCASOptions CASOpts) {
+  DependencyScannerReproducerOptions &Opts = *unwrap(CXOptions);
+  if (CDBs) {
+    cas::WrappedCASDatabases &DBs = *cas::unwrap(CDBs);
+    Opts.CASOpts = DBs.CASOpts;
+    Opts.CAS = DBs.CAS;
+    Opts.Cache = DBs.Cache;
+  }
+  if (CASOpts)
+    Opts.CASOpts = *cas::unwrap(CASOpts);
+}
+
+void clang_experimental_DependencyScannerReproducerOptions_dispose(
+    CXDependencyScannerReproducerOptions Options) {
+  delete unwrap(Options);
+}
+
+enum CXErrorCode clang_experimental_DependencyScanner_generateReproducer(
+    CXDependencyScannerReproducerOptions CXOptions, CXString *MessageOut) {
+  using namespace clang::driver;
+  auto Report = [MessageOut](CXErrorCode ErrorCode) -> MessageEmitter {
+    return MessageEmitter(ErrorCode, MessageOut);
+  };
+  auto ReportFailure = [&Report]() -> MessageEmitter {
+    return Report(CXError_Failure);
+  };
+
+  DependencyScannerReproducerOptions &Opts = *unwrap(CXOptions);
+  if (Opts.BuildArgs.size() < 2)
+    return Report(CXError_InvalidArguments) << "missing compilation command";
+  if (!Opts.WorkingDirectory)
+    return Report(CXError_InvalidArguments) << "missing working directory";
+  if (!Opts.UseUniqueReproducerName && !Opts.ReproducerLocation)
+    return Report(CXError_InvalidArguments)
+           << "non-unique reproducer is allowed only in a custom location";
+
+  std::shared_ptr<llvm::cas::ObjectStore> UpstreamCAS = Opts.CAS;
+  bool IsReproducerCASBased{UpstreamCAS};
+  DependencyScanningService DepsService(
+      ScanningMode::DependencyDirectivesScan,
+      IsReproducerCASBased ? ScanningOutputFormat::FullIncludeTree
+                           : ScanningOutputFormat::Full,
+      Opts.CASOpts, UpstreamCAS, Opts.Cache);
+  IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
+      llvm::vfs::createPhysicalFileSystem();
+  if (UpstreamCAS)
+    FS = llvm::cas::createCASProvidingFileSystem(UpstreamCAS, std::move(FS));
+  DependencyScanningTool DepsTool(DepsService, FS);
+
+  llvm::SmallString<128> ReproScriptPath;
+  int ScriptFD;
+  if (Opts.ReproducerLocation) {
+    if (auto EC = llvm::sys::fs::create_directories(*Opts.ReproducerLocation))
+      return ReportFailure() << "failed to create a reproducer location '"
+                             << *Opts.ReproducerLocation << "'\n"
+                             << EC.message();
+    SmallString<128> Path(*Opts.ReproducerLocation);
+    llvm::sys::path::append(Path, "reproducer");
+    if (Opts.UseUniqueReproducerName) {
+      if (auto EC = llvm::sys::fs::createUniqueFile(Path + "-%%%%%%.sh",
+                                                    ScriptFD, ReproScriptPath))
+        return ReportFailure() << "failed to create a reproducer script file\n"
+                              << EC.message();
+    } else {
+      llvm::sys::path::replace_extension(Path, "sh");
+      if (auto EC = llvm::sys::fs::openFileForReadWrite(Path, ScriptFD,
+                                         llvm::sys::fs::CD_OpenAlways, llvm::sys::fs::OF_None)) {
+        return ReportFailure() << "failed to create a reproducer script file\n"
+                               << EC.message();
+      }
+      ReproScriptPath = Path;
+    }
+  } else {
+    if (auto EC = llvm::sys::fs::createTemporaryFile(
+            "reproducer", "sh", ScriptFD, ReproScriptPath)) {
+      return ReportFailure() << "failed to create a reproducer script file\n"
+                             << EC.message();
+    }
+  }
+  SmallString<128> FileCachePath = ReproScriptPath;
+  llvm::sys::path::replace_extension(FileCachePath, ".cache");
+
+  std::string FileCacheName = llvm::sys::path::filename(FileCachePath).str();
+  auto LookupOutput = [&FileCacheName](const ModuleDeps &MD,
+                                       ModuleOutputKind MOK) -> std::string {
+    if (MOK == ModuleOutputKind::DependencyTargets)
+      return "reproducerdependencytargets";
+    std::string CommonPrefix = FileCacheName + "/explicitly-built-modules/" +
+                               MD.ID.ModuleName + "-" + MD.ID.ContextHash;
+    switch (MOK) {
+    case ModuleOutputKind::ModuleFile:
+      return CommonPrefix + ".pcm";
+    case ModuleOutputKind::DependencyFile:
+      return CommonPrefix + ".d";
+    case ModuleOutputKind::DiagnosticSerializationFile:
+      return CommonPrefix + ".dia";
+    default:
+      return "";
+    }
+  };
+
+  llvm::DenseSet<ModuleID> AlreadySeen;
+  auto TUDepsOrErr = DepsTool.getTranslationUnitDependencies(
+      Opts.BuildArgs, *Opts.WorkingDirectory, AlreadySeen,
+      std::move(LookupOutput));
+  if (!TUDepsOrErr)
+    return ReportFailure() << "failed to generate a reproducer\n"
+                           << toString(TUDepsOrErr.takeError());
+
+  TranslationUnitDeps TU = *TUDepsOrErr;
+  llvm::raw_fd_ostream ScriptOS(ScriptFD, /*shouldClose=*/true);
+  ScriptOS << "# Original command:\n#";
+  for (StringRef Arg : Opts.BuildArgs)
+    ScriptOS << ' ' << Arg;
+  ScriptOS << "\n\n";
+
+  const llvm::opt::OptTable &ClangOpts = getDriverOptTable();
+
+  ScriptOS << "# Dependencies:\n";
+  // Output the executable as an environment variable with a default value, so
+  // it is easier to run the reproducer with a different compiler and to
+  // simplify running an individual command manually.
+  std::string ReproExecutable = "\"${CLANG:-" + Opts.BuildArgs.front() + "}\"";
+  auto PrintArguments = [IsReproducerCASBased, &ReproExecutable, &FileCacheName,
+                         &ClangOpts](llvm::raw_fd_ostream &OS,
+                                     ArrayRef<std::string> Arguments,
+                                     bool RedirectOutput) {
+    std::vector<const char *> CharArgs(Arguments.size());
+    for (const std::string &Arg : Arguments)
+      CharArgs.push_back(Arg.c_str());
+    unsigned MissingArgIndex, MissingArgCount;
+    llvm::opt::InputArgList ParsedArgs =
+        ClangOpts.ParseArgs(CharArgs, MissingArgIndex, MissingArgCount,
+                            llvm::opt::Visibility(options::CC1Option));
+
+    // CAS-based reproducer doesn't use VFS overlays.
+    bool DidAddVFSOverlay = IsReproducerCASBased;
+    OS << ReproExecutable;
+    for (const llvm::opt::Arg *Arg : ParsedArgs) {
+      const llvm::opt::Option &Opt = Arg->getOption();
+      if (Opt.matches(options::OPT_ivfsoverlay)) {
+        if (!DidAddVFSOverlay) {
+          OS << " -ivfsoverlay \"" << FileCacheName << "/vfs/vfs.yaml\"";
+          DidAddVFSOverlay = true;
+        }
+      }
+      if (Opt.matches(options::OPT_fcas_path)) {
+        OS << " -fcas-path \"" << FileCacheName << "/cas\"";
+        continue;
+      }
+      bool IsOutputArg = Opt.matches(options::OPT_o) ||
+                         Opt.matches(options::OPT_dependency_file);
+      llvm::opt::ArgStringList OutArgs;
+      Arg->render(ParsedArgs, OutArgs);
+      bool IsArgValue = false;
+      for (const auto &OutArg : OutArgs) {
+        OS << ' ';
+        if (RedirectOutput && IsOutputArg && IsArgValue) {
+          StringRef OutputFileName = llvm::sys::path::filename(OutArg);
+          OS << " \"" << FileCacheName << '/' << OutputFileName << '"';
+        } else {
+          llvm::sys::printArg(OS, OutArg, /*Quote=*/true);
+        }
+        IsArgValue = true;
+      }
+    }
+    if (!DidAddVFSOverlay) {
+      OS << " -ivfsoverlay \"" << FileCacheName << "/vfs/vfs.yaml\"";
+      DidAddVFSOverlay = true;
+    }
+    OS << '\n';
+  };
+  // Redirect the output to keep reproducers relocatable. But don't redirect
+  // modules as they are already in the appropriate place (see `LookupOutput`).
+  for (ModuleDeps &Dep : TU.ModuleGraph)
+    PrintArguments(ScriptOS, Dep.getBuildArguments(), /*RedirectOutput=*/false);
+  ScriptOS << "\n# Translation unit:\n";
+  for (const Command &BuildCommand : TU.Commands)
+    PrintArguments(ScriptOS, BuildCommand.Arguments, /*RedirectOutput=*/true);
+
+  auto RealFS = llvm::vfs::getRealFileSystem();
+  RealFS->setCurrentWorkingDirectory(*Opts.WorkingDirectory);
+
+  if (IsReproducerCASBased) {
+    SmallString<128> CASPath = FileCachePath;
+    llvm::sys::path::append(CASPath, "cas");
+    clang::CASOptions ReproducerCASOpts;
+    ReproducerCASOpts.CASPath = CASPath.str();
+    ReproducerCASOpts.PluginPath = Opts.CASOpts.PluginPath;
+    ReproducerCASOpts.PluginOptions = Opts.CASOpts.PluginOptions;
+    auto DBsOrErr = ReproducerCASOpts.CASConfiguration::createDatabases();
+    if (!DBsOrErr)
+      return ReportFailure() << "failed to create a CAS database\n"
+                             << toString(DBsOrErr.takeError());
+    std::shared_ptr<llvm::cas::ObjectStore> ReproCAS = DBsOrErr->first;
+
+    auto transplantCASIncludeTree =
+        [UpstreamCAS, ReproCAS](
+            const std::optional<std::string> &IncludeTreeID) -> llvm::Error {
+      if (!IncludeTreeID.has_value())
+        // Missing `IncludeTreeID` likely indicates a problem but ignore it, so
+        // can capture enough data to reproduce it later.
+        return llvm::Error::success();
+      auto IDOrErr = UpstreamCAS->parseID(*IncludeTreeID);
+      if (!IDOrErr)
+        return llvm::make_error<llvm::StringError>(
+            "failure to parse include tree id '" + *IncludeTreeID +
+                "':" + toString(IDOrErr.takeError()),
+            llvm::inconvertibleErrorCode());
+      std::optional<cas::ObjectRef> UpstreamRef =
+          UpstreamCAS->getReference(*IDOrErr);
+      if (!UpstreamRef.has_value())
+        return llvm::make_error<llvm::StringError>(
+            "missing include tree with ID '" + *IncludeTreeID +
+                "' in the provided CAS object storage",
+            llvm::inconvertibleErrorCode());
+      auto ReproRefOrErr = ReproCAS->importObject(*UpstreamCAS, *UpstreamRef);
+      if (!ReproRefOrErr)
+        return llvm::make_error<llvm::StringError>(
+            "failure to import an include tree with id '" + *IncludeTreeID +
+                "':" + toString(ReproRefOrErr.takeError()),
+            llvm::inconvertibleErrorCode());
+      return llvm::Error::success();
+    };
+
+    if (auto Err = transplantCASIncludeTree(TU.IncludeTreeID))
+      return ReportFailure()
+             << "failed to transplant a translation unit include tree due to "
+             << toString(std::move(Err));
+    for (const ModuleDeps &ModuleDep : TU.ModuleGraph) {
+      if (auto Err = transplantCASIncludeTree(ModuleDep.IncludeTreeID))
+        return ReportFailure()
+               << "failed to transplant a module '" + ModuleDep.ID.ModuleName +
+                      "' include tree due to "
+               << toString(std::move(Err));
+    }
+  } else {
+    SmallString<128> VFSCachePath = FileCachePath;
+    llvm::sys::path::append(VFSCachePath, "vfs");
+    std::string VFSCachePathStr = VFSCachePath.str().str();
+    llvm::FileCollector FileCollector(VFSCachePathStr,
+                                      /*OverlayRoot=*/VFSCachePathStr, RealFS);
+    for (const auto &FileDep : TU.FileDeps) {
+      FileCollector.addFile(FileDep);
+    }
+    for (ModuleDeps &ModuleDep : TU.ModuleGraph) {
+      ModuleDep.forEachFileDep([&FileCollector](StringRef FileDep) {
+        FileCollector.addFile(FileDep);
+      });
+    }
+    if (FileCollector.copyFiles(/*StopOnError=*/true))
+      return ReportFailure()
+             << "failed to copy the files used for the compilation";
+    SmallString<128> VFSOverlayPath = VFSCachePath;
+    llvm::sys::path::append(VFSOverlayPath, "vfs.yaml");
+    if (FileCollector.writeMapping(VFSOverlayPath))
+      return ReportFailure() << "failed to write a VFS overlay mapping";
+  }
+
+  return Report(CXError_Success)
+         << "Created a reproducer. Sources and associated run script(s) are "
+            "located at:\n  "
+         << FileCachePath << "\n  " << ReproScriptPath;
+}
+
+namespace {
+typedef llvm::SmallVectorImpl<clang::Module::LinkLibrary>
+    DepGraphModuleLinkLibrarySet;
+typedef clang::Module::LinkLibrary DepGraphModuleLinkLibrary;
+} // namespace
+
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DepGraphModuleLinkLibrarySet,
+                                   CXDepGraphModuleLinkLibrarySet)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DepGraphModuleLinkLibrary,
+                                   CXDepGraphModuleLinkLibrary)
+
+CXDepGraphModuleLinkLibrarySet
+clang_experimental_DepGraphModule_getLinkLibrarySet(CXDepGraphModule CXDepMod) {
+  const ModuleDeps &ModDeps = *unwrap(CXDepMod)->ModDeps;
+  return wrap(&ModDeps.LinkLibraries);
+}
+
+size_t clang_experimental_DepGraphModuleLinkLibrarySet_getSize(
+    CXDepGraphModuleLinkLibrarySet S) {
+  const DepGraphModuleLinkLibrarySet *LinkLibraries = unwrap(S);
+  return LinkLibraries->size();
+}
+
+CXDepGraphModuleLinkLibrary
+clang_experimental_DepGraphModuleLinkLibrarySet_getLinkLibrary(
+    CXDepGraphModuleLinkLibrarySet S, size_t Idx) {
+  const DepGraphModuleLinkLibrarySet *LinkLibraries = unwrap(S);
+  return wrap(&(*LinkLibraries)[Idx]);
+}
+
+CXString clang_experimental_DepGraphModuleLinkLibrary_getLibrary(
+    CXDepGraphModuleLinkLibrary L) {
+  const DepGraphModuleLinkLibrary *Lib = unwrap(L);
+  return cxstring::createRef(Lib->Library.c_str());
+}
+
+bool clang_experimental_DepGraphModuleLinkLibrary_isFramework(
+    CXDepGraphModuleLinkLibrary L) {
+  const DepGraphModuleLinkLibrary *Lib = unwrap(L);
+  return Lib->IsFramework;
 }

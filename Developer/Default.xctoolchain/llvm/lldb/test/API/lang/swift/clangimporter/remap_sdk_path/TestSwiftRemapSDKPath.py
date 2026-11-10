@@ -3,7 +3,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 class TestSwiftRewriteClangPaths(TestBase):
     @skipUnlessDarwin
@@ -19,5 +18,5 @@ class TestSwiftRewriteClangPaths(TestBase):
         self.expect("expression 1", substrs=["1"])
 
         # Scan through the types log.
-        self.filecheck('platform shell cat "%s"' % log, __file__)
-#       CHECK:  SwiftASTContextForExpressions::RemapClangImporterOptions() -- remapped{{.*}}/LocalSDK/
+        self.filecheck_log(log, __file__)
+#       CHECK:  SwiftASTContextForExpressions(module: "a", cu: "main.swift")::RemapClangImporterOptions() -- remapped{{.*}}/LocalSDK/

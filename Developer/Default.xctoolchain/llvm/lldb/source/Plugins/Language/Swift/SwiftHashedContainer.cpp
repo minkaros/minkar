@@ -16,10 +16,10 @@
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "Plugins/TypeSystem/Swift/TypeSystemSwift.h"
-#include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/ValueObject/ValueObjectConstResult.h"
 
 #include "Plugins/Language/ObjC/NSDictionary.h"
 #include "lldb/lldb-enumerations.h"
@@ -46,7 +46,7 @@ public:
 
   virtual CompilerType GetElementType() override { return m_elem_type; }
 
-  virtual ValueObjectSP GetElementAtIndex(size_t) override {
+  virtual ValueObjectSP GetElementAtIndex(size_t, ValueObject *parent) override {
     return ValueObjectSP();
   }
 
@@ -69,9 +69,13 @@ public:
   virtual CompilerType GetElementType() override { return m_element_type; }
 
 
-  virtual ValueObjectSP GetElementAtIndex(size_t) override;
+  virtual ValueObjectSP GetElementAtIndex(size_t, ValueObject *parent) override;
 
   virtual bool IsValid() override;
+
+  bool IsEmptyEmbeddedCollection() {
+    return m_is_embedded_swift && m_count == 0;
+  }
 
   virtual ~NativeHashedStorageHandler() override {}
 
@@ -128,21 +132,22 @@ protected:
   }
 
 private:
-  ValueObject *m_storage;
-  Process *m_process;
-  uint32_t m_ptr_size;
-  uint64_t m_count;
-  uint64_t m_scale;
-  lldb::addr_t m_metadata_ptr;
-  lldb::addr_t m_keys_ptr;
-  lldb::addr_t m_values_ptr;
+  ValueObject *m_storage = nullptr;
+  Process *m_process = nullptr;
+  uint32_t m_ptr_size = 0;
+  uint64_t m_count = 0;
+  uint64_t m_scale = 0;
+  lldb::addr_t m_metadata_ptr = LLDB_INVALID_ADDRESS;
+  lldb::addr_t m_keys_ptr = LLDB_INVALID_ADDRESS;
+  lldb::addr_t m_values_ptr = LLDB_INVALID_ADDRESS;
   CompilerType m_element_type;
-  uint64_t m_key_stride;
-  uint64_t m_value_stride;
-  uint64_t m_key_stride_padded;
+  uint64_t m_key_stride = 0;
+  uint64_t m_value_stride = 0;
+  uint64_t m_key_stride_padded = 0;
+  bool m_is_embedded_swift = false;
   // Cached mapping from index to occupied bucket.
   std::vector<Bucket> m_occupiedBuckets;
-  bool m_failedToGetBuckets;
+  bool m_failedToGetBuckets = false;
 };
 
 class CocoaHashedStorageHandler: public HashedStorageHandler {
@@ -153,6 +158,8 @@ public:
     : m_cocoaObject_sp(cocoaObject_sp), m_frontend(frontend) {}
 
   virtual size_t GetCount() override {
+    if (!m_frontend)
+      return 0;
     return m_frontend->CalculateNumChildrenIgnoringErrors();
   }
 
@@ -161,7 +168,9 @@ public:
     return CompilerType();
   }
 
-  virtual ValueObjectSP GetElementAtIndex(size_t idx) override {
+  virtual ValueObjectSP GetElementAtIndex(size_t idx, ValueObject *parent) override {
+    if (!m_frontend)
+      return {};
     return m_frontend->GetChildAtIndex(idx);
   }
 
@@ -191,28 +200,31 @@ HashedCollectionConfig::RegisterSummaryProviders(
 
   auto summaryProvider = GetSummaryProvider();
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_collection_demangledRegex, flags, true);
 
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_nativeStorage_demangledRegex, flags, true);
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_emptyStorage_demangled, flags, false);
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
+                m_nativeStorageRoot_demangled, flags, false);
+  AddCXXSummary(swift_category_sp, summaryProvider,
+                m_summaryProviderName.AsCString(nullptr),
                 m_deferredBridgedStorage_demangledRegex, flags, true);
 
   flags.SetSkipPointers(false);
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_nativeStorage_mangledRegex_ObjC, flags, true);
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_emptyStorage_mangled_ObjC, flags, false);
   AddCXXSummary(swift_category_sp, summaryProvider,
-                m_summaryProviderName.AsCString(),
+                m_summaryProviderName.AsCString(nullptr),
                 m_deferredBridgedStorage_mangledRegex_ObjC, flags, true);
 }
 
@@ -225,28 +237,31 @@ HashedCollectionConfig::RegisterSyntheticChildrenCreators(
 
   auto creator = GetSyntheticChildrenCreator();
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_collection_demangledRegex, flags, true);
 
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_nativeStorage_demangledRegex, flags, true);
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
+                  m_nativeStorageRoot_demangled, flags, false);
+  AddCXXSynthetic(swift_category_sp, creator,
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_emptyStorage_demangled, flags, false);
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_deferredBridgedStorage_demangledRegex, flags, true);
 
   flags.SetSkipPointers(false);
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_nativeStorage_mangledRegex_ObjC, flags, true);
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_emptyStorage_mangled_ObjC, flags, false);
   AddCXXSynthetic(swift_category_sp, creator,
-                  m_syntheticChildrenName.AsCString(),
+                  m_syntheticChildrenName.AsCString(nullptr),
                   m_deferredBridgedStorage_mangledRegex_ObjC, flags, true);
 }
 
@@ -254,7 +269,7 @@ bool
 HashedCollectionConfig::IsNativeStorageName(ConstString name) const {
   assert(m_nativeStorage_demangledPrefix);
   auto n = name.GetStringRef();
-  return n.startswith(m_nativeStorage_demangledPrefix.GetStringRef());
+  return n.starts_with(m_nativeStorage_demangledPrefix.GetStringRef());
 }
 
 bool
@@ -267,7 +282,7 @@ bool
 HashedCollectionConfig::IsDeferredBridgedStorageName(ConstString name) const {
   assert(m_deferredBridgedStorage_demangledPrefix);
   auto n = name.GetStringRef();
-  return n.startswith(m_deferredBridgedStorage_demangledPrefix.GetStringRef());
+  return n.starts_with(m_deferredBridgedStorage_demangledPrefix.GetStringRef());
 }
 
 HashedStorageHandlerUP
@@ -275,10 +290,9 @@ HashedCollectionConfig::CreateEmptyHandler(CompilerType elem_type) const {
   return HashedStorageHandlerUP(new EmptyHashedStorageHandler(elem_type));
 }
 
-ValueObjectSP
-HashedCollectionConfig::StorageObjectAtAddress(
-    const ExecutionContext &exe_ctx,
-    lldb::addr_t address) const {
+ValueObjectSP HashedCollectionConfig::StorageObjectAtAddress(
+    const ExecutionContext &exe_ctx, lldb::addr_t address,
+    ::swift::Mangle::ManglingFlavor flavor) const {
 
   if (address == LLDB_INVALID_ADDRESS)
     return nullptr;
@@ -291,17 +305,18 @@ HashedCollectionConfig::StorageObjectAtAddress(
   // same address.
   Status error;
   ExecutionContextScope *exe_scope = exe_ctx.GetBestExecutionContextScope();
-  std::optional<SwiftScratchContextReader> reader =
-    process_sp->GetTarget().GetSwiftScratchContext(error, *exe_scope);
-  if (!reader)
+
+  auto scratch_ctx = TypeSystemSwiftTypeRefForExpressions::GetForTarget(
+      process_sp->GetTarget());
+  if (!scratch_ctx)
     return nullptr;
   if (error.Fail())
     return nullptr;
-  auto scratch_ctx = reader->get();
-  if (!scratch_ctx)
-    return nullptr;
+  // Add the right mangling flavor on the type's mangled name.
+  std::string mangled_name = SwiftLanguageRuntime::MakeMangledName(
+      m_nativeStorageRoot_mangledSuffix.GetStringRef(), flavor);
   CompilerType rawStorage_type =
-      scratch_ctx->GetTypeFromMangledTypename(m_nativeStorageRoot_mangled);
+      scratch_ctx->GetTypeFromMangledTypename(ConstString(mangled_name));
   if (!rawStorage_type.IsValid())
     return nullptr;
 
@@ -314,6 +329,7 @@ HashedCollectionConfig::StorageObjectAtAddress(
 
 ValueObjectSP
 HashedCollectionConfig::CocoaObjectAtAddress(
+  ValueObject &valobj,
   const ExecutionContext &exe_ctx,
   lldb::addr_t address) const {
 
@@ -328,7 +344,7 @@ HashedCollectionConfig::CocoaObjectAtAddress(
     return nullptr;
   CompilerType id = clang_ts_sp->GetBasicType(lldb::eBasicTypeObjCID);
   InferiorSizedWord isw(address, *process_sp);
-  return ValueObject::CreateValueObjectFromData(
+  return valobj.CreateChildValueObjectFromData(
     "cocoa", isw.GetAsData(process_sp->GetByteOrder()), exe_ctx, id);
 }
 
@@ -365,7 +381,7 @@ HashedCollectionConfig::CreateNativeHandler(
     return CreateEmptyHandler();
   }
   
-  if (typeName.startswith(m_nativeStorage_demangledPrefix.GetStringRef())) {
+  if (typeName.starts_with(m_nativeStorage_demangledPrefix.GetStringRef())) {
     auto type_system = type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
     if (!type_system)
       return nullptr;
@@ -415,11 +431,7 @@ HashedCollectionConfig::CreateCocoaHandler(ValueObjectSP storage_sp) const {
 NativeHashedStorageHandler::NativeHashedStorageHandler(
     ValueObjectSP nativeStorage_sp, CompilerType key_type,
     CompilerType value_type)
-    : m_storage(nativeStorage_sp.get()), m_process(nullptr), m_ptr_size(0),
-      m_count(0), m_scale(0), m_metadata_ptr(LLDB_INVALID_ADDRESS),
-      m_keys_ptr(LLDB_INVALID_ADDRESS), m_values_ptr(LLDB_INVALID_ADDRESS),
-      m_element_type(), m_key_stride(), m_value_stride(0),
-      m_key_stride_padded(), m_occupiedBuckets(), m_failedToGetBuckets(false) {
+    : m_storage(nativeStorage_sp.get()) {
   static ConstString g__count("_count");
   static ConstString g__scale("_scale");
   static ConstString g__rawElements("_rawElements");
@@ -441,6 +453,11 @@ NativeHashedStorageHandler::NativeHashedStorageHandler(
   if (!m_process)
     return;
 
+  if (ConstString mangled = m_storage->GetCompilerType().GetMangledTypeName())
+    m_is_embedded_swift =
+        SwiftLanguageRuntime::GetManglingFlavor(mangled.GetStringRef()) ==
+        ::swift::Mangle::ManglingFlavor::Embedded;
+
   auto key_stride = key_type.GetByteStride(m_process);
   if (key_stride) {
     m_key_stride = *key_stride;
@@ -457,7 +474,9 @@ NativeHashedStorageHandler::NativeHashedStorageHandler(
         return;
       std::vector<TypeSystemSwift::TupleElement> tuple_elements{
           {g_key, key_type}, {g_value, value_type}};
-      m_element_type = type_system->CreateTupleType(tuple_elements);
+      m_element_type = type_system->CreateTupleType(
+          tuple_elements, SwiftLanguageRuntime::GetManglingFlavor(
+                              key_type.GetMangledTypeName()));
       if (auto result = runtime->GetMemberVariableOffset(
               m_element_type, nativeStorage_sp.get(), "1"))
         m_key_stride_padded = *result;
@@ -491,20 +510,22 @@ NativeHashedStorageHandler::NativeHashedStorageHandler(
     return;
   m_keys_ptr = keys_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
 
-  auto last_field_ptr = keys_sp->GetAddressOf();
+  lldb::addr_t last_field_ptr = keys_sp->GetAddressOf().address;
 
   if (value_type) {
     auto values_sp = m_storage->GetChildAtNamePath({g__rawValues, g__rawValue});
     if (!values_sp)
       return;
     m_values_ptr = values_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
-    last_field_ptr = values_sp->GetAddressOf();
+    last_field_ptr = values_sp->GetAddressOf().address;
   }
 
   m_metadata_ptr = last_field_ptr + m_ptr_size;
 
-  // Make sure we can read the first and last word of the bitmap.  
-  if (IsValid()) {
+  // Make sure we can read the first and last word of the bitmap.
+  // Skip this for empty embedded collections since there are no buckets to
+  // read.
+  if (IsValid() && !IsEmptyEmbeddedCollection()) {
     Status error;
     GetMetadataWord(0, error);
     GetMetadataWord(GetWordCount() - 1, error);
@@ -515,24 +536,30 @@ NativeHashedStorageHandler::NativeHashedStorageHandler(
 }
 
 bool NativeHashedStorageHandler::IsValid() {
-  return (m_storage != nullptr)
-    && (m_process != nullptr)
-    && (m_ptr_size > 0)
-    && (m_element_type.IsValid())
-    && (m_metadata_ptr != LLDB_INVALID_ADDRESS)
-    && (m_keys_ptr != LLDB_INVALID_ADDRESS)
-    && (m_value_stride == 0 || m_values_ptr != LLDB_INVALID_ADDRESS)
-    // Check counts.
-    && ((m_scale < (sizeof(size_t) * 8)) && (m_count <= GetBucketCount()))
-    // Buffers are tail-allocated in this order: metadata, keys, values
-    && (m_metadata_ptr < m_keys_ptr)
-    && (m_value_stride == 0 || m_keys_ptr < m_values_ptr);
+  if (!m_storage || !m_process || !m_element_type.IsValid())
+    return false;
+
+  // In embedded Swift, the empty singleton has no allocated buffer (all raw
+  // pointers are 0), so skip the buffer pointer ordering checks.
+  if (IsEmptyEmbeddedCollection())
+    return true;
+
+  return (m_ptr_size > 0) && (m_metadata_ptr != LLDB_INVALID_ADDRESS) &&
+         (m_keys_ptr != LLDB_INVALID_ADDRESS) &&
+         (m_value_stride == 0 || m_values_ptr != LLDB_INVALID_ADDRESS)
+         // Check counts.
+         && ((m_scale < (sizeof(size_t) * 8)) && (m_count <= GetBucketCount()))
+         // Buffers are tail-allocated in this order: metadata, keys, values.
+         && (m_metadata_ptr < m_keys_ptr) &&
+         (m_value_stride == 0 || m_keys_ptr < m_values_ptr);
 }
 
 uint64_t
 NativeHashedStorageHandler::GetMetadataWord(int index, Status &error) {
+  assert(!IsEmptyEmbeddedCollection() &&
+         "Cannot read from empty embedded hash collection!");
   if (static_cast<size_t>(index) >= GetWordCount()) {
-    error.SetErrorToGenericError();
+    error = Status::FromErrorString("index out of bounds");
     return 0;
   }
   const lldb::addr_t effective_ptr = m_metadata_ptr + (index * m_ptr_size);
@@ -554,6 +581,9 @@ NativeHashedStorageHandler::UpdateBuckets() {
   if (m_failedToGetBuckets)
     return false;
   if (!m_occupiedBuckets.empty())
+    return true;
+  // Empty embedded collections have no allocated buffer to scan.
+  if (IsEmptyEmbeddedCollection())
     return true;
   // Scan bitmap for occupied buckets.
   m_occupiedBuckets.reserve(m_count);
@@ -588,7 +618,8 @@ NativeHashedStorageHandler::UpdateBuckets() {
 }
 
 ValueObjectSP
-NativeHashedStorageHandler::GetElementAtIndex(size_t idx) {
+NativeHashedStorageHandler::GetElementAtIndex(size_t idx,
+    ValueObject *parent) {
   if (!UpdateBuckets())
     return nullptr;
   if (!IsValid())
@@ -610,8 +641,12 @@ NativeHashedStorageHandler::GetElementAtIndex(size_t idx) {
   full_data.SetData(full_buffer_sp);
   StreamString name;
   name.Printf("[%zu]", idx);
-  return ValueObjectConstResult::Create(
-    m_process, m_element_type, ConstString(name.GetData()), full_data);
+  if (parent)
+    return parent->CreateChildValueObjectFromData(ConstString(name.GetData()), 
+        full_data, m_process, m_element_type);
+  else
+    return ValueObjectConstResult::Create(
+        m_process, m_element_type, ConstString(name.GetData()), full_data);
 }
 
 //===----------------------------------------------------------------------===//
@@ -631,8 +666,12 @@ HashedCollectionConfig::CreateHandler(ValueObject &valobj) const {
   ValueObjectSP valobj_sp = valobj.GetSP();
   if (valobj_sp->GetObjectRuntimeLanguage() != eLanguageTypeSwift &&
       valobj_sp->IsPointerType()) {
-    lldb::addr_t address = valobj_sp->GetPointerValue();
-    if (auto swiftval_sp = StorageObjectAtAddress(exe_ctx, address))
+    lldb::addr_t address = valobj_sp->GetPointerValue().address;
+    // Since we're creating a formatter for a dictionary, this is ObjC, which
+    // embedded swift doesn't have access to, so this definitely uses the
+    // default mangling.
+    if (auto swiftval_sp = StorageObjectAtAddress(
+            exe_ctx, address, ::swift::Mangle::ManglingFlavor::Default))
       valobj_sp = swiftval_sp;
   }
   valobj_sp = valobj_sp->GetQualifiedRepresentationIfAvailable(
@@ -650,18 +689,22 @@ HashedCollectionConfig::CreateHandler(ValueObject &valobj) const {
     return CreateNativeHandler(valobj_sp, storage_sp);
   }
 
-  ValueObjectSP variant_sp =
-    valobj_sp->GetChildMemberWithName(g__variant, true);
-  if (!variant_sp)
-    return nullptr;
+  lldb::addr_t storage_location = LLDB_INVALID_ADDRESS;
+  if (type_name_cs == m_nativeStorageRoot_demangled)
+    storage_location = valobj_sp->GetPointerValue().address;
+  else {
+    ValueObjectSP variant_sp =
+        valobj_sp->GetChildMemberWithName(g__variant, true);
+    if (!variant_sp)
+      return nullptr;
 
-  ValueObjectSP bobject_sp =
-    variant_sp->GetChildAtNamePath({g_object, g_rawValue});
-  if (!bobject_sp)
-    return nullptr;
+    ValueObjectSP bobject_sp =
+        variant_sp->GetChildAtNamePath({g_object, g_rawValue});
+    if (!bobject_sp)
+      return nullptr;
 
-  lldb::addr_t storage_location =
-    bobject_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+    storage_location = bobject_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+  }
   if (storage_location == LLDB_INVALID_ADDRESS)
     return nullptr;
 
@@ -677,13 +720,15 @@ HashedCollectionConfig::CreateHandler(ValueObject &valobj) const {
     swift_runtime->MaskMaybeBridgedPointer(storage_location);
 
   if (masked_storage_location == storage_location) {
-    // Native storage
-    auto storage_sp = StorageObjectAtAddress(exe_ctx, storage_location);
+    // Native storage.
+    auto flavor = SwiftLanguageRuntime::GetManglingFlavor(
+        valobj.GetCompilerType().GetMangledTypeName());
+    auto storage_sp = StorageObjectAtAddress(exe_ctx, storage_location, flavor);
     if (!storage_sp)
       return nullptr;
     return CreateNativeHandler(valobj_sp, storage_sp);
   } else {
-    auto cocoa_sp = CocoaObjectAtAddress(exe_ctx, masked_storage_location);
+    auto cocoa_sp = CocoaObjectAtAddress(valobj, exe_ctx, masked_storage_location);
     if (!cocoa_sp)
       return nullptr;
     return CreateCocoaHandler(cocoa_sp);
@@ -714,7 +759,7 @@ ValueObjectSP HashedSyntheticChildrenFrontEnd::GetChildAtIndex(uint32_t idx) {
   if (!m_buffer)
     return ValueObjectSP();
 
-  ValueObjectSP child_sp = m_buffer->GetElementAtIndex(idx);
+  ValueObjectSP child_sp = m_buffer->GetElementAtIndex(idx, &m_backend);
 
   if (child_sp)
     child_sp->SetSyntheticChildrenGenerated(true);
@@ -733,13 +778,14 @@ HashedSyntheticChildrenFrontEnd::MightHaveChildren() {
   return true;
 }
 
-size_t
+llvm::Expected<size_t>
 HashedSyntheticChildrenFrontEnd::GetIndexOfChildWithName(ConstString name) {
   if (!m_buffer)
-    return UINT32_MAX;
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
   const char *item_name = name.GetCString();
-  uint32_t idx = ExtractIndexFromString(item_name);
-  if (idx < UINT32_MAX && idx >= CalculateNumChildrenIgnoringErrors())
-    return UINT32_MAX;
-  return idx;
+  auto optional_idx = ExtractIndexFromString(item_name);
+  if (!optional_idx ||
+      optional_idx.value() >= CalculateNumChildrenIgnoringErrors())
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  return optional_idx.value();
 }

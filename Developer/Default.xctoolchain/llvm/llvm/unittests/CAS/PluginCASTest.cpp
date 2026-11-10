@@ -30,8 +30,13 @@ static std::string getCASPluginPath() {
       sys::fs::getMainExecutable(TestMainArgv0, &TestStringArg1);
   llvm::SmallString<256> PathBuf(sys::path::parent_path(
       sys::path::parent_path(sys::path::parent_path(Executable))));
+#ifndef _WIN32
   std::string LibName = "libCASPluginTest";
   sys::path::append(PathBuf, "lib", LibName + LLVM_PLUGIN_EXT);
+#else
+  std::string LibName = "CASPluginTest";
+  sys::path::append(PathBuf, "bin", LibName + LLVM_PLUGIN_EXT);
+#endif
   return std::string(PathBuf);
 }
 
@@ -55,10 +60,8 @@ TEST(PluginCASTest, isMaterialized) {
     std::tie(CAS, AC) = std::move(*DBs);
 
     std::optional<CASID> ID1, ID2;
-    ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID1),
-                      Succeeded());
-    ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "2").moveInto(ID2),
-                      Succeeded());
+    ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID1), Succeeded());
+    ASSERT_THAT_ERROR(CAS->createProxy({}, "2").moveInto(ID2), Succeeded());
     std::optional<ObjectRef> ID2Ref = CAS->getReference(*ID2);
     ASSERT_TRUE(ID2Ref);
     bool IsMaterialized = false;
@@ -84,8 +87,7 @@ TEST(PluginCASTest, isMaterialized) {
     std::tie(CAS, AC) = std::move(*DBs);
 
     std::optional<CASID> ID1, ID2;
-    ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID1),
-                      Succeeded());
+    ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID1), Succeeded());
     ASSERT_THAT_ERROR(AC->get(*ID1, /*Globally=*/true).moveInto(ID2),
                       Succeeded());
     std::optional<ObjectRef> ID2Ref = CAS->getReference(*ID2);

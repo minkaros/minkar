@@ -46,7 +46,9 @@ public:
   void DumpValue(const ExecutionContext *exe_ctx, Stream &strm,
                  uint32_t dump_mask) override;
 
-  llvm::json::Value ToJSON(const ExecutionContext *exe_ctx) override;
+  bool IsDefault() const override;
+
+  llvm::json::Value ToJSON(const ExecutionContext *exe_ctx) const override;
 
   llvm::StringRef GetName() const override { return m_name; }
 
@@ -82,7 +84,7 @@ public:
     return ProtectedGetPropertyAtIndex(idx);
   }
 
-  // Property can be be a property path like
+  // Property can be a property path like
   // "target.process.extra-startup-command"
   virtual const Property *
   GetPropertyAtPath(const ExecutionContext *exe_ctx,

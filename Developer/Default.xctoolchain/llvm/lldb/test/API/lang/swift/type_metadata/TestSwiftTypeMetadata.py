@@ -16,10 +16,10 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class SwiftTypeMetadataTest(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_type_metadata(self):
         """Test that LLDB can effectively use the type metadata to reconstruct dynamic types for Swift"""

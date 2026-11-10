@@ -17,7 +17,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftAtObjCIvars(TestBase):
@@ -27,6 +26,7 @@ class TestSwiftAtObjCIvars(TestBase):
         lldbutil.check_variable(self, x, False, value='12')
         lldbutil.check_variable(self, y, False, '"12"')
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     def test_swift_at_objc_ivars(self):

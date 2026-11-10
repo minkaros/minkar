@@ -61,10 +61,9 @@ StringRef ClangIndexRecordWriter::getUSRNonCached(const IdentifierInfo *Name,
   return StringRef(Ptr, USR.size());
 }
 
-ClangIndexRecordWriter::ClangIndexRecordWriter(ASTContext &Ctx,
+ClangIndexRecordWriter::ClangIndexRecordWriter(ASTContext &Ctx, bool Compress,
                                                RecordingOptions Opts)
-    : Impl(Opts.DataDirPath), Ctx(Ctx), RecordOpts(std::move(Opts)),
-      Hasher(Ctx) {
+    : Impl(Opts.DataDirPath, Compress), Ctx(Ctx), RecordOpts(std::move(Opts)) {
   if (Opts.RecordSymbolCodeGenName)
     ASTNameGen.reset(new ASTNameGenerator(Ctx));
 }
@@ -76,7 +75,9 @@ bool ClangIndexRecordWriter::writeRecord(StringRef Filename,
                                          std::string &Error,
                                          std::string *OutRecordFile) {
 
-  auto RecordHash = Hasher.hashRecord(IdxRecord);
+  std::array<uint8_t, 8> RecordHashArr = index::hashRecord(IdxRecord, Ctx);
+  uint64_t RecordHash = 0;
+  std::memcpy(&RecordHash, RecordHashArr.data(), RecordHashArr.size());
 
   switch (Impl.beginRecord(Filename, RecordHash, Error, OutRecordFile)) {
   case IndexRecordWriter::Result::Success:
@@ -106,7 +107,7 @@ bool ClangIndexRecordWriter::writeRecord(StringRef Filename,
     for (auto &Rel : Occur.Relations)
       Related.push_back(writer::SymbolRelation{Rel.RelatedSymbol, Rel.Roles});
     if (Occur.MacroName)
-      MacroNames[Occur.DeclOrMacro.get<const MacroInfo *>()] = Occur.MacroName;
+      MacroNames[cast<const MacroInfo *>(Occur.DeclOrMacro)] = Occur.MacroName;
 
     Impl.addOccurrence(Occur.DeclOrMacro.getOpaqueValue(), Occur.Roles, Line,
                        Col, Related);
@@ -129,7 +130,7 @@ bool ClangIndexRecordWriter::writeRecord(StringRef Filename,
       Sym.USR = getUSR(II, MI);
       assert(!Sym.USR.empty() && "Recorded macro without USR!");
     } else {
-      const Decl *D = DeclOrMacro.get<const Decl *>();
+      const Decl *D = cast<const Decl *>(DeclOrMacro);
       Sym.SymInfo = getSymbolInfo(D);
 
       auto *ND = dyn_cast<NamedDecl>(D);

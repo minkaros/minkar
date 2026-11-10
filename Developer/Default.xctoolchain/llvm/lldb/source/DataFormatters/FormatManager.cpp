@@ -16,6 +16,7 @@
 #include "lldb/Target/Language.h"
 #include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/ValueObject/ValueObject.h"
 #include "llvm/ADT/STLExtras.h"
 
 // BEGIN SWIFT
@@ -95,7 +96,7 @@ static bool GetFormatFromFormatChar(char format_char, Format &format) {
 }
 
 static bool GetFormatFromFormatName(llvm::StringRef format_name,
-                                    bool partial_match_ok, Format &format) {
+                                    Format &format) {
   uint32_t i;
   for (i = 0; i < g_num_format_infos; ++i) {
     if (format_name.equals_insensitive(g_format_infos[i].format_name)) {
@@ -104,13 +105,11 @@ static bool GetFormatFromFormatName(llvm::StringRef format_name,
     }
   }
 
-  if (partial_match_ok) {
-    for (i = 0; i < g_num_format_infos; ++i) {
-      if (llvm::StringRef(g_format_infos[i].format_name)
-              .starts_with_insensitive(format_name)) {
-        format = g_format_infos[i].format;
-        return true;
-      }
+  for (i = 0; i < g_num_format_infos; ++i) {
+    if (llvm::StringRef(g_format_infos[i].format_name)
+            .starts_with_insensitive(format_name)) {
+      format = g_format_infos[i].format;
+      return true;
     }
   }
   format = eFormatInvalid;
@@ -128,7 +127,6 @@ void FormatManager::Changed() {
 }
 
 bool FormatManager::GetFormatFromCString(const char *format_cstr,
-                                         bool partial_match_ok,
                                          lldb::Format &format) {
   bool success = false;
   if (format_cstr && format_cstr[0]) {
@@ -138,7 +136,7 @@ bool FormatManager::GetFormatFromCString(const char *format_cstr,
         return true;
     }
 
-    success = GetFormatFromFormatName(format_cstr, partial_match_ok, format);
+    success = GetFormatFromFormatName(format_cstr, format);
   }
   if (!success)
     format = eFormatInvalid;
@@ -180,22 +178,30 @@ void FormatManager::DisableAllCategories() {
 void FormatManager::GetPossibleMatches(
     ValueObject &valobj, CompilerType compiler_type,
     lldb::DynamicValueType use_dynamic, FormattersMatchVector &entries,
-    FormattersMatchCandidate::Flags current_flags, bool root_level) {
+    FormattersMatchCandidate::Flags current_flags, bool root_level,
+    uint32_t ptr_stripped_depth) {
   compiler_type = compiler_type.GetTypeForFormatters();
   ConstString type_name(compiler_type.GetTypeName());
+  // A ValueObject that couldn't be made correctly won't necessarily have a
+  // target.  We aren't going to find a formatter in this case anyway, so we
+  // should just exit.
+  TargetSP target_sp = valobj.GetTargetSP();
+  if (!target_sp)
+    return;
   ScriptInterpreter *script_interpreter =
-      valobj.GetTargetSP()->GetDebugger().GetScriptInterpreter();
+      target_sp->GetDebugger().GetScriptInterpreter();
   if (valobj.GetBitfieldBitSize() > 0) {
     StreamString sstring;
-    sstring.Printf("%s:%d", type_name.AsCString(), valobj.GetBitfieldBitSize());
+    sstring.Format("{0}:{1}", type_name, valobj.GetBitfieldBitSize());
     ConstString bitfieldname(sstring.GetString());
     entries.push_back({bitfieldname, script_interpreter,
-                       TypeImpl(compiler_type), current_flags});
+                       TypeImpl(compiler_type), current_flags,
+                       ptr_stripped_depth});
   }
 
   if (!compiler_type.IsMeaninglessWithoutDynamicResolution()) {
     entries.push_back({type_name, script_interpreter, TypeImpl(compiler_type),
-                       current_flags});
+                       current_flags, ptr_stripped_depth});
 
 // BEGIN SWIFT
     auto ts = compiler_type.GetTypeSystem();
@@ -204,7 +210,8 @@ void FormatManager::GetPossibleMatches(
     ConstString display_type_name(compiler_type.GetDisplayTypeName());
     if (display_type_name != type_name)
       entries.push_back({display_type_name, script_interpreter,
-                         TypeImpl(compiler_type), current_flags});
+                         TypeImpl(compiler_type), current_flags,
+                         ptr_stripped_depth});
 // BEGIN SWIFT
     }
 // END SWIFT
@@ -214,29 +221,32 @@ void FormatManager::GetPossibleMatches(
        j && compiler_type.IsReferenceType(nullptr, &is_rvalue_ref); j = false) {
     CompilerType non_ref_type = compiler_type.GetNonReferenceType();
     GetPossibleMatches(valobj, non_ref_type, use_dynamic, entries,
-                       current_flags.WithStrippedReference());
+                       current_flags.WithStrippedReference(), root_level,
+                       ptr_stripped_depth);
     if (non_ref_type.IsTypedefType()) {
       CompilerType deffed_referenced_type = non_ref_type.GetTypedefedType();
       deffed_referenced_type =
           is_rvalue_ref ? deffed_referenced_type.GetRValueReferenceType()
                         : deffed_referenced_type.GetLValueReferenceType();
       // this is not exactly the usual meaning of stripping typedefs
-      GetPossibleMatches(
-          valobj, deffed_referenced_type,
-          use_dynamic, entries, current_flags.WithStrippedTypedef());
+      GetPossibleMatches(valobj, deffed_referenced_type, use_dynamic, entries,
+                         current_flags.WithStrippedTypedef(), root_level,
+                         ptr_stripped_depth);
     }
   }
 
   if (compiler_type.IsPointerType()) {
     CompilerType non_ptr_type = compiler_type.GetPointeeType();
     GetPossibleMatches(valobj, non_ptr_type, use_dynamic, entries,
-                       current_flags.WithStrippedPointer());
+                       current_flags.WithStrippedPointer(), root_level,
+                       ptr_stripped_depth + 1);
     if (non_ptr_type.IsTypedefType()) {
       CompilerType deffed_pointed_type =
           non_ptr_type.GetTypedefedType().GetPointerType();
       // this is not exactly the usual meaning of stripping typedefs
       GetPossibleMatches(valobj, deffed_pointed_type, use_dynamic, entries,
-                         current_flags.WithStrippedTypedef());
+                         current_flags.WithStrippedTypedef(), root_level,
+                         ptr_stripped_depth + 1);
     }
   }
 
@@ -253,9 +263,9 @@ void FormatManager::GetPossibleMatches(
       CompilerType deffed_array_type =
           element_type.GetTypedefedType().GetArrayType(array_size);
       // this is not exactly the usual meaning of stripping typedefs
-      GetPossibleMatches(
-          valobj, deffed_array_type,
-          use_dynamic, entries, current_flags.WithStrippedTypedef());
+      GetPossibleMatches(valobj, deffed_array_type, use_dynamic, entries,
+                         current_flags.WithStrippedTypedef(), root_level,
+                         ptr_stripped_depth);
     }
   }
 
@@ -273,7 +283,8 @@ void FormatManager::GetPossibleMatches(
   if (compiler_type.IsTypedefType()) {
     CompilerType deffed_type = compiler_type.GetTypedefedType();
     GetPossibleMatches(valobj, deffed_type, use_dynamic, entries,
-                       current_flags.WithStrippedTypedef());
+                       current_flags.WithStrippedTypedef(), root_level,
+                       ptr_stripped_depth);
   }
 
   if (root_level) {
@@ -288,7 +299,8 @@ void FormatManager::GetPossibleMatches(
       if (unqual_compiler_ast_type.GetOpaqueQualType() !=
           compiler_type.GetOpaqueQualType())
         GetPossibleMatches(valobj, unqual_compiler_ast_type, use_dynamic,
-                           entries, current_flags);
+                           entries, current_flags, root_level,
+                           ptr_stripped_depth);
     } while (false);
 
     // if all else fails, go to static type
@@ -297,7 +309,7 @@ void FormatManager::GetPossibleMatches(
       if (static_value_sp)
         GetPossibleMatches(*static_value_sp.get(),
                            static_value_sp->GetCompilerType(), use_dynamic,
-                           entries, current_flags, true);
+                           entries, current_flags, true, ptr_stripped_depth);
     }
   }
 }
@@ -456,26 +468,29 @@ lldb::Format FormatManager::GetSingleItemFormat(lldb::Format vector_format) {
 }
 
 bool FormatManager::ShouldPrintAsOneLiner(ValueObject &valobj) {
-  // if settings say no oneline whatsoever
-  if (valobj.GetTargetSP().get() &&
-      !valobj.GetTargetSP()->GetDebugger().GetAutoOneLineSummaries())
-    return false; // then don't oneline
+  TargetSP target_sp = valobj.GetTargetSP();
+  // If settings say no oneline whatsoever then don't oneline.
+  if (target_sp && !target_sp->GetDebugger().GetAutoOneLineSummaries())
+    return false;
 
-  // if this object has a summary, then ask the summary
+  // If this object has a summary, then ask the summary.
   if (valobj.GetSummaryFormat().get() != nullptr)
     return valobj.GetSummaryFormat()->IsOneLiner();
 
-  auto num_children = valobj.GetNumChildren();
+  const size_t max_num_children =
+      (target_sp ? *target_sp : Target::GetGlobalProperties())
+          .GetMaximumNumberOfChildrenToDisplay();
+  auto num_children = valobj.GetNumChildren(max_num_children);
   if (!num_children) {
     llvm::consumeError(num_children.takeError());
     return true;
   }
-  // no children, no party
+  // No children, no party.
   if (*num_children == 0)
     return false;
 
-  // ask the type if it has any opinion about this eLazyBoolCalculate == no
-  // opinion; other values should be self explanatory
+  // Ask the type if it has any opinion about this:
+  //   eLazyBoolCalculate == no opinion
   CompilerType compiler_type(valobj.GetCompilerType());
   if (compiler_type.IsValid()) {
     switch (compiler_type.ShouldPrintAsOneLiner(&valobj)) {
@@ -493,66 +508,66 @@ bool FormatManager::ShouldPrintAsOneLiner(ValueObject &valobj) {
   for (size_t idx = 0; idx < *num_children; idx++) {
     bool is_synth_val = false;
     ValueObjectSP child_sp(valobj.GetChildAtIndex(idx));
-    // something is wrong here - bail out
+    // Something is wrong here - bail out.
     if (!child_sp)
       return false;
 
-    // also ask the child's type if it has any opinion
+    // Also ask the child's type if it has any opinion.
     CompilerType child_compiler_type(child_sp->GetCompilerType());
     if (child_compiler_type.IsValid()) {
       switch (child_compiler_type.ShouldPrintAsOneLiner(child_sp.get())) {
       case eLazyBoolYes:
-      // an opinion of yes is only binding for the child, so keep going
+      // An opinion of yes is only binding for the child, so keep going,
       case eLazyBoolCalculate:
         break;
       case eLazyBoolNo:
-        // but if the child says no, then it's a veto on the whole thing
+        // but if the child says no, then it's a veto on the whole thing.
         return false;
       }
     }
 
-    // if we decided to define synthetic children for a type, we probably care
-    // enough to show them, but avoid nesting children in children
+    // If we decided to define synthetic children for a type, we probably care
+    // enough to show them, but avoid nesting children in children.
     if (child_sp->GetSyntheticChildren().get() != nullptr) {
       ValueObjectSP synth_sp(child_sp->GetSyntheticValue());
-      // wait.. wat? just get out of here..
+      // Bail out if there was an error.
       if (!synth_sp)
         return false;
-      // but if we only have them to provide a value, keep going
+      // If we only have them to provide a value, keep going.
       if (!synth_sp->MightHaveChildren() &&
           synth_sp->DoesProvideSyntheticValue())
         is_synth_val = true;
-      else
+      // If there are synthetic children, the user probably wants to see them.
+      else if (synth_sp->MightHaveChildren())
         return false;
     }
 
     total_children_name_len += child_sp->GetName().GetLength();
 
     // 50 itself is a "randomly" chosen number - the idea is that
-    // overly long structs should not get this treatment
+    // overly long structs should not get this treatment.
     // FIXME: maybe make this a user-tweakable setting?
     if (total_children_name_len > 50)
       return false;
 
-    // if a summary is there..
+    // If a summary is there,
     if (child_sp->GetSummaryFormat()) {
-      // and it wants children, then bail out
+      // and it wants children, then bail out.
       if (child_sp->GetSummaryFormat()->DoesPrintChildren(child_sp.get()))
         return false;
     }
 
-    // if this child has children..
+    // If this child has children,
     if (child_sp->HasChildren()) {
-      // ...and no summary...
-      // (if it had a summary and the summary wanted children, we would have
-      // bailed out anyway
-      //  so this only makes us bail out if this has no summary and we would
-      //  then print children)
-      if (!child_sp->GetSummaryFormat() && !is_synth_val) // but again only do
-                                                          // that if not a
-                                                          // synthetic valued
-                                                          // child
-        return false;                                     // then bail out
+      // and no summary, bail out.
+      //
+      // Note that if it had a summary and the summary wanted
+      // children, we would have bailed out anyway so this only makes
+      // us bail out if this has no summary and we would then print
+      // children.
+      if (!child_sp->GetSummaryFormat() && !is_synth_val)
+        // But again only do that if not a synthetic valued child.
+        return false;
     }
   }
   return true;
@@ -732,7 +747,7 @@ void FormatManager::LoadSystemFormatters() {
   TypeSummaryImpl::Flags string_flags;
   string_flags.SetCascades(true)
       .SetSkipPointers(true)
-      .SetSkipReferences(false)
+      .SetSkipReferences(true)
       .SetDontShowChildren(true)
       .SetDontShowValue(false)
       .SetShowMembersOneLiner(false)
@@ -758,6 +773,64 @@ void FormatManager::LoadSystemFormatters() {
 
   sys_category_sp->AddTypeSummary(R"(^(unsigned )?char ?(\*|\[\])$)",
                                   eFormatterMatchRegex, string_format);
+
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  TypeSummaryImpl::Flags bounds_safety_flags;
+  bounds_safety_flags.SetCascades(true)
+      .SetSkipPointers(true)
+      .SetSkipReferences(false)
+      .SetDontShowChildren(true)
+      .SetDontShowValue(true)
+      .SetShowMembersOneLiner(false)
+      .SetHideItemNames(false);
+
+  // Since we have exact match summeries for char* and unsigned char* in order
+  // to have BoundsSafety summeries choosen before those for char* and unsinged
+  // char* they must be:
+  //  - exact matches as well
+  //  - added afterward since they will be searched in reverse order of
+  //    addition
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyPointer,
+                "BoundsSafety __bidi_indexable summary provider",
+                ConstString("char *__bidi_indexable"), bounds_safety_flags);
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyPointer,
+                "BoundsSafety __indexable summary provider",
+                ConstString("char *__indexable"), bounds_safety_flags);
+
+  AddCXXSummary(
+      sys_category_sp, lldb_private::formatters::FormatBoundsSafetyPointer,
+      "BoundsSafety __bidi_indexable summary provider",
+      ConstString("unsigned char *__bidi_indexable"), bounds_safety_flags);
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyPointer,
+                "BoundsSafety __indexable summary provider",
+                ConstString("unsigned char *__indexable"), bounds_safety_flags);
+
+  // These will catch everything else for BoundsSafety pointers.
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyPointer,
+                "BoundsSafety __bidi_indexable summary provider",
+                ConstString("__bidi_indexable"), bounds_safety_flags, true);
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyPointer,
+                "BoundsSafety __indexable summary provider",
+                ConstString("__indexable"), bounds_safety_flags, true);
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyAttrPointer,
+                "BoundsSafety counted_by summary provider",
+                ConstString("__bounds_safety::counted_by"), bounds_safety_flags, true);
+  AddCXXSummary(sys_category_sp,
+                lldb_private::formatters::FormatBoundsSafetyAttrPointer,
+                "BoundsSafety sized_by summary provider",
+                ConstString("__bounds_safety::sized_by"), bounds_safety_flags, true);
+  AddCXXSummary(
+      sys_category_sp,
+      lldb_private::formatters::FormatBoundsSafetyDynamicRangeAttrPointer,
+      "BoundsSafety dynamic range summary provider",
+      ConstString("__bounds_safety::dynamic_range"), bounds_safety_flags, true);
+  /* TO_UPSTREAM(BoundsSafety) OFF */
 
   sys_category_sp->AddTypeSummary(R"(^((un)?signed )?char ?\[[0-9]+\]$)",
                                   eFormatterMatchRegex, string_array_format);

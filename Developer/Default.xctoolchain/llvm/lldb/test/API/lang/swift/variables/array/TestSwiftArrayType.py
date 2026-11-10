@@ -17,7 +17,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftArrayType(lldbtest.TestBase):
@@ -25,6 +24,7 @@ class TestSwiftArrayType(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_array(self):
         """Check formatting for Swift.Array<T>"""
         self.build()

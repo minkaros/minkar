@@ -19,9 +19,12 @@
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Core/SourceManager.h"
-#include "lldb/Core/StreamFile.h"
+#include "lldb/Core/Statusline.h"
+#include "lldb/Core/StructuredDataImpl.h"
+#include "lldb/Core/Telemetry.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Host/HostThread.h"
+#include "lldb/Host/StreamFile.h"
 #include "lldb/Host/Terminal.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Platform.h"
@@ -31,6 +34,7 @@
 #include "lldb/Utility/Diagnostics.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Status.h"
+#include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-defines.h"
 #include "lldb/lldb-enumerations.h"
@@ -40,6 +44,7 @@
 #include "lldb/lldb-types.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -52,7 +57,7 @@
 
 namespace llvm {
 class raw_ostream;
-class ThreadPool;
+class ThreadPoolInterface;
 } // namespace llvm
 
 namespace lldb_private {
@@ -64,23 +69,40 @@ class Process;
 class Stream;
 class SymbolContext;
 class Target;
+class Debugger;
 
-namespace repro {
-class DataRecorder;
-}
+#ifndef NDEBUG
+/// Global properties used in the LLDB testsuite.
+struct TestingProperties : public Properties {
+  TestingProperties();
+  bool GetInjectVarLocListError() const;
+  static TestingProperties &GetGlobalTestingProperties();
 
-/// \class Debugger Debugger.h "lldb/Core/Debugger.h"
+  /// Overwrites the testing.safe-auto-load-paths settings.
+  void SetSafeAutoLoadPaths(FileSpecList paths);
+
+  /// Appends a path to the testing.safe-auto-load-paths setting.
+  void AppendSafeAutoLoadPaths(FileSpec path);
+
+private:
+  friend Debugger;
+
+  /// Callers should use Debugger::GetSafeAutoLoadPaths since it
+  /// accounts for default paths configured via CMake.
+  FileSpecList GetSafeAutoLoadPaths() const;
+};
+#endif
+
 /// A class to manage flag bits.
 ///
 /// Provides a global root objects for the debugger core.
-
 class Debugger : public std::enable_shared_from_this<Debugger>,
                  public UserID,
                  public Properties {
 public:
   using DebuggerList = std::vector<lldb::DebuggerSP>;
 
-  static ConstString GetStaticBroadcasterClass();
+  static llvm::StringRef GetStaticBroadcasterClass();
 
   /// Get the public broadcaster for this debugger.
   Broadcaster &GetBroadcaster() { return m_broadcaster; }
@@ -124,29 +146,30 @@ public:
   static void AssertCallback(llvm::StringRef message, llvm::StringRef backtrace,
                              llvm::StringRef prompt);
 
+  /// Get the list of paths that LLDB will consider automatically loading
+  /// scripting resources from. Currently whether to load scripts
+  /// unconditionally is controlled via the
+  /// `target.load-script-from-symbol-file` setting.
+  static FileSpecList GetSafeAutoLoadPaths();
+
   void Clear();
+
+  void DispatchClientTelemetry(const lldb_private::StructuredDataImpl &entry);
 
   bool GetAsyncExecution();
 
   void SetAsyncExecution(bool async);
 
   lldb::FileSP GetInputFileSP() { return m_input_file_sp; }
-
-  lldb::StreamFileSP GetOutputStreamSP() { return m_output_stream_sp; }
-
-  lldb::StreamFileSP GetErrorStreamSP() { return m_error_stream_sp; }
-
   File &GetInputFile() { return *m_input_file_sp; }
 
-  File &GetOutputFile() { return m_output_stream_sp->GetFile(); }
+  lldb::FileSP GetOutputFileSP() {
+    return m_output_stream_sp->GetUnlockedFileSP();
+  }
 
-  File &GetErrorFile() { return m_error_stream_sp->GetFile(); }
-
-  StreamFile &GetOutputStream() { return *m_output_stream_sp; }
-
-  StreamFile &GetErrorStream() { return *m_error_stream_sp; }
-
-  repro::DataRecorder *GetInputRecorder();
+  lldb::FileSP GetErrorFileSP() {
+    return m_error_stream_sp->GetUnlockedFileSP();
+  }
 
   Status SetInputString(const char *data);
 
@@ -160,9 +183,9 @@ public:
 
   void RestoreInputTerminalState();
 
-  lldb::StreamSP GetAsyncOutputStream();
+  lldb::StreamUP GetAsyncOutputStream();
 
-  lldb::StreamSP GetAsyncErrorStream();
+  lldb::StreamUP GetAsyncErrorStream();
 
   CommandInterpreter &GetCommandInterpreter() {
     assert(m_command_interpreter_up.get());
@@ -185,7 +208,15 @@ public:
     return m_target_list.GetSelectedTarget();
   }
 
+  /// Get the execution context representing the selected entities in the
+  /// selected target.
   ExecutionContext GetSelectedExecutionContext();
+
+  /// Similar to GetSelectedExecutionContext but returns a
+  /// ExecutionContextRef, and will hold the dummy target if no target is
+  /// currently selected.
+  ExecutionContextRef GetSelectedExecutionContextRef();
+
   /// Get accessor for the target list.
   ///
   /// The target list is part of the global debugger object. This the single
@@ -205,8 +236,8 @@ public:
   // If any of the streams are not set, set them to the in/out/err stream of
   // the top most input reader to ensure they at least have something
   void AdoptTopIOHandlerFilesIfInvalid(lldb::FileSP &in,
-                                       lldb::StreamFileSP &out,
-                                       lldb::StreamFileSP &err);
+                                       lldb::LockableStreamFileSP &out,
+                                       lldb::LockableStreamFileSP &err);
 
   /// Run the given IO handler and return immediately.
   void RunIOHandlerAsync(const lldb::IOHandlerSP &reader_sp,
@@ -235,11 +266,9 @@ public:
 
   const char *GetIOHandlerHelpPrologue();
 
+  void RefreshIOHandler();
+
   void ClearIOHandlers();
-
-  bool GetCloseInputOnEOF() const;
-
-  void SetCloseInputOnEOF(bool b);
 
   bool EnableLog(llvm::StringRef channel,
                  llvm::ArrayRef<const char *> categories,
@@ -249,31 +278,23 @@ public:
 
   void SetLoggingCallback(lldb::LogOutputCallback log_callback, void *baton);
 
-  // Properties Functions
-  enum StopDisassemblyType {
-    eStopDisassemblyTypeNever = 0,
-    eStopDisassemblyTypeNoDebugInfo,
-    eStopDisassemblyTypeNoSource,
-    eStopDisassemblyTypeAlways
-  };
-
   Status SetPropertyValue(const ExecutionContext *exe_ctx,
                           VarSetOperationType op, llvm::StringRef property_path,
                           llvm::StringRef value) override;
 
   bool GetAutoConfirm() const;
 
-  const FormatEntity::Entry *GetDisassemblyFormat() const;
+  FormatEntity::Entry GetDisassemblyFormat() const;
 
-  const FormatEntity::Entry *GetFrameFormat() const;
+  FormatEntity::Entry GetFrameFormat() const;
 
-  const FormatEntity::Entry *GetFrameFormatUnique() const;
+  FormatEntity::Entry GetFrameFormatUnique() const;
 
   uint64_t GetStopDisassemblyMaxSize() const;
 
-  const FormatEntity::Entry *GetThreadFormat() const;
+  FormatEntity::Entry GetThreadFormat() const;
 
-  const FormatEntity::Entry *GetThreadStopFormat() const;
+  FormatEntity::Entry GetThreadStopFormat() const;
 
   lldb::ScriptLanguage GetScriptLanguage() const;
 
@@ -286,6 +307,14 @@ public:
   uint64_t GetTerminalWidth() const;
 
   bool SetTerminalWidth(uint64_t term_width);
+
+  uint64_t GetTerminalHeight() const;
+
+  bool SetTerminalHeight(uint64_t term_height);
+
+  /// Set the terminal width and height together, so observers are notified
+  /// once with both dimensions current.
+  bool SetTerminalDimensions(uint64_t term_width, uint64_t term_height);
 
   llvm::StringRef GetPrompt() const;
 
@@ -311,9 +340,21 @@ public:
 
   bool SetShowProgress(bool show_progress);
 
+  bool GetShowStatusline() const;
+
+  FormatEntity::Entry GetStatuslineFormat() const;
+  bool SetStatuslineFormat(const FormatEntity::Entry &format);
+
+  llvm::StringRef GetSeparator() const;
+  bool SetSeparator(llvm::StringRef s);
+
   llvm::StringRef GetShowProgressAnsiPrefix() const;
 
   llvm::StringRef GetShowProgressAnsiSuffix() const;
+
+  llvm::StringRef GetDisabledAnsiPrefix() const;
+
+  llvm::StringRef GetDisabledAnsiSuffix() const;
 
   bool GetUseAutosuggestion() const;
 
@@ -321,11 +362,17 @@ public:
 
   llvm::StringRef GetAutosuggestionAnsiSuffix() const;
 
+  llvm::StringRef GetRegexMatchAnsiPrefix() const;
+
+  llvm::StringRef GetRegexMatchAnsiSuffix() const;
+
   bool GetShowDontUsePoHint() const;
 
   bool GetUseSourceCache() const;
 
   bool SetUseSourceCache(bool use_source_cache);
+
+  bool GetMarkHiddenFrames() const;
 
   bool GetHighlightSource() const;
 
@@ -337,7 +384,7 @@ public:
 
   uint64_t GetStopSourceLineCount(bool before) const;
 
-  StopDisassemblyType GetStopDisassemblyDisplay() const;
+  lldb::StopDisassemblyType GetStopDisassemblyDisplay() const;
 
   uint64_t GetDisassemblyLineCount() const;
 
@@ -365,7 +412,11 @@ public:
 
   bool GetNotifyVoid() const;
 
-  const std::string &GetInstanceName() { return m_instance_name; }
+  const std::string &GetInstanceName() const { return m_instance_name; }
+
+  bool GetShowInlineDiagnostics() const;
+
+  bool SetShowInlineDiagnostics(bool);
 
   bool LoadPlugin(const FileSpec &spec, Status &error);
 
@@ -416,6 +467,9 @@ public:
   /// Decrement the "interrupt requested" counter.
   void CancelInterruptRequest();
 
+  /// Redraw the statusline if enabled.
+  void RedrawStatusline(std::optional<ExecutionContextRef> exe_ctx_ref);
+
   /// This is the correct way to query the state of Interruption.
   /// If you are on the RunCommandInterpreter thread, it will check the
   /// command interpreter state, and if it is on another thread it will
@@ -425,54 +479,55 @@ public:
   /// hand, use INTERRUPT_REQUESTED so this gets done consistently.
   ///
   /// \param[in] formatv
-  /// A formatv string for the interrupt message.  If the elements of the 
+  /// A formatv string for the interrupt message.  If the elements of the
   /// message are expensive to compute, you can use the no-argument form of
-  /// InterruptRequested, then make up the report using REPORT_INTERRUPTION. 
-  /// 
+  /// InterruptRequested, then make up the report using REPORT_INTERRUPTION.
+  ///
   /// \return
   ///  A boolean value, if \b true an interruptible operation should interrupt
   ///  itself.
   template <typename... Args>
-  bool InterruptRequested(const char *cur_func, 
-                          const char *formatv, Args &&... args) {
+  bool InterruptRequested(const char *cur_func, const char *formatv,
+                          Args &&...args) {
     bool ret_val = InterruptRequested();
     if (ret_val) {
       if (!formatv)
         formatv = "Unknown message";
       if (!cur_func)
         cur_func = "<UNKNOWN>";
-      ReportInterruption(InterruptionReport(cur_func, 
-                                            llvm::formatv(formatv, 
-                                            std::forward<Args>(args)...)));
+      ReportInterruption(InterruptionReport(
+          cur_func, llvm::formatv(formatv, std::forward<Args>(args)...)));
     }
     return ret_val;
   }
-  
+
   /// This handy define will keep you from having to generate a report for the
   /// interruption by hand.  Use this except in the case where the arguments to
   /// the message description are expensive to compute.
-#define INTERRUPT_REQUESTED(debugger, ...) \
-    (debugger).InterruptRequested(__func__, __VA_ARGS__)
+#define INTERRUPT_REQUESTED(debugger, ...)                                     \
+  (debugger).InterruptRequested(__func__, __VA_ARGS__)
 
   // This form just queries for whether to interrupt, and does no reporting:
   bool InterruptRequested();
-  
+
   // FIXME: Do we want to capture a backtrace at the interruption point?
   class InterruptionReport {
   public:
-    InterruptionReport(std::string function_name, std::string description) :
-        m_function_name(std::move(function_name)), 
-        m_description(std::move(description)),
-        m_interrupt_time(std::chrono::system_clock::now()),
-        m_thread_id(llvm::get_threadid()) {}
-        
-    InterruptionReport(std::string function_name, 
-        const llvm::formatv_object_base &payload);
+    InterruptionReport(std::string function_name, std::string description)
+        : m_function_name(std::move(function_name)),
+          m_description(std::move(description)),
+          m_interrupt_time(std::chrono::system_clock::now()),
+          m_thread_id(llvm::get_threadid()) {}
 
-  template <typename... Args>
-  InterruptionReport(std::string function_name,
-              const char *format, Args &&... args) :
-    InterruptionReport(function_name, llvm::formatv(format, std::forward<Args>(args)...)) {}
+    InterruptionReport(std::string function_name,
+                       const llvm::formatv_object_base &payload);
+
+    template <typename... Args>
+    InterruptionReport(std::string function_name, const char *format,
+                       Args &&...args)
+        : InterruptionReport(
+              function_name,
+              llvm::formatv(format, std::forward<Args>(args)...)) {}
 
     std::string m_function_name;
     std::string m_description;
@@ -480,14 +535,13 @@ public:
     const uint64_t m_thread_id;
   };
   void ReportInterruption(const InterruptionReport &report);
-#define REPORT_INTERRUPTION(debugger, ...) \
-    (debugger).ReportInterruption(Debugger::InterruptionReport(__func__, \
-                                                        __VA_ARGS__))
+#define REPORT_INTERRUPTION(debugger, ...)                                     \
+  (debugger).ReportInterruption(                                               \
+      Debugger::InterruptionReport(__func__, __VA_ARGS__))
 
   static DebuggerList DebuggersRequestingInterruption();
 
 public:
-  
   // This is for use in the command interpreter, when you either want the
   // selected target, or if no target is present you want to prime the dummy
   // target with entities that will be copied over to new targets.
@@ -498,8 +552,8 @@ public:
     return m_broadcaster_manager_sp;
   }
 
-  /// Shared thread poll. Use only with ThreadPoolTaskGroup.
-  static llvm::ThreadPool &GetThreadPool();
+  /// Shared thread pool. Use only with ThreadPoolTaskGroup.
+  static llvm::ThreadPoolInterface &GetThreadPool();
 
   /// Report warning events.
   ///
@@ -567,9 +621,24 @@ public:
 
   static void ReportSymbolChange(const ModuleSpec &module_spec);
 
+  /// DEPRECATED: We used to only support one Destroy callback. Now that we
+  /// support Add and Remove, you should only remove callbacks that you added.
+  /// Use Add and Remove instead.
+  ///
+  /// Clear all previously added callbacks and only add the given one.
   void
   SetDestroyCallback(lldb_private::DebuggerDestroyCallback destroy_callback,
                      void *baton);
+
+  /// Add a callback for when the debugger is destroyed. Return a token, which
+  /// can be used to remove said callback. Multiple callbacks can be added by
+  /// calling this function multiple times, and will be invoked in FIFO order.
+  lldb::callback_token_t
+  AddDestroyCallback(lldb_private::DebuggerDestroyCallback destroy_callback,
+                     void *baton);
+
+  /// Remove the specified callback. Return true if successful.
+  bool RemoveDestroyCallback(lldb::callback_token_t token);
 
   /// Manually start the global event handler thread. It is useful to plugins
   /// that directly use the \a lldb_private namespace and want to use the
@@ -588,12 +657,21 @@ public:
     return m_source_file_cache;
   }
 
+  struct ProgressReport {
+    uint64_t id;
+    uint64_t completed;
+    uint64_t total;
+    std::string message;
+  };
+  std::optional<ProgressReport> GetCurrentProgressReport() const;
+
 protected:
   friend class CommandInterpreter;
   friend class SwiftREPL;
   friend class REPL;
   friend class Progress;
   friend class ProgressManager;
+  friend class Statusline;
 
   /// Report progress events.
   ///
@@ -638,6 +716,16 @@ protected:
 
   void PrintProgress(const ProgressEventData &data);
 
+  /// Except for Debugger and IOHandler, GetOutputStreamSP and GetErrorStreamSP
+  /// should not be used directly. Use GetAsyncOutputStream and
+  /// GetAsyncErrorStream instead.
+  /// @{
+  lldb::LockableStreamFileSP GetOutputStreamSP() { return m_output_stream_sp; }
+  lldb::LockableStreamFileSP GetErrorStreamSP() { return m_error_stream_sp; }
+  /// @}
+
+  bool StatuslineSupported();
+
   void PushIOHandler(const lldb::IOHandlerSP &reader_sp,
                      bool cancel_top_handler = true);
 
@@ -663,9 +751,9 @@ protected:
 
   void HandleBreakpointEvent(const lldb::EventSP &event_sp);
 
-  void HandleProcessEvent(const lldb::EventSP &event_sp);
+  lldb::ProcessSP HandleProcessEvent(const lldb::EventSP &event_sp);
 
-  void HandleThreadEvent(const lldb::EventSP &event_sp);
+  lldb::ThreadSP HandleThreadEvent(const lldb::EventSP &event_sp);
 
   void HandleProgressEvent(const lldb::EventSP &event_sp);
 
@@ -678,11 +766,9 @@ protected:
 
   // these should never be NULL
   lldb::FileSP m_input_file_sp;
-  lldb::StreamFileSP m_output_stream_sp;
-  lldb::StreamFileSP m_error_stream_sp;
-
-  /// Used for shadowing the input file when capturing a reproducer.
-  repro::DataRecorder *m_input_recorder;
+  lldb::LockableStreamFileSP m_output_stream_sp;
+  lldb::LockableStreamFileSP m_error_stream_sp;
+  LockableStreamFile::Mutex m_output_mutex;
 
   lldb::BroadcasterManagerSP m_broadcaster_manager_sp; // The debugger acts as a
                                                        // broadcaster manager of
@@ -713,7 +799,9 @@ protected:
   IOHandlerStack m_io_handler_stack;
   std::recursive_mutex m_io_handler_synchronous_mutex;
 
-  std::optional<uint64_t> m_current_event_id;
+  /// Mutex protecting the m_statusline member.
+  std::mutex m_statusline_mutex;
+  std::optional<Statusline> m_statusline;
 
   llvm::StringMap<std::weak_ptr<LogHandler>> m_stream_handlers;
   std::shared_ptr<CallbackLogHandler> m_callback_handler_sp;
@@ -730,8 +818,25 @@ protected:
   lldb::TargetSP m_dummy_target_sp;
   Diagnostics::CallbackID m_diagnostics_callback_id;
 
-  lldb_private::DebuggerDestroyCallback m_destroy_callback = nullptr;
-  void *m_destroy_callback_baton = nullptr;
+  /// Bookkeeping for command line progress events.
+  /// @{
+  llvm::SmallVector<ProgressReport, 4> m_progress_reports;
+  mutable std::mutex m_progress_reports_mutex;
+  /// @}
+
+  std::mutex m_destroy_callback_mutex;
+  lldb::callback_token_t m_destroy_callback_next_token = 0;
+  struct DestroyCallbackInfo {
+    DestroyCallbackInfo() {}
+    DestroyCallbackInfo(lldb::callback_token_t token,
+                        lldb_private::DebuggerDestroyCallback callback,
+                        void *baton)
+        : token(token), callback(callback), baton(baton) {}
+    lldb::callback_token_t token;
+    lldb_private::DebuggerDestroyCallback callback;
+    void *baton;
+  };
+  llvm::SmallVector<DestroyCallbackInfo, 2> m_destroy_callbacks;
 
   uint32_t m_interrupt_requested = 0; ///< Tracks interrupt requests
   std::mutex m_interrupt_mutex;

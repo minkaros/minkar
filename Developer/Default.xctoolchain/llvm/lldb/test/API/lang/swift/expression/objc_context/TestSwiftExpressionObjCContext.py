@@ -15,9 +15,9 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 class TestSwiftExpressionObjCContext(TestBase):
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     def test(self):
@@ -35,4 +35,8 @@ class TestSwiftExpressionObjCContext(TestBase):
         self.expect("expr -lang Swift -- (1, 2, 3)",
                     "context-less swift expression works",
                     substrs=["(Int, Int, Int)"])
+
+        self.expect("po foo",
+                    "po of Swift object in Objective-C works",
+                    substrs=["Foo from Swift"])
 

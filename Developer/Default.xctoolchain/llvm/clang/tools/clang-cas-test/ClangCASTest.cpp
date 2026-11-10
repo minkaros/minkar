@@ -67,8 +67,10 @@ int main(int Argc, const char **Argv) {
     return 1;
   }
 
+  DiagnosticOptions DiagOpts;
   IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
-      CompilerInstance::createDiagnostics(new DiagnosticOptions));
+      CompilerInstance::createDiagnostics(*llvm::vfs::getRealFileSystem(),
+                                          DiagOpts));
 
   CASOptions Opts;
   // Printing a cache key only makes sense in an existing CAS, so default to
@@ -82,9 +84,7 @@ int main(int Argc, const char **Argv) {
     }
   }
 
-  auto CAS =
-      Opts.getOrCreateDatabases(*Diags, /*CreateEmptyCASOnFailure=*/false)
-          .first;
+  auto CAS = Opts.createDatabases(*Diags).first;
   if (!CAS)
     return 1;
 

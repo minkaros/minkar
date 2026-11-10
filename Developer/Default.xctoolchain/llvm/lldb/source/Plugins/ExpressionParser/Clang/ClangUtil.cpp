@@ -20,7 +20,7 @@ bool ClangUtil::IsClangType(const CompilerType &ct) {
   if (!ct)
     return false;
 
-  if (!ct.GetTypeSystem().dyn_cast_or_null<TypeSystemClang>())
+  if (!ct.GetTypeSystem<TypeSystemClang>())
     return false;
 
   if (!ct.GetOpaqueQualType())
@@ -66,16 +66,6 @@ clang::TagDecl *ClangUtil::GetAsTagDecl(const CompilerType &type) {
   return qual_type->getAsTagDecl();
 }
 
-clang::Decl *ClangUtil::GetFirstDecl(clang::Decl *d) {
-  if (!d)
-    return nullptr;
-  if (auto *td = llvm::dyn_cast<clang::TagDecl>(d))
-    return td->getFirstDecl();
-  if (auto *od = llvm::dyn_cast<clang::ObjCInterfaceDecl>(d))
-    return od->getFirstDecl();
-  return d;
-}
-
 clang::ObjCInterfaceDecl *ClangUtil::GetAsObjCDecl(const CompilerType &type) {
   clang::QualType qual_type = ClangUtil::GetCanonicalQualType(type);
   if (qual_type.isNull())
@@ -97,7 +87,6 @@ std::string ClangUtil::DumpDecl(const clang::Decl *d) {
   bool deserialize = false;
   d->dump(stream, deserialize);
 
-  stream.flush();
   return result;
 }
 

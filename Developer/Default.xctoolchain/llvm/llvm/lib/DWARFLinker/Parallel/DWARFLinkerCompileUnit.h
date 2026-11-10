@@ -87,12 +87,12 @@ public:
   CompileUnit(LinkingGlobalData &GlobalData, unsigned ID,
               StringRef ClangModuleName, DWARFFile &File,
               OffsetToUnitTy UnitFromOffset, dwarf::FormParams Format,
-              support::endianness Endianess);
+              llvm::endianness Endianess);
 
   CompileUnit(LinkingGlobalData &GlobalData, DWARFUnit &OrigUnit, unsigned ID,
               StringRef ClangModuleName, DWARFFile &File,
               OffsetToUnitTy UnitFromOffset, dwarf::FormParams Format,
-              support::endianness Endianess);
+              llvm::endianness Endianess);
 
   /// Returns stage of overall processing.
   Stage getStage() const { return Stage; }
@@ -201,7 +201,7 @@ public:
     bool setPlacementIfUnset(DieOutputPlacement Placement) {
       auto InputData = Flags.load();
       if ((InputData & 0x7) == NotSet)
-        if (Flags.compare_exchange_weak(InputData, (InputData | Placement)))
+        if (Flags.compare_exchange_strong(InputData, (InputData | Placement)))
           return true;
 
       return false;

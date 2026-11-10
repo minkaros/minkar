@@ -2,23 +2,22 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftImportSearchPaths(lldbtest.TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
-    @skipIf(bugnumber='rdar://135553659')
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_positive(self):
         self.do_test('true')
 
-    @skipIf(bugnumber='rdar://135553659')
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_negative(self):
         self.do_test('false')
-        
+
     def do_test(self, flag):
         """Test a .swiftmodule that was compiled with serialized debugging
            options, using a search path to another module it imports. We then
@@ -28,9 +27,11 @@ class TestSwiftImportSearchPaths(lldbtest.TestBase):
         self.expect('settings set '
                     + 'target.experimental.swift-discover-implicit-search-paths '
                     + flag)
+        indirect_name = self.platformContext.getFullLibName("Indirect").split(".")[0]
+        indirect = f"hidden/{indirect_name}"
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(
             self, 'break here', lldb.SBFileSpec('main.swift'),
-            extra_images=['Direct', self.getBuildArtifact('hidden/libIndirect')])
+            extra_images=['Direct', self.getBuildArtifact(indirect)])
 
         types_log = self.getBuildArtifact("types.log")
         self.expect("log enable lldb types -f " + types_log)
@@ -38,13 +39,10 @@ class TestSwiftImportSearchPaths(lldbtest.TestBase):
         if flag == 'true':
             prefix = 'POSITIVE'
         else:
-            prefix = 'NEGATIVE'
-        self.filecheck('platform shell cat "%s"' % types_log, __file__,
-                       '--check-prefix=CHECK_MOD_'+prefix)
-        self.filecheck('platform shell cat "%s"' % types_log, __file__,
-                       '--check-prefix=CHECK_EXP_'+prefix)
-# CHECK_MOD_POSITIVE: SwiftASTContextForModule("a.out")::LogConfiguration(){{.*hidden$}}
-# CHECK_MOD_NEGATIVE: SwiftASTContextForModule("a.out")::LogConfiguration(){{.*hidden$}}
-# CHECK_EXP_POSITIVE: SwiftASTContextForExpressions::LogConfiguration(){{.*hidden$}}
-# CHECK_EXP_NEGATIVE-NOT: SwiftASTContextForExpressions::LogConfiguration(){{.*hidden$}}
-# CHECK_EXP_NEGATIVE: SwiftASTContextForExpressions::LogConfiguration(){{.*}}Extra clang arguments
+            prefix = "NEGATIVE"
+        self.filecheck_log(types_log, __file__, "--check-prefix=CHECK_EXP_" + prefix)
+
+
+# CHECK_EXP_POSITIVE: SwiftASTContextForExpressions{{.*}}::LogConfiguration(){{.*hidden$}}
+# CHECK_EXP_NEGATIVE-NOT: SwiftASTContextForExpressions{{.*}}::LogConfiguration(){{.*hidden$}}
+# CHECK_EXP_NEGATIVE: SwiftASTContextForExpressions{{.*}}::LogConfiguration(){{.*}}Extra clang arguments

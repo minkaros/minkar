@@ -103,6 +103,13 @@ bool ThreadPlanStepOverBreakpoint::ShouldStop(Event *event_ptr) {
 
 bool ThreadPlanStepOverBreakpoint::StopOthers() { return true; }
 
+// This thread plan does a single instruction step over a breakpoint instruction
+// and needs to not resume other threads, so return false to stop the
+// ThreadPlanSingleThreadTimeout from timing out and trying to resume all
+// threads. If all threads gets resumed before we disable, single step and
+// re-enable the breakpoint, we can miss breakpoints on other threads.
+bool ThreadPlanStepOverBreakpoint::SupportsResumeOthers() { return false; }
+
 StateType ThreadPlanStepOverBreakpoint::GetPlanRunState() {
   return eStateStepping;
 }
@@ -112,8 +119,10 @@ bool ThreadPlanStepOverBreakpoint::DoWillResume(StateType resume_state,
   if (current_plan) {
     BreakpointSiteSP bp_site_sp(
         m_process.GetBreakpointSiteList().FindByAddress(m_breakpoint_addr));
-    if (bp_site_sp && bp_site_sp->IsEnabled()) {
-      m_process.DisableBreakpointSite(bp_site_sp.get());
+    if (bp_site_sp && m_process.IsBreakpointSiteEnabled(*bp_site_sp)) {
+      llvm::consumeError(m_process.ExecuteBreakpointSiteAction(
+          *bp_site_sp, Process::BreakpointAction::Disable,
+          /*forbid_delay=*/false));
       m_reenabled_breakpoint_site = false;
     }
   }
@@ -151,7 +160,9 @@ void ThreadPlanStepOverBreakpoint::ReenableBreakpointSite() {
     BreakpointSiteSP bp_site_sp(
         m_process.GetBreakpointSiteList().FindByAddress(m_breakpoint_addr));
     if (bp_site_sp) {
-      m_process.EnableBreakpointSite(bp_site_sp.get());
+      llvm::consumeError(m_process.ExecuteBreakpointSiteAction(
+          *bp_site_sp, Process::BreakpointAction::Enable,
+          /*forbid_delay=*/false));
     }
   }
 }

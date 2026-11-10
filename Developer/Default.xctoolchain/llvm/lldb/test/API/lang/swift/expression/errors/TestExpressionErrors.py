@@ -17,9 +17,8 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
-
+@skipIf(bugnumber = "rdar://159531241")
 class TestExpressionErrors(TestBase):
     @swiftTest
     def test_CanThrowError(self):
@@ -35,7 +34,7 @@ class TestExpressionErrors(TestBase):
 
         self.checkCanThrow("IThrowObjectOver10", True)
         self.checkCanThrow("ClassError.SomeMethod", False)
- 
+
     def checkCanThrow(self, name, expected):
         sc_list = self.target.FindFunctions(name)
         self.assertEqual(sc_list.GetSize(), 1, "Error looking for %s"%(name))

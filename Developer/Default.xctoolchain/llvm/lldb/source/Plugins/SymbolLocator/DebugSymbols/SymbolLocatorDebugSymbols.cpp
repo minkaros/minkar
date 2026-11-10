@@ -202,13 +202,17 @@ std::optional<ModuleSpec> SymbolLocatorDebugSymbols::LocateExecutableObjectFile(
 
           // Check if the requested image is in our shared cache.
           if (!success) {
+            SymbolSharedCacheUse sc_mode =
+                ModuleList::GetGlobalModuleListProperties()
+                    .GetSharedCacheBinaryLoading();
             SharedCacheImageInfo image_info = HostInfo::GetSharedCacheImageInfo(
-                module_spec.GetFileSpec().GetPath());
+                module_spec.GetFileSpec().GetPathAsConstString(), sc_mode);
 
             // If we found it and it has the correct UUID, let's proceed with
             // creating a module from the memory contents.
-            if (image_info.uuid && (!module_spec.GetUUID() ||
-                                    module_spec.GetUUID() == image_info.uuid)) {
+            if (image_info.GetUUID() &&
+                (!module_spec.GetUUID() ||
+                 module_spec.GetUUID() == image_info.GetUUID())) {
               success = true;
               return_module_spec.GetFileSpec() = module_spec.GetFileSpec();
               LLDB_LOGF(log,
@@ -398,7 +402,7 @@ static bool LookForDsymNextToExecutablePath(const ModuleSpec &mod_spec,
   FileSpec dsym_directory = exec_fspec;
   dsym_directory.RemoveLastPathComponent();
 
-  std::string dsym_filename = filename.AsCString();
+  std::string dsym_filename = filename.GetString();
   dsym_filename += ".dSYM";
   dsym_directory.AppendPathComponent(dsym_filename);
   dsym_directory.AppendPathComponent("Contents");
@@ -410,7 +414,7 @@ static bool LookForDsymNextToExecutablePath(const ModuleSpec &mod_spec,
     // See if the binary name exists in the dSYM DWARF
     // subdir.
     dsym_fspec = dsym_directory;
-    dsym_fspec.AppendPathComponent(filename.AsCString());
+    dsym_fspec.AppendPathComponent(filename.AsCString(nullptr));
     if (FileSystem::Instance().Exists(dsym_fspec) &&
         FileAtPathContainsArchAndUUID(dsym_fspec, mod_spec.GetArchitecturePtr(),
                                       mod_spec.GetUUIDPtr())) {
@@ -421,7 +425,7 @@ static bool LookForDsymNextToExecutablePath(const ModuleSpec &mod_spec,
     // CF.framework.dSYM/Contents/Resources/DWARF/CF
     // We need to drop the last suffix after '.' to match
     // 'CF' in the DWARF subdir.
-    std::string binary_name(filename.AsCString());
+    std::string binary_name = filename.GetString();
     auto last_dot = binary_name.find_last_of('.');
     if (last_dot != std::string::npos) {
       binary_name.erase(last_dot);
@@ -439,7 +443,7 @@ static bool LookForDsymNextToExecutablePath(const ModuleSpec &mod_spec,
   // See if we have a .dSYM.yaa next to this executable path.
   FileSpec dsym_yaa_fspec = exec_fspec;
   dsym_yaa_fspec.RemoveLastPathComponent();
-  std::string dsym_yaa_filename = filename.AsCString();
+  std::string dsym_yaa_filename = filename.GetString();
   dsym_yaa_filename += ".dSYM.yaa";
   dsym_yaa_fspec.AppendPathComponent(dsym_yaa_filename);
 
@@ -501,7 +505,7 @@ static bool LocateDSYMInVincinityOfExecutable(const ModuleSpec &module_spec,
       for (int i = 0; i < 4; i++) {
         // Does this part of the path have a "." character - could it be a
         // bundle's top level directory?
-        const char *fn = parent_dirs.GetFilename().AsCString();
+        const char *fn = parent_dirs.GetFilename().AsCString(nullptr);
         if (fn == nullptr)
           break;
         if (::strchr(fn, '.') != nullptr) {
@@ -644,13 +648,17 @@ static int LocateMacOSXFilesUsingDebugSymbols(const ModuleSpec &module_spec,
 
           // Check if the requested image is in our shared cache.
           if (!success) {
+            SymbolSharedCacheUse sc_mode =
+                ModuleList::GetGlobalModuleListProperties()
+                    .GetSharedCacheBinaryLoading();
             SharedCacheImageInfo image_info = HostInfo::GetSharedCacheImageInfo(
-                module_spec.GetFileSpec().GetPath());
+                module_spec.GetFileSpec().GetPathAsConstString(), sc_mode);
 
             // If we found it and it has the correct UUID, let's proceed with
             // creating a module from the memory contents.
-            if (image_info.uuid && (!module_spec.GetUUID() ||
-                                    module_spec.GetUUID() == image_info.uuid)) {
+            if (image_info.GetUUID() &&
+                (!module_spec.GetUUID() ||
+                 module_spec.GetUUID() == image_info.GetUUID())) {
               success = true;
               return_module_spec.GetFileSpec() = module_spec.GetFileSpec();
               LLDB_LOGF(log,
@@ -812,7 +820,7 @@ static bool GetModuleSpecInfoFromUUIDDictionary(CFDictionaryRef uuid_dict,
         std::string errorstr = command;
         errorstr += ":\n";
         errorstr += str;
-        error.SetErrorString(errorstr);
+        error = Status(errorstr);
       }
     }
 
@@ -1066,30 +1074,44 @@ bool SymbolLocatorDebugSymbols::DownloadObjectAndSymbolFile(
   command << lookup_arg;
 
   // Log and report progress.
-  Log *log = GetLog(LLDBLog::Host);
-  LLDB_LOG(log, "Calling {0} with {1} to find dSYM: {2}", dsymForUUID_exe_path,
-           lookup_arg, command.GetString());
+  std::string lookup_desc;
+  if (uuid_ptr && file_spec_ptr)
+    lookup_desc =
+        llvm::formatv("{0} ({1})", file_spec_ptr->GetFilename().GetString(),
+                      uuid_ptr->GetAsString());
+  else if (uuid_ptr)
+    lookup_desc = uuid_ptr->GetAsString();
+  else if (file_spec_ptr)
+    lookup_desc = file_spec_ptr->GetFilename().GetString();
 
-  Progress progress("Downloading symbol file", lookup_arg);
+  Log *log = GetLog(LLDBLog::Host);
+  LLDB_LOG(log, "Calling {0} for {1} to find dSYM: {2}", dsymForUUID_exe_path,
+           lookup_desc, command.GetString());
+
+  Progress progress("Downloading symbol file for", lookup_desc);
 
   // Invoke dsymForUUID.
   int exit_status = -1;
   int signo = -1;
   std::string command_output;
+  std::string error_output;
   error = Host::RunShellCommand(
       command.GetData(),
       FileSpec(),      // current working directory
       &exit_status,    // Exit status
       &signo,          // Signal int *
       &command_output, // Command output
+      &error_output,   // Command error output
       std::chrono::seconds(
           640), // Large timeout to allow for long dsym download times
       false);   // Don't run in a shell (we don't need shell expansion)
 
   if (error.Fail() || exit_status != 0 || command_output.empty()) {
-    LLDB_LOGF(log, "'%s' failed (exit status: %d, error: '%s', output: '%s')",
+    LLDB_LOGF(log,
+              "'%s' failed (exit status: %d, error: '%s', stdout: '%s', "
+              "stderr: '%s')",
               command.GetData(), exit_status, error.AsCString(),
-              command_output.c_str());
+              command_output.c_str(), error_output.c_str());
     return false;
   }
 
@@ -1104,6 +1126,7 @@ bool SymbolLocatorDebugSymbols::DownloadObjectAndSymbolFile(
   if (!plist.get()) {
     LLDB_LOGF(log, "'%s' failed: output is not a valid plist",
               command.GetData());
+    LLDB_LOGF(log, "Response:\n%s\n", command_output.c_str());
     return false;
   }
 

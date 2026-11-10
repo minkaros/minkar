@@ -15,9 +15,9 @@
 #include "SwiftUnsafeTypes.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/ValueObject.h"
-#include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/ValueObject/ValueObject.h"
+#include "lldb/ValueObject/ValueObjectVariable.h"
 
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
@@ -30,8 +30,8 @@
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Symbol/VariableList.h"
-#include "lldb/Utility/Log.h"
 #include "lldb/Utility/LLDBLog.h"
+#include "lldb/Utility/Log.h"
 
 #include "LogChannelSwift.h"
 #include "ObjCRuntimeSyntheticProvider.h"
@@ -68,7 +68,7 @@ void SwiftLanguage::Initialize() {
   static ConstString g_SwiftStringStorageClass("_TtCs15__StringStorage");
   static ConstString g_NSArrayClass1("_TtCs22__SwiftDeferredNSArray");
   PluginManager::RegisterPlugin(GetPluginNameStatic(), "Swift Language",
-                                CreateInstance);
+                                CreateInstance, &DebuggerInitialize);
 
   lldb_private::formatters::NSString_Additionals::GetAdditionalSummaries()
       .emplace(
@@ -107,7 +107,7 @@ void SwiftLanguage::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-bool SwiftLanguage::SymbolNameFitsToLanguage(Mangled mangled) const {
+bool SwiftLanguage::SymbolNameFitsToLanguage(const Mangled &mangled) const {
   return SwiftLanguageRuntime::IsSwiftMangledName(
       mangled.GetMangledName().GetStringRef());
 }
@@ -148,7 +148,7 @@ SwiftLanguage::GetMethodNameVariants(ConstString method_name) const {
   // in type `A`). Second, it can refer the *getter* block for property `A`.
   // LLDB's baseline behavior handles the first case. The second case is
   // produced here as a variant name.
-  for (StringRef suffix : {".get", ".set", ".willset", ".didset"})
+  for (llvm::StringRef suffix : {".get", ".set", ".willset", ".didset"})
     if (method_name.GetStringRef().ends_with(suffix)) {
       // The method name, complete with suffix, *is* the variant.
       variant_names.emplace_back(method_name, eFunctionNameTypeFull |
@@ -309,11 +309,8 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
   AddCXXSummary(swift_category_sp,
                 lldb_private::formatters::swift::Array_SummaryProvider,
                 "Swift.Array summary provider",
-                ConstString("^Swift.Array<.+>$"), summary_flags, true);
-  AddCXXSummary(
-      swift_category_sp, lldb_private::formatters::swift::Array_SummaryProvider,
-      "Swift.ContiguousArray summary provider",
-      ConstString("^Swift.ContiguousArray<.+>$"), summary_flags, true);
+                ConstString("^Swift.(Contiguous|Inline)?Array<.+>$"),
+                summary_flags, true);
   AddCXXSummary(swift_category_sp,
                 lldb_private::formatters::swift::Array_SummaryProvider,
                 "Swift.ArraySlice summary provider",
@@ -347,6 +344,12 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
       ConstString("^Swift.Unsafe(Mutable)?(Raw)?(Buffer)?Pointer(<.+>)?$"),
       summary_flags, true);
 
+  AddCXXSummary(swift_category_sp,
+                lldb_private::formatters::swift::UnsafeTypeSummaryProvider,
+                "Swift.[Mutable]Span",
+                ConstString("^Swift\\.(Mutable)?Span<.+>$"), summary_flags,
+                true);
+
   DictionaryConfig::Get().RegisterSummaryProviders(swift_category_sp,
                                                    summary_flags);
   SetConfig::Get().RegisterSummaryProviders(swift_category_sp, summary_flags);
@@ -357,13 +360,8 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
   AddCXXSynthetic(
       swift_category_sp,
       lldb_private::formatters::swift::ArraySyntheticFrontEndCreator,
-      "Swift.Array synthetic children", ConstString("^Swift.Array<.+>$"),
-      synth_flags, true);
-  AddCXXSynthetic(
-      swift_category_sp,
-      lldb_private::formatters::swift::ArraySyntheticFrontEndCreator,
-      "Swift.ContiguousArray synthetic children",
-      ConstString("^Swift.ContiguousArray<.+>$"), synth_flags, true);
+      "Swift.Array synthetic children",
+      ConstString("^Swift.(Contiguous|Inline)?Array<.+>$"), synth_flags, true);
   AddCXXSynthetic(
       swift_category_sp,
       lldb_private::formatters::swift::ArraySyntheticFrontEndCreator,
@@ -403,16 +401,57 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
       ConstString("^Swift.Unsafe(Mutable)?(Raw)?(Buffer)?Pointer(<.+>)?$"),
       synth_flags, true);
 
+  AddCXXSynthetic(
+      swift_category_sp,
+      lldb_private::formatters::swift::UnsafeTypeSyntheticFrontEndCreator,
+      "Swift.[Mutable]Span", ConstString("^Swift\\.(Mutable)?Span<.+>?"),
+      synth_flags, true);
+
   DictionaryConfig::Get().RegisterSyntheticChildrenCreators(swift_category_sp,
                                                             synth_flags);
   SetConfig::Get().RegisterSyntheticChildrenCreators(swift_category_sp,
                                                      synth_flags);
 
-  synth_flags.SetSkipPointers(true);
+  AddCXXSynthetic(swift_category_sp,
+                  lldb_private::formatters::swift::TaskSyntheticFrontEndCreator,
+                  "Swift.Task synthetic children",
+                  ConstString("^Swift\\.Task<.+,.+>"), synth_flags, true);
+  AddCXXSynthetic(swift_category_sp,
+                  lldb_private::formatters::swift::TaskSyntheticFrontEndCreator,
+                  "Swift.UnsafeCurrentTask synthetic children",
+                  ConstString("Swift.UnsafeCurrentTask"), synth_flags);
+  AddCXXSynthetic(swift_category_sp,
+                  lldb_private::formatters::swift::
+                      UnsafeContinuationSyntheticFrontEndCreator,
+                  "Swift.UnsafeContinuation synthetic children",
+                  ConstString("^Swift\\.UnsafeContinuation<.+,.+>"),
+                  synth_flags, true);
+  AddCXXSynthetic(swift_category_sp,
+                  lldb_private::formatters::swift::
+                      CheckedContinuationSyntheticFrontEndCreator,
+                  "Swift.CheckedContinuation synthetic children",
+                  ConstString("^Swift\\.CheckedContinuation<.+,.+>"),
+                  synth_flags, true);
+  AddCXXSynthetic(
+      swift_category_sp,
+      lldb_private::formatters::swift::TaskGroupSyntheticFrontEndCreator,
+      "Swift.TaskGroup synthetic children",
+      ConstString("^Swift\\.(Throwing)?TaskGroup<.+>"), synth_flags, true);
 
+  AddCXXSynthetic(
+      swift_category_sp,
+      lldb_private::formatters::swift::ActorSyntheticFrontEndCreator,
+      "Actor synthetic children", ConstString("Builtin.DefaultActorStorage"),
+      synth_flags);
+
+  AddCXXSynthetic(
+      swift_category_sp,
+      lldb_private::formatters::swift::SwiftBasicTypeSyntheticFrontEndCreator,
+      "Swift.Bool", ConstString("Swift.Bool"), basic_synth_flags);
   AddCXXSummary(
       swift_category_sp, lldb_private::formatters::swift::Bool_SummaryProvider,
       "Swift.Bool summary provider", ConstString("Swift.Bool"), summary_flags);
+
   AddCXXSummary(
       swift_category_sp,
       lldb_private::formatters::swift::TypePreservingNSNumber_SummaryProvider,
@@ -434,6 +473,11 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
                 lldb_private::formatters::swift::Character_SummaryProvider,
                 "Swift.Character summary provider",
                 ConstString("Swift.Character"), summary_flags);
+  // Hide children.
+  AddCXXSynthetic(
+      swift_category_sp,
+      lldb_private::formatters::swift::SwiftBasicTypeSyntheticFrontEndCreator,
+      "Swift.String", ConstString("Swift.String"), basic_synth_flags);
   bool (*string_summary_provider)(ValueObject &, Stream &,
                                   const TypeSummaryOptions &) =
       lldb_private::formatters::swift::String_SummaryProvider;
@@ -458,6 +502,31 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
   AddCXXSummary(swift_category_sp, staticstring_summary_provider,
                 "Swift.StaticString summary provider",
                 ConstString("Swift.StaticString"), summary_flags);
+  AddCXXSummary(swift_category_sp,
+                lldb_private::formatters::NSStringSummaryProvider,
+                "Swift.__StringStorage summary provider",
+                "Swift.__StringStorage", summary_flags);
+  AddCXXSummary(swift_category_sp,
+                lldb_private::formatters::swift::TaskPriority_SummaryProvider,
+                "Swift TaskPriority summary provider", "Swift.TaskPriority",
+                summary_flags);
+  {
+    auto task_summary_flags = summary_flags;
+    task_summary_flags.SetDontShowChildren(false);
+    AddCXXSummary(swift_category_sp,
+                  lldb_private::formatters::swift::Task_SummaryProvider,
+                  "Swift Task summary provider", "^Swift\\.Task<.+,.+>",
+                  task_summary_flags, true);
+    AddCXXSummary(swift_category_sp,
+                  lldb_private::formatters::swift::Task_SummaryProvider,
+                  "Swift UnsafeCurrentTask summary provider",
+                  "Swift.UnsafeCurrentTask", task_summary_flags);
+    AddCXXSummary(swift_category_sp,
+                  lldb_private::formatters::swift::Actor_SummaryProvider,
+                  "Swift Actor summary provider", "Builtin.DefaultActorStorage",
+                  task_summary_flags);
+  }
+
   summary_flags.SetSkipPointers(false);
   // this is an ObjC dynamic type - as such it comes in pointer form
   // NSContiguousString* - do not skip pointers here
@@ -474,9 +543,9 @@ static void LoadSwiftFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
 
   TypeSummaryImpl::Flags optional_summary_flags;
   optional_summary_flags.SetCascades(true)
-      .SetDontShowChildren(false) // this one will actually be calculated at
-                                  // runtime, what you pass here doesn't matter
-      .SetDontShowValue(true)
+      .SetDontShowChildren(true) // this one will actually be calculated at
+                                 // runtime, what you pass here doesn't matter
+      .SetDontShowValue(false)
       .SetHideItemNames(false)
       .SetShowMembersOneLiner(false)
       .SetSkipPointers(true)
@@ -606,9 +675,16 @@ LoadFoundationValueTypesFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp, lldb_private::formatters::swift::Date_SummaryProvider,
-      "Foundation.Date summary provider", ConstString("Foundation.Date"),
-      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
+      "Foundation.Date summary provider",
+      ConstString("Foundation(Essentials)?\\.(NS)?Date"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
 
+  lldb_private::formatters::AddCXXSummary(
+      swift_category_sp,
+      lldb_private::formatters::NSStringSummaryProvider,
+      "CFStringRef summary provider",
+      ConstString("CoreFoundation.CFStringRef"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp,
       lldb_private::formatters::swift::NotificationName_SummaryProvider,
@@ -624,7 +700,18 @@ LoadFoundationValueTypesFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp, lldb_private::formatters::swift::URL_SummaryProvider,
-      "URL summary provider", ConstString("Foundation.URL"),
+      "URL summary provider", ConstString("^Foundation(Essentials)?\\.URL$"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
+
+  lldb_private::formatters::AddCXXSummary(
+      swift_category_sp,
+      lldb_private::formatters::swift::SwiftURL_SummaryProvider,
+      "URL summary provider",
+      ConstString("^Foundation(Essentials)?\\._SwiftURL$"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
+
+  lldb_private::formatters::AddStringSummary(
+      swift_category_sp, "${var._url}", ConstString("Foundation._BridgedURL"),
       TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
 
   lldb_private::formatters::AddCXXSummary(
@@ -642,19 +729,20 @@ LoadFoundationValueTypesFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp, lldb_private::formatters::swift::UUID_SummaryProvider,
-      "UUID summary provider", ConstString("Foundation.UUID"),
-      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
+      "UUID summary provider", ConstString("^Foundation(Essentials)?\\.UUID$"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp, lldb_private::formatters::swift::Data_SummaryProvider,
-      "Data summary provider", ConstString("Foundation.Data"),
-      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
+      "Data summary provider", ConstString("^Foundation(Essentials)?\\.Data$"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp,
       lldb_private::formatters::swift::Decimal_SummaryProvider,
-      "Decimal summary provider", ConstString("Foundation.Decimal"),
-      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true));
+      "Decimal summary provider",
+      ConstString("^Foundation(Essentials)?\\.Decimal$"),
+      TypeSummaryImpl::Flags(summary_flags).SetDontShowChildren(true), true);
 
   lldb_private::formatters::AddCXXSummary(
       swift_category_sp, lldb_private::formatters::NSTimeZoneSummaryProvider,
@@ -673,6 +761,34 @@ LoadFoundationValueTypesFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
           .SetNonCacheable(false));
 }
 
+static void
+LoadSystemValueTypesFormatters(lldb::TypeCategoryImplSP swift_category_sp) {
+  if (!swift_category_sp)
+    return;
+
+  TypeSummaryImpl::Flags summary_flags;
+  summary_flags.SetCascades(true)
+      .SetDontShowChildren(true) // overridden at runtime by DoesPrintChildren
+      .SetSkipPointers(true)
+      .SetSkipReferences(false)
+      .SetHideItemNames(false)
+      .SetShowMembersOneLiner(false);
+
+  TypeSummaryImplSP filepath_summary_sp(
+      new lldb_private::formatters::swift::FilePathSummaryProvider(
+          summary_flags));
+  lldb_private::formatters::AddSummary(
+      swift_category_sp, filepath_summary_sp,
+      ConstString("^System(Package)?\\.FilePath$"), true);
+
+  lldb_private::formatters::AddCXXSummary(
+      swift_category_sp,
+      lldb_private::formatters::swift::SystemString_SummaryProvider,
+      "SystemString summary provider",
+      ConstString("^System(Package)?\\.SystemString$"),
+      summary_flags, true);
+}
+
 lldb::TypeCategoryImplSP SwiftLanguage::GetFormatters() {
   static std::once_flag g_initialize;
   static TypeCategoryImplSP g_category;
@@ -683,6 +799,8 @@ lldb::TypeCategoryImplSP SwiftLanguage::GetFormatters() {
     if (g_category) {
       LoadSwiftFormatters(g_category);
       LoadFoundationValueTypesFormatters(g_category);
+      LoadSystemValueTypesFormatters(g_category);
+      formatters::swift::LoadSwiftUIFormatters(g_category);
     }
   });
   return g_category;
@@ -720,7 +838,7 @@ SwiftLanguage::GetHardcodedSummaries() {
       }
       llvm::StringRef tau_ = u8"$\u03C4_";
       if (valobj.GetName().GetLength() > 12 &&
-          valobj.GetName().GetStringRef().startswith(tau_) &&
+          valobj.GetName().GetStringRef().starts_with(tau_) &&
           type.GetTypeName() == g_RawPointerType) {
         if (!swift_metatype_summary_sp.get()) {
           TypeSummaryImpl::Flags flags;
@@ -789,7 +907,7 @@ ExtractSwiftTypeNameFromCxxInteropType(CompilerType type) {
   }
 
   const clang::RecordDecl *record_decl = record_type->getDecl();
-  auto *metadata = tsc->GetMetadata(record_decl);
+  auto metadata = tsc->GetMetadata(record_decl);
   if (metadata && !metadata->GetIsPotentiallySwiftInteropType())
     return {};
 
@@ -845,7 +963,9 @@ static CompilerType ExtractSwiftTypeFromCxxInteropTypeName(
         // convertible to Swift (for example, int -> Int32). Attempt to
         // convert it to a Swift type.
         if (!substituted_type)
-          substituted_type = ts.ConvertClangTypeToSwiftType(templated_type);
+          substituted_type = ts.ConvertClangTypeToSwiftType(
+              templated_type, SwiftLanguageRuntime::GetManglingFlavor(
+                                  swift_type.GetMangledTypeName()));
         return substituted_type;
       });
   return bound_type;
@@ -864,11 +984,16 @@ class ValueObjectWrapperSyntheticChildren : public SyntheticChildren {
       return idx == 0 ? m_backend.GetSP() : nullptr;
     }
 
-    size_t GetIndexOfChildWithName(ConstString name) override {
-      return m_backend.GetName() == name ? 0 : UINT32_MAX;
+    llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+      if (m_backend.GetName() == name) {
+        return 0;
+      }
+      return llvm::createStringErrorV("Type has no child named '{0}'", name);
     }
 
-    lldb::ChildCacheState Update() override { return ChildCacheState::eRefetch; }
+    lldb::ChildCacheState Update() override {
+      return ChildCacheState::eRefetch;
+    }
 
     bool MightHaveChildren() override { return true; }
 
@@ -878,16 +1003,16 @@ class ValueObjectWrapperSyntheticChildren : public SyntheticChildren {
   };
 
 public:
-  ValueObjectWrapperSyntheticChildren(ValueObjectSP valobj, const Flags &flags) 
+  ValueObjectWrapperSyntheticChildren(ValueObjectSP valobj, const Flags &flags)
       : SyntheticChildren(flags), m_valobj(valobj) {}
 
-  SyntheticChildrenFrontEnd::AutoPointer
+  SyntheticChildrenFrontEnd::UniquePointer
   GetFrontEnd(ValueObject &backend) override {
     if (!m_valobj)
       return nullptr;
     // We ignore the backend parameter here, as we have a more specific one
     // available.
-    return std::make_unique<ValueObjectWrapperFrontEndProvider>(*m_valobj); 
+    return std::make_unique<ValueObjectWrapperFrontEndProvider>(*m_valobj);
   }
 
   bool IsScripted() override { return false; }
@@ -914,10 +1039,6 @@ SwiftLanguage::GetHardcodedSynthetics() {
       CompilerType type(valobj.GetCompilerType());
       Flags type_flags(type.GetTypeInfo());
       if (type_flags.AllSet(eTypeIsSwift | eTypeIsEnumeration)) {
-        // FIXME: The classification of clang-imported enums may
-        // change based on whether a Swift module is present or not.
-        if (!valobj.GetValueAsCString())
-          return nullptr;
         if (!swift_enum_synth)
           swift_enum_synth = lldb::SyntheticChildrenSP(new CXXSyntheticChildren(
               SyntheticChildren::Flags()
@@ -933,30 +1054,34 @@ SwiftLanguage::GetHardcodedSynthetics() {
     g_formatters.push_back(
         [](lldb_private::ValueObject &valobj, lldb::DynamicValueType dyn_type,
            FormatManager &format_manager) -> lldb::SyntheticChildrenSP {
-          struct IsEligible {
-            static bool Check(ValueObject &valobj, const CompilerType &type) {
-              bool is_imported = false;
-
-              if (type.IsValid()) {
-                auto swift_ast_ctx =
-                    type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
-                if (swift_ast_ctx && swift_ast_ctx->IsImportedType(
-                                         type.GetOpaqueQualType(), nullptr))
-                  is_imported = true;
-              }
-
-              ExecutionContext exe_ctx(valobj.GetExecutionContextRef());
-              if (is_imported && type.GetNumFields(&exe_ctx) == 0)
-                return true;
-              if (valobj.IsBaseClass() && type.IsRuntimeGeneratedType()) {
-                auto parent(valobj.GetParent());
-                if (!parent)
+          // Determine if this is an Objective-C object that benefits
+          // from the ObjC synthetic child provider.
+          std::function<bool(ValueObject &, CompilerType)> is_eligible =
+              [&](ValueObject &valobj, CompilerType type) {
+                if (!type.IsValid())
                   return false;
-                return IsEligible::Check(*parent, parent->GetCompilerType());
-              }
-              return false;
-            }
-          };
+
+                CompilerType clang_type;
+                if (auto ts =
+                    type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>())
+                  if (ts->IsImportedType(type.GetOpaqueQualType(), &clang_type))
+                    // Could be an Objective-C object with no debug info; we
+                    // can get ivars from the runtime.
+                    if (!clang_type)
+                      return true;
+                // Is this an Objective-C object with debug info?
+                if (clang_type && Flags(clang_type.GetTypeClass())
+                                      .AnySet(eTypeClassObjCInterface |
+                                              eTypeClassObjCObjectPointer |
+                                              eTypeClassObjCObject))
+                  return true;
+                if (valobj.IsBaseClass() && type.IsRuntimeGeneratedType()) {
+                  if (ValueObject *parent = valobj.GetParent())
+                    return is_eligible(*parent, parent->GetCompilerType());
+                  return false;
+                }
+                return false;
+              };
 
           if (dyn_type == lldb::eNoDynamicValues)
             return nullptr;
@@ -966,15 +1091,14 @@ SwiftLanguage::GetHardcodedSynthetics() {
               g_runtime_synths_category_name, can_create));
           if (!category_sp || category_sp->IsEnabled() == false)
             return nullptr;
-          if (IsEligible::Check(valobj, type)) {
+          if (is_eligible(valobj, type)) {
             ProcessSP process_sp(valobj.GetProcessSP());
             if (!process_sp)
               return nullptr;
             // If this is a Swift tagged pointer, the Objective-C data
             // formatters may incorrectly classify it as an
             // Objective-C tagged pointer.
-            AddressType address_type;
-            lldb::addr_t ptr = valobj.GetPointerValue(&address_type);
+            auto [ptr, address_type] = valobj.GetPointerValue();
             auto *swift_runtime = SwiftLanguageRuntime::Get(process_sp);
             if (!swift_runtime)
               return nullptr;
@@ -1048,16 +1172,15 @@ SwiftLanguage::GetHardcodedSynthetics() {
         LLDB_LOGV(log, "[Matching CxxBridgedSyntheticChildProvider] - "
                        "Could not get the swift runtime.");
 
-      std::optional<SwiftScratchContextReader> scratch_ctx_reader =
-          valobj.GetSwiftScratchContext();
-      if (!scratch_ctx_reader || !scratch_ctx_reader->get()) {
+      auto ts = TypeSystemSwiftTypeRefForExpressions::GetForTarget(
+          valobj.GetTargetSP());
+      if (!ts) {
         LLDB_LOGV(log, "[Matching CxxBridgedSyntheticChildProvider] - "
                        "Could not get the Swift scratch context.");
         return nullptr;
       }
-      auto &ts = *scratch_ctx_reader->get();
       CompilerType swift_type = ExtractSwiftTypeFromCxxInteropTypeName(
-          type, swift_type_name, ts, *swift_runtime);
+          type, swift_type_name, *ts, *swift_runtime);
       if (!swift_type) {
         LLDB_LOGV(log,
                   "[Matching CxxBridgedSyntheticChildProvider] - "
@@ -1108,13 +1231,14 @@ SwiftLanguage::GetHardcodedSynthetics() {
       TypeAndOrName type_or_name;
       Address address;
       Value::ValueType value_type;
+      llvm::ArrayRef<uint8_t> local_buffer;
       // Try to find the dynamic type of the Swift type.
       // TODO: find a way to get the dyamic value type from the
       // command.
       if (swift_runtime->GetDynamicTypeAndAddress(
               *casted_to_swift.get(),
               lldb::DynamicValueType::eDynamicCanRunTarget, type_or_name,
-              address, value_type)) {
+              address, value_type, local_buffer)) {
         if (type_or_name.HasCompilerType()) {
           swift_type = type_or_name.GetCompilerType();
           // Cast it to the more specific type.
@@ -1167,7 +1291,7 @@ SwiftLanguage::GetHardcodedSynthetics() {
 
       CompilerType original_type;
       if (!swift_type_system->IsImportedType(type.GetOpaqueQualType(),
-                                        &original_type))
+                                             &original_type))
         return nullptr;
 
       if (!original_type.GetTypeSystem().isa_and_nonnull<TypeSystemClang>())
@@ -1224,7 +1348,7 @@ SwiftLanguage::GetHardcodedSynthetics() {
 }
 
 bool SwiftLanguage::IsSourceFile(llvm::StringRef file_path) const {
-  return file_path.endswith(".swift");
+  return file_path.ends_with(".swift");
 }
 
 std::vector<FormattersMatchCandidate>
@@ -1244,7 +1368,6 @@ SwiftLanguage::GetPossibleFormattersMatches(
   if (valobj.GetObjectRuntimeLanguage() == eLanguageTypeObjC)
     return result;
 
-  SwiftScratchContextLock scratch_ctx_lock(&valobj.GetExecutionContextRef());
   CompilerType compiler_type(valobj.GetCompilerType());
 
   const bool check_cpp = false;
@@ -1263,8 +1386,9 @@ SwiftLanguage::GetPossibleFormattersMatches(
   TypeAndOrName type_and_or_name;
   Address address;
   Value::ValueType value_type;
+  llvm::ArrayRef<uint8_t> local_buffer;
   if (!runtime->GetDynamicTypeAndAddress(valobj, use_dynamic, type_and_or_name,
-                                         address, value_type))
+                                         address, value_type, local_buffer))
     return result;
   if (ConstString name = type_and_or_name.GetName())
     result.push_back(
@@ -1363,29 +1487,24 @@ std::unique_ptr<Language::TypeScavenger> SwiftLanguage::GetTypeScavenger() {
           size_t before = results.size();
 
           if (exe_scope) {
-            Target *target = exe_scope->CalculateTarget().get();
-            if (target) {
-              const bool create_on_demand = false;
-              Status error;
-              std::optional<SwiftScratchContextReader> maybe_scratch_ctx =
-                  target->GetSwiftScratchContext(error, *exe_scope,
-                                                 create_on_demand);
-              const SymbolContext *sc = nullptr;
-              if (auto frame_sp = exe_scope->CalculateStackFrame())
-                sc = &frame_sp->GetSymbolContext(lldb::eSymbolContextFunction);
-              if (maybe_scratch_ctx)
-                if (auto scratch_ctx = maybe_scratch_ctx->get())
-                  if (SwiftASTContext *ast_ctx =
-                          scratch_ctx->GetSwiftASTContext(sc)) {
-                    ConstString cs_input{input};
-                    Mangled mangled(cs_input);
-                    if (mangled.GuessLanguage() == eLanguageTypeSwift) {
-                      auto candidate =
-                          ast_ctx->GetTypeFromMangledTypename(cs_input);
-                      if (candidate.IsValid())
-                        results.insert(candidate);
-                    }
+            TargetSP target = exe_scope->CalculateTarget();
+            auto scratch_ctx =
+                TypeSystemSwiftTypeRefForExpressions::GetForTarget(target);
+            if (auto frame_sp = exe_scope->CalculateStackFrame()) {
+              auto &sc =
+                  frame_sp->GetSymbolContext(lldb::eSymbolContextFunction);
+              if (scratch_ctx)
+                if (SwiftASTContextSP ast_ctx =
+                        scratch_ctx->GetSwiftASTContext(sc)) {
+                  ConstString cs_input{input};
+                  Mangled mangled(cs_input);
+                  if (mangled.GuessLanguage() == eLanguageTypeSwift) {
+                    auto candidate =
+                        ast_ctx->GetTypeFromMangledTypename(cs_input);
+                    if (candidate.IsValid())
+                      results.insert(candidate);
                   }
+                }
             }
           }
 
@@ -1413,15 +1532,15 @@ std::unique_ptr<Language::TypeScavenger> SwiftLanguage::GetTypeScavenger() {
                 if (result_sp && result_sp->GetCompilerType().IsValid()) {
                   CompilerType result_type(result_sp->GetCompilerType());
                   if (Flags(result_type.GetTypeInfo())
-                      .AllSet(eTypeIsSwift | eTypeIsMetatype)) {
+                          .AllSet(eTypeIsSwift | eTypeIsMetatype)) {
                     result_type = TypeSystemSwift::GetInstanceType(result_type,
                                                                    exe_scope);
                     if (auto swift_ast_ctx =
                             result_type.GetTypeSystem()
                                 .dyn_cast_or_null<SwiftASTContext>())
-                      result_type = swift_ast_ctx->GetTypeSystemSwiftTypeRef()
-                                        .GetTypeFromMangledTypename(
-                                            result_type.GetMangledTypeName());
+                      if (auto ts = swift_ast_ctx->GetTypeSystemSwiftTypeRef())
+                        result_type = ts->GetTypeFromMangledTypename(
+                            result_type.GetMangledTypeName());
                   }
                   results.insert(TypeOrDecl(result_type));
                 }
@@ -1437,19 +1556,14 @@ std::unique_ptr<Language::TypeScavenger> SwiftLanguage::GetTypeScavenger() {
           size_t before = results.size();
 
           if (exe_scope) {
-            Target *target = exe_scope->CalculateTarget().get();
-            const bool create_on_demand = false;
-            Status error;
-            std::optional<SwiftScratchContextReader> maybe_scratch_ctx =
-                target->GetSwiftScratchContext(error, *exe_scope,
-                                               create_on_demand);
-            const SymbolContext *sc = nullptr;
-            if (auto frame_sp = exe_scope->CalculateStackFrame())
-              sc = &frame_sp->GetSymbolContext(lldb::eSymbolContextFunction);
-
-            if (maybe_scratch_ctx)
-              if (auto scratch_ctx = maybe_scratch_ctx->get())
-                if (SwiftASTContext *ast_ctx =
+            TargetSP target = exe_scope->CalculateTarget();
+            auto scratch_ctx =
+                TypeSystemSwiftTypeRefForExpressions::GetForTarget(target);
+            if (auto frame_sp = exe_scope->CalculateStackFrame()) {
+              const SymbolContext &sc =
+                  frame_sp->GetSymbolContext(lldb::eSymbolContextFunction);
+              if (scratch_ctx)
+                if (SwiftASTContextSP ast_ctx =
                         scratch_ctx->GetSwiftASTContext(sc)) {
                   auto iter = ast_ctx->GetModuleCache().begin(),
                        end = ast_ctx->GetModuleCache().end();
@@ -1457,9 +1571,9 @@ std::unique_ptr<Language::TypeScavenger> SwiftLanguage::GetTypeScavenger() {
                   std::vector<llvm::StringRef> name_parts;
                   SplitDottedName(input, name_parts);
 
-                  std::function<void(swift::ModuleDecl *)> lookup_func =
+                  std::function<void(const swift::ModuleDecl *)> lookup_func =
                       [&ast_ctx, input, name_parts,
-                       &results](swift::ModuleDecl *module) -> void {
+                       &results](const swift::ModuleDecl *module) -> void {
                     for (auto imported_module :
                          swift::namelookup::getAllImports(module)) {
                       auto module = imported_module.importedModule;
@@ -1511,8 +1625,9 @@ std::unique_ptr<Language::TypeScavenger> SwiftLanguage::GetTypeScavenger() {
                   };
 
                   for (; iter != end; iter++)
-                    lookup_func(iter->second);
+                    lookup_func(&iter->second);
                 }
+            }
           }
 
           return (results.size() - before);
@@ -1619,11 +1734,11 @@ LazyBool SwiftLanguage::IsLogicalTrue(ValueObject &valobj, Status &error) {
         valobj_type.GetTypeName() == g_SwiftBool) {
       ValueObjectSP your_value_sp(valobj.GetChildMemberWithName(g_value, true));
       if (!your_value_sp) {
-        error.SetErrorString("unexpected data layout");
+        error = Status::FromErrorString("unexpected data layout");
         return eLazyBoolNo;
       } else {
         if (!your_value_sp->ResolveValue(scalar_value)) {
-          error.SetErrorString("unexpected data layout");
+          error = Status::FromErrorString("unexpected data layout");
           return eLazyBoolNo;
         } else {
           error.Clear();
@@ -1636,7 +1751,7 @@ LazyBool SwiftLanguage::IsLogicalTrue(ValueObject &valobj, Status &error) {
     }
   }
 
-  error.SetErrorString("not a Swift boolean type");
+  error = Status::FromErrorString("not a Swift boolean type");
   return eLazyBoolNo;
 }
 
@@ -1652,47 +1767,33 @@ bool SwiftLanguage::IsUninitializedReference(ValueObject &valobj) {
 }
 
 bool SwiftLanguage::GetFunctionDisplayName(
-    const SymbolContext *sc, const ExecutionContext *exe_ctx,
+    const SymbolContext &sc, const ExecutionContext *exe_ctx,
     FunctionNameRepresentation representation, Stream &s) {
-  SwiftScratchContextLock scratch_ctx_lock(exe_ctx);
   switch (representation) {
   case Language::FunctionNameRepresentation::eName:
     // No need to customize this.
     return false;
   case Language::FunctionNameRepresentation::eNameWithNoArgs: {
-    if (!sc->function)
-      return false;
-    if (sc->function->GetLanguage() != eLanguageTypeSwift)
-      return false;
-    std::string display_name = SwiftLanguageRuntime::DemangleSymbolAsString(
-        sc->function->GetMangled().GetMangledName().GetStringRef(),
-        SwiftLanguageRuntime::eSimplified, sc, exe_ctx);
+    std::string display_name = GetDemangledFunctionName(sc, exe_ctx);
     if (display_name.empty())
       return false;
     s << display_name;
     return true;
   }
   case Language::FunctionNameRepresentation::eNameWithArgs: {
-    if (!sc->function)
-      return false;
-    if (sc->function->GetLanguage() != eLanguageTypeSwift)
-      return false;
-    std::string display_name = SwiftLanguageRuntime::DemangleSymbolAsString(
-        sc->function->GetMangled().GetMangledName().GetStringRef(),
-        SwiftLanguageRuntime::eSimplified, sc, exe_ctx);
+    std::string display_name = GetFunctionName(sc, exe_ctx);
     if (display_name.empty())
       return false;
-    ExecutionContextScope *exe_scope =
-        exe_ctx ? exe_ctx->GetBestExecutionContextScope() : NULL;
+    s << display_name;
     const InlineFunctionInfo *inline_info = NULL;
     VariableListSP variable_list_sp;
     bool get_function_vars = true;
-    if (sc->block) {
-      Block *inline_block = sc->block->GetContainingInlinedBlock();
+    if (sc.block) {
+      Block *inline_block = sc.block->GetContainingInlinedBlock();
 
       if (inline_block) {
         get_function_vars = false;
-        inline_info = sc->block->GetInlinedFunctionInfo();
+        inline_info = sc.block->GetInlinedFunctionInfo();
         if (inline_info)
           variable_list_sp = inline_block->GetBlockVariableList(true);
       }
@@ -1700,112 +1801,146 @@ bool SwiftLanguage::GetFunctionDisplayName(
 
     if (get_function_vars) {
       variable_list_sp =
-          sc->function->GetBlock(true).GetBlockVariableList(true);
-    }
-
-    if (inline_info) {
-      s << display_name;
-      s.PutCString(" [inlined] ");
-      display_name = inline_info->GetName().GetString();
+          sc.function->GetBlock(true).GetBlockVariableList(true);
     }
 
     VariableList args;
     if (variable_list_sp)
       variable_list_sp->AppendVariablesWithScope(eValueTypeVariableArgument,
                                                  args);
-    if (args.GetSize() == 0) {
-      s << display_name;
-      return true;
-    }
-    const char *cstr = display_name.data();
-    const char *open_paren = strchr(cstr, '(');
-    const char *close_paren = nullptr;
-    const char *generic = strchr(cstr, '<');
-    // If before the arguments list begins there is a template sign
-    // then scan to the end of the generic args before you try to find
-    // the arguments list.
-    if (generic && open_paren && generic < open_paren) {
-      int generic_depth = 1;
-      ++generic;
-      for (; *generic && generic_depth > 0; generic++) {
-        if (*generic == '<')
-          generic_depth++;
-        if (*generic == '>')
-          generic_depth--;
-      }
-      if (*generic)
-        open_paren = strchr(generic, '(');
-      else
-        open_paren = nullptr;
-    }
-    if (open_paren) {
-      close_paren = strchr(open_paren, ')');
-    }
 
-    if (open_paren)
-      s.Write(cstr, open_paren - cstr + 1);
-    else {
-      s << display_name;
-      s.PutChar('(');
-    }
-    const size_t num_args = args.GetSize();
-    for (size_t arg_idx = 0; arg_idx < num_args; ++arg_idx) {
-      std::string buffer;
-
-      VariableSP var_sp(args.GetVariableAtIndex(arg_idx));
-      ValueObjectSP var_value_sp(
-          ValueObjectVariable::Create(exe_scope, var_sp));
-      if (!var_sp || !var_value_sp || var_sp->IsArtificial())
-        continue;
-      StreamString ss;
-      const char *var_representation = nullptr;
-      const char *var_name = var_value_sp->GetName().GetCString();
-      if (var_value_sp->GetCompilerType().IsValid()) {
-        if (var_value_sp && exe_scope->CalculateTarget())
-          var_value_sp = var_value_sp->GetQualifiedRepresentationIfAvailable(
-              exe_scope->CalculateTarget()
-                  ->TargetProperties::GetPreferDynamicValue(),
-              exe_scope->CalculateTarget()
-                  ->TargetProperties::GetEnableSyntheticValue());
-        if (var_value_sp->GetCompilerType().IsAggregateType() &&
-            DataVisualization::ShouldPrintAsOneLiner(*var_value_sp.get())) {
-          static StringSummaryFormat format(TypeSummaryImpl::Flags()
-                                                .SetHideItemNames(false)
-                                                .SetShowMembersOneLiner(true),
-                                            "");
-          format.FormatObject(var_value_sp.get(), buffer, TypeSummaryOptions());
-          var_representation = buffer.c_str();
-        } else
-          var_value_sp->DumpPrintableRepresentation(
-              ss,
-              ValueObject::ValueObjectRepresentationStyle::
-                  eValueObjectRepresentationStyleSummary,
-              eFormatDefault,
-              ValueObject::PrintableRepresentationSpecialCases::eAllow, false);
-      }
-      if (ss.GetData() && ss.GetSize())
-        var_representation = ss.GetData();
-      if (arg_idx > 0)
-        s.PutCString(", ");
-      if (var_value_sp->GetError().Success()) {
-        if (var_representation)
-          s.Printf("%s=%s", var_name, var_representation);
-        else
-          s.Printf("%s=%s at %s", var_name,
-                   var_value_sp->GetTypeName().GetCString(),
-                   var_value_sp->GetLocationAsCString());
-      } else
-        s.Printf("%s=<unavailable>", var_name);
-    }
-
-    if (close_paren)
-      s.PutCString(close_paren);
-    else
-      s.PutChar(')');
-    } 
+    s << GetFunctionTemplateArguments(sc, exe_ctx);
+    s << GetFunctionDisplayArgs(sc, args, exe_ctx);
     return true;
+    }
+    }
+    return false;
+}
+
+std::string
+SwiftLanguage::GetDemangledFunctionName(const SymbolContext &sc,
+                                        const ExecutionContext *exe_ctx) {
+  if (!sc.function)
+    return {};
+  if (sc.function->GetLanguage() != eLanguageTypeSwift)
+    return {};
+  return SwiftLanguageRuntime::DemangleSymbolAsString(
+      sc.GetPossiblyInlinedFunctionName().GetMangledName(),
+      SwiftLanguageRuntime::eSimplified, &sc, exe_ctx);
+}
+
+std::string SwiftLanguage::GetFunctionName(const SymbolContext &sc,
+                                           const ExecutionContext *exe_ctx) {
+  std::string demangled_name = GetDemangledFunctionName(sc, exe_ctx);
+  if (demangled_name.empty())
+    return {};
+  size_t open_paren = demangled_name.find('(');
+  size_t generic = demangled_name.find('<');
+  size_t name_end = std::min(open_paren, generic);
+  if (name_end == std::string::npos)
+    return demangled_name;
+  return demangled_name.substr(0, name_end);
+}
+
+std::string
+SwiftLanguage::GetFunctionTemplateArguments(const SymbolContext &sc,
+                                            const ExecutionContext *exe_ctx) {
+  std::string demangled_name = GetDemangledFunctionName(sc, exe_ctx);
+  if (demangled_name.empty())
+    return {};
+  size_t open_paren = demangled_name.find('(');
+  size_t generic_start = demangled_name.find('<');
+  if (generic_start == std::string::npos || generic_start > open_paren)
+    return {};
+
+  int generic_depth = 1;
+  size_t generic_end = generic_start + 1;
+
+  while (generic_end < demangled_name.size() && generic_depth > 0) {
+    if (demangled_name[generic_end] == '<')
+      generic_depth++;
+    else if (demangled_name[generic_end] == '>')
+      generic_depth--;
+    generic_end++;
   }
-  return false;
+
+  if (generic_depth != 0)
+    return {};
+
+  return demangled_name.substr(generic_start, generic_end - generic_start);
+}
+
+std::string SwiftLanguage::GetFunctionDisplayArgs(
+    const SymbolContext &sc, VariableList &args,
+    const lldb_private::ExecutionContext *exe_ctx) {
+  ExecutionContextScope *exe_scope =
+      exe_ctx ? exe_ctx->GetBestExecutionContextScope() : NULL;
+  std::string name = GetDemangledFunctionName(sc, exe_ctx);
+  lldb_private::StreamString s;
+  const char *cstr = name.data();
+  const char *open_paren = strchr(cstr, '(');
+  const char *close_paren = nullptr;
+  if (open_paren) {
+    close_paren = strchr(open_paren, ')');
+  }
+
+  s.PutChar('(');
+
+  const size_t num_args = args.GetSize();
+  for (size_t arg_idx = 0; arg_idx < num_args; ++arg_idx) {
+    std::string buffer;
+
+    VariableSP var_sp(args.GetVariableAtIndex(arg_idx));
+    ValueObjectSP var_value_sp(ValueObjectVariable::Create(exe_scope, var_sp));
+    if (!var_sp || !var_value_sp || var_sp->IsArtificial())
+      continue;
+    StreamString ss;
+    const char *var_representation = nullptr;
+    const char *var_name = var_value_sp->GetName().GetCString();
+    if (var_value_sp->GetCompilerType().IsValid()) {
+      if (var_value_sp && exe_scope->CalculateTarget())
+        var_value_sp = var_value_sp->GetQualifiedRepresentationIfAvailable(
+            exe_scope->CalculateTarget()
+                ->TargetProperties::GetPreferDynamicValue(),
+            exe_scope->CalculateTarget()
+                ->TargetProperties::GetEnableSyntheticValue());
+      if (var_value_sp->GetCompilerType().IsAggregateType() &&
+          DataVisualization::ShouldPrintAsOneLiner(*var_value_sp.get())) {
+        static StringSummaryFormat format(TypeSummaryImpl::Flags()
+                                              .SetHideItemNames(false)
+                                              .SetShowMembersOneLiner(true),
+                                          "");
+        format.FormatObject(var_value_sp.get(), buffer, TypeSummaryOptions());
+        var_representation = buffer.c_str();
+      } else
+        var_value_sp->DumpPrintableRepresentation(
+            ss,
+            ValueObject::ValueObjectRepresentationStyle::
+                eValueObjectRepresentationStyleSummary,
+            eFormatDefault,
+            ValueObject::PrintableRepresentationSpecialCases::eAllow, false);
+    }
+    if (ss.GetData() && ss.GetSize())
+      var_representation = ss.GetData();
+    if (arg_idx > 0)
+      s.PutCString(", ");
+    if (var_value_sp->GetError().Success()) {
+      if (var_representation)
+        s.Printf("%s=%s", var_name, var_representation);
+      else
+        s.Printf("%s=%s at %s", var_name,
+                 var_value_sp->GetTypeName().GetCString(),
+                 var_value_sp->GetLocationAsCString());
+    } else
+      s.Printf("%s=<unavailable>", var_name);
+  }
+
+  if (close_paren)
+    s.PutCString(close_paren);
+  else
+    s.PutChar(')');
+
+  return s.GetString().str();
 }
 
 void SwiftLanguage::GetExceptionResolverDescription(bool catch_on,
@@ -1818,8 +1953,7 @@ SwiftLanguage::GetDemangledFunctionNameWithoutArguments(Mangled mangled) const {
   ConstString mangled_name = mangled.GetMangledName();
   ConstString demangled_name = mangled.GetDemangledName();
   if (demangled_name && mangled_name) {
-    if (SwiftLanguageRuntime::IsSwiftMangledName(
-            demangled_name.GetStringRef())) {
+    if (SwiftLanguageRuntime::IsSwiftMangledName(mangled_name.GetStringRef())) {
       lldb_private::ConstString basename;
       bool is_method = false;
       if (SwiftLanguageRuntime::MethodName::ExtractFunctionBasenameFromMangled(
@@ -1834,6 +1968,407 @@ SwiftLanguage::GetDemangledFunctionNameWithoutArguments(Mangled mangled) const {
   return mangled_name;
 }
 
+static llvm::Expected<std::pair<llvm::StringRef, DemangledNameInfo>>
+GetAndValidateInfo(const SymbolContext &sc) {
+  Mangled mangled = sc.GetPossiblyInlinedFunctionName();
+  if (!mangled)
+    return llvm::createStringError("Function does not have a mangled name.");
+
+  auto demangled_name =
+      mangled.GetDemangledName(nullptr, Mangled::eCompactName).GetStringRef();
+  if (demangled_name.empty())
+    return llvm::createStringError(
+        "Function '%s' does not have a demangled name.",
+        mangled.GetMangledName().AsCString(""));
+
+  const DemangledNameInfo *info = mangled.GetDemangledInfo();
+  if (!info)
+    return llvm::createStringError(
+        "Function '%s' does not have demangled info.", demangled_name.data());
+
+  // Function without a basename is nonsense.
+  if (!info->hasBasename())
+    return llvm::createStringError(
+        "The demangled name for '%s does not have basename range.",
+        demangled_name.data());
+
+  return std::make_pair(demangled_name, *info);
+}
+
+static llvm::Expected<llvm::StringRef>
+GetDemangledBasename(const SymbolContext &sc) {
+  auto info_or_err = GetAndValidateInfo(sc);
+  if (!info_or_err)
+    return info_or_err.takeError();
+
+  auto [demangled_name, info] = *info_or_err;
+
+  return demangled_name.slice(info.BasenameRange.first,
+                              info.BasenameRange.second);
+}
+
+static llvm::Expected<llvm::StringRef>
+GetDemangledNameQualifiers(const SymbolContext &sc) {
+  auto info_or_err = GetAndValidateInfo(sc);
+  if (!info_or_err)
+    return info_or_err.takeError();
+
+  auto [demangled_name, info] = *info_or_err;
+
+  if (!info.hasPrefix())
+    return llvm::createStringError(
+        "The demangled name for '%s does not have a name qualifiers range.",
+        demangled_name.data());
+
+  return demangled_name.slice(info.NameQualifiersRange.first,
+                              info.NameQualifiersRange.second);
+}
+
+static llvm::Expected<llvm::StringRef>
+GetDemangledFunctionPrefix(const SymbolContext &sc) {
+  auto info_or_err = GetAndValidateInfo(sc);
+  if (!info_or_err)
+    return info_or_err.takeError();
+
+  auto [demangled_name, info] = *info_or_err;
+
+  if (!info.hasPrefix())
+    return llvm::createStringError(
+        "The demangled name for '%s does not have a prefix range.",
+        demangled_name.data());
+
+  return demangled_name.slice(info.PrefixRange.first, info.PrefixRange.second);
+}
+
+static llvm::Expected<llvm::StringRef>
+GetDemangledFunctionSuffix(const SymbolContext &sc) {
+  auto info_or_err = GetAndValidateInfo(sc);
+  if (!info_or_err)
+    return info_or_err.takeError();
+
+  auto [demangled_name, info] = *info_or_err;
+
+  if (!info.hasSuffix())
+    return llvm::createStringError(
+        "The demangled name for '%s does not have a suffix range.",
+        demangled_name.data());
+
+  return demangled_name.slice(info.SuffixRange.first, info.SuffixRange.second);
+}
+
+static bool PrintDemangledArgumentList(Stream &s, const SymbolContext &sc) {
+  assert(sc.symbol);
+
+  auto info_or_err = GetAndValidateInfo(sc);
+  if (!info_or_err) {
+    LLDB_LOG_ERROR(GetLog(LLDBLog::Language), info_or_err.takeError(),
+                   "Failed to handle ${{function.formatted-arguments}} "
+                   "frame-format variable: {0}");
+    return false;
+  }
+  auto [demangled_name, info] = *info_or_err;
+
+  if (!info.hasArguments())
+    return false;
+
+  s << demangled_name.slice(info.ArgumentsRange.first,
+                            info.ArgumentsRange.second);
+
+  return true;
+}
+
+static VariableListSP GetFunctionVariableList(const SymbolContext &sc) {
+  assert(sc.function);
+
+  if (sc.block)
+    if (Block *inline_block = sc.block->GetContainingInlinedBlock())
+      return inline_block->GetBlockVariableList(true);
+
+  return sc.function->GetBlock(true).GetBlockVariableList(true);
+}
+
+bool SwiftLanguage::HandleFrameFormatVariable(const SymbolContext &sc,
+                                              const ExecutionContext *exe_ctx,
+                                              FormatEntity::Entry::Type type,
+                                              Stream &s) {
+  switch (type) {
+  case FormatEntity::Entry::Type::FunctionBasename: {
+    auto name_or_err = GetDemangledBasename(sc);
+    if (!name_or_err) {
+      LLDB_LOG_ERROR(
+          GetLog(LLDBLog::Language), name_or_err.takeError(),
+          "Failed to handle ${{function.basename}} frame-format variable: {0}");
+      return false;
+    }
+
+    s << *name_or_err;
+
+    return true;
+  }
+  case FormatEntity::Entry::Type::FunctionNameQualifiers: {
+    auto qualifiers_or_err = GetDemangledNameQualifiers(sc);
+    if (!qualifiers_or_err) {
+      LLDB_LOG_ERROR(GetLog(LLDBLog::Language), qualifiers_or_err.takeError(),
+                     "Failed to handle ${{function.name-qualifiers}} "
+                     "frame-format variable: {0}");
+      return false;
+    }
+
+    s << *qualifiers_or_err;
+
+    return true;
+  }
+  case FormatEntity::Entry::Type::FunctionTemplateArguments: {
+    s << GetFunctionTemplateArguments(sc, exe_ctx);
+
+    return true;
+  }
+  case FormatEntity::Entry::Type::FunctionFormattedArguments: {
+    // This ensures we print the arguments even when no debug-info is available.
+    //
+    // FIXME: we should have a Entry::Type::FunctionArguments and
+    // use it in the plugin.cplusplus.display.function-name-format
+    // once we have a "fallback operator" in the frame-format language.
+    if (!sc.function && sc.symbol)
+      return PrintDemangledArgumentList(s, sc);
+    std::string display_name = GetDemangledFunctionName(sc, exe_ctx);
+    if (display_name.empty())
+      return false;
+
+    VariableList args;
+    if (auto variable_list_sp = GetFunctionVariableList(sc))
+      variable_list_sp->AppendVariablesWithScope(eValueTypeVariableArgument,
+                                                 args);
+
+    s << GetFunctionDisplayArgs(sc, args, exe_ctx);
+    return true;
+  }
+  case FormatEntity::Entry::Type::FunctionPrefix: {
+    auto prefix_or_err = GetDemangledFunctionPrefix(sc);
+    if (!prefix_or_err) {
+      LLDB_LOG_ERROR(
+          GetLog(LLDBLog::Language), prefix_or_err.takeError(),
+          "Failed to handle ${{function.prefix}} frame-format variable: {0}");
+      return false;
+    }
+
+    s << *prefix_or_err;
+
+    return true;
+  }
+  case FormatEntity::Entry::Type::FunctionSuffix: {
+    auto suffix_or_err = GetDemangledFunctionSuffix(sc);
+    if (!suffix_or_err) {
+      LLDB_LOG_ERROR(
+          GetLog(LLDBLog::Language), suffix_or_err.takeError(),
+          "Failed to handle ${{function.suffix}} frame-format variable: {0}");
+      return false;
+    }
+
+    s << *suffix_or_err;
+
+    return true;
+  }
+
+  case FormatEntity::Entry::Type::FunctionScope:
+  case FormatEntity::Entry::Type::FunctionReturnRight:
+  case FormatEntity::Entry::Type::FunctionReturnLeft:
+  case FormatEntity::Entry::Type::FunctionQualifiers:
+  default:
+    return true;
+  }
+}
+
+#define LLDB_PROPERTIES_language_swift
+#include "LanguageSwiftProperties.inc"
+
+enum {
+#define LLDB_PROPERTIES_language_swift
+#include "LanguageSwiftPropertiesEnum.inc"
+};
+
+namespace {
+class PluginProperties : public Properties {
+public:
+  static llvm::StringRef GetSettingName() { return "display"; }
+
+  PluginProperties() {
+    m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
+    m_collection_sp->Initialize(g_language_swift_properties);
+  }
+
+  FormatEntity::Entry GetFunctionNameFormat() const {
+    return GetPropertyAtIndexAs<FormatEntity::Entry>(
+        ePropertyFunctionNameFormat, {});
+  }
+};
+} // namespace
+
+static PluginProperties &GetGlobalPluginProperties() {
+  static PluginProperties g_settings;
+  return g_settings;
+}
+
+FormatEntity::Entry SwiftLanguage::GetFunctionNameFormat() const {
+  return GetGlobalPluginProperties().GetFunctionNameFormat();
+}
+
+void SwiftLanguage::DebuggerInitialize(Debugger &debugger) {
+  if (!PluginManager::GetSettingForSwiftLanguagePlugin(
+          debugger, PluginProperties::GetSettingName())) {
+    PluginManager::CreateSettingForSwiftLanguagePlugin(
+        debugger, GetGlobalPluginProperties().GetValueProperties(),
+        "Properties for the Swift language plug-in.",
+        /*is_global_property=*/true);
+  }
+}
+
+namespace {
+using namespace swift::Demangle;
+struct AsyncInfo {
+  const Function *function;
+  NodePointer demangle_node;
+  std::optional<uint64_t> funclet_number;
+};
+
+std::string to_string(const AsyncInfo &async_info) {
+  StreamString stream_str;
+  llvm::raw_ostream &str = stream_str.AsRawOstream();
+  str << "function = ";
+  if (async_info.function)
+    str << async_info.function->GetMangled().GetMangledName();
+  else
+    str << "nullptr";
+  str << ", demangle_node: " << async_info.demangle_node;
+  str << ", funclet_number = ";
+  if (async_info.funclet_number)
+    str << *async_info.funclet_number;
+  else
+    str << "nullopt";
+  return stream_str.GetString().str();
+}
+
+/// Map each unique Function in sc_list to a Demangle::NodePointer, or null if
+/// demangling is not possible.
+llvm::SmallVector<AsyncInfo> GetAsyncInfo(llvm::ArrayRef<SymbolContext> sc_list,
+                                          swift::Demangle::Context &ctx) {
+  Log *log(GetLog(LLDBLog::Demangle));
+  llvm::SmallSet<Function *, 8> seen_functions;
+  llvm::SmallVector<AsyncInfo> async_infos;
+  for (const SymbolContext &sc : sc_list) {
+    if (!sc.function || seen_functions.contains(sc.function))
+      continue;
+    seen_functions.insert(sc.function);
+    llvm::StringRef name =
+        sc.function->GetMangled().GetMangledName().GetStringRef();
+    NodePointer node = SwiftLanguageRuntime::DemangleSymbolAsNode(name, ctx);
+    async_infos.push_back(
+        {sc.function, node, SwiftLanguageRuntime::GetFuncletNumber(node)});
+
+    if (log) {
+      std::string as_str = to_string(async_infos.back());
+      LLDB_LOGF(log, "%s: %s", __FUNCTION__, as_str.c_str());
+    }
+  }
+  return async_infos;
+}
+} // namespace
+
+void SwiftLanguage::FilterForLineBreakpoints(
+    llvm::SmallVectorImpl<SymbolContext> &sc_list) const {
+  using namespace swift::Demangle;
+  Context ctx;
+
+  llvm::SmallVector<AsyncInfo> async_infos = GetAsyncInfo(sc_list, ctx);
+
+  // Vector containing one representative funclet of each unique async function
+  // in sc_list. The representative is always the one with the smallest funclet
+  // number seen so far.
+  llvm::SmallVector<AsyncInfo> unique_async_funcs;
+
+  // Note the subtlety: this deletes based on functions, not SymbolContexts, as
+  // there might be multiple SCs with the same Function at this point.
+  llvm::SmallPtrSet<const Function *, 4> to_delete;
+
+  for (const auto &async_info : async_infos) {
+    // If we can't find a funclet number, don't delete this.
+    if (!async_info.funclet_number)
+      continue;
+
+    // Have we found other funclets of the same async function?
+    auto *representative =
+        llvm::find_if(unique_async_funcs, [&](AsyncInfo &other_info) {
+          // This looks quadratic, but in practice it is not. We should have at
+          // most 2 different async functions in the same line, unless a user
+          // writes many closures on the same line.
+          return SwiftLanguageRuntime::AreFuncletsOfSameAsyncFunction(
+                     async_info.demangle_node, other_info.demangle_node) ==
+                 SwiftLanguageRuntime::FuncletComparisonResult::
+                     SameAsyncFunction;
+        });
+
+    // We found a new async function.
+    if (representative == unique_async_funcs.end()) {
+      unique_async_funcs.push_back(async_info);
+      continue;
+    }
+
+    // This is another funclet of the same async function. Keep the one with the
+    // smallest number, erase the other. If they have the same number, don't
+    // erase it.
+    if (async_info.funclet_number > representative->funclet_number)
+      to_delete.insert(async_info.function);
+    else if (async_info.funclet_number < representative->funclet_number) {
+      to_delete.insert(representative->function);
+      *representative = async_info;
+    }
+  }
+
+  llvm::erase_if(sc_list, [&](const SymbolContext &sc) {
+    return to_delete.contains(sc.function);
+  });
+}
+
+std::optional<bool>
+SwiftLanguage::AreEqualForFrameComparison(const SymbolContext &sc1,
+                                          const SymbolContext &sc2) const {
+  auto result = SwiftLanguageRuntime::AreFuncletsOfSameAsyncFunction(
+      sc1.GetFunctionName(Mangled::ePreferMangled),
+      sc2.GetFunctionName(Mangled::ePreferMangled));
+  switch (result) {
+  case SwiftLanguageRuntime::FuncletComparisonResult::NotBothFunclets:
+    return {};
+  case SwiftLanguageRuntime::FuncletComparisonResult::SameAsyncFunction:
+    return true;
+  case SwiftLanguageRuntime::FuncletComparisonResult::DifferentAsyncFunctions:
+    return false;
+  }
+  llvm_unreachable("unhandled enumeration in AreEquivalentFunctions");
+}
+
+std::pair<FunctionNameType, std::optional<ConstString>>
+SwiftLanguage::GetFunctionNameInfo(ConstString name) const {
+  if (SwiftLanguageRuntime::IsSwiftMangledName(name.GetStringRef()))
+    return {eFunctionNameTypeFull, std::nullopt};
+
+  SwiftLanguageRuntime::MethodName swift_method(name, true);
+  if (!swift_method.IsValid())
+    return std::pair{lldb::eFunctionNameTypeNone, std::nullopt};
+
+  auto basename = swift_method.GetBasename();
+
+  FunctionNameType func_name_type = eFunctionNameTypeNone;
+  if (basename.empty())
+    func_name_type = eFunctionNameTypeFull;
+  else
+    func_name_type = (eFunctionNameTypeMethod | eFunctionNameTypeBase);
+
+  return {func_name_type, ConstString(basename)};
+}
+
+std::string SwiftLanguage::GetParentNameIfClosure(Function &func) const {
+  return SwiftLanguageRuntime::GetParentNameIfClosure(func);
+}
 //------------------------------------------------------------------
 // Static Functions
 //------------------------------------------------------------------

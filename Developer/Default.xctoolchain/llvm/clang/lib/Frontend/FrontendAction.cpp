@@ -13,10 +13,14 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileEntry.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/CAS/IncludeTree.h"
 #include "clang/Basic/Sarif.h"
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Stack.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -37,6 +41,7 @@
 #include "clang/Serialization/ASTReader.h"
 #include "clang/Serialization/GlobalModuleIndex.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
@@ -51,44 +56,178 @@ LLVM_INSTANTIATE_REGISTRY(FrontendPluginRegistry)
 
 namespace {
 
-class DelegatingDeserializationListener : public ASTDeserializationListener {
-  ASTDeserializationListener *Previous;
-  bool DeletePrevious;
-
+/// DeserializedDeclsLineRangePrinter dumps ranges of deserialized declarations
+/// to aid debugging and bug minimization. It implements ASTConsumer and
+/// ASTDeserializationListener, so that an object of
+/// DeserializedDeclsLineRangePrinter registers as its own listener. The
+/// ASTDeserializationListener interface provides the DeclRead callback that we
+/// use to collect the deserialized Decls. Note that printing or otherwise
+/// processing them as this point is dangerous, since that could trigger
+/// additional deserialization and crash compilation. Therefore, we process the
+/// collected Decls in HandleTranslationUnit method of ASTConsumer. This is a
+/// safe point, since we know that by this point all the Decls needed by the
+/// compiler frontend have been deserialized. In case our processing causes
+/// further deserialization, DeclRead from the listener might be called again.
+/// However, at that point we don't accept any more Decls for processing.
+class DeserializedDeclsSourceRangePrinter : public ASTConsumer,
+                                            ASTDeserializationListener {
 public:
-  explicit DelegatingDeserializationListener(
-      ASTDeserializationListener *Previous, bool DeletePrevious)
-      : Previous(Previous), DeletePrevious(DeletePrevious) {}
-  ~DelegatingDeserializationListener() override {
-    if (DeletePrevious)
-      delete Previous;
+  explicit DeserializedDeclsSourceRangePrinter(
+      SourceManager &SM, std::unique_ptr<llvm::raw_fd_ostream> OS)
+      : ASTDeserializationListener(), SM(SM), OS(std::move(OS)) {}
+
+  ASTDeserializationListener *GetASTDeserializationListener() override {
+    return this;
   }
 
-  void ReaderInitialized(ASTReader *Reader) override {
-    if (Previous)
-      Previous->ReaderInitialized(Reader);
+  void DeclRead(GlobalDeclID ID, const Decl *D) override {
+    if (!IsCollectingDecls)
+      return;
+    if (!D || isa<TranslationUnitDecl>(D) || isa<LinkageSpecDecl>(D) ||
+        isa<NamespaceDecl>(D)) {
+      // These decls cover a lot of nested declarations that might not be used,
+      // reducing the granularity and making the output less useful.
+      return;
+    }
+    if (auto *DC = D->getDeclContext(); !DC || !DC->isFileContext()) {
+      // We choose to work at namespace level to reduce complexity and the
+      // number of cases we care about.
+      return;
+    }
+    PendingDecls.push_back(D);
   }
-  void IdentifierRead(serialization::IdentID ID,
-                      IdentifierInfo *II) override {
-    if (Previous)
-      Previous->IdentifierRead(ID, II);
+
+  struct Position {
+    unsigned Line;
+    unsigned Column;
+
+    bool operator<(const Position &other) const {
+      return std::tie(Line, Column) < std::tie(other.Line, other.Column);
+    }
+
+    static Position GetBeginSpelling(const SourceManager &SM,
+                                     const CharSourceRange &R) {
+      SourceLocation Begin = R.getBegin();
+      return {SM.getSpellingLineNumber(Begin),
+              SM.getSpellingColumnNumber(Begin)};
+    }
+
+    static Position GetEndSpelling(const SourceManager &SM,
+                                   const CharSourceRange &Range,
+                                   const LangOptions &LangOpts) {
+      // For token ranges, compute end location for end character of the range.
+      CharSourceRange R = Lexer::getAsCharRange(Range, SM, LangOpts);
+      SourceLocation End = R.getEnd();
+      // Relex the token past the end location of the last token in the source
+      // range. If it's a semicolon, advance the location by one token.
+      Token PossiblySemi;
+      Lexer::getRawToken(End, PossiblySemi, SM, LangOpts, true);
+      if (PossiblySemi.is(tok::semi))
+        End = End.getLocWithOffset(1);
+      // Column number of the returned end position is exclusive.
+      return {SM.getSpellingLineNumber(End), SM.getSpellingColumnNumber(End)};
+    }
+  };
+
+  struct RequiredRanges {
+    StringRef Filename;
+    std::vector<std::pair<Position, Position>> FromTo;
+  };
+  void HandleTranslationUnit(ASTContext &Context) override {
+    assert(IsCollectingDecls && "HandleTranslationUnit called twice?");
+    IsCollectingDecls = false;
+
+    // Merge ranges in each of the files.
+    struct FileData {
+      std::vector<std::pair<Position, Position>> FromTo;
+      OptionalFileEntryRef Ref;
+    };
+    llvm::DenseMap<const FileEntry *, FileData> FileToRanges;
+    for (const Decl *D : PendingDecls) {
+      CharSourceRange R = SM.getExpansionRange(D->getSourceRange());
+      if (!R.isValid())
+        continue;
+
+      auto *F = SM.getFileEntryForID(SM.getFileID(R.getBegin()));
+      if (F != SM.getFileEntryForID(SM.getFileID(R.getEnd()))) {
+        // Such cases are rare and difficult to handle.
+        continue;
+      }
+
+      auto &Data = FileToRanges[F];
+      if (!Data.Ref)
+        Data.Ref = SM.getFileEntryRefForID(SM.getFileID(R.getBegin()));
+      Data.FromTo.push_back(
+          {Position::GetBeginSpelling(SM, R),
+           Position::GetEndSpelling(SM, R, D->getLangOpts())});
+    }
+
+    // To simplify output, merge consecutive and intersecting ranges.
+    std::vector<RequiredRanges> Result;
+    for (auto &[F, Data] : FileToRanges) {
+      auto &FromTo = Data.FromTo;
+      assert(!FromTo.empty());
+
+      if (!Data.Ref)
+        continue;
+
+      llvm::sort(FromTo);
+
+      std::vector<std::pair<Position, Position>> MergedRanges;
+      MergedRanges.push_back(FromTo.front());
+      for (auto It = FromTo.begin() + 1; It < FromTo.end(); ++It) {
+        if (MergedRanges.back().second < It->first) {
+          MergedRanges.push_back(*It);
+          continue;
+        }
+        if (MergedRanges.back().second < It->second)
+          MergedRanges.back().second = It->second;
+      }
+      Result.push_back({Data.Ref->getName(), std::move(MergedRanges)});
+    }
+    printJson(Result);
   }
-  void TypeRead(serialization::TypeIdx Idx, QualType T) override {
-    if (Previous)
-      Previous->TypeRead(Idx, T);
-  }
-  void DeclRead(serialization::DeclID ID, const Decl *D) override {
-    if (Previous)
-      Previous->DeclRead(ID, D);
-  }
-  void SelectorRead(serialization::SelectorID ID, Selector Sel) override {
-    if (Previous)
-      Previous->SelectorRead(ID, Sel);
-  }
-  void MacroDefinitionRead(serialization::PreprocessedEntityID PPID,
-                           MacroDefinitionRecord *MD) override {
-    if (Previous)
-      Previous->MacroDefinitionRead(PPID, MD);
+
+private:
+  std::vector<const Decl *> PendingDecls;
+  bool IsCollectingDecls = true;
+  const SourceManager &SM;
+  std::unique_ptr<llvm::raw_ostream> OS;
+
+  void printJson(llvm::ArrayRef<RequiredRanges> Result) {
+    *OS << "{\n";
+    *OS << R"(  "required_ranges": [)" << "\n";
+    for (size_t I = 0; I < Result.size(); ++I) {
+      auto &F = Result[I].Filename;
+      auto &MergedRanges = Result[I].FromTo;
+      *OS << R"(    {)" << "\n";
+      *OS << R"(      "file": ")" << F << "\"," << "\n";
+      *OS << R"(      "range": [)" << "\n";
+      for (size_t J = 0; J < MergedRanges.size(); ++J) {
+        auto &From = MergedRanges[J].first;
+        auto &To = MergedRanges[J].second;
+        *OS << R"(        {)" << "\n";
+        *OS << R"(          "from": {)" << "\n";
+        *OS << R"(            "line": )" << From.Line << ",\n";
+        *OS << R"(            "column": )" << From.Column << "\n"
+            << R"(          },)" << "\n";
+        *OS << R"(          "to": {)" << "\n";
+        *OS << R"(            "line": )" << To.Line << ",\n";
+        *OS << R"(            "column": )" << To.Column << "\n"
+            << R"(          })" << "\n";
+        *OS << R"(        })";
+        if (J < MergedRanges.size() - 1) {
+          *OS << ",";
+        }
+        *OS << "\n";
+      }
+      *OS << "      ]" << "\n" << "    }";
+      if (I < Result.size() - 1)
+        *OS << ",";
+      *OS << "\n";
+    }
+    *OS << "  ]\n";
+    *OS << "}\n";
   }
 };
 
@@ -99,7 +238,7 @@ public:
                                    bool DeletePrevious)
       : DelegatingDeserializationListener(Previous, DeletePrevious) {}
 
-  void DeclRead(serialization::DeclID ID, const Decl *D) override {
+  void DeclRead(GlobalDeclID ID, const Decl *D) override {
     llvm::outs() << "PCH DECL: " << D->getDeclKindName();
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
       llvm::outs() << " - ";
@@ -125,7 +264,7 @@ public:
       : DelegatingDeserializationListener(Previous, DeletePrevious), Ctx(Ctx),
         NamesToCheck(NamesToCheck) {}
 
-  void DeclRead(serialization::DeclID ID, const Decl *D) override {
+  void DeclRead(GlobalDeclID ID, const Decl *D) override {
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
       if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
         unsigned DiagID
@@ -164,6 +303,25 @@ FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   if (!Consumer)
     return nullptr;
 
+  std::vector<std::unique_ptr<ASTConsumer>> Consumers;
+  llvm::StringRef DumpDeserializedDeclarationRangesPath =
+      CI.getFrontendOpts().DumpMinimizationHintsPath;
+  if (!DumpDeserializedDeclarationRangesPath.empty()) {
+    std::error_code ErrorCode;
+    auto FileStream = std::make_unique<llvm::raw_fd_ostream>(
+        DumpDeserializedDeclarationRangesPath, ErrorCode,
+        llvm::sys::fs::OF_TextWithCRLF);
+    if (!ErrorCode) {
+      Consumers.push_back(std::make_unique<DeserializedDeclsSourceRangePrinter>(
+          CI.getSourceManager(), std::move(FileStream)));
+    } else {
+      llvm::errs() << "Failed to create output file for "
+                      "-dump-minimization-hints flag, file path: "
+                   << DumpDeserializedDeclarationRangesPath
+                   << ", error: " << ErrorCode.message() << "\n";
+    }
+  }
+
   // Validate -add-plugin args.
   bool FoundAllPlugins = true;
   for (const std::string &Arg : CI.getFrontendOpts().AddPluginActions) {
@@ -181,17 +339,12 @@ FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   if (!FoundAllPlugins)
     return nullptr;
 
-  // If there are no registered plugins we don't need to wrap the consumer
-  if (FrontendPluginRegistry::begin() == FrontendPluginRegistry::end())
-    return Consumer;
-
   // If this is a code completion run, avoid invoking the plugin consumers
   if (CI.hasCodeCompletionConsumer())
     return Consumer;
 
   // Collect the list of plugins that go before the main action (in Consumers)
   // or after it (in AfterConsumers)
-  std::vector<std::unique_ptr<ASTConsumer>> Consumers;
   std::vector<std::unique_ptr<ASTConsumer>> AfterConsumers;
   for (const FrontendPluginRegistry::entry &Plugin :
        FrontendPluginRegistry::entries()) {
@@ -234,6 +387,9 @@ FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
       Consumers.push_back(std::move(C));
   }
 
+  assert(Consumers.size() >= 1 && "should have added the main consumer");
+  if (Consumers.size() == 1)
+    return std::move(Consumers.front());
   return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
@@ -362,7 +518,7 @@ static std::error_code collectModuleHeaderIncludes(
 
   // Add includes for each of these headers.
   for (auto HK : {Module::HK_Normal, Module::HK_Private}) {
-    for (Module::Header &H : Module->Headers[HK]) {
+    for (const Module::Header &H : Module->getHeaders(HK)) {
       Module->addTopHeader(H.Entry);
       // Use the path as specified in the module map file. We'll look for this
       // file relative to the module build directory (the directory containing
@@ -471,8 +627,9 @@ static bool loadModuleMapForModuleBuild(CompilerInstance &CI, bool IsSystem,
   }
 
   // Load the module map file.
-  if (HS.loadModuleMapFile(*ModuleMap, IsSystem, ModuleMapID, &Offset,
-                           PresumedModuleMapFile))
+  if (HS.parseAndLoadModuleMapFile(*ModuleMap, IsSystem,
+                                   /*ImplicitlyDiscovered=*/false, ModuleMapID,
+                                   &Offset, PresumedModuleMapFile))
     return true;
 
   if (SrcMgr.getBufferOrFake(ModuleMapID).getBufferSize() == Offset)
@@ -515,8 +672,8 @@ static Module *prepareToBuildModule(CompilerInstance &CI,
   }
 
   // Check whether we can build this module at all.
-  if (Preprocessor::checkModuleIsAvailable(CI.getLangOpts(), CI.getTarget(),
-                                           CI.getDiagnostics(), M))
+  if (Preprocessor::checkModuleIsAvailable(CI.getLangOpts(), CI.getTarget(), *M,
+                                           CI.getDiagnostics()))
     return nullptr;
 
   // Inform the preprocessor that includes from within the input buffer should
@@ -542,7 +699,6 @@ static Module *prepareToBuildModule(CompilerInstance &CI,
     }
     if (*OriginalModuleMap != CI.getSourceManager().getFileEntryRefForID(
                                   CI.getSourceManager().getMainFileID())) {
-      M->IsInferred = true;
       auto FileCharacter =
           M->IsSystem ? SrcMgr::C_System_ModuleMap : SrcMgr::C_User_ModuleMap;
       FileID OriginalModuleMapFID = CI.getSourceManager().getOrCreateFileID(
@@ -581,6 +737,7 @@ static Expected<Module *> makeIncludeTreeModule(CompilerInstance &CI,
   M->InferExplicitSubmodules = Flags.InferExplicitSubmodules;
   M->InferExportWildcard = Flags.InferExportWildcard;
   M->UseExportAsModuleLinkName = Flags.UseExportAsModuleLinkName;
+  M->ModuleMapIsPrivate = Flags.ModuleMapIsPrivate;
   M->ExportAsModule = Mod.getExportAsModule();
 
   auto ExportList = Mod.getExports();
@@ -610,6 +767,19 @@ static Expected<Module *> makeIncludeTreeModule(CompilerInstance &CI,
   if (*LinkLibs) {
     llvm::Error Err = (*LinkLibs)->forEachLinkLibrary([&](auto LL) {
       M->LinkLibraries.emplace_back(std::string(LL.Library), LL.IsFramework);
+      return llvm::Error::success();
+    });
+    if (Err)
+      return std::move(Err);
+  }
+
+  auto Reqs = Mod.getRequirements();
+  if (!Reqs)
+    return Reqs.takeError();
+  if (*Reqs) {
+    llvm::Error Err = (*Reqs)->forEachRequirement([&](auto R) {
+      M->addRequirement(R.FeatureName, R.RequiredState, CI.getLangOpts(),
+                        CI.getTarget());
       return llvm::Error::success();
     });
     if (Err)
@@ -737,21 +907,20 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // If we're replaying the build of an AST file, import it and set up
   // the initial state from its build.
   if (ReplayASTFile) {
-    IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = CI.getDiagnosticsPtr();
 
     // The AST unit populates its own diagnostics engine rather than ours.
-    IntrusiveRefCntPtr<DiagnosticsEngine> ASTDiags(
-        new DiagnosticsEngine(Diags->getDiagnosticIDs(),
-                              &Diags->getDiagnosticOptions()));
+    auto ASTDiags = llvm::makeIntrusiveRefCnt<DiagnosticsEngine>(
+        Diags->getDiagnosticIDs(), Diags->getDiagnosticOptions());
     ASTDiags->setClient(Diags->getClient(), /*OwnsClient*/false);
 
     // FIXME: What if the input is a memory buffer?
     StringRef InputFile = Input.getFile();
 
     std::unique_ptr<ASTUnit> AST = ASTUnit::LoadFromASTFile(
-        std::string(InputFile), CI.getPCHContainerReader(),
-        ASTUnit::LoadPreprocessorOnly, ASTDiags, CI.getFileSystemOpts(),
-        /*HeaderSearchOptions=*/nullptr);
+        InputFile, CI.getPCHContainerReader(), ASTUnit::LoadPreprocessorOnly,
+        CI.getVirtualFileSystemPtr(), nullptr, ASTDiags, CI.getFileSystemOpts(),
+        CI.getHeaderSearchOpts());
     if (!AST)
       return false;
 
@@ -763,8 +932,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     // Set the shared objects, these are reset when we finish processing the
     // file, otherwise the CompilerInstance will happily destroy them.
-    CI.setFileManager(&AST->getFileManager());
-    CI.createSourceManager(CI.getFileManager());
+    CI.setVirtualFileSystem(AST->getFileManager().getVirtualFileSystemPtr());
+    CI.setFileManager(AST->getFileManagerPtr());
+    CI.createSourceManager();
     CI.getSourceManager().initializeForReplay(AST->getSourceManager());
 
     // Preload all the module files loaded transitively by the AST unit. Also
@@ -796,7 +966,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     } else {
       auto &OldSM = AST->getSourceManager();
       FileID ID = OldSM.getMainFileID();
-      if (auto *File = OldSM.getFileEntryForID(ID))
+      if (auto File = OldSM.getFileEntryRefForID(ID))
         Input = FrontendInputFile(File->getName(), Kind);
       else
         Input = FrontendInputFile(OldSM.getBufferOrFake(ID), Kind);
@@ -811,15 +981,15 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     assert(hasASTFileSupport() &&
            "This action does not have AST file support!");
 
-    IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = CI.getDiagnosticsPtr();
 
     // FIXME: What if the input is a memory buffer?
     StringRef InputFile = Input.getFile();
 
     std::unique_ptr<ASTUnit> AST = ASTUnit::LoadFromASTFile(
-        std::string(InputFile), CI.getPCHContainerReader(),
-        ASTUnit::LoadEverything, Diags, CI.getFileSystemOpts(),
-        CI.getHeaderSearchOptsPtr());
+        InputFile, CI.getPCHContainerReader(), ASTUnit::LoadEverything,
+        CI.getVirtualFileSystemPtr(), nullptr, Diags, CI.getFileSystemOpts(),
+        CI.getHeaderSearchOpts(), &CI.getLangOpts());
 
     if (!AST)
       return false;
@@ -830,13 +1000,14 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     // Set the shared objects, these are reset when we finish processing the
     // file, otherwise the CompilerInstance will happily destroy them.
-    CI.setFileManager(&AST->getFileManager());
-    CI.setSourceManager(&AST->getSourceManager());
+    CI.setVirtualFileSystem(AST->getFileManager().getVirtualFileSystemPtr());
+    CI.setFileManager(AST->getFileManagerPtr());
+    CI.setSourceManager(AST->getSourceManagerPtr());
     CI.setPreprocessor(AST->getPreprocessorPtr());
     Preprocessor &PP = CI.getPreprocessor();
     PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
                                            PP.getLangOpts());
-    CI.setASTContext(&AST->getASTContext());
+    CI.setASTContext(AST->getASTContextPtr());
 
     setCurrentInput(Input, std::move(AST));
 
@@ -853,14 +1024,13 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     return true;
   }
 
-  // Set up the file and source managers, if needed.
-  if (!CI.hasFileManager()) {
-    if (!CI.createFileManager()) {
-      return false;
-    }
-  }
+  // Set up the file system, file and source managers, if needed.
+  if (!CI.hasVirtualFileSystem())
+    CI.createVirtualFileSystem();
+  if (!CI.hasFileManager())
+    CI.createFileManager();
   if (!CI.hasSourceManager()) {
-    CI.createSourceManager(CI.getFileManager());
+    CI.createSourceManager();
     if (CI.getDiagnosticOpts().getFormat() == DiagnosticOptions::SARIF) {
       static_cast<SARIFDiagnosticPrinter *>(&CI.getDiagnosticClient())
           ->setSarifWriter(
@@ -871,7 +1041,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // Set up embedding for any specified files. Do this before we load any
   // source files, including the primary module map for the compilation.
   for (const auto &F : CI.getFrontendOpts().ModulesEmbedFiles) {
-    if (auto FE = CI.getFileManager().getFile(F, /*openFile*/true))
+    if (auto FE = CI.getFileManager().getOptionalFileRef(F, /*openFile*/true))
       CI.getSourceManager().setFileIsTransient(*FE);
     else
       CI.getDiagnostics().Report(diag::err_modules_embed_file_not_found) << F;
@@ -881,8 +1051,11 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
   // IR files bypass the rest of initialization.
   if (Input.getKind().getLanguage() == Language::LLVM_IR) {
-    assert(hasIRSupport() &&
-           "This action does not have IR file support!");
+    if (!hasIRSupport()) {
+      CI.getDiagnostics().Report(diag::err_ast_action_on_llvm_ir)
+          << Input.getFile();
+      return false;
+    }
 
     // Inform the diagnostic client we are processing a source file.
     CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(), nullptr);
@@ -900,20 +1073,29 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     return true;
   }
 
-  // If the implicit PCH include is actually a directory, rather than
-  // a single file, search for a suitable PCH file in that directory.
   if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
     FileManager &FileMgr = CI.getFileManager();
     PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
-    StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
     CI.getLangOpts().NeededByPCHOrCompilationUsesPCH = true;
-    std::string SpecificModuleCachePath = CI.getSpecificModuleCachePath();
+
+    // Canonicalize ImplicitPCHInclude. This way, all the downstream code,
+    // including the ASTWriter, will receive the absolute path to the included
+    // PCH.
+    SmallString<128> PCHIncludePath(PPOpts.ImplicitPCHInclude);
+    FileMgr.makeAbsolutePath(PCHIncludePath);
+    llvm::sys::path::remove_dots(PCHIncludePath, true);
+    PPOpts.ImplicitPCHInclude = PCHIncludePath.str();
+    StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
+
+    // If the implicit PCH include is actually a directory, rather than
+    // a single file, search for a suitable PCH file in that directory.
     if (auto PCHDir = FileMgr.getOptionalDirectoryRef(PCHInclude)) {
       std::error_code EC;
       SmallString<128> DirNative;
       llvm::sys::path::native(PCHDir->getName(), DirNative);
       bool Found = false;
       llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
+      std::string SpecificModuleCachePath = CI.getSpecificModuleCachePath();
       for (llvm::vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC),
                                          DirEnd;
            Dir != DirEnd && !EC; Dir.increment(EC)) {
@@ -922,7 +1104,8 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
                 Dir->path(), FileMgr, CI.getModuleCache(),
                 CI.getPCHContainerReader(), CI.getLangOpts(),
                 CI.getTargetOpts(), CI.getPreprocessorOpts(),
-                SpecificModuleCachePath, /*RequireStrictOptionMatches=*/true)) {
+                CI.getHeaderSearchOpts(), SpecificModuleCachePath,
+                /*RequireStrictOptionMatches=*/true)) {
           PPOpts.ImplicitPCHInclude = std::string(Dir->path());
           Found = true;
           break;
@@ -963,8 +1146,8 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       HeaderSearch &HS = CI.getPreprocessor().getHeaderSearchInfo();
       // Relative searches begin from CWD.
       auto Dir = CI.getFileManager().getOptionalDirectoryRef(".");
-      SmallVector<std::pair<const FileEntry *, DirectoryEntryRef>, 1> CWD;
-      CWD.push_back({nullptr, *Dir});
+      SmallVector<std::pair<OptionalFileEntryRef, DirectoryEntryRef>, 1> CWD;
+      CWD.push_back({std::nullopt, *Dir});
       OptionalFileEntryRef FE =
           HS.LookupFile(FileName, SourceLocation(),
                         /*Angled*/ Input.getKind().getHeaderUnitKind() ==
@@ -977,7 +1160,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
         return false;
       }
       // We now have the filename...
-      FileName = FE->getFileEntry().getName();
+      FileName = FE->getName();
       // ... still a header unit, but now use the path as written.
       Kind = Input.getKind().withHeaderUnit(InputKind::HeaderUnit_Abs);
       Input = FrontendInputFile(FileName, Kind, Input.isSystem());
@@ -1092,8 +1275,8 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // If we were asked to load any module map files, do so now.
   for (const auto &Filename : CI.getFrontendOpts().ModuleMapFiles) {
     if (auto File = CI.getFileManager().getOptionalFileRef(Filename))
-      CI.getPreprocessor().getHeaderSearchInfo().loadModuleMapFile(
-          *File, /*IsSystem*/false);
+      CI.getPreprocessor().getHeaderSearchInfo().parseAndLoadModuleMapFile(
+          *File, /*IsSystem*/ false, /*ImplicitlyDiscovered=*/false);
     else
       CI.getDiagnostics().Report(diag::err_module_map_not_found) << Filename;
   }
@@ -1101,7 +1284,8 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // Provide any modules from the action cache.
   for (const auto &KeyPair : CI.getFrontendOpts().ModuleCacheKeys)
     if (CI.addCachedModuleFile(KeyPair.first, KeyPair.second,
-                               "-fmodule-file-cache-key"))
+                               "-fmodule-file-cache-key",
+                               /*IsKey=*/true))
       return false;
 
 
@@ -1139,11 +1323,12 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     if (!CI.getPreprocessorOpts().ChainedIncludes.empty()) {
       // Convert headers to PCH and chain them.
-      IntrusiveRefCntPtr<ExternalSemaSource> source, FinalReader;
+      IntrusiveRefCntPtr<ExternalSemaSource> source;
+      IntrusiveRefCntPtr<ASTReader> FinalReader;
       source = createChainedIncludesSource(CI, FinalReader);
       if (!source)
         return false;
-      CI.setASTReader(static_cast<ASTReader *>(FinalReader.get()));
+      CI.setASTReader(FinalReader);
       CI.getASTContext().setExternalSource(source);
     } else if (CI.getLangOpts().Modules ||
                !CI.getPreprocessorOpts().ImplicitPCHInclude.empty() ||
@@ -1165,9 +1350,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
             DeserialListener, DeleteDeserialListener);
         DeleteDeserialListener = true;
       }
+      std::string PCHCASID;
       if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty() ||
           IncludeTreePCH) {
-        StringRef PCHPath;
+        std::string PCHPath;
         DisableValidationForModuleKind DisableValidation;
         std::unique_ptr<llvm::MemoryBuffer> PCHBuffer;
         if (IncludeTreePCH) {
@@ -1176,6 +1362,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
           if (llvm::Error E =
                   IncludeTreePCH->getMemoryBuffer().moveInto(PCHBuffer))
             return reportError(std::move(E));
+          auto PCHFile = IncludeTreePCH->getContents();
+          if (!PCHFile)
+            return reportError(PCHFile.takeError());
+          PCHCASID = PCHFile->getID().toString();
           PCHPath = PCHBuffer->getBufferIdentifier();
         } else {
           PCHPath = CI.getPreprocessorOpts().ImplicitPCHInclude;
@@ -1188,6 +1378,12 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
             DeserialListener, DeleteDeserialListener, std::move(PCHBuffer));
         if (!CI.getASTContext().getExternalSource())
           return false;
+
+        // After loading PCH, set its CASID for content.
+        if (!PCHCASID.empty()) {
+          auto &MF = CI.getASTReader()->getModuleManager().getPrimaryModule();
+          MF.CASID = PCHCASID;
+        }
       }
       // If modules are enabled, create the AST reader before creating
       // any builtins, so that all declarations know that they might be
@@ -1201,7 +1397,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     }
 
     if (!CI.getFrontendOpts().CASIncludeTreeID.empty())
-      CI.getASTContext().setCASIncludeTreeID(
+      CI.getPreprocessor().setCASIncludeTreeID(
           CI.getFrontendOpts().CASIncludeTreeID);
 
     CI.setASTConsumer(std::move(Consumer));
@@ -1225,31 +1421,35 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   }
 
   // If we were asked to load any module files, do so now.
-  for (const auto &ModuleFile : CI.getFrontendOpts().ModuleFiles)
-    if (!CI.loadModuleFile(ModuleFile))
+  for (const auto &ModuleFile : CI.getFrontendOpts().ModuleFiles) {
+    serialization::ModuleFile *Loaded = nullptr;
+    if (!CI.loadModuleFile(ModuleFile, Loaded))
       return false;
+
+    if (Loaded && Loaded->StandardCXXModule)
+      CI.getDiagnostics().Report(
+          diag::warn_eagerly_load_for_standard_cplusplus_modules);
+  }
 
   // If there is a layout overrides file, attach an external AST source that
   // provides the layouts from that file.
   if (!CI.getFrontendOpts().OverrideRecordLayoutsFile.empty() &&
       CI.hasASTContext() && !CI.getASTContext().getExternalSource()) {
-    IntrusiveRefCntPtr<ExternalASTSource>
-      Override(new LayoutOverrideSource(
-                     CI.getFrontendOpts().OverrideRecordLayoutsFile));
+    auto Override = llvm::makeIntrusiveRefCnt<LayoutOverrideSource>(
+        CI.getFrontendOpts().OverrideRecordLayoutsFile);
     CI.getASTContext().setExternalSource(Override);
   }
 
   // Setup HLSL External Sema Source
   if (CI.getLangOpts().HLSL && CI.hasASTContext()) {
-    IntrusiveRefCntPtr<ExternalSemaSource> HLSLSema(
-        new HLSLExternalSemaSource());
-    if (auto *SemaSource = dyn_cast_if_present<ExternalSemaSource>(
-            CI.getASTContext().getExternalSource())) {
-      IntrusiveRefCntPtr<ExternalSemaSource> MultiSema(
-          new MultiplexExternalSemaSource(SemaSource, HLSLSema.get()));
-      CI.getASTContext().setExternalSource(MultiSema);
+    auto HLSLSema = llvm::makeIntrusiveRefCnt<HLSLExternalSemaSource>();
+    if (auto SemaSource = dyn_cast_if_present<ExternalSemaSource>(
+            CI.getASTContext().getExternalSourcePtr())) {
+      auto MultiSema = llvm::makeIntrusiveRefCnt<MultiplexExternalSemaSource>(
+          std::move(SemaSource), std::move(HLSLSema));
+      CI.getASTContext().setExternalSource(std::move(MultiSema));
     } else
-      CI.getASTContext().setExternalSource(HLSLSema);
+      CI.getASTContext().setExternalSource(std::move(HLSLSema));
   }
 
   FailureCleanup.release();
@@ -1258,12 +1458,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
 llvm::Error FrontendAction::Execute() {
   CompilerInstance &CI = getCompilerInstance();
-
-  if (CI.hasFrontendTimer()) {
-    llvm::TimeRegion Timer(CI.getFrontendTimer());
-    ExecuteAction();
-  }
-  else ExecuteAction();
+  ExecuteAction();
 
   // If we are supposed to rebuild the global module index, do so now unless
   // there were any module-build failures.
@@ -1288,12 +1483,14 @@ llvm::Error FrontendAction::Execute() {
 void FrontendAction::EndSourceFile() {
   CompilerInstance &CI = getCompilerInstance();
 
-  // Inform the diagnostic client we are done with this source file.
-  CI.getDiagnosticClient().EndSourceFile();
-
   // Inform the preprocessor we are done.
   if (CI.hasPreprocessor())
     CI.getPreprocessor().EndSourceFile();
+
+  // Inform the diagnostic client we are done with this source file.
+  // Do this after notifying the preprocessor, so that end-of-file preprocessor
+  // callbacks can report diagnostics.
+  CI.getDiagnosticClient().EndSourceFile();
 
   // Finalize the action.
   EndSourceFileAction();
@@ -1314,10 +1511,14 @@ void FrontendAction::EndSourceFile() {
 
   if (CI.getFrontendOpts().ShowStats) {
     llvm::errs() << "\nSTATISTICS FOR '" << getCurrentFileOrBufferName() << "':\n";
-    CI.getPreprocessor().PrintStats();
-    CI.getPreprocessor().getIdentifierTable().PrintStats();
-    CI.getPreprocessor().getHeaderSearchInfo().PrintStats();
-    CI.getSourceManager().PrintStats();
+    if (CI.hasPreprocessor()) {
+      CI.getPreprocessor().PrintStats();
+      CI.getPreprocessor().getIdentifierTable().PrintStats();
+      CI.getPreprocessor().getHeaderSearchInfo().PrintStats();
+    }
+    if (CI.hasSourceManager()) {
+      CI.getSourceManager().PrintStats();
+    }
     llvm::errs() << "\n";
   }
 
@@ -1376,7 +1577,6 @@ void ASTFrontendAction::ExecuteAction() {
 
   if (!CI.hasSema())
     CI.createSema(getTranslationUnitKind(), CompletionConsumer);
-
   ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats,
            CI.getFrontendOpts().SkipFunctionBodies);
 }

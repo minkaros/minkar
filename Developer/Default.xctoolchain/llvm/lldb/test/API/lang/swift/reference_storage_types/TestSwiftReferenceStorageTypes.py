@@ -17,13 +17,12 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftReferenceStorageTypes(TestBase):
+    @skipEmbeddedSwift
     @decorators.skipIf(archs=['ppc64le']) #SR-10215
     @swiftTest
-    @skipIf(oslist=["linux"], bugnumber="rdar://76592966")
     def test_swift_reference_storage_types(self):
         """Test weak, unowned and unmanaged types"""
         self.build()

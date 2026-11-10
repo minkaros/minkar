@@ -22,7 +22,6 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Serialization/ASTReader.h"
-#include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 using namespace clang;
@@ -568,9 +567,11 @@ private:
   }
 
   bool sawDependency(StringRef Filename, bool FromModule, bool IsSystem,
-                     bool IsModuleFile, bool IsMissing) override {
+                     bool IsModuleFile, bool IsDirectModuleImport,
+                     bool IsMissing) override {
     bool sawIt = DependencyCollector::sawDependency(
-        Filename, FromModule, IsSystem, IsModuleFile, IsMissing);
+        Filename, FromModule, IsSystem, IsModuleFile, IsDirectModuleImport,
+        IsMissing);
     if (auto FE = SourceMgr->getFileManager().getOptionalFileRef(Filename)) {
       if (sawIt)
         Entries.insert(*FE);
@@ -583,7 +584,7 @@ private:
   }
 
   bool isInSysroot(StringRef Filename) {
-    return !SysrootPath.empty() && Filename.startswith(SysrootPath);
+    return !SysrootPath.empty() && Filename.starts_with(SysrootPath);
   }
 };
 
@@ -605,6 +606,7 @@ protected:
   }
 
   bool HandleTopLevelDecl(DeclGroupRef DG) override {
+    llvm::PrettyStackTraceFormat trace("indexing");
     return IndexCtx->indexDeclGroupRef(DG);
   }
 
@@ -613,6 +615,7 @@ protected:
   }
 
   void HandleTopLevelDeclInObjCContainer(DeclGroupRef DG) override {
+    llvm::PrettyStackTraceFormat trace("indexing");
     IndexCtx->indexDeclGroupRef(DG);
   }
 
@@ -683,12 +686,17 @@ protected:
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                  StringRef InFile) override {
     auto OtherConsumer = WrapperFrontendAction::CreateASTConsumer(CI, InFile);
-    if (!OtherConsumer)
-      return nullptr;
+
+    if (CI.getFrontendOpts().IndexStorePath.empty()) {
+      // We are not generating an index store. Nothing to do.
+      return OtherConsumer;
+    }
 
     CreatedASTConsumer = true;
     std::vector<std::unique_ptr<ASTConsumer>> Consumers;
-    Consumers.push_back(std::move(OtherConsumer));
+    if (OtherConsumer) {
+      Consumers.push_back(std::move(OtherConsumer));
+    }
     Consumers.push_back(createIndexASTConsumer(CI));
     return std::make_unique<MultiplexConsumer>(std::move(Consumers));
   }
@@ -712,7 +720,7 @@ static std::string getClangVersion() {
   std::string RepositoryPath = getClangRepositoryPath();
   StringRef BuildNumber = StringRef(RepositoryPath);
   size_t DashOffset = BuildNumber.find('-');
-  if (BuildNumber.startswith("clang") && DashOffset != StringRef::npos) {
+  if (BuildNumber.starts_with("clang") && DashOffset != StringRef::npos) {
     BuildNumber = BuildNumber.substr(DashOffset + 1);
     return std::string(BuildNumber);
   }
@@ -725,7 +733,7 @@ static void writeUnitData(const CompilerInstance &CI,
                           IndexDependencyProvider &DepProvider,
                           IndexingOptions IndexOpts,
                           RecordingOptions RecordOpts, StringRef OutputFile,
-                          const FileEntry *RootFile, Module *UnitModule,
+                          OptionalFileEntryRef RootFile, Module *UnitModule,
                           StringRef SysrootPath);
 
 void IndexRecordActionBase::finish(CompilerInstance &CI) {
@@ -767,12 +775,12 @@ void IndexRecordActionBase::finish(CompilerInstance &CI) {
     OutputFile += ".o";
   }
 
-  const FileEntry *RootFile = nullptr;
+  OptionalFileEntryRef RootFile;
   Module *UnitMod = nullptr;
   bool isModuleGeneration = CI.getLangOpts().isCompilingModule();
   if (!isModuleGeneration &&
       CI.getFrontendOpts().ProgramAction != frontend::GeneratePCH) {
-    RootFile = SM.getFileEntryForID(SM.getMainFileID());
+    RootFile = SM.getFileEntryRefForID(SM.getMainFileID());
   }
   if (isModuleGeneration) {
     UnitMod = HS.lookupModule(CI.getLangOpts().CurrentModule, SourceLocation(),
@@ -796,7 +804,7 @@ static void writeUnitData(const CompilerInstance &CI,
                           IndexDependencyProvider &DepProvider,
                           IndexingOptions IndexOpts,
                           RecordingOptions RecordOpts, StringRef OutputFile,
-                          const FileEntry *RootFile, Module *UnitModule,
+                          OptionalFileEntryRef RootFile, Module *UnitModule,
                           StringRef SysrootPath) {
 
   SourceManager &SM = CI.getSourceManager();
@@ -839,9 +847,10 @@ static void writeUnitData(const CompilerInstance &CI,
     Remapper.addMapping(It->first, It->second);
 
   IndexUnitWriter UnitWriter(
-      CI.getFileManager(), DataPath, "clang", getClangVersion(), OutputFile,
-      ModuleName, RootFile, IsSystemUnit, IsModuleUnit, IsDebugCompilation,
-      CI.getTargetOpts().Triple, SysrootPath, Remapper, getModuleInfo);
+      CI.getFileManager(), DataPath, "clang", getClangVersion(),
+      CI.getFrontendOpts().IndexStoreCompress, OutputFile, ModuleName, RootFile,
+      IsSystemUnit, IsModuleUnit, IsDebugCompilation, CI.getTargetOpts().Triple,
+      SysrootPath, Remapper, getModuleInfo);
 
   DepProvider.visitFileDependencies(
       CI, [&](FileEntryRef FE, bool isSystemFile) {
@@ -864,7 +873,8 @@ static void writeUnitData(const CompilerInstance &CI,
     }
   });
 
-  ClangIndexRecordWriter RecordWriter(CI.getASTContext(), RecordOpts);
+  ClangIndexRecordWriter RecordWriter(
+      CI.getASTContext(), CI.getFrontendOpts().IndexStoreCompress, RecordOpts);
   for (auto I = Recorder.record_begin(), E = Recorder.record_end(); I != E;
        ++I) {
     FileID FID = I->first;
@@ -917,7 +927,11 @@ public:
           // Ignore module map files, they are not as important to track as
           // source files and they may be auto-generated which would create an
           // undesirable dependency on an intermediate build byproduct.
-          if (FE->getName().endswith("module.modulemap"))
+          if (FE->getName().ends_with("module.modulemap"))
+            return;
+          // Ignore SDKSettings.json, they are not important to track for
+          // indexing.
+          if (FE->getName().ends_with("SDKSettings.json"))
             return;
 
           visitor(*FE, isSystem);
@@ -979,7 +993,7 @@ static void indexModule(serialization::ModuleFile &Mod,
 
   ModuleFileIndexDependencyCollector DepCollector(Mod, RecordOpts);
   writeUnitData(CI, Recorder, DepCollector, IndexOpts, RecordOpts, Mod.FileName,
-                /*RootFile=*/nullptr, UnitMod, SysrootPath);
+                /*RootFile=*/std::nullopt, UnitMod, SysrootPath);
 }
 
 static bool produceIndexDataForModuleFile(serialization::ModuleFile &Mod,
@@ -1056,7 +1070,7 @@ bool index::emitIndexDataForModuleFile(const Module *Mod,
 
   auto astReader = CI.getASTReader();
   serialization::ModuleFile *ModFile =
-      astReader->getModuleManager().lookup(Mod->getASTFile());
+      astReader->getModuleManager().lookup(*Mod->getASTFile());
   assert(ModFile && "no module file loaded for module ?");
   return produceIndexDataForModuleFile(*ModFile, CI, IndexOpts, RecordOpts,
                                        ParentUnitWriter);

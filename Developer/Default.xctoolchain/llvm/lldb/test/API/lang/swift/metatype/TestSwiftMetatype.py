@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftMetatype(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_metatype(self):
         """Test the formatting of Swift metatypes"""
@@ -30,14 +30,18 @@ class TestSwiftMetatype(TestBase):
 
         frame = thread.frames[0]
         self.assertTrue(frame, "Frame 0 is valid.")
-
         var_s = frame.FindVariable("s")
         var_c = frame.FindVariable("c")
         var_f = frame.FindVariable("f")
         var_t = frame.FindVariable("t")
         var_p = frame.FindVariable("p")
+        self.assertEqual(var_s.GetNumChildren(), 0)
+        self.assertEqual(var_c.GetNumChildren(), 0)
+        self.assertEqual(var_f.GetNumChildren(), 0)
+        self.assertEqual(var_p.GetNumChildren(), 0)
+        self.assertEqual(var_t.GetNumChildren(), 0)
         lldbutil.check_variable(self, var_s, False, "String")
         lldbutil.check_variable(self, var_c, False, "@thick a.D.Type")
-        lldbutil.check_variable(self, var_f, False, '@thick ((Int) -> Int).Type')
+        lldbutil.check_variable(self, var_f, True, '@thick ((Int) -> Int).Type')
         lldbutil.check_variable(self, var_t, False, "(Int, Int, String)")
         lldbutil.check_variable(self, var_p, False, "a.P")

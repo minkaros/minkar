@@ -3,7 +3,7 @@
 
 define ptr @f(ptr %buffer, i32 %n) presplitcoroutine {
 entry:
-  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @prototype, ptr @allocate, ptr @deallocate)
+  %id = call token (i32, i32, ptr, ptr, ptr, ptr, ...) @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @prototype, ptr @allocate, ptr @deallocate)
   %hdl = call ptr @llvm.coro.begin(token %id, ptr null)
   %value0 = call i32 (...) @llvm.coro.suspend.retcon.i32()
   %sum0 = call i32 @add(i32 %n, i32 %value0)
@@ -15,14 +15,14 @@ entry:
   %sum4 = call i32 @add(i32 %sum3, i32 %value1)
   %sum5 = call i32 @add(i32 %sum4, i32 %value2)
   call void @print(i32 %sum5)
-  call i1 @llvm.coro.end(ptr %hdl, i1 0)
+  call i1 @llvm.coro.end(ptr %hdl, i1 0, token none)
   unreachable
 }
 
-declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr)
+declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr, ...)
 declare ptr @llvm.coro.begin(token, ptr)
 declare i32 @llvm.coro.suspend.retcon.i32(...)
-declare i1 @llvm.coro.end(ptr, i1)
+declare i1 @llvm.coro.end(ptr, i1, token)
 declare ptr @llvm.coro.prepare.retcon(ptr)
 
 declare ptr @prototype(ptr, i32)

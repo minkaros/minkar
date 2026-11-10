@@ -18,14 +18,14 @@ import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import platform
-import unittest2
 
 class TestSwiftStepping(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @swiftTest
-    @skipIfLinux
+    @skipEmbeddedSwift
+    @skipIf(oslist=["linux"], archs=no_match("x86_64"))
     def test_swift_stepping(self):
         """Tests that we can step reliably in swift code."""
         self.build()
@@ -35,18 +35,7 @@ class TestSwiftStepping(lldbtest.TestBase):
         lldbtest.TestBase.setUp(self)
         self.main_source = "main.swift"
         self.main_source_spec = lldb.SBFileSpec(self.main_source)
-        # If you are running against a debug swift you are going to
-        # end up stepping into the stdlib and that will make stepping
-        # tests impossible to write.  So avoid that.
-
-        if platform.system() == 'Darwin':
-            lib_name = "libswiftCore.dylib"
-        else:
-            lib_name = "libswiftCore.so"
-
-        self.dbg.HandleCommand(
-            "settings set "
-            "target.process.thread.step-avoid-libraries {}".format(lib_name))
+        lldbutil.ignore_swift_stdlib_when_stepping(platform, self)
 
     def correct_stop_reason(self, thread):
         # We are always just stepping, so that should be the thread stop reason:
@@ -221,35 +210,10 @@ class TestSwiftStepping(lldbtest.TestBase):
         self.hit_correct_line(thread, "Second case with a where statement")
 
         thread.StepOver()
-        thread.StepOver()
         self.hit_correct_line(
             thread, "print in second case with where statement.")
 
-        #
-        # For some reason, we don't step from the body of the case to
-        # the end of the switch, but back to the case: statement, and
-        # then directly out of the switch.
-        #
         thread.StepOver()
-        steps_back_to_case = self.hit_correct_line(
-            thread,
-            "Sometimes the line table steps to here "
-            "after the body of the case.", False)
-        if steps_back_to_case:
-            self.fail(
-                "Stepping past a taken body of a case statement should not "
-                "step back to the case statement.")
-
-        if self.hit_correct_line(
-                thread,
-                "This is the end of the switch statement", False):
-            thread.StepOver()
-        elif not self.hit_correct_line(
-                thread, "Make a version of P that conforms directly", False):
-            self.fail(
-                "Stepping past the body of the case didn't stop "
-                "where expected.")
-
         self.hit_correct_line(
             thread, "Make a version of P that conforms directly")
 

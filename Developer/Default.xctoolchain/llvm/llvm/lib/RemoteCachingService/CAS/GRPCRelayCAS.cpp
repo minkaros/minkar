@@ -118,7 +118,11 @@ public:
   std::optional<ObjectRef> getReference(const CASID &ID) const final;
   Expected<bool> isMaterialized(ObjectRef Ref) const final;
   Expected<std::optional<ObjectHandle>> loadIfExists(ObjectRef Ref) final;
-  Error validate(const CASID &ID) final {
+  Error validateObject(const CASID &ID) final {
+    // Not supported yet. Always return success.
+    return Error::success();
+  }
+  Error validate(bool CheckHash) const final {
     // Not supported yet. Always return success.
     return Error::success();
   }
@@ -219,6 +223,11 @@ public:
                                          bool Globally) const final;
   Error putImpl(ArrayRef<uint8_t> ResolvedKey, const CASID &Result,
                 bool Globally) final;
+
+  Error validate() const final {
+    // Not supported yet. Always return success.
+    return Error::success();
+  }
 
 private:
   std::unique_ptr<remote::KeyValueDBClient> KVDB;
@@ -367,11 +376,17 @@ ArrayRef<char> GRPCRelayCAS::getData(ObjectHandle Handle,
 
 Expected<ObjectRef>
 GRPCRelayCAS::storeFromOpenFileImpl(sys::fs::file_t FD,
-                                    std::optional<sys::fs::file_status> FS) {
+                                    std::optional<sys::fs::file_status> OptFS) {
+  sys::fs::file_status FS;
+  if (OptFS.has_value()) {
+    FS = *OptFS;
+  } else {
+    if (std::error_code EC = sys::fs::status(FD, FS))
+      return errorCodeToError(EC);
+  }
   std::error_code EC;
   sys::fs::mapped_file_region Map(FD, sys::fs::mapped_file_region::readonly,
-                                  FS->getSize(),
-                                  /*offset=*/0, EC);
+                                  FS.getSize(), /*offset=*/0, EC);
   if (EC)
     return errorCodeToError(EC);
 

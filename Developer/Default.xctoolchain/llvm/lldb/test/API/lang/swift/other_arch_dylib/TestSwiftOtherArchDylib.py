@@ -3,18 +3,18 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftOtherArchDylib(TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     @swiftTest
     @skipUnlessDarwin
     @skipIfDarwinEmbedded
     @skipIf(archs=no_match(["arm64"]))
-    @expectedFailure("the swift.org toolchain cannot produce arm64e binaries")
+    @skipIf(archs=["arm64e"], bugnumber="the swift.org toolchain cannot produce arm64e binaries")
     def test(self):
         """Test module import from dylibs with an architecture
            that uses a different SDK"""
@@ -33,7 +33,6 @@ class TestSwiftOtherArchDylib(TestBase):
         self.expect("expression 1", substrs=['1'])
 
         # Check the types log.
-        self.filecheck('platform shell cat "%s"' % types_log, __file__)
-        # CHECK: SwiftASTContextForExpressions::LogConfiguration() arm64-apple-macosx
-        # CHECK: Enabling per-module Swift scratch context
-        # CHECK: {{SwiftASTContextForExpressions..OtherArch..}}::LogConfiguration() arm64e-apple-macosx
+        self.filecheck_log(types_log, __file__)
+        # CHECK: SwiftASTContextForExpressions(module: "OtherArch", cu: "OtherArch.swift")::LogConfiguration(){{.*}}arm64e-apple-macos
+        # CHECK: SwiftASTContextForExpressions(module: "arm64-apple-macos{{.*}})::LogConfiguration(){{.*}}arm64-apple-macos

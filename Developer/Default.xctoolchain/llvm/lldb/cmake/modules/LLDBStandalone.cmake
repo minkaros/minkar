@@ -91,6 +91,10 @@ if(LLDB_ENABLE_SWIFT_SUPPORT)
   list(APPEND CMAKE_MODULE_PATH "${SWIFT_CMAKE_DIR}")
 endif()
 
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+list(APPEND CMAKE_REQUIRED_DEFINITIONS ${LLVM_DEFINITIONS_LIST})
+
 include(AddLLVM)
 include(TableGen)
 include(HandleLLVMOptions)
@@ -130,8 +134,8 @@ if(LLVM_USE_FOLDERS)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 endif()
 
-set_target_properties(clang-tablegen-targets PROPERTIES FOLDER "lldb misc")
-set_target_properties(intrinsics_gen PROPERTIES FOLDER "lldb misc")
+set_target_properties(clang-tablegen-targets PROPERTIES FOLDER "Clang/Tablegenning")
+set_target_properties(intrinsics_gen PROPERTIES FOLDER "LLVM/Tablegenning")
 
 if(NOT DEFINED LLVM_COMMON_CMAKE_UTILS)
   set(LLVM_COMMON_CMAKE_UTILS ${CMAKE_CURRENT_SOURCE_DIR}/../cmake)

@@ -381,7 +381,6 @@ static std::string getMacroUnexpandedString(clang::SourceRange Range,
   clang::SourceLocation BeginLoc(Range.getBegin());
   const char *BeginPtr = PP.getSourceManager().getCharacterData(BeginLoc);
   size_t Length;
-  std::string Unexpanded;
   if (MI->isFunctionLike()) {
     clang::SourceLocation EndLoc(Range.getEnd());
     const char *EndPtr = PP.getSourceManager().getCharacterData(EndLoc) + 1;
@@ -495,19 +494,8 @@ public:
     return Column == Other.Column;
   }
   bool operator<(const PPItemKey &Other) const {
-    if (Name < Other.Name)
-      return true;
-    else if (Name > Other.Name)
-      return false;
-    if (File < Other.File)
-      return true;
-    else if (File > Other.File)
-      return false;
-    if (Line < Other.Line)
-      return true;
-    else if (Line > Other.Line)
-      return false;
-    return Column < Other.Column;
+    return std::tie(Name, File, Line, Column) <
+           std::tie(Other.Name, Other.File, Other.Line, Other.Column);
   }
   StringHandle Name;
   HeaderHandle File;
@@ -882,7 +870,7 @@ public:
   // Handle entering a header source file.
   void handleHeaderEntry(clang::Preprocessor &PP, llvm::StringRef HeaderPath) {
     // Ignore <built-in> and <command-line> to reduce message clutter.
-    if (HeaderPath.startswith("<"))
+    if (HeaderPath.starts_with("<"))
       return;
     HeaderHandle H = addHeader(HeaderPath);
     if (H != getCurrentHeaderHandle())
@@ -895,7 +883,7 @@ public:
   // Handle exiting a header source file.
   void handleHeaderExit(llvm::StringRef HeaderPath) {
     // Ignore <built-in> and <command-line> to reduce message clutter.
-    if (HeaderPath.startswith("<"))
+    if (HeaderPath.starts_with("<"))
       return;
     HeaderHandle H = findHeaderHandle(HeaderPath);
     HeaderHandle TH;
@@ -916,7 +904,7 @@ public:
   // Convert to a canonical path.
   std::string getCanonicalPath(llvm::StringRef path) const {
     std::string CanonicalPath(path);
-    std::replace(CanonicalPath.begin(), CanonicalPath.end(), '\\', '/');
+    llvm::replace(CanonicalPath, '\\', '/');
     return CanonicalPath;
   }
 
@@ -1292,8 +1280,8 @@ void PreprocessorCallbacks::FileChanged(
     PPTracker.handleHeaderEntry(PP, getSourceLocationFile(PP, Loc));
     break;
   case ExitFile: {
-    const clang::FileEntry *F =
-        PP.getSourceManager().getFileEntryForID(PrevFID);
+    clang::OptionalFileEntryRef F =
+        PP.getSourceManager().getFileEntryRefForID(PrevFID);
     if (F)
       PPTracker.handleHeaderExit(F->getName());
   } break;
@@ -1328,7 +1316,6 @@ void PreprocessorCallbacks::Defined(const clang::Token &MacroNameTok,
   clang::SourceLocation Loc(Range.getBegin());
   clang::IdentifierInfo *II = MacroNameTok.getIdentifierInfo();
   const clang::MacroInfo *MI = MD.getMacroInfo();
-  std::string MacroName = II->getName().str();
   std::string Unexpanded(getSourceString(PP, Range));
   PPTracker.addMacroExpansionInstance(
       PP, PPTracker.getCurrentHeaderHandle(), Loc,

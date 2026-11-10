@@ -14,7 +14,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftUnknownReference(lldbtest.TestBase):
@@ -22,13 +21,14 @@ class TestSwiftUnknownReference(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     def check_class(self, var_self):
-        lldbutil.check_variable(self, var_self, num_children=2)
+        lldbutil.check_variable(self, var_self, use_dynamic=True, num_children=2)
         m_base_string = var_self.GetChildMemberWithName("base_string")
         m_string = var_self.GetChildMemberWithName("string")
         lldbutil.check_variable(self, m_base_string, summary='"hello"')
         lldbutil.check_variable(self, m_string, summary='"world"')
 
     
+    @skipEmbeddedSwift
     @swiftTest
     @skipUnlessFoundation
     def test_unknown_objc_ref(self):

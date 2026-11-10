@@ -22,8 +22,67 @@ let Class = PointerType in {
     let Read = [{ node->getPointeeType() }];
   }
 
-  def : Creator<[{ return ctx.getPointerType(pointeeType); }]>;
+  // TO_UPSTREAM(BoundsSafety) ON
+  def : Property<"pointerAttributes", BoundsSafetyPointerAttributes> {
+    let Read = [{ node->getPointerAttributes() }];
+  }
+
+  def : Creator<[{ return ctx.getPointerType(pointeeType, pointerAttributes); }]>;
+  // TO_UPSTREAM(BoundsSafety) OFF
 }
+
+let Class = CountAttributedType in {
+  def : Property<"WrappedTy", QualType> {
+    let Read = [{ node->desugar() }];
+  }
+  def : Property<"CountExpr", ExprRef> {
+    let Read = [{ node->getCountExpr() }];
+  }
+  def : Property<"CountInBytes", Bool> {
+    let Read = [{ node->isCountInBytes() }];
+  }
+  def : Property<"OrNull", Bool> {
+    let Read = [{ node->isOrNull() }];
+  }
+  def : Property<"CoupledDecls", Array<TypeCoupledDeclRefInfo>> {
+    let Read = [{ node->getCoupledDecls() }];
+  }
+  def : Creator<[{ return ctx.getCountAttributedType(WrappedTy, CountExpr, CountInBytes, OrNull, CoupledDecls); }]>;
+}
+
+// TO_UPSTREAM(BoundsSafety) ON
+let Class = DynamicRangePointerType in {
+  def : Property<"PointerTy", QualType> {
+    let Read = [{ node->desugar() }];
+  }
+  def : Property<"StartPtr", ExprRef> {
+    let Read = [{ node->getStartPointer() }];
+  }
+  def : Property<"EndPtr", ExprRef> {
+    let Read = [{ node->getEndPointer() }];
+  }
+  def : Property<"StartPtrDecls", Array<TypeCoupledDeclRefInfo>> {
+    let Read = [{ node->getStartPtrDecls() }];
+  }
+  def : Property<"EndPtrDecls", Array<TypeCoupledDeclRefInfo>> {
+    let Read = [{ node->getEndPtrDecls() }];
+  }
+  def : Creator<[{ return ctx.getDynamicRangePointerType(PointerTy, StartPtr, EndPtr,
+                                                         StartPtrDecls, EndPtrDecls); }]>;
+}
+
+let Class = ValueTerminatedType in {
+  def : Property<"originalType", QualType> {
+    let Read = [{ node->desugar() }];
+  }
+  def : Property<"terminatorExpr", ExprRef> {
+    let Read = [{ node->getTerminatorExpr() }];
+  }
+  def : Creator<[{
+    return ctx.getValueTerminatedType(originalType, terminatorExpr);
+  }]>;
+}
+// TO_UPSTREAM(BoundsSafety) OFF
 
 let Class = AdjustedType in {
   def : Property<"originalType", QualType> {
@@ -81,12 +140,15 @@ let Class = MemberPointerType in {
   def : Property<"pointeeType", QualType> {
     let Read = [{ node->getPointeeType() }];
   }
-  def : Property<"baseType", QualType> {
-    let Read = [{ QualType(node->getClass(), 0) }];
+  def : Property<"Qualifier", NestedNameSpecifier> {
+    let Read = [{ node->getQualifier() }];
+  }
+  def : Property<"Cls", DeclRef> {
+    let Read = [{ node->getMostRecentCXXRecordDecl() }];
   }
 
   def : Creator<[{
-    return ctx.getMemberPointerType(pointeeType, baseType.getTypePtr());
+    return ctx.getMemberPointerType(pointeeType, Qualifier, cast_or_null<CXXRecordDecl>(Cls));
   }]>;
 }
 
@@ -117,6 +179,13 @@ let Class = ConstantArrayType in {
   }]>;
 }
 
+let Class = ArrayParameterType in {
+  def : Creator<[{ return ctx.getAdjustedParameterType(
+                              ctx.getConstantArrayType(elementType,sizeValue,
+                                    size,sizeModifier,
+                                    indexQualifiers.getCVRQualifiers())); }]>;
+}
+
 let Class = IncompleteArrayType in {
   def : Creator<[{
     return ctx.getIncompleteArrayType(elementType, sizeModifier,
@@ -125,40 +194,22 @@ let Class = IncompleteArrayType in {
 }
 
 let Class = VariableArrayType in {
-  def : Property<"leftBracketLoc", SourceLocation> {
-    let Read = [{ node->getLBracketLoc() }];
-  }
-  def : Property<"rightBracketLoc", SourceLocation> {
-    let Read = [{ node->getRBracketLoc() }];
-  }
   def : Property<"size", ExprRef> {
     let Read = [{ node->getSizeExpr() }];
   }
 
   def : Creator<[{
     return ctx.getVariableArrayType(elementType, size, sizeModifier,
-                                    indexQualifiers.getCVRQualifiers(),
-                                    SourceRange(leftBracketLoc,
-                                                rightBracketLoc));
+                                    indexQualifiers.getCVRQualifiers());
   }]>;
 }
 
 let Class = DependentSizedArrayType in {
-  def : Property<"size", ExprRef> {
-    let Read = [{ node->getSizeExpr() }];
-  }
-  def : Property<"leftBracketLoc", SourceLocation> {
-    let Read = [{ node->getLBracketLoc() }];
-  }
-  def : Property<"rightBracketLoc", SourceLocation> {
-    let Read = [{ node->getRBracketLoc() }];
-  }
+  def : Property<"size", ExprRef> { let Read = [{ node->getSizeExpr() }]; }
 
   def : Creator<[{
     return ctx.getDependentSizedArrayType(elementType, size, sizeModifier,
-                                          indexQualifiers.getCVRQualifiers(),
-                                          SourceRange(leftBracketLoc,
-                                                      rightBracketLoc));
+                                          indexQualifiers.getCVRQualifiers());
   }]>;
 }
 
@@ -306,6 +357,9 @@ let Class = FunctionProtoType in {
   def : Property<"trailingReturn", Bool> {
     let Read = [{ node->hasTrailingReturn() }];
   }
+  def : Property<"cfiUncheckedCallee", Bool> {
+    let Read = [{ node->hasCFIUncheckedCallee() }];
+  }
   def : Property<"methodQualifiers", Qualifiers> {
     let Read = [{ node->getMethodQuals() }];
   }
@@ -321,7 +375,16 @@ let Class = FunctionProtoType in {
   def : Property<"extParameterInfo", Array<ExtParameterInfo>> {
     let Read = [{ node->hasExtParameterInfos()
                     ? node->getExtParameterInfos()
-                    : llvm::ArrayRef<FunctionProtoType::ExtParameterInfo>() }];
+                    : ArrayRef<FunctionProtoType::ExtParameterInfo>() }];
+  }
+  def : Property<"AArch64SMEAttributes", UInt32> {
+    let Read = [{ node->getAArch64SMEAttributes() }];
+  }
+  def : Property<"functionEffects", Array<FunctionEffect>> {
+    let Read = [{ node->getFunctionEffectsWithoutConditions() }];
+  }
+  def : Property<"functionEffectConds", Array<EffectConditionExpr>> {
+    let Read = [{ node->getFunctionEffectConditions() }];
   }
 
   def : Creator<[{
@@ -333,11 +396,14 @@ let Class = FunctionProtoType in {
     epi.ExtInfo = extInfo;
     epi.Variadic = variadic;
     epi.HasTrailingReturn = trailingReturn;
+    epi.CFIUncheckedCallee = cfiUncheckedCallee;
     epi.TypeQuals = methodQualifiers;
     epi.RefQualifier = refQualifier;
     epi.ExceptionSpec = exceptionSpecifier;
     epi.ExtParameterInfos =
       extParameterInfo.empty() ? nullptr : extParameterInfo.data();
+    epi.AArch64SMEAttributes = AArch64SMEAttributes;
+    epi.FunctionEffects = FunctionEffectsRef::create(functionEffects, functionEffectConds);
     return ctx.getFunctionType(returnType, parameters, epi);
   }]>;
 }
@@ -428,6 +494,23 @@ let Class = DecltypeType in {
     return ctx.getDecltypeType(expression, underlyingType);
   }]>;
 }
+
+let Class = PackIndexingType in {
+  def : Property<"pattern", QualType> {
+    let Read = [{ node->getPattern() }];
+  }
+  def : Property<"indexExpression", ExprRef> {
+    let Read = [{ node->getIndexExpr() }];
+  }
+  def : Property<"isFullySubstituted", Bool> {
+    let Read = [{ node->isFullySubstituted() }];
+  }
+
+  def : Creator<[{
+    return ctx.getPackIndexingType(pattern, indexExpression, isFullySubstituted);
+  }]>;
+}
+
 
 let Class = UnaryTransformType in {
   def : Property<"baseType", QualType> {
@@ -640,6 +723,46 @@ let Class = BTFTagAttributedType in {
   }]>;
 }
 
+let Class = HLSLAttributedResourceType in {
+  def : Property<"resClass", UInt32> {
+    let Read = [{ static_cast<uint32_t>(node->getAttrs().ResourceClass) }];
+  }
+  def : Property<"isROV", Bool> {
+    let Read = [{ node->getAttrs().IsROV }];
+  }
+  def : Property<"rawBuffer", Bool> {
+    let Read = [{ node->getAttrs().RawBuffer }];
+  }
+  def : Property<"wrappedTy", QualType> {
+    let Read = [{ node->getWrappedType() }];
+  }
+  def : Property<"containedTy", QualType> {
+    let Read = [{ node->getContainedType() }];
+  }
+  def : Creator<[{
+    HLSLAttributedResourceType::Attributes attrs(static_cast<llvm::dxil::ResourceClass>(resClass), isROV, rawBuffer);
+    return ctx.getHLSLAttributedResourceType(wrappedTy, containedTy, attrs);
+  }]>;
+}
+
+let Class = HLSLInlineSpirvType in {
+  def : Property<"opcode", UInt32> {
+    let Read = [{ node->getOpcode() }];
+  }
+  def : Property<"size", UInt32> {
+    let Read = [{ node->getSize() }];
+  }
+  def : Property<"alignment", UInt32> {
+    let Read = [{ node->getAlignment() }];
+  }
+  def : Property<"operands", Array<HLSLSpirvOperand>> {
+    let Read = [{ node->getOperands() }];
+  }
+  def : Creator<[{
+    return ctx.getHLSLInlineSpirvType(opcode, size, alignment, operands);
+  }]>;
+}
+
 let Class = DependentAddressSpaceType in {
   def : Property<"pointeeType", QualType> {
     let Read = [{ node->getPointeeType() }];
@@ -658,59 +781,54 @@ let Class = DependentAddressSpaceType in {
 }
 
 let Class = TemplateSpecializationType in {
-  def : Property<"dependent", Bool> {
-    let Read = [{ node->isDependentType() }];
-  }
   def : Property<"templateName", TemplateName> {
     let Read = [{ node->getTemplateName() }];
   }
-  def : Property<"templateArguments", Array<TemplateArgument>> {
+  def : Property<"args", Array<TemplateArgument>> {
     let Read = [{ node->template_arguments() }];
   }
-  def : Property<"underlyingType", Optional<QualType>> {
-    let Read = [{
-      node->isTypeAlias()
-        ? std::optional<QualType>(node->getAliasedType())
-        : node->isCanonicalUnqualified()
-            ? std::nullopt
-            : std::optional<QualType>(node->getCanonicalTypeInternal())
-    }];
+  def : Property<"UnderlyingType", QualType> {
+    let Read = [{ node->isCanonicalUnqualified() ? QualType() :
+                                                   node->desugar() }];
   }
 
   def : Creator<[{
-    QualType result;
-    if (!underlyingType) {
-      result = ctx.getCanonicalTemplateSpecializationType(templateName,
-                                                          templateArguments);
-    } else {
-      result = ctx.getTemplateSpecializationType(templateName,
-                                                 templateArguments,
-                                                 *underlyingType);
-    }
-    if (dependent)
-      const_cast<Type *>(result.getTypePtr())
-          ->addDependence(TypeDependence::DependentInstantiation);
-    return result;
+    return ctx.getTemplateSpecializationType(templateName, args, {}, UnderlyingType);
   }]>;
 }
 
 let Class = DependentTemplateSpecializationType in {
+  def : ReadHelper<[{
+    const auto &dtn = node->getDependentTemplateName();
+    auto name = dtn.getName();
+  }]>;
+
+  def : Property<"qualifier", NestedNameSpecifier> {
+    let Read = [{ dtn.getQualifier() }];
+  }
+  def : Property<"identifier", Optional<Identifier>> {
+    let Read = [{ makeOptionalFromPointer(name.getIdentifier()) }];
+  }
+  def : Property<"operatorKind", OverloadedOperatorKind> {
+    let Conditional = [{ !identifier }];
+    let Read = [{ name.getOperator() }];
+  }
+  def : Property<"HasTemplateKeyword", Bool> {
+    let Read = [{ dtn.hasTemplateKeyword() }];
+  }
+
   def : Property<"keyword", ElaboratedTypeKeyword> {
     let Read = [{ node->getKeyword() }];
-  }
-  def : Property<"qualifier", NestedNameSpecifier> {
-    let Read = [{ node->getQualifier() }];
-  }
-  def : Property<"name", Identifier> {
-    let Read = [{ node->getIdentifier() }];
   }
   def : Property<"templateArguments", Array<TemplateArgument>> {
     let Read = [{ node->template_arguments() }];
   }
 
   def : Creator<[{
-    return ctx.getDependentTemplateSpecializationType(keyword, qualifier,
-                                                      name, templateArguments);
+    DependentTemplateStorage S(qualifier, identifier ? IdentifierOrOverloadedOperator(*identifier) :
+                                                       IdentifierOrOverloadedOperator(*operatorKind),
+                               HasTemplateKeyword);
+    return ctx.getDependentTemplateSpecializationType(keyword, S, templateArguments);
   }]>;
 }
 
@@ -745,14 +863,14 @@ let Class = SubstTemplateTypeParmType in {
   def : Property<"Index", UInt32> {
     let Read = [{ node->getIndex() }];
   }
-  def : Property<"PackIndex", Optional<UInt32>> {
+  def : Property<"PackIndex", UnsignedOrNone> {
     let Read = [{ node->getPackIndex() }];
   }
+  def : Property<"Final", Bool> { let Read = [{ node->getFinal() }]; }
 
-  // The call to getCanonicalType here existed in ASTReader.cpp, too.
   def : Creator<[{
     return ctx.getSubstTemplateTypeParmType(
-        replacementType, associatedDecl, Index, PackIndex);
+        replacementType, associatedDecl, Index, PackIndex, Final);
   }]>;
 }
 
@@ -760,7 +878,7 @@ let Class = PackExpansionType in {
   def : Property<"pattern", QualType> {
     let Read = [{ node->getPattern() }];
   }
-  def : Property<"numExpansions", Optional<UInt32>> {
+  def : Property<"numExpansions", UnsignedOrNone> {
     let Read = [{ node->getNumExpansions() }];
   }
 
@@ -807,7 +925,7 @@ let Class = BuiltinType in {
 
 #define SVE_TYPE(NAME, ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
-#include "clang/Basic/AArch64SVEACLETypes.def"
+#include "clang/Basic/AArch64ACLETypes.def"
 
 #define PPC_VECTOR_TYPE(NAME, ID, SIZE) \
       case BuiltinType::ID: return ctx.ID##Ty;
@@ -820,6 +938,14 @@ let Class = BuiltinType in {
 #define WASM_TYPE(NAME, ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
+
+#define AMDGPU_TYPE(NAME, ID, SINGLETON_ID, WIDTH, ALIGN) \
+      case BuiltinType::ID: return ctx.SINGLETON_ID;
+#include "clang/Basic/AMDGPUTypes.def"
+
+#define HLSL_INTANGIBLE_TYPE(NAME, ID, SINGLETON_ID) \
+      case BuiltinType::ID: return ctx.SINGLETON_ID;
+#include "clang/Basic/HLSLIntangibleTypes.def"
 
 #define BUILTIN_TYPE(ID, SINGLETON_ID) \
       case BuiltinType::ID: return ctx.SINGLETON_ID;
@@ -836,22 +962,10 @@ let Class = DependentNameType in {
   def : Property<"qualifier", NestedNameSpecifier> {
     let Read = [{ node->getQualifier() }];
   }
-  def : Property<"name", Identifier> {
-    let Read = [{ node->getIdentifier() }];
-  }
-  def : Property<"underlyingType", Optional<QualType>> {
-    let Read = [{
-      node->isCanonicalUnqualified()
-        ? std::nullopt
-        : std::optional<QualType>(node->getCanonicalTypeInternal())
-    }];
-  }
+  def : Property<"name", Identifier> { let Read = [{ node->getIdentifier() }]; }
 
   def : Creator<[{
-    QualType canon = (underlyingType
-                        ? ctx.getCanonicalType(*underlyingType)
-                        : QualType());
-    return ctx.getDependentNameType(keyword, qualifier, name, canon);
+    return ctx.getDependentNameType(keyword, qualifier, name);
   }]>;
 }
 

@@ -20,7 +20,6 @@ import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
 import platform
-import unittest2
 from lldbsuite.test.builders.darwin import get_triple
 
 import sys
@@ -35,6 +34,7 @@ def execute_command(command):
     return exit_status
 
 
+@skipIfRemote
 class TestSwiftPlaygrounds(TestBase):
     def get_build_triple(self):
         """We want to build the file with a deployment target earlier than the
@@ -63,6 +63,7 @@ class TestSwiftPlaygrounds(TestBase):
             triple = '{}-apple-macosx{}'.format(machine, version)
         return triple
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
@@ -72,6 +73,7 @@ class TestSwiftPlaygrounds(TestBase):
         self.launch(True)
         self.do_basic_test(True)
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
@@ -81,6 +83,7 @@ class TestSwiftPlaygrounds(TestBase):
         self.launch(False)
         self.do_basic_test(False)
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
@@ -91,6 +94,7 @@ class TestSwiftPlaygrounds(TestBase):
         self.launch(True)
         self.do_concurrency_test()
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
@@ -120,8 +124,7 @@ class TestSwiftPlaygrounds(TestBase):
                                                ['libPlaygroundsRuntime.dylib'])
 
         # Set the breakpoints
-        breakpoint = target.BreakpointCreateBySourceRegex(
-            'Set breakpoint here', lldb.SBFileSpec("PlaygroundStub.swift"))
+        breakpoint = target.BreakpointCreateByName('break_here')
         self.assertTrue(breakpoint.GetNumLocations() > 0, VALID_BREAKPOINT)
 
         process = target.LaunchSimple(None, None, os.getcwd())
@@ -148,7 +151,11 @@ class TestSwiftPlaygrounds(TestBase):
         options.SetAutoApplyFixIts(False)
 
         res = self.frame().EvaluateExpression(contents, options)
-        ret = self.frame().EvaluateExpression("get_output()")
+
+        options = lldb.SBExpressionOptions()
+        options.SetLanguage(lldb.eLanguageTypeSwift)
+        self.frame().EvaluateExpression("import PlaygroundsRuntime", options)
+        ret = self.frame().EvaluateExpression("get_output()", options)
         is_error = res.GetError().Fail() and not (
                      res.GetError().GetType() == 1 and
                      res.GetError().GetError() == 0x1001)
@@ -196,5 +203,10 @@ class TestSwiftPlaygrounds(TestBase):
         self.assertIn("Hello from the Dylib", playground_output)
 
         # Scan through the types log to make sure the SwiftASTContext was poisoned.
-        self.filecheck('platform shell cat ""%s"' % log, __file__)
+        self.filecheck_log(log, __file__)
+#       CHECK: RegisterSectionModules("AuxSources") 
+#       CHECK: Playground : true
+#       If we wanted this to work, SwiftASTContext would need to find the AuxSources image and switch the symbol context to there.
+#       CHECK-NOT: -DHAVE_AUXSOURCES
+#       CHECK: Module import remark{{.*}} loaded module 'AuxSources'; source: 'AuxSources', loaded: 'AuxSources'
 #       CHECK: New Swift image added{{.*}}Versions/A/Dylib{{.*}}ClangImporter needs to be reinitialized

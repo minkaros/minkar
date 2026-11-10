@@ -2,7 +2,7 @@ import sys
 
 
 def create_display(opts, tests, total_tests, workers):
-    if opts.quiet:
+    if opts.print_result_after == "off" and not opts.useProgressBar:
         return NopDisplay()
 
     num_tests = len(tests)
@@ -10,7 +10,7 @@ def create_display(opts, tests, total_tests, workers):
     header = "-- Testing: %d%s tests, %d workers --" % (num_tests, of_total, workers)
 
     progress_bar = None
-    if opts.succinct and opts.useProgressBar:
+    if opts.useProgressBar:
         import lit.ProgressBar
 
         try:
@@ -96,8 +96,8 @@ class Display(object):
 
         show_result = (
             test.isFailure()
-            or self.opts.showAllOutput
-            or (not self.opts.quiet and not self.opts.succinct)
+            and self.opts.print_result_after == "failed"
+            or self.opts.print_result_after == "all"
         )
         if show_result:
             if self.progress_bar:
@@ -117,13 +117,26 @@ class Display(object):
     def print_result(self, test):
         # Show the test result line.
         test_name = test.getFullName()
+
+        extra_info = ""
+        if test.result.attempts > 1:
+            extra_info = f", {test.result.attempts} of {test.result.max_allowed_attempts} attempts"
+
         print(
-            "%s: %s (%d of %d)"
-            % (test.result.code.name, test_name, self.completed, self.num_tests)
+            "%s: %s (%d of %d%s)"
+            % (
+                test.result.code.name,
+                test_name,
+                self.completed,
+                self.num_tests,
+                extra_info,
+            )
         )
 
         # Show the test failure output, if requested.
-        if (test.isFailure() and self.opts.showOutput) or self.opts.showAllOutput:
+        if (
+            test.isFailure() and self.opts.test_output == "failed"
+        ) or self.opts.test_output == "all":
             if test.isFailure():
                 print(
                     "%s TEST '%s' FAILED %s" % ("*" * 20, test.getFullName(), "*" * 20)

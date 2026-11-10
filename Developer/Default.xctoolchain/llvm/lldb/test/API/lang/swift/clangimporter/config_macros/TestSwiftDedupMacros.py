@@ -15,12 +15,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 class TestSwiftDedupMacros(TestBase):
+    @skipEmbeddedSwift
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(setting=('symbols.swift-precise-compiler-invocation', 'true'))
     # NOTE: rdar://44201206 - This test may sporadically segfault. It's likely
     # that the underlying memory corruption issue has been addressed, but due
     # to the difficulty of reproducing the crash, we are not sure. If a crash
@@ -45,12 +44,12 @@ class TestSwiftDedupMacros(TestBase):
         self.expect('log enable lldb types -f "%s"' % log)
 
         self.expect("expression foo", DATA_TYPES_DISPLAYED_CORRECTLY, substrs=["42"])
-        self.filecheck('platform shell cat "%s"' % log, __file__)
+        self.filecheck_log(log, __file__)
 #       CHECK: SwiftASTContextForExpressions{{.*}}-DDEBUG=1
 #       CHECK: SwiftASTContextForExpressions{{.*}}-DSPACE
 #       CHECK-NOT: {{ SPACE}}
 #       CHECK: SwiftASTContextForExpressions{{.*}}-UNDEBUG
-#       CHECK: SwiftASTContextForModule("libDylib{{.*}}-DDEBUG=1
-#       CHECK: SwiftASTContextForModule("libDylib{{.*}}-DSPACE
+#       CHECK: SwiftASTContext(module: "Dylib{{.*}}-DDEBUG=1
+#       CHECK: SwiftASTContext(module: "Dylib{{.*}}-DSPACE
 #       CHECK-NOT: {{ SPACE}}
-#       CHECK: SwiftASTContextForModule("libDylib{{.*}}-UNDEBUG
+#       CHECK: SwiftASTContext(module: "Dylib{{.*}}-UNDEBUG

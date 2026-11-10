@@ -10,11 +10,13 @@ CHECK: -arch <arch>
 CHECK: -build-variant-suffix <suffix=buildvariant>
 CHECK: -dump-debug-map
 CHECK: -D <path>
+CHECK: -embed-resource <src-path>=<bundle-relative-path>
 CHECK: -fat64
 CHECK: -flat
 CHECK: -gen-reproducer
 CHECK: -help
 CHECK: -keep-function-for-static
+CHECK: -no-object-timestamp
 CHECK: -no-odr
 CHECK: -no-output
 CHECK: -no-swiftmodule-timestamp
@@ -29,7 +31,6 @@ CHECK: -remarks-output-format <format>
 CHECK: -remarks-prepend-path <path>
 CHECK: -reproducer <mode>
 CHECK: -statistics
-CHECK: -symbol-map
 CHECK: -symtab
 CHECK: {{-S}}
 CHECK: -toolchain
@@ -51,3 +52,6 @@ BOGUS: warning: ignoring unknown option: -bogus
 
 RUN: not dsymutil --quiet --verbose 2>&1 | FileCheck --check-prefix=CONFLICT %s
 CONFLICT: error: --quiet and --verbose cannot be specified together
+
+RUN: not dsymutil --flat --embed-resource /tmp/a.py=Python/a.py file1 2>&1 | FileCheck --check-prefix=FLATEMBED %s
+FLATEMBED: error: --embed-resource is not supported with --flat

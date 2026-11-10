@@ -11,16 +11,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm-c/CAS/PluginAPI_functions.h"
-#include "llvm/CAS/BuiltinCASContext.h"
 #include "llvm/CAS/BuiltinObjectHasher.h"
+#include "llvm/CAS/CASID.h"
 #include "llvm/CAS/UnifiedOnDiskCache.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/SHA1.h"
 
 using namespace llvm;
 using namespace llvm::cas;
-using namespace llvm::cas::builtin;
 using namespace llvm::cas::ondisk;
 
 static char *copyNewMallocString(StringRef Str) {
@@ -124,6 +125,54 @@ bool llcas_cas_options_set_option(llcas_cas_options_t c_opts, const char *name,
 
 namespace {
 
+using HasherT = SHA1;
+using HashType = decltype(HasherT::hash(std::declval<ArrayRef<uint8_t> &>()));
+
+class PluginCASContext : public CASContext {
+  void printIDImpl(raw_ostream &OS, const CASID &ID) const final {
+    PluginCASContext::printID(ID.getHash(), OS);
+  }
+
+public:
+  static StringRef getHashName() { return "SHA1"; }
+  StringRef getHashSchemaIdentifier() const final {
+    static const std::string ID =
+        ("llvm.cas.builtin.v2[" + getHashName() + "]").str();
+    return ID;
+  }
+
+  PluginCASContext() = default;
+
+  static Expected<HashType> parseID(StringRef Reference) {
+    if (!Reference.consume_front("llvmcas://"))
+      return createStringError(
+          std::make_error_code(std::errc::invalid_argument),
+          "invalid cas-id '" + Reference + "'");
+
+    if (Reference.size() != 2 * sizeof(HashType))
+      return createStringError(
+          std::make_error_code(std::errc::invalid_argument),
+          "wrong size for cas-id hash '" + Reference + "'");
+
+    std::string Binary;
+    if (!tryGetFromHex(Reference, Binary))
+      return createStringError(
+          std::make_error_code(std::errc::invalid_argument),
+          "invalid hash in cas-id '" + Reference + "'");
+
+    assert(Binary.size() == sizeof(HashType));
+    HashType Digest;
+    llvm::copy(Binary, Digest.data());
+    return Digest;
+  }
+
+  static void printID(ArrayRef<uint8_t> Digest, raw_ostream &OS) {
+    SmallString<64> Hash;
+    toHex(Digest, /*LowerCase=*/true, Hash);
+    OS << "llvmcas://" << Hash;
+  }
+};
+
 struct CASWrapper {
   std::string FirstPrefix;
   std::string SecondPrefix;
@@ -134,7 +183,7 @@ struct CASWrapper {
   /// Used for testing the \c globally parameter of action cache APIs. Simulates
   /// "uploading"/"downloading" objects from/to the primary on-disk path.
   std::unique_ptr<UnifiedOnDiskCache> UpstreamDB;
-  ThreadPool Pool{llvm::hardware_concurrency()};
+  DefaultThreadPool Pool{llvm::hardware_concurrency()};
 
   std::mutex Lock{};
 
@@ -184,9 +233,13 @@ bool CASWrapper::containsObject(ObjectID ID, bool Globally) {
   if (!Globally || !UpstreamDB)
     return false;
 
-  ObjectID UpstreamID =
-      UpstreamDB->getGraphDB().getReference(DB->getGraphDB().getDigest(ID));
-  return UpstreamDB->getGraphDB().containsObject(UpstreamID);
+  auto UpstreamID = expectedToOptional(
+      UpstreamDB->getGraphDB().getReference(DB->getGraphDB().getDigest(ID)));
+
+  if (!UpstreamID)
+    return false;
+
+  return UpstreamDB->getGraphDB().containsObject(*UpstreamID);
 }
 
 Expected<std::optional<ondisk::ObjectHandle>>
@@ -200,10 +253,12 @@ CASWrapper::loadObject(ObjectID ID) {
     return std::nullopt;
 
   // Try "downloading" the node from upstream.
-  ObjectID UpstreamID =
+  auto UpstreamID =
       UpstreamDB->getGraphDB().getReference(DB->getGraphDB().getDigest(ID));
+  if (!UpstreamID)
+    return UpstreamID.takeError();
   std::optional<ObjectID> Ret;
-  if (Error E = downstreamNode(UpstreamID).moveInto(Ret))
+  if (Error E = downstreamNode(*UpstreamID).moveInto(Ret))
     return std::move(E);
   return DB->getGraphDB().load(ID);
 }
@@ -211,8 +266,10 @@ CASWrapper::loadObject(ObjectID ID) {
 /// Imports a single object node.
 static Expected<ObjectID> importNode(ObjectID FromID, OnDiskGraphDB &FromDB,
                                      OnDiskGraphDB &ToDB) {
-  ObjectID ToID = ToDB.getReference(FromDB.getDigest(FromID));
-  if (ToDB.containsObject(ToID))
+  auto ToID = ToDB.getReference(FromDB.getDigest(FromID));
+  if (!ToID)
+    return ToID.takeError();
+  if (ToDB.containsObject(*ToID))
     return ToID;
 
   std::optional<ondisk::ObjectHandle> FromH;
@@ -224,10 +281,14 @@ static Expected<ObjectID> importNode(ObjectID FromID, OnDiskGraphDB &FromDB,
   auto Data = FromDB.getObjectData(*FromH);
   auto FromRefs = FromDB.getObjectRefs(*FromH);
   SmallVector<ObjectID> Refs;
-  for (ObjectID FromRef : FromRefs)
-    Refs.push_back(ToDB.getReference(FromDB.getDigest(FromRef)));
+  for (ObjectID FromRef : FromRefs) {
+    auto Ref = ToDB.getReference(FromDB.getDigest(FromRef));
+    if (!Ref)
+      return Ref.takeError();
+    Refs.push_back(*Ref);
+  }
 
-  if (Error E = ToDB.store(ToID, Refs, Data))
+  if (Error E = ToDB.store(*ToID, Refs, Data))
     return std::move(E);
   return ToID;
 }
@@ -280,12 +341,14 @@ CASWrapper::downstreamKey(ArrayRef<uint8_t> Key) {
   if (!UpstreamValue)
     return std::nullopt;
 
-  ObjectID Value = DB->getGraphDB().getReference(
+  auto Value = DB->getGraphDB().getReference(
       UpstreamDB->getGraphDB().getDigest(*UpstreamValue));
-  Expected<ObjectID> PutValue = DB->KVPut(Key, Value);
+  if (!Value)
+    return Value.takeError();
+  Expected<ObjectID> PutValue = DB->KVPut(Key, *Value);
   if (!PutValue)
     return PutValue.takeError();
-  assert(*PutValue == Value);
+  assert(*PutValue == *Value);
   return PutValue;
 }
 
@@ -293,7 +356,7 @@ llcas_cas_t llcas_cas_create(llcas_cas_options_t c_opts, char **error) {
   auto &Opts = *unwrap(c_opts);
   Expected<std::unique_ptr<UnifiedOnDiskCache>> DB = UnifiedOnDiskCache::open(
       Opts.OnDiskPath, /*SizeLimit=*/std::nullopt,
-      BuiltinCASContext::getHashName(), sizeof(HashType));
+      PluginCASContext::getHashName(), sizeof(HashType));
   if (!DB)
     return reportError<llcas_cas_t>(DB.takeError(), error);
 
@@ -301,7 +364,7 @@ llcas_cas_t llcas_cas_create(llcas_cas_options_t c_opts, char **error) {
   if (!Opts.UpstreamPath.empty()) {
     if (Error E = UnifiedOnDiskCache::open(
                       Opts.UpstreamPath, /*SizeLimit=*/std::nullopt,
-                      BuiltinCASContext::getHashName(), sizeof(HashType))
+                      PluginCASContext::getHashName(), sizeof(HashType))
                       .moveInto(UpstreamDB))
       return reportError<llcas_cas_t>(std::move(E), error);
   }
@@ -365,7 +428,7 @@ unsigned llcas_digest_parse(llcas_cas_t c_cas, const char *printed_digest,
   assert(Consumed);
   (void)Consumed;
 
-  Expected<HashType> Digest = BuiltinCASContext::parseID(PrintedDigest);
+  Expected<HashType> Digest = PluginCASContext::parseID(PrintedDigest);
   if (!Digest)
     return reportError(Digest.takeError(), error, 0);
   std::uninitialized_copy(Digest->begin(), Digest->end(), bytes);
@@ -379,7 +442,7 @@ bool llcas_digest_print(llcas_cas_t c_cas, llcas_digest_t c_digest,
   raw_svector_ostream OS(PrintDigest);
   // Include these for testing purposes.
   OS << Wrapper.FirstPrefix << Wrapper.SecondPrefix;
-  BuiltinCASContext::printID(ArrayRef(c_digest.data, c_digest.size), OS);
+  PluginCASContext::printID(ArrayRef(c_digest.data, c_digest.size), OS);
   *printed_id = copyNewMallocString(PrintDigest);
   return false;
 }
@@ -387,8 +450,11 @@ bool llcas_digest_print(llcas_cas_t c_cas, llcas_digest_t c_digest,
 bool llcas_cas_get_objectid(llcas_cas_t c_cas, llcas_digest_t c_digest,
                             llcas_objectid_t *c_id_p, char **error) {
   auto &CAS = unwrap(c_cas)->DB->getGraphDB();
-  ObjectID ID = CAS.getReference(ArrayRef(c_digest.data, c_digest.size));
-  *c_id_p = llcas_objectid_t{ID.getOpaqueData()};
+  auto ID = CAS.getReference(ArrayRef(c_digest.data, c_digest.size));
+  if (!ID)
+    return reportError(ID.takeError(), error, true);
+
+  *c_id_p = llcas_objectid_t{ID->getOpaqueData()};
   return false;
 }
 
@@ -512,11 +578,13 @@ bool llcas_cas_store_object(llcas_cas_t c_cas, llcas_data_t c_data,
   for (ObjectID Ref : Refs)
     RefHashes.push_back(CAS.getDigest(Ref));
   HashType Digest = BuiltinObjectHasher<HasherT>::hashObject(RefHashes, Data);
-  ObjectID StoredID = CAS.getReference(Digest);
+  auto StoredID = CAS.getReference(Digest);
+  if (!StoredID)
+    return reportError(StoredID.takeError(), error, true);
 
-  if (Error E = CAS.store(StoredID, Refs, Data))
+  if (Error E = CAS.store(*StoredID, Refs, Data))
     return reportError(std::move(E), error, true);
-  *c_id_p = llcas_objectid_t{StoredID.getOpaqueData()};
+  *c_id_p = llcas_objectid_t{StoredID->getOpaqueData()};
   return false;
 }
 

@@ -7,19 +7,21 @@ all: libFoo.dylib $(EXE)
 
 include Makefile.rules
 
+OVERLAY_CONTENT := { "version": 0, "roots": [] }
 OVERLAY := $(BUILDDIR)/overlay.yaml
+
 lib%.dylib: %.swift
-	rm -f $(OVERLAY)
-	echo "{ 'version': 0, 'roots': [] }" >$(OVERLAY)
-	$(MAKE) MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
+	$(call RM_F,$(OVERLAY))
+	$(call ECHO_TO_FILE,'$(OVERLAY_CONTENT)',$(OVERLAY))
+	"$(MAKE)" MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
 		ARCH=$(ARCH) DSYMUTIL=$(DSYMUTIL) \
 		BASENAME=$(shell basename $< .swift) \
 		SWIFTFLAGS_EXTRAS="-Xcc -ivfsoverlay -Xcc $(OVERLAY)" \
 		VPATH=$(SRCDIR) -I $(SRCDIR) -f $(SRCDIR)/dylib.mk all
-	rm -f $(OVERLAY)
+	$(call RM_F,$(OVERLAY))
 
 clean::
-	$(MAKE) MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
+	"$(MAKE)" MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
 		ARCH=$(ARCH) DSYMUTIL=$(DSYMUTIL) \
 		BASENAME=$(shell basename $< .swift) \
 		VPATH=$(SRCDIR) -I $(SRCDIR) -f $(SRCDIR)/dylib.mk clean

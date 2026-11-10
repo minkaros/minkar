@@ -2,18 +2,19 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftEmbeddedNestedFrameVariable(TestBase):
     @skipUnlessDarwin
     @swiftTest
+    @skipUnlessEmbeddedSwift
     def test(self):
         self.build()
         self.implementation()
 
     @skipUnlessDarwin
     @swiftTest
+    @skipUnlessEmbeddedSwift
     def test_without_ast(self):
         """Run the test turning off instantion of  Swift AST contexts in order to ensure that all type information comes from DWARF"""
         self.build()
@@ -28,8 +29,6 @@ class TestSwiftEmbeddedNestedFrameVariable(TestBase):
         )
         frame = thread.frames[0]
         self.assertTrue(frame, "Frame 0 is valid.")
-
         s4 = frame.FindVariable("s4")
         t = s4.GetChildMemberWithName("t")
         lldbutil.check_variable(self, t, False, value='839')
-

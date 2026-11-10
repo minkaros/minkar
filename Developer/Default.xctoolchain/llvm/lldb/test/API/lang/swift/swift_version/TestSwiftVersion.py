@@ -19,9 +19,9 @@ import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
 import time
-import unittest2
 
 class TestSwiftVersion(TestBase):
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     def test_cross_module_extension(self):

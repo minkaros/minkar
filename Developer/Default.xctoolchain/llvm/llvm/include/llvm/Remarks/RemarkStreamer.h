@@ -50,6 +50,7 @@ class RemarkStreamer final {
   const std::optional<std::string> Filename;
 
 public:
+  LLVM_ABI
   RemarkStreamer(std::unique_ptr<remarks::RemarkSerializer> RemarkSerializer,
                  std::optional<StringRef> Filename = std::nullopt);
 
@@ -63,9 +64,9 @@ public:
   remarks::RemarkSerializer &getSerializer() { return *RemarkSerializer; }
   /// Set a pass filter based on a regex \p Filter.
   /// Returns an error if the regex is invalid.
-  Error setFilter(StringRef Filter);
+  LLVM_ABI Error setFilter(StringRef Filter);
   /// Check wether the string matches the filter.
-  bool matchesFilter(StringRef Str);
+  LLVM_ABI bool matchesFilter(StringRef Str);
   /// Check if the remarks also need to have associated metadata in a section.
   bool needsSection() const;
 };

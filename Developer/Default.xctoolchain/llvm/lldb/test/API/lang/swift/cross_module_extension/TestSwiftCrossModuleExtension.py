@@ -18,9 +18,9 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 class TestSwiftCrossModuleExtension(TestBase):
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     def test_cross_module_extension(self):

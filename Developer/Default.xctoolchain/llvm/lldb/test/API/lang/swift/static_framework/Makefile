@@ -9,7 +9,7 @@ all: $(FRAMEWORKS) dylib $(EXE)
 include Makefile.rules
 
 lib%.a: %.swift
-	$(MAKE) -f $(MAKEFILE_RULES) \
+	"$(MAKE)" -f $(MAKEFILE_RULES) \
 		DYLIB_NAME=static \
 		SWIFT_SOURCES=$(patsubst lib%.a,%.swift,$@) \
 		MODULENAME=$(patsubst lib%.a,%,$@) \
@@ -19,18 +19,18 @@ lib%.a: %.swift
 	ar -r $@ $(BUILDDIR)/$(patsubst lib%.a,%.swift.o,$@)
 
 %.framework: lib%.a
-	mkdir -p $(BUILDDIR)/$@/Headers
-	mkdir -p $(BUILDDIR)/$@/Modules
-	mkdir -p $(BUILDDIR)/$@/Resources
+	$(call MKDIR_P,$(BUILDDIR)/$@/Headers)
+	$(call MKDIR_P,$(BUILDDIR)/$@/Modules)
+	$(call MKDIR_P,$(BUILDDIR)/$@/Resources)
 	mv $< $(BUILDDIR)/$@/$(patsubst lib%.a,%,$<)
-	mkdir -p $(BUILDDIR)/$@/Modules/$(patsubst lib%.a,%.swiftmodule,$<)
+	$(call MKDIR_P,$(BUILDDIR)/$@/Modules/$(patsubst lib%.a,%.swiftmodule,$<))
 	mv $(BUILDDIR)/$(patsubst lib%.a,%.swiftmodule,$<) $(BUILDDIR)/$@/Modules/$(patsubst lib%.a,%.swiftmodule,$<)/$(ARCH)-apple-macos.swiftmodule
 	mv $(BUILDDIR)/$(patsubst lib%.a,%.swiftinterface,$<) $(BUILDDIR)/$@/Modules/
 
 dylib: Dylib.swift
-	$(MAKE) -f $(MAKEFILE_RULES) \
+	"$(MAKE)" -f $(MAKEFILE_RULES) \
 		DYLIB_NAME=Dylib \
 		DYLIB_SWIFT_SOURCES=Dylib.swift \
 		DYLIB_MODULENAME=Dylib \
 		FRAMEWORK=Dylib
-	rm -f $(BUILDDIR)/Dylib.swiftmodule $(BUILDDIR)/Dylib.swiftinterface
+	$(call RM_F,$(BUILDDIR)/Dylib.swiftmodule $(BUILDDIR)/Dylib.swiftinterface)

@@ -17,7 +17,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftGenericTupleLabels(lldbtest.TestBase):
@@ -27,6 +26,7 @@ class TestSwiftGenericTupleLabels(lldbtest.TestBase):
     def setUp(self):
         lldbtest.TestBase.setUp(self)
 
+    @skipEmbeddedSwift
     @swiftTest
     def test_generic_tuple_labels(self):
         """Test that LLDB can reconstruct tuple labels from metadata"""

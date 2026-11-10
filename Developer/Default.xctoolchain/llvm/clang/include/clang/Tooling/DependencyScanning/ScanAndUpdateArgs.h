@@ -10,6 +10,7 @@
 #define LLVM_CLANG_DRIVER_SCANANDUPDATEARGS_H
 
 #include "clang/Basic/LLVM.h"
+#include "clang/Frontend/CompileJobCacheKey.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include <optional>
@@ -37,8 +38,9 @@ class DependencyScanningTool;
 /// Apply CAS inputs for compilation caching to the given invocation, if
 /// enabled.
 void configureInvocationForCaching(CompilerInvocation &CI, CASOptions CASOpts,
-                                   std::string RootID, std::string WorkingDir,
-                                   bool ProduceIncludeTree);
+                                   std::string InputID,
+                                   CachingInputKind InputKind,
+                                   std::string WorkingDir);
 
 struct DepscanPrefixMapping {
   /// Add path mappings to the \p Mapper.
@@ -46,7 +48,7 @@ struct DepscanPrefixMapping {
                                     llvm::PrefixMapper &Mapper);
 
   /// Add path mappings to the \p Mapper.
-  static void configurePrefixMapper(ArrayRef<std::string> PathPrefixMappings,
+  static void configurePrefixMapper(ArrayRef<std::pair<std::string, std::string>> PathPrefixMappings,
                                     llvm::PrefixMapper &Mapper);
 
   /// Apply the mappings from \p Mapper to \p Invocation.

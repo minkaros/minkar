@@ -50,6 +50,7 @@ class TestCase(TestBase):
             return
         self.expect_expr("func(1, 2, 3, 4)", result_type="int", result_value="10")
 
+    @skipIf(compiler="clang", compiler_version=["<", "17.0"], archs=["arm64"])
     @skipIf(compiler="clang", compiler_version=["<", "9.0"])
     def test_ms_abi(self):
         if not self.build_and_run("ms_abi.c"):
@@ -62,8 +63,11 @@ class TestCase(TestBase):
             return
         self.expect_expr("func(1, 2, 3, 4)", result_type="int", result_value="10")
 
+    # Fails on x86, passes elsewhere because clang doesn't support vectorcall on
+    # any other architectures.
     @expectedFailureAll(
-        oslist=["freebsd"], bugnumber="github.com/llvm/llvm-project/issues/56084"
+        triple=re.compile("^(x86|i386)"),
+        oslist=["freebsd", "linux"], bugnumber="github.com/llvm/llvm-project/issues/56084"
     )
     def test_vectorcall(self):
         if not self.build_and_run("vectorcall.c"):

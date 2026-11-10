@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CAS/UnifiedOnDiskCache.h"
+#include "CASTestConfig.h"
 #include "OnDiskCommonUtils.h"
 #include "llvm/Testing/Support/Error.h"
 #include "llvm/Testing/Support/SupportHelpers.h"
@@ -43,25 +44,29 @@ static Expected<size_t> countFileSizes(StringRef Path) {
   return TotalSize;
 }
 
-TEST(UnifiedOnDiskCacheTest, Basic) {
+TEST_P(CustomHasherOnDiskCASTest, UnifiedOnDiskCacheTest) {
+  auto HashFn = GetParam().HashFn;
+  StringRef HashName = GetParam().HashName;
+  size_t HashSize = GetParam().HashSize;
+
   unittest::TempDir Temp("ondisk-unified", /*Unique=*/true);
   std::unique_ptr<UnifiedOnDiskCache> UniDB;
 
   const uint64_t SizeLimit = 1024ull * 64;
   auto reopenDB = [&]() {
     UniDB.reset();
-    ASSERT_THAT_ERROR(UnifiedOnDiskCache::open(Temp.path(), SizeLimit, "blake3",
-                                               sizeof(HashType))
-                          .moveInto(UniDB),
-                      Succeeded());
+    ASSERT_THAT_ERROR(
+        UnifiedOnDiskCache::open(Temp.path(), SizeLimit, HashName, HashSize)
+            .moveInto(UniDB),
+        Succeeded());
   };
 
   reopenDB();
 
-  HashType RootHash;
-  HashType OtherHash;
-  HashType Key1Hash;
-  HashType Key2Hash;
+  HashType RootHash(HashSize);
+  HashType OtherHash(HashSize);
+  HashType Key1Hash(HashSize);
+  HashType Key2Hash(HashSize);
   {
     OnDiskGraphDB &DB = UniDB->getGraphDB();
     std::optional<ObjectID> ID1;
@@ -88,17 +93,18 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
     EXPECT_EQ(IDRoot, Val);
 
     Key2Hash = digest("key2");
-    ASSERT_THAT_ERROR(
-        UniDB->KVPut(DB.getReference(Key2Hash), *ID1).moveInto(Val),
-        Succeeded());
+    std::optional<ObjectID> KeyID;
+    ASSERT_THAT_ERROR(DB.getReference(Key2Hash).moveInto(KeyID), Succeeded());
+    ASSERT_THAT_ERROR(UniDB->KVPut(*KeyID, *ID1).moveInto(Val), Succeeded());
   }
 
   auto checkTree = [&](const HashType &Digest, StringRef ExpectedTree) {
     OnDiskGraphDB &DB = UniDB->getGraphDB();
-    ObjectID ID = DB.getReference(Digest);
+    std::optional<ObjectID> ID;
+    ASSERT_THAT_ERROR(DB.getReference(Digest).moveInto(ID), Succeeded());
     std::string PrintedTree;
     raw_string_ostream OS(PrintedTree);
-    ASSERT_THAT_ERROR(printTree(DB, ID, OS), Succeeded());
+    ASSERT_THAT_ERROR(printTree(DB, *ID, OS), Succeeded());
     EXPECT_EQ(PrintedTree, ExpectedTree);
   };
   auto checkRootTree = [&]() {
@@ -119,6 +125,17 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
   checkTree(OtherHash, "other\n");
   checkKey(Key1Hash, "root");
   checkKey(Key2Hash, "1");
+
+  ASSERT_THAT_ERROR(UniDB->validateActionCache(), Succeeded());
+  std::optional<ValidationResult> ValidationRes;
+  ASSERT_THAT_ERROR(UnifiedOnDiskCache::validateIfNeeded(
+                        Temp.path(), HashName, HashSize, /*CheckHash=*/true,
+                        HashFn, /*AllowRecovery=*/false,
+                        /*ForceValidation=*/true,
+                        /*LLVMCasBinary=*/std::nullopt)
+                        .moveInto(ValidationRes),
+                    Succeeded());
+  ASSERT_EQ(ValidationRes, ValidationResult::Valid);
 
   auto storeBigObject = [&](unsigned Index) {
     SmallString<1000> Buf;
@@ -143,7 +160,7 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
   reopenDB();
 
   EXPECT_FALSE(UniDB->hasExceededSizeLimit());
-  EXPECT_FALSE(UniDB->needsGarbaseCollection());
+  EXPECT_FALSE(UniDB->needsGarbageCollection());
 
   checkRootTree();
   checkKey(Key1Hash, "root");
@@ -153,10 +170,10 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
   }
   PrevStoreSize = UniDB->getStorageSize();
   ASSERT_THAT_ERROR(UniDB->close(), Succeeded());
-  EXPECT_TRUE(UniDB->needsGarbaseCollection());
+  EXPECT_TRUE(UniDB->needsGarbageCollection());
 
   reopenDB();
-  EXPECT_TRUE(UniDB->needsGarbaseCollection());
+  EXPECT_TRUE(UniDB->needsGarbageCollection());
 
   std::optional<size_t> DirSizeBefore;
   ASSERT_THAT_ERROR(countFileSizes(Temp.path()).moveInto(DirSizeBefore),
@@ -171,7 +188,7 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
   EXPECT_LT(*DirSizeAfter, *DirSizeBefore);
 
   reopenDB();
-  EXPECT_FALSE(UniDB->needsGarbaseCollection());
+  EXPECT_FALSE(UniDB->needsGarbageCollection());
 
   checkRootTree();
   checkKey(Key1Hash, "root");
@@ -181,7 +198,9 @@ TEST(UnifiedOnDiskCacheTest, Basic) {
   // 'Other' tree and 'Key2' got garbage-collected.
   {
     OnDiskGraphDB &DB = UniDB->getGraphDB();
-    EXPECT_FALSE(DB.containsObject(DB.getReference(OtherHash)));
+    std::optional<ObjectID> ID;
+    ASSERT_THAT_ERROR(DB.getReference(OtherHash).moveInto(ID), Succeeded());
+    EXPECT_FALSE(DB.containsObject(*ID));
     std::optional<ObjectID> Val;
     ASSERT_THAT_ERROR(UniDB->KVGet(Key2Hash).moveInto(Val), Succeeded());
     EXPECT_FALSE(Val.has_value());

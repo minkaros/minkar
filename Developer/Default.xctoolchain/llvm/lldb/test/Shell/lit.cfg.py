@@ -21,11 +21,11 @@ from helper import toolchain
 config.name = "lldb-shell"
 
 # testFormat: The test format to use to interpret tests.
-config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
+config.test_format = toolchain.ShTestLldb(not llvm_config.use_lit_shell)
 
 # suffixes: A list of file extensions to treat as test files. This is overriden
 # by individual lit.local.cfg files in the test subdirectories.
-config.suffixes = [".test", ".cpp", ".s", ".m"]
+config.suffixes = [".test", ".cpp", ".s", ".m", ".ll", ".c"]
 
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
@@ -49,8 +49,7 @@ llvm_config.with_system_environment(
     ]
 )
 
-# Enable sanitizer runtime flags.
-if "Address" in config.llvm_use_sanitizer:
+if config.llvm_use_sanitizer:
     # Begin Swift mod.
     # Swift's libReflection builds without ASAN, which causes a known
     # false positive in std::vector. We also want to support testing a sanitized
@@ -58,21 +57,21 @@ if "Address" in config.llvm_use_sanitizer:
     config.environment[
         "ASAN_OPTIONS"
     ] = "detect_container_overflow=0:detect_stack_use_after_return=1"
+    # FIXME: This is the wrong place to disable this. This is working
+    # around the fact that the ci.swift.org scripts build only LLDB with
+    # asan and this creates an ODR violation in Allocator.h that breaks
+    # poisoning.
+    config.environment['ASAN_OPTIONS'] += ':' + 'allow_user_poisoning=0'
     # End Swift mod.
-    if platform.system() == "Darwin":
-        config.environment["MallocNanoZone"] = "0"
-
-if "Thread" in config.llvm_use_sanitizer:
     config.environment["TSAN_OPTIONS"] = "halt_on_error=1"
+    config.environment["MallocNanoZone"] = "0"
 
-# Support running the test suite under the lldb-repro wrapper. This makes it
-# possible to capture a test suite run and then rerun all the test from the
-# just captured reproducer.
-lldb_repro_mode = lit_config.params.get("lldb-run-with-repro", None)
-if lldb_repro_mode:
-    config.available_features.add("lldb-repro")
-    lit_config.note("Running Shell tests in {} mode.".format(lldb_repro_mode))
-    toolchain.use_lldb_repro_substitutions(config, lldb_repro_mode)
+if config.lldb_platform_url and config.cmake_sysroot and config.enable_remote:
+    if re.match(r".*-linux.*", config.target_triple):
+        config.available_features.add("remote-linux")
+else:
+    # After this, enable_remote == True iff remote testing is going to be used.
+    config.enable_remote = False
 
 llvm_config.use_default_substitutions()
 toolchain.use_lldb_substitutions(config)
@@ -80,6 +79,9 @@ toolchain.use_support_substitutions(config)
 
 if re.match(r"^arm(hf.*-linux)|(.*-linux-gnuabihf)", config.target_triple):
     config.available_features.add("armhf-linux")
+
+if re.match(r".*-(windows|mingw32)", config.target_triple):
+    config.available_features.add("target-windows")
 
 if re.match(r".*-(windows-msvc)$", config.target_triple):
     config.available_features.add("windows-msvc")
@@ -154,7 +156,7 @@ if config.lldb_enable_swift:
 if config.lldb_enable_lzma:
     config.available_features.add("lzma")
 
-if shutil.which("xz") != None:
+if shutil.which("xz") is not None:
     config.available_features.add("xz")
 
 if config.lldb_system_debugserver:
@@ -173,6 +175,12 @@ if config.objc_gnustep_dir:
                 config.environment.get("PATH", ""),
             )
         )
+
+if platform.system() == "Windows":
+    # Use anonymous pipes instead of ConPTY for all tests. ConPTY injects VT
+    # escape sequences into the output stream, which breaks tests that check
+    # for specific stdout/stderr content.
+    config.environment["LLDB_LAUNCH_FLAG_USE_PIPES"] = "1"
 
 # NetBSD permits setting dbregs either if one is root
 # or if user_set_dbregs is enabled
@@ -210,3 +218,11 @@ if platform.system() == "Darwin":
             config.available_features.add("ld_new-bug")
     except:
         pass
+
+# Some shell tests dynamically link with python.dll and need to know the
+# location of the Python libraries. This ensures that we use the same
+# version of Python that was used to build lldb to run our tests.
+config.environment["PYTHONHOME"] = config.python_root_dir
+config.environment["PATH"] = os.path.pathsep.join(
+    (config.python_root_dir, config.environment.get("PATH", ""))
+)

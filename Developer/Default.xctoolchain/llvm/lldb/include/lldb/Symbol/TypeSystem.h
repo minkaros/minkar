@@ -27,7 +27,10 @@
 #include "lldb/Symbol/CompilerDecl.h"
 #include "lldb/Symbol/CompilerDeclContext.h"
 #include "lldb/Symbol/Type.h"
+#include "lldb/Utility/Scalar.h"
+#include "lldb/lldb-forward.h"
 #include "lldb/lldb-private.h"
+#include "lldb/lldb-types.h"
 
 class PDBASTParser;
 
@@ -115,6 +118,8 @@ public:
   virtual std::vector<lldb_private::CompilerContext>
   DeclGetCompilerContext(void *opaque_decl);
 
+  virtual Scalar DeclGetConstantValue(void *opaque_decl) { return Scalar(); }
+
   virtual CompilerType GetTypeForDecl(void *opaque_decl) = 0;
 
   // CompilerDeclContext functions
@@ -134,6 +139,10 @@ public:
                                               void *other_opaque_decl_ctx) = 0;
 
   virtual lldb::LanguageType DeclContextGetLanguage(void *opaque_decl_ctx) = 0;
+
+  /// Returns the direct parent context of specified type
+  virtual CompilerDeclContext
+  GetCompilerDeclContextForType(const CompilerType &type);
 
   virtual std::vector<lldb_private::CompilerContext>
   DeclContextGetCompilerContext(void *opaque_decl_ctx);
@@ -159,8 +168,7 @@ public:
 
   virtual bool IsDefined(lldb::opaque_compiler_type_t type) = 0;
 
-  virtual bool IsFloatingPointType(lldb::opaque_compiler_type_t type,
-                                   uint32_t &count, bool &is_complex) = 0;
+  virtual bool IsFloatingPointType(lldb::opaque_compiler_type_t type) = 0;
 
   virtual bool IsFunctionType(lldb::opaque_compiler_type_t type) = 0;
 
@@ -214,7 +222,12 @@ public:
   // with this type system. For such cases, languages can check and return
   // an error.
   virtual Status IsCompatible();
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  virtual bool IsBoundsSafetyIndexable(lldb::opaque_compiler_type_t type) = 0;
+  virtual bool IsBoundsSafetyBidiIndexable(lldb::opaque_compiler_type_t type) = 0;
+  /* TO_UPSTREAM(BoundsSafety) OFF */
 
+  static bool SupportsLanguageStatic(lldb::LanguageType language);
   // Type Completion
 
   virtual bool GetCompleteType(lldb::opaque_compiler_type_t type) = 0;
@@ -227,6 +240,14 @@ public:
 
   virtual uint32_t GetPointerByteSize() = 0;
 
+  virtual unsigned GetPtrAuthKey(lldb::opaque_compiler_type_t type) = 0;
+
+  virtual unsigned
+  GetPtrAuthDiscriminator(lldb::opaque_compiler_type_t type) = 0;
+
+  virtual bool
+  GetPtrAuthAddressDiversity(lldb::opaque_compiler_type_t type) = 0;
+
   // Accessors
 
   virtual ConstString GetTypeName(lldb::opaque_compiler_type_t type,
@@ -238,8 +259,8 @@ public:
   virtual ConstString GetDisplayTypeName(lldb::opaque_compiler_type_t type,
                                          const SymbolContext *sc = nullptr) = 0;
 
-  // Defaults to GetTypeName(type).  Override if your language desires
-  // specialized behavior.
+  /// Defaults to GetTypeName(type).  Override if your language desires
+  /// specialized behavior.
   virtual ConstString GetMangledTypeName(lldb::opaque_compiler_type_t type);
 
   virtual uint32_t
@@ -299,6 +320,15 @@ public:
 
   virtual CompilerType AddRestrictModifier(lldb::opaque_compiler_type_t type);
 
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  virtual CompilerType AddBoundsSafetyIndexableAttribute(lldb::opaque_compiler_type_t type);
+  virtual CompilerType AddBoundsSafetyBidiIndexableAttribute(lldb::opaque_compiler_type_t type);
+  virtual CompilerType AddBoundsSafetyUnspecifiedAttribute(lldb::opaque_compiler_type_t type);
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
+  virtual CompilerType AddPtrAuthModifier(lldb::opaque_compiler_type_t type,
+                                          uint32_t payload);
+
   /// \param opaque_payload      The m_payload field of Type, which may
   /// carry TypeSystem-specific extra information.
   virtual CompilerType CreateTypedef(lldb::opaque_compiler_type_t type,
@@ -310,7 +340,7 @@ public:
 
   virtual const llvm::fltSemantics &GetFloatTypeSemantics(size_t byte_size) = 0;
 
-  virtual std::optional<uint64_t>
+  virtual llvm::Expected<uint64_t>
   GetBitSize(lldb::opaque_compiler_type_t type,
              ExecutionContextScope *exe_scope) = 0;
 
@@ -318,8 +348,7 @@ public:
   GetByteStride(lldb::opaque_compiler_type_t type,
                 ExecutionContextScope *exe_scope) = 0;
 
-  virtual lldb::Encoding GetEncoding(lldb::opaque_compiler_type_t type,
-                                     uint64_t &count) = 0;
+  virtual lldb::Encoding GetEncoding(lldb::opaque_compiler_type_t type) = 0;
 
   virtual lldb::Format GetFormat(lldb::opaque_compiler_type_t type) = 0;
 
@@ -362,6 +391,17 @@ public:
   GetVirtualBaseClassAtIndex(lldb::opaque_compiler_type_t type, size_t idx,
                              uint32_t *bit_offset_ptr) = 0;
 
+  virtual CompilerDecl GetStaticFieldWithName(lldb::opaque_compiler_type_t type,
+                                              llvm::StringRef name) {
+    return CompilerDecl();
+  }
+
+  virtual llvm::Expected<CompilerType>
+  GetDereferencedType(lldb::opaque_compiler_type_t type,
+                      ExecutionContext *exe_ctx, std::string &deref_name,
+                      uint32_t &deref_byte_size, int32_t &deref_byte_offset,
+                      ValueObject *valobj, uint64_t &language_flags) = 0;
+
   virtual llvm::Expected<CompilerType> GetChildCompilerTypeAtIndex(
       lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx, size_t idx,
       bool transparent_pointers, bool omit_empty_base_classes,
@@ -373,22 +413,22 @@ public:
 
   // Lookup a child given a name. This function will match base class names and
   // member member names in "clang_type" only, not descendants.
-  virtual uint32_t GetIndexOfChildWithName(lldb::opaque_compiler_type_t type,
-                                           llvm::StringRef name,
-                                           ExecutionContext *exe_ctx,
-                                           bool omit_empty_base_classes) = 0;
+  virtual llvm::Expected<uint32_t>
+  GetIndexOfChildWithName(lldb::opaque_compiler_type_t type,
+                          llvm::StringRef name, ExecutionContext *exe_ctx,
+                          bool omit_empty_base_classes) = 0;
 
-  // Lookup a child member given a name. This function will match member names
-  // only and will descend into "clang_type" children in search for the first
-  // member in this class, or any base class that matches "name".
-  // TODO: Return all matches for a given name by returning a
-  // vector<vector<uint32_t>>
-  // so we catch all names that match a given child name, not just the first.
   virtual size_t
   GetIndexOfChildMemberWithName(lldb::opaque_compiler_type_t type,
                                 llvm::StringRef name, ExecutionContext *exe_ctx,
                                 bool omit_empty_base_classes,
                                 std::vector<uint32_t> &child_indexes) = 0;
+
+  virtual CompilerType
+  GetDirectNestedTypeWithName(lldb::opaque_compiler_type_t type,
+                              llvm::StringRef name) {
+    return CompilerType();
+  }
 
   virtual bool IsTemplateType(lldb::opaque_compiler_type_t type);
 
@@ -405,6 +445,18 @@ public:
   GetIntegralTemplateArgument(lldb::opaque_compiler_type_t type, size_t idx,
                               bool expand_pack);
 
+  // DIL
+
+  /// Checks if the type is eligible for integral promotion.
+  virtual bool IsPromotableIntegerType(lldb::opaque_compiler_type_t type);
+
+  /// Perform integral promotion on a given type.
+  /// This promotes eligible types (boolean, integers, unscoped enumerations)
+  /// to a larger integer type according to type system rules.
+  /// \returns Promoted type.
+  virtual llvm::Expected<CompilerType>
+  DoIntegralPromotion(CompilerType from, ExecutionContextScope *exe_scope);
+
   // Dumping types
 
 #ifndef NDEBUG
@@ -412,14 +464,6 @@ public:
   LLVM_DUMP_METHOD virtual void
   dump(lldb::opaque_compiler_type_t type) const = 0;
 #endif
-
-  virtual void DumpValue(lldb::opaque_compiler_type_t type,
-                         ExecutionContext *exe_ctx, Stream &s,
-                         lldb::Format format, const DataExtractor &data,
-                         lldb::offset_t data_offset, size_t data_byte_size,
-                         uint32_t bitfield_bit_size,
-                         uint32_t bitfield_bit_offset, bool show_types,
-                         bool show_summary, bool verbose, uint32_t depth) = 0;
 
   virtual bool DumpTypeValue(lldb::opaque_compiler_type_t type, Stream &s,
                              lldb::Format format, const DataExtractor &data,
@@ -448,17 +492,14 @@ public:
   /// given stream.
   ///
   /// This should not modify the state of the TypeSystem if possible.
-  virtual void Dump(llvm::raw_ostream &output) = 0;
+  ///
+  /// \param[out] output Stream to dup the AST into.
+  /// \param[in] filter If empty, dump whole AST. If non-empty, will only
+  /// dump decls whose names contain \c filter.
+  virtual void Dump(llvm::raw_ostream &output, llvm::StringRef filter) = 0;
 
-  // TODO: These methods appear unused. Should they be removed?
-
+  /// This is used by swift.
   virtual bool IsRuntimeGeneratedType(lldb::opaque_compiler_type_t type) = 0;
-
-  virtual void DumpSummary(lldb::opaque_compiler_type_t type,
-                           ExecutionContext *exe_ctx, Stream &s,
-                           const DataExtractor &data,
-                           lldb::offset_t data_offset,
-                           size_t data_byte_size) = 0;
 
   // TODO: Determine if these methods should move to TypeSystemClang.
 
@@ -466,9 +507,6 @@ public:
                                         CompilerType *pointee_type) = 0;
 
   virtual unsigned GetTypeQualifiers(lldb::opaque_compiler_type_t type) = 0;
-
-  virtual bool IsCStringType(lldb::opaque_compiler_type_t type,
-                             uint32_t &length) = 0;
 
   virtual std::optional<size_t>
   GetTypeBitAlign(lldb::opaque_compiler_type_t type,
@@ -554,12 +592,6 @@ public:
   // meaningless type itself, instead preferring to use the dynamic type
   virtual bool IsMeaninglessWithoutDynamicResolution(void *type);
 
-  /// A TypeSystem may belong to more than one debugger, so it doesn't
-  /// have a way to communicate errors. This method can be called by a
-  /// process to tell the TypeSystem to send any diagnostics to the
-  /// process so they can be surfaced to the user.
-  virtual void DiagnoseWarnings(Process &process, Module &module) const;
-
   virtual std::optional<llvm::json::Value> ReportStatistics();
 
   bool GetHasForcefullyCompletedTypes() const {
@@ -596,14 +628,6 @@ public:
   llvm::Expected<lldb::TypeSystemSP>
   GetTypeSystemForLanguage(lldb::LanguageType language, Target *target,
                            bool can_create);
-
-  // BEGIN SWIFT
-  llvm::Expected<lldb::TypeSystemSP>
-  GetTypeSystemForLanguage(lldb::LanguageType language, Target *target,
-                           bool can_create, const char *compiler_options);
-
-  void RemoveTypeSystemsForLanguage(lldb::LanguageType language);
-  // END SWIFT
 
   /// Check all type systems in the map to see if any have forcefully completed
   /// types;

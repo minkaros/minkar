@@ -15,6 +15,7 @@
 #define LLVM_CLANG_LEX_PPCALLBACKS_H
 
 #include "clang/Basic/DiagnosticIDs.h"
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/ModuleLoader.h"
@@ -22,11 +23,12 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace clang {
-  class Token;
-  class IdentifierInfo;
-  class MacroDefinition;
-  class MacroDirective;
-  class MacroArgs;
+class Token;
+class IdentifierInfo;
+class MacroDefinition;
+class MacroDirective;
+class MacroArgs;
+struct LexEmbedParametersResult;
 
 /// This interface provides a way to observe the actions of the
 /// preprocessor as it does its thing.
@@ -82,6 +84,34 @@ public:
   virtual void FileSkipped(const FileEntryRef &SkippedFile,
                            const Token &FilenameTok,
                            SrcMgr::CharacteristicKind FileType) {}
+
+  /// Callback invoked whenever the preprocessor cannot find a file for an
+  /// embed directive.
+  ///
+  /// \param FileName The name of the file being included, as written in the
+  /// source code.
+  ///
+  /// \returns true to indicate that the preprocessor should skip this file
+  /// and not issue any diagnostic.
+  virtual bool EmbedFileNotFound(StringRef FileName) { return false; }
+
+  /// Callback invoked whenever an embed directive has been processed,
+  /// regardless of whether the embed will actually find a file.
+  ///
+  /// \param HashLoc The location of the '#' that starts the embed directive.
+  ///
+  /// \param FileName The name of the file being included, as written in the
+  /// source code.
+  ///
+  /// \param IsAngled Whether the file name was enclosed in angle brackets;
+  /// otherwise, it was enclosed in quotes.
+  ///
+  /// \param File The actual file that may be included by this embed directive.
+  ///
+  /// \param Params The parameters used by the directive.
+  virtual void EmbedDirective(SourceLocation HashLoc, StringRef FileName,
+                              bool IsAngled, OptionalFileEntryRef File,
+                              const LexEmbedParametersResult &Params) {}
 
   /// Callback invoked whenever the preprocessor cannot find a file for an
   /// inclusion directive.
@@ -305,6 +335,14 @@ public:
   /// is read.
   virtual void PragmaAssumeNonNullEnd(SourceLocation Loc) {}
 
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  /// Callback invoked when a \#pragma clang abi_ptr_attr set (*ATTR*)
+  /// directive is read.
+  virtual void
+  PragmaAbiPointerAttributesSet(SourceLocation Loc,
+                                ArrayRef<const IdentifierInfo *> Spec) {}
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
   /// Called by Preprocessor::HandleMacroExpandedIdentifier when a
   /// macro invocation is found.
   virtual void MacroExpands(const Token &MacroNameTok,
@@ -332,6 +370,10 @@ public:
   virtual void Defined(const Token &MacroNameTok, const MacroDefinition &MD,
                        SourceRange Range) {
   }
+
+  /// Hook called when a '__has_embed' directive is read.
+  virtual void HasEmbed(SourceLocation Loc, StringRef FileName, bool IsAngled,
+                        OptionalFileEntryRef File) {}
 
   /// Hook called when a '__has_include' or '__has_include_next' directive is
   /// read.
@@ -431,6 +473,28 @@ public:
   /// \param IfLoc the source location of the \#if/\#ifdef/\#ifndef directive.
   virtual void Endif(SourceLocation Loc, SourceLocation IfLoc) {
   }
+
+  /// Walk owned descendants. For each descendant whose raw pointer satisfies
+  /// `Pred`, release ownership from its owning unique_ptr and append the raw
+  /// pointer to `Released`. Default: leaf — no descendants to walk.
+  virtual void
+  releasePreservedDescendants(llvm::function_ref<bool(PPCallbacks *)> Pred,
+                              SmallVectorImpl<PPCallbacks *> &Released) {}
+
+  /// Walk the subtree rooted at `CB` (recursing into descendants first), then
+  /// check `CB` itself. Any `CB` whose contents satisfy `Pred` has its
+  /// ownership released and the raw pointer appended to `Released`. After this
+  /// returns, `CB` may be safely reset/destroyed without freeing the released
+  /// pointers.
+  static void releaseIfPreserved(std::unique_ptr<PPCallbacks> &CB,
+                                 llvm::function_ref<bool(PPCallbacks *)> Pred,
+                                 SmallVectorImpl<PPCallbacks *> &Released) {
+    if (!CB)
+      return;
+    CB->releasePreservedDescendants(Pred, Released);
+    if (Pred(CB.get()))
+      Released.push_back(CB.release());
+  }
 };
 
 /// Simple wrapper class for chaining callbacks.
@@ -462,6 +526,21 @@ public:
                    SrcMgr::CharacteristicKind FileType) override {
     First->FileSkipped(SkippedFile, FilenameTok, FileType);
     Second->FileSkipped(SkippedFile, FilenameTok, FileType);
+  }
+
+  bool EmbedFileNotFound(StringRef FileName) override {
+    bool Skip = First->FileNotFound(FileName);
+    // Make sure to invoke the second callback, no matter if the first already
+    // returned true to skip the file.
+    Skip |= Second->FileNotFound(FileName);
+    return Skip;
+  }
+
+  void EmbedDirective(SourceLocation HashLoc, StringRef FileName, bool IsAngled,
+                      OptionalFileEntryRef File,
+                      const LexEmbedParametersResult &Params) override {
+    First->EmbedDirective(HashLoc, FileName, IsAngled, File, Params);
+    Second->EmbedDirective(HashLoc, FileName, IsAngled, File, Params);
   }
 
   bool FileNotFound(StringRef FileName) override {
@@ -565,6 +644,12 @@ public:
     Second->PragmaDiagnostic(Loc, Namespace, mapping, Str);
   }
 
+  void HasEmbed(SourceLocation Loc, StringRef FileName, bool IsAngled,
+                OptionalFileEntryRef File) override {
+    First->HasEmbed(Loc, FileName, IsAngled, File);
+    Second->HasEmbed(Loc, FileName, IsAngled, File);
+  }
+
   void HasInclude(SourceLocation Loc, StringRef FileName, bool IsAngled,
                   OptionalFileEntryRef File,
                   SrcMgr::CharacteristicKind FileType) override;
@@ -610,6 +695,15 @@ public:
     First->PragmaAssumeNonNullEnd(Loc);
     Second->PragmaAssumeNonNullEnd(Loc);
   }
+
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  void PragmaAbiPointerAttributesSet(SourceLocation Loc,
+                                     ArrayRef<const IdentifierInfo *> Spec)
+                                    override {
+    First->PragmaAbiPointerAttributesSet(Loc, Spec);
+    Second->PragmaAbiPointerAttributesSet(Loc, Spec);
+  }
+  /* TO_UPSTREAM(BoundsSafety) OFF */
 
   void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
                     SourceRange Range, const MacroArgs *Args) override {
@@ -705,6 +799,13 @@ public:
   void Endif(SourceLocation Loc, SourceLocation IfLoc) override {
     First->Endif(Loc, IfLoc);
     Second->Endif(Loc, IfLoc);
+  }
+
+  void releasePreservedDescendants(
+      llvm::function_ref<bool(PPCallbacks *)> Pred,
+      SmallVectorImpl<PPCallbacks *> &Released) override {
+    releaseIfPreserved(First, Pred, Released);
+    releaseIfPreserved(Second, Pred, Released);
   }
 };
 

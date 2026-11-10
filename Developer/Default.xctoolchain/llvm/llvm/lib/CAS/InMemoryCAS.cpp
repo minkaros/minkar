@@ -228,6 +228,10 @@ public:
 
   void print(raw_ostream &OS) const final;
 
+  Error validate(bool CheckHash) const final {
+    return createStringError("InMemoryCAS doesn't support validate()");
+  }
+
   InMemoryCAS() = default;
 
 private:
@@ -283,7 +287,7 @@ InMemoryCAS::storeFromNullTerminatedRegion(ArrayRef<uint8_t> ComputedHash,
     return Objects.Allocate(Size, alignof(InMemoryObject));
   };
   auto Generator = [&]() -> const InMemoryObject * {
-    return &InMemoryRefObject::create(Allocator, I, std::nullopt, Data);
+    return &InMemoryRefObject::create(Allocator, I, {}, Data);
   };
   const InMemoryObject &Node =
       cast<InMemoryObject>(I.Data.loadOrGenerate(Generator));

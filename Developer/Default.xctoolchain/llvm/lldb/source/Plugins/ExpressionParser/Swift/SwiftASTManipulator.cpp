@@ -78,6 +78,9 @@ void SwiftASTManipulatorBase::VariableInfo::Print(
   if (llvm::isa<VariableMetadataError>(m_metadata.get()))
     stream.Printf(", is_error");
 
+  if (!m_is_available)
+    stream.Printf(", is_unavailable");
+
   stream.PutChar(']');
 }
 
@@ -124,13 +127,13 @@ void SwiftASTManipulatorBase::DoInitialization() {
         }
       }
       // Not in an extension.
-      if (FD->getNameStr().equals("$__lldb_trampoline"))
+      if (FD->getNameStr() == "$__lldb_trampoline")
         trampoline_decl = FD;
-      else if (FD->getNameStr().equals("$__lldb_expr"))
+      else if (FD->getNameStr() == "$__lldb_expr")
         entrypoint_decl = FD;
-      else if (FD->getNameStr().equals("$__lldb_sink"))
+      else if (FD->getNameStr() == "$__lldb_sink")
         sink_decl = FD;
-      else if (FD->getNameStr().equals("$__lldb_user_expr"))
+      else if (FD->getNameStr() == "$__lldb_user_expr")
         user_expr_decl = FD;
       return Action::SkipChildren();
     }
@@ -210,7 +213,7 @@ void SwiftASTManipulator::FindSpecialNames(
       if (auto *UDRE = llvm::dyn_cast<swift::UnresolvedDeclRefExpr>(E)) {
         swift::Identifier name = UDRE->getName().getBaseIdentifier();
 
-        if (m_prefix.empty() || name.str().startswith(m_prefix))
+        if (m_prefix.empty() || name.str().starts_with(m_prefix))
           m_names.push_back(name);
       }
 
@@ -530,8 +533,7 @@ void SwiftASTManipulator::FindVariableDeclarations(
 
     size_t persistent_info_location = m_variables.size();
 
-    auto type = var_decl->getDeclContext()->mapTypeIntoContext(
-        var_decl->getInterfaceType());
+    auto type = var_decl->getTypeInContext();
     m_variables.emplace_back(ToCompilerType({type.getPointer()}), name,
                              var_decl);
     found_declarations.push_back(persistent_info_location);
@@ -540,7 +542,7 @@ void SwiftASTManipulator::FindVariableDeclarations(
   if (m_repl) {
     for (swift::Decl *decl : m_source_file.getTopLevelDecls()) {
       if (swift::VarDecl *var_decl = llvm::dyn_cast<swift::VarDecl>(decl)) {
-        if (!var_decl->getName().str().startswith("$")) {
+        if (!var_decl->getName().str().starts_with("$")) {
           register_one_var(var_decl);
         }
       }
@@ -562,7 +564,7 @@ void SwiftASTManipulator::FindVariableDeclarations(
           {
             swift::Identifier name = var_decl->getName();
 
-            if (name.str().startswith("$")) {
+            if (name.str().starts_with("$")) {
               var_decl->setDebuggerVar(true);
               register_one_var(var_decl);
             }
@@ -848,15 +850,18 @@ GetPatternBindingForVarDecl(swift::VarDecl *var_decl,
 
   // Since lldb does not call bindExtensions, must ensure that any enclosing
   // extension is bound
+  // FIXME: This won't correctly handle cases that rely on other extensions
+  // being bound first, e.g for nested types defined in extensions.
   for (auto *context = containing_context; context;
        context = context->getParent()) {
     if (auto *d = context->getAsDecl()) {
-      if (auto *ext = swift::dyn_cast<swift::ExtensionDecl>(d))
-        ext->computeExtendedNominal();
+      if (auto *ext = swift::dyn_cast<swift::ExtensionDecl>(d)) {
+        if (!ext->hasBeenBound())
+          ext->setExtendedNominal(ext->computeExtendedNominal());
+      }
     }
   }
-  swift::Type type = containing_context->mapTypeIntoContext(
-      var_decl->getInterfaceType());
+  swift::Type type = var_decl->getTypeInContext();
   swift::TypedPattern *typed_pattern =
     swift::TypedPattern::createImplicit(ast_context, named_pattern, type);
 
@@ -878,7 +883,7 @@ swift::FuncDecl *SwiftASTManipulator::GetFunctionToInjectVariableInto(
   // When not binding generic type parameters, we want to inject the metadata
   // pointers in the wrapper, so we can pass them as opaque pointers in the
   // trampoline function later on.
-  if (m_bind_generic_types == lldb::eDontBind &&
+  if (!ShouldBindGenericTypes(m_bind_generic_types) &&
       (variable.IsMetadataPointer() || variable.IsPackCount() ||
        variable.IsUnboundPack()))
     return m_entrypoint_decl;
@@ -896,8 +901,9 @@ llvm::Expected<swift::Type> SwiftASTManipulator::GetSwiftTypeForVariable(
 
   // When injecting a value pack or pack count into the outer
   // lldb_expr function, treat it as an opaque raw pointer.
-  if (m_bind_generic_types == lldb::eDontBind && variable.IsUnboundPack()) {
-    auto swift_ast_ctx = type_system_swift->GetSwiftASTContext(&m_sc);
+  if (!ShouldBindGenericTypes(m_bind_generic_types) &&
+      variable.IsUnboundPack()) {
+    auto swift_ast_ctx = type_system_swift->GetSwiftASTContext(m_sc);
     if (!swift_ast_ctx)
       return llvm::createStringError("no typesystem for variable " +
                                      variable.GetName().str());
@@ -942,7 +948,7 @@ llvm::Expected<swift::Type> SwiftASTManipulator::GetSwiftTypeForVariable(
   }
 
   if (swift_type->hasArchetype())
-    swift_type = swift_type->mapTypeOutOfContext();
+    swift_type = swift_type->mapTypeOutOfEnvironment();
 
   return {swift_type};
 }
@@ -1093,6 +1099,14 @@ bool SwiftASTManipulator::AddExternalVariables(
       injected_nodes;
 
   for (SwiftASTManipulator::VariableInfo &variable : variables) {
+    // A variable with no readable value would fail to materialize,
+    // resulting in a fatal error for the entire expression.
+    if (!variable.IsAvailable()) {
+      LLDB_LOG(log, "Variable {0} has no readable value, not injecting it.",
+               variable.GetName());
+      continue;
+    }
+
     swift::FuncDecl *containing_function =
         GetFunctionToInjectVariableInto(variable);
     assert(containing_function && "No function to inject variable into!");
@@ -1315,7 +1329,7 @@ bool SwiftASTManipulator::SaveExpressionTextToTempFile(
   llvm::Twine prefix = llvm::Twine(file_prefix).concat(llvm::Twine(expr_number));
 
   llvm::StringRef suffix;
-  switch (options.GetLanguage()) {
+  switch (options.GetLanguage().AsLanguageType()) {
   default:
     suffix = ".cpp";
     break;

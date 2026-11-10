@@ -18,10 +18,11 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Module.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Lex/ModuleMapFile.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -43,7 +44,7 @@ class FileManager;
 class HeaderSearch;
 class SourceManager;
 
-/// A mechanism to observe the actions of the module map parser as it
+/// A mechanism to observe the actions of the module map loader as it
 /// reads module map files.
 class ModuleMapCallbacks {
   virtual void anchor();
@@ -57,15 +58,15 @@ public:
   /// contents.
   /// \param File The file itself.
   /// \param IsSystem Whether this is a module map from a system include path.
-  virtual void moduleMapFileRead(SourceLocation FileStart,
-                                 const FileEntry &File, bool IsSystem) {}
+  virtual void moduleMapFileRead(SourceLocation FileStart, FileEntryRef File,
+                                 bool IsSystem) {}
 
   /// Called when a module map file matches a module lookup
   ///
   /// \param File The file itself.
   /// \param M The module found that matches this module map.
   /// \param IsSystem Whether this is a module map from a system include path.
-  virtual void moduleMapFoundForModule(const FileEntry &File, const Module *M,
+  virtual void moduleMapFoundForModule(FileEntryRef File, const Module *M,
                                        bool IsSystem) {}
 
   /// Called when a header is added during module map parsing.
@@ -90,20 +91,18 @@ class ModuleMap {
 
   /// The directory used for Clang-supplied, builtin include headers,
   /// such as "stdint.h".
-  OptionalDirectoryEntryRefDegradesToDirectoryEntryPtr BuiltinIncludeDir;
-
-  /// Language options used to parse the module map itself.
-  ///
-  /// These are always simple C language options.
-  LangOptions MMapLangOpts;
+  OptionalDirectoryEntryRef BuiltinIncludeDir;
 
   /// The module that the main source file is associated with (the module
   /// named LangOpts::CurrentModule, if we've loaded it).
   Module *SourceModule = nullptr;
 
+  /// The allocator for all (sub)modules.
+  llvm::SpecificBumpPtrAllocator<Module> ModulesAlloc;
+
   /// Submodules of the current module that have not yet been attached to it.
-  /// (Ownership is transferred if/when we create an enclosing module.)
-  llvm::SmallVector<std::unique_ptr<Module>, 8> PendingSubmodules;
+  /// (Relationship is set up if/when we create an enclosing module.)
+  llvm::SmallVector<Module *, 8> PendingSubmodules;
 
   /// The top-level modules that are known.
   llvm::StringMap<Module *> Modules;
@@ -202,13 +201,12 @@ public:
     }
   };
 
-  using AdditionalModMapsSet = llvm::SmallPtrSet<const FileEntry *, 1>;
+  using AdditionalModMapsSet = llvm::DenseSet<FileEntryRef>;
 
 private:
-  friend class ModuleMapParser;
+  friend class ModuleMapLoader;
 
-  using HeadersMap =
-      llvm::DenseMap<const FileEntry *, SmallVector<KnownHeader, 1>>;
+  using HeadersMap = llvm::DenseMap<FileEntryRef, SmallVector<KnownHeader, 1>>;
 
   /// Mapping from each header to the module that owns the contents of
   /// that header.
@@ -229,6 +227,18 @@ private:
   /// header.
   llvm::DenseMap<const DirectoryEntry *, Module *> UmbrellaDirs;
 
+  /// Mapping from (header, (sub)module) pairs to the source location where
+  /// the header was added to the module (the header directive location).
+  /// TODO: Consider moving this into Module::Header and serializing it into
+  /// PCMs so that locations are available for headers deserialized from
+  /// modules. Need to evaluate size/perf overhead of adding a SourceLocation
+  /// to the serialization format for this diagnostic.
+  llvm::DenseMap<std::pair<const FileEntry *, const Module *>, SourceLocation>
+      HeaderOwnerLocs;
+
+  /// Headers for which we've already diagnosed duplicate ownership.
+  llvm::DenseSet<const FileEntry *> DiagnosedDuplicateHeaders;
+
   /// A generation counter that is used to test whether modules of the
   /// same name may shadow or are illegal redefinitions.
   ///
@@ -238,32 +248,12 @@ private:
 
   llvm::DenseMap<Module *, unsigned> ModuleScopeIDs;
 
-  /// The set of attributes that can be attached to a module.
-  struct Attributes {
-    /// Whether this is a system module.
-    unsigned IsSystem : 1;
-
-    /// Whether this is an extern "C" module.
-    unsigned IsExternC : 1;
-
-    /// Whether this is an exhaustive set of configuration macros.
-    unsigned IsExhaustive : 1;
-
-    /// \brief Whether this is a module who has its swift_names inferred.
-    unsigned IsSwiftInferImportAsMember : 1;
-
-    /// Whether files in this module can only include non-modular headers
-    /// and headers from used modules.
-    unsigned NoUndeclaredIncludes : 1;
-
-    Attributes()
-        : IsSystem(false), IsExternC(false), IsExhaustive(false),
-          NoUndeclaredIncludes(false) {}
-  };
+  using Attributes = ModuleAttributes;
 
   /// A directory for which framework modules can be inferred.
   struct InferredDirectory {
     /// Whether to infer modules from this directory.
+    LLVM_PREFERRED_TYPE(bool)
     unsigned InferModules : 1;
 
     /// The attributes to use for inferred modules.
@@ -290,9 +280,25 @@ private:
 
   llvm::DenseMap<const Module *, AdditionalModMapsSet> AdditionalModMaps;
 
-  /// Describes whether we haved parsed a particular file as a module
+  /// Describes whether we haved loaded a particular file as a module
   /// map.
-  llvm::DenseMap<const FileEntry *, bool> ParsedModuleMap;
+  llvm::DenseMap<const FileEntry *, bool> LoadedModuleMap;
+  llvm::DenseMap<const FileEntry *, const modulemap::ModuleMapFile *>
+      ParsedModuleMap;
+
+  /// Each CompilerInstance needs its own FileID for each module map, but there
+  /// should only ever be one for each.
+  llvm::DenseMap<const FileEntry *, FileID> ModuleMapLocalFileID;
+
+  std::vector<std::unique_ptr<modulemap::ModuleMapFile>> ParsedModuleMaps;
+
+  /// Map from top level module name to a list of ModuleDecls in the order they
+  /// were discovered. This allows handling shadowing correctly and diagnosing
+  /// redefinitions.
+  llvm::StringMap<SmallVector<std::pair<const modulemap::ModuleMapFile *,
+                                        const modulemap::ModuleDecl *>,
+                              1>>
+      ParsedModules;
 
   /// Resolve the given export declaration into an actual export
   /// declaration.
@@ -367,7 +373,12 @@ private:
   /// If \p File represents a builtin header within Clang's builtin include
   /// directory, this also loads all of the module maps to see if it will get
   /// associated with a specific module (e.g. in /usr/include).
-  HeadersMap::iterator findKnownHeader(const FileEntry *File);
+  HeadersMap::iterator findKnownHeader(FileEntryRef File);
+
+  /// Warn if a header is owned by multiple top-level modules.
+  void diagnoseDuplicateHeaderOwnership(SourceLocation FilenameLoc,
+                                        StringRef Filename, FileEntryRef File,
+                                        HeadersMap::iterator Known);
 
   /// Searches for a module whose umbrella directory contains \p File.
   ///
@@ -414,19 +425,15 @@ public:
   /// Set the target information.
   void setTarget(const TargetInfo &Target);
 
-  /// Set the directory that contains Clang-supplied include
-  /// files, such as our stdarg.h or tgmath.h.
-  void setBuiltinIncludeDir(DirectoryEntryRef Dir) {
-    BuiltinIncludeDir = Dir;
-  }
+  /// Set the directory that contains Clang-supplied include files, such as our
+  /// stdarg.h or tgmath.h.
+  void setBuiltinIncludeDir(DirectoryEntryRef Dir) { BuiltinIncludeDir = Dir; }
 
   /// Get the directory that contains Clang-supplied include files.
-  OptionalDirectoryEntryRefDegradesToDirectoryEntryPtr getBuiltinDir() const {
-    return BuiltinIncludeDir;
-  }
+  OptionalDirectoryEntryRef getBuiltinDir() const { return BuiltinIncludeDir; }
 
   /// Is this a compiler builtin header?
-  bool isBuiltinHeader(const FileEntry *File);
+  bool isBuiltinHeader(FileEntryRef File);
 
   bool shouldImportRelativeToBuiltinIncludeDir(StringRef FileName,
                                                Module *Module) const;
@@ -453,6 +460,18 @@ public:
   KnownHeader findModuleForHeader(FileEntryRef File, bool AllowTextual = false,
                                   bool AllowExcluded = false);
 
+  /// Find the FileEntry for an umbrella header in a module as if it was written
+  /// in the module map as a header decl.
+  ///
+  /// \param M The module in which we're resolving the header directive.
+  /// \param NameAsWritten The name of the header as written in the module map.
+  /// \param[out] RelativePathName Filled in with the relative path name from
+  ///             the module to the resolved header.
+  /// \return The resolved file, if any.
+  OptionalFileEntryRef
+  findUmbrellaHeaderForModule(Module *M, std::string NameAsWritten,
+                              SmallVectorImpl<char> &RelativePathName);
+
   /// Retrieve all the modules that contain the given header file. Note that
   /// this does not implicitly load module maps, except for builtin headers,
   /// and does not consult the external source. (Those checks are the
@@ -464,8 +483,7 @@ public:
 
   /// Like \ref findAllModulesForHeader, but do not attempt to infer module
   /// ownership from umbrella headers if we've not already done so.
-  ArrayRef<KnownHeader>
-  findResolvedModulesForHeader(const FileEntry *File) const;
+  ArrayRef<KnownHeader> findResolvedModulesForHeader(FileEntryRef File) const;
 
   /// Resolve all lazy header directives for the specified file.
   ///
@@ -514,6 +532,10 @@ public:
   /// \returns The named module, if known; otherwise, returns null.
   Module *findModule(StringRef Name) const;
 
+  Module *findOrLoadModule(StringRef Name);
+
+  Module *findOrInferSubmodule(Module *Parent, StringRef Name);
+
   /// Retrieve a module with the given name using lexical name lookup,
   /// starting at the given context.
   ///
@@ -553,6 +575,17 @@ public:
   std::pair<Module *, bool> findOrCreateModule(StringRef Name, Module *Parent,
                                                bool IsFramework,
                                                bool IsExplicit);
+  /// Call \c ModuleMap::findOrCreateModule and throw away the information
+  /// whether the module was found or created.
+  Module *findOrCreateModuleFirst(StringRef Name, Module *Parent,
+                                  bool IsFramework, bool IsExplicit) {
+    return findOrCreateModule(Name, Parent, IsFramework, IsExplicit).first;
+  }
+  /// Create new submodule, assuming it does not exist. This function can only
+  /// be called when it is guaranteed that this submodule does not exist yet.
+  /// The parameters have same semantics as \c ModuleMap::findOrCreateModule.
+  Module *createModule(StringRef Name, Module *Parent, bool IsFramework,
+                       bool IsExplicit);
 
   /// Create a global module fragment for a C++ module unit.
   ///
@@ -563,8 +596,8 @@ public:
   /// parent.
   Module *createGlobalModuleFragmentForModuleUnit(SourceLocation Loc,
                                                   Module *Parent = nullptr);
-  Module *createImplicitGlobalModuleFragmentForModuleUnit(
-      SourceLocation Loc, bool IsExported, Module *Parent = nullptr);
+  Module *createImplicitGlobalModuleFragmentForModuleUnit(SourceLocation Loc,
+                                                          Module *Parent);
 
   /// Create a global module fragment for a C++ module interface unit.
   Module *createPrivateModuleFragmentForInterfaceUnit(Module *Parent,
@@ -668,7 +701,7 @@ public:
     return &I->second;
   }
 
-  void addAdditionalModuleMapFile(const Module *M, const FileEntry *ModuleMap);
+  void addAdditionalModuleMapFile(const Module *M, FileEntryRef ModuleMap);
 
   /// Resolve all of the unresolved exports in the given module.
   ///
@@ -704,25 +737,38 @@ public:
   void
   setUmbrellaHeaderAsWritten(Module *Mod, FileEntryRef UmbrellaHeader,
                              const Twine &NameAsWritten,
-                             const Twine &PathRelativeToRootModuleDirectory);
+                             const Twine &PathRelativeToRootModuleDirectory,
+                             SourceLocation Loc = SourceLocation());
 
   /// Sets the umbrella directory of the given module to the given directory.
   void setUmbrellaDirAsWritten(Module *Mod, DirectoryEntryRef UmbrellaDir,
                                const Twine &NameAsWritten,
-                               const Twine &PathRelativeToRootModuleDirectory);
+                               const Twine &PathRelativeToRootModuleDirectory,
+                               SourceLocation Loc = SourceLocation());
 
   /// Adds this header to the given module.
   /// \param Role The role of the header wrt the module.
-  void addHeader(Module *Mod, Module::Header Header,
-                 ModuleHeaderRole Role, bool Imported = false);
+  void addHeader(Module *Mod, Module::Header Header, ModuleHeaderRole Role,
+                 bool Imported = false, SourceLocation Loc = SourceLocation());
 
-  /// Parse the given module map file, and record any modules we
+  /// Parse a module map without creating `clang::Module` instances.
+  bool parseModuleMapFile(FileEntryRef File, bool IsSystem,
+                          bool ImplicitlyDiscovered, DirectoryEntryRef Dir,
+                          FileID ID = FileID(),
+                          SourceLocation ExternModuleLoc = SourceLocation());
+
+  void loadAllParsedModules();
+
+  /// Load the given module map file, and record any modules we
   /// encounter.
   ///
-  /// \param File The file to be parsed.
+  /// \param File The file to be loaded.
   ///
   /// \param IsSystem Whether this module map file is in a system header
   /// directory, and therefore should be considered a system module.
+  ///
+  /// \param ImplicitlyDiscovered Whether this module map file was found via
+  ///        module map search.
   ///
   /// \param HomeDir The directory in which relative paths within this module
   ///        map file will be resolved.
@@ -736,10 +782,21 @@ public:
   ///        that caused us to load this module map file, if any.
   ///
   /// \returns true if an error occurred, false otherwise.
-  bool parseModuleMapFile(FileEntryRef File, bool IsSystem,
-                          DirectoryEntryRef HomeDir, FileID ID = FileID(),
-                          unsigned *Offset = nullptr,
-                          SourceLocation ExternModuleLoc = SourceLocation());
+  bool
+  parseAndLoadModuleMapFile(FileEntryRef File, bool IsSystem,
+                            bool ImplicitlyDiscovered,
+                            DirectoryEntryRef HomeDir, FileID ID = FileID(),
+                            unsigned *Offset = nullptr,
+                            SourceLocation ExternModuleLoc = SourceLocation());
+
+  /// Get the ModuleMapFile for a FileEntry previously parsed with
+  /// parseModuleMapFile.
+  const modulemap::ModuleMapFile *getParsedModuleMap(FileEntryRef File) const {
+    auto It = ParsedModuleMap.find(File);
+    if (It == ParsedModuleMap.end())
+      return nullptr;
+    return It->second;
+  }
 
   /// Dump the contents of the module map, for debugging purposes.
   void dump();

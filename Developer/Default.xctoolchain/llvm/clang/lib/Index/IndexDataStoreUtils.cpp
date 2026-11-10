@@ -191,6 +191,10 @@ SymbolSubKind index::getSymbolSubKind(indexstore_symbol_subkind_t K) {
     return SymbolSubKind::SwiftAssociatedType;
   case INDEXSTORE_SYMBOL_SUBKIND_SWIFTGENERICTYPEPARAM:
     return SymbolSubKind::SwiftGenericTypeParam;
+  case INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORBORROW:
+    return SymbolSubKind::SwiftAccessorBorrow;
+  case INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORMUTATE:
+    return SymbolSubKind::SwiftAccessorMutate;
   }
 }
 
@@ -421,6 +425,10 @@ indexstore_symbol_subkind_t index::getIndexStoreSubKind(SymbolSubKind K) {
     return INDEXSTORE_SYMBOL_SUBKIND_SWIFTASSOCIATEDTYPE;
   case SymbolSubKind::SwiftGenericTypeParam:
     return INDEXSTORE_SYMBOL_SUBKIND_SWIFTGENERICTYPEPARAM;
+  case SymbolSubKind::SwiftAccessorBorrow:
+    return INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORBORROW;
+  case SymbolSubKind::SwiftAccessorMutate:
+    return INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORMUTATE;
   }
   llvm_unreachable("unexpected symbol subkind");
 }
@@ -474,6 +482,25 @@ indexstore_symbol_property_t index::getIndexStoreProperties(SymbolPropertySet Pr
       break;
     case SymbolProperty::SwiftAsync:
       storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ASYNC;
+      break;
+    case SymbolProperty::SwiftAccessControlLessThanFilePrivate:
+      storeProp |=
+          INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_LESSTHANFILEPRIVATE;
+      break;
+    case SymbolProperty::SwiftAccessControlFilePrivate:
+      storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_FILEPRIVATE;
+      break;
+    case SymbolProperty::SwiftAccessControlInternal:
+      storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_INTERNAL;
+      break;
+    case SymbolProperty::SwiftAccessControlPackage:
+      storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_PACKAGE;
+      break;
+    case SymbolProperty::SwiftAccessControlSPI:
+      storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_SPI;
+      break;
+    case SymbolProperty::SwiftAccessControlPublic:
+      storeProp |= INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_PUBLIC;
       break;
     }
   });

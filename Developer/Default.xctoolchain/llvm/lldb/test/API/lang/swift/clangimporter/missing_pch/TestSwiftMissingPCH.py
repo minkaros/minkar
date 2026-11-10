@@ -2,7 +2,6 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 import os
 
 class TestSwiftMissingVFSOverlay(TestBase):
@@ -12,6 +11,7 @@ class TestSwiftMissingVFSOverlay(TestBase):
     def setUp(self):
         TestBase.setUp(self)
 
+    @skipEmbeddedSwift
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=("symbols.use-swift-clangimporter", "false"))
     @skipUnlessDarwin

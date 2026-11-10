@@ -19,12 +19,12 @@
 #include "lldb/Breakpoint/BreakpointList.h"
 #include "lldb/Breakpoint/BreakpointName.h"
 #include "lldb/Breakpoint/WatchpointList.h"
+#include "lldb/Core/Address.h"
 #include "lldb/Core/Architecture.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/StructuredDataImpl.h"
 #include "lldb/Core/UserSettingsController.h"
-#include "lldb/Core/SwiftScratchContextReader.h"
 #include "lldb/Expression/Expression.h"
 #include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Interpreter/OptionValueBoolean.h"
@@ -37,22 +37,32 @@
 #include "lldb/Target/PathMappingList.h"
 #include "lldb/Target/SectionLoadHistory.h"
 #include "lldb/Target/Statistics.h"
+#include "lldb/Target/SyntheticFrameProvider.h"
 #include "lldb/Target/ThreadSpec.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/Broadcaster.h"
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/RealpathPrefixes.h"
+#include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/Timeout.h"
 #include "lldb/lldb-public.h"
+#include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <optional>
 
 namespace lldb_private {
 
 class ClangModulesDeclVendor;
+// BEGIN SWIFT
 class SwiftPersistentExpressionState;
 class SharedMutex;
-class SwiftASTContextForExpressions;
+class TypeSystemSwiftTypeRefForExpressions;
+typedef std::shared_ptr<TypeSystemSwiftTypeRefForExpressions>
+    TypeSystemSwiftTypeRefForExpressionsSP;
+// END SWIFT
+
 
 OptionEnumValues GetDynamicValueTypes();
 
@@ -65,7 +75,8 @@ enum InlineStrategy {
 enum LoadScriptFromSymFile {
   eLoadScriptFromSymFileTrue,
   eLoadScriptFromSymFileFalse,
-  eLoadScriptFromSymFileWarn
+  eLoadScriptFromSymFileWarn,
+  eLoadScriptFromSymFileTrusted,
 };
 
 enum LoadCWDlldbinitFile {
@@ -128,9 +139,19 @@ public:
 
   void SetDisableSTDIO(bool b);
 
+  llvm::StringRef GetLaunchWorkingDirectory() const;
+
+  bool GetParallelModuleLoad() const;
+
   const char *GetDisassemblyFlavor() const;
 
+  const char *GetDisassemblyCPU() const;
+
+  const char *GetDisassemblyFeatures() const;
+
   InlineStrategy GetInlineStrategy() const;
+
+  RealpathPrefixes GetSourceRealpathPrefixes() const;
 
   llvm::StringRef GetArg0() const;
 
@@ -156,6 +177,8 @@ public:
 
   PathMappingList &GetSourcePathMap() const;
 
+  PathMappingList &GetObjectPathMap() const;
+
   bool GetAutoSourceMapRelative() const;
 
   FileSpecList GetExecutableSearchPaths();
@@ -168,6 +191,7 @@ public:
 
   FileSpecList GetClangModuleSearchPaths();
 
+  // BEGIN SWIFT  
   FileSpecList GetSwiftFrameworkSearchPaths();
 
   FileSpecList GetSwiftModuleSearchPaths();
@@ -188,17 +212,32 @@ public:
 
   bool GetSwiftAllowExplicitModules() const;
 
+  bool GetSwiftAllowImplicitModules() const;
+
+  void SetSwiftAllowImplicitModules(bool) const;
+
+  bool GetSwiftAllowImplicitModuleLoader() const;
+
+  void SetSwiftAllowImplicitModuleLoader(bool) const;
+
   AutoBool GetSwiftPCMValidation() const;
+
+  bool GetSwiftUseTasksPlugin() const;
+
+  bool GetSwiftCacheTaskPointerLocation() const;
 
   Args GetSwiftPluginServerForPath() const;
 
   bool GetSwiftAutoImportFrameworks() const;
+
+  bool GetSwiftUseContextFreePrintObject() const;
 
   bool GetEnableAutoImportClangModules() const;
 
   bool GetUseAllCompilerFlags() const;
 
   void SetUseAllCompilerFlags(bool b);
+  // END SWIFT  
 
   ImportStdModule GetImportStdModule() const;
 
@@ -213,6 +252,8 @@ public:
   FileSpec GetSaveJITObjectsDir() const;
 
   bool GetEnableSyntheticValue() const;
+
+  bool ShowHexVariableValuesWithLeadingZeroes() const;
 
   uint32_t GetMaxZeroPaddingInFloatFormat() const;
 
@@ -265,6 +306,11 @@ public:
 
   LoadScriptFromSymFile GetLoadScriptFromSymbolFile() const;
 
+  /// Set the target-wide target.load-script-from-symbol-file setting.
+  /// See \c SetAutoLoadScriptsForModule for overriding this setting
+  /// per-module.
+  void SetLoadScriptFromSymbolFile(LoadScriptFromSymFile load_style);
+
   LoadCWDlldbinitFile GetLoadCWDlldbinitFile() const;
 
   Disassembler::HexImmediateStyle GetHexImmediateStyle() const;
@@ -289,7 +335,9 @@ public:
 
   bool GetInjectLocalVariables(ExecutionContext *exe_ctx) const;
 
-  void SetInjectLocalVariables(ExecutionContext *exe_ctx, bool b);
+  bool GetUseDIL(ExecutionContext *exe_ctx) const;
+
+  void SetUseDIL(ExecutionContext *exe_ctx, bool b);
 
   void SetRequireHardwareBreakpoints(bool b);
 
@@ -309,7 +357,24 @@ public:
   /// when set by name.
   bool GetEnableTrampolineSupport() const;
 
+  void SetCheckValueObjectOwnership(bool check);
+  bool GetCheckValueObjectOwnership() const;
+
+  std::optional<LoadScriptFromSymFile>
+  GetAutoLoadScriptsForModule(llvm::StringRef module_name) const;
+
+  /// Set the \c LoadScriptFromSymFile for a module called \c module_name
+  /// (excluding file extension). LLDB will prefer this over the target-wide
+  /// target.load-script-from-symbol-file setting
+  /// (see \c SetLoadScriptFromSymbolFile).
+  void SetAutoLoadScriptsForModule(llvm::StringRef module_name,
+                                   LoadScriptFromSymFile load_style);
+
 private:
+  std::optional<bool>
+  GetExperimentalPropertyValue(size_t prop_idx,
+                               ExecutionContext *exe_ctx = nullptr) const;
+
   // Callbacks for m_launch_info.
   void Arg0ValueChangedCallback();
   void RunArgsValueChangedCallback();
@@ -335,6 +400,8 @@ private:
 
 class EvaluateExpressionOptions {
 public:
+  EvaluateExpressionOptions();
+
 // MSVC has a bug here that reports C4268: 'const' static/global data
 // initialized with compiler generated default constructor fills the object
 // with zeros. Confirmed that MSVC is *not* zero-initializing, it's just a
@@ -351,8 +418,6 @@ public:
   static constexpr ExecutionPolicy default_execution_policy =
       eExecutionPolicyOnlyWhenNeeded;
 
-  EvaluateExpressionOptions() = default;
-
   ExecutionPolicy GetExecutionPolicy() const { return m_execution_policy; }
 
   void SetExecutionPolicy(ExecutionPolicy policy = eExecutionPolicyAlways) {
@@ -363,6 +428,14 @@ public:
 
   void SetLanguage(lldb::LanguageType language_type) {
     m_language = SourceLanguage(language_type);
+  }
+
+  void SetPreferredSymbolContexts(SymbolContextList contexts) {
+    m_preferred_lookup_contexts = std::move(contexts);
+  }
+
+  const SymbolContextList &GetPreferredSymbolContexts() const {
+    return m_preferred_lookup_contexts;
   }
 
   /// Set the language using a pair of language code and version as
@@ -452,19 +525,14 @@ public:
 
   void SetREPLEnabled(bool b) { m_repl = b; }
 
+  // BEGIN SWIFT
   bool GetPlaygroundTransformEnabled() const { return m_playground; }
 
   void SetPlaygroundTransformEnabled(bool b) {
     m_playground = b;
   }
 
-  lldb::BindGenericTypes GetBindGenericTypes() const {
-    return m_bind_generic_types;
-  }
-
-  void SetBindGenericTypes(lldb::BindGenericTypes b) {
-    m_bind_generic_types = b;
-  }
+  lldb::BindGenericTypes GetSwiftBindGenericTypes() const;
 
   bool GetPlaygroundTransformHighPerformance() const {
     return m_playground_transforms_hp;
@@ -473,6 +541,7 @@ public:
   void SetPlaygroundTransformHighPerformance(bool b) {
     m_playground_transforms_hp = b;
   }
+  // END SWIFT
 
   void SetCancelCallback(lldb::ExpressionCancelCallback callback, void *baton) {
     m_cancel_callback_baton = baton;
@@ -529,7 +598,34 @@ public:
 
   bool GetPreparePlaygroundStubFunctions() const { return m_prepare_playground_stub_functions; }
 
+  void SetUseContextFreeSwiftPrintObject(bool enable = true) {
+    m_use_context_free_swift_print_object = enable;
+  }
+
+  bool GetUseContextFreeSwiftPrintObject() const {
+    return m_use_context_free_swift_print_object;
+  }
+
+  /// Set language-plugin specific option called \c option_name to
+  /// the specified boolean \c value.
+  llvm::Error SetBooleanLanguageOption(llvm::StringRef option_name, bool value);
+
+  /// Get the language-plugin specific boolean option called \c option_name.
+  ///
+  /// If the option doesn't exist or is not a boolean option, returns false.
+  /// Otherwise returns the boolean value of the option.
+  llvm::Expected<bool>
+  GetBooleanLanguageOption(llvm::StringRef option_name) const;
+
+  void SetCppIgnoreContextQualifiers(bool value);
+
+  bool GetCppIgnoreContextQualifiers() const;
+
 private:
+  const StructuredData::Dictionary &GetLanguageOptions() const;
+
+  StructuredData::Dictionary &GetLanguageOptions();
+
   ExecutionPolicy m_execution_policy = default_execution_policy;
   SourceLanguage m_language;
   std::string m_prefix;
@@ -553,8 +649,6 @@ private:
   /// used by LLDB internally.
   bool m_running_utility_expression = false;
 
-  lldb::BindGenericTypes m_bind_generic_types = lldb::eBindAuto;
-
   lldb::DynamicValueType m_use_dynamic = lldb::eNoDynamicValues;
   Timeout<std::micro> m_timeout = default_timeout;
   Timeout<std::micro> m_one_thread_timeout = std::nullopt;
@@ -569,6 +663,20 @@ private:
   mutable std::string m_pound_line_file;
   mutable uint32_t m_pound_line_line = 0;
   bool m_prepare_playground_stub_functions = true;
+
+  /// An evaluation mode that for swift. Has the following effects:
+  ///   1. Disables implicit module loading
+  ///   2. Disables compiler availability checking
+  bool m_use_context_free_swift_print_object = false;
+
+  /// Dictionary mapping names of language-plugin specific options
+  /// to values.
+  StructuredData::DictionarySP m_language_options_sp = nullptr;
+
+  /// During expression evaluation, any SymbolContext in this list will be
+  /// used for symbol/function lookup before any other context (except for
+  /// the module corresponding to the current frame).
+  SymbolContextList m_preferred_lookup_contexts;
 };
 
 // Target
@@ -593,9 +701,9 @@ public:
 
   // These two functions fill out the Broadcaster interface:
 
-  static ConstString &GetStaticBroadcasterClass();
+  static llvm::StringRef GetStaticBroadcasterClass();
 
-  ConstString &GetBroadcasterClass() const override {
+  llvm::StringRef GetBroadcasterClass() const override {
     return GetStaticBroadcasterClass();
   }
 
@@ -670,13 +778,20 @@ public:
   /// or identify a matching Module already present in the Target,
   /// and return a shared pointer to it.
   ///
+  /// Note that this function previously also preloaded the module's symbols
+  /// depending on a setting. This function no longer does any module
+  /// preloading because that can potentially cause deadlocks when called in
+  /// parallel with this function.
+  ///
   /// \param[in] module_spec
   ///     The criteria that must be matched for the binary being loaded.
   ///     e.g. UUID, architecture, file path.
   ///
   /// \param[in] notify
   ///     If notify is true, and the Module is new to this Target,
-  ///     Target::ModulesDidLoad will be called.
+  ///     Target::ModulesDidLoad will be called. See note in
+  ///     Target::ModulesDidLoad about thread-safety with
+  ///     Target::GetOrCreateModule.
   ///     If notify is false, it is assumed that the caller is adding
   ///     multiple Modules and will call ModulesDidLoad with the
   ///     full list at the end.
@@ -738,6 +853,42 @@ public:
   Status Attach(ProcessAttachInfo &attach_info,
                 Stream *stream); // Optional stream to receive first stop info
 
+  /// Add or update a scripted frame provider descriptor for this target.
+  /// All new threads in this target will check if they match any descriptors
+  /// to create their frame providers.
+  ///
+  /// \param[in] descriptor
+  ///     The descriptor to add or update.
+  ///
+  /// \return
+  ///     The descriptor identifier if the registration succeeded, otherwise an
+  ///     llvm::Error.
+  llvm::Expected<uint32_t> AddScriptedFrameProviderDescriptor(
+      const ScriptedFrameProviderDescriptor &descriptor);
+
+  /// Remove a scripted frame provider descriptor by id.
+  ///
+  /// \param[in] id
+  ///     The id of the descriptor to remove.
+  ///
+  /// \return
+  ///     True if a descriptor was removed, false if no descriptor with that
+  ///     id existed.
+  bool RemoveScriptedFrameProviderDescriptor(uint32_t id);
+
+  /// Clear all scripted frame provider descriptors for this target.
+  void ClearScriptedFrameProviderDescriptors();
+
+  /// Get all scripted frame provider descriptors for this target.
+  const llvm::MapVector<uint32_t, ScriptedFrameProviderDescriptor> &
+  GetScriptedFrameProviderDescriptors() const;
+
+protected:
+  /// Invalidate all potentially cached frame providers for all threads
+  /// and trigger a stack changed event for all threads.
+  void InvalidateThreadFrameProviders();
+
+public:
   // This part handles the breakpoints.
 
   BreakpointList &GetBreakpointList(bool internal = false);
@@ -749,6 +900,8 @@ public:
   }
 
   lldb::BreakpointSP GetBreakpointByID(lldb::break_id_t break_id);
+
+  lldb::BreakpointSP CreateBreakpointAtUserEntry(Status &error);
 
   // Use this to create a file and line breakpoint to a given module or all
   // module it is nullptr
@@ -774,7 +927,7 @@ public:
   lldb::BreakpointSP CreateBreakpoint(lldb::addr_t load_addr, bool internal,
                                       bool request_hardware);
 
-  // Use this to create a breakpoint from a load address and a module file spec
+  // Use this to create a breakpoint from a file address and a module file spec
   lldb::BreakpointSP CreateAddressInModuleBreakpoint(lldb::addr_t file_addr,
                                                      bool internal,
                                                      const FileSpec &file_spec,
@@ -803,8 +956,8 @@ public:
       const FileSpecList *containingModules,
       const FileSpecList *containingSourceFiles, const char *func_name,
       lldb::FunctionNameType func_name_type_mask, lldb::LanguageType language,
-      lldb::addr_t offset, LazyBool skip_prologue, bool internal,
-      bool request_hardware);
+      lldb::addr_t offset, bool offset_is_insn_count, LazyBool skip_prologue,
+      bool internal, bool request_hardware);
 
   lldb::BreakpointSP
   CreateExceptionBreakpoint(enum lldb::LanguageType language, bool catch_bp,
@@ -857,9 +1010,10 @@ public:
   WatchpointList &GetWatchpointList() { return m_watchpoint_list; }
 
   // Manages breakpoint names:
-  void AddNameToBreakpoint(BreakpointID &id, const char *name, Status &error);
+  void AddNameToBreakpoint(BreakpointID &id, llvm::StringRef name,
+                           Status &error);
 
-  void AddNameToBreakpoint(lldb::BreakpointSP &bp_sp, const char *name,
+  void AddNameToBreakpoint(lldb::BreakpointSP &bp_sp, llvm::StringRef name,
                            Status &error);
 
   void RemoveNameFromBreakpoint(lldb::BreakpointSP &bp_sp, ConstString name);
@@ -969,6 +1123,13 @@ public:
   // the address of its previous instruction and return that address.
   lldb::addr_t GetBreakableLoadAddress(lldb::addr_t addr);
 
+  /// This call may preload module symbols, and may do so in parallel depending
+  /// on the following target settings:
+  ///   - TargetProperties::GetPreloadSymbols()
+  ///   - TargetProperties::GetParallelModuleLoad()
+  ///
+  /// Warning: if preloading is active and this is called in parallel with
+  /// Target::GetOrCreateModule, this may result in a ABBA deadlock situation.
   void ModulesDidLoad(ModuleList &module_list);
 
   void ModulesDidUnload(ModuleList &module_list, bool delete_locations);
@@ -1037,10 +1198,9 @@ public:
       LoadDependentFiles load_dependent_files = eLoadDependentsDefault);
 
   bool LoadScriptingResources(std::list<Status> &errors,
-                              Stream &feedback_stream,
                               bool continue_on_error = true) {
-    return m_images.LoadScriptingResourcesInTarget(
-        this, errors, feedback_stream, continue_on_error);
+    return m_images.LoadScriptingResourcesInTarget(this, errors,
+                                                   continue_on_error);
   }
 
   /// Get accessor for the images for this process.
@@ -1143,7 +1303,7 @@ public:
 
   Architecture *GetArchitecturePlugin() const { return m_arch.GetPlugin(); }
 
-  Debugger &GetDebugger() { return m_debugger; }
+  Debugger &GetDebugger() const { return m_debugger; }
 
   size_t ReadMemoryFromFileCache(const Address &addr, void *dst, size_t dst_len,
                                  Status &error);
@@ -1159,10 +1319,15 @@ public:
   // section, then read from the file cache
   // 2 - if there is a process, then read from memory
   // 3 - if there is no process, then read from the file cache
-  size_t ReadMemory(const Address &addr, void *dst, size_t dst_len,
-                    Status &error, bool force_live_memory = false,
-                    lldb::addr_t *load_addr_ptr = nullptr);
-
+  //
+  // The optional did_read_live_memory parameter will be set true if live memory
+  // was read successfully.
+  //
+  // The method is virtual for mocking in the unit tests.
+  virtual size_t ReadMemory(const Address &addr, void *dst, size_t dst_len,
+                            Status &error, bool force_live_memory = false,
+                            lldb::addr_t *load_addr_ptr = nullptr,
+                            bool *did_read_live_memory = nullptr);
   size_t ReadCStringFromMemory(const Address &addr, std::string &out_str,
                                Status &error, bool force_live_memory = false);
 
@@ -1206,6 +1371,11 @@ public:
                                      Status &error,
                                      bool force_live_memory = false);
 
+  int64_t ReadSignedIntegerFromMemory(const Address &addr,
+                                      size_t integer_byte_size,
+                                      int64_t fail_value, Status &error,
+                                      bool force_live_memory = false);
+
   uint64_t ReadUnsignedIntegerFromMemory(const Address &addr,
                                          size_t integer_byte_size,
                                          uint64_t fail_value, Status &error,
@@ -1215,9 +1385,13 @@ public:
                              Address &pointer_addr,
                              bool force_live_memory = false);
 
-  SectionLoadList &GetSectionLoadList() {
-    return m_section_load_history.GetCurrentSectionLoadList();
-  }
+  bool HasLoadedSections();
+
+  lldb::addr_t GetSectionLoadAddress(const lldb::SectionSP &section_sp);
+
+  void ClearSectionLoadList();
+
+  void DumpSectionLoadList(Stream &s);
 
   static Target *GetTargetFromContexts(const ExecutionContext *exe_ctx_ptr,
                                        const SymbolContext *sc_ptr);
@@ -1237,19 +1411,13 @@ public:
 
   llvm::Expected<lldb::TypeSystemSP>
   GetScratchTypeSystemForLanguage(lldb::LanguageType language,
-                                  bool create_on_demand = true,
-                                  const char *compiler_options = nullptr);
+                                  bool create_on_demand = true);
 
   std::vector<lldb::TypeSystemSP>
   GetScratchTypeSystems(bool create_on_demand = true);
 
   PersistentExpressionState *
   GetPersistentExpressionStateForLanguage(lldb::LanguageType language);
-
-#ifdef LLDB_ENABLE_SWIFT
-  SwiftPersistentExpressionState *
-  GetSwiftPersistentExpressionState(ExecutionContextScope &exe_scope);
-#endif // LLDB_ENABLE_SWIFT
 
   const TypeSystemMap &GetTypeSystemMap();
 
@@ -1283,26 +1451,13 @@ public:
   CreateUtilityFunction(std::string expression, std::string name,
                         lldb::LanguageType language, ExecutionContext &exe_ctx);
 
-
 #ifdef LLDB_ENABLE_SWIFT
-  /// Get the lock guarding the scratch typesystem from being re-initialized.
-  std::shared_mutex &GetSwiftScratchContextLock() {
-    return m_scratch_typesystem_lock;
-  }
-
-  std::optional<SwiftScratchContextReader>
-  GetSwiftScratchContext(Status &error, ExecutionContextScope &exe_scope,
-                         bool create_on_demand = true);
-
   /// Return whether this is the Swift REPL.
   bool IsSwiftREPL();
 
   bool IsSwiftCxxInteropEnabled();
 
   bool IsEmbeddedSwift();
-private:
-  void DisplayFallbackSwiftContextErrors(
-      SwiftASTContextForExpressions *swift_ast_ctx);
 #endif // LLDB_ENABLE_SWIFT
 
 public:
@@ -1314,7 +1469,8 @@ public:
   bool ResolveFileAddress(lldb::addr_t load_addr, Address &so_addr);
 
   bool ResolveLoadAddress(lldb::addr_t load_addr, Address &so_addr,
-                          uint32_t stop_id = SectionLoadHistory::eStopIDNow);
+                          uint32_t stop_id = SectionLoadHistory::eStopIDNow,
+                          bool allow_section_end = false);
 
   bool SetSectionLoadAddress(const lldb::SectionSP &section,
                              lldb::addr_t load_addr,
@@ -1330,6 +1486,10 @@ public:
                           lldb::addr_t load_addr);
 
   void ClearAllLoadedSections();
+
+  lldb_private::SummaryStatisticsSP GetSummaryStatisticsSPForProviderName(
+      lldb_private::TypeSummaryImpl &summary_provider);
+  lldb_private::SummaryStatisticsCache &GetSummaryStatisticsCache();
 
   /// Set the \a Trace object containing processor trace information of this
   /// target.
@@ -1394,6 +1554,10 @@ public:
                                const lldb_private::RegisterFlags &flags,
                                uint32_t byte_size);
 
+  llvm::Expected<lldb::DisassemblerSP>
+  ReadInstructions(const Address &start_addr, uint32_t count,
+                   const char *flavor_string = nullptr);
+
   // Target Stop Hooks
   class StopHook : public UserID {
   public:
@@ -1404,6 +1568,7 @@ public:
     enum class StopHookResult : uint32_t {
       KeepStopped = 0,
       RequestContinue,
+      NoPreference,
       AlreadyContinued
     };
 
@@ -1440,6 +1605,12 @@ public:
 
     bool GetAutoContinue() const { return m_auto_continue; }
 
+    void SetRunAtInitialStop(bool at_initial_stop) {
+      m_at_initial_stop = at_initial_stop;
+    }
+
+    bool GetRunAtInitialStop() const { return m_at_initial_stop; }
+
     void GetDescription(Stream &s, lldb::DescriptionLevel level) const;
     virtual void GetSubclassDescription(Stream &s,
                                         lldb::DescriptionLevel level) const = 0;
@@ -1450,6 +1621,7 @@ public:
     std::unique_ptr<ThreadSpec> m_thread_spec_up;
     bool m_active = true;
     bool m_auto_continue = false;
+    bool m_at_initial_stop = true;
 
     StopHook(lldb::TargetSP target_sp, lldb::user_id_t uid);
   };
@@ -1494,8 +1666,7 @@ public:
     /// This holds the dictionary of keys & values that can be used to
     /// parametrize any given callback's behavior.
     StructuredDataImpl m_extra_args;
-    /// This holds the python callback object.
-    StructuredData::GenericSP m_implementation_sp;
+    lldb::ScriptedStopHookInterfaceSP m_interface_sp;
 
     /// Use CreateStopHook to make a new empty stop hook. The GetCommandPointer
     /// and fill it with commands, and SetSpecifier to set the specifier shared
@@ -1517,7 +1688,9 @@ public:
 
   // Runs the stop hooks that have been registered for this target.
   // Returns true if the stop hooks cause the target to resume.
-  bool RunStopHooks();
+  // Pass at_initial_stop if this is the stop where lldb gains
+  // control over the process for the first time.
+  bool RunStopHooks(bool at_initial_stop = false);
 
   size_t GetStopHookSize();
 
@@ -1576,14 +1749,6 @@ public:
                        const char *repl_options, bool can_create);
 
   void SetREPL(lldb::LanguageType language, lldb::REPLSP repl_sp);
-
-  /// Enable the use of a separate sscratch type system per lldb::Module.
-  void SetUseScratchTypesystemPerModule(bool value) {
-    m_use_scratch_typesystem_per_module = value;
-  }
-  bool UseScratchTypesystemPerModule() const {
-    return m_use_scratch_typesystem_per_module;
-  }
 
 public:
   StackFrameRecognizerManager &GetFrameRecognizerManager() {
@@ -1673,6 +1838,7 @@ protected:
   std::string m_label;
   ModuleList m_images; ///< The list of images for this process (shared
                        /// libraries and anything dynamically loaded).
+  SummaryStatisticsCache m_summary_statistics_cache;
   SectionLoadHistory m_section_load_history;
   BreakpointList m_breakpoint_list;
   BreakpointList m_internal_breakpoint_list;
@@ -1691,6 +1857,15 @@ protected:
   PathMappingList m_image_search_paths;
   TypeSystemMap m_scratch_type_system_map;
   std::map<lldb::LanguageType, bool> m_cant_make_scratch_type_system;
+
+  /// Map of scripted frame provider descriptors for this target.
+  /// Keys are the provider descriptor IDs, values are the descriptors.
+  /// Insertion order is preserved so that equal-priority providers chain
+  /// in registration order.
+  llvm::MapVector<uint32_t, ScriptedFrameProviderDescriptor>
+      m_frame_provider_descriptors;
+  mutable std::recursive_mutex m_frame_provider_descriptors_mutex;
+  uint32_t m_next_frame_provider_id = 1;
 
   typedef std::map<lldb::LanguageType, lldb::REPLSP> REPLMap;
   REPLMap m_repl_map;
@@ -1716,14 +1891,7 @@ protected:
   /// signals you will have.
   llvm::StringMap<DummySignalValues> m_dummy_signals;
 
-  bool m_use_scratch_typesystem_per_module = false;
   bool m_did_display_scratch_fallback_warning = false;
-  typedef std::pair<lldb_private::Module *, char> ModuleLanguage;
-  llvm::DenseMap<ModuleLanguage, lldb::TypeSystemSP>
-      m_scratch_typesystem_for_module;
-
-  /// Guards the scratch typesystem from being re-initialized.
-  std::shared_mutex m_scratch_typesystem_lock;
 
   static void ImageSearchPathsChanged(const PathMappingList &path_list,
                                       void *baton);
@@ -1743,11 +1911,14 @@ public:
   ///
   /// \return
   ///     Returns a JSON value that contains all target metrics.
-  llvm::json::Value ReportStatistics();
+  llvm::json::Value
+  ReportStatistics(const lldb_private::StatisticsOptions &options);
+
+  void ResetStatistics();
 
   TargetStats &GetStatistics() { return m_stats; }
 
-private:
+protected:
   /// Construct with optional file and arch.
   ///
   /// This member is private. Clients must use
@@ -1775,15 +1946,13 @@ private:
   Target(const Target &) = delete;
   const Target &operator=(const Target &) = delete;
 
+  SectionLoadList &GetSectionLoadList() {
+    return m_section_load_history.GetCurrentSectionLoadList();
+  }
+
 #ifdef LLDB_ENABLE_SWIFT
   LazyBool m_is_swift_cxx_interop_enabled = eLazyBoolCalculate;
 #endif // LLDB_ENABLE_SWIFT
-
-private:
-  void CallLocateModuleCallbackIfSet(const ModuleSpec &module_spec,
-                                     lldb::ModuleSP &module_sp,
-                                     FileSpec &symbol_file_spec,
-                                     bool &did_create_module);
 };
 
 } // namespace lldb_private

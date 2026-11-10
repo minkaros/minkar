@@ -30,6 +30,8 @@ public:
   static FileSpec GetProgramFileSpec();
   static FileSpec GetXcodeContentsDirectory();
   static FileSpec GetXcodeDeveloperDirectory();
+  static FileSpec GetCurrentXcodeToolchainDirectory();
+  static FileSpec GetCurrentCommandLineToolsDirectory();
 
 #ifdef LLDB_ENABLE_SWIFT
   static FileSpec GetSwiftResourceDir();
@@ -54,13 +56,33 @@ public:
 #endif
 
   /// Query xcrun to find an Xcode SDK directory.
+  ///
+  /// Note, this is an expensive operation if the SDK we're querying
+  /// does not exist in an Xcode installation path on the host.
   static llvm::Expected<llvm::StringRef> GetSDKRoot(SDKOptions options);
   static llvm::Expected<llvm::StringRef> FindSDKTool(XcodeSDK sdk,
                                                      llvm::StringRef tool);
 
   /// Shared cache utilities
   static SharedCacheImageInfo
-  GetSharedCacheImageInfo(llvm::StringRef image_name);
+  GetSharedCacheImageInfo(ConstString filepath,
+                          lldb::SymbolSharedCacheUse sc_mode);
+  static SharedCacheImageInfo
+  GetSharedCacheImageInfo(const UUID &uuid, lldb::SymbolSharedCacheUse sc_mode);
+
+  static SharedCacheImageInfo
+  GetSharedCacheImageInfo(ConstString filepath, const UUID &sc_uuid,
+                          lldb::SymbolSharedCacheUse sc_mode);
+  static SharedCacheImageInfo
+  GetSharedCacheImageInfo(const UUID &uuid, const UUID &sc_uuid,
+                          lldb::SymbolSharedCacheUse sc_mode);
+
+  static bool SharedCacheIndexFiles(FileSpec &filepath, UUID &uuid,
+                                    lldb::SymbolSharedCacheUse sc_mode);
+
+  /// Check whether a bundle at the given path has a valid code signature that
+  /// chains to a trusted anchor in the system trust store.
+  static bool IsBundleCodeSignTrusted(const FileSpec &bundle_path);
 
 protected:
   static bool ComputeSupportExeDirectory(FileSpec &file_spec);
@@ -69,7 +91,11 @@ protected:
   static bool ComputeHeaderDirectory(FileSpec &file_spec);
   static bool ComputeSystemPluginsDirectory(FileSpec &file_spec);
   static bool ComputeUserPluginsDirectory(FileSpec &file_spec);
+
+  static std::string FindComponentInPath(llvm::StringRef path,
+                                         llvm::StringRef component);
 };
-}
+
+} // namespace lldb_private
 
 #endif

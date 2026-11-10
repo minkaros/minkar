@@ -49,6 +49,9 @@ public:
   /// Return the category string of the diagnostic.
   CXString getCategoryText() const override;
 
+  /// Return the category URL of the diagnostic.
+  CXString getCategoryURL() const override;
+
   /// Return the number of source ranges for the diagnostic.
   unsigned getNumRanges() const override;
 
@@ -75,11 +78,11 @@ public:
 
   struct Location {
     CXFile file;
-    unsigned line;
-    unsigned column;
-    unsigned offset;
+    unsigned line = 0;
+    unsigned column = 0;
+    unsigned offset = 0;
     
-    Location() : line(0), column(0), offset(0) {}    
+    Location() = default;
   };
   
   Location DiagLoc;
@@ -89,6 +92,7 @@ public:
   const char *Spelling;
   llvm::StringRef DiagOption;
   llvm::StringRef CategoryText;
+  llvm::StringRef CategoryURL;
   unsigned severity;
   unsigned category;
 };

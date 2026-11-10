@@ -2,12 +2,12 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class SwiftPrivateNestedGenericClassTest(TestBase):
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test(self):
         """Tests that a private generic class type nested inside another generic class can be resolved correctly from the instance metadata"""
         self.build()

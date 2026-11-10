@@ -148,8 +148,8 @@ private:
   /// environment.
   //------------------------------------------------------------------
 
-  void ScanContext(ExecutionContext &exe_ctx,
-                   lldb_private::Status &err) override;
+  bool ScanContext(DiagnosticManager &diagnostic_manager,
+                   ExecutionContext &exe_ctx);
 
   bool AddArguments(ExecutionContext &exe_ctx, std::vector<lldb::addr_t> &args,
                     lldb::addr_t struct_address,
@@ -189,8 +189,8 @@ private:
     void DidDematerialize(lldb::ExpressionVariableSP &variable) override;
   };
 
-  std::optional<SwiftScratchContextReader> m_swift_scratch_ctx;
-  SwiftASTContextForExpressions *m_swift_ast_ctx;
+  TypeSystemSwiftTypeRefForExpressionsSP m_swift_scratch_ctx;
+  SwiftASTContextForExpressionsSP m_swift_ast_ctx;
   PersistentVariableDelegate m_persistent_variable_delegate;
   std::unique_ptr<SwiftExpressionParser> m_parser;
   std::optional<SwiftLanguageRuntime::GenericSignature> m_generic_signature;

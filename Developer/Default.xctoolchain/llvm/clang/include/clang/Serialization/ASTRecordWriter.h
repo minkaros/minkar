@@ -15,12 +15,15 @@
 #define LLVM_CLANG_SERIALIZATION_ASTRECORDWRITER_H
 
 #include "clang/AST/AbstractBasicWriter.h"
+#include "clang/AST/OpenACCClause.h"
 #include "clang/AST/OpenMPClause.h"
+#include "clang/Serialization/ASTReader.h"
 #include "clang/Serialization/ASTWriter.h"
 #include "clang/Serialization/SourceLocationEncoding.h"
 
 namespace clang {
 
+class OpenACCClause;
 class TypeLoc;
 
 /// An object for streaming information to a record.
@@ -58,8 +61,9 @@ class ASTRecordWriter
 
 public:
   /// Construct a ASTRecordWriter that uses the default encoding scheme.
-  ASTRecordWriter(ASTWriter &W, ASTWriter::RecordDataImpl &Record)
-      : DataStreamBasicWriter(W.getASTContext()), Writer(&W), Record(&Record) {}
+  ASTRecordWriter(ASTContext &Context, ASTWriter &W,
+                  ASTWriter::RecordDataImpl &Record)
+      : DataStreamBasicWriter(Context), Writer(&W), Record(&Record) {}
 
   /// Construct a ASTRecordWriter that uses the same encoding scheme as another
   /// ASTRecordWriter.
@@ -112,6 +116,13 @@ public:
     Record->push_back(BitOffset);
   }
 
+  void AddLookupOffsets(const LookupBlockOffsets &Offsets) {
+    AddOffset(Offsets.LexicalOffset);
+    AddOffset(Offsets.VisibleOffset);
+    AddOffset(Offsets.ModuleLocalOffset);
+    AddOffset(Offsets.TULocalOffset);
+  }
+
   /// Add the given statement or expression to the queue of
   /// statements to emit.
   ///
@@ -143,6 +154,26 @@ public:
     AddSourceLocation(Loc);
   }
 
+  void writeTypeCoupledDeclRefInfo(TypeCoupledDeclRefInfo Info) {
+    writeDeclRef(Info.getDecl());
+    writeBool(Info.isDeref());
+    writeBool(Info.isMember());
+  }
+
+  void writeHLSLSpirvOperand(SpirvOperand Op) {
+    QualType ResultType;
+    llvm::APInt Value;
+
+    if (Op.isConstant() || Op.isType())
+      ResultType = Op.getResultType();
+    if (Op.isConstant() || Op.isLiteral())
+      Value = Op.getValue();
+
+    Record->push_back(Op.getKind());
+    writeQualType(ResultType);
+    writeAPInt(Value);
+  }
+
   /// Emit a source range.
   void AddSourceRange(SourceRange Range, LocSeq *Seq = nullptr) {
     return Writer->AddSourceRange(Range, *Record, Seq);
@@ -158,6 +189,10 @@ public:
 
   void writeUInt64(uint64_t Value) {
     Record->push_back(Value);
+  }
+
+  void writeUnsignedOrNone(UnsignedOrNone Value) {
+    Record->push_back(Value.toInternalRepresentation());
   }
 
   /// Emit an integral value.
@@ -201,7 +236,7 @@ public:
 
   /// Emit a reference to a type.
   void AddTypeRef(QualType T) {
-    return Writer->AddTypeRef(T, *Record);
+    return Writer->AddTypeRef(getASTContext(), T, *Record);
   }
   void writeQualType(QualType T) {
     AddTypeRef(T);
@@ -223,6 +258,9 @@ public:
   /// Emits an AST template argument list info.
   void AddASTTemplateArgumentListInfo(
       const ASTTemplateArgumentListInfo *ASTTemplArgList);
+
+  // Emits a concept reference.
+  void AddConceptReference(const ConceptReference *CR);
 
   /// Emit a reference to a declaration.
   void AddDeclRef(const Decl *D) {
@@ -285,6 +323,18 @@ public:
 
   /// Writes data related to the OpenMP directives.
   void writeOMPChildren(OMPChildren *Data);
+
+  void writeOpenACCVarList(const OpenACCClauseWithVarList *C);
+
+  void writeOpenACCIntExprList(ArrayRef<Expr *> Exprs);
+
+  /// Writes out a single OpenACC Clause.
+  void writeOpenACCClause(const OpenACCClause *C);
+
+  /// Writes out a list of OpenACC clauses.
+  void writeOpenACCClauseList(ArrayRef<const OpenACCClause *> Clauses);
+
+  void AddOpenACCRoutineDeclAttr(const OpenACCRoutineDeclAttr *A);
 
   /// Emit a string.
   void AddString(StringRef Str) {

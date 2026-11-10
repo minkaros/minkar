@@ -22,10 +22,10 @@ class ObjectProxy;
 /// TODO: Build a FilesystemSchema on top of this for reimplementing Trees on
 /// top of the CAS.
 class NodeSchema : public RTTIExtends<NodeSchema, RTTIRoot> {
-  void anchor() override;
+  LLVM_ABI void anchor() override;
 
 public:
-  static char ID;
+  LLVM_ABI static char ID;
 
   /// Check if \a Node is a root (entry node) for the schema. This is a strong
   /// check, since it requires that the first reference matches a complete

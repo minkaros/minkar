@@ -3,17 +3,21 @@ Test platform process launch.
 """
 
 from textwrap import dedent
+from lldbsuite.test import lldbplatformutil, lldbutil
+from lldbsuite.test.decorators import skipIf
 from lldbsuite.test.lldbtest import TestBase
 
 
+@skipIf(remote=True, oslist=lldbplatformutil.getDarwinOSTriples())
 class ProcessLaunchTestCase(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
     def setup(self):
         self.build()
-        exe = self.getBuildArtifact("a.out")
-        self.runCmd("file " + exe)
-        return (exe, self.getBuildArtifact("stdio.log"))
+        self.runCmd("file " + self.getBuildArtifact("a.out"))
+        exe = lldbutil.append_to_process_working_directory(self, "a.out")
+        outfile = lldbutil.append_to_process_working_directory(self, "stdio.log")
+        return (exe, outfile)
 
     def test_process_launch_no_args(self):
         # When there are no extra arguments we just have 0, the program name.
@@ -21,11 +25,18 @@ class ProcessLaunchTestCase(TestBase):
         self.runCmd("platform process launch --stdout {} -s".format(outfile))
         self.runCmd("continue")
 
-        with open(outfile) as f:
-           self.assertEqual(dedent("""\
-                Got 1 argument(s).
-                [0]: {}
-                """.format(exe)), f.read())
+        stdio_log = lldbutil.read_file_on_target(self, outfile)
+        self.assertEqual(
+            dedent(
+                """\
+            Got 1 argument(s).
+            [0]: {}
+            """.format(
+                    exe
+                )
+            ),
+            stdio_log,
+        )
 
     def test_process_launch_command_args(self):
         exe, outfile = self.setup()
@@ -34,14 +45,21 @@ class ProcessLaunchTestCase(TestBase):
         self.runCmd("platform process launch --stdout {} -s -- A B C".format(outfile))
         self.runCmd("continue")
 
-        with open(outfile) as f:
-           self.assertEqual(dedent("""\
-                Got 4 argument(s).
-                [0]: {}
-                [1]: A
-                [2]: B
-                [3]: C
-                """.format(exe)), f.read())
+        stdio_log = lldbutil.read_file_on_target(self, outfile)
+        self.assertEqual(
+            dedent(
+                """\
+            Got 4 argument(s).
+            [0]: {}
+            [1]: A
+            [2]: B
+            [3]: C
+            """.format(
+                    exe
+                )
+            ),
+            stdio_log,
+        )
 
     def test_process_launch_target_args(self):
         exe, outfile = self.setup()
@@ -50,10 +68,17 @@ class ProcessLaunchTestCase(TestBase):
         self.runCmd("platform process launch --stdout {} -s".format(outfile))
         self.runCmd("continue")
 
-        with open(outfile) as f:
-           self.assertEqual(dedent("""\
-                Got 3 argument(s).
-                [0]: {}
-                [1]: D
-                [2]: E
-                """.format(exe)), f.read())
+        stdio_log = lldbutil.read_file_on_target(self, outfile)
+        self.assertEqual(
+            dedent(
+                """\
+            Got 3 argument(s).
+            [0]: {}
+            [1]: D
+            [2]: E
+            """.format(
+                    exe
+                )
+            ),
+            stdio_log,
+        )

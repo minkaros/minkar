@@ -22,7 +22,7 @@ class Function;
 /// Basic Dead Code Elimination pass.
 class DCEPass : public PassInfoMixin<DCEPass> {
 public:
-  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  LLVM_ABI PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 class RedundantDbgInstEliminationPass

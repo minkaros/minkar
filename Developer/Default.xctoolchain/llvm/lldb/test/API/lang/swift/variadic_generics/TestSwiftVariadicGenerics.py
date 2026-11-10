@@ -2,12 +2,13 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftVariadicGenerics(TestBase):
 
-    @skipUnlessDarwin
+    NO_DEBUG_INFO_TESTCASE = True
+    @skipEmbeddedSwift
     @swiftTest
+    @skipIfAsan # rdar://152465885 Address Sanitizer assert doing `expr --bind-generic-types=false -- 0`
     def test(self):
         self.build()
 

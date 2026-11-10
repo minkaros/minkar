@@ -18,7 +18,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 import sys
 if sys.version_info.major == 2:
@@ -37,6 +36,7 @@ class TestNonREPLPlayground(TestBase):
     @skipIf(
         debug_info=decorators.no_match("dsym"),
         bugnumber="This test only builds one way")
+    @skipEmbeddedSwift
     def test_playgrounds(self):
         """Test that playgrounds work"""
         self.build()

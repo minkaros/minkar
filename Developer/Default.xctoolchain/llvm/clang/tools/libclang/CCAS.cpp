@@ -131,13 +131,13 @@ CXCASDatabases clang_experimental_cas_Databases_create(CXCASOptions COpts,
 
   SmallString<128> DiagBuf;
   llvm::raw_svector_ostream OS(DiagBuf);
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
-  TextDiagnosticPrinter DiagPrinter(OS, DiagOpts.get());
+  DiagnosticOptions DiagOpts;
+  TextDiagnosticPrinter DiagPrinter(OS, DiagOpts);
   DiagnosticsEngine Diags(
-      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()), DiagOpts.get(),
+      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()), DiagOpts,
       &DiagPrinter, /*ShouldOwnClient=*/false);
 
-  auto [CAS, Cache] = Opts.getOrCreateDatabases(Diags);
+  auto [CAS, Cache] = Opts.createDatabases(Diags);
   if (!CAS || !Cache) {
     if (Error)
       *Error = cxstring::createDup(OS.str());
@@ -200,6 +200,35 @@ clang_experimental_cas_Databases_prune_ondisk_data(CXCASDatabases CDBs) {
   if (Error E = unwrap(CDBs)->CAS->pruneStorageData())
     return cxerror::create(std::move(E));
   return nullptr;
+}
+
+bool clang_experimental_cas_isMaterialized(CXCASDatabases CDBs,
+                                           const char *PrintedID,
+                                           CXError *OutError) {
+  WrappedCASDatabases &DBs = *unwrap(CDBs);
+  ObjectStore &CAS = *DBs.CAS;
+
+  if (OutError)
+    *OutError = nullptr;
+
+  auto Failure = [OutError](Error &&E) -> bool {
+    passAsCXError(std::move(E), OutError);
+    return false;
+  };
+
+  Expected<CASID> Digest = CAS.parseID(PrintedID);
+  if (!Digest)
+    return Failure(Digest.takeError());
+
+  std::optional<ObjectRef> Ref = CAS.getReference(*Digest);
+  if (!Ref)
+    return false;
+
+  Expected<bool> IsMaterialized = CAS.isMaterialized(*Ref);
+  if (!IsMaterialized)
+    return Failure(IsMaterialized.takeError());
+
+  return *IsMaterialized;
 }
 
 CXCASObject clang_experimental_cas_loadObjectByString(CXCASDatabases CDBs,
@@ -520,11 +549,11 @@ CXCASReplayResult clang_experimental_cas_replayCompilation(
     *OutError = nullptr;
 
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
+  DiagnosticOptions DiagOpts;
   SmallString<128> DiagsBuffer;
   llvm::raw_svector_ostream DiagOS(DiagsBuffer);
-  auto *DiagsPrinter = new TextDiagnosticPrinter(DiagOS, DiagOpts.get());
-  DiagnosticsEngine Diags(DiagID, DiagOpts.get(), DiagsPrinter);
+  auto *DiagsPrinter = new TextDiagnosticPrinter(DiagOS, DiagOpts);
+  DiagnosticsEngine Diags(DiagID, DiagOpts, DiagsPrinter);
 
   SmallVector<const char *, 256> Args(argv, argv + argc);
   llvm::BumpPtrAllocator Alloc;
@@ -547,9 +576,12 @@ CXCASReplayResult clang_experimental_cas_replayCompilation(
 
   SmallString<256> DiagText;
   std::optional<int> Ret;
+  bool WriteOutputAsCASID = Invok->getFrontendOpts().WriteOutputAsCASID;
+  bool WriteOutputHashXAttr = Invok->getFrontendOpts().WriteOutputHashXAttr;
   if (Error E = CompileJobCache::replayCachedResult(
                     std::move(Invok), WorkingDirectory, WComp.CacheKey,
-                    WComp.CachedResult, DiagText)
+                    WComp.CachedResult, DiagText, WriteOutputAsCASID,
+                    WriteOutputHashXAttr)
                     .moveInto(Ret)) {
     passAsCXError(std::move(E), OutError);
     return nullptr;

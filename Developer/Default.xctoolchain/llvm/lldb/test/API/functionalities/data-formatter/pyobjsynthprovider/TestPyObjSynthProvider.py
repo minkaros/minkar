@@ -9,9 +9,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
 
+@skip(bugnumber="rdar://174780894")
 class PyObjectSynthProviderTestCase(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipIfWindows # rdar://174542347
     def test_print_array(self):
         """Test that expr -Z works"""
         self.build()

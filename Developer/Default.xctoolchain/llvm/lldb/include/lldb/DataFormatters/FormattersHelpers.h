@@ -1,5 +1,4 @@
-//===-- FormattersHelpers.h --------------------------------------*- C++
-//-*-===//
+//===-- FormattersHelpers.h -------------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -20,6 +19,15 @@
 
 namespace lldb_private {
 namespace formatters {
+
+/* TO_UPSTREAM(BoundsSafety) ON */
+bool FormatBoundsSafetyPointer(ValueObject &valobj, Stream &stream, const TypeSummaryOptions &);
+bool FormatBoundsSafetyAttrPointer(ValueObject &valobj, Stream &stream,
+                                const TypeSummaryOptions &);
+bool FormatBoundsSafetyDynamicRangeAttrPointer(ValueObject &valobj, Stream &stream,
+                                            const TypeSummaryOptions &);
+/* TO_UPSTREAM(BoundsSafety) OFF */
+
 void AddFormat(TypeCategoryImpl::SharedPointer category_sp, lldb::Format format,
                llvm::StringRef type_name, TypeFormatImpl::Flags flags,
                bool regex = false);
@@ -54,7 +62,15 @@ void AddFilter(TypeCategoryImpl::SharedPointer category_sp,
                llvm::StringRef type_name,
                ScriptedSyntheticChildren::Flags flags, bool regex = false);
 
-size_t ExtractIndexFromString(const char *item_name);
+std::optional<size_t> ExtractIndexFromString(const char *item_name);
+
+/// Prints the summary for the pointer value of a C++
+/// std::unique_ptr/std::shared_ptr/std::weak_ptr.
+void DumpCxxSmartPtrPointerSummary(Stream &stream, ValueObject &ptr,
+                                   const TypeSummaryOptions &options);
+
+bool ContainerSizeSummaryProvider(ValueObject &valobj, Stream &stream,
+                                  const TypeSummaryOptions &options);
 
 Address GetArrayAddressOrPointerValue(ValueObject &valobj);
 

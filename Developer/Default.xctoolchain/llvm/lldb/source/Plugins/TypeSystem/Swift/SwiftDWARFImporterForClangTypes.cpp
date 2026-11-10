@@ -60,7 +60,6 @@ SwiftDWARFImporterForClangTypes::SwiftDWARFImporterForClangTypes(
 void SwiftDWARFImporterForClangTypes::lookupValue(
     StringRef name, std::optional<swift::ClangTypeKind> kind,
     StringRef inModule, llvm::SmallVectorImpl<CompilerType> &results) {
-  LLDB_SCOPED_TIMER();
   LLDB_LOG(GetLog(LLDBLog::Types), "{0}::lookupValue(\"{1}\")", m_description,
            name.str());
 
@@ -89,15 +88,16 @@ void SwiftDWARFImporterForClangTypes::lookupValue(
         continue;
       auto ts = module_sp->GetTypeSystemForLanguage(lldb::eLanguageTypeSwift);
       if (!ts) {
-        llvm::consumeError(ts.takeError());
+        LLDB_LOG_ERROR(GetLog(LLDBLog::Types), ts.takeError(),
+                       "no Swift type system: {0}");
         continue;
       }
       auto swift_ts = llvm::dyn_cast_or_null<TypeSystemSwift>(ts->get());
       if (!swift_ts)
         continue;
       // FIXME: LookupClangType won't work for nested C++ types.
-      clang_type_sp =
-          swift_ts->GetTypeSystemSwiftTypeRef().LookupClangType(name);
+      if (auto tr_ts = swift_ts->GetTypeSystemSwiftTypeRef())
+        clang_type_sp = tr_ts->LookupClangType(name);
       if (clang_type_sp)
         break;
     }
@@ -128,7 +128,9 @@ void SwiftDWARFImporterDelegate::importType(
       from_ctx.getSourceManager().getFileManager(), false);
   llvm::Expected<clang::QualType> clang_type(importer.Import(qual_type));
   if (!clang_type) {
-    llvm::consumeError(clang_type.takeError());
+    LLDB_LOG_ERROR(GetLog(LLDBLog::Types), clang_type.takeError(),
+                   "could not import DWARF type {1} into Clang AST: {0}",
+                   qual_type.getAsString());
     return;
   }
 
@@ -170,7 +172,7 @@ SwiftDWARFImporterDelegate::GetDeclForTypeAndKind(clang::QualType qual_type,
 SwiftDWARFImporterDelegate::SwiftDWARFImporterDelegate(SwiftASTContext &ts)
     : m_swift_ast_ctx(ts),
       m_importer(m_swift_ast_ctx.GetTypeSystemSwiftTypeRef()
-                     .GetSwiftDWARFImporterForClangTypes()),
+                     ->GetSwiftDWARFImporterForClangTypes()),
       m_description(ts.GetDescription() + "::SwiftDWARFImporterDelegate") {}
 
 void SwiftDWARFImporterDelegate::lookupValue(
@@ -178,6 +180,12 @@ void SwiftDWARFImporterDelegate::lookupValue(
     StringRef inModule, llvm::SmallVectorImpl<clang::Decl *> &results) {
   LLDB_LOG(GetLog(LLDBLog::Types), "{0}::lookupValue(\"{1}\")", m_description,
            name.str());
+  if (!name.size() || name[0] < 0) {
+    LLDB_LOG(GetLog(LLDBLog::Types),
+             "SwiftDWARFImporterDelegate was asked to look up a type with a "
+             "non-ASCII or empty type name");
+    return;
+  }
   auto clang_importer = m_swift_ast_ctx.GetClangImporter();
   if (!clang_importer) {
     LLDB_LOG(GetLog(LLDBLog::Types), "no clangimporter");

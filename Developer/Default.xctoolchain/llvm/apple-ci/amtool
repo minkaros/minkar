@@ -13,7 +13,7 @@ from typing import List, Optional
 
 log = logging.getLogger()
 
-REMOTE = 'git@github.com:apple/llvm-project.git'
+REMOTE = 'git@github.com:swiftlang/llvm-project.git'
 
 class GitError(Exception):
     """
@@ -223,6 +223,10 @@ def parse_args():
     # Push
     parser_push = subparsers.add_parser('push',
             help='push the resolution, so that the automerger can pick it up')
+    # Override push uncommitted change error
+    parser_push.add_argument('--ignore-uncommitted-changes', dest='ignore_uncommitted',
+                             action='store_true', required=False,
+                             help='allowing pushing a commit even if uncommitted changes exist')
 
     args = parser.parse_args()
     return args
@@ -327,8 +331,18 @@ def main():
         except GitError:
             pass
 
+        # Check if we have any unstaged or uncommitted changes in the tree.
+        if len(git('diff-index', 'HEAD')):
+            if args.ignore_uncommitted:
+                log.warning('Ignoring uncommitted changes.')
+            else:
+                log.error('Looks like you have unstaged or uncommitted changes.')
+                log.error('Please make sure everything has been added to the commit.')
+                log.error('Use `--ignore-uncommitted-changes` to ignore, and push anyway.')
+                return 1
+
         # Save the commit sha so that we can include it in the output message.
-        merge_commit = git('rev-parse', '--short', 'HEAD')
+        merge_commit = git('rev-parse', 'HEAD')
 
         # Perform the push.
         merge_id = MergeId(content)

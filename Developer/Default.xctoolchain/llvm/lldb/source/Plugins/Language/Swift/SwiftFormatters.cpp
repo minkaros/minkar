@@ -12,20 +12,36 @@
 
 #include "SwiftFormatters.h"
 #include "Plugins/Language/Swift/SwiftStringIndex.h"
+#include "Plugins/LanguageRuntime/Swift/ReflectionContextInterface.h"
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
-#include "lldb/Core/ValueObject.h"
+#include "Plugins/TypeSystem/Swift/SwiftDemangle.h"
+#include "Plugins/TypeSystem/Swift/TypeSystemSwiftTypeRef.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/StringPrinter.h"
+#include "lldb/DataFormatters/TypeSynthetic.h"
+#include "lldb/Symbol/CompilerType.h"
+#include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/LLDBLog.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/Timer.h"
+#include "lldb/ValueObject/ValueObject.h"
 #include "lldb/lldb-enumerations.h"
+#include "swift/ABI/Task.h"
 #include "swift/AST/Types.h"
+#include "swift/Concurrency/Actor.h"
+#include "swift/Demangling/Demangle.h"
 #include "swift/Demangling/ManglingMacros.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/FormatAdapters.h"
+#include "llvm/Support/raw_ostream.h"
 #include <optional>
 
 // FIXME: we should not need this
@@ -129,8 +145,6 @@ static bool makeStringGutsSummary(
     const TypeSummaryOptions &summary_options,
     StringPrinter::ReadStringAndDumpToStreamOptions read_options,
     std::optional<StringSlice> slice = std::nullopt) {
-  LLDB_SCOPED_TIMER();
-
   static ConstString g__object("_object");
   static ConstString g__storage("_storage");
   static ConstString g__value("_value");
@@ -205,18 +219,22 @@ static bool makeStringGutsSummary(
     llvm::StringRef variantCase = variant_sp->GetValueAsCString();
 
     ValueObjectSP payload_sp;
-    if (variantCase.startswith("immortal")) {
-      payload_sp = variant_sp->GetChildAtNamePath({g_immortal, g__value});
-    } else if (variantCase.startswith("native")) {
-      payload_sp = variant_sp->GetChildAtNamePath({g_immortal, g__value});
-    } else if (variantCase.startswith("bridged")) {
-      static ConstString g_bridged("bridged");
-      auto anyobject_sp = variant_sp->GetChildMemberWithName(g_bridged, true);
-      if (!anyobject_sp)
-        return error("unexpected layout (bridged)");
-      payload_sp = anyobject_sp->GetChildAtIndex(0, true); // "instance"
+    if (variantCase == "immortal" || variantCase == "native" ||
+        variantCase == "bridged") {
+      payload_sp = variant_sp->GetSyntheticValue();
+      if (!payload_sp)
+        return error("unexpected layout (no variant)");
+      payload_sp = payload_sp->GetChildAtIndex(0);
+      if (!payload_sp)
+        return error("unexpected layout (no variant payload)");
+      payload_sp = payload_sp->GetSyntheticValue();
     } else {
       return error("unknown variant");
+    }
+    if (variantCase == "bridged") {
+      if (!payload_sp)
+        return error("unexpected layout (bridged)");
+      payload_sp = payload_sp->GetChildAtIndex(0, true); // "instance"
     }
     if (!payload_sp)
       return error("no payload");
@@ -244,6 +262,8 @@ static bool makeStringGutsSummary(
   /*
   On 64-bit platforms, the discriminator is the most significant 4 bits of the
   bridge object.
+  On Android AArch64, the most significant byte is reserved by the OS. The
+  discriminator is in the next most significant 4 bits.
 
   ┌─────────────────────╥─────┬─────┬─────┬─────┐
   │ Form                ║ b63 │ b62 │ b61 │ b60 │
@@ -251,6 +271,8 @@ static bool makeStringGutsSummary(
   │ Immortal, Small     ║  1  │ASCII│  1  │  0  │
   ├─────────────────────╫─────┼─────┼─────┼─────┤
   │ Immortal, Large     ║  1  │  0  │  0  │  0  │
+  ├─────────────────────╫─────┼─────┼─────┼─────┤
+  │ Immortal, Bridged   ║  1  │  1  │  0  │  0  │
   ╞═════════════════════╬═════╪═════╪═════╪═════╡
   │ Native              ║  0  │  0  │  0  │  0  │
   ├─────────────────────╫─────┼─────┼─────┼─────┤
@@ -304,10 +326,18 @@ static bool makeStringGutsSummary(
  count: stores the number of code units, corresponds to `endIndex`.
   */
 
-  uint8_t discriminator = raw1 >> 56;
+  uint64_t discriminatorShift = 56;
+  TargetSP target_sp = valobj.GetTargetSP();
+  if (target_sp) {
+    const llvm::Triple &triple = target_sp->GetArchitecture().GetTriple();
+    if (triple.isAndroid() && triple.getArch() == llvm::Triple::aarch64)
+      discriminatorShift = 48;
+  }
+
+  uint8_t discriminator = raw1 >> discriminatorShift;
 
   if ((discriminator & 0b1011'0000) == 0b1010'0000) { // 1x10xxxx: Small string
-    uint64_t count = (raw1 >> 56) & 0b1111;
+    uint64_t count = discriminator & 0b1111;
     uint64_t maxCount = (ptrSize == 8 ? 15 : 10);
     if (count > maxCount)
       return error("count > maxCount");
@@ -329,7 +359,8 @@ static bool makeStringGutsSummary(
 
   uint64_t count = raw0 & 0x0000FFFFFFFFFFFF;
   uint16_t flags = raw0 >> 48;
-  lldb::addr_t objectAddress = (raw1 & 0x0FFFFFFFFFFFFFFF);
+  uint64_t addressMask = ~((uint64_t)0b1111'0000 << discriminatorShift);
+  lldb::addr_t objectAddress = raw1 & addressMask;
   // Catch a zero-initialized string.
   if (!objectAddress) {
     stream << "<uninitialized>";
@@ -367,7 +398,7 @@ static bool makeStringGutsSummary(
   if ((discriminator & 0b0111'0000) == 0)
     return error("unexpected discriminator");
 
-  if ((discriminator & 0b1110'0000) == 0b0100'0000) { // 010xxxxx: Bridged
+  if ((discriminator & 0b0110'0000) == 0b0100'0000) { // x10xxxxx: Bridged
     TypeSystemClangSP clang_ts_sp =
         ScratchTypeSystemClang::GetForTarget(process->GetTarget());
     if (!clang_ts_sp)
@@ -415,7 +446,10 @@ bool lldb_private::formatters::swift::String_SummaryProvider(
     const TypeSummaryOptions &summary_options,
     StringPrinter::ReadStringAndDumpToStreamOptions read_options) {
   static ConstString g_guts("_guts");
-  ValueObjectSP guts_sp = valobj.GetChildMemberWithName(g_guts, true);
+  ValueObjectSP non_synth = valobj.GetNonSyntheticValue();
+  if (!non_synth)
+    return false;
+  ValueObjectSP guts_sp = non_synth->GetChildMemberWithName(g_guts, true);
   if (guts_sp)
     return StringGuts_SummaryProvider(*guts_sp, stream, summary_options,
                                       read_options);
@@ -482,7 +516,7 @@ bool lldb_private::formatters::swift::StringIndex_SummaryProvider(
   if (!success)
     return false;
 
-  stream.Printf("%llu[%s]", index.encodedOffset(), index.encodingName());
+  stream.Printf("%" PRIu64 "[%s]", index.encodedOffset(), index.encodingName());
   if (index.transcodedOffset() != 0)
     stream.Printf("+%u", index.transcodedOffset());
 
@@ -500,8 +534,6 @@ bool lldb_private::formatters::swift::StaticString_SummaryProvider(
     ValueObject &valobj, Stream &stream,
     const TypeSummaryOptions &summary_options,
     StringPrinter::ReadStringAndDumpToStreamOptions read_options) {
-  LLDB_SCOPED_TIMER();
-
   static ConstString g__startPtrOrData("_startPtrOrData");
   static ConstString g__byteSize("_utf8CodeUnitCount");
   static ConstString g__flags("_flags");
@@ -556,7 +588,6 @@ bool lldb_private::formatters::swift::SwiftSharedString_SummaryProvider_2(
     ValueObject &valobj, Stream &stream,
     const TypeSummaryOptions &summary_options,
     StringPrinter::ReadStringAndDumpToStreamOptions read_options) {
-  LLDB_SCOPED_TIMER();
   ProcessSP process(valobj.GetProcessSP());
   if (!process)
     return false;
@@ -564,7 +595,7 @@ bool lldb_private::formatters::swift::SwiftSharedString_SummaryProvider_2(
   Status error;
   auto ptr_size = process->GetAddressByteSize();
 
-  lldb::addr_t raw1 = valobj.GetPointerValue();
+  lldb::addr_t raw1 = valobj.GetPointerValue().address;
   lldb::addr_t address = (raw1 & 0x00FFFFFFFFFFFFFF);
   uint64_t startOffset = (ptr_size == 8 ? 24 : 12);
 
@@ -585,14 +616,13 @@ bool lldb_private::formatters::swift::SwiftSharedString_SummaryProvider_2(
 
 bool lldb_private::formatters::swift::SwiftStringStorage_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
   ProcessSP process(valobj.GetProcessSP());
   if (!process)
     return false;
   auto ptrSize = process->GetAddressByteSize();
   uint64_t bias = (ptrSize == 8 ? 32 : 20);
   uint64_t raw0_offset = (ptrSize == 8 ? 24 : 12);
-  lldb::addr_t raw1 = valobj.GetPointerValue();
+  lldb::addr_t raw1 = valobj.GetPointerValue().address;
   lldb::addr_t address = (raw1 & 0x00FFFFFFFFFFFFFF) + bias;
 
   Status error;
@@ -608,7 +638,8 @@ bool lldb_private::formatters::swift::SwiftStringStorage_SummaryProvider(
 bool lldb_private::formatters::swift::Bool_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
   static ConstString g_value("_value");
-  ValueObjectSP value_child(valobj.GetChildMemberWithName(g_value, true));
+  ValueObjectSP value_child(
+      valobj.GetNonSyntheticValue()->GetChildMemberWithName(g_value, true));
   if (!value_child)
     return false;
 
@@ -656,7 +687,6 @@ bool lldb_private::formatters::swift::DarwinBoolean_SummaryProvider(
 static bool RangeFamily_SummaryProvider(ValueObject &valobj, Stream &stream,
                                         const TypeSummaryOptions &options,
                                         bool isHalfOpen) {
-  LLDB_SCOPED_TIMER();
   static ConstString g_lowerBound("lowerBound");
   static ConstString g_upperBound("upperBound");
 
@@ -721,6 +751,12 @@ bool lldb_private::formatters::swift::BuiltinObjC_SummaryProvider(
 namespace lldb_private {
 namespace formatters {
 namespace swift {
+
+/// The size of Swift Tasks. Fragments are tail allocated.
+static constexpr size_t AsyncTaskSize = sizeof(::swift::AsyncTask);
+/// The offset of ChildFragment, which is the first fragment of an AsyncTask.
+static constexpr offset_t ChildFragmentOffset = AsyncTaskSize;
+
 class EnumSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
 public:
   EnumSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp);
@@ -729,12 +765,806 @@ public:
   lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override;
   lldb::ChildCacheState Update() override;
   bool MightHaveChildren() override;
-  size_t GetIndexOfChildWithName(ConstString name) override;
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override;
 
 private:
-  ExecutionContextRef m_exe_ctx_ref;
-  ConstString m_element_name;
-  size_t m_child_index;
+  ValueObjectSP m_projected;
+  lldb::DynamicValueType m_dynamic = eNoDynamicValues;
+  bool m_indirect = false;
+};
+
+static std::string
+mangledTypenameForTasksTuple(size_t count,
+                             ::swift::Mangle::ManglingFlavor flavor) {
+  /*
+  Global > TypeMangling > Type > Tuple
+    TupleElement > Type > Structure
+      Module, text="Swift"
+      Identifier, text="UnsafeCurrentTask"
+  */
+  using namespace ::swift::Demangle;
+  using Kind = Node::Kind;
+  NodeFactory factory;
+  auto [root, tuple] = swift_demangle::MakeNodeChain(
+      {Kind::TypeMangling, Kind::Type, Kind::Tuple}, factory);
+
+  // Make a TupleElement subtree N times, where N is the number of subtasks.
+  for (size_t i = 0; i < count; ++i) {
+    auto *structure = swift_demangle::MakeNodeChain(
+        tuple, {Kind::TupleElement, Kind::Type, Kind::Structure}, factory);
+    if (structure) {
+      structure->addChild(
+          factory.createNode(Kind::Module, ::swift::STDLIB_NAME), factory);
+      structure->addChild(
+          factory.createNode(Kind::Identifier, "UnsafeCurrentTask"), factory);
+    }
+  }
+
+  return mangleNode(root, flavor).result();
+}
+
+/// Synthetic provider for `Swift.Task`.
+///
+/// As seen by lldb, a `Task` instance is an opaque pointer, with neither type
+/// metadata nor an AST to describe it. To implement this synthetic provider, a
+/// `Task`'s state is retrieved from a `ReflectionContext`, and that data is
+/// used to manually construct `ValueObject` children.
+class TaskSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+public:
+  TaskSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+      : SyntheticChildrenFrontEnd(*valobj_sp.get()) {}
+
+  constexpr static StringLiteral TaskChildren[] = {
+      // clang-format off
+      "address",
+      "id",
+      "enqueuePriority",
+      "parent",
+      "children",
+
+      // Children below this point are hidden.
+      "isChildTask",
+      "isFuture",
+      "isGroupChildTask",
+      "isAsyncLetTask",
+      "isCancelled",
+      "isStatusRecordLocked",
+      "isEscalated",
+      "isEnqueued",
+      "isComplete",
+      "isSuspended",
+      "isRunning",
+      // clang-format on
+  };
+
+  llvm::Expected<uint32_t> CalculateNumChildren() override {
+    // Show only the first five children
+    // address/id/enqueuePriority/parent/children.
+    return 5;
+  }
+
+  lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override {
+    CompilerType type = m_backend.GetCompilerType();
+    auto ts = type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+    if (!ts) {
+      LLDB_LOG(
+          GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+          "could not get Swift type system for Task synthetic provider: {0}",
+          type.GetMangledTypeName());
+      return {};
+    }
+
+    auto flavor =
+        SwiftLanguageRuntime::GetManglingFlavor(type.GetMangledTypeName());
+
+    CompilerType bool_type = ts->GetBoolType(flavor);
+
+#define RETURN_CHILD(FIELD, NAME, TYPE)                                        \
+  if (!FIELD) {                                                                \
+    auto value = m_task_info.NAME;                                             \
+    DataExtractor data{reinterpret_cast<const void *>(&value), sizeof(value),  \
+                       endian::InlHostByteOrder(), sizeof(void *)};            \
+    FIELD = CreateChildValueObjectFromData(                            \
+        #NAME, data, m_backend.GetExecutionContextRef(), TYPE);                \
+  }                                                                            \
+  return FIELD;
+
+    switch (idx) {
+    case 0:
+      if (!m_address_sp) {
+        CompilerType raw_pointer_type = ts->GetUnsafeRawPointerType(flavor);
+
+        addr_t value = m_task_ptr;
+        if (auto process_sp = m_backend.GetProcessSP())
+          value = process_sp->FixDataAddress(value);
+        DataExtractor data{reinterpret_cast<const void *>(&value),
+                           sizeof(value), endian::InlHostByteOrder(),
+                           sizeof(void *)};
+        m_address_sp = CreateChildValueObjectFromData(
+            "address", data, m_backend.GetExecutionContextRef(),
+            raw_pointer_type);
+      }
+      return m_address_sp;
+    case 1: {
+      CompilerType uint64_type = ts->GetUInt64Type(flavor);
+      RETURN_CHILD(m_id_sp, id, uint64_type);
+    }
+    case 2: {
+      CompilerType priority_type = ts->GetTaskPriorityType(flavor);
+      RETURN_CHILD(m_enqueue_priority_sp, enqueuePriority, priority_type);
+    }
+    case 3: {
+      if (!m_parent_task_sp) {
+        auto process_sp = m_backend.GetProcessSP();
+        if (!process_sp)
+          return {};
+
+        CompilerType raw_pointer_type =
+            ts->GetOptionalUnsafeRawPointerType(flavor);
+
+        addr_t parent_addr = 0;
+        if (m_task_info.isChildTask) {
+          // Read ChildFragment::Parent, the first field of the ChildFragment.
+          Status status;
+          parent_addr = process_sp->ReadPointerFromMemory(
+              m_task_ptr + ChildFragmentOffset, status);
+          if (status.Fail() || parent_addr == LLDB_INVALID_ADDRESS)
+            parent_addr = 0;
+        }
+
+        addr_t value = process_sp->FixDataAddress(parent_addr);
+        DataExtractor data{reinterpret_cast<const void *>(&value),
+                           sizeof(value), endian::InlHostByteOrder(),
+                           sizeof(void *)};
+        m_parent_task_sp = CreateChildValueObjectFromData(
+            "parent", data, m_backend.GetExecutionContextRef(),
+            raw_pointer_type);
+      }
+      return m_parent_task_sp;
+    }
+    case 4: {
+      if (!m_child_tasks_sp) {
+        using task_type = decltype(m_task_info.childTasks)::value_type;
+        std::vector<task_type> tasks = m_task_info.childTasks;
+
+        // Remove any bogus child tasks.
+        // Very rarely, the child tasks include a bogus task which has an
+        // invalid task id of 0.
+        if (auto reflection_ctx = GetReflectionContext())
+          llvm::erase_if(tasks, [&](auto task_ptr) {
+            if (auto task_info =
+                    expectedToOptional(reflection_ctx->asyncTaskInfo(task_ptr)))
+              return task_info->id == 0;
+            // Don't filter children with errors here. Let these tasks reach the
+            // formatter's existing error handling.
+            return false;
+          });
+
+        std::string mangled_typename =
+            mangledTypenameForTasksTuple(tasks.size(), flavor);
+        CompilerType tasks_tuple_type =
+            ts->GetTypeFromMangledTypename(ConstString(mangled_typename));
+        DataExtractor data{tasks.data(), tasks.size() * sizeof(task_type),
+                           endian::InlHostByteOrder(), sizeof(void *)};
+        m_child_tasks_sp = CreateChildValueObjectFromData(
+            "children", data, m_backend.GetExecutionContextRef(),
+            tasks_tuple_type);
+      }
+      return m_child_tasks_sp;
+    }
+    case 5:
+      RETURN_CHILD(m_is_child_task_sp, isChildTask, bool_type);
+    case 6:
+      RETURN_CHILD(m_is_future_sp, isFuture, bool_type);
+    case 7:
+      RETURN_CHILD(m_is_group_child_task_sp, isGroupChildTask, bool_type);
+    case 8:
+      RETURN_CHILD(m_is_async_let_task_sp, isAsyncLetTask, bool_type);
+    case 9:
+      RETURN_CHILD(m_is_cancelled_sp, isCancelled, bool_type);
+    case 10:
+      RETURN_CHILD(m_is_status_record_locked_sp, isStatusRecordLocked,
+                   bool_type);
+    case 11:
+      RETURN_CHILD(m_is_escalated_sp, isEscalated, bool_type);
+    case 12:
+      RETURN_CHILD(m_is_enqueued_sp, isEnqueued, bool_type);
+    case 13:
+      RETURN_CHILD(m_is_complete_sp, isComplete, bool_type);
+    case 14:
+      RETURN_CHILD(m_is_suspended_sp, isSuspended, bool_type);
+    case 15: {
+      if (m_task_info.hasIsRunning)
+        RETURN_CHILD(m_is_running_sp, isRunning, bool_type);
+      return {};
+    }
+    default:
+      return {};
+    }
+
+#undef RETURN_CHILD
+  }
+
+  lldb::ChildCacheState Update() override {
+    if (auto reflection_ctx = GetReflectionContext()) {
+      ValueObjectSP task_obj_sp = m_backend.GetChildMemberWithName("_task");
+      if (!task_obj_sp)
+        return ChildCacheState::eRefetch;
+      m_task_ptr = task_obj_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+      if (m_task_ptr != LLDB_INVALID_ADDRESS) {
+        llvm::Expected<ReflectionContextInterface::AsyncTaskInfo> task_info =
+            reflection_ctx->asyncTaskInfo(m_task_ptr);
+        if (auto err = task_info.takeError()) {
+          LLDB_LOG_ERROR(
+              GetLog(LLDBLog::DataFormatters | LLDBLog::Types), std::move(err),
+              "could not get info for async task {1:x}: {0}", m_task_ptr);
+        } else {
+          m_task_info = *task_info;
+          for (auto child :
+               {m_address_sp, m_id_sp, m_kind_sp, m_enqueue_priority_sp,
+                m_is_child_task_sp, m_is_future_sp, m_is_group_child_task_sp,
+                m_is_async_let_task_sp, m_is_cancelled_sp,
+                m_is_status_record_locked_sp, m_is_escalated_sp,
+                m_is_enqueued_sp, m_is_complete_sp, m_is_suspended_sp,
+                m_parent_task_sp, m_child_tasks_sp, m_is_running_sp})
+            child.reset();
+        }
+      }
+    }
+    return ChildCacheState::eRefetch;
+  }
+
+  bool MightHaveChildren() override { return true; }
+
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    ArrayRef children = TaskChildren;
+    const auto *it = llvm::find(children, name);
+    if (it == children.end())
+      return llvm::createStringErrorV("Type has no child named '{0}'", name);
+    return std::distance(children.begin(), it);
+  }
+
+private:
+  ThreadSafeReflectionContext GetReflectionContext() {
+    if (auto *runtime = SwiftLanguageRuntime::Get(m_backend.GetProcessSP()))
+      return runtime->GetReflectionContext();
+    return {};
+  }
+
+  addr_t m_task_ptr = LLDB_INVALID_ADDRESS;
+  ReflectionContextInterface::AsyncTaskInfo m_task_info;
+  ValueObjectSP m_address_sp;
+  ValueObjectSP m_id_sp;
+  ValueObjectSP m_kind_sp;
+  ValueObjectSP m_enqueue_priority_sp;
+  ValueObjectSP m_is_child_task_sp;
+  ValueObjectSP m_is_future_sp;
+  ValueObjectSP m_is_group_child_task_sp;
+  ValueObjectSP m_is_async_let_task_sp;
+  ValueObjectSP m_is_cancelled_sp;
+  ValueObjectSP m_is_status_record_locked_sp;
+  ValueObjectSP m_is_escalated_sp;
+  ValueObjectSP m_is_enqueued_sp;
+  ValueObjectSP m_is_complete_sp;
+  ValueObjectSP m_is_suspended_sp;
+  ValueObjectSP m_parent_task_sp;
+  ValueObjectSP m_child_tasks_sp;
+  ValueObjectSP m_is_running_sp;
+};
+
+class UnsafeContinuationSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+public:
+  UnsafeContinuationSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+      : SyntheticChildrenFrontEnd(*valobj_sp.get()) {
+    if (auto target_sp = m_backend.GetTargetSP()) {
+      if (auto ts_or_err =
+              target_sp->GetScratchTypeSystemForLanguage(eLanguageTypeSwift)) {
+        if (auto *ts = llvm::dyn_cast_or_null<TypeSystemSwiftTypeRef>(
+                ts_or_err->get())) {
+          auto flavor = SwiftLanguageRuntime::GetManglingFlavor(
+              m_backend.GetCompilerType().GetMangledTypeName());
+          m_task_type = ts->GetUnsafeCurrentTaskType(flavor);
+        }
+      } else {
+        LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+                       ts_or_err.takeError(),
+                       "could not get Swift type system for UnsafeContinuation "
+                       "synthetic provider: {0}");
+      }
+    }
+  }
+
+  llvm::Expected<uint32_t> CalculateNumChildren() override {
+    if (!m_task_sp)
+      return m_backend.GetNumChildren();
+
+    return 1;
+  }
+
+  bool MightHaveChildren() override { return true; }
+
+  lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override {
+    if (!m_task_sp)
+      return m_backend.GetChildAtIndex(idx);
+
+    if (idx == 0)
+      return m_task_sp;
+
+    return {};
+  }
+
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    if (!m_task_sp)
+      return m_backend.GetIndexOfChildWithName(name);
+
+    if (name == "task")
+      return 0;
+
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  }
+
+  lldb::ChildCacheState Update() override {
+    if (auto context_sp = m_backend.GetChildMemberWithName("context"))
+      if (addr_t task_addr = context_sp->GetValueAsUnsigned(0)) {
+        m_task_sp = CreateChildValueObjectFromAddress(
+            "task", task_addr, m_backend.GetExecutionContextRef(), m_task_type,
+            false);
+        if (auto synthetic_sp = m_task_sp->GetSyntheticValue())
+          m_task_sp = synthetic_sp;
+      }
+    return ChildCacheState::eRefetch;
+  }
+
+private:
+  CompilerType m_task_type;
+  ValueObjectSP m_task_sp;
+};
+
+class CheckedContinuationSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+public:
+  CheckedContinuationSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+      : SyntheticChildrenFrontEnd(*valobj_sp.get()) {
+    bool is_64bit = false;
+    if (auto target_sp = m_backend.GetTargetSP())
+      is_64bit = target_sp->GetArchitecture().GetTriple().isArch64Bit();
+
+    std::optional<uint32_t> concurrency_version;
+    if (auto process_sp = m_backend.GetProcessSP())
+      concurrency_version =
+          SwiftLanguageRuntime::FindConcurrencyDebugVersion(*process_sp);
+
+    bool is_supported_target = is_64bit && concurrency_version.value_or(0) == 1;
+    if (!is_supported_target)
+      return;
+
+    if (auto target_sp = m_backend.GetTargetSP()) {
+      if (auto ts_or_err =
+              target_sp->GetScratchTypeSystemForLanguage(eLanguageTypeSwift)) {
+        if (auto *ts = llvm::dyn_cast_or_null<TypeSystemSwiftTypeRef>(
+                ts_or_err->get())) {
+          auto flavor = SwiftLanguageRuntime::GetManglingFlavor(
+              m_backend.GetCompilerType().GetMangledTypeName());
+          m_task_type = ts->GetUnsafeCurrentTaskType(flavor);
+        }
+      } else {
+        LLDB_LOG_ERROR(
+            GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+            ts_or_err.takeError(),
+            "could not get Swift type system for CheckedContinuation "
+            "synthetic provider: {0}");
+      }
+    }
+  }
+
+  llvm::Expected<uint32_t> CalculateNumChildren() override {
+    if (!m_task_sp)
+      return m_backend.GetNumChildren();
+
+    return 1;
+  }
+
+  bool MightHaveChildren() override { return true; }
+
+  lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override {
+    if (!m_task_sp)
+      return m_backend.GetChildAtIndex(idx);
+
+    if (idx == 0)
+      return m_task_sp;
+
+    return {};
+  }
+
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    if (!m_task_sp)
+      return m_backend.GetIndexOfChildWithName(name);
+
+    if (name == "task")
+      return 0;
+
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  }
+
+  lldb::ChildCacheState Update() override {
+    if (!m_task_type)
+      return ChildCacheState::eReuse;
+
+    size_t canary_task_offset = 0x10;
+    Status status;
+    if (auto canary_sp = m_backend.GetChildMemberWithName("canary"))
+      if (addr_t canary_addr = canary_sp->GetValueAsUnsigned(0))
+        if (addr_t task_addr = m_backend.GetProcessSP()->ReadPointerFromMemory(
+                canary_addr + canary_task_offset, status))
+          m_task_sp = CreateChildValueObjectFromAddress(
+              "task", task_addr, m_backend.GetExecutionContextRef(),
+              m_task_type, false);
+
+    if (m_task_sp)
+      if (auto synthetic_sp = m_task_sp->GetSyntheticValue())
+        m_task_sp = synthetic_sp;
+    return ChildCacheState::eRefetch;
+  }
+
+private:
+  CompilerType m_task_type;
+  ValueObjectSP m_task_sp;
+};
+
+class TaskGroupSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+public:
+  TaskGroupSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+      : SyntheticChildrenFrontEnd(*valobj_sp.get()) {
+    bool is_64bit = false;
+    if (auto target_sp = m_backend.GetTargetSP())
+      is_64bit = target_sp->GetArchitecture().GetTriple().isArch64Bit();
+
+    std::optional<uint32_t> concurrency_version;
+    if (auto process_sp = m_backend.GetProcessSP())
+      concurrency_version =
+          SwiftLanguageRuntime::FindConcurrencyDebugVersion(*process_sp);
+
+    m_is_supported_target = is_64bit && concurrency_version.value_or(0) == 1;
+  }
+
+  llvm::Expected<uint32_t> CalculateNumChildren() override {
+    if (!m_is_supported_target)
+      return m_backend.GetNumChildren();
+
+    return m_task_addrs.size();
+  }
+
+  bool MightHaveChildren() override { return true; }
+
+  lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override {
+    if (!m_is_supported_target)
+      return m_backend.GetChildAtIndex(idx);
+
+    if (!m_task_type || idx >= m_task_addrs.size())
+      return {};
+
+    if (auto valobj_sp = m_children[idx])
+      return valobj_sp;
+
+    addr_t task_addr = m_task_addrs[idx];
+    auto child_name = ("[" + Twine(idx) + "]").str();
+    auto task_sp = CreateChildValueObjectFromAddress(
+        child_name, task_addr, m_backend.GetExecutionContextRef(), m_task_type,
+        false);
+    if (auto synthetic_sp = task_sp->GetSyntheticValue())
+      task_sp = synthetic_sp;
+
+    m_children[idx] = task_sp;
+    return task_sp;
+  }
+
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    if (!m_is_supported_target)
+      return m_backend.GetIndexOfChildWithName(name);
+
+    StringRef buf = name.GetStringRef();
+    size_t idx = UINT32_MAX;
+    if (buf.consume_front("[") && !buf.consumeInteger(10, idx) && buf == "]")
+      return idx;
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  }
+
+  lldb::ChildCacheState Update() override {
+    if (!m_is_supported_target)
+      return ChildCacheState::eReuse;
+
+    m_task_addrs.clear();
+    m_children.clear();
+
+    if (!m_task_type)
+      if (auto target_sp = m_backend.GetTargetSP()) {
+        if (auto ts_or_err = target_sp->GetScratchTypeSystemForLanguage(
+                eLanguageTypeSwift)) {
+          if (auto *ts = llvm::dyn_cast_or_null<TypeSystemSwiftTypeRef>(
+                  ts_or_err->get())) {
+            auto flavor = SwiftLanguageRuntime::GetManglingFlavor(
+                m_backend.GetCompilerType().GetMangledTypeName());
+            m_task_type = ts->GetUnsafeCurrentTaskType(flavor);
+          }
+        } else {
+          LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+                         ts_or_err.takeError(),
+                         "could not get Swift type system for Task synthetic "
+                         "provider: {0}");
+          return ChildCacheState::eReuse;
+        }
+      }
+
+    if (!m_task_type)
+      return ChildCacheState::eReuse;
+
+    // Get the (opaque) pointer to the `TaskGroupBase`.
+    addr_t task_group_ptr = LLDB_INVALID_ADDRESS;
+    if (auto opaque_group_ptr_sp = m_backend.GetChildMemberWithName("_group"))
+      task_group_ptr =
+          opaque_group_ptr_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+
+    TaskGroupBase task_group{m_backend.GetProcessSP(), task_group_ptr};
+
+    // Get the TaskGroup's child tasks by getting all tasks in the range
+    // [FirstChild, LastChild].
+    //
+    // Child tasks are connected together using ChildFragment::NextChild.
+    Status status;
+    auto current_task = task_group.getFirstChild(status);
+    auto last_task = task_group.getLastChild(status);
+    while (current_task) {
+      m_task_addrs.push_back(current_task.addr);
+      if (current_task == last_task)
+        break;
+      current_task = current_task.getNextChild(status);
+    }
+
+    // Populate the child cache with null values.
+    m_children.resize(m_task_addrs.size());
+
+    if (status.Fail()) {
+      LLDB_LOG(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+               "could not read TaskGroup's child task pointers: {0}",
+               status.AsCString());
+      return ChildCacheState::eReuse;
+    }
+
+    return ChildCacheState::eRefetch;
+  }
+
+private:
+  /// Lightweight Task pointer wrapper, for the purpose of traversing to the
+  /// Task's next sibling (via `ChildFragment::NextChild`).
+  struct Task {
+    ProcessSP process_sp;
+    addr_t addr;
+
+    operator bool() const { return addr && addr != LLDB_INVALID_ADDRESS; }
+
+    bool operator==(const Task &other) const { return addr == other.addr; }
+    bool operator!=(const Task &other) const { return !(*this == other); }
+
+    static constexpr offset_t NextChildOffset = ChildFragmentOffset + 0x8;
+
+    Task getNextChild(Status &status) {
+      addr_t next_task = LLDB_INVALID_ADDRESS;
+      if (status.Success())
+        next_task =
+            process_sp->ReadPointerFromMemory(addr + NextChildOffset, status);
+      return {process_sp, next_task};
+    }
+  };
+
+  /// Lightweight wrapper around TaskGroup opaque pointers (`TaskGroupBase`),
+  /// for the purpose of traversing its child tasks.
+  struct TaskGroupBase {
+    ProcessSP process_sp;
+    addr_t addr;
+
+    // FirstChild offset for a TaskGroupBase instance.
+    static constexpr offset_t FirstChildOffset = 0x18;
+    static constexpr offset_t LastChildOffset = 0x20;
+
+    Task getFirstChild(Status &status) {
+      addr_t first_child = LLDB_INVALID_ADDRESS;
+      if (status.Success())
+        first_child =
+            process_sp->ReadPointerFromMemory(addr + FirstChildOffset, status);
+      return {process_sp, first_child};
+    }
+
+    Task getLastChild(Status &status) {
+      addr_t last_child = LLDB_INVALID_ADDRESS;
+      if (status.Success())
+        last_child =
+            process_sp->ReadPointerFromMemory(addr + LastChildOffset, status);
+      return {process_sp, last_child};
+    }
+  };
+
+private:
+  bool m_is_supported_target = false;
+  // Type for Swift.UnsafeCurrentTask.
+  CompilerType m_task_type;
+  // The TaskGroup's list of child task addresses.
+  std::vector<addr_t> m_task_addrs;
+  // Cache and storage of constructed child values.
+  std::vector<ValueObjectSP> m_children;
+};
+
+/// Offset of ActiveActorStatus from _$defaultActor_.
+///
+/// DefaultActorImpl has the following (labeled) layout.
+///
+/// DefaultActorImpl:
+///   0: HeapObject
+/// $defaultActor:
+///   16/0: isDistributedRemoteActor
+///   17/1: <alignment padding>
+///   32/16: StatusStorage
+///
+/// As shown, the $defaultActor field does not point to the start of the
+/// DefaultActorImpl.
+///
+/// The StatusStorage is at offset of +32 from the start of DefaultActorImpl, or
+/// at +16 relative to $defaultActor. The formatters are based on $defaultActor,
+/// and as such use the relative offset.
+static constexpr offset_t ActiveActorStatusOffset = 16;
+
+class ActorSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+public:
+  ActorSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+      : SyntheticChildrenFrontEnd(*valobj_sp.get()) {
+    bool is_64bit = false;
+    if (auto target_sp = m_backend.GetTargetSP())
+      is_64bit = target_sp->GetArchitecture().GetTriple().isArch64Bit();
+
+    std::optional<uint32_t> concurrency_version;
+    if (auto process_sp = m_backend.GetProcessSP())
+      concurrency_version =
+          SwiftLanguageRuntime::FindConcurrencyDebugVersion(*process_sp);
+
+    m_is_supported_target = is_64bit && concurrency_version.value_or(0) == 1;
+  }
+
+  llvm::Expected<uint32_t> CalculateNumChildren() override {
+    return m_is_supported_target ? 1 : 0;
+  }
+
+  lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override {
+    if (!m_is_supported_target || idx != 0)
+      return {};
+
+    CompilerType type = m_backend.GetCompilerType();
+    auto ts = type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+    if (!ts) {
+      LLDB_LOG(
+          GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+          "could not get Swift type system for Actor synthetic provider: {0}",
+          type.GetMangledTypeName());
+      return {};
+    }
+
+    if (!m_unprioritised_jobs_sp) {
+      auto flavor =
+          SwiftLanguageRuntime::GetManglingFlavor(type.GetMangledTypeName());
+      std::string mangled_typename =
+          mangledTypenameForTasksTuple(m_job_addrs.size(), flavor);
+      CompilerType tasks_tuple_type =
+          ts->GetTypeFromMangledTypename(ConstString(mangled_typename));
+      DataExtractor data{m_job_addrs.data(),
+                         m_job_addrs.size() * sizeof(addr_t),
+                         endian::InlHostByteOrder(), sizeof(void *)};
+      m_unprioritised_jobs_sp = CreateChildValueObjectFromData(
+          "unprioritised_jobs", data, m_backend.GetExecutionContextRef(),
+          tasks_tuple_type);
+    }
+    return m_unprioritised_jobs_sp;
+  }
+
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override {
+    if (m_is_supported_target && name == "unprioritised_jobs")
+      return 0;
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  }
+
+  lldb::ChildCacheState Update() override {
+    if (!m_is_supported_target)
+      return ::eReuse;
+
+    m_job_addrs.clear();
+
+    if (!m_task_type)
+      if (auto target_sp = m_backend.GetTargetSP()) {
+        if (auto ts_or_err = target_sp->GetScratchTypeSystemForLanguage(
+                eLanguageTypeSwift)) {
+          if (auto *ts = llvm::dyn_cast_or_null<TypeSystemSwiftTypeRef>(
+                  ts_or_err->get())) {
+            auto flavor = SwiftLanguageRuntime::GetManglingFlavor(
+                m_backend.GetCompilerType().GetMangledTypeName());
+            m_task_type = ts->GetUnsafeCurrentTaskType(flavor);
+          }
+        } else {
+          LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+                         ts_or_err.takeError(),
+                         "could not get Swift type system for Task synthetic "
+                         "provider: {0}");
+          return ChildCacheState::eReuse;
+        }
+      }
+
+    if (!m_task_type)
+      return ChildCacheState::eReuse;
+
+    // Get the actor's queue of unprioritized jobs (tasks) by following the
+    // "linked list" embedded in storage provided by SchedulerPrivate.
+    DefaultActorImpl actor{m_backend.GetProcessSP(),
+                           m_backend.GetLoadAddress()};
+    Status status;
+    Job first_job = actor.getFirstJob(status);
+    Job current_job = first_job;
+    while (current_job) {
+      m_job_addrs.push_back(current_job.addr);
+      current_job = current_job.getNextScheduledJob(status);
+    }
+
+    if (status.Fail()) {
+      LLDB_LOG(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+               "could not read actor's job pointers: {0}", status.AsCString());
+      return ChildCacheState::eReuse;
+    }
+
+    return ChildCacheState::eRefetch;
+  }
+
+  bool MightHaveChildren() override { return m_is_supported_target; }
+
+private:
+  /// Lightweight wrapper around Job pointers, for the purpose of traversing to
+  /// the next scheduled Job.
+  struct Job {
+    ProcessSP process_sp;
+    addr_t addr;
+
+    operator bool() const { return addr && addr != LLDB_INVALID_ADDRESS; }
+
+    // void *SchedulerPrivate[2] is the first Job specific field, its layout
+    // follows the HeapObject base class (size 16).
+    static constexpr offset_t SchedulerPrivateOffset = 16;
+    static constexpr offset_t NextJobOffset = SchedulerPrivateOffset;
+
+    Job getNextScheduledJob(Status &status) {
+      addr_t next_job = LLDB_INVALID_ADDRESS;
+      if (status.Success())
+        next_job =
+            process_sp->ReadPointerFromMemory(addr + NextJobOffset, status);
+      return {process_sp, next_job};
+    }
+  };
+
+  /// Lightweight wrapper around DefaultActorImpl/$defaultActor, for the purpose
+  /// of accessing contents of ActiveActorStatus.
+  struct DefaultActorImpl {
+    ProcessSP process_sp;
+    addr_t addr;
+
+    // FirstJob's offset within ActiveActorStatus.
+    static constexpr offset_t FirstJobOffset = ActiveActorStatusOffset + 8;
+
+    Job getFirstJob(Status &status) {
+      addr_t first_job = LLDB_INVALID_ADDRESS;
+      if (status.Success())
+        first_job =
+            process_sp->ReadPointerFromMemory(addr + FirstJobOffset, status);
+      return {process_sp, first_job};
+    }
+  };
+
+private:
+  bool m_is_supported_target = false;
+  std::vector<addr_t> m_job_addrs;
+  CompilerType m_task_type;
+  ValueObjectSP m_unprioritised_jobs_sp;
 };
 }
 }
@@ -742,48 +1572,85 @@ private:
 
 lldb_private::formatters::swift::EnumSyntheticFrontEnd::EnumSyntheticFrontEnd(
     lldb::ValueObjectSP valobj_sp)
-    : SyntheticChildrenFrontEnd(*valobj_sp.get()), m_exe_ctx_ref(),
-      m_element_name(nullptr), m_child_index(UINT32_MAX) {
+    : SyntheticChildrenFrontEnd(*valobj_sp.get()) {
   if (valobj_sp)
     Update();
 }
 
 llvm::Expected<uint32_t>
 lldb_private::formatters::swift::EnumSyntheticFrontEnd::CalculateNumChildren() {
-  return m_child_index != UINT32_MAX ? 1 : 0;
+  if (m_indirect && m_projected)
+    return m_projected->GetNumChildren();
+  return m_projected ? 1 : 0;
 }
 
 lldb::ValueObjectSP
 lldb_private::formatters::swift::EnumSyntheticFrontEnd::GetChildAtIndex(
     uint32_t idx) {
-  if (idx)
-    return ValueObjectSP();
-  if (m_child_index == UINT32_MAX)
-    return ValueObjectSP();
-  return m_backend.GetChildAtIndex(m_child_index, true);
+  ValueObjectSP value_sp;
+  // Hide the indirection.
+  if (m_indirect && m_projected) {
+    value_sp = m_projected->GetChildAtIndex(idx);
+  } else {
+    if (idx != 0)
+      return {};
+    value_sp = m_projected;
+  }
+  if (!value_sp)
+    return {};
+
+  return value_sp;
 }
 
 lldb::ChildCacheState
 lldb_private::formatters::swift::EnumSyntheticFrontEnd::Update() {
-  m_element_name.Clear();
-  m_child_index = UINT32_MAX;
-  m_exe_ctx_ref = m_backend.GetExecutionContextRef();
-  m_element_name.SetCString(m_backend.GetValueAsCString());
-  m_child_index = m_backend.GetIndexOfChildWithName(m_element_name);
+  auto *runtime = SwiftLanguageRuntime::Get(m_backend.GetProcessSP());
+  if (!runtime)
+    return ChildCacheState::eRefetch;
+
+  llvm::Expected<ValueObjectSP> projected =
+      runtime->SwiftLanguageRuntime::ProjectEnum(m_backend);
+  if (!projected) {
+    LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters), projected.takeError(),
+                   "{0}");
+    return ChildCacheState::eRefetch;
+  }
+
+  m_dynamic = m_backend.GetDynamicValueType();
+  m_projected = *projected;
+  if (m_projected &&
+      m_projected->GetName().GetStringRef().starts_with("$indirect."))
+    m_indirect = true;
+  else
+    m_indirect = false;
+
+  if (!m_projected)
+    return ChildCacheState::eRefetch;
+
+  if ((m_projected->GetCompilerType().GetTypeInfo() & eTypeIsEnumeration))
+    if (auto synthetic_sp = m_projected->GetSyntheticValue())
+      m_projected = synthetic_sp;
+
+  if (m_dynamic != eNoDynamicValues)
+    if (auto dynamic_sp = m_projected->GetDynamicValue(m_dynamic))
+      m_projected = dynamic_sp;
   return ChildCacheState::eRefetch;
 }
 
 bool lldb_private::formatters::swift::EnumSyntheticFrontEnd::
     MightHaveChildren() {
-  return m_child_index != UINT32_MAX;
+  return m_projected ? true : false;
 }
 
-size_t
+llvm::Expected<size_t>
 lldb_private::formatters::swift::EnumSyntheticFrontEnd::GetIndexOfChildWithName(
     ConstString name) {
-  if (name == m_element_name)
+  // Hide the indirection.
+  if (m_indirect && m_projected)
+    return m_projected->GetIndexOfChildWithName(name);
+  if (m_projected && name == m_projected->GetName())
     return 0;
-  return UINT32_MAX;
+  return llvm::createStringErrorV("Type has no child named '{0}'", name);
 }
 
 SyntheticChildrenFrontEnd *
@@ -794,9 +1661,48 @@ lldb_private::formatters::swift::EnumSyntheticFrontEndCreator(
   return (new EnumSyntheticFrontEnd(valobj_sp));
 }
 
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::swift::TaskSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  if (!valobj_sp)
+    return NULL;
+  return new TaskSyntheticFrontEnd(valobj_sp);
+}
+
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::swift::UnsafeContinuationSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  if (!valobj_sp)
+    return nullptr;
+  return new UnsafeContinuationSyntheticFrontEnd(valobj_sp);
+}
+
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::swift::CheckedContinuationSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  if (!valobj_sp)
+    return nullptr;
+  return new CheckedContinuationSyntheticFrontEnd(valobj_sp);
+}
+
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::swift::TaskGroupSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  if (!valobj_sp)
+    return nullptr;
+  return new TaskGroupSyntheticFrontEnd(valobj_sp);
+}
+
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::swift::ActorSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  if (!valobj_sp)
+    return nullptr;
+  return new ActorSyntheticFrontEnd(valobj_sp);
+}
+
 bool lldb_private::formatters::swift::ObjC_Selector_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
   static ConstString g_ptr("ptr");
   static ConstString g__rawValue("_rawValue");
 
@@ -943,7 +1849,6 @@ bool PrintTypePreservingNSNumber(DataBufferSP buffer_sp, ProcessSP process_sp,
 
 bool lldb_private::formatters::swift::TypePreservingNSNumber_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
   lldb::addr_t ptr_value(valobj.GetValueAsUnsigned(LLDB_INVALID_ADDRESS));
   if (ptr_value == LLDB_INVALID_ADDRESS)
     return false;
@@ -1001,6 +1906,117 @@ bool lldb_private::formatters::swift::TypePreservingNSNumber_SummaryProvider(
 #undef PROCESS_INDEPENDENT_TAG
 
   return false;
+}
+
+bool lldb_private::formatters::swift::TaskPriority_SummaryProvider(
+    ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
+  uint64_t raw_value = UINT8_MAX;
+  if (auto child_sp = valobj.GetChildMemberWithName("rawValue"))
+    if (auto synthetic_sp = child_sp->GetSyntheticValue())
+      raw_value = synthetic_sp->GetValueAsUnsigned(UINT8_MAX);
+  if (raw_value >= UINT8_MAX)
+    return false;
+
+  switch (raw_value) {
+  case 0x19:
+    // Also .userInitiated
+    stream.PutCString(".high");
+    break;
+  case 0x15:
+    // Also .default (deprecated)
+    stream.PutCString(".medium");
+    break;
+  case 0x11:
+    // Also .utilitiy
+    stream.PutCString(".low");
+    break;
+  case 0x09:
+    stream.PutCString(".background");
+    break;
+  default:
+    stream.Format("{0}", raw_value);
+    break;
+  }
+  return true;
+}
+
+static const std::pair<StringRef, StringRef> TASK_FLAGS[] = {
+    {"isComplete", "complete"},
+    {"isSuspended", "suspended"},
+    {"isRunning", "running"},
+    {"isCancelled", "cancelled"},
+    {"isEscalated", "escalated"},
+    {"isEnqueued", "enqueued"},
+    {"isGroupChildTask", "groupChildTask"},
+    {"isAsyncLetTask", "asyncLetTask"},
+    {"isStatusRecordLocked", "statusRecordLocked"},
+};
+
+bool lldb_private::formatters::swift::Task_SummaryProvider(
+    ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
+  auto get_member = [&valobj](StringRef name) -> uint64_t {
+    if (auto member_sp = valobj.GetChildMemberWithName(name))
+      if (auto synthetic_sp = member_sp->GetSyntheticValue())
+        return synthetic_sp->GetValueAsUnsigned(0);
+    return 0;
+  };
+
+  addr_t task_addr = get_member("address");
+  if (auto process_sp = valobj.GetProcessSP()) {
+    if (auto name_or_err = GetTaskName(task_addr, *process_sp)) {
+      if (auto maybe_name = *name_or_err)
+        stream.Format("\"{0}\" ", *maybe_name);
+    } else {
+      LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters | LLDBLog::Types),
+                     name_or_err.takeError(),
+                     "failed to determine name of task {1:x}: {0}", task_addr);
+    }
+  }
+
+  stream.Format("id:{0}", get_member("id"));
+
+  std::vector<StringRef> flags;
+  for (auto [member, flag] : TASK_FLAGS)
+    if (get_member(member))
+      flags.push_back(flag);
+
+  if (!flags.empty())
+    // Append the flags in an `|` separated list. This matches the format used
+    // by swift-inspect dump-concurrency.
+    stream.Format(" flags:{0:$[|]}", iterator_range(flags));
+
+  return true;
+}
+
+bool lldb_private::formatters::swift::Actor_SummaryProvider(
+    ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
+  static constexpr offset_t FlagsOffset = ActiveActorStatusOffset;
+  auto addr = valobj.GetLoadAddress();
+  if (addr == LLDB_INVALID_ADDRESS)
+    return false;
+
+  auto flags_addr = addr + FlagsOffset;
+  Status status;
+  uint64_t flags = 0;
+  if (auto process_sp = valobj.GetProcessSP())
+    flags = process_sp->ReadUnsignedIntegerFromMemory(flags_addr, 4, 0, status);
+
+  if (status.Fail()) {
+    stream.PutCString("<could not read actor state>");
+    return true;
+  }
+
+  using namespace ::swift::concurrency::ActorFlagConstants;
+  uint8_t state = flags & ActorStateMask;
+  static_assert(Zombie_ReadyForDeallocation == 3);
+  if (state > Zombie_ReadyForDeallocation) {
+    stream << "<unknown actor state: " << Twine(state).str() << ">";
+    return true;
+  }
+
+  static const StringRef states[] = {"idle", "scheduled", "running", "zombie"};
+  stream.PutCString(states[state]);
+  return true;
 }
 
 namespace {
@@ -1074,8 +2090,7 @@ ReadVector(Process &process, ValueObject &valobj,
            const SIMDElementFormatter &formatter, unsigned num_elements) {
   Status error;
   static ConstString g_storage("_storage");
-  static ConstString g_value("_value");
-  ValueObjectSP value_sp = valobj.GetChildAtNamePath({g_storage, g_value});
+  ValueObjectSP value_sp = valobj.GetChildMemberWithName(g_storage);
   if (!value_sp)
     return std::nullopt;
 
@@ -1128,8 +2143,6 @@ void PrintMatrix(Stream &stream,
 
 bool lldb_private::formatters::swift::SIMDVector_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
-
   // SIMD vector contains an inner member `_storage` which is an opaque
   // container. Given SIMD is always in the form SIMDX<Type> where X is a
   // positive integer, we can calculate the number of elements and the
@@ -1141,8 +2154,8 @@ bool lldb_private::formatters::swift::SIMDVector_SummaryProvider(
     return false;
 
   ExecutionContext exe_ctx = valobj.GetExecutionContextRef().Lock(true);
-  std::optional<uint64_t> opt_type_size =
-    simd_type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
+  std::optional<uint64_t> opt_type_size = llvm::expectedToOptional(
+      simd_type.GetByteSize(exe_ctx.GetBestExecutionContextScope()));
   if (!opt_type_size)
     return false;
   uint64_t type_size = *opt_type_size;
@@ -1156,8 +2169,8 @@ bool lldb_private::formatters::swift::SIMDVector_SummaryProvider(
   if (!arg_type)
     return false;
 
-  std::optional<uint64_t> opt_arg_size =
-      arg_type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
+  std::optional<uint64_t> opt_arg_size = llvm::expectedToOptional(
+      arg_type.GetByteSize(exe_ctx.GetBestExecutionContextScope()));
   if (!opt_arg_size)
     return false;
   uint64_t arg_size = *opt_arg_size;
@@ -1203,8 +2216,6 @@ bool lldb_private::formatters::swift::SIMDVector_SummaryProvider(
 
 bool lldb_private::formatters::swift::LegacySIMD_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
-
   Status error;
   ProcessSP process_sp(valobj.GetProcessSP());
   if (!process_sp)
@@ -1215,27 +2226,27 @@ bool lldb_private::formatters::swift::LegacySIMD_SummaryProvider(
   ConstString full_type_name = valobj.GetTypeName();
 
   llvm::StringRef type_name = full_type_name.GetStringRef();
-  if (type_name.startswith("simd."))
+  if (type_name.starts_with("simd."))
     type_name = type_name.drop_front(5);
-  if (type_name.startswith("simd_"))
+  if (type_name.starts_with("simd_"))
     type_name = type_name.drop_front(5);
 
   // Get the type of object this is.
-  bool is_quaternion = type_name.startswith("quat");
+  bool is_quaternion = type_name.starts_with("quat");
   bool is_matrix = type_name[type_name.size() - 2] == 'x';
   bool is_vector = !is_matrix && !is_quaternion;
 
   // Get the kind of SIMD element inside of this object.
   std::optional<SIMDElementKind> kind = std::nullopt;
-  if (type_name.startswith("int"))
+  if (type_name.starts_with("int"))
     kind = SIMDElementKind::Int32;
-  else if (type_name.startswith("uint"))
+  else if (type_name.starts_with("uint"))
     kind = SIMDElementKind::UInt32;
-  else if ((is_quaternion && type_name.endswith("f")) ||
-           type_name.startswith("float"))
+  else if ((is_quaternion && type_name.ends_with("f")) ||
+           type_name.starts_with("float"))
     kind = SIMDElementKind::Float32;
-  else if ((is_quaternion && type_name.endswith("d")) ||
-           type_name.startswith("double"))
+  else if ((is_quaternion && type_name.ends_with("d")) ||
+           type_name.starts_with("double"))
     kind = SIMDElementKind::Float64;
   if (!kind)
     return false;
@@ -1289,18 +2300,16 @@ bool lldb_private::formatters::swift::LegacySIMD_SummaryProvider(
 
 bool lldb_private::formatters::swift::GLKit_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  LLDB_SCOPED_TIMER();
-
   // Get the type name without the "GLKit." prefix.
   ConstString full_type_name = valobj.GetTypeName();
   llvm::StringRef type_name = full_type_name.GetStringRef();
-  if (type_name.startswith("GLKit."))
+  if (type_name.starts_with("GLKit."))
     type_name = type_name.drop_front(6);
 
   // Get the type of object this is.
   bool is_quaternion = type_name == "GLKQuaternion";
-  bool is_matrix = type_name.startswith("GLKMatrix");
-  bool is_vector = type_name.startswith("GLKVector");
+  bool is_matrix = type_name.starts_with("GLKMatrix");
+  bool is_vector = type_name.starts_with("GLKVector");
 
   if (!(is_quaternion || is_matrix || is_vector))
     return false;

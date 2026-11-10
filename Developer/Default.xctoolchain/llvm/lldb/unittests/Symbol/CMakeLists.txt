@@ -1,6 +1,7 @@
 set(SWIFT_SOURCES
   TestSwiftASTContext.cpp
   TestTypeSystemSwiftTypeRef.cpp
+  TestSwiftDemangler.cpp
 )
 set(SWIFT_LIBS
   lldbPluginTypeSystemSwift
@@ -13,6 +14,7 @@ endif()
 
 add_lldb_unittest(SymbolTests
   JSONSymbolTest.cpp
+  LineTableTest.cpp
   LocateSymbolFileTest.cpp
   MangledTest.cpp
   PostfixExpressionTest.cpp
@@ -24,6 +26,7 @@ add_lldb_unittest(SymbolTests
   TestDWARFCallFrameInfo.cpp
   TestType.cpp
   TestLineEntry.cpp
+  UnwindPlanTest.cpp
 
   ${SWIFT_SOURCES}
 

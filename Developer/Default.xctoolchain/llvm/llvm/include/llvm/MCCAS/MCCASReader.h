@@ -11,7 +11,6 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCFixup.h"
-#include "llvm/MC/MCFragment.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Error.h"
@@ -48,12 +47,13 @@ public:
 
   void printSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
                             raw_ostream &OS,
-                            const MCExpr *Subsection) const override {
+                            uint32_t Subsection) const override {
     llvm_unreachable("unsupported from CAS");
   }
 
-  bool useCodeAlign() const override;
-  bool isVirtualSection() const override;
+  bool useCodeAlign() const override {
+    llvm_unreachable("unsupported from CAS");
+  }
 
   static bool classof(const MCSection *S) { return S->getVariant() == SV_CAS; }
 };

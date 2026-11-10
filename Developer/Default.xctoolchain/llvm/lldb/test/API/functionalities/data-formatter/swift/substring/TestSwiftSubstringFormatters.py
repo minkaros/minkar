@@ -9,6 +9,7 @@ import lldbsuite.test.lldbutil as lldbutil
 
 
 class TestCase(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_substring_formatters(self):
         """Test Subtring summary strings."""
@@ -43,7 +44,7 @@ class TestCase(TestBase):
         subalphabets = [alphabet[i:] for i in range(27)]
 
         self.expect(
-            "v substrings",
+            "v -A -- substrings",
             substrs=[
                 f'[{i}] = "{substring}"'
                 for i, substring in enumerate(subalphabets)

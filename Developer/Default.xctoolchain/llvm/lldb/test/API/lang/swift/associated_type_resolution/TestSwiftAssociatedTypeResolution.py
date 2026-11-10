@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftArchetypeResolution(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_associated_type_resolution(self):
         """Test that archetype-typed objects get resolved to their proper location in memory"""

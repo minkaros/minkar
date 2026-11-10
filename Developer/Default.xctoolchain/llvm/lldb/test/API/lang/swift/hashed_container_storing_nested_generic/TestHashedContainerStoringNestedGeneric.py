@@ -2,11 +2,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class SwiftGenericClassInHashedContainerTest(TestBase):
 
+    @skipEmbeddedSwift
     @swiftTest
     def test(self):
         """Tests that the type of hashed container whose value type is a non-generic class declared inside a generic class can be read from instance metadata"""

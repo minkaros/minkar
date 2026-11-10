@@ -29,7 +29,9 @@
 #include "SwiftOptionSet.h"
 #include "SwiftOptional.h"
 #include "SwiftSet.h"
+#include "SwiftUIFormatters.h"
 #include "SwiftUnsafeTypes.h"
+#include "SystemValueTypes.h"
 
 namespace lldb_private {
 namespace formatters {
@@ -114,8 +116,34 @@ bool ObjC_Selector_SummaryProvider(ValueObject &valobj, Stream &stream,
 bool TypePreservingNSNumber_SummaryProvider(ValueObject &valobj, Stream &stream,
                                             const TypeSummaryOptions &options);
 
+bool TaskPriority_SummaryProvider(ValueObject &valobj, Stream &stream,
+                                  const TypeSummaryOptions &options);
+
+bool Task_SummaryProvider(ValueObject &valobj, Stream &stream,
+                          const TypeSummaryOptions &options);
+
+bool Actor_SummaryProvider(ValueObject &valobj, Stream &stream,
+                           const TypeSummaryOptions &options);
+
 SyntheticChildrenFrontEnd *EnumSyntheticFrontEndCreator(CXXSyntheticChildren *,
                                                         lldb::ValueObjectSP);
+
+SyntheticChildrenFrontEnd *TaskSyntheticFrontEndCreator(CXXSyntheticChildren *,
+                                                        lldb::ValueObjectSP);
+
+SyntheticChildrenFrontEnd *
+UnsafeContinuationSyntheticFrontEndCreator(CXXSyntheticChildren *,
+                                           lldb::ValueObjectSP);
+
+SyntheticChildrenFrontEnd *
+CheckedContinuationSyntheticFrontEndCreator(CXXSyntheticChildren *,
+                                            lldb::ValueObjectSP);
+
+SyntheticChildrenFrontEnd *
+TaskGroupSyntheticFrontEndCreator(CXXSyntheticChildren *, lldb::ValueObjectSP);
+
+SyntheticChildrenFrontEnd *ActorSyntheticFrontEndCreator(CXXSyntheticChildren *,
+                                                         lldb::ValueObjectSP);
 }
 }
 }

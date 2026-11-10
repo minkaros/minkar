@@ -287,6 +287,8 @@ else:
   ret i1 1
 }
 
+; Even though %cnt is not known signed positive %cmp can be simplified
+; because %add.ptr uses it zero-extended.
 define i1 @cnt_not_known_positive_sgt_against_base_with_zext(ptr %p, i32 %cnt) {
 ; CHECK-LABEL: @cnt_not_known_positive_sgt_against_base_with_zext(
 ; CHECK-NEXT:  entry:
@@ -315,6 +317,8 @@ else:
   ret i1 1
 }
 
+; Even though %cnt is not known signed positive %cmp can be simplified
+; because %add.ptr uses it zero-extended.
 define i1 @cnt_not_known_positive_sge_against_base_with_zext(ptr %p, i32 %cnt) {
 ; CHECK-LABEL: @cnt_not_known_positive_sge_against_base_with_zext(
 ; CHECK-NEXT:  entry:
@@ -503,11 +507,9 @@ define i32 @sge_2_gep(i32 %idx, ptr %src, i32 %idx.2) {
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp sge i32 [[IDX]], 2
 ; CHECK-NEXT:    call void @llvm.assume(i1 [[CMP]])
 ; CHECK-NEXT:    [[ADD_PTR_2:%.*]] = getelementptr inbounds i32, ptr [[SRC]], i32 [[IDX_2:%.*]]
-; CHECK-NEXT:    [[T_1:%.*]] = icmp ult ptr [[SRC]], [[ADD_PTR]]
 ; CHECK-NEXT:    [[C_1:%.*]] = icmp ult ptr [[SRC]], [[ADD_PTR_2]]
-; CHECK-NEXT:    [[X_1:%.*]] = xor i1 [[T_1]], [[C_1]]
-; CHECK-NEXT:    [[F_1:%.*]] = icmp uge ptr [[SRC]], [[ADD_PTR]]
-; CHECK-NEXT:    [[X_2:%.*]] = xor i1 [[X_1]], [[F_1]]
+; CHECK-NEXT:    [[X_1:%.*]] = xor i1 true, [[C_1]]
+; CHECK-NEXT:    [[X_2:%.*]] = xor i1 [[X_1]], false
 ; CHECK-NEXT:    br i1 [[X_2]], label [[THEN:%.*]], label [[ELSE:%.*]]
 ; CHECK:       then:
 ; CHECK-NEXT:    ret i32 0

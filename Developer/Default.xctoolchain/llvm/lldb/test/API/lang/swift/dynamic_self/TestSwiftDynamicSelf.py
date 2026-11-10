@@ -3,7 +3,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 class TestSwiftDynamicSelf(lldbtest.TestBase):
 
@@ -31,6 +30,7 @@ class TestSwiftDynamicSelf(lldbtest.TestBase):
         lldbutil.check_variable(self, member_v, False, value=v_val)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_dynamic_self(self):
         self.build()
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(

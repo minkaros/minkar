@@ -1,7 +1,9 @@
 add_llvm_component_library(LLVMMC
   ConstantPools.cpp
   DXContainerPSVInfo.cpp
+  DXContainerRootSignature.cpp
   ELFObjectWriter.cpp
+  GOFFObjectWriter.cpp
   MCAsmBackend.cpp
   MCAsmInfo.cpp
   MCAsmInfoCOFF.cpp
@@ -13,6 +15,7 @@ add_llvm_component_library(LLVMMC
   MCAsmMacro.cpp
   MCAsmStreamer.cpp
   MCAssembler.cpp
+  MCCASFormatSchemaBase.cpp
   MCCodeEmitter.cpp
   MCCodeView.cpp
   MCContext.cpp
@@ -23,6 +26,7 @@ add_llvm_component_library(LLVMMC
   MCELFStreamer.cpp
   MCExpr.cpp
   MCFragment.cpp
+  MCGOFFStreamer.cpp
   MCInst.cpp
   MCInstPrinter.cpp
   MCInstrAnalysis.cpp
@@ -44,6 +48,7 @@ add_llvm_component_library(LLVMMC
   MCSectionCOFF.cpp
   MCSectionDXContainer.cpp
   MCSectionELF.cpp
+  MCSectionGOFF.cpp
   MCSectionMachO.cpp
   MCSectionWasm.cpp
   MCSectionXCOFF.cpp
@@ -80,7 +85,6 @@ add_llvm_component_library(LLVMMC
   BinaryFormat
   CAS
   CASUtil
-  DebugInfoCodeView
 
   DEPENDS
   intrinsics_gen

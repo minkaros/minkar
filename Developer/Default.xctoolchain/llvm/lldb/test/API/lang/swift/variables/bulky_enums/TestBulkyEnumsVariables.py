@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestBulkyEnumVariables(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_bulky_enum_variables(self):
         """Tests that large-size Enum variables display correctly"""
@@ -36,8 +36,7 @@ class TestBulkyEnumVariables(TestBase):
         self.expect(
             'frame variable e',
             substrs=[
-                'e = X ',
+                'e = X',
                 '0 = "hello world"',
                 'b = (a = 100, b = 200)',
                 'a = (a = 300, b = 400)'])
-

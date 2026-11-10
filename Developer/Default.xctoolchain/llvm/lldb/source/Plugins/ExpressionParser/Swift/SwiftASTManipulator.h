@@ -109,40 +109,61 @@ public:
     swift::VarDecl *GetDecl() const { return m_decl; }
     swift::VarDecl::Introducer GetVarIntroducer() const;
     bool IsCaptureList() const;
-    bool IsMetadataPointer() const { return m_name.str().startswith("$τ"); }
+    bool IsMetadataPointer() const { return m_name.str().starts_with("$τ"); }
     bool IsOutermostMetadataPointer() const {
-      return m_name.str().startswith("$τ_0_");
+      return m_name.str().starts_with("$τ_0_");
     }
     bool IsSelf() const {
-      return m_name.str().equals("$__lldb_injected_self");
+      return m_name.str() == "$__lldb_injected_self";
     }
     bool IsPackCount() const {
-      return m_name.str().startswith("$pack_count_");
+      return m_name.str().starts_with("$pack_count_");
     }
     bool IsUnboundPack() const { return m_is_unbound_pack; }
+    bool IsAvailable() const { return m_is_available; }
 
-    VariableInfo() : m_lookup_error(llvm::Error::success()) {}
+    VariableInfo() = default;
     VariableInfo(CompilerType type, swift::Identifier name,
                  VariableMetadataSP metadata,
                  swift::VarDecl::Introducer introducer,
                  bool is_capture_list = false, bool is_unbound_pack = false)
         : m_type(type), m_name(name), m_metadata(metadata),
-          m_var_introducer(introducer), m_lookup_error(llvm::Error::success()),
-          m_is_capture_list(is_capture_list),
+          m_var_introducer(introducer), m_is_capture_list(is_capture_list),
           m_is_unbound_pack(is_unbound_pack) {}
+    VariableInfo(const VariableInfo &other)
+        : m_type(other.m_type), m_name(other.m_name),
+          m_metadata(other.m_metadata), m_decl(other.m_decl),
+          m_var_introducer(other.m_var_introducer),
+          m_lookup_error(other.m_lookup_error.Clone()),
+          m_is_capture_list(other.m_is_capture_list),
+          m_is_unbound_pack(other.m_is_unbound_pack),
+          m_is_available(other.m_is_available) {}
 
     VariableInfo(CompilerType type, swift::Identifier name,
                  swift::VarDecl *decl)
-        : m_type(type), m_name(name), m_decl(decl),
-          m_lookup_error(llvm::Error::success()) {}
+        : m_type(type), m_name(name), m_decl(decl) {}
+
+    VariableInfo &operator=(const VariableInfo &other) {
+      m_type = other.m_type;
+      m_name = other.m_name;
+      m_metadata = other.m_metadata;
+      m_decl = other.m_decl;
+      m_var_introducer = other.m_var_introducer;
+      m_lookup_error = other.m_lookup_error.Clone();
+      m_is_capture_list = other.m_is_capture_list;
+      m_is_unbound_pack = other.m_is_unbound_pack;
+      m_is_available = other.m_is_available;
+      return *this;
+    }
 
     void Print(Stream &stream) const;
 
     void SetType(CompilerType new_type) { m_type = new_type; }
     void SetLookupError(llvm::Error &&error) {
-      m_lookup_error = std::move(error);
+      m_lookup_error = Status::FromError(std::move(error));
     }
     llvm::Error TakeLookupError() { return m_lookup_error.ToError(); }
+    void SetUnavailable() { m_is_available = false; }
 
     friend class SwiftASTManipulator;
 
@@ -156,6 +177,7 @@ public:
     Status m_lookup_error;
     bool m_is_capture_list = false;
     bool m_is_unbound_pack = false;
+    bool m_is_available = true;
   };
 
   SwiftASTManipulatorBase(swift::SourceFile &source_file,
@@ -266,6 +288,12 @@ public:
   SaveExpressionTextToTempFile(llvm::StringRef text,
                                const EvaluateExpressionOptions &options,
                                std::string &expr_source_path);
+
+  // By default expression evaluation should not try to bind the generic types.
+  static bool
+  ShouldBindGenericTypes(lldb::BindGenericTypes bind_generic_types) {
+    return bind_generic_types == lldb::eBind;
+  }
 
   swift::FuncDecl *GetEntrypointDecl() const {
     return m_entrypoint_decl;

@@ -1,11 +1,14 @@
 // RUN: %clang_cc1 -triple arm64-apple-ios11 -fobjc-arc -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=CHECK-DISABLE-PTRAUTH %s
 // RUN: %clang_cc1 -triple arm64-apple-ios11 -fobjc-arc  -fptrauth-calls -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=CHECK-ENABLE-PTRAUTH %s
 
+@interface SuperClass
+@end
+
 typedef struct {
   id x;
 } S0;
 
-@interface C {
+@interface C : SuperClass {
   S0 _p1;
 }
 @property(nonatomic) S0 nonatomic;
@@ -51,7 +54,7 @@ typedef struct {
 // CHECK: define internal void @"\01-[C setNonatomic:]"(ptr noundef %[[SELF:.*]], {{.*}}, i64 %[[NONATOMIC_COERCE:.*]])
 // CHECK: %[[NONATOMIC:.*]] = alloca %[[STRUCT_S0]], align 8
 // CHECK: %[[SELF_ADDR:.*]] = alloca ptr, align 8
-// CHECK: %[[COERCE_DIVE:.*]] = getelementptr inbounds %[[STRUCT_S0]], ptr %[[NONATOMIC]], i32 0, i32 0
+// CHECK: %[[COERCE_DIVE:.*]] = getelementptr inbounds nuw %[[STRUCT_S0]], ptr %[[NONATOMIC]], i32 0, i32 0
 // CHECK: %[[COERCE_VAL_IP:.*]] = inttoptr i64 %[[NONATOMIC_COERCE]] to ptr
 // CHECK: store ptr %[[COERCE_VAL_IP]], ptr %[[COERCE_DIVE]], align 8
 // CHECK: store ptr %[[SELF]], ptr %[[SELF_ADDR]], align 8
@@ -92,7 +95,7 @@ typedef struct {
 
 // CHECK: [[MSGSEND_CALL]]:
 // CHECK: %[[V3:.*]] = load ptr, ptr @OBJC_SELECTOR_REFERENCES_, align 8
-// CHECK: %[[COERCE_DIVE:.*]] = getelementptr inbounds %[[STRUCT_S0]], ptr %[[AGG_TMP]], i32 0, i32 0
+// CHECK: %[[COERCE_DIVE:.*]] = getelementptr inbounds nuw %[[STRUCT_S0]], ptr %[[AGG_TMP]], i32 0, i32 0
 // CHECK: %[[V4:.*]] = load ptr, ptr %[[COERCE_DIVE]], align 8
 // CHECK: %[[COERCE_VAL_PI:.*]] = ptrtoint ptr %[[V4]] to i64
 // CHECK: call void @objc_msgSend(ptr noundef %[[V1]], ptr noundef %[[V3]], i64 %[[COERCE_VAL_PI]])

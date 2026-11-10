@@ -13,7 +13,6 @@
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/PathRemapper.h"
-#include "clang/CodeGen/ObjectFilePCHContainerOperations.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
@@ -27,6 +26,7 @@
 #include "clang/Index/USRGeneration.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Serialization/ASTReader.h"
+#include "clang/Serialization/ObjectFilePCHContainerReader.h"
 #include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/CommandLine.h"
@@ -36,6 +36,7 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/StringSaver.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <future>
 #include <thread>
@@ -58,6 +59,7 @@ enum class ActionType {
   AggregateAsJSON,
   ScanDeps,
   ScanDepsByModuleName,
+  GenerateDepsReproducer,
   UploadCachedJob,
   MaterializeCachedJob,
   ReplayCachedJob,
@@ -86,6 +88,8 @@ Action(cl::desc("Action:"), cl::init(ActionType::None),
                      "Get file dependencies"),
           clEnumValN(ActionType::ScanDepsByModuleName, "scan-deps-by-mod-name",
                      "Get file dependencies by module name alone"),
+          clEnumValN(ActionType::GenerateDepsReproducer, "gen-deps-reproducer",
+                     "Generate a reproducer for the file"),
           clEnumValN(ActionType::UploadCachedJob, "upload-cached-job",
                      "Upload cached compilation data to upstream CAS"),
           clEnumValN(ActionType::MaterializeCachedJob, "materialize-cached-job",
@@ -161,7 +165,11 @@ static cl::opt<bool> TestCASCancellation(
     "test-cas-cancellation",
     cl::desc(
         "perform extra CAS API invocation and cancel it for testing purposes"));
-}
+static cl::opt<bool> OptimizeCWD(
+    "optimize-cwd",
+    cl::desc(
+        "instruct the scanner to ignore current working directory if safe."));
+} // namespace options
 } // anonymous namespace
 
 static void printSymbolInfo(SymbolInfo SymInfo, raw_ostream &OS);
@@ -306,8 +314,10 @@ static bool printSourceSymbols(const char *Executable,
   SmallVector<const char *, 4> ArgsWithProgName;
   ArgsWithProgName.push_back(Executable);
   ArgsWithProgName.append(Args.begin(), Args.end());
-  IntrusiveRefCntPtr<DiagnosticsEngine>
-    Diags(CompilerInstance::createDiagnostics(new DiagnosticOptions));
+  auto DiagOpts = std::make_shared<DiagnosticOptions>();
+  IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
+      CompilerInstance::createDiagnostics(*llvm::vfs::getRealFileSystem(),
+                                          *DiagOpts));
   CreateInvocationOptions CIOpts;
   CIOpts.Diags = Diags;
   CIOpts.ProbePrecompiled = true; // FIXME: historical default. Needed?
@@ -326,7 +336,7 @@ static bool printSourceSymbols(const char *Executable,
 
   auto PCHContainerOps = std::make_shared<PCHContainerOperations>();
   std::unique_ptr<ASTUnit> Unit(ASTUnit::LoadFromCompilerInvocationAction(
-      std::move(CInvok), PCHContainerOps, Diags, IndexAction.get()));
+      std::move(CInvok), PCHContainerOps, DiagOpts, Diags, IndexAction.get()));
 
   if (!Unit)
     return true;
@@ -357,13 +367,16 @@ static bool printSourceSymbolsFromModule(StringRef modulePath,
     return true;
   }
 
-  auto HSOpts = std::make_shared<HeaderSearchOptions>();
+  HeaderSearchOptions HSOpts;
 
+  auto VFS = llvm::vfs::getRealFileSystem();
+
+  auto DiagOpts = std::make_shared<DiagnosticOptions>();
   IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
-      CompilerInstance::createDiagnostics(new DiagnosticOptions());
+      CompilerInstance::createDiagnostics(*VFS, *DiagOpts);
   std::unique_ptr<ASTUnit> AU = ASTUnit::LoadFromASTFile(
-      std::string(modulePath), *pchRdr, ASTUnit::LoadASTOnly, Diags,
-      FileSystemOpts, HSOpts,
+      modulePath, *pchRdr, ASTUnit::LoadASTOnly, VFS, DiagOpts, Diags,
+      FileSystemOpts, HSOpts, /*LangOpts=*/nullptr,
       /*OnlyLocalDecls=*/true, CaptureDiagsKind::None,
       /*AllowASTWithCompilerErrors=*/true,
       /*UserFilesAreVolatile=*/false);
@@ -714,6 +727,10 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
   clang_experimental_DependencyScannerServiceOptions_setDependencyMode(
       Opts, CXDependencyMode_Full);
 
+  if (options::OptimizeCWD)
+    clang_experimental_DependencyScannerServiceOptions_setCWDOptimization(Opts,
+                                                                          1);
+
   if (DBs)
     clang_experimental_DependencyScannerServiceOptions_setCASDatabases(Opts,
                                                                        DBs);
@@ -760,11 +777,15 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
       char *Output, size_t MaxLen)>(LookupOutput);
 
   unsigned CommandIndex = 0;
-  auto HandleCommand = [&](const char *ContextHash, const char *IncludeTreeID,
-                           CXCStringArray ModuleDeps, CXCStringArray FileDeps,
-                           CXCStringArray Args, const char *CacheKey) {
+  auto HandleCommand = [&](const char *ContextHash,
+                           const char *FilesystemRootID,
+                           const char *IncludeTreeID, CXCStringArray ModuleDeps,
+                           CXCStringArray FileDeps, CXCStringArray Args,
+                           const char *CacheKey) {
     llvm::outs() << "  command " << CommandIndex++ << ":\n";
     llvm::outs() << "    context-hash: " << ContextHash << "\n";
+    if (FilesystemRootID)
+      llvm::outs() << "    casfs-root-id: " << FilesystemRootID << "\n";
     if (IncludeTreeID)
       llvm::outs() << "    include-tree-id: " << IncludeTreeID << "\n";
     if (CacheKey)
@@ -801,12 +822,18 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
     llvm::outs() << "modules:\n";
     for (size_t I = 0, E = clang_experimental_DepGraph_getNumModules(Graph);
          I < E; ++I) {
-      CXDepGraphModule Mod = clang_experimental_DepGraph_getModule(Graph, I);
+      CXDepGraphModule Mod =
+          clang_experimental_DepGraph_getModuleTopological(Graph, I);
       const char *Name = clang_experimental_DepGraphModule_getName(Mod);
       const char *ContextHash =
           clang_experimental_DepGraphModule_getContextHash(Mod);
+      int CwdIgnored = clang_experimental_DepGraphModule_isCWDIgnored(Mod);
+      bool IsInStableDir =
+          clang_experimental_DepGraphModule_isInStableDirs(Mod);
       const char *ModuleMapPath =
           clang_experimental_DepGraphModule_getModuleMapPath(Mod);
+      const char *ModuleFilesystemRootID =
+          clang_experimental_DepGraphModule_getFileSystemRootID(Mod);
       const char *ModuleIncludeTreeID =
           clang_experimental_DepGraphModule_getIncludeTreeID(Mod);
       const char *ModuleCacheKey =
@@ -822,8 +849,14 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
       llvm::outs() << "  module:\n"
                    << "    name: " << Name << "\n"
                    << "    context-hash: " << ContextHash << "\n"
+                   << "    cwd-ignored: " << CwdIgnored << "\n"
                    << "    module-map-path: "
                    << (ModuleMapPath ? ModuleMapPath : "<none>") << "\n";
+      if (IsInStableDir)
+        llvm::outs() << "    is-in-stable-directories: " << IsInStableDir
+                     << "\n";
+      if (ModuleFilesystemRootID)
+        llvm::outs() << "    casfs-root-id: " << ModuleFilesystemRootID << "\n";
       if (ModuleIncludeTreeID)
         llvm::outs() << "    include-tree-id: " << ModuleIncludeTreeID << "\n";
       if (ModuleCacheKey)
@@ -834,7 +867,29 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
         llvm::outs() << "      " << ModuleName << "\n";
       llvm::outs() << "    file-deps:\n";
       for (const auto &FileName : ArrayRef(FileDeps.Strings, FileDeps.Count))
-        llvm::outs() << "      " << FileName << "\n";
+        // Not reporting SDKSettings.json so that test checks can remain
+        // (mostly) platform-agnostic.
+        if (!StringRef(FileName).ends_with("SDKSettings.json"))
+          llvm::outs() << "      " << FileName << "\n";
+      CXDepGraphModuleLinkLibrarySet LinkLibs =
+          clang_experimental_DepGraphModule_getLinkLibrarySet(Mod);
+      size_t NumLinkLibs =
+          clang_experimental_DepGraphModuleLinkLibrarySet_getSize(LinkLibs);
+      if (NumLinkLibs) {
+        llvm::outs() << "    link libraries:\n";
+        for (size_t Idx = 0; Idx < NumLinkLibs; Idx++) {
+          CXDepGraphModuleLinkLibrary Lib =
+              clang_experimental_DepGraphModuleLinkLibrarySet_getLinkLibrary(
+                  LinkLibs, Idx);
+          CXString Library =
+              clang_experimental_DepGraphModuleLinkLibrary_getLibrary(Lib);
+          bool IsFramework =
+              clang_experimental_DepGraphModuleLinkLibrary_isFramework(Lib);
+          const char *IsFrameworkStr = IsFramework ? "(framework)" : "";
+          llvm::outs() << "        " << clang_getCString(Library)
+                       << IsFrameworkStr << "\n";
+        }
+      }
       llvm::outs() << "    build-args:";
       for (const auto &Arg :
            ArrayRef(BuildArguments.Strings, BuildArguments.Count))
@@ -843,6 +898,8 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
     }
 
     llvm::outs() << "dependencies:\n";
+    const char *TUFileSystemRootID =
+        clang_experimental_DepGraph_getTUFileSystemRootID(Graph);
     const char *TUIncludeTreeID =
         clang_experimental_DepGraph_getTUIncludeTreeID(Graph);
     const char *TUContextHash =
@@ -861,8 +918,8 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
           clang_experimental_DepGraphTUCommand_getCacheKey(Cmd);
       auto Dispose = llvm::make_scope_exit(
           [&]() { clang_experimental_DepGraphTUCommand_dispose(Cmd); });
-      HandleCommand(TUContextHash, TUIncludeTreeID, TUModuleDeps, TUFileDeps,
-                    Args, CacheKey);
+      HandleCommand(TUContextHash, TUFileSystemRootID, TUIncludeTreeID,
+                    TUModuleDeps, TUFileDeps, Args, CacheKey);
     }
     return 0;
   }
@@ -878,7 +935,51 @@ static int scanDeps(ArrayRef<const char *> Args, std::string WorkingDirectory,
     clang_disposeString(Spelling);
     clang_disposeDiagnostic(Diag);
   }
+
+  CXDepScanFSOutOfDateEntrySet OutOfDateEntrySet =
+      clang_experimental_DependencyScannerService_getFSCacheOutOfDateEntrySet(
+          Service);
+
+  llvm::errs()
+      << "note: number of out of date file system cache entries: "
+      << clang_experimental_DepScanFSCacheOutOfDateEntrySet_getNumOfEntries(
+             OutOfDateEntrySet)
+      << "\n";
+
+  clang_experimental_DepScanFSCacheOutOfDateEntrySet_disposeSet(
+      OutOfDateEntrySet);
+
   return 1;
+}
+
+static int generateDepsReproducer(ArrayRef<const char *> Args,
+                                  std::string WorkingDirectory,
+                                  std::string ReproLocation,
+                                  CXCASDatabases DBs) {
+  CXDependencyScannerReproducerOptions Opts =
+      clang_experimental_DependencyScannerReproducerOptions_create(
+          Args.size(), Args.data(), /*ModuleName=*/nullptr,
+          WorkingDirectory.c_str(),
+          ReproLocation.empty() ? nullptr : ReproLocation.c_str(),
+          /*UseUniqueReproducerName=*/ReproLocation.empty());
+  auto DisposeOpts = llvm::make_scope_exit([&] {
+    clang_experimental_DependencyScannerReproducerOptions_dispose(Opts);
+  });
+  clang_experimental_DependencyScannerReproducerOptions_setCASOptions(Opts, DBs,
+                                                                      nullptr);
+  CXString MessageString;
+  auto DisposeMessageString = llvm::make_scope_exit([&]() {
+    clang_disposeString(MessageString);
+  });
+  CXErrorCode ExitCode =
+      clang_experimental_DependencyScanner_generateReproducer(Opts,
+                                                              &MessageString);
+  if (ExitCode == CXError_Success) {
+    llvm::outs() << clang_getCString(MessageString) << "\n";
+  } else {
+    llvm::errs() << "error: " << clang_getCString(MessageString) << "\n";
+  }
+  return (ExitCode == CXError_Success) ? 0 : 1;
 }
 
 static int uploadCachedJob(std::string CacheKey, CXCASDatabases DBs) {
@@ -1504,6 +1605,15 @@ int indextest_core_main(int argc, const char **argv) {
     return scanDeps(CompArgs, options::WorkingDir, options::SerializeDiags,
                     options::DependencyFile, options::DependencyTargets,
                     options::OutputDir, DBs, options::ModuleName);
+  }
+
+  if (options::Action == ActionType::GenerateDepsReproducer) {
+    if (options::WorkingDir.empty()) {
+      errs() << "error: missing -working-dir\n";
+      return 1;
+    }
+    return generateDepsReproducer(CompArgs, options::WorkingDir,
+                                  options::OutputFile, DBs);
   }
 
   if (options::Action == ActionType::UploadCachedJob) {

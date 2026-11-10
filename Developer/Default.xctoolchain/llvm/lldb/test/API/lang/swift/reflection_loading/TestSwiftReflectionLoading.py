@@ -2,7 +2,6 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 import re
 
 class TestSwiftReflectionLoading(lldbtest.TestBase):
@@ -10,13 +9,15 @@ class TestSwiftReflectionLoading(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
+    @skipEmbeddedSwift
     @swiftTest
+    @skipIfWindows
     def test(self):
         """Test that reflection metadata is imported"""
         self.build()
 
-        log = self.getBuildArtifact("types.log")
-        self.runCmd('log enable lldb types -f "%s"' % log)
+        types_log = self.getBuildArtifact("types.log")
+        self.runCmd('log enable lldb types -v -f "%s"' % types_log)
 
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(
             self, 'Set breakpoint here', lldb.SBFileSpec('main.swift'),
@@ -27,14 +28,6 @@ class TestSwiftReflectionLoading(lldbtest.TestBase):
         lldbutil.check_variable(self, var_c_x, value="23")
 
         # Scan through the types log.
-        import io
-        logfile = io.open(log, "r", encoding='utf-8')
-        found_exe = 0
-        found_lib = 0
-        for line in logfile:
-            if re.search(r'Adding reflection metadata in .*a\.out', line):
-                found_exe += 1
-            if re.search(r'Adding reflection metadata in .*dynamic_lib', line):
-                found_lib += 1
-        self.assertEqual(found_exe, 1)
-        self.assertEqual(found_lib, 1)
+        self.filecheck_log(types_log, __file__)
+        # CHECK: {{Adding reflection metadata in .*a\.out}}
+        # CHECK: {{Adding reflection metadata in .*dynamic_lib}}

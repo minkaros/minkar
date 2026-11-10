@@ -55,7 +55,7 @@ const char *SBSymbol::GetName() const {
 
   const char *name = nullptr;
   if (m_opaque_ptr)
-    name = m_opaque_ptr->GetName().AsCString();
+    name = m_opaque_ptr->GetName().AsCString(nullptr);
 
   return name;
 }
@@ -65,7 +65,8 @@ const char *SBSymbol::GetDisplayName() const {
 
   const char *name = nullptr;
   if (m_opaque_ptr)
-    name = m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString();
+    name =
+        m_opaque_ptr->GetMangled().GetDisplayDemangledName().AsCString(nullptr);
 
   return name;
 }
@@ -75,7 +76,7 @@ const char *SBSymbol::GetMangledName() const {
 
   const char *name = nullptr;
   if (m_opaque_ptr)
-    name = m_opaque_ptr->GetMangled().GetMangledName().AsCString();
+    name = m_opaque_ptr->GetMangled().GetMangledName().AsCString(nullptr);
   return name;
 }
 
@@ -126,8 +127,9 @@ SBInstructionList SBSymbol::GetInstructions(SBTarget target,
         AddressRange symbol_range(symbol_addr, m_opaque_ptr->GetByteSize());
         const bool force_live_memory = true;
         sb_instructions.SetDisassembler(Disassembler::DisassembleRange(
-            module_sp->GetArchitecture(), nullptr, flavor_string, *target_sp,
-            symbol_range, force_live_memory));
+            module_sp->GetArchitecture(), nullptr, flavor_string,
+            target_sp->GetDisassemblyCPU(), target_sp->GetDisassemblyFeatures(),
+            *target_sp, symbol_range, force_live_memory));
       }
     }
   }

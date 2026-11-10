@@ -45,6 +45,8 @@ struct llcas_functions_t {
 
   bool (*cas_prune_ondisk_data)(llcas_cas_t, char **error);
 
+  bool (*cas_validate)(llcas_cas_t, bool check_hash, char **error);
+
   unsigned (*digest_parse)(llcas_cas_t, const char *printed_digest,
                            uint8_t *bytes, size_t bytes_size, char **error);
 
@@ -72,6 +74,9 @@ struct llcas_functions_t {
                            const llcas_objectid_t *refs, size_t refs_count,
                            llcas_objectid_t *, char **error);
 
+  bool (*cas_store_from_filepath)(llcas_cas_t, const char *filepath,
+                                  llcas_objectid_t *, char **error);
+
   llcas_data_t (*loaded_object_get_data)(llcas_cas_t, llcas_loaded_object_t);
 
   llcas_object_refs_t (*loaded_object_get_refs)(llcas_cas_t,
@@ -81,6 +86,11 @@ struct llcas_functions_t {
 
   llcas_objectid_t (*object_refs_get_id)(llcas_cas_t, llcas_object_refs_t,
                                          size_t index);
+
+  bool (*loaded_object_export_data_to_filepath)(llcas_cas_t,
+                                                llcas_loaded_object_t,
+                                                const char *filepath,
+                                                char **error);
 
   /*===--------------------------------------------------------------------===*\
   |* Action cache API
@@ -106,6 +116,8 @@ struct llcas_functions_t {
                                            bool globally, void *ctx_cb,
                                            llcas_actioncache_put_cb,
                                            llcas_cancellable_t *);
+
+  bool (*actioncache_validate)(llcas_cas_t, char **error);
 };
 
 #endif // LLVM_LIB_CAS_PLUGINAPI_H

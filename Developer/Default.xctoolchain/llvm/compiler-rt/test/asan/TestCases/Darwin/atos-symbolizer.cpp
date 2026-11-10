@@ -3,8 +3,8 @@
 // RUN: %clangxx_asan -O0 %s -o %t
 // RUN: %env_asan_opts=verbosity=2 ASAN_SYMBOLIZER_PATH=$(which atos) not %run %t 2>&1 | FileCheck %s
 
-// Path returned by `which atos` is invalid on iOS.
-// UNSUPPORTED: ios, i386-darwin
+// Path returned by `which atos` is invalid on non-host
+// UNSUPPORTED: darwin-remote, i386-darwin
 
 #include <stdlib.h>
 #include <string.h>

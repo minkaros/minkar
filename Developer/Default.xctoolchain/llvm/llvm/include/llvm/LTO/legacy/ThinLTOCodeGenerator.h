@@ -23,6 +23,7 @@
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/CachePruning.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Target/TargetOptions.h"
@@ -35,16 +36,23 @@ namespace llvm {
 class StringRef;
 class TargetMachine;
 
+/// ThinLTOCodeGeneratorImpl - Namespace used for ThinLTOCodeGenerator
+/// implementation details. It should be considered private to the
+/// implementation.
+namespace ThinLTOCodeGeneratorImpl {
+struct TargetMachineBuilder;
+}
+
 /// Helper to gather options relevant to the target machine creation
-struct TargetMachineBuilder {
+struct ThinLTOCodeGeneratorImpl::TargetMachineBuilder {
   Triple TheTriple;
   std::string MCpu;
   std::string MAttr;
   TargetOptions Options;
   std::optional<Reloc::Model> RelocModel;
-  CodeGenOpt::Level CGOptLevel = CodeGenOpt::Aggressive;
+  CodeGenOptLevel CGOptLevel = CodeGenOptLevel::Aggressive;
 
-  std::unique_ptr<TargetMachine> create() const;
+  LLVM_ABI std::unique_ptr<TargetMachine> create() const;
 };
 
 // ThinLTOCacheEntry: manage caching for a single Module.
@@ -69,7 +77,8 @@ public:
       const FunctionImporter::ExportSetTy &ExportList,
       const std::map<GlobalValue::GUID, GlobalValue::LinkageTypes> &ResolvedODR,
       const GVSummaryMapTy &DefinedGVSummaries, unsigned OptLevel,
-      bool Freestanding, const TargetMachineBuilder &TMBuilder);
+      bool Freestanding,
+      const ThinLTOCodeGeneratorImpl::TargetMachineBuilder &TMBuilder);
 };
 
 /// This class define an interface similar to the LTOCodeGenerator, but adapted
@@ -81,14 +90,14 @@ public:
 class ThinLTOCodeGenerator {
 public:
   /// Add given module to the code generator.
-  void addModule(StringRef Identifier, StringRef Data);
+  LLVM_ABI void addModule(StringRef Identifier, StringRef Data);
 
   /**
    * Adds to a list of all global symbols that must exist in the final generated
    * code. If a symbol is not listed there, it will be optimized away if it is
    * inlined into every usage.
    */
-  void preserveSymbol(StringRef Name);
+  LLVM_ABI void preserveSymbol(StringRef Name);
 
   /**
    * Adds to a list of all global symbols that are cross-referenced between
@@ -96,7 +105,7 @@ public:
    * references from a ThinLTO module to this symbol is optimized away, then
    * the symbol can be discarded.
    */
-  void crossReferenceSymbol(StringRef Name);
+  LLVM_ABI void crossReferenceSymbol(StringRef Name);
 
   /**
    * Process all the modules that were added to the code generator in parallel.
@@ -105,7 +114,7 @@ public:
    * unless setGeneratedObjectsDirectory() has been called, in which case
    * results are available through getProducedBinaryFiles().
    */
-  void run();
+  LLVM_ABI void run();
 
   /**
    * Return the "in memory" binaries produced by the code generator. This is
@@ -153,20 +162,26 @@ public:
 
   struct CachingOptions {
     std::string Path;                    // Path to the cache, empty to disable.
+    std::string PluginPath;
+    std::vector<std::pair<std::string, std::string>> PluginOpts;
     CachePruningPolicy Policy;
     enum class CacheType {
       CacheDirectory,
       CAS,
+      PluginCAS,
       RemoteService,
     } Type;
-    std::unique_ptr<cas::ObjectStore> CAS;
-    std::unique_ptr<cas::ActionCache> Cache;
+    std::shared_ptr<cas::ObjectStore> CAS;
+    std::shared_ptr<cas::ActionCache> Cache;
     std::optional<cas::remote::ClientServices> Service;
+
+    // Init the CAS and Cache
+    Error startCache();
   };
 
   /// Provide a path to a directory where to store the cached files for
   /// incremental build.
-  Error setCacheDir(std::string Path);
+  LLVM_ABI Error setCacheDir(std::string Path);
 
   /// Create a cache entry for the module
   std::unique_ptr<ModuleCacheEntry> createModuleCacheEntry(
@@ -175,7 +190,8 @@ public:
       const FunctionImporter::ExportSetTy &ExportList,
       const std::map<GlobalValue::GUID, GlobalValue::LinkageTypes> &ResolvedODR,
       const GVSummaryMapTy &DefinedGVSummaries, unsigned OptLevel,
-      bool Freestanding, const TargetMachineBuilder &TMBuilder,
+      bool Freestanding,
+      const ThinLTOCodeGeneratorImpl::TargetMachineBuilder &TMBuilder,
       std::function<void(llvm::function_ref<void(raw_ostream &OS)>)> Logger =
           nullptr);
 
@@ -235,6 +251,10 @@ public:
   /// the processing.
   void setSaveTempsDir(std::string Path) { SaveTempsDir = std::move(Path); }
 
+  /// Set the path to a directory where to save temporaries from the remote
+  /// service.
+  void setRemoteServiceTempsDir(std::string Path);
+
   /// Set the path to a directory where to save generated object files. This
   /// path can be used by a linker to request on-disk files instead of in-memory
   /// buffers. When set, results are available through getProducedBinaryFiles()
@@ -264,7 +284,7 @@ public:
   }
 
   /// CodeGen optimization level
-  void setCodeGenOptLevel(CodeGenOpt::Level CGOptLevel) {
+  void setCodeGenOptLevel(CodeGenOptLevel CGOptLevel) {
     TMBuilder.CGOptLevel = CGOptLevel;
   }
 
@@ -294,62 +314,63 @@ public:
    * Produce the combined summary index from all the bitcode files:
    * "thin-link".
    */
-  std::unique_ptr<ModuleSummaryIndex> linkCombinedIndex();
+  LLVM_ABI std::unique_ptr<ModuleSummaryIndex> linkCombinedIndex();
 
   /**
    * Perform promotion and renaming of exported internal functions,
    * and additionally resolve weak and linkonce symbols.
    * Index is updated to reflect linkage changes from weak resolution.
    */
-  void promote(Module &Module, ModuleSummaryIndex &Index,
-               const lto::InputFile &File);
+  LLVM_ABI void promote(Module &Module, ModuleSummaryIndex &Index,
+                        const lto::InputFile &File);
 
   /**
    * Compute and emit the imported files for module at \p ModulePath.
    */
-  void emitImports(Module &Module, StringRef OutputName,
-                   ModuleSummaryIndex &Index,
-                   const lto::InputFile &File);
+  LLVM_ABI void emitImports(Module &Module, StringRef OutputName,
+                            ModuleSummaryIndex &Index,
+                            const lto::InputFile &File);
 
   /**
    * Perform cross-module importing for the module identified by
    * ModuleIdentifier.
    */
-  void crossModuleImport(Module &Module, ModuleSummaryIndex &Index,
-                         const lto::InputFile &File);
+  LLVM_ABI void crossModuleImport(Module &Module, ModuleSummaryIndex &Index,
+                                  const lto::InputFile &File);
 
   /**
-   * Compute the list of summaries needed for importing into module.
+   * Compute the list of summaries and the subset of declaration summaries
+   * needed for importing into module.
    */
-  void gatherImportedSummariesForModule(
+  LLVM_ABI void gatherImportedSummariesForModule(
       Module &Module, ModuleSummaryIndex &Index,
-      std::map<std::string, GVSummaryMapTy> &ModuleToSummariesForIndex,
-      const lto::InputFile &File);
+      ModuleToSummariesForIndexTy &ModuleToSummariesForIndex,
+      GVSummaryPtrSet &DecSummaries, const lto::InputFile &File);
 
   /**
    * Perform internalization. Index is updated to reflect linkage changes.
    */
-  void internalize(Module &Module, ModuleSummaryIndex &Index,
-                   const lto::InputFile &File);
+  LLVM_ABI void internalize(Module &Module, ModuleSummaryIndex &Index,
+                            const lto::InputFile &File);
 
   /**
    * Perform post-importing ThinLTO optimizations.
    */
-  void optimize(Module &Module);
+  LLVM_ABI void optimize(Module &Module);
 
   /**
    * Write temporary object file to SavedObjectDirectoryPath, write symlink
    * to Cache directory if needed. Returns the path to the generated file in
    * SavedObjectsDirectoryPath.
    */
-  std::string writeGeneratedObject(StringRef OutputPath,
+  LLVM_ABI std::string writeGeneratedObject(StringRef OutputPath,
                                    ModuleCacheEntry *CacheEntry,
                                    const MemoryBuffer &OutputBuffer);
   /**@}*/
 
 private:
   /// Helper factory to build a TargetMachine
-  TargetMachineBuilder TMBuilder;
+  ThinLTOCodeGeneratorImpl::TargetMachineBuilder TMBuilder;
 
   /// Vector holding the in-memory buffer containing the produced binaries, when
   /// SavedObjectsDirectoryPath isn't set.
@@ -374,6 +395,9 @@ private:
 
   /// Path to a directory to save the temporary bitcode files.
   std::string SaveTempsDir;
+
+  /// Path to a directory to save the temporary remote service files.
+  std::string RemoteServiceTempsDir;
 
   /// Path to a directory to save the generated object files.
   std::string SavedObjectsDirectoryPath;

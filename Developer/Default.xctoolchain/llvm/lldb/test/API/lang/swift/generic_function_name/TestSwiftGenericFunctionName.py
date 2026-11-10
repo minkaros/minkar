@@ -2,10 +2,10 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftGenericFunction(lldbtest.TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test(self):
         """Test display of generic function names"""

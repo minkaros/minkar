@@ -19,7 +19,6 @@ import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
 import time
-import unittest2
 
 @skipIfDarwin # rdar://problem/54322424 Sometimes failing, sometimes truncated output.
 class TestMainExecutable(TestBase):
@@ -38,9 +37,13 @@ class TestMainExecutable(TestBase):
 
         return info
 
-    @skipIf(bugnumber="rdar://problem/54322424", # This test is unreliable.
-            setting=('symbols.use-swift-clangimporter', 'false'))
+    @skipIf(
+        bugnumber="rdar://problem/54322424",  # This test is unreliable.
+        setting=("symbols.use-swift-clangimporter", "false"),
+    )
     @swiftTest
+    @skipEmbeddedSwift
+    @skipIfWindows
     def test_implementation_only_import_main_executable(self):
         """Test `@_implementationOnly import` in the main executable
 
@@ -56,13 +59,17 @@ class TestMainExecutable(TestBase):
             "(SomeLibrary.TwoInts) value = (first = 2, second = 3)",
             "(main.ContainsTwoInts) container = {\n  wrapped = (first = 2, second = 3)\n  other = 10\n}",
             "(Int) simple = 1"])
-        self.expect("e value", substrs=["(SomeLibrary.TwoInts)", "= (first = 2, second = 3)"])
-        self.expect("e container", substrs=["(main.ContainsTwoInts)", "wrapped = (first = 2, second = 3)", "other = 10"])
-        self.expect("e TwoInts(4, 5)", substrs=["(SomeLibrary.TwoInts)", "= (first = 4, second = 5)"])
+        self.expect("expr value", substrs=["(SomeLibrary.TwoInts)", "= (first = 2, second = 3)"])
+        self.expect("expr container", substrs=["(main.ContainsTwoInts)", "wrapped = (first = 2, second = 3)", "other = 10"])
+        self.expect("expr TwoInts(4, 5)", substrs=["(SomeLibrary.TwoInts)", "= (first = 4, second = 5)"])
 
-    @skipIf(bugnumber="rdar://problem/54322424", # This test is unreliable.
-            setting=('symbols.use-swift-clangimporter', 'false'))
+    @skipIf(
+        bugnumber="rdar://problem/54322424",  # This test is unreliable.
+        setting=("symbols.use-swift-clangimporter", "false"),
+    )
     @swiftTest
+    @skipEmbeddedSwift
+    @skipIfWindows
     @skipIfLinux # rdar://problem/67348391
     def test_implementation_only_import_main_executable_no_library_module(self):
         """Test `@_implementationOnly import` in the main executable, after removing the library's swiftmodule
@@ -87,13 +94,15 @@ class TestMainExecutable(TestBase):
 #            "container = {}",
             "simple = 1"])
 
-        self.expect("e value", error=True)
-        self.expect("e container", error=True)
-        self.expect("e TwoInts(4, 5)", error=True)
+        self.expect("expr value", error=True)
+        self.expect("expr container", error=True)
+        self.expect("expr TwoInts(4, 5)", error=True)
         lldb.SBDebugger.MemoryPressureDetected()
         self.runCmd("settings set symbols.use-swift-dwarfimporter true")
 
     @swiftTest
+    @skipEmbeddedSwift
+    @skipIfWindows
     @expectedFailureAll(oslist=["windows"])
     def test_implementation_only_import_main_executable_resilient(self):
         """Test `@_implementationOnly import` in the main executable with a resilient library
@@ -110,11 +119,13 @@ class TestMainExecutable(TestBase):
             "(SomeLibrary.TwoInts) value = (first = 2, second = 3)",
             "(main.ContainsTwoInts) container = {\n  wrapped = (first = 2, second = 3)\n  other = 10\n}",
             "(Int) simple = 1"])
-        self.expect("e value", substrs=["(SomeLibrary.TwoInts)", "= (first = 2, second = 3)"])
-        self.expect("e container", substrs=["(main.ContainsTwoInts)", "wrapped = (first = 2, second = 3)", "other = 10"])
-        self.expect("e TwoInts(4, 5)", substrs=["(SomeLibrary.TwoInts)", "= (first = 4, second = 5)"])
+        self.expect("expr value", substrs=["(SomeLibrary.TwoInts)", "= (first = 2, second = 3)"])
+        self.expect("expr container", substrs=["(main.ContainsTwoInts)", "wrapped = (first = 2, second = 3)", "other = 10"])
+        self.expect("expr TwoInts(4, 5)", substrs=["(SomeLibrary.TwoInts)", "= (first = 4, second = 5)"])
 
     @swiftTest
+    @skipEmbeddedSwift
+    @skipIfWindows
     @expectedFailureOS(no_match(["macosx"])) # Requires Remote Mirrors support
     def test_implementation_only_import_main_executable_resilient_no_library_module(self):
         """Test `@_implementationOnly import` in the main executable with a resilient library, after removing the library's swiftmodule
@@ -135,6 +146,6 @@ class TestMainExecutable(TestBase):
             "(Int) simple = 1"])
         # FIXME: If we could figure out how to ignore this failure but still not
         # crash if we touch something that can't be loaded, that would be nice.
-        self.expect("e value", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])
-        self.expect("e container", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])
-        self.expect("e TwoInts(4, 5)", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])
+        self.expect("expr value", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])
+        self.expect("expr container", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])
+        self.expect("expr TwoInts(4, 5)", error=True, substrs=["failed to get module \"SomeLibrary\" from AST context"])

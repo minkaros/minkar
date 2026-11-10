@@ -2,9 +2,8 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
-
+@skipIf(bugnumber="rdar://162712775")
 class TestSwiftAsyncBacktraceLocals(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
@@ -24,6 +23,7 @@ class TestSwiftAsyncBacktraceLocals(lldbtest.TestBase):
         self.build()
         target, process, thread, main_bkpt = lldbutil.run_to_source_breakpoint(
             self, 'main breakpoint', self.src)
+        main_bkpt.SetEnabled(False) # avoid hitting multiple locations in async breakpoints
         self.run_fibo_tests(target, process)
 
     @swiftTest
@@ -35,6 +35,7 @@ class TestSwiftAsyncBacktraceLocals(lldbtest.TestBase):
         self.build()
         target, process, thread, main_bkpt = lldbutil.run_to_source_breakpoint(
             self, 'main actor breakpoint', self.src)
+        main_bkpt.SetEnabled(False) # avoid hitting multiple locations in async breakpoints
         self.run_fibo_tests(target, process)
 
         
@@ -74,8 +75,8 @@ class TestSwiftAsyncBacktraceLocals(lldbtest.TestBase):
                     # The PC of a logical frame is stored in its "callee"
                     # AsyncContext as the second pointer field.
                     error = lldb.SBError()
-                    ret_addr = process.ReadPointerFromMemory(
-                        cfa[fibonacci_number-1] + target.addr_size, error)
+                    ret_addr = process.FixAddress(process.ReadPointerFromMemory(
+                        cfa[fibonacci_number-1] + target.addr_size, error))
                     prologue_to_skip = frame.GetFunction().GetPrologueByteSize()
                     self.assertSuccess(error, "Managed to read context memory")
                     self.assertEqual(ret_addr + prologue_to_skip, frame.GetPC())
@@ -129,7 +130,7 @@ class TestSwiftAsyncBacktraceLocals(lldbtest.TestBase):
         last_result = None
         while True:
             thread = lldbutil.continue_to_breakpoint(process, self.compute_bkpt)
-            if len(thread) == 0:
+            if thread is None:
                 self.assertEqual(last_result, 55, "Computed the right final value")
                 break
 

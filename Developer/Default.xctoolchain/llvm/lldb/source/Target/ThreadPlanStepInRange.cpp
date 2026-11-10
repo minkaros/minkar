@@ -29,7 +29,8 @@ using namespace lldb;
 using namespace lldb_private;
 
 uint32_t ThreadPlanStepInRange::s_default_flag_values =
-    ThreadPlanShouldStopHere::eStepInAvoidNoDebug;
+    ThreadPlanShouldStopHere::eStepInAvoidNoDebug |
+    ThreadPlanShouldStopHere::eStepOutPastThunks;
 
 // ThreadPlanStepInRange: Step through a stack range, either stepping over or
 // into based on the value of \a type.
@@ -43,7 +44,7 @@ ThreadPlanStepInRange::ThreadPlanStepInRange(
                           "Step Range stepping in", thread, range, addr_context,
                           stop_others),
       ThreadPlanShouldStopHere(this), m_step_past_prologue(true),
-      m_virtual_step(false), m_step_into_target(step_into_target) {
+      m_virtual_step(eLazyBoolCalculate), m_step_into_target(step_into_target) {
   SetCallbacks();
   SetFlagsToDefault();
   SetupAvoidNoDebug(step_in_avoids_code_without_debug_info,
@@ -115,9 +116,8 @@ void ThreadPlanStepInRange::GetDescription(Stream *s,
     printed_line_info = true;
   }
 
-  const char *step_into_target = m_step_into_target.AsCString();
-  if (step_into_target && step_into_target[0] != '\0')
-    s->Printf(" targeting %s", m_step_into_target.AsCString());
+  if (m_step_into_target)
+    s->Format(" targeting {0}", m_step_into_target);
 
   if (!printed_line_info || level == eDescriptionLevelVerbose) {
     s->Printf(" using ranges:");
@@ -138,6 +138,7 @@ bool ThreadPlanStepInRange::ShouldStop(Event *event_ptr) {
                 GetTarget().GetArchitecture().GetAddressByteSize());
     LLDB_LOGF(log, "ThreadPlanStepInRange reached %s.", s.GetData());
   }
+  ClearNextBranchBreakpointExplainedStop();
 
   if (IsPlanComplete())
     return true;
@@ -152,7 +153,7 @@ bool ThreadPlanStepInRange::ShouldStop(Event *event_ptr) {
       m_sub_plan_sp.reset();
   }
 
-  if (m_virtual_step) {
+  if (m_virtual_step == eLazyBoolYes) {
     // If we've just completed a virtual step, all we need to do is check for a
     // ShouldStopHere plan, and otherwise we're done.
     // FIXME - This can be both a step in and a step out.  Probably should
@@ -264,7 +265,7 @@ bool ThreadPlanStepInRange::ShouldStop(Event *event_ptr) {
                                                         eSymbolContextSymbol);
 
         if (sc.function) {
-          func_start_address = sc.function->GetAddressRange().GetBaseAddress();
+          func_start_address = sc.function->GetAddress();
           if (curr_addr == func_start_address.GetLoadAddress(&GetTarget()))
             bytes_to_skip = sc.function->GetPrologueByteSize();
         } else if (sc.symbol) {
@@ -277,8 +278,7 @@ bool ThreadPlanStepInRange::ShouldStop(Event *event_ptr) {
           const Architecture *arch = GetTarget().GetArchitecturePlugin();
           if (arch) {
             Address curr_sec_addr;
-            GetTarget().GetSectionLoadList().ResolveLoadAddress(curr_addr,
-                                                                curr_sec_addr);
+            GetTarget().ResolveLoadAddress(curr_addr, curr_sec_addr);
             bytes_to_skip = arch->GetBytesToSkip(*sc.symbol, curr_sec_addr);
           }
         }
@@ -347,7 +347,7 @@ bool ThreadPlanStepInRange::StepInDeepBreakpointExplainsStop(
       // at this site:
       explains_stop = true;
       hit_step_in_deep_bp = true;
-      size_t num_owners = bp_site_sp->GetNumberOfConstituents();
+      size_t num_constituents = bp_site_sp->GetNumberOfConstituents();
 
       // If all the owners are internal, then we are probably just stepping over
       // this range from multiple threads,
@@ -357,10 +357,10 @@ bool ThreadPlanStepInRange::StepInDeepBreakpointExplainsStop(
       // Of course, if there's only one owner, it's us so we don't need to
       // check.
 
-      if (num_owners == 1)
+      if (num_constituents == 1)
         continue;
 
-      for (size_t i = 0; i < num_owners; i++) {
+      for (size_t i = 0; i < num_constituents; i++) {
         BreakpointLocationSP owner_loc_sp(bp_site_sp->GetConstituentAtIndex(i));
         Breakpoint &owner_bp(owner_loc_sp->GetBreakpoint());
         if (owner_loc_sp->ValidForThisThread(GetThread()) &&
@@ -370,10 +370,11 @@ bool ThreadPlanStepInRange::StepInDeepBreakpointExplainsStop(
         }
       }
       if (log)
-        log->Printf("ThreadPlanStepRange::StepInDeepBreakpointExplainsStop - "
-                    "Hit step in deep breakpoint %d which has %zu owners - "
-                    "explains stop: %u.",
-                    m_step_in_deep_bps[i], num_owners, explains_stop);
+        log->Printf(
+            "ThreadPlanStepRange::StepInDeepBreakpointExplainsStop - "
+            "Hit step in deep breakpoint %d which has %zu constituents - "
+            "explains stop: %u.",
+            m_step_in_deep_bps[i], num_constituents, explains_stop);
     }
   }
 
@@ -458,7 +459,7 @@ bool ThreadPlanStepInRange::DefaultShouldStopHereCallback(
   if (!should_stop_here)
     return false;
 
-  if (should_stop_here && current_plan->GetKind() == eKindStepInRange &&
+  if (current_plan->GetKind() == eKindStepInRange &&
       operation == eFrameCompareYounger) {
     ThreadPlanStepInRange *step_in_range_plan =
         static_cast<ThreadPlanStepInRange *>(current_plan);
@@ -483,8 +484,8 @@ bool ThreadPlanStepInRange::DefaultShouldStopHereImpl(Flags &flags,
       if (m_step_into_target == sc.GetFunctionName()) {
         should_stop_here = true;
       } else {
-        const char *target_name = m_step_into_target.AsCString();
-        const char *function_name = sc.GetFunctionName().AsCString();
+        const char *target_name = m_step_into_target.AsCString(nullptr);
+        const char *function_name = sc.GetFunctionName().AsCString(nullptr);
 
         if (function_name == nullptr)
           should_stop_here = false;
@@ -492,11 +493,10 @@ bool ThreadPlanStepInRange::DefaultShouldStopHereImpl(Flags &flags,
           should_stop_here = false;
       }
       if (log && !should_stop_here)
-        LLDB_LOGF(log,
-                  "Stepping out of frame %s which did not match step into "
-                  "target %s.",
-                  sc.GetFunctionName().AsCString(),
-                  m_step_into_target.AsCString());
+        LLDB_LOG(log,
+                 "Stepping out of frame {0} which did not match step into "
+                 "target {1}.",
+                 sc.GetFunctionName(), m_step_into_target);
     }
   }
 
@@ -563,7 +563,7 @@ bool ThreadPlanStepInRange::DoPlanExplainsStop(Event *event_ptr) {
 
   bool return_value = false;
 
-  if (m_virtual_step) {
+  if (m_virtual_step == eLazyBoolYes) {
     return_value = true;
   } else {
     StopInfoSP stop_info_sp = GetPrivateStopInfo();
@@ -598,10 +598,13 @@ bool ThreadPlanStepInRange::DoPlanExplainsStop(Event *event_ptr) {
 
 bool ThreadPlanStepInRange::DoWillResume(lldb::StateType resume_state,
                                          bool current_plan) {
-  m_virtual_step = false;
+  m_virtual_step = eLazyBoolCalculate;
   if (resume_state == eStateStepping && current_plan) {
     Thread &thread = GetThread();
     // See if we are about to step over a virtual inlined call.
+    // But if we already know we're virtual stepping, don't decrement the
+    // inlined depth again...
+
     bool step_without_resume = thread.DecrementCurrentInlinedDepth();
     if (step_without_resume) {
       Log *log = GetLog(LLDBLog::Step);
@@ -614,11 +617,21 @@ bool ThreadPlanStepInRange::DoWillResume(lldb::StateType resume_state,
       // FIXME: Maybe it would be better to create a InlineStep stop reason, but
       // then
       // the whole rest of the world would have to handle that stop reason.
-      m_virtual_step = true;
+      m_virtual_step = eLazyBoolYes;
     }
     return !step_without_resume;
   }
   return true;
 }
 
-bool ThreadPlanStepInRange::IsVirtualStep() { return m_virtual_step; }
+bool ThreadPlanStepInRange::IsVirtualStep() {
+  if (m_virtual_step == eLazyBoolCalculate) {
+    Thread &thread = GetThread();
+    uint32_t cur_inline_depth = thread.GetCurrentInlinedDepth();
+    if (cur_inline_depth == UINT32_MAX || cur_inline_depth == 0)
+      m_virtual_step = eLazyBoolNo;
+    else
+      m_virtual_step = eLazyBoolYes;
+  }
+  return m_virtual_step == eLazyBoolYes;
+}

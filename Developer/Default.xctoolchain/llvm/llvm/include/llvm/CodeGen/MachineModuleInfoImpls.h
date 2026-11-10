@@ -30,7 +30,7 @@ class MachineModuleInfoMachO : public MachineModuleInfoImpl {
 public:
   /// The information specific to a Darwin '$auth_ptr' stub.
   struct AuthStubInfo {
-    const MCExpr *Pointer;
+    const MCExpr *AuthPtrRef;
   };
 
 private:
@@ -45,9 +45,9 @@ private:
   DenseMap<MCSymbol *, StubValueTy> ThreadLocalGVStubs;
 
   /// Darwin '$auth_ptr' stubs.  The key is the stub symbol, like
-  /// "Lfoo$addend$auth_ptr$ib$12".  The value is the MCExpr representing that
-  /// pointer, something like "_foo+addend@AUTH(ib, 12)".
-  DenseMap<MCSymbol *, AuthStubInfo> AuthGVStubs;
+  /// "Lfoo$auth_ptr$ib$12".  The value is the MCExpr representing that
+  /// signed pointer, something like "_foo@AUTH(ib, 12)".
+  DenseMap<MCSymbol *, const MCExpr *> AuthPtrStubs;
 
   virtual void anchor(); // Out of line virtual method.
 
@@ -64,9 +64,9 @@ public:
     return ThreadLocalGVStubs[Sym];
   }
 
-  AuthStubInfo &getAuthGVStubEntry(MCSymbol *Sym) {
+  const MCExpr *&getAuthPtrStubEntry(MCSymbol *Sym) {
     assert(Sym && "Key cannot be null");
-    return AuthGVStubs[Sym];
+    return AuthPtrStubs[Sym];
   }
 
   /// Accessor methods to return the set of stubs in sorted order.
@@ -75,20 +75,8 @@ public:
     return getSortedStubs(ThreadLocalGVStubs);
   }
 
-  typedef std::pair<MCSymbol *, AuthStubInfo> AuthStubPairTy;
-  typedef std::vector<AuthStubPairTy> AuthStubListTy;
-
-  AuthStubListTy getAuthGVStubList() {
-    AuthStubListTy List(AuthGVStubs.begin(), AuthGVStubs.end());
-
-    if (!List.empty())
-      std::sort(List.begin(), List.end(),
-                [](const AuthStubPairTy &LHS, const AuthStubPairTy &RHS) {
-                  return LHS.first->getName() < RHS.first->getName();
-                });
-
-    AuthGVStubs.clear();
-    return List;
+  ExprStubListTy getAuthGVStubList() {
+    return getSortedExprStubs(AuthPtrStubs);
   }
 };
 
@@ -99,19 +87,38 @@ class MachineModuleInfoELF : public MachineModuleInfoImpl {
   /// mode.
   DenseMap<MCSymbol *, StubValueTy> GVStubs;
 
+  /// AuthPtrStubs - These stubs are used to materialize signed addresses for
+  /// extern_weak symbols.
+  DenseMap<MCSymbol *, const MCExpr *> AuthPtrStubs;
+
+  /// HasSignedPersonality is true if the corresponding IR module has the
+  /// "ptrauth-sign-personality" flag set to 1.
+  bool HasSignedPersonality = false;
+
   virtual void anchor(); // Out of line virtual method.
 
 public:
-  MachineModuleInfoELF(const MachineModuleInfo &) {}
+  MachineModuleInfoELF(const MachineModuleInfo &);
 
   StubValueTy &getGVStubEntry(MCSymbol *Sym) {
     assert(Sym && "Key cannot be null");
     return GVStubs[Sym];
   }
 
+  const MCExpr *&getAuthPtrStubEntry(MCSymbol *Sym) {
+    assert(Sym && "Key cannot be null");
+    return AuthPtrStubs[Sym];
+  }
+
   /// Accessor methods to return the set of stubs in sorted order.
 
   SymbolListTy GetGVStubList() { return getSortedStubs(GVStubs); }
+
+  ExprStubListTy getAuthGVStubList() {
+    return getSortedExprStubs(AuthPtrStubs);
+  }
+
+  bool hasSignedPersonality() const { return HasSignedPersonality; }
 };
 
 /// MachineModuleInfoCOFF - This is a MachineModuleInfoImpl implementation

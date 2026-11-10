@@ -54,7 +54,7 @@ public:
       return lldb::ChildCacheState::eRefetch;
     }
     bool MightHaveChildren() override { return true; }
-    size_t GetIndexOfChildWithName(ConstString name) override;
+    llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override;
 
     typedef std::shared_ptr<SyntheticChildrenFrontEnd> SharedPointer;
 
@@ -67,9 +67,9 @@ public:
     const FrontEnd &operator=(const FrontEnd &) = delete;
   };
 
-  virtual SyntheticChildrenFrontEnd::AutoPointer
+  virtual SyntheticChildrenFrontEnd::UniquePointer
   GetFrontEnd(ValueObject &backend) override {
-    return SyntheticChildrenFrontEnd::AutoPointer(new FrontEnd(this, backend));
+    return SyntheticChildrenFrontEnd::UniquePointer(new FrontEnd(this, backend));
   }
 
 private:

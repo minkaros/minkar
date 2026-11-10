@@ -45,12 +45,14 @@ class PCHContainerReader;
 class Preprocessor;
 class PreprocessorOptions;
 class PreprocessorOutputOptions;
+class CodeGenOptions;
 
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
 /// environment ready to process a single file.
 void InitializePreprocessor(Preprocessor &PP, const PreprocessorOptions &PPOpts,
                             const PCHContainerReader &PCHContainerRdr,
-                            const FrontendOptions &FEOpts);
+                            const FrontendOptions &FEOpts,
+                            const CodeGenOptions &CodeGenOpts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream *OS,
@@ -72,8 +74,9 @@ public:
   /// to the list of dependencies.
   ///
   /// The default implementation ignores <built-in> and system files.
-  virtual bool sawDependency(StringRef Filename, bool FromModule,
-                             bool IsSystem, bool IsModuleFile, bool IsMissing);
+  virtual bool sawDependency(StringRef Filename, bool FromModule, bool IsSystem,
+                             bool IsModuleFile, bool IsDirectModuleImport,
+                             bool IsMissing);
 
   /// Called when the end of the main file is reached.
   virtual void finishedMainFile(DiagnosticsEngine &Diags) {}
@@ -85,7 +88,7 @@ public:
   /// sawDependency() returns true.
   virtual void maybeAddDependency(StringRef Filename, bool FromModule,
                                   bool IsSystem, bool IsModuleFile,
-                                  bool IsMissing);
+                                  bool IsDirectModuleImport, bool IsMissing);
 
 protected:
   /// Return true if the filename was added to the list of dependencies, false
@@ -117,7 +120,8 @@ public:
   bool needSystemDependencies() final { return IncludeSystemHeaders; }
 
   bool sawDependency(StringRef Filename, bool FromModule, bool IsSystem,
-                     bool IsModuleFile, bool IsMissing) final;
+                     bool IsModuleFile, bool IsDirectModuleImport,
+                     bool IsMissing) final;
 
 protected:
   void outputDependencyFile(llvm::raw_ostream &OS);
@@ -132,7 +136,7 @@ private:
   bool PhonyTarget;
   bool AddMissingHeaderDeps;
   bool SeenMissingHeader;
-  bool IncludeModuleFiles;
+  ModuleFileDepsKind IncludeModuleFiles;
   bool SkipUnusedModuleMaps;
   DependencyOutputFormat OutputFormat;
   unsigned InputFileIndex;
@@ -150,8 +154,9 @@ class ModuleDependencyCollector : public DependencyCollector {
   std::error_code copyToRoot(StringRef Src, StringRef Dst = {});
 
 public:
-  ModuleDependencyCollector(std::string DestDir)
-      : DestDir(std::move(DestDir)) {}
+  ModuleDependencyCollector(std::string DestDir,
+                            IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
+      : DestDir(std::move(DestDir)), Canonicalizer(std::move(VFS)) {}
   ~ModuleDependencyCollector() override { writeFileMap(); }
 
   StringRef getDest() { return DestDir; }
@@ -196,7 +201,7 @@ void AttachHeaderIncludeGen(Preprocessor &PP,
 /// memory, mainly for testing.
 IntrusiveRefCntPtr<ExternalSemaSource>
 createChainedIncludesSource(CompilerInstance &CI,
-                            IntrusiveRefCntPtr<ExternalSemaSource> &Reader);
+                            IntrusiveRefCntPtr<ASTReader> &OutReader);
 
 /// Optional inputs to createInvocation.
 struct CreateInvocationOptions {

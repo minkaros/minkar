@@ -16,11 +16,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class SwiftDynamicValueTest(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_dynamic_value(self):
         """Tests that dynamic values work correctly for Swift"""
         self.build()

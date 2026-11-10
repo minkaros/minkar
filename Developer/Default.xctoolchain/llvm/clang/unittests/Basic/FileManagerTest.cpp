@@ -120,9 +120,9 @@ TEST_F(FileManagerTest, NoVirtualDirectoryExistsBeforeAVirtualFileIsAdded) {
   // by what's in the real file system.
   manager.setStatCache(std::make_unique<FakeStatCache>());
 
-  ASSERT_FALSE(manager.getDirectory("virtual/dir/foo"));
-  ASSERT_FALSE(manager.getDirectory("virtual/dir"));
-  ASSERT_FALSE(manager.getDirectory("virtual"));
+  ASSERT_FALSE(manager.getOptionalDirectoryRef("virtual/dir/foo"));
+  ASSERT_FALSE(manager.getOptionalDirectoryRef("virtual/dir"));
+  ASSERT_FALSE(manager.getOptionalDirectoryRef("virtual"));
 }
 
 // When a virtual file is added, all of its ancestors should be created.
@@ -130,10 +130,12 @@ TEST_F(FileManagerTest, getVirtualFileCreatesDirectoryEntriesForAncestors) {
   // Fake an empty real file system.
   manager.setStatCache(std::make_unique<FakeStatCache>());
 
-  manager.getVirtualFile("virtual/dir/bar.h", 100, 0);
-  ASSERT_FALSE(manager.getDirectory("virtual/dir/foo"));
+  manager.getVirtualFileRef("virtual/dir/bar.h", 100, 0);
 
-  auto dir = manager.getDirectoryRef("virtual/dir");
+  auto dir = manager.getDirectoryRef("virtual/dir/foo");
+  ASSERT_THAT_EXPECTED(dir, llvm::Failed());
+
+  dir = manager.getDirectoryRef("virtual/dir");
   ASSERT_THAT_EXPECTED(dir, llvm::Succeeded());
   EXPECT_EQ("virtual/dir", dir->getName());
 
@@ -176,7 +178,7 @@ TEST_F(FileManagerTest, getFileReturnsValidFileEntryForExistingVirtualFile) {
   // Fake an empty real file system.
   manager.setStatCache(std::make_unique<FakeStatCache>());
 
-  manager.getVirtualFile("virtual/dir/bar.h", 100, 0);
+  manager.getVirtualFileRef("virtual/dir/bar.h", 100, 0);
   auto file = manager.getFileRef("virtual/dir/bar.h");
   ASSERT_THAT_EXPECTED(file, llvm::Succeeded());
   EXPECT_EQ("virtual/dir/bar.h", file->getName());
@@ -194,11 +196,11 @@ TEST_F(FileManagerTest, getFileReturnsDifferentFileEntriesForDifferentFiles) {
   statCache->InjectFile("bar.cpp", 43);
   manager.setStatCache(std::move(statCache));
 
-  auto fileFoo = manager.getFile("foo.cpp");
-  auto fileBar = manager.getFile("bar.cpp");
+  auto fileFoo = manager.getOptionalFileRef("foo.cpp");
+  auto fileBar = manager.getOptionalFileRef("bar.cpp");
   ASSERT_TRUE(fileFoo);
   ASSERT_TRUE(fileBar);
-  EXPECT_NE(*fileFoo, *fileBar);
+  EXPECT_NE(&fileFoo->getFileEntry(), &fileBar->getFileEntry());
 }
 
 // getFile() returns an error if neither a real file nor a virtual file
@@ -212,19 +214,91 @@ TEST_F(FileManagerTest, getFileReturnsErrorForNonexistentFile) {
   manager.setStatCache(std::move(statCache));
 
   // Create a virtual bar.cpp file.
-  manager.getVirtualFile("bar.cpp", 200, 0);
+  manager.getVirtualFileRef("bar.cpp", 200, 0);
 
-  auto file = manager.getFile("xyz.txt");
+  auto file = manager.getFileRef("xyz.txt");
   ASSERT_FALSE(file);
-  ASSERT_EQ(file.getError(), std::errc::no_such_file_or_directory);
+  ASSERT_EQ(llvm::errorToErrorCode(file.takeError()),
+            std::make_error_code(std::errc::no_such_file_or_directory));
 
-  auto readingDirAsFile = manager.getFile("MyDirectory");
+  auto readingDirAsFile = manager.getFileRef("MyDirectory");
   ASSERT_FALSE(readingDirAsFile);
-  ASSERT_EQ(readingDirAsFile.getError(), std::errc::is_a_directory);
+  ASSERT_EQ(llvm::errorToErrorCode(readingDirAsFile.takeError()),
+            std::make_error_code(std::errc::is_a_directory));
 
-  auto readingFileAsDir = manager.getDirectory("foo.cpp");
+  auto readingFileAsDir = manager.getDirectoryRef("foo.cpp");
   ASSERT_FALSE(readingFileAsDir);
-  ASSERT_EQ(readingFileAsDir.getError(), std::errc::not_a_directory);
+  ASSERT_EQ(llvm::errorToErrorCode(readingFileAsDir.takeError()),
+            std::make_error_code(std::errc::not_a_directory));
+}
+
+TEST_F(FileManagerTest, getFileRefErrorIncludesFilename) {
+  auto FS = llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
+  auto EmptyBuffer = llvm::MemoryBuffer::getMemBuffer("");
+  ASSERT_TRUE(
+      FS->addFileNoOwn("/MyDirectory/file", 0, EmptyBuffer->getMemBufferRef()));
+  FileSystemOptions Opts;
+  FileManager Mgr(Opts, FS);
+
+  // Build the expected message for a given filename and error code, since the
+  // system-provided message text (and capitalization) for std::errc values
+  // varies by platform.
+  auto ExpectedMsg = [](StringRef Name, std::errc EC) {
+    return ("'" + Name + "': " + std::make_error_code(EC).message()).str();
+  };
+
+  // Nonexistent file.
+  auto Missing = Mgr.getFileRef("/xyz.txt");
+  ASSERT_FALSE(Missing);
+  EXPECT_EQ(ExpectedMsg("/xyz.txt", std::errc::no_such_file_or_directory),
+            llvm::toString(Missing.takeError()));
+
+  // Cached failure
+  auto MissingAgain = Mgr.getFileRef("/xyz.txt");
+  ASSERT_FALSE(MissingAgain);
+  EXPECT_EQ(std::make_error_code(std::errc::no_such_file_or_directory),
+            llvm::errorToErrorCode(MissingAgain.takeError()));
+
+  // Reading a directory as a file.
+  auto DirAsFile = Mgr.getFileRef("/MyDirectory");
+  ASSERT_FALSE(DirAsFile);
+  EXPECT_EQ(ExpectedMsg("/MyDirectory", std::errc::is_a_directory),
+            llvm::toString(DirAsFile.takeError()));
+
+  auto Trailing = Mgr.getFileRef("/some/dir/");
+  ASSERT_FALSE(Trailing);
+  EXPECT_EQ(ExpectedMsg("/some/dir/", std::errc::is_a_directory),
+            llvm::toString(Trailing.takeError()));
+}
+
+TEST_F(FileManagerTest, getDirectoryRefErrorIncludesFilename) {
+  auto FS = llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
+  auto EmptyBuffer = llvm::MemoryBuffer::getMemBuffer("");
+  ASSERT_TRUE(FS->addFileNoOwn("/foo.cpp", 0, EmptyBuffer->getMemBufferRef()));
+  FileSystemOptions Opts;
+  FileManager Mgr(Opts, FS);
+
+  auto ExpectedMsg = [](StringRef Name, std::errc EC) {
+    return ("'" + Name + "': " + std::make_error_code(EC).message()).str();
+  };
+
+  // Nonexistent directory.
+  auto Missing = Mgr.getDirectoryRef("/no_such_dir");
+  ASSERT_FALSE(Missing);
+  EXPECT_EQ(ExpectedMsg("/no_such_dir", std::errc::no_such_file_or_directory),
+            llvm::toString(Missing.takeError()));
+
+  // Cached failure
+  auto MissingAgain = Mgr.getDirectoryRef("/no_such_dir");
+  ASSERT_FALSE(MissingAgain);
+  EXPECT_EQ(std::make_error_code(std::errc::no_such_file_or_directory),
+            llvm::errorToErrorCode(MissingAgain.takeError()));
+
+  // Reading a file as a directory.
+  auto FileAsDir = Mgr.getDirectoryRef("/foo.cpp");
+  ASSERT_FALSE(FileAsDir);
+  EXPECT_EQ(ExpectedMsg("/foo.cpp", std::errc::not_a_directory),
+            llvm::toString(FileAsDir.takeError()));
 }
 
 // The following tests apply to Unix-like system only.
@@ -240,11 +314,11 @@ TEST_F(FileManagerTest, getFileReturnsSameFileEntryForAliasedRealFiles) {
   statCache->InjectFile("abc/bar.cpp", 42);
   manager.setStatCache(std::move(statCache));
 
-  auto f1 = manager.getFile("abc/foo.cpp");
-  auto f2 = manager.getFile("abc/bar.cpp");
+  auto f1 = manager.getOptionalFileRef("abc/foo.cpp");
+  auto f2 = manager.getOptionalFileRef("abc/bar.cpp");
 
-  EXPECT_EQ(f1 ? *f1 : nullptr,
-            f2 ? *f2 : nullptr);
+  EXPECT_EQ(f1 ? &f1->getFileEntry() : nullptr,
+            f2 ? &f2->getFileEntry() : nullptr);
 
   // Check that getFileRef also does the right thing.
   auto r1 = manager.getFileRef("abc/foo.cpp");
@@ -254,8 +328,8 @@ TEST_F(FileManagerTest, getFileReturnsSameFileEntryForAliasedRealFiles) {
 
   EXPECT_EQ("abc/foo.cpp", r1->getName());
   EXPECT_EQ("abc/bar.cpp", r2->getName());
-  EXPECT_EQ((f1 ? *f1 : nullptr), &r1->getFileEntry());
-  EXPECT_EQ((f2 ? *f2 : nullptr), &r2->getFileEntry());
+  EXPECT_EQ((f1 ? &f1->getFileEntry() : nullptr), &r1->getFileEntry());
+  EXPECT_EQ((f2 ? &f2->getFileEntry() : nullptr), &r2->getFileEntry());
 }
 
 TEST_F(FileManagerTest, getFileRefReturnsCorrectNameForDifferentStatPath) {
@@ -288,7 +362,6 @@ TEST_F(FileManagerTest, getFileRefReturnsCorrectNameForDifferentStatPath) {
   ASSERT_FALSE(!F1Alias);
   ASSERT_FALSE(!F1Alias2);
   EXPECT_EQ("dir/f1.cpp", F1->getName());
-  EXPECT_EQ("dir/f1.cpp", F1->getFileEntry().getName());
   EXPECT_EQ("dir/f1.cpp", F1Alias->getName());
   EXPECT_EQ("dir/f1.cpp", F1Alias2->getName());
   EXPECT_EQ(&F1->getFileEntry(), &F1Alias->getFileEntry());
@@ -307,7 +380,6 @@ TEST_F(FileManagerTest, getFileRefReturnsCorrectNameForDifferentStatPath) {
   ASSERT_FALSE(!F2Alias);
   ASSERT_FALSE(!F2Alias2);
   EXPECT_EQ("dir/f2.cpp", F2->getName());
-  EXPECT_EQ("dir/f2.cpp", F2->getFileEntry().getName());
   EXPECT_EQ("dir/f2.cpp", F2Alias->getName());
   EXPECT_EQ("dir/f2.cpp", F2Alias2->getName());
   EXPECT_EQ(&F2->getFileEntry(), &F2Alias->getFileEntry());
@@ -344,11 +416,11 @@ TEST_F(FileManagerTest, getFileReturnsSameFileEntryForAliasedVirtualFiles) {
   statCache->InjectFile("abc/bar.cpp", 42);
   manager.setStatCache(std::move(statCache));
 
-  auto f1 = manager.getFile("abc/foo.cpp");
-  auto f2 = manager.getFile("abc/bar.cpp");
+  auto f1 = manager.getOptionalFileRef("abc/foo.cpp");
+  auto f2 = manager.getOptionalFileRef("abc/bar.cpp");
 
-  EXPECT_EQ(f1 ? *f1 : nullptr,
-            f2 ? *f2 : nullptr);
+  EXPECT_EQ(f1 ? &f1->getFileEntry() : nullptr,
+            f2 ? &f2->getFileEntry() : nullptr);
 }
 
 TEST_F(FileManagerTest, getFileRefEquality) {
@@ -426,20 +498,19 @@ TEST_F(FileManagerTest, getVirtualFileWithDifferentName) {
   manager.setStatCache(std::move(statCache));
 
   // Inject the virtual file:
-  const FileEntry *file1 = manager.getVirtualFile("c:\\tmp\\test", 123, 1);
-  ASSERT_TRUE(file1 != nullptr);
-  EXPECT_EQ(43U, file1->getUniqueID().getFile());
-  EXPECT_EQ(123, file1->getSize());
+  FileEntryRef file1 = manager.getVirtualFileRef("c:\\tmp\\test", 123, 1);
+  EXPECT_EQ(43U, file1.getUniqueID().getFile());
+  EXPECT_EQ(123, file1.getSize());
 
   // Lookup the virtual file with a different name:
-  auto file2 = manager.getFile("c:/tmp/test", 100, 1);
+  auto file2 = manager.getOptionalFileRef("c:/tmp/test", 100, 1);
   ASSERT_TRUE(file2);
   // Check that it's the same UFE:
   EXPECT_EQ(file1, *file2);
-  EXPECT_EQ(43U, (*file2)->getUniqueID().getFile());
+  EXPECT_EQ(43U, file2->getUniqueID().getFile());
   // Check that the contents of the UFE are not overwritten by the entry in the
   // filesystem:
-  EXPECT_EQ(123, (*file2)->getSize());
+  EXPECT_EQ(123, file2->getSize());
 }
 
 #endif  // !_WIN32
@@ -493,12 +564,11 @@ TEST_F(FileManagerTest, getVirtualFileFillsRealPathName) {
   Manager.setStatCache(std::move(statCache));
 
   // Check for real path.
-  const FileEntry *file = Manager.getVirtualFile("/tmp/test", 123, 1);
-  ASSERT_TRUE(file != nullptr);
+  FileEntryRef file = Manager.getVirtualFileRef("/tmp/test", 123, 1);
   SmallString<64> ExpectedResult = CustomWorkingDir;
 
   llvm::sys::path::append(ExpectedResult, "tmp", "test");
-  EXPECT_EQ(file->tryGetRealPathName(), ExpectedResult);
+  EXPECT_EQ(file.getFileEntry().tryGetRealPathName(), ExpectedResult);
 }
 
 TEST_F(FileManagerTest, getFileDontOpenRealPath) {
@@ -520,12 +590,12 @@ TEST_F(FileManagerTest, getFileDontOpenRealPath) {
   Manager.setStatCache(std::move(statCache));
 
   // Check for real path.
-  auto file = Manager.getFile("/tmp/test", /*OpenFile=*/false);
+  auto file = Manager.getOptionalFileRef("/tmp/test", /*OpenFile=*/false);
   ASSERT_TRUE(file);
   SmallString<64> ExpectedResult = CustomWorkingDir;
 
   llvm::sys::path::append(ExpectedResult, "tmp", "test");
-  EXPECT_EQ((*file)->tryGetRealPathName(), ExpectedResult);
+  EXPECT_EQ(file->getFileEntry().tryGetRealPathName(), ExpectedResult);
 }
 
 TEST_F(FileManagerTest, getBypassFile) {
@@ -551,7 +621,7 @@ TEST_F(FileManagerTest, getBypassFile) {
   Manager.setStatCache(std::move(Cache));
 
   // Set up a virtual file with a different size than FakeStatCache uses.
-  const FileEntry *File = Manager.getVirtualFile("/tmp/test", /*Size=*/10, 0);
+  FileEntryRef File = Manager.getVirtualFileRef("/tmp/test", /*Size=*/10, 0);
   ASSERT_TRUE(File);
   const FileEntry &FE = *File;
   EXPECT_EQ(FE.getSize(), 10);
@@ -566,7 +636,7 @@ TEST_F(FileManagerTest, getBypassFile) {
   EXPECT_EQ(FE.getSize(), 10);
 
   // Bypass the file.
-  OptionalFileEntryRef BypassRef = Manager.getBypassFile(File->getLastRef());
+  OptionalFileEntryRef BypassRef = Manager.getBypassFile(File);
   ASSERT_TRUE(BypassRef);
   EXPECT_EQ("/tmp/test", BypassRef->getName());
 
@@ -579,6 +649,28 @@ TEST_F(FileManagerTest, getBypassFile) {
   ASSERT_THAT_ERROR(Manager.getFileRef("/tmp/test").moveInto(SearchRef),
                     Succeeded());
   EXPECT_EQ(&FE, &SearchRef->getFileEntry());
+}
+
+TEST_F(FileManagerTest, TraceCount) {
+  auto InMemoryFS = llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
+
+  InMemoryFS->addFile("/foo", 0, llvm::MemoryBuffer::getMemBuffer(""));
+
+  auto InstrumentingFS =
+      llvm::makeIntrusiveRefCnt<llvm::vfs::TracingFileSystem>(InMemoryFS);
+
+  FileSystemOptions Opts;
+  FileManager Manager(Opts, InstrumentingFS);
+
+  llvm::vfs::Status Status;
+  Manager.getNoncachedStatValue("/foo", Status);
+  EXPECT_EQ(InstrumentingFS->NumStatusCalls, 1u);
+
+  Manager.getBufferForFile("/foo");
+  EXPECT_EQ(InstrumentingFS->NumOpenFileForReadCalls, 1u);
+
+  Manager.getBufferForFile("/foo");
+  EXPECT_EQ(InstrumentingFS->NumOpenFileForReadCalls, 2u);
 }
 
 TEST_F(FileManagerTest, CASProvider) {
@@ -597,6 +689,7 @@ TEST_F(FileManagerTest, CASProvider) {
     std::optional<ObjectRef> CASContents;
     auto Buf = Manager.getBufferForFile(Path, /*IsVolatile*/ false,
                                         /*RequiresNullTerminator*/ false,
+                                        std::nullopt, /*IsText*/ true,
                                         &CASContents);
     ASSERT_TRUE(Buf);
     EXPECT_EQ(Contents, (*Buf)->getBuffer());
@@ -615,6 +708,7 @@ TEST_F(FileManagerTest, CASProvider) {
     std::optional<ObjectRef> CASContents;
     auto Buf = Manager.getBufferForFile(*FERef, /*IsVolatile*/ false,
                                         /*RequiresNullTerminator*/ false,
+                                        std::nullopt, /*IsText*/ true,
                                         &CASContents);
     ASSERT_TRUE(Buf);
     EXPECT_EQ(Contents, (*Buf)->getBuffer());

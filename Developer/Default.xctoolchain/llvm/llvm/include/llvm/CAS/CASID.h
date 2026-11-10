@@ -67,7 +67,7 @@ public:
     ID.print(OS);
     return OS;
   }
-  std::string toString() const;
+  LLVM_ABI std::string toString() const;
 
   ArrayRef<uint8_t> getHash() const {
     return arrayRefFromStringRef<uint8_t>(Hash);
@@ -127,7 +127,6 @@ private:
 template <typename T> struct AsyncValue {
   Expected<std::optional<T>> take() { return std::move(Value); }
 
-  AsyncValue() : Value(std::nullopt) {}
   AsyncValue(Error &&E) : Value(std::move(E)) {}
   AsyncValue(T &&V) : Value(std::move(V)) {}
   AsyncValue(std::nullopt_t) : Value(std::nullopt) {}
@@ -138,7 +137,7 @@ private:
 };
 
 class Cancellable {
-  virtual void anchor();
+  LLVM_ABI virtual void anchor();
 
 public:
   virtual ~Cancellable() {}

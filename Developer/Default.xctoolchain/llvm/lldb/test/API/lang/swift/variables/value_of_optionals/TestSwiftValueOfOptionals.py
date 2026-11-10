@@ -17,10 +17,12 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftValueOfOptionalType(TestBase):
+    TEST_WITH_PDB_DEBUG_INFO = True
+
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_value_optional_type(self):
         """Check that trying to read an optional's numeric value doesn't crash LLDB"""

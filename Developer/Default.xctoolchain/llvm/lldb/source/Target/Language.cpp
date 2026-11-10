@@ -13,8 +13,11 @@
 #include "lldb/Target/Language.h"
 
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Interpreter/OptionValueProperties.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/TypeList.h"
+#include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/Stream.h"
 
@@ -27,6 +30,35 @@ using namespace lldb_private::formatters;
 
 typedef std::unique_ptr<Language> LanguageUP;
 typedef std::map<lldb::LanguageType, LanguageUP> LanguagesMap;
+
+#define LLDB_PROPERTIES_language
+#include "TargetProperties.inc"
+
+enum {
+#define LLDB_PROPERTIES_language
+#include "TargetPropertiesEnum.inc"
+};
+
+LanguageProperties &Language::GetGlobalLanguageProperties() {
+  static LanguageProperties g_settings;
+  return g_settings;
+}
+
+llvm::StringRef LanguageProperties::GetSettingName() {
+  static constexpr llvm::StringLiteral g_setting_name("language");
+  return g_setting_name;
+}
+
+LanguageProperties::LanguageProperties() {
+  m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
+  m_collection_sp->Initialize(g_language_properties);
+}
+
+bool LanguageProperties::GetEnableFilterForLineBreakpoints() const {
+  const uint32_t idx = ePropertyEnableFilterForLineBreakpoints;
+  return GetPropertyAtIndexAs<bool>(
+      idx, g_language_properties[idx].default_uint_value != 0);
+}
 
 static LanguagesMap &GetLanguagesMap() {
   static LanguagesMap *g_map = nullptr;
@@ -128,6 +160,53 @@ void Language::ForEach(std::function<bool(Language *)> callback) {
   }
 }
 
+llvm::Expected<LanguageType>
+Language::GetExceptionLanguageForLanguage(llvm::StringRef lang_name) {
+  LanguageType language = Language::GetLanguageTypeFromString(lang_name);
+  LanguageType exception_language = eLanguageTypeUnknown;
+
+  llvm::StringRef error_context;
+  switch (language) {
+  case eLanguageTypeC89:
+  case eLanguageTypeC:
+  case eLanguageTypeC99:
+  case eLanguageTypeC11:
+    exception_language = eLanguageTypeC;
+    break;
+  case eLanguageTypeC_plus_plus:
+  case eLanguageTypeC_plus_plus_03:
+  case eLanguageTypeC_plus_plus_11:
+  case eLanguageTypeC_plus_plus_14:
+    exception_language = eLanguageTypeC_plus_plus;
+    break;
+  case eLanguageTypeObjC_plus_plus:
+    error_context =
+        "Set exception breakpoints separately for c++ and objective-c";
+    break;
+  // BEGIN SWIFT
+  case eLanguageTypeSwift:
+    exception_language = eLanguageTypeSwift;
+    break;
+  // END SWIFT
+  case eLanguageTypeUnknown:
+    error_context = "Unknown language type for exception breakpoint";
+    break;
+  default:
+    if (Language *languagePlugin = Language::FindPlugin(language)) {
+      if (languagePlugin->SupportsExceptionBreakpointsOnThrow() ||
+          languagePlugin->SupportsExceptionBreakpointsOnCatch()) {
+        exception_language = language;
+        break;
+      }
+    }
+    error_context = "Unsupported language type for exception breakpoint";
+  }
+  if (!error_context.empty())
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   error_context);
+  return exception_language;
+}
+
 bool Language::IsTopLevelFunction(Function &function) { return false; }
 
 lldb::TypeCategoryImplSP Language::GetFormatters() { return nullptr; }
@@ -227,7 +306,7 @@ static uint32_t num_languages =
 LanguageType Language::GetLanguageTypeFromString(llvm::StringRef string) {
   for (const auto &L : language_names) {
     if (string.equals_insensitive(L.name))
-      return static_cast<LanguageType>(L.type);
+      return L.type;
   }
 
   return eLanguageTypeUnknown;
@@ -238,6 +317,10 @@ const char *Language::GetNameForLanguageType(LanguageType language) {
     return language_names[language].name;
   else
     return language_names[eLanguageTypeUnknown].name;
+}
+
+llvm::StringRef Language::GetDisplayNameForLanguageType(LanguageType language) {
+  return SourceLanguage(language).GetDescription();
 }
 
 void Language::PrintSupportedLanguagesForExpressions(Stream &s,
@@ -375,6 +458,7 @@ LanguageType Language::GetPrimaryLanguage(LanguageType language) {
   case eLanguageTypeJulia:
   case eLanguageTypeDylan:
   case eLanguageTypeMipsAssembler:
+  case eLanguageTypeMojo:
   case eLanguageTypeUnknown:
   default:
     return language;
@@ -479,7 +563,7 @@ bool Language::IsNilReference(ValueObject &valobj) { return false; }
 
 bool Language::IsUninitializedReference(ValueObject &valobj) { return false; }
 
-bool Language::GetFunctionDisplayName(const SymbolContext *sc,
+bool Language::GetFunctionDisplayName(const SymbolContext &sc,
                                       const ExecutionContext *exe_ctx,
                                       FunctionNameRepresentation representation,
                                       Stream &s) {
@@ -497,15 +581,40 @@ void Language::GetDefaultExceptionResolverDescription(bool catch_on,
   s.Printf("Exception breakpoint (catch: %s throw: %s)",
            catch_on ? "on" : "off", throw_on ? "on" : "off");
 }
+
+std::optional<bool> Language::GetBooleanFromString(llvm::StringRef str) const {
+  return llvm::StringSwitch<std::optional<bool>>(str)
+      .Case("true", {true})
+      .Case("false", {false})
+      .Default({});
+}
+
 // Constructor
 Language::Language() = default;
 
 // Destructor
 Language::~Language() = default;
 
+static std::optional<llvm::dwarf::SourceLanguage>
+ToDwarfSourceLanguage(lldb::LanguageType language_type) {
+  if (language_type <= lldb::eLanguageTypeLastStandardLanguage)
+    return static_cast<llvm::dwarf::SourceLanguage>(language_type);
+
+  switch (language_type) {
+  case eLanguageTypeMipsAssembler:
+    return llvm::dwarf::DW_LANG_Mips_Assembler;
+  default:
+    return std::nullopt;
+  }
+}
+
 SourceLanguage::SourceLanguage(lldb::LanguageType language_type) {
-  auto lname =
-      llvm::dwarf::toDW_LNAME((llvm::dwarf::SourceLanguage)language_type);
+  std::optional<llvm::dwarf::SourceLanguage> dwarf_lang =
+      ToDwarfSourceLanguage(language_type);
+  if (!dwarf_lang)
+    return;
+
+  auto lname = llvm::dwarf::toDW_LNAME(*dwarf_lang);
   if (!lname)
     return;
   name = lname->first;
@@ -520,11 +629,8 @@ lldb::LanguageType SourceLanguage::AsLanguageType() const {
 }
 
 llvm::StringRef SourceLanguage::GetDescription() const {
-  LanguageType type = AsLanguageType();
-  if (type)
-    return Language::GetNameForLanguageType(type);
   return llvm::dwarf::LanguageDescription(
-      (llvm::dwarf::SourceLanguageName)name);
+      static_cast<llvm::dwarf::SourceLanguageName>(name), version);
 }
 bool SourceLanguage::IsC() const { return name == llvm::dwarf::DW_LNAME_C; }
 
@@ -535,3 +641,164 @@ bool SourceLanguage::IsObjC() const {
 bool SourceLanguage::IsCPlusPlus() const {
   return name == llvm::dwarf::DW_LNAME_C_plus_plus;
 }
+
+// BEGIN SWIFT
+// Implement LanguageCPlusPlus::GetParentNameIfClosure and upstream this.
+// rdar://152321823
+
+/// If `sc` represents a "closure"-like function (according to
+/// Language::GetParentNameIfClosure), returns sc.function and all parent
+/// functions up to and including the first non-closure-like function. If `sc`
+/// is not a closure, or if the query does not make sense for `language`,
+/// returns a list containing only sc.function.
+static llvm::SmallVector<Function *>
+GetParentFunctionsWhileClosure(const SymbolContext &sc,
+                               const Language &language) {
+  // The algorithm below terminates on the assumption that
+  // `GetParentNameIfClosure` produces an empty string when composing that
+  // function with itself enough times. For safety, define an upper limit.
+  constexpr auto upper_limit = 8;
+
+  llvm::SmallVector<Function *> parents;
+  Function *root = sc.function;
+  if (root == nullptr)
+    return parents;
+
+  parents.push_back(root);
+  for (int idx = 0; idx < upper_limit; idx++) {
+    std::string parent = language.GetParentNameIfClosure(*root);
+    if (parent.empty())
+      break;
+
+    // Find the enclosing function, if it exists.
+    SymbolContextList sc_list;
+    auto lookup_infos = Module::LookupInfo::MakeLookupInfos(
+        ConstString(parent), lldb::FunctionNameType::eFunctionNameTypeFull,
+        lldb::eLanguageTypeSwift);
+    sc.module_sp->FindFunctions(lookup_infos, CompilerDeclContext(),
+                                ModuleFunctionSearchOptions(), sc_list);
+    if (sc_list.GetSize() != 1 || sc_list[0].function == nullptr)
+      break;
+    parents.push_back(sc_list[0].function);
+    root = sc_list[0].function;
+  }
+  return parents;
+}
+
+/// Scans the line table of `function` looking for the first entry whose line
+/// number is `line_number`. If no such entry is found, returns the entry
+/// closest to but after `line_number`.
+static std::optional<Address> FindAddressForLineNumber(Function &function,
+                                                       uint32_t line_number) {
+  CompileUnit *cu = function.GetCompileUnit();
+  LineTable *line_table = cu ? cu->GetLineTable() : nullptr;
+  if (line_table == nullptr)
+    return std::nullopt;
+
+  // Get the first line entry for this function.
+  AddressRange func_range = function.GetAddressRanges().front();
+  uint32_t first_entry_idx;
+  {
+    LineEntry first_line_entry;
+    line_table->FindLineEntryByAddress(func_range.GetBaseAddress(),
+                                       first_line_entry, &first_entry_idx);
+  }
+
+  LineEntry best_match;
+  for (uint32_t entry_idx = first_entry_idx; entry_idx < line_table->GetSize();
+       entry_idx++) {
+    LineEntry next_line;
+    line_table->GetLineEntryAtIndex(entry_idx, next_line);
+
+    // Stop if this entry is outside the range of `function`.
+    Address base_addr = next_line.range.GetBaseAddress();
+    if (!func_range.ContainsFileAddress(base_addr))
+      break;
+
+    // Stop on an exact match.
+    if (next_line.line == line_number) {
+      best_match = next_line;
+      break;
+    }
+
+    // Otherwise, keep track of the best match so far.
+    if (next_line.line > line_number && next_line.line < best_match.line)
+      best_match = next_line;
+  }
+
+  return best_match.range.GetBaseAddress();
+}
+
+/// Given a list of functions, returns a map: Function -> VariableList
+/// containing local variables of each function.
+static std::map<Function *, VariableList>
+GetFuncToLocalVariablesMap(llvm::ArrayRef<Function *> funcs) {
+  std::map<Function *, VariableList> map;
+  for (Function *function : funcs) {
+    VariableList &variable_list = map[function];
+    Block &block = function->GetBlock(true /*can_create=*/);
+    block.AppendBlockVariables(
+        true /*can_create=*/, true /*get_child_block_variables=*/,
+        true /*stop_if_child_block_is_inlined_function=*/,
+        [](Variable *v) { return true; }, &variable_list);
+  }
+  return map;
+}
+
+/// Returns the first line associated with `function`.
+static uint32_t GetLineNumberForFunction(Function &function) {
+  SupportFileNSP func_decl_file_nsp = std::make_shared<SupportFile>();
+  uint32_t line_num = 0;
+  function.GetStartLineSourceInfo(func_decl_file_nsp, line_num);
+  return line_num;
+}
+
+/// Checks if `var` is in scope inside `function` at line `line_number`.
+/// If this check can't be done, a best-effort comparison of:
+///    line_number >= var.line_number
+/// is performed.
+static bool IsVariableInScopeAtLine(uint32_t line_number,
+                                    std::optional<Address> line_addr,
+                                    Variable &var) {
+  auto fallback_line_comp = [&] {
+    return line_number >= var.GetDeclaration().GetLine();
+  };
+
+  if (!line_addr)
+    return fallback_line_comp();
+
+  Block *defining_block = line_addr->CalculateSymbolContextBlock();
+  if (defining_block)
+    return var.IsInScope(*defining_block, *line_addr);
+  return fallback_line_comp();
+}
+
+Function *Language::FindParentOfClosureWithVariable(
+    llvm::StringRef variable_name, const SymbolContext &closure_sc) const {
+  llvm::SmallVector<Function *> function_chain =
+      GetParentFunctionsWhileClosure(closure_sc, *this);
+  if (function_chain.empty())
+    return nullptr;
+
+  std::map<Function *, VariableList> func_to_locals =
+      GetFuncToLocalVariablesMap(function_chain);
+
+  llvm::ArrayRef<Function *> children =
+      llvm::ArrayRef(function_chain).drop_back();
+  llvm::ArrayRef<Function *> parents =
+      llvm::ArrayRef(function_chain).drop_front();
+
+  for (auto [parent, child] : llvm::zip_equal(parents, children)) {
+    VariableList &parent_variables = func_to_locals[parent];
+    uint32_t child_line_number = GetLineNumberForFunction(*child);
+    std::optional<Address> parent_line_addr =
+        FindAddressForLineNumber(*parent, child_line_number);
+
+    for (const VariableSP &var : parent_variables)
+      if (var->GetName() == variable_name &&
+          IsVariableInScopeAtLine(child_line_number, parent_line_addr, *var))
+        return parent;
+  }
+  return nullptr;
+}
+// END SWIFT

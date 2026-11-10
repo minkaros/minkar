@@ -2,12 +2,12 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftExpressionLanguageVersion(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test(self):
         """Test changing the Swift language version"""
         self.build()
@@ -28,7 +28,7 @@ class TestSwiftExpressionLanguageVersion(TestBase):
             options = lldb.SBExpressionOptions()
             options.SetLanguage(lldb.eLanguageNameSwift, n*100 + 0)
             value = self.frame().EvaluateExpression(expr, options)
-            self.assertEquals(value.GetValue(), "%d" % n)
+            self.assertEqual(value.GetValue(), "%d" % n)
 
         test_version(5)
         test_version(6)

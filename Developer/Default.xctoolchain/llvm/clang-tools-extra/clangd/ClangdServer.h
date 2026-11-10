@@ -16,6 +16,7 @@
 #include "FeatureModule.h"
 #include "GlobalCompilationDatabase.h"
 #include "Hover.h"
+#include "ModulesBuilder.h"
 #include "Protocol.h"
 #include "SemanticHighlighting.h"
 #include "TUScheduler.h"
@@ -109,8 +110,16 @@ public:
     /// Cached preambles are potentially large. If false, store them on disk.
     bool StorePreamblesInMemory = true;
 
+    /// Call hierarchy's outgoing calls feature requires additional index
+    /// serving structures which increase memory usage. If false, these are
+    /// not created and the feature is not enabled.
+    bool EnableOutgoingCalls = true;
+
     /// This throttler controls which preambles may be built at a given time.
     clangd::PreambleThrottler *PreambleThrottler = nullptr;
+
+    /// Manages to build module files.
+    ModulesBuilder *ModulesManager = nullptr;
 
     /// If true, ClangdServer builds a dynamic in-memory index for symbols in
     /// opened files and uses the index to augment code completion results.
@@ -175,7 +184,7 @@ public:
     bool UseDirtyHeaders = false;
 
     // If true, parse emplace-like functions in the preamble.
-    bool PreambleParseForwardingFunctions = false;
+    bool PreambleParseForwardingFunctions = true;
 
     /// Whether include fixer insertions for Objective-C code should use #import
     /// instead of #include.
@@ -288,6 +297,10 @@ public:
   void incomingCalls(const CallHierarchyItem &Item,
                      Callback<std::vector<CallHierarchyIncomingCall>>);
 
+  /// Resolve outgoing calls for a given call hierarchy item.
+  void outgoingCalls(const CallHierarchyItem &Item,
+                     Callback<std::vector<CallHierarchyOutgoingCall>>);
+
   /// Resolve inlay hints for a given document.
   void inlayHints(PathRef File, std::optional<Range> RestrictRange,
                   Callback<std::vector<InlayHint>>);
@@ -316,8 +329,8 @@ public:
                       bool AddContainer, Callback<ReferencesResult> CB);
 
   /// Run formatting for the \p File with content \p Code.
-  /// If \p Rng is non-null, formats only that region.
-  void formatFile(PathRef File, std::optional<Range> Rng,
+  /// If \p Rng is non-empty, formats only those regions.
+  void formatFile(PathRef File, const std::vector<Range> &Rngs,
                   Callback<tooling::Replacements> CB);
 
   /// Run formatting after \p TriggerText was typed at \p Pos in \p File with
@@ -391,18 +404,17 @@ public:
     };
     std::vector<QuickFix> QuickFixes;
     std::vector<TweakRef> TweakRefs;
+    struct Rename {
+      DiagRef Diag;
+      std::string FixMessage;
+      std::string NewName;
+    };
+    std::vector<Rename> Renames;
   };
   /// Surface code actions (quick-fixes for diagnostics, or available code
   /// tweaks) for a given range in a file.
   void codeAction(const CodeActionInputs &Inputs,
                   Callback<CodeActionResult> CB);
-
-  /// Enumerate the code tweaks available to the user at a specified point.
-  /// Tweaks where Filter returns false will not be checked or included.
-  /// Deprecated, use codeAction instead.
-  void enumerateTweaks(PathRef File, Range Sel,
-                       llvm::unique_function<bool(const Tweak &)> Filter,
-                       Callback<std::vector<TweakRef>> CB);
 
   /// Apply the code tweak with a specified \p ID.
   void applyTweak(PathRef File, Range Sel, StringRef ID,
@@ -489,6 +501,8 @@ private:
   std::unique_ptr<BackgroundIndex> BackgroundIdx;
   // Storage for merged views of the various indexes.
   std::vector<std::unique_ptr<SymbolIndex>> MergedIdx;
+  // Manage module files.
+  ModulesBuilder *ModulesManager = nullptr;
 
   // When set, provides clang-tidy options for a specific file.
   TidyProviderRef ClangTidyProvider;
@@ -498,7 +512,7 @@ private:
   // Whether the client supports folding only complete lines.
   bool LineFoldingOnly = false;
 
-  bool PreambleParseForwardingFunctions = false;
+  bool PreambleParseForwardingFunctions = true;
 
   bool ImportInsertions = false;
 

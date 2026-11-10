@@ -29,10 +29,12 @@ config.suffixes = [
     ".c",
     ".cpp",
     ".i",
+    ".cir",
     ".cppm",
     ".m",
     ".mm",
     ".cu",
+    ".cuh",
     ".hip",
     ".hlsl",
     ".ll",
@@ -68,6 +70,8 @@ llvm_config.use_default_substitutions()
 
 llvm_config.use_clang()
 
+config.substitutions.append(("%src_dir", config.clang_src_dir))
+
 config.substitutions.append(("%src_include_dir", config.clang_src_dir + "/include"))
 
 config.substitutions.append(("%target_triple", config.target_triple))
@@ -85,19 +89,24 @@ tools = [
     "apinotes-test",
     "c-index-test",
     "cache-build-session",
+    "cir-opt",
     "clang-diff",
     "clang-format",
     "clang-repl",
     "clang-offload-packager",
     "clang-tblgen",
     "clang-scan-deps",
+    "clang-installapi",
     "opt",
     "llvm-ifs",
     "yaml2obj",
     "clang-linker-wrapper",
+    "clang-nvlink-wrapper",
+    "clang-sycl-linker",
     "llvm-lto",
     "llvm-lto2",
     "llvm-profdata",
+    "llvm-readtapi",
     ToolSubst('%clang-cache', command=FindTool('clang-cache')),
     ToolSubst(
         "%clang_extdef_map",
@@ -109,6 +118,29 @@ tools = [
 if config.clang_examples:
     config.available_features.add("examples")
 
+
+def have_host_out_of_process_jit_feature_support():
+    clang_repl_exe = lit.util.which("clang-repl", config.clang_tools_dir)
+
+    if not clang_repl_exe:
+        return False
+
+    testcode = b"\n".join([b"int i = 0;", b"%quit"])
+
+    try:
+        clang_repl_cmd = subprocess.run(
+            [clang_repl_exe, "-orc-runtime", "-oop-executor"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            input=testcode,
+        )
+    except OSError:
+        return False
+
+    if clang_repl_cmd.returncode == 0:
+        return True
+
+    return False
 
 def have_host_jit_feature_support(feature_name):
     clang_repl_exe = lit.util.which("clang-repl", config.clang_tools_dir)
@@ -162,12 +194,17 @@ if have_host_jit_feature_support('jit'):
     if have_host_clang_repl_cuda():
         config.available_features.add('host-supports-cuda')
 
+    if have_host_out_of_process_jit_feature_support():
+        config.available_features.add("host-supports-out-of-process-jit")
+
 if config.clang_staticanalyzer:
     config.available_features.add("staticanalyzer")
     tools.append("clang-check")
 
     if config.clang_staticanalyzer_z3:
         config.available_features.add("z3")
+        if config.clang_staticanalyzer_z3_mock:
+            config.available_features.add("z3-mock")
     else:
         config.available_features.add("no-z3")
 
@@ -178,6 +215,14 @@ if config.clang_staticanalyzer:
         (
             "%check_analyzer_fixit",
             '"%s" %s' % (config.python_executable, check_analyzer_fixit_path),
+        )
+    )
+
+    csv2json_path = os.path.join(config.test_source_root, "Analysis", "csv2json.py")
+    config.substitutions.append(
+        (
+            "%csv2json",
+            '"%s" %s' % (config.python_executable, csv2json_path),
         )
     )
 
@@ -205,9 +250,26 @@ config.substitutions.append(
     )
 )
 
-config.substitutions.append(("%host_cc", config.host_cc))
-config.substitutions.append(("%host_cxx", config.host_cxx))
+config.substitutions.append(
+    (
+        "%PathSanitizingFileCheck",
+        '"%s" %s %s'
+        % (
+            config.python_executable,
+            os.path.join(config.clang_src_dir, "utils", "PathSanitizingFileCheck"),
+            '--enable-windows-compatibility' if platform.system() == 'Windows' else '',
+        ),
+    )
+)
 
+# Determine whether the test target is compatible with execution on the host.
+if "aarch64" in config.host_arch:
+    config.available_features.add("aarch64-host")
+
+# Some tests are sensitive to whether clang is statically or dynamically linked
+# to other libraries.
+if not (config.build_shared_libs or config.link_llvm_dylib or config.link_clang_dylib):
+    config.available_features.add("static-libs")
 
 # Plugins (loadable modules)
 if config.has_plugins and config.llvm_plugin_ext:
@@ -245,6 +307,7 @@ if platform.system() not in ["Darwin", "Fuchsia"]:
 
 
 def is_filesystem_case_insensitive():
+    os.makedirs(config.test_exec_root, exist_ok=True)
     handle, path = tempfile.mkstemp(prefix="case-test", dir=config.test_exec_root)
     isInsensitive = os.path.exists(
         os.path.join(os.path.dirname(path), os.path.basename(path).upper())
@@ -339,46 +402,8 @@ if config.have_ondisk_cas:
 if config.have_llvm_driver:
     config.available_features.add("llvm-driver")
 
-
-def exclude_unsupported_files_for_aix(dirname):
-    for filename in os.listdir(dirname):
-        source_path = os.path.join(dirname, filename)
-        if os.path.isdir(source_path):
-            continue
-        f = open(source_path, "r", encoding="ISO-8859-1")
-        try:
-            data = f.read()
-            # 64-bit object files are not supported on AIX, so exclude the tests.
-            if (
-                any(
-                    option in data
-                    for option in (
-                        "-emit-obj",
-                        "-fmodule-format=obj",
-                        "-fintegrated-as",
-                    )
-                )
-                and "64" in config.target_triple
-            ):
-                config.excludes += [filename]
-        finally:
-            f.close()
-
-
-if "aix" in config.target_triple:
-    for directory in (
-        "/CodeGenCXX",
-        "/Misc",
-        "/Modules",
-        "/PCH",
-        "/Driver",
-        "/ASTMerge/anonymous-fields",
-        "/ASTMerge/injected-class-name-decl",
-    ):
-        exclude_unsupported_files_for_aix(config.test_source_root + directory)
-
-if os.path.exists(os.path.join(config.clang_src_dir, 'TeSt')):
-    config.available_features.add('case_insensitive_src_dir')
+if os.path.exists(os.path.join(config.clang_obj_root, 'TeSt')):
+    config.available_features.add('case_insensitive_build_dir')
 
 # Some tests perform deep recursion, which requires a larger pthread stack size
 # than the relatively low default of 192 KiB for 64-bit processes on AIX. The
@@ -391,24 +416,36 @@ if "AIXTHREAD_STK" in os.environ:
 elif platform.system() == "AIX":
     config.environment["AIXTHREAD_STK"] = "4194304"
 
-# The llvm-nm tool supports an environment variable "OBJECT_MODE" on AIX OS, which
+# Some tools support an environment variable "OBJECT_MODE" on AIX OS, which
 # controls the kind of objects they will support. If there is no "OBJECT_MODE"
 # environment variable specified, the default behaviour is to support 32-bit
 # objects only. In order to not affect most test cases, which expect to support
 # 32-bit and 64-bit objects by default, set the environment variable
-# "OBJECT_MODE" to 'any' for llvm-nm on AIX OS.
+# "OBJECT_MODE" to "any" by default on AIX OS.
 
 if "system-aix" in config.available_features:
-    config.substitutions.append(("llvm-nm", "env OBJECT_MODE=any llvm-nm"))
-    config.substitutions.append(("llvm-ar", "env OBJECT_MODE=any llvm-ar"))
+   config.substitutions.append(("llvm-nm", "env OBJECT_MODE=any llvm-nm"))
+   config.substitutions.append(("llvm-ar", "env OBJECT_MODE=any llvm-ar"))
+   config.substitutions.append(("llvm-ranlib", "env OBJECT_MODE=any llvm-ranlib"))
 
 # It is not realistically possible to account for all options that could
 # possibly be present in system and user configuration files, so disable
 # default configs for the test runs.
 config.environment["CLANG_NO_DEFAULT_CONFIG"] = "1"
 
+if lit_config.update_tests:
+    import sys
+    import os
+
+    utilspath = os.path.join(config.llvm_src_root, "utils")
+    sys.path.append(utilspath)
+    from update_any_test_checks import utc_lit_plugin
+
+    lit_config.test_updaters.append(utc_lit_plugin)
+
 # Restrict the size of the on-disk CAS for tests. This allows testing in
 # constrained environments (e.g. small TMPDIR). It also prevents leaving
 # behind large files on file systems that do not support sparse files if a test
 # crashes before resizing the file.
 config.environment["LLVM_CAS_MAX_MAPPING_SIZE"] = "%d" % (100 * 1024 * 1024)
+

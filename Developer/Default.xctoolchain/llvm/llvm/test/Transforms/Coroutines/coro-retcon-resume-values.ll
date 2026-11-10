@@ -10,7 +10,7 @@ define ptr @f(ptr %buffer, i32 %n) {
 ; CHECK-NEXT:    ret ptr @f.resume.0
 ;
 entry:
-  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @prototype, ptr @allocate, ptr @deallocate)
+  %id = call token (i32, i32, ptr, ptr, ptr, ptr, ...) @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @prototype, ptr @allocate, ptr @deallocate)
   %hdl = call ptr @llvm.coro.begin(token %id, ptr null)
   br label %loop
 
@@ -27,7 +27,7 @@ resume:
 
 cleanup:
   call void @print(i32 %n.val)
-  call i1 @llvm.coro.end(ptr %hdl, i1 0)
+  call i1 @llvm.coro.end(ptr %hdl, i1 0, token none)
   unreachable
 }
 
@@ -38,16 +38,16 @@ define i32 @main() {
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[TMP0:%.*]] = tail call ptr @allocate(i32 12)
 ; CHECK-NEXT:    store i32 1, ptr [[TMP0]], align 4
-; CHECK-NEXT:    [[N_VAL3_SPILL_ADDR_I:%.*]] = getelementptr inbounds [[F_FRAME:%.*]], ptr [[TMP0]], i64 0, i32 1
-; CHECK-NEXT:    store i32 1, ptr [[N_VAL3_SPILL_ADDR_I]], align 4, !noalias !0
-; CHECK-NEXT:    [[INPUT_SPILL_ADDR_I:%.*]] = getelementptr inbounds [[F_FRAME]], ptr [[TMP0]], i64 0, i32 2
-; CHECK-NEXT:    store i32 2, ptr [[INPUT_SPILL_ADDR_I]], align 4, !noalias !0
-; CHECK-NEXT:    [[INPUT_RELOAD_ADDR13_I:%.*]] = getelementptr inbounds [[F_FRAME]], ptr [[TMP0]], i64 0, i32 2
-; CHECK-NEXT:    [[N_VAL3_RELOAD_ADDR11_I:%.*]] = getelementptr inbounds [[F_FRAME]], ptr [[TMP0]], i64 0, i32 1
-; CHECK-NEXT:    store i32 3, ptr [[N_VAL3_RELOAD_ADDR11_I]], align 4, !noalias !3
-; CHECK-NEXT:    store i32 4, ptr [[INPUT_RELOAD_ADDR13_I]], align 4, !noalias !3
-; CHECK-NEXT:    tail call void @print(i32 7), !noalias !6
-; CHECK-NEXT:    tail call void @deallocate(ptr nonnull [[TMP0]]), !noalias !6
+; CHECK-NEXT:    [[N_VAL3_SPILL_ADDR_I:%.*]] = getelementptr inbounds nuw i8, ptr [[TMP0]], i64 4
+; CHECK-NEXT:    store i32 1, ptr [[N_VAL3_SPILL_ADDR_I]], align 4, !noalias [[META0:![0-9]+]]
+; CHECK-NEXT:    [[INPUT_SPILL_ADDR_I:%.*]] = getelementptr inbounds nuw i8, ptr [[TMP0]], i64 8
+; CHECK-NEXT:    store i32 2, ptr [[INPUT_SPILL_ADDR_I]], align 4, !noalias [[META0]]
+; CHECK-NEXT:    [[INPUT_RELOAD_ADDR13_I:%.*]] = getelementptr inbounds nuw i8, ptr [[TMP0]], i64 8
+; CHECK-NEXT:    [[N_VAL3_RELOAD_ADDR11_I:%.*]] = getelementptr inbounds nuw i8, ptr [[TMP0]], i64 4
+; CHECK-NEXT:    store i32 3, ptr [[N_VAL3_RELOAD_ADDR11_I]], align 4, !noalias [[META3:![0-9]+]]
+; CHECK-NEXT:    store i32 4, ptr [[INPUT_RELOAD_ADDR13_I]], align 4, !noalias [[META3]]
+; CHECK-NEXT:    tail call void @print(i32 7), !noalias [[META6:![0-9]+]]
+; CHECK-NEXT:    tail call void @deallocate(ptr nonnull [[TMP0]]), !noalias [[META6]]
 ; CHECK-NEXT:    ret i32 0
 ;
 entry:
@@ -63,10 +63,10 @@ entry:
 ;   Unfortunately, we don't seem to fully optimize this right now due
 ;   to some sort of phase-ordering thing.
 
-declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr)
+declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr, ...)
 declare ptr @llvm.coro.begin(token, ptr)
 declare { i32, i1 } @llvm.coro.suspend.retcon.sl_i32i1s(...)
-declare i1 @llvm.coro.end(ptr, i1)
+declare i1 @llvm.coro.end(ptr, i1, token)
 declare ptr @llvm.coro.prepare.retcon(ptr)
 
 declare ptr @prototype(ptr, i32, i1 zeroext)

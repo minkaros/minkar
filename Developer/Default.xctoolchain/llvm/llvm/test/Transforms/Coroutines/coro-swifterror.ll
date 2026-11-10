@@ -15,7 +15,7 @@ define ptr @f(ptr %buffer, i32 %n, ptr swifterror %errorslot) {
 ; CHECK-NEXT:    ret ptr @f.resume.0
 ;
 entry:
-  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @f_prototype, ptr @allocate, ptr @deallocate)
+  %id = call token (i32, i32, ptr, ptr, ptr, ptr, ...) @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @f_prototype, ptr @allocate, ptr @deallocate)
   %hdl = call ptr @llvm.coro.begin(token %id, ptr null)
   br label %loop
 
@@ -34,7 +34,7 @@ resume:
   br label %loop
 
 cleanup:
-  call i1 @llvm.coro.end(ptr %hdl, i1 0)
+  call i1 @llvm.coro.end(ptr %hdl, i1 0, token none)
   unreachable
 }
 
@@ -50,7 +50,7 @@ define ptr @g(ptr %buffer, i32 %n) {
 ; CHECK-NEXT:    store ptr null, ptr [[TMP0]], align 4
 ; CHECK-NEXT:    call void @maybeThrow(ptr nonnull swifterror [[TMP0]])
 ; CHECK-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[TMP0]], align 4
-; CHECK-NEXT:    [[DOTSPILL_ADDR:%.*]] = getelementptr inbounds [[G_FRAME:%.*]], ptr [[BUFFER]], i32 0, i32 1
+; CHECK-NEXT:    [[DOTSPILL_ADDR:%.*]] = getelementptr inbounds nuw i8, ptr [[BUFFER]], i32 4
 ; CHECK-NEXT:    store ptr [[TMP1]], ptr [[DOTSPILL_ADDR]], align 4
 ; CHECK-NEXT:    call void @logError(ptr [[TMP1]])
 ; CHECK-NEXT:    ret ptr @g.resume.0
@@ -58,7 +58,7 @@ define ptr @g(ptr %buffer, i32 %n) {
 entry:
   %errorslot = alloca swifterror ptr, align 4
   store ptr null, ptr %errorslot
-  %id = call token @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @g_prototype, ptr @allocate, ptr @deallocate)
+  %id = call token (i32, i32, ptr, ptr, ptr, ptr, ...) @llvm.coro.id.retcon(i32 8, i32 4, ptr %buffer, ptr @g_prototype, ptr @allocate, ptr @deallocate)
   %hdl = call ptr @llvm.coro.begin(token %id, ptr null)
   br label %loop
 
@@ -76,17 +76,17 @@ resume:
   br label %loop
 
 cleanup:
-  call i1 @llvm.coro.end(ptr %hdl, i1 0)
+  call i1 @llvm.coro.end(ptr %hdl, i1 0, token none)
   unreachable
 }
 
 
 
-declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr)
+declare token @llvm.coro.id.retcon(i32, i32, ptr, ptr, ptr, ptr, ...)
 declare ptr @llvm.coro.begin(token, ptr)
 declare { i1, ptr } @llvm.coro.suspend.retcon.i1p0p0i8(...)
 declare i1 @llvm.coro.suspend.retcon.i1(...)
-declare i1 @llvm.coro.end(ptr, i1)
+declare i1 @llvm.coro.end(ptr, i1, token)
 declare ptr @llvm.coro.prepare.retcon(ptr)
 
 declare ptr @f_prototype(ptr, i1 zeroext, ptr swifterror)

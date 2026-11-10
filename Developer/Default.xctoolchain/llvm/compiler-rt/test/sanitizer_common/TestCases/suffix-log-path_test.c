@@ -8,7 +8,7 @@
 // RUN: %env_tool_opts=log_path=%T/sanitizer.log:log_exe_name=1:log_suffix=.txt %run %T/suffix-log-path_test-binary 2> %t.out
 // RUN: FileCheck %s < %T/sanitizer.log.suffix-log-path_test-binary.*.txt
 
-// UNSUPPORTED: ios, android
+// UNSUPPORTED: darwin-remote, android
 
 #include <stdlib.h>
 #include <string.h>

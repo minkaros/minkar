@@ -1,4 +1,4 @@
-﻿"""Test that lldb picks the correct DWARF location list entry with a return-pc out of bounds."""
+"""Test that lldb picks the correct DWARF location list entry with a return-pc out of bounds."""
 
 import lldb
 from lldbsuite.test.decorators import *
@@ -25,7 +25,7 @@ class LocationListLookupTestCase(TestBase):
         # Find `bar` on the stack, then
         # make sure we can read out the local
         # variables (with both `frame var` and `expr`)
-        for f in process.GetSelectedThread().frames:
+        for f in process.selected_thread.frames:
             frame_name = f.GetDisplayFunctionName()
             if frame_name is not None and frame_name.startswith("Foo::bar"):
                 argv = f.GetValueForVariablePath("argv").GetChildAtIndex(0)
@@ -34,16 +34,19 @@ class LocationListLookupTestCase(TestBase):
                 self.assertNotEqual(strm.GetData().find("a.out"), -1)
 
                 if check_expr:
-                    process.GetSelectedThread().SetSelectedFrame(f.idx)
+                    process.selected_thread.selected_frame = f
                     self.expect_expr("this", result_type="Foo *")
 
+    @skipIf(bugnumber = "rdar://135577167")
     @skipIf(oslist=["linux"], archs=["arm"])
     @skipIfDarwin
     def test_loclist_frame_var(self):
         self.build()
         self.check_local_vars(self.launch(), check_expr=False)
 
-    @skipIf(archs=no_match(["aarch64", "arm"]))
+    @skipIf(bugnumber = "rdar://135577167")
+    @skipIf(dwarf_version=["<", "3"])
+    @skipIf(compiler="clang", compiler_version=["<", "12.0"])
     @skipUnlessDarwin
     def test_loclist_expr(self):
         self.build()

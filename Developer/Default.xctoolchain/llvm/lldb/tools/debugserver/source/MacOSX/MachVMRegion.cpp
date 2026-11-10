@@ -14,6 +14,12 @@
 #include "DNBLog.h"
 #include <cassert>
 #include <mach/mach_vm.h>
+#include <mach/vm_statistics.h>
+
+// From <mach/vm_statistics.h>, but not on older OSs.
+#ifndef VM_MEMORY_SANITIZER
+#define VM_MEMORY_SANITIZER 99
+#endif
 
 MachVMRegion::MachVMRegion(task_t task)
     : m_task(task), m_addr(INVALID_NUB_ADDRESS), m_err(),
@@ -208,7 +214,8 @@ std::vector<std::string> MachVMRegion::GetMemoryTypes() const {
       m_data.user_tag == VM_MEMORY_MALLOC_LARGE_REUSABLE ||
       m_data.user_tag == VM_MEMORY_MALLOC_HUGE ||
       m_data.user_tag == VM_MEMORY_REALLOC ||
-      m_data.user_tag == VM_MEMORY_SBRK) {
+      m_data.user_tag == VM_MEMORY_SBRK ||
+      m_data.user_tag == VM_MEMORY_SANITIZER) {
     types.push_back("heap");
     if (m_data.user_tag == VM_MEMORY_MALLOC_TINY) {
       types.push_back("malloc-tiny");

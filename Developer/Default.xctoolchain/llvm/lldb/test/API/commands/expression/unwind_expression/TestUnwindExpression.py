@@ -2,7 +2,6 @@
 Test stopping at a breakpoint in an expression, and unwinding from there.
 """
 
-
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -70,8 +69,9 @@ class UnwindFromExpressionTest(TestBase):
 
         self.assertTrue(val.GetError().Fail(), "We did not complete the execution.")
         error_str = val.GetError().GetCString()
-        self.assertTrue(
-            "Execution was interrupted, reason: breakpoint" in error_str,
+        self.assertIn(
+            "Expression execution hit a breakpoint: breakpoint",
+            error_str,
             "And the reason was right.",
         )
 

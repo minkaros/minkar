@@ -15,6 +15,7 @@
 #include "lldb/Utility/DataEncoder.h"
 #include "lldb/Utility/LLDBLog.h"
 #include "lldb/Version/Version.h"
+#include "swift/RemoteInspection/ReflectionContext.h"
 #include "llvm/Support/BLAKE3.h"
 #include "llvm/Support/CachePruning.h"
 
@@ -171,13 +172,14 @@ SwiftMetadataCache::generateHashTableBlob(
     auto &mangled_name = std::get<1>(pair);
     if (mangled_name.empty())
       continue;
-    auto offset = field_descriptor.getAddressData() -
-                  field_descriptors.startAddress().getAddressData();
+    auto offset =
+        field_descriptor.getRemoteAddress().getRawAddress() -
+        field_descriptors.startAddress().getRemoteAddress().getRawAddress();
     table_generator.insert(mangled_name, offset, m_info);
   }
 
   // Make sure that no bucket is at offset 0.
-  llvm::support::endian::write<uint32_t>(blobStream, 0, llvm::support::little);
+  llvm::support::endian::write<uint32_t>(blobStream, 0, llvm::endianness::little);
   uint32_t table_control_offset = table_generator.Emit(blobStream, m_info);
   return {{std::move(table_control_offset), std::move(hash_table_blob)}};
 }

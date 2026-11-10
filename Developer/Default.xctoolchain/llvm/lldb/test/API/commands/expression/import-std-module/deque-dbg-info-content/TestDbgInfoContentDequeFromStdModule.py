@@ -10,8 +10,8 @@ from lldbsuite.test import lldbutil
 class TestDbgInfoContentDeque(TestBase):
     @add_test_categories(["libc++"])
     @skipIf(compiler=no_match("clang"))
-    @skipIf(compiler="clang", compiler_version=["<", "12.0"])
-    @skipIf(setting=('plugin.typesystem.clang.experimental-redecl-completion', 'true'))
+    @skipIf(compiler="clang", compiler_version=["<", "18.0"])
+    @skipUnlessDarwin
     def test(self):
         self.build()
 

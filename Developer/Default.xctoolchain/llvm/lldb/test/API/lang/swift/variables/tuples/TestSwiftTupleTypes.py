@@ -16,11 +16,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftTupleTypes(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_tuple_types(self):
         """Test support for tuple types"""
         self.build()

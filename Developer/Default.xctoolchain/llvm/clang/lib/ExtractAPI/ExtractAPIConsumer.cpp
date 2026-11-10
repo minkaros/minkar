@@ -12,6 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ASTConcept.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
@@ -30,6 +31,7 @@
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Index/USRGeneration.h"
+#include "clang/InstallAPI/HeaderFile.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
@@ -41,7 +43,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Regex.h"
@@ -62,9 +63,6 @@ std::optional<std::string> getRelativeIncludeName(const CompilerInstance &CI,
          "CompilerInstance does not have a FileNamager!");
 
   using namespace llvm::sys;
-  // Matches framework include patterns
-  const llvm::Regex Rule("/(.+)\\.framework/(.+)?Headers/(.+)");
-
   const auto &FS = CI.getVirtualFileSystem();
 
   SmallString<128> FilePath(File.begin(), File.end());
@@ -106,10 +104,10 @@ std::optional<std::string> getRelativeIncludeName(const CompilerInstance &CI,
       // Special case Apple .sdk folders since the search path is typically a
       // symlink like `iPhoneSimulator14.5.sdk` while the file is instead
       // located in `iPhoneSimulator.sdk` (the real folder).
-      if (NI->endswith(".sdk") && DI->endswith(".sdk")) {
+      if (NI->ends_with(".sdk") && DI->ends_with(".sdk")) {
         StringRef NBasename = path::stem(*NI);
         StringRef DBasename = path::stem(*DI);
-        if (DBasename.startswith(NBasename))
+        if (DBasename.starts_with(NBasename))
           continue;
       }
 
@@ -148,7 +146,8 @@ std::optional<std::string> getRelativeIncludeName(const CompilerInstance &CI,
       // include name `<Framework/Header.h>`
       if (Entry.IsFramework) {
         SmallVector<StringRef, 4> Matches;
-        Rule.match(File, &Matches);
+        clang::installapi::HeaderFile::getFrameworkIncludeRule().match(
+            File, &Matches);
         // Returned matches are always in stable order.
         if (Matches.size() != 4)
           return std::nullopt;
@@ -217,8 +216,8 @@ struct LocationFileChecker {
                       SmallVector<std::pair<SmallString<32>, bool>> &KnownFiles)
       : CI(CI), KnownFiles(KnownFiles), ExternalFileEntries() {
     for (const auto &KnownFile : KnownFiles)
-      if (auto FileEntry = CI.getFileManager().getFile(KnownFile.first))
-        KnownFileEntries.insert(*FileEntry);
+      if (auto FE = CI.getFileManager().getOptionalFileRef(KnownFile.first))
+        KnownFileEntries.insert(*FE);
   }
 
 private:
@@ -286,78 +285,58 @@ public:
   MacroCallback(const SourceManager &SM, APISet &API, Preprocessor &PP)
       : SM(SM), API(API), PP(PP) {}
 
-  void MacroDefined(const Token &MacroNameToken,
-                    const MacroDirective *MD) override {
-    auto *MacroInfo = MD->getMacroInfo();
-
-    if (MacroInfo->isBuiltinMacro())
-      return;
-
-    auto SourceLoc = MacroNameToken.getLocation();
-    if (SM.isWrittenInBuiltinFile(SourceLoc) ||
-        SM.isWrittenInCommandLineFile(SourceLoc))
-      return;
-
-    PendingMacros.emplace_back(MacroNameToken, MD);
-  }
-
-  // If a macro gets undefined at some point during preprocessing of the inputs
-  // it means that it isn't an exposed API and we should therefore not add a
-  // macro definition for it.
-  void MacroUndefined(const Token &MacroNameToken, const MacroDefinition &MD,
-                      const MacroDirective *Undef) override {
-    // If this macro wasn't previously defined we don't need to do anything
-    // here.
-    if (!Undef)
-      return;
-
-    llvm::erase_if(PendingMacros, [&MD, this](const PendingMacro &PM) {
-      return MD.getMacroInfo()->isIdenticalTo(*PM.MD->getMacroInfo(), PP,
-                                              /*Syntactically*/ false);
-    });
-  }
-
   void EndOfMainFile() override {
-    for (auto &PM : PendingMacros) {
-      // `isUsedForHeaderGuard` is only set when the preprocessor leaves the
-      // file so check for it here.
-      if (PM.MD->getMacroInfo()->isUsedForHeaderGuard())
+    for (const auto &M : PP.macros()) {
+      auto *II = M.getFirst();
+      auto MD = PP.getMacroDefinition(II);
+      auto *MI = MD.getMacroInfo();
+
+      if (!MI)
         continue;
 
-      if (!shouldMacroBeIncluded(PM))
+      // Ignore header guard macros
+      if (MI->isUsedForHeaderGuard())
         continue;
 
-      StringRef Name = PM.MacroNameToken.getIdentifierInfo()->getName();
-      PresumedLoc Loc = SM.getPresumedLoc(PM.MacroNameToken.getLocation());
+      // Ignore builtin macros and ones defined via the command line.
+      if (MI->isBuiltinMacro())
+        continue;
+
+      auto DefLoc = MI->getDefinitionLoc();
+
+      if (SM.isInPredefinedFile(DefLoc))
+        continue;
+
+      auto AssociatedModuleMacros = MD.getModuleMacros();
+      StringRef OwningModuleName;
+      if (!AssociatedModuleMacros.empty())
+        OwningModuleName = AssociatedModuleMacros.back()
+                               ->getOwningModule()
+                               ->getTopLevelModuleName();
+
+      if (!shouldMacroBeIncluded(DefLoc, OwningModuleName))
+        continue;
+
+      StringRef Name = II->getName();
+      PresumedLoc Loc = SM.getPresumedLoc(DefLoc);
       SmallString<128> USR;
-      index::generateUSRForMacro(Name, PM.MacroNameToken.getLocation(), SM,
-                                 USR);
-
+      index::generateUSRForMacro(Name, DefLoc, SM, USR);
       API.createRecord<extractapi::MacroDefinitionRecord>(
           USR, Name, SymbolReference(), Loc,
-          DeclarationFragmentsBuilder::getFragmentsForMacro(Name, PM.MD),
+          DeclarationFragmentsBuilder::getFragmentsForMacro(Name, MI),
           DeclarationFragmentsBuilder::getSubHeadingForMacro(Name),
-          SM.isInSystemHeader(PM.MacroNameToken.getLocation()));
+          SM.isInSystemHeader(DefLoc));
     }
-
-    PendingMacros.clear();
   }
 
-protected:
-  struct PendingMacro {
-    Token MacroNameToken;
-    const MacroDirective *MD;
-
-    PendingMacro(const Token &MacroNameToken, const MacroDirective *MD)
-        : MacroNameToken(MacroNameToken), MD(MD) {}
-  };
-
-  virtual bool shouldMacroBeIncluded(const PendingMacro &PM) { return true; }
+  virtual bool shouldMacroBeIncluded(const SourceLocation &MacroLoc,
+                                     StringRef ModuleName) {
+    return true;
+  }
 
   const SourceManager &SM;
   APISet &API;
   Preprocessor &PP;
-  llvm::SmallVector<PendingMacro> PendingMacros;
 };
 
 class APIMacroCallback : public MacroCallback {
@@ -366,9 +345,10 @@ public:
                    LocationFileChecker &LCF)
       : MacroCallback(SM, API, PP), LCF(LCF) {}
 
-  bool shouldMacroBeIncluded(const PendingMacro &PM) override {
+  bool shouldMacroBeIncluded(const SourceLocation &MacroLoc,
+                             StringRef ModuleName) override {
     // Do not include macros from external files
-    return LCF(PM.MacroNameToken.getLocation());
+    return LCF(MacroLoc);
   }
 
 private:
@@ -464,8 +444,7 @@ bool ExtractAPIAction::PrepareToExecuteAction(CompilerInstance &CI) {
     return true;
 
   if (!CI.hasFileManager())
-    if (!CI.createFileManager())
-      return false;
+    CI.createFileManager();
 
   auto Kind = Inputs[0].getKind();
 

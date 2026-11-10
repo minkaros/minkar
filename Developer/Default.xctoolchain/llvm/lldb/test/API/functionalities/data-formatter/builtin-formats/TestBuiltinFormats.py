@@ -3,9 +3,9 @@ Tests the builtin formats of LLDB.
 """
 
 import lldb
+from lldbsuite.test import lldbutil
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-from lldbsuite.test import lldbutil
 
 
 class TestCase(TestBase):
@@ -19,10 +19,25 @@ class TestCase(TestBase):
         self.assertTrue(result.Succeeded(), result.GetError())
         return result.GetOutput()
 
+    @skipIf(dwarf_version=["<", "3"])
+    @no_debug_info_test
+    @skipIfWindows
+    def testAllPlatforms(self):
+        self.build()
+        lldbutil.run_to_source_breakpoint(
+            self, "// break here", lldb.SBFileSpec("main.cpp")
+        )
+        # We can dump correctly non char* c-strings with explicit formatting.
+        self.assertIn(' = ""', self.getFormatted("c-string", "void_empty_cstring"))
+        self.assertIn(' = ""', self.getFormatted("c-string", "empty_cstring"))
+
+    # TODO: Move as many asserts as possible within this function to `testAllPlatforms`.
+    # Currently `arm` is being skipped even though many asserts would effectively
+    # pass.
     @no_debug_info_test
     @skipIfWindows
     # uint128_t not available on arm.
-    @skipIf(archs=["arm"])
+    @skipIf(archs=["arm$"])
     def test(self):
         self.build()
         lldbutil.run_to_source_breakpoint(
@@ -103,10 +118,12 @@ class TestCase(TestBase):
         self.assertIn("= 0x1p1\n", self.getFormatted("hex float", "2.0f"))
         self.assertIn("= 0x1p1\n", self.getFormatted("hex float", "2.0"))
         # FIXME: long double not supported.
-        self.assertIn(
-            "= error: unsupported byte size (16) for hex float format\n",
-            self.getFormatted("hex float", "2.0l"),
-        )
+        # on Darwin arm64, long double is 8 bytes, same as long.
+        if self.getArchitecture() != "arm64":
+            self.assertIn(
+                "= error: unsupported byte size (16) for hex float format\n",
+                self.getFormatted("hex float", "2.0l"),
+            )
 
         # uppercase hex
         self.assertIn("= 0x00ABC123\n", self.getFormatted("uppercase hex", "0xABC123"))
@@ -206,10 +223,19 @@ class TestCase(TestBase):
 
         # unicode16
         self.assertIn("= U+5678 U+1234\n", self.getFormatted("unicode16", "0x12345678"))
+        self.assertIn(
+            "= U+ABCD\n", self.getFormatted("unicode16", "(unsigned short)0xabcd")
+        )
 
         # unicode32
+        # Values in the valid code point range (up to U+10FFFF) use the "U+"
+        # notation with four to six uppercase hex digits; larger values are not
+        # code points and fall back to a plain hex display.
+        self.assertIn("= U+20E3\n", self.getFormatted("unicode32", "0x20e3"))
+        self.assertIn("= U+10FFFF\n", self.getFormatted("unicode32", "0x10FFFF"))
+        self.assertIn("= 0x00110000\n", self.getFormatted("unicode32", "0x110000"))
         self.assertIn(
-            "= U+0x89abcdef U+0x01234567\n",
+            "= 0x89abcdef 0x01234567\n",
             self.getFormatted("unicode32", "(__UINT64_TYPE__)0x123456789ABCDEFll"),
         )
 

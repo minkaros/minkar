@@ -2,7 +2,6 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftClangImporterExplicitCC1(TestBase):
 
@@ -10,8 +9,7 @@ class TestSwiftClangImporterExplicitCC1(TestBase):
 
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(setting=('symbols.swift-precise-compiler-invocation', 'false'))
-    @skipIf(setting=('plugin.typesystem.clang.experimental-redecl-completion', 'true'), bugnumber='rdar://128094135')
+    @skipIf(setting=("symbols.swift-precise-compiler-invocation", "false"))
     @skipUnlessDarwin
     @swiftTest
     def test(self):
@@ -25,7 +23,7 @@ class TestSwiftClangImporterExplicitCC1(TestBase):
         self.expect('log enable lldb types -f "%s"' % log)
         self.expect("expression obj", DATA_TYPES_DISPLAYED_CORRECTLY,
                     substrs=["b ="])
-        self.filecheck('platform shell cat "%s"' % log, __file__)
+        self.filecheck_log(log, __file__)
 ### -cc1 should be round-tripped so there is no more `-cc1` in the extra args. Look for `-triple` which is a cc1 flag.
 #       CHECK:  SwiftASTContextForExpressions(module: "a", cu: "main.swift")::LogConfiguration() --     -triple
 #       CHECK-NOT: -cc1

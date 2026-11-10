@@ -18,6 +18,8 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/CAS/CASID.h"
 #include "llvm/Support/PrefixMapper.h"
+#include "llvm/ADT/STLExtras.h"
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -37,7 +39,7 @@ namespace dependencies {
 
 /// A callback to lookup module outputs for "-fmodule-file=", "-o" etc.
 using LookupModuleOutputCallback =
-    llvm::function_ref<std::string(const ModuleID &, ModuleOutputKind)>;
+    llvm::function_ref<std::string(const ModuleDeps &, ModuleOutputKind)>;
 
 /// Graph of modular dependencies.
 using ModuleDepsGraph = std::vector<ModuleDeps>;
@@ -67,11 +69,15 @@ struct TranslationUnitDeps {
   /// determined that the differences are benign for this compilation.
   std::vector<ModuleID> ClangModuleDeps;
 
-  /// The CASID for input file dependency tree.
-  std::optional<std::string> CASFileSystemRootID;
+  /// A list of module names that are visible to this translation unit. This
+  /// includes both direct and transitive module dependencies.
+  std::vector<std::string> VisibleModules;
 
   /// The include-tree for input file dependency tree.
   std::optional<std::string> IncludeTreeID;
+
+  /// A list of the C++20 named modules this translation unit depends on.
+  std::vector<std::string> NamedModuleDeps;
 
   /// The sequence of commands required to build the translation unit. Commands
   /// should be executed in order.
@@ -96,6 +102,9 @@ struct P1689Rule {
 class DependencyScanningTool {
 public:
   /// Construct a dependency scanning tool.
+  ///
+  /// @param Service  The parent service. Must outlive the tool.
+  /// @param FS The filesystem for the tool to use. Defaults to the physical FS.
   DependencyScanningTool(DependencyScanningService &Service,
                          llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
                              llvm::vfs::createPhysicalFileSystem());
@@ -116,7 +125,7 @@ public:
   /// dependency information by `-MD -MF <dep_file>`.
   ///
   /// \param MakeformatOutputPath The output parameter for the path to
-  /// \p MakeformatOutput.
+  /// \param MakeformatOutput.
   ///
   /// \returns A \c StringError with the diagnostic output if clang errors
   /// occurred, P1689 dependency format rules otherwise.
@@ -124,20 +133,15 @@ public:
   getP1689ModuleDependencyFile(const clang::tooling::CompileCommand &Command,
                                StringRef CWD, std::string &MakeformatOutput,
                                std::string &MakeformatOutputPath);
+  llvm::Expected<P1689Rule>
+  getP1689ModuleDependencyFile(const clang::tooling::CompileCommand &Command,
+                               StringRef CWD) {
+    std::string MakeformatOutput;
+    std::string MakeformatOutputPath;
 
-  /// Collect dependency tree.
-  llvm::Expected<llvm::cas::ObjectProxy>
-  getDependencyTree(const std::vector<std::string> &CommandLine, StringRef CWD);
-
-  /// If \p DiagGenerationAsCompilation is true it will generate error
-  /// diagnostics same way as the normal compilation, with "N errors generated"
-  /// message and the serialized diagnostics file emitted if the
-  /// \p DiagOpts.DiagnosticSerializationFile setting is set for the invocation.
-  llvm::Expected<llvm::cas::ObjectProxy>
-  getDependencyTreeFromCompilerInvocation(
-      std::shared_ptr<CompilerInvocation> Invocation, StringRef CWD,
-      DiagnosticConsumer &DiagsConsumer, raw_ostream *VerboseOS,
-      bool DiagGenerationAsCompilation);
+    return getP1689ModuleDependencyFile(Command, CWD, MakeformatOutput,
+                                        MakeformatOutputPath);
+  }
 
   Expected<cas::IncludeTreeRoot>
   getIncludeTree(cas::ObjectStore &DB,
@@ -165,38 +169,78 @@ public:
   /// \param LookupModuleOutput This function is called to fill in
   ///                           "-fmodule-file=", "-o" and other output
   ///                           arguments for dependencies.
+  /// \param TUBuffer Optional memory buffer for translation unit input. If
+  ///                 TUBuffer is nullopt, the input should be included in the
+  ///                 Commandline already.
   ///
   /// \returns a \c StringError with the diagnostic output if clang errors
   /// occurred, \c TranslationUnitDeps otherwise.
-  llvm::Expected<TranslationUnitDeps>
-  getTranslationUnitDependencies(const std::vector<std::string> &CommandLine,
-                                 StringRef CWD,
-                                 const llvm::DenseSet<ModuleID> &AlreadySeen,
-                                 LookupModuleOutputCallback LookupModuleOutput);
+  llvm::Expected<TranslationUnitDeps> getTranslationUnitDependencies(
+      const std::vector<std::string> &CommandLine, StringRef CWD,
+      const llvm::DenseSet<ModuleID> &AlreadySeen,
+      LookupModuleOutputCallback LookupModuleOutput,
+      std::optional<llvm::MemoryBufferRef> TUBuffer = std::nullopt);
 
   /// Given a compilation context specified via the Clang driver command-line,
   /// gather modular dependencies of module with the given name, and return the
   /// information needed for explicit build.
-  llvm::Expected<ModuleDepsGraph> getModuleDependencies(
+  /// TODO: this method should be removed as soon as Swift and our C-APIs adopt
+  /// CompilerInstanceWithContext. We are keeping it here so that it is easier
+  /// to coordinate with Swift and C-API changes.
+  llvm::Expected<TranslationUnitDeps> getModuleDependencies(
       StringRef ModuleName, const std::vector<std::string> &CommandLine,
       StringRef CWD, const llvm::DenseSet<ModuleID> &AlreadySeen,
       LookupModuleOutputCallback LookupModuleOutput);
+
+  /// The following three methods provide a new interface to perform
+  /// by name dependency scan. The new interface's intention is to improve
+  /// dependency scanning performance when a sequence of name is looked up
+  /// with the same current working directory and the command line.
+
+  /// @brief Initializing the context and the compiler instance.
+  ///        This method must be called before calling
+  ///        computeDependenciesByNameWithContext.
+  /// @param CWD The current working directory used during the scan.
+  /// @param CommandLine The commandline used for the scan.
+  /// @return Error if the initializaiton fails.
+  llvm::Error initializeCompilerInstanceWithContext(
+      StringRef CWD, const std::vector<std::string> &CommandLine);
+
+  /// @brief Computes the dependeny for the module named ModuleName.
+  /// @param ModuleName The name of the module for which this method computes
+  ///.                  dependencies.
+  /// @param AlreadySeen This stores modules which have previously been
+  ///                    reported. Use the same instance for all calls to this
+  ///                    function for a single \c DependencyScanningTool in a
+  ///                    single build. Note that this parameter is not part of
+  ///                    the context because it can be shared across different
+  ///                    worker threads and each worker thread may update it.
+  /// @param LookupModuleOutput This function is called to fill in
+  ///                           "-fmodule-file=", "-o" and other output
+  ///                           arguments for dependencies.
+  /// @return An instance of \c TranslationUnitDeps if the scan is successful.
+  ///         Otherwise it returns an error.
+  llvm::Expected<TranslationUnitDeps> computeDependenciesByNameWithContext(
+      StringRef ModuleName, const llvm::DenseSet<ModuleID> &AlreadySeen,
+      LookupModuleOutputCallback LookupModuleOutput);
+
+  /// @brief This method finializes the compiler instance. It finalizes the
+  ///        diagnostics and deletes the compiler instance. Call this method
+  ///        once all names for a same commandline are scanned.
+  /// @return Error if an error occured during finalization.
+  llvm::Error finalizeCompilerInstanceWithContext();
+
+  llvm::vfs::FileSystem &getWorkerVFS() const { return Worker.getVFS(); }
 
   ScanningOutputFormat getScanningFormat() const {
     return Worker.getScanningFormat();
   }
 
-  const CASOptions &getCASOpts() const { return Worker.getCASOpts(); }
-
-  CachingOnDiskFileSystemPtr getCachingFileSystem() {
-    return Worker.getCASFS();
+  std::shared_ptr<cas::ObjectStore> getCAS() const {
+    return Worker.getService().getCAS();
   }
-
-  /// If \p DependencyScanningService enabled sharing of \p FileManager this
-  /// will return the same instance, otherwise it will create a new one for
-  /// each invocation.
-  llvm::IntrusiveRefCntPtr<FileManager> getOrCreateFileManager() const {
-    return Worker.getOrCreateFileManager();
+  const CASOptions &getCASOpts() const {
+    return Worker.getService().getCASOpts();
   }
 
   static std::unique_ptr<DependencyActionController>
@@ -238,29 +282,38 @@ public:
     DirectModuleDeps.push_back(ID);
   }
 
-  void handleContextHash(std::string Hash) override {
-    ContextHash = std::move(Hash);
+  void handleVisibleModule(std::string ModuleName) override {
+    VisibleModules.push_back(ModuleName);
   }
 
-  void handleCASFileSystemRootID(std::string ID) override {
-    CASFileSystemRootID = std::move(ID);
+  void handleContextHash(std::string Hash) override {
+    ContextHash = std::move(Hash);
   }
 
   void handleIncludeTreeID(std::string ID) override {
     IncludeTreeID = std::move(ID);
   }
 
+  void handleProvidedAndRequiredStdCXXModules(
+      std::optional<P1689ModuleInfo> Provided,
+      std::vector<P1689ModuleInfo> Requires) override {
+    ModuleName = Provided ? Provided->ModuleName : "";
+    llvm::transform(Requires, std::back_inserter(NamedModuleDeps),
+                    [](const auto &Module) { return Module.ModuleName; });
+  }
+
   TranslationUnitDeps takeTranslationUnitDeps();
-  ModuleDepsGraph takeModuleGraphDeps();
 
 private:
   std::vector<std::string> Dependencies;
   std::vector<PrebuiltModuleDep> PrebuiltModuleDeps;
   llvm::MapVector<ModuleID, ModuleDeps> ClangModuleDeps;
+  std::string ModuleName;
+  std::vector<std::string> NamedModuleDeps;
   std::vector<ModuleID> DirectModuleDeps;
+  std::vector<std::string> VisibleModules;
   std::vector<Command> Commands;
   std::string ContextHash;
-  std::optional<std::string> CASFileSystemRootID;
   std::optional<std::string> IncludeTreeID;
   std::vector<std::string> OutputPaths;
   const llvm::DenseSet<ModuleID> &AlreadySeen;
@@ -272,19 +325,21 @@ class CallbackActionController : public DependencyActionController {
 public:
   virtual ~CallbackActionController();
 
+  static std::string lookupUnreachableModuleOutput(const ModuleDeps &MD,
+                                                   ModuleOutputKind Kind) {
+    llvm::report_fatal_error("unexpected call to lookupModuleOutput");
+  };
+
   CallbackActionController(LookupModuleOutputCallback LMO)
       : LookupModuleOutput(std::move(LMO)) {
     if (!LookupModuleOutput) {
-      LookupModuleOutput = [](const ModuleID &,
-                              ModuleOutputKind) -> std::string {
-        llvm::report_fatal_error("unexpected call to lookupModuleOutput");
-      };
+      LookupModuleOutput = lookupUnreachableModuleOutput;
     }
   }
 
-  std::string lookupModuleOutput(const ModuleID &ID,
+  std::string lookupModuleOutput(const ModuleDeps &MD,
                                  ModuleOutputKind Kind) override {
-    return LookupModuleOutput(ID, Kind);
+    return LookupModuleOutput(MD, Kind);
   }
 
 private:

@@ -1,3 +1,4 @@
+export SWIFT_ENABLE_EXPLICIT_MODULES := NO
 SWIFTFLAGS_EXTRAS = -I.
 
 ifneq "$(SWIFT_SOURCES)" "empty.swift"
@@ -12,7 +13,7 @@ all: libMacro.dylib libMacroImpl.dylib $(EXE)
 include Makefile.rules
 
 libMacro.dylib:
-	$(MAKE) MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
+	"$(MAKE)" MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
 		ARCH=$(ARCH) DSYMUTIL=$(DSYMUTIL) \
 		VPATH=$(SRCDIR) -I $(SRCDIR) \
 		-f $(THIS_FILE_DIR)/Makefile.rules \
@@ -25,7 +26,7 @@ libMacro.dylib:
 	$(RM) $(BUILDDIR)/Macro.swiftinterface
 
 libMacroImpl.dylib:
-	$(MAKE) MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
+	"$(MAKE)" MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
 		ARCH=$(ARCH) DSYMUTIL=$(DSYMUTIL) \
 		VPATH=$(SRCDIR) -I $(SRCDIR) \
 		-f $(THIS_FILE_DIR)/Makefile.rules \
@@ -34,6 +35,8 @@ libMacroImpl.dylib:
 		DYLIB_ONLY=YES \
 		SWIFTFLAGS_EXTRAS="-I$(SWIFT_HOSTDIR)" \
 		LD_EXTRAS="-L$(SWIFT_HOSTDIR)" \
+		TARGET_SWIFTFLAGS="-target $(shell uname -m)-apple-macos13.0" \
+		ARCH_CFLAGS="-target $(shell uname -m)-apple-macos13.0" \
 		SWIFT_SOURCES= \
 		all
 

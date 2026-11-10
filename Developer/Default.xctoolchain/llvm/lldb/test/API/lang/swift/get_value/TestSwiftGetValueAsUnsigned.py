@@ -16,11 +16,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class SwiftGetValueAsUnsignedAPITest(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_get_value_as_unsigned_sbapi(self):
         """Tests that the SBValue::GetValueAsUnsigned() API works for Swift types"""
         self.build()

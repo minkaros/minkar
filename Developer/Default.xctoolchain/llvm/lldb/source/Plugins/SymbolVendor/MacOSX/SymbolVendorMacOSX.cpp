@@ -118,7 +118,13 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
     FileSpec dsym_fspec(module_sp->GetSymbolFileFileSpec());
 
     ObjectFileSP dsym_objfile_sp;
-    if (!dsym_fspec) {
+    // On Darwin, we store the debug information either in object files,
+    // using the debug map to tie them to the executable, or in a dSYM.  We
+    // pass through this routine both for binaries and for .o files, but in the
+    // latter case there will never be an external debug file.  So we shouldn't
+    // do all the stats needed to find it.
+    if (!dsym_fspec && module_sp->GetObjectFile()->CalculateType() !=
+        ObjectFile::eTypeObjectFile) {
       // No symbol file was specified in the module, lets try and find one
       // ourselves.
       FileSpec file_spec = obj_file->GetFileSpec();
@@ -128,8 +134,9 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
       ModuleSpec module_spec(file_spec, module_sp->GetArchitecture());
       module_spec.GetUUID() = module_sp->GetUUID();
       FileSpecList search_paths = Target::GetDefaultDebugFileSearchPaths();
-      dsym_fspec =
-          PluginManager::LocateExecutableSymbolFile(module_spec, search_paths);
+
+      dsym_fspec = PluginManager::LocateExecutableSymbolFile(
+          module_spec, search_paths, module_sp->GetSymbolLocatorStatistics());
       if (module_spec.GetSourceMappingList().GetSize())
         module_sp->GetSourceMappingList().Append(
             module_spec.GetSourceMappingList(), true);
@@ -141,12 +148,12 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
       const size_t pos = dsym_root.find("/Contents/Resources/");
       dsym_root = pos != std::string::npos ? dsym_root.substr(0, pos) : "";
 
-      DataBufferSP dsym_file_data_sp;
+      DataExtractorSP dsym_file_extractor_sp;
       lldb::offset_t dsym_file_data_offset = 0;
       dsym_objfile_sp =
           ObjectFile::FindPlugin(module_sp, &dsym_fspec, 0,
                                  FileSystem::Instance().GetByteSize(dsym_fspec),
-                                 dsym_file_data_sp, dsym_file_data_offset);
+                                 dsym_file_extractor_sp, dsym_file_data_offset);
       // Important to save the dSYM FileSpec so we don't call
       // PluginManager::LocateExecutableSymbolFile a second time while trying to
       // add the symbol ObjectFile to this Module.
@@ -223,7 +230,7 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
                           [&module_sp, new_style_source_remapping_dictionary,
                            original_DBGSourcePath_value,
                            do_truncate_remapping_names](
-                              ConstString key,
+                              llvm::StringRef key,
                               StructuredData::Object *object) -> bool {
                             if (object && object->GetAsString()) {
 
@@ -236,7 +243,7 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
                                 DBGSourcePath = original_DBGSourcePath_value;
                               }
                               module_sp->GetSourceMappingList().Append(
-                                  key.GetStringRef(), DBGSourcePath, true);
+                                  key, DBGSourcePath, true);
                               // With version 2 of DBGSourcePathRemapping, we
                               // can chop off the last two filename parts
                               // from the source remapping and get a more
@@ -244,7 +251,7 @@ SymbolVendorMacOSX::CreateInstance(const lldb::ModuleSP &module_sp,
                               // Add this as another option in addition to
                               // the full source path remap.
                               if (do_truncate_remapping_names) {
-                                FileSpec build_path(key.AsCString());
+                                FileSpec build_path(key);
                                 FileSpec source_path(DBGSourcePath.c_str());
                                 build_path.RemoveLastPathComponent();
                                 build_path.RemoveLastPathComponent();

@@ -69,16 +69,13 @@ void GlobalDCEPass::ComputeDependencies(Value *V,
     Deps.insert(GV);
   } else if (auto *CE = dyn_cast<Constant>(V)) {
     // Avoid walking the whole tree of a big ConstantExprs multiple times.
-    auto Where = ConstantDependenciesCache.find(CE);
-    if (Where != ConstantDependenciesCache.end()) {
-      auto const &K = Where->second;
-      Deps.insert(K.begin(), K.end());
-    } else {
-      SmallPtrSetImpl<GlobalValue *> &LocalDeps = ConstantDependenciesCache[CE];
+    auto [Where, Inserted] = ConstantDependenciesCache.try_emplace(CE);
+    SmallPtrSetImpl<GlobalValue *> &LocalDeps = Where->second;
+    if (Inserted) {
       for (User *CEUser : CE->users())
         ComputeDependencies(CEUser, LocalDeps);
-      Deps.insert(LocalDeps.begin(), LocalDeps.end());
     }
+    Deps.insert_range(LocalDeps);
   }
 }
 
@@ -260,9 +257,9 @@ void GlobalDCEPass::ScanVTableLoad(Function *Caller, Metadata *TypeId,
 void GlobalDCEPass::ScanTypeCheckedLoadIntrinsics(Module &M) {
   LLVM_DEBUG(dbgs() << "Scanning type.checked.load intrinsics\n");
   Function *TypeCheckedLoadFunc =
-      M.getFunction(Intrinsic::getName(Intrinsic::type_checked_load));
-  Function *TypeCheckedLoadRelativeFunc =
-      M.getFunction(Intrinsic::getName(Intrinsic::type_checked_load_relative));
+      Intrinsic::getDeclarationIfExists(&M, Intrinsic::type_checked_load);
+  Function *TypeCheckedLoadRelativeFunc = Intrinsic::getDeclarationIfExists(
+      &M, Intrinsic::type_checked_load_relative);
 
   auto scan = [&](Function *CheckedLoadFunc) {
     if (!CheckedLoadFunc)
@@ -387,7 +384,14 @@ GlobalValue *GlobalDCEPass::TargetFromConditionalUsedIfLive(MDNode *M) {
   bool AllDependenciesAlive = Dependencies.empty() ? false : true;
   bool AnyDependencyAlive = false;
   for (auto *Dep : Dependencies) {
-    bool Live = AliveGlobals.count(Dep) != 0;
+    GlobalObject *GlobalObjectDep = dyn_cast<GlobalObject>(Dep);
+    bool Live;
+    // For the purposes of llvm.used.conditional based stripping,
+    // consider all dependencies that are declarations to be live.
+    if (GlobalObjectDep && GlobalObjectDep->isDeclaration())
+      Live = true;
+    else
+      Live = AliveGlobals.count(Dep) != 0;
     if (Live)
       AnyDependencyAlive = true;
     else

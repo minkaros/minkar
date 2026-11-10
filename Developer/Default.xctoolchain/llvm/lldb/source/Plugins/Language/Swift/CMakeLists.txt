@@ -1,3 +1,11 @@
+lldb_tablegen(LanguageSwiftProperties.inc -gen-lldb-property-defs
+  SOURCE LanguageSwiftProperties.td
+  TARGET LLDBPluginLanguageSwiftPropertiesGen)
+
+lldb_tablegen(LanguageSwiftPropertiesEnum.inc -gen-lldb-property-enum-defs
+  SOURCE LanguageSwiftProperties.td
+  TARGET LLDBPluginLanguageSwiftPropertiesEnumGen)
+
 set(LLVM_NO_RTTI 1)
 
 add_lldb_library(lldbPluginSwiftLanguage PLUGIN
@@ -13,9 +21,11 @@ add_lldb_library(lldbPluginSwiftLanguage PLUGIN
   SwiftMetatype.cpp
   SwiftOptionSet.cpp
   SwiftOptional.cpp
-  SwiftRuntimeFailureRecognizer.cpp
+  SwiftFrameRecognizers.cpp
   SwiftSet.cpp
+  SwiftUIFormatters.cpp
   SwiftUnsafeTypes.cpp
+  SystemValueTypes.cpp
 
   LINK_LIBS
     lldbCore
@@ -37,3 +47,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang AND NOT SWIFT_COMPILER_MSVC_LIKE)
     -Wno-dollar-in-identifier-extension)
 endif()
 
+add_dependencies(lldbPluginSwiftLanguage
+  LLDBPluginLanguageSwiftPropertiesGen
+  LLDBPluginLanguageSwiftPropertiesEnumGen)

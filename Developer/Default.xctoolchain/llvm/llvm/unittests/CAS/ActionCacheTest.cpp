@@ -16,14 +16,14 @@
 
 using namespace llvm;
 using namespace llvm::cas;
+using namespace llvm::unittest::cas;
 
 TEST_P(CASTest, ActionCacheHit) {
   std::shared_ptr<ObjectStore> CAS = createObjectStore();
   std::unique_ptr<ActionCache> Cache = createActionCache();
 
   std::optional<ObjectProxy> ID;
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID),
-                    Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID), Succeeded());
   std::optional<CASID> ResultID;
   ASSERT_THAT_ERROR(Cache->put(*ID, *ID), Succeeded());
   ASSERT_THAT_ERROR(Cache->get(*ID).moveInto(ResultID), Succeeded());
@@ -38,10 +38,8 @@ TEST_P(CASTest, ActionCacheMiss) {
   std::unique_ptr<ActionCache> Cache = createActionCache();
 
   std::optional<ObjectProxy> ID1, ID2;
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID1),
-                    Succeeded());
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "2").moveInto(ID2),
-                    Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID1), Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "2").moveInto(ID2), Succeeded());
   ASSERT_THAT_ERROR(Cache->put(*ID1, *ID2), Succeeded());
   // This is a cache miss for looking up a key doesn't exist.
   std::optional<CASID> Result1;
@@ -63,10 +61,8 @@ TEST_P(CASTest, ActionCacheRewrite) {
   std::unique_ptr<ActionCache> Cache = createActionCache();
 
   std::optional<ObjectProxy> ID1, ID2;
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID1),
-                    Succeeded());
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "2").moveInto(ID2),
-                    Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID1), Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "2").moveInto(ID2), Succeeded());
   ASSERT_THAT_ERROR(Cache->put(*ID1, *ID1), Succeeded());
   // Writing to the same key with different value is error.
   ASSERT_THAT_ERROR(Cache->put(*ID1, *ID2), Failed());
@@ -74,18 +70,22 @@ TEST_P(CASTest, ActionCacheRewrite) {
   ASSERT_THAT_ERROR(Cache->put(*ID1, *ID1), Succeeded());
 }
 
+#if LLVM_ENABLE_ONDISK_CAS
 TEST(OnDiskActionCache, ActionCacheResultInvalid) {
   unittest::TempDir Temp("on-disk-cache", /*Unique=*/true);
   std::unique_ptr<ObjectStore> CAS1 = createInMemoryCAS();
   std::unique_ptr<ObjectStore> CAS2 = createInMemoryCAS();
 
   std::optional<ObjectProxy> ID1, ID2, ID3;
-  ASSERT_THAT_ERROR(CAS1->createProxy(std::nullopt, "1").moveInto(ID1),
-                    Succeeded());
-  ASSERT_THAT_ERROR(CAS1->createProxy(std::nullopt, "2").moveInto(ID2),
-                    Succeeded());
-  ASSERT_THAT_ERROR(CAS2->createProxy(std::nullopt, "1").moveInto(ID3),
-                    Succeeded());
+  ASSERT_THAT_ERROR(CAS1->createProxy({}, "1").moveInto(ID1), Succeeded());
+  ASSERT_THAT_ERROR(CAS1->createProxy({}, "2").moveInto(ID2), Succeeded());
+  ASSERT_THAT_ERROR(CAS2->createProxy({}, "1").moveInto(ID3), Succeeded());
+
+#if !defined(LLVM_ENABLE_ONDISK_CAS)
+  // The following won't work without LLVM_ENABLE_ONDISK_CAS enabled.
+  // TODO: enable LLVM_ENABLE_ONDISK_CAS on windows
+  return;
+#endif
 
   std::unique_ptr<ActionCache> Cache1 =
       cantFail(createOnDiskActionCache(Temp.path()));
@@ -106,6 +106,7 @@ TEST(OnDiskActionCache, ActionCacheResultInvalid) {
   // Write a different value will cause error.
   ASSERT_THAT_ERROR(Cache2->put(*ID3, *ID3), Failed());
 }
+#endif
 
 TEST_P(CASTest, ActionCacheAsync) {
   std::shared_ptr<ObjectStore> CAS = createObjectStore();
@@ -113,8 +114,7 @@ TEST_P(CASTest, ActionCacheAsync) {
 
   {
     std::optional<ObjectProxy> ID;
-    ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "1").moveInto(ID),
-                      Succeeded());
+    ASSERT_THAT_ERROR(CAS->createProxy({}, "1").moveInto(ID), Succeeded());
     auto PutFuture = Cache->putFuture(*ID, *ID);
     ASSERT_THAT_ERROR(PutFuture.get().take(), Succeeded());
     auto GetFuture = Cache->getFuture(*ID);
@@ -124,8 +124,7 @@ TEST_P(CASTest, ActionCacheAsync) {
   }
 
   std::optional<ObjectProxy> ID2;
-  ASSERT_THAT_ERROR(CAS->createProxy(std::nullopt, "2").moveInto(ID2),
-                    Succeeded());
+  ASSERT_THAT_ERROR(CAS->createProxy({}, "2").moveInto(ID2), Succeeded());
   {
     std::promise<AsyncErrorValue> Promise;
     auto Future = Promise.get_future();

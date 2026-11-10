@@ -15,6 +15,9 @@
 #include "Plugins/ExpressionParser/Swift/SwiftPersistentExpressionState.h"
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Symbol/CompileUnit.h"
+#include "llvm/Support/Error.h"
+#include "lldb/Utility/LLDBLog.h"
 #include <lldb/lldb-enumerations.h>
 #include <llvm/ADT/StringRef.h>
 
@@ -30,22 +33,20 @@ TypeSystemSwift::TypeSystemSwift() : TypeSystem() {}
 /// \{
 static lldb::TypeSystemSP CreateTypeSystemInstance(lldb::LanguageType language,
                                                    Module *module,
-                                                   Target *target,
-                                                   const char *extra_options) {
+                                                   Target *target) {
   if (language != eLanguageTypeSwift)
     return {};
 
   // This should be called with either a target or a module.
   if (module) {
     assert(!target);
-    assert(StringRef(extra_options).empty());
     return std::shared_ptr<TypeSystemSwiftTypeRef>(
         new TypeSystemSwiftTypeRef(*module));
   } else if (target) {
     assert(!module);
     return std::shared_ptr<TypeSystemSwiftTypeRefForExpressions>(
-        new TypeSystemSwiftTypeRefForExpressions(language, *target,
-                                                 extra_options));
+        new TypeSystemSwiftTypeRefForExpressions(language, *target, false,
+                                                 false));
   }
   llvm_unreachable("Neither type nor module given to CreateTypeSystemInstance");
 }
@@ -59,9 +60,9 @@ LanguageSet TypeSystemSwift::GetSupportedLanguagesForTypes() {
 void TypeSystemSwift::Initialize() {
   SwiftLanguageRuntime::Initialize();
   LanguageSet swift = GetSupportedLanguagesForTypes();
-  PluginManager::RegisterPlugin(
-      GetPluginNameStatic(), "Swift type system and AST context plug-in",
-      CreateTypeSystemInstance, nullptr, swift, swift);
+  PluginManager::RegisterPlugin(GetPluginNameStatic(),
+                                "Swift type system and AST context plug-in",
+                                CreateTypeSystemInstance, swift, swift);
 }
 
 void TypeSystemSwift::Terminate() {
@@ -71,23 +72,53 @@ void TypeSystemSwift::Terminate() {
 
 /// \}
 
-void TypeSystemSwift::DumpValue(
-    lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx, Stream &s,
-    lldb::Format format, const DataExtractor &data, lldb::offset_t data_offset,
-    size_t data_byte_size, uint32_t bitfield_bit_size,
-    uint32_t bitfield_bit_offset, bool show_types, bool show_summary,
-    bool verbose, uint32_t depth) {}
+bool TypeSystemSwift::CheckFlagInCU(CompileUnit *cu, const char *flag) {
+  AutoBool interop_enabled =
+      ModuleList::GetGlobalModuleListProperties().GetSwiftEnableCxxInterop();
+  switch (interop_enabled) {
+  case AutoBool::True:
+    return true;
+  case AutoBool::False:
+    return false;
+  case AutoBool::Auto: {
+    if (!cu)
+      return false;
+    lldb::ModuleSP module = cu->CalculateSymbolContextModule();
+    if (!module)
+      return false;
+    auto *sym_file = module->GetSymbolFile();
+    if (!sym_file)
+      return false;
+    std::string value;
+    if (sym_file->GetCompileOption(flag, value, cu)) {
+      LLDB_LOGV(GetLog(LLDBLog::Types),
+                "[CheckFlagInCU] Found flag {0} in CU: {1}", flag,
+                cu->GetPrimaryFile().GetFilename());
+      return true;
+    }
+  }
+  }
+  LLDB_LOGV(GetLog(LLDBLog::Types),
+            "[CheckFlagInCU] Did not find flag {0} in CU: {1}", flag,
+            cu->GetPrimaryFile().GetFilename());
+  return false;
+}
 
-void TypeSystemSwift::Dump(llvm::raw_ostream &output) {
+/// Determine whether this CU was compiled with C++ interop enabled.
+bool TypeSystemSwift::ShouldEnableCXXInterop(CompileUnit *cu) {
+  return CheckFlagInCU(cu, "-enable-experimental-cxx-interop");
+}
+
+bool TypeSystemSwift::ShouldEnableEmbeddedSwift(CompileUnit *cu) {
+  return CheckFlagInCU(cu, "-enable-embedded-swift");
+}
+
+void TypeSystemSwift::Dump(llvm::raw_ostream &output, llvm::StringRef filter) {
   // TODO: What to dump?
 }
 
-bool TypeSystemSwift::IsFloatingPointType(opaque_compiler_type_t type,
-                                          uint32_t &count, bool &is_complex) {
-  count = 0;
-  is_complex = false;
+bool TypeSystemSwift::IsFloatingPointType(opaque_compiler_type_t type) {
   if (GetTypeInfo(type, nullptr) & eTypeIsFloat) {
-    count = 1;
     return true;
   }
   return false;
@@ -105,19 +136,90 @@ bool TypeSystemSwift::IsScalarType(opaque_compiler_type_t type) {
   return (GetTypeInfo(type, nullptr) & eTypeIsScalar) != 0;
 }
 
+CompilerType TypeSystemSwift::GetBuiltinRawPointerType(
+    swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("BpD", flavor)));
+}
+
+CompilerType TypeSystemSwift::GetBuiltinUnknownObjectType(
+    swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("BOD", flavor)));
+}
+
+CompilerType
+TypeSystemSwift::GetBoolType(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("SbD", flavor)));
+}
+
+CompilerType
+TypeSystemSwift::GetUnsafeRawPointerType(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("SVD", flavor)));
+}
+
+CompilerType TypeSystemSwift::GetUnsubstitutedFixedArrayType(
+    swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("xq_BVD", flavor)));
+}
+
+CompilerType
+TypeSystemSwift::GetUInt64Type(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("s6UInt64VD", flavor)));
+}
+
+CompilerType
+TypeSystemSwift::GetTaskPriorityType(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("ScPD", flavor)));
+}
+
+CompilerType TypeSystemSwift::GetOptionalUnsafeRawPointerType(
+    swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("SVSgD", flavor)));
+}
+
+CompilerType TypeSystemSwift::GetUnsafeCurrentTaskType(
+    swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("SctD", flavor)));
+}
+
+CompilerType
+TypeSystemSwift::GetUInt8Type(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("s5UInt8VD", flavor)));
+}
+
+CompilerType TypeSystemSwift::GetAnyType(swift::Mangle::ManglingFlavor flavor) {
+  return GetTypeFromMangledTypename(
+      ConstString(SwiftLanguageRuntime::MakeMangledName("ypD", flavor)));
+}
+
 bool TypeSystemSwift::ShouldTreatScalarValueAsAddress(
     opaque_compiler_type_t type) {
   return Flags(GetTypeInfo(type, nullptr))
       .AnySet(eTypeInstanceIsPointer | eTypeIsReference);
 }
 
-uint32_t TypeSystemSwift::GetIndexOfChildWithName(
+llvm::Expected<uint32_t> TypeSystemSwift::GetIndexOfChildWithName(
     opaque_compiler_type_t type, llvm::StringRef name,
     ExecutionContext *exe_ctx, bool omit_empty_base_classes) {
   std::vector<uint32_t> child_indexes;
   size_t num_child_indexes = GetIndexOfChildMemberWithName(
       type, name, exe_ctx, omit_empty_base_classes, child_indexes);
-  return num_child_indexes == 1 ? child_indexes.front() : UINT32_MAX;
+
+  if (num_child_indexes == 1) {
+    return child_indexes.front();
+  }
+
+  return llvm::createStringError("Type has no child named '%s'",
+                                 name.str().c_str());
 }
 
 lldb::Format TypeSystemSwift::GetFormat(opaque_compiler_type_t type) {
@@ -142,6 +244,27 @@ lldb::Format TypeSystemSwift::GetFormat(opaque_compiler_type_t type) {
     return eFormatAddressInfo;
 
   return eFormatBytes;
+}
+
+unsigned TypeSystemSwift::GetPtrAuthKey(lldb::opaque_compiler_type_t type) {
+  return 0;
+}
+
+unsigned
+TypeSystemSwift::GetPtrAuthDiscriminator(lldb::opaque_compiler_type_t type) {
+  return 0;
+}
+
+bool TypeSystemSwift::GetPtrAuthAddressDiversity(
+    lldb::opaque_compiler_type_t type) {
+  return false;
+}
+
+llvm::Expected<CompilerType> TypeSystemSwift::GetDereferencedType(
+    lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx,
+    std::string &deref_name, uint32_t &deref_byte_size,
+    int32_t &deref_byte_offset, ValueObject *valobj, uint64_t &language_flags) {
+  return llvm::createStringError("Swift types cannot be dereferenced");
 }
 
 namespace llvm {

@@ -7,14 +7,14 @@ all: clean SomeLibraryCore.swiftmodule SomeLibrary.swiftmodule a.out
 include Makefile.rules
 
 SomeLibraryCore.swiftmodule: SomeLibraryCore.swift
-	$(MAKE) BASENAME=$(shell basename $@ .swiftmodule) \
+	"$(MAKE)" BASENAME=$(shell basename $@ .swiftmodule) \
 		SWIFTFLAGS_EXTRAS=-enable-library-evolution \
 		VPATH=$(SRCDIR) -f $(SRCDIR)/../dylib.mk all
 
 SomeLibrary.swiftmodule: SomeLibrary.swift SomeLibraryCore.swiftmodule
-	$(MAKE) BASENAME=$(shell basename $@ .swiftmodule) \
+	"$(MAKE)" BASENAME=$(shell basename $@ .swiftmodule) \
 		SWIFTFLAGS_EXTRAS=-enable-library-evolution \
-		VPATH=$(SRCDIR) -f $(SRCDIR)/../dylib.mk all
+		VPATH=$(SRCDIR) LD_EXTRAS="-L$(BUILDDIR) -Xlinker -rpath -Xlinker $(BUILDDIR)" -f $(SRCDIR)/../dylib.mk all
 
 clean::
-	rm -rf *.o *.dylib *.so *.dll *.dSYM *.swiftdoc *.swiftmodule *.swiftinterface
+	$(call RM_RF,*.o *.dylib *.so *.dll *.dSYM *.swiftdoc *.swiftmodule *.swiftinterface)

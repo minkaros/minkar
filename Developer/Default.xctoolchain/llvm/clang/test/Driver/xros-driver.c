@@ -3,7 +3,7 @@
 
 // RUN: %clang -target arm64-apple-xros1-simulator -c -### %s 2>&1 | FileCheck --check-prefix=VERSION1_ASi %s
 
-// RUN: %clang -target arm64-apple-xros1000 -c -### %s 2>&1 | FileCheck --check-prefix=INVALID-VERSION %s
+// RUN: not %clang -target arm64-apple-xros1000 -c -### %s 2>&1 | FileCheck --check-prefix=INVALID-VERSION %s
 
 // RUN: %clang -target arm64-apple-xros1  -### %s 2>&1 | FileCheck --check-prefix=LINK %s
 // RUN: %clang -target arm64-apple-xros1-simulator  -### %s 2>&1 | FileCheck --check-prefix=LINK-SIM %s
@@ -30,8 +30,8 @@
 // LINK: "-platform_version" "xros" "1.0.0" "1.0.0"
 // LINK-SIM: "-platform_version" "xros-simulator" "1.0.0" "1.0.0"
 
-// OBJC-RUNTIME: "-fobjc-runtime=ios-17.0.0.0"
-// OBJC-RUNTIME2: "-fobjc-runtime=ios-18.0.0.0"
+// OBJC-RUNTIME: "-fobjc-runtime=ios-17.0.0"
+// OBJC-RUNTIME2: "-fobjc-runtime=ios-18.0.0"
 // ARC-NOT: error:
 
 // SSP_ON: "-stack-protector" "1"

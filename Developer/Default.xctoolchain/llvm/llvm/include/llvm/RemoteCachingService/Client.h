@@ -26,7 +26,7 @@ namespace llvm::cas::remote {
 
 /// Used to optionally associate additional context with a particular request.
 class AsyncCallerContext {
-  virtual void anchor();
+  LLVM_ABI virtual void anchor();
 
 public:
   virtual ~AsyncCallerContext() = default;
@@ -427,7 +427,7 @@ createRemoteCASDBClient(StringRef SocketPath);
 Expected<std::unique_ptr<KeyValueDBClient>>
 createRemoteKeyValueClient(StringRef SocketPath);
 
-Expected<ClientServices>
+LLVM_ABI Expected<ClientServices>
 createCompilationCachingRemoteClient(StringRef SocketPath);
 
 } // namespace llvm::cas::remote

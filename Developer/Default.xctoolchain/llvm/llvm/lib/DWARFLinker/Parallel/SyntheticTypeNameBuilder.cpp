@@ -10,7 +10,6 @@
 #include "DWARFLinkerCompileUnit.h"
 #include "llvm/DebugInfo/DWARF/DWARFAcceleratorTable.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugInfoEntry.h"
-#include "llvm/Support/ScopedPrinter.h"
 
 using namespace llvm;
 using namespace dwarf_linker;
@@ -334,7 +333,7 @@ Error SyntheticTypeNameBuilder::addTypeName(UnitEntryPairTy InputUnitEntryPair,
 
     HasShortName = true;
     HasTemplatesInShortName =
-        Name.endswith(">") && Name.count("<") != 0 && !Name.endswith("<=>");
+        Name.ends_with(">") && Name.count("<") != 0 && !Name.ends_with("<=>");
   } else {
     // Finally check for declaration attributes.
     addDieNameFromDeclFileAndDeclLine(InputUnitEntryPair, HasDeclFileName);

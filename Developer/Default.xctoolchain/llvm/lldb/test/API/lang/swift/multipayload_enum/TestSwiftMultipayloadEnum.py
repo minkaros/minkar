@@ -17,11 +17,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftMultipayloadEnum(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_multipayload_enum(self):
         """Test that LLDB understands generic enums with more than one payload type"""
         self.build()

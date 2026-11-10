@@ -8,12 +8,13 @@ class TestCase(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
+    @skipEmbeddedSwift
     @swiftTest
     @skipIf(oslist=['windows', 'linux'])
-    @skipIf(bugnumber="rdar://116529018")
     def test(self):
         """Test step-in to async functions"""
         self.build()
+        self.runCmd("settings set language.enable-filter-for-line-breakpoints true")
         src = lldb.SBFileSpec('main.swift')
         _, process, _, _ = lldbutil.run_to_source_breakpoint(self, 'await', src)
 
@@ -34,31 +35,9 @@ class TestCase(lldbtest.TestBase):
                 process.Continue()
             elif stop_reason == lldb.eStopReasonBreakpoint:
                 caller_before = thread().frames[0].function.GetDisplayName()
-                line_before = thread().frames[0].line_entry.line
                 thread().StepInto()
                 caller_after = thread().frames[1].function.GetDisplayName()
-                line_after = thread().frames[0].line_entry.line
-
-                # Breakpoints on lines with an `await` may result in more than
-                # one breakpoint location. Specifically a location before an
-                # async function is called, and then a location on the resume
-                # function. In this case, running `step` on these lines will
-                # move execution forward within the same function, _not_ step
-                # into a new function.
-                #
-                # As this test is for stepping into async functions, when the
-                # step-in keeps execution on the same or next line -- not a
-                # different function, then it can be ignored. rdar://76116620
-                if line_after in (line_before, line_before + 1):
-                    # When stepping stops at breakpoint, don't continue.
-                    if thread().stop_reason != lldb.eStopReasonBreakpoint:
-                        process.Continue()
-                    continue
-
-                # The entry function is missing this prefix dedicating resume functions.
-                prefix = re.compile(r'^\([0-9]+\) await resume partial function for ')
-                self.assertEqual(prefix.sub('', caller_after),
-                                 prefix.sub('', caller_before))
+                self.assertEqual(caller_after, caller_before)
                 num_async_steps += 1
 
         self.assertGreater(num_async_steps, 0)

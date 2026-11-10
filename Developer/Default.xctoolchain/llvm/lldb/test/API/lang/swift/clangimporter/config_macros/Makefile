@@ -7,9 +7,8 @@ all: libDylib.dylib a.out
 include Makefile.rules
 
 libDylib.dylib: dylib.swift
-	$(MAKE) BASENAME=$(shell basename $< .swift) \
+	"$(MAKE)" BASENAME=$(shell basename $< .swift) \
 		-f $(SRCDIR)/dylib.mk all
 
 clean::
-	rm -rf *.swiftmodule *.swiftdoc *.dSYM *~ lib*.dylib a.out *.o
-
+	$(call RM_RF,*.swiftmodule *.swiftdoc *.dSYM *~ lib*.dylib a.out *.o)

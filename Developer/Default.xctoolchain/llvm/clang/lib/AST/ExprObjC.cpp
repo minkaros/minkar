@@ -13,15 +13,13 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ComputeDependence.h"
-#include "clang/AST/DependenceFlags.h"
 #include "clang/AST/SelectorLocationsKind.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 
 using namespace clang;
 
@@ -165,10 +163,8 @@ void ObjCMessageExpr::initArgsAndSelLocs(ArrayRef<Expr *> Args,
     MyArgs[I] = Args[I];
 
   SelLocsKind = SelLocsK;
-  if (!isImplicit()) {
-    if (SelLocsK == SelLoc_NonStandard)
-      std::copy(SelLocs.begin(), SelLocs.end(), getStoredSelLocs());
-  }
+  if (!isImplicit() && SelLocsK == SelLoc_NonStandard)
+    llvm::copy(SelLocs, getStoredSelLocs());
 }
 
 ObjCMessageExpr *
@@ -349,4 +345,27 @@ StringRef ObjCBridgedCastExpr::getBridgeKindName() const {
   }
 
   llvm_unreachable("Invalid BridgeKind!");
+}
+
+ObjCAvailabilityCheckExpr *ObjCAvailabilityCheckExpr::CreateEmpty(
+    const ASTContext &C, Stmt::EmptyShell Empty, size_t FeaturesLen) {
+  ObjCAvailabilityCheckExpr *E = (ObjCAvailabilityCheckExpr *)C.Allocate(
+      totalSizeToAlloc<char>(FeaturesLen + 1),
+      alignof(ObjCAvailabilityCheckExpr));
+  new (E) ObjCAvailabilityCheckExpr(Empty);
+  memset(E->getTrailingObjects(), 0, FeaturesLen + 1);
+  return E;
+}
+
+ObjCAvailabilityCheckExpr *
+ObjCAvailabilityCheckExpr::CreateAvailabilityFeatureCheck(SourceLocation AtLoc,
+                                                          SourceLocation RParen,
+                                                          QualType Ty,
+                                                          StringRef DomainName,
+                                                          const ASTContext &C) {
+  ObjCAvailabilityCheckExpr *E = (ObjCAvailabilityCheckExpr *)C.Allocate(
+      totalSizeToAlloc<char>(DomainName.size() + 1),
+      alignof(ObjCAvailabilityCheckExpr));
+  new (E) ObjCAvailabilityCheckExpr(AtLoc, RParen, Ty, DomainName);
+  return E;
 }

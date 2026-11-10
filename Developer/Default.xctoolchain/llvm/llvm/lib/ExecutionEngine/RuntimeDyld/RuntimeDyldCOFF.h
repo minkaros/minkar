@@ -16,10 +16,6 @@
 #include "RuntimeDyldImpl.h"
 #include "llvm/Support/MathExtras.h"
 
-#define DEBUG_TYPE "dyld"
-
-using namespace llvm;
-
 namespace llvm {
 
 // Common base class for COFF dynamic linker support.
@@ -50,9 +46,9 @@ protected:
 
   static constexpr StringRef getImportSymbolPrefix() { return "__imp_"; }
 
-  bool relocationNeedsDLLImportStub(const RelocationRef &R) const;
+  bool relocationNeedsDLLImportStub(const RelocationRef &R) const override;
 
-  unsigned sizeAfterAddingDLLImportStub(unsigned Size) const {
+  unsigned sizeAfterAddingDLLImportStub(unsigned Size) const override {
     return alignTo(Size, PointerSize) + PointerSize;
   }
 
@@ -63,6 +59,4 @@ private:
 
 } // end namespace llvm
 
-#undef DEBUG_TYPE
-
-#endif
+#endif // LLVM_RUNTIME_DYLD_COFF_H

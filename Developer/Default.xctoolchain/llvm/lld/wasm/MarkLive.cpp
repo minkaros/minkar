@@ -63,13 +63,15 @@ void MarkLive::enqueue(Symbol *sym) {
   sym->markLive();
 
   if (markImplicitDeps) {
-    // Mark ctor functions in the object that defines this symbol live.
-    // The ctor functions are all referenced by the synthetic callCtors
-    // function. However, this function does not contain relocations so we
-    // have to manually mark the ctors as live.
-    enqueueInitFunctions(cast<ObjFile>(file));
-    // Mark retained segments in the object that defines this symbol live.
-    enqueueRetainedSegments(cast<ObjFile>(file));
+    if (auto obj = dyn_cast<ObjFile>(file)) {
+      // Mark as live the ctor functions in the object that defines this symbol.
+      // The ctor functions are all referenced by the synthetic callCtors
+      // function. However, this function does not contain relocations so we
+      // have to manually mark the ctors as live.
+      enqueueInitFunctions(obj);
+      // Mark retained segments in the object that defines this symbol live.
+      enqueueRetainedSegments(obj);
+    }
   }
 
   if (InputChunk *chunk = sym->getChunk())
@@ -104,18 +106,18 @@ void MarkLive::enqueueRetainedSegments(const ObjFile *file) {
 
 void MarkLive::run() {
   // Add GC root symbols.
-  if (!config->entry.empty())
-    enqueue(symtab->find(config->entry));
+  if (!ctx.arg.entry.empty())
+    enqueue(symtab->find(ctx.arg.entry));
 
   // We need to preserve any no-strip or exported symbol
   for (Symbol *sym : symtab->symbols())
     if (sym->isNoStrip() || sym->isExported())
       enqueue(sym);
 
-  if (WasmSym::callDtors)
-    enqueue(WasmSym::callDtors);
+  if (ctx.sym.callDtors)
+    enqueue(ctx.sym.callDtors);
 
-  for (const ObjFile *obj : symtab->objectFiles)
+  for (const ObjFile *obj : ctx.objectFiles)
     if (obj->isLive()) {
       // Enqueue constructors in objects explicitly live from the command-line.
       enqueueInitFunctions(obj);
@@ -129,7 +131,7 @@ void MarkLive::run() {
   // If we have any non-discarded init functions, mark `__wasm_call_ctors` as
   // live so that we assign it an index and call it.
   if (isCallCtorsLive())
-    WasmSym::callCtors->markLive();
+    ctx.sym.callCtors->markLive();
 }
 
 void MarkLive::mark() {
@@ -164,7 +166,7 @@ void MarkLive::mark() {
 }
 
 void markLive() {
-  if (!config->gcSections)
+  if (!ctx.arg.gcSections)
     return;
 
   LLVM_DEBUG(dbgs() << "markLive\n");
@@ -173,8 +175,8 @@ void markLive() {
   marker.run();
 
   // Report garbage-collected sections.
-  if (config->printGcSections) {
-    for (const ObjFile *obj : symtab->objectFiles) {
+  if (ctx.arg.printGcSections) {
+    for (const ObjFile *obj : ctx.objectFiles) {
       for (InputChunk *c : obj->functions)
         if (!c->live)
           message("removing unused section " + toString(c));
@@ -191,13 +193,13 @@ void markLive() {
         if (!t->live)
           message("removing unused section " + toString(t));
     }
-    for (InputChunk *c : symtab->syntheticFunctions)
+    for (InputChunk *c : ctx.syntheticFunctions)
       if (!c->live)
         message("removing unused section " + toString(c));
-    for (InputGlobal *g : symtab->syntheticGlobals)
+    for (InputGlobal *g : ctx.syntheticGlobals)
       if (!g->live)
         message("removing unused section " + toString(g));
-    for (InputTable *t : symtab->syntheticTables)
+    for (InputTable *t : ctx.syntheticTables)
       if (!t->live)
         message("removing unused section " + toString(t));
   }
@@ -205,17 +207,17 @@ void markLive() {
 
 bool MarkLive::isCallCtorsLive() {
   // In a reloctable link, we don't call `__wasm_call_ctors`.
-  if (config->relocatable)
+  if (ctx.arg.relocatable)
     return false;
 
   // In Emscripten-style PIC, we call `__wasm_call_ctors` which calls
   // `__wasm_apply_data_relocs`.
-  if (config->isPic)
+  if (ctx.isPic)
     return true;
 
   // If there are any init functions, mark `__wasm_call_ctors` live so that
   // it can call them.
-  for (const ObjFile *file : symtab->objectFiles) {
+  for (const ObjFile *file : ctx.objectFiles) {
     const WasmLinkingData &l = file->getWasmObj()->linkingData();
     for (const WasmInitFunc &f : l.InitFunctions) {
       auto *sym = file->getFunctionSymbol(f.Symbol);

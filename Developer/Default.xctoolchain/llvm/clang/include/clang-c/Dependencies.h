@@ -37,90 +37,6 @@ extern "C" {
  * @{
  */
 
-typedef struct {
-  CXString Name;
-  /**
-   * The context hash of a module represents the set of compiler options that
-   * may make one version of a module incompatible from another. This includes
-   * things like language mode, predefined macros, header search paths, etc...
-   *
-   * Modules with the same name but a different \c ContextHash should be treated
-   * as separate modules for the purpose of a build.
-   */
-  CXString ContextHash;
-
-  /**
-   * The path to the modulemap file which defines this module.
-   *
-   * This can be used to explicitly build this module. This file will
-   * additionally appear in \c FileDeps as a dependency.
-   */
-  CXString ModuleMapPath;
-
-  /**
-   * The list of files which this module directly depends on.
-   *
-   * If any of these change then the module needs to be rebuilt.
-   */
-  CXStringSet *FileDeps;
-
-  /**
-   * The list of modules which this module direct depends on.
-   *
-   * This does include the context hash. The format is
-   * `<module-name>:<context-hash>`
-   */
-  CXStringSet *ModuleDeps;
-
-  /**
-   * The canonical command line to build this module.
-   *
-   * If getFileDependencies_v3 or later was used to get this dependency, it is
-   * a complete command line. When using getFileDependencies_v2, it excludes
-   * arguments containing modules-related paths:
-   * "-fmodule-file=", "-o", "-fmodule-map-file=".
-   */
-  CXStringSet *BuildArguments;
-} CXModuleDependency;
-
-typedef struct {
-  int Count;
-  CXModuleDependency *Modules;
-} CXModuleDependencySet;
-
-/**
- * See \c CXModuleDependency for the meaning of these fields, with the addition
- * that they represent only the direct dependencies for \c CXDependencyMode_Full
- * mode.
- */
-typedef struct {
-  CXString ContextHash;
-  CXStringSet *FileDeps;
-  CXStringSet *ModuleDeps;
-  CXStringSet *BuildArguments;
-} CXFileDependencies;
-
-/**
- * An individual command-line invocation that is part of an overall compilation
- * \c CXFileDependenciesList.
- *
- * See \c CXModuleDependency for the meaning of these fields, with the addition
- * that they represent only the direct dependencies for \c CXDependencyMode_Full
- * mode.
- */
-typedef struct {
-  CXString ContextHash;
-  CXStringSet *FileDeps;
-  CXStringSet *ModuleDeps;
-  CXString Executable;
-  CXStringSet *BuildArguments;
-} CXTranslationUnitCommand;
-
-typedef struct {
-  size_t NumCommands;
-  CXTranslationUnitCommand *Commands;
-} CXFileDependenciesList;
-
 /**
  * An output file kind needed by module dependencies.
  */
@@ -130,15 +46,6 @@ typedef enum {
   CXOutputKind_DependenciesTarget = 2,
   CXOutputKind_SerializedDiagnostics = 3,
 } CXOutputKind;
-
-CINDEX_LINKAGE void
-clang_experimental_ModuleDependencySet_dispose(CXModuleDependencySet *MD);
-
-CINDEX_LINKAGE void
-clang_experimental_FileDependencies_dispose(CXFileDependencies *ID);
-
-CINDEX_LINKAGE void
-clang_experimental_FileDependenciesList_dispose(CXFileDependenciesList *Deps);
 
 /**
  * Object encapsulating instance of a dependency scanner service.
@@ -219,6 +126,20 @@ clang_experimental_DependencyScannerServiceOptions_setCASOptions(
     CXDependencyScannerServiceOptions Opts, CXCASOptions);
 
 /**
+ * Set the working directory optimization option.
+ * The dependency scanner service option Opts will indicate to the scanner that
+ * the current working directory can or cannot be ignored when computing the
+ * pcms' context hashes. The scanner will then determine if it is safe to
+ * optimize each module and act accordingly.
+ *
+ * \param Value If it is non zero, the option is on. Otherwise the
+ * option is off.
+ */
+CINDEX_LINKAGE void
+clang_experimental_DependencyScannerServiceOptions_setCWDOptimization(
+    CXDependencyScannerServiceOptions Opts, int Value);
+
+/**
  * Specify a \c CXCASObjectStore in the given options. If an object store and
  * action cache are available, the scanner will produce cached commands.
  * Deprecated, use
@@ -241,14 +162,20 @@ clang_experimental_DependencyScannerServiceOptions_setActionCache(
     CXDependencyScannerServiceOptions Opts, CXCASActionCache Cache);
 
 /**
- * See \c clang_experimental_DependencyScannerService_create_v1.
+ * Set if negative stat caching is enabled or disabled. If this is not called
+ * the default value is used.
+ *
+ * The default is false unless the environment variable
+ * `CLANG_SCAN_CACHE_NEGATIVE_STATS` is set to empty or "1".
  */
-CINDEX_LINKAGE CXDependencyScannerService
-clang_experimental_DependencyScannerService_create_v0(CXDependencyMode Format);
+CINDEX_LINKAGE void
+clang_experimental_DependencyScannerServiceOptions_setCacheNegativeStats(
+    CXDependencyScannerServiceOptions Opts, bool CacheNegativeStats);
 
 /**
  * Create a \c CXDependencyScannerService object.
- * Must be disposed with \c clang_DependencyScannerService_dispose().
+ * Must be disposed with \c
+ * clang_experimental_DependencyScannerService_dispose_v0().
  */
 CINDEX_LINKAGE CXDependencyScannerService
 clang_experimental_DependencyScannerService_create_v1(
@@ -287,27 +214,15 @@ CINDEX_LINKAGE void clang_experimental_DependencyScannerWorker_dispose_v0(
     CXDependencyScannerWorker);
 
 /**
- * A callback that is called whenever a module is discovered when in
- * \c CXDependencyMode_Full mode.
- *
- * \param Context the context that was passed to
- *         \c clang_experimental_DependencyScannerWorker_getFileDependencies_vX.
- * \param MDS the list of discovered modules. Must be freed by calling
- *            \c clang_experimental_ModuleDependencySet_dispose.
- */
-typedef void CXModuleDiscoveredCallback(void *Context,
-                                        CXModuleDependencySet *MDS);
-
-/**
  * A callback that is called to determine the paths of output files for each
  * module dependency. The ModuleFile (pcm) path mapping is mandatory.
  *
  * \param Context the MLOContext that was passed to
- *         \c clang_experimental_DependencyScannerWorker_getFileDependencies_vX.
+ *         \c clang_experimental_DependencyScannerWorkerScanSettings_create().
  * \param ModuleName the name of the dependent module.
  * \param ContextHash the context hash of the dependent module.
- *                    See \c CXModuleDependency::ContextHash.
- & \param OutputKind the kind of module output to lookup.
+ *                    See \c clang_experimental_DepGraphModule_getContextHash().
+ * \param OutputKind the kind of module output to lookup.
  * \param[out] Output the output path(s) or name, whose total size must be <=
  *                    \p MaxLen. In the case of multiple outputs of the same
  *                    kind, this can be a null-separated list.
@@ -321,63 +236,6 @@ typedef size_t CXModuleLookupOutputCallback(void *Context,
                                             const char *ContextHash,
                                             CXOutputKind OutputKind,
                                             char *Output, size_t MaxLen);
-
-/**
- * Deprecated, use \c clang_experimental_DependencyScannerWorker_getDepGraph.
- *
- * See \c clang_experimental_DependencyScannerWorker_getFileDependencies_v4.
- */
-CINDEX_LINKAGE CXFileDependencies *
-clang_experimental_DependencyScannerWorker_getFileDependencies_v3(
-    CXDependencyScannerWorker Worker, int argc, const char *const *argv,
-    const char *ModuleName, const char *WorkingDirectory, void *MDCContext,
-    CXModuleDiscoveredCallback *MDC, void *MLOContext,
-    CXModuleLookupOutputCallback *MLO, unsigned Options, CXString *error);
-
-/**
- * Deprecated, use \c clang_experimental_DependencyScannerWorker_getDepGraph.
- *
- * Calculates the list of file dependencies for a particular compiler
- * invocation.
- *
- * \param argc the number of compiler invocation arguments (including argv[0]).
- * \param argv the compiler driver invocation arguments (including argv[0]).
- * \param ModuleName If non-null, the dependencies of the named module are
- *                   returned. Otherwise, the dependencies of the whole
- *                   translation unit are returned.
- * \param WorkingDirectory the directory in which the invocation runs.
- * \param MDCContext the context that will be passed to \c MDC each time it is
- *                   called.
- * \param MDC a callback that is called whenever a new module is discovered.
- *            This may receive the same module on different workers. This should
- *            be NULL if
- *            \c clang_experimental_DependencyScannerService_create_v0 was
- *            called with \c CXDependencyMode_Flat. This callback will be called
- *            on the same thread that called this function.
- * \param MLOContext the context that will be passed to \c MLO each time it is
- *                   called.
- * \param MLO a callback that is called to determine the paths of output files
- *            for each module dependency. This may receive the same module on
- *            different workers. This should be NULL if
- *            \c clang_experimental_DependencyScannerService_create_v0 was
- *            called with \c CXDependencyMode_Flat. This callback will be called
- *            on the same thread that called this function.
- * \param Options reserved for future use, always pass 0.
- * \param [out] Out A non-NULL pointer to store the resulting dependencies. The
- *                  output must be freed by calling
- *                  \c clang_experimental_FileDependenciesList_dispose.
- * \param [out] error the error string to pass back to client (if any).
- *
- * \returns \c CXError_Success on success; otherwise a non-zero \c CXErrorCode
- * indicating the kind of error.
- */
-CINDEX_LINKAGE enum CXErrorCode
-clang_experimental_DependencyScannerWorker_getFileDependencies_v4(
-    CXDependencyScannerWorker Worker, int argc, const char *const *argv,
-    const char *ModuleName, const char *WorkingDirectory, void *MDCContext,
-    CXModuleDiscoveredCallback *MDC, void *MLOContext,
-    CXModuleLookupOutputCallback *MLO, unsigned Options,
-    CXFileDependenciesList **Out, CXString *error);
 
 /**
  * Output of \c clang_experimental_DependencyScannerWorker_getDepGraph.
@@ -402,6 +260,27 @@ typedef struct CXOpaqueDepGraphTUCommand *CXDepGraphTUCommand;
  */
 typedef struct CXOpaqueDependencyScannerWorkerScanSettings
     *CXDependencyScannerWorkerScanSettings;
+
+/**
+ * A callback that is called to determine the paths of output files for each
+ * module dependency. The ModuleFile (pcm) path mapping is mandatory.
+ *
+ * \param Context the MLOContext that was passed to
+ *         \c clang_experimental_DependencyScannerWorker_getFileDependencies_vX.
+ * \param CXDepMod the ModuleDep that represents the dependent module.
+ * \param OutputKind the kind of module output to lookup.
+ * \param[out] Output the output path(s) or name, whose total size must be <=
+ *                    \p MaxLen. In the case of multiple outputs of the same
+ *                    kind, this can be a null-separated list.
+ * \param MaxLen the maximum size of Output.
+ *
+ * \returns the actual length of Output. If the return value is > \p MaxLen,
+ *          the callback will be repeated with a larger buffer.
+ */
+typedef size_t CXModuleLookupOutputCallback_v2(void *Context,
+                                               CXDepGraphModule CXDepMod,
+                                               CXOutputKind OutputKind,
+                                               char *Output, size_t MaxLen);
 
 /**
  * Creates a set of settings for
@@ -432,6 +311,23 @@ clang_experimental_DependencyScannerWorkerScanSettings_create(
     int argc, const char *const *argv, const char *ModuleName,
     const char *WorkingDirectory, void *MLOContext,
     CXModuleLookupOutputCallback *MLO);
+
+/**
+ * Override the ModuleLookupOutputCallback with \c
+ * CXModuleLookupOutputCallback_v2 in the scanner settings for queries of module
+ * dependencies. This is required for handling output paths of modules that
+ * depend on attributes encoded in
+ * \c CXDepGraphModule.
+ *
+ * \param Settings object created via
+ *     \c clang_experimental_DependencyScannerWorkerScanSettings_create.
+ * \param MLO a callback that is called to determine the paths of output files
+ *            for each module dependency. This may receive the same module on
+ *            different workers.
+ */
+CINDEX_LINKAGE void
+clang_experimental_DependencyScannerWorkerScanSettings_setModuleLookupCallback(
+    CXDependencyScannerWorkerScanSettings, CXModuleLookupOutputCallback_v2 *);
 
 /**
  * Dispose of a \c CXDependencyScannerWorkerScanSettings object.
@@ -477,6 +373,16 @@ CINDEX_LINKAGE size_t clang_experimental_DepGraph_getNumModules(CXDepGraph);
  */
 CINDEX_LINKAGE CXDepGraphModule
 clang_experimental_DepGraph_getModule(CXDepGraph, size_t Index);
+
+/**
+ * \returns the \c CXDepGraphModule object at the given \p Index in
+ * a topologically sorted list.
+ *
+ * The \c CXDepGraphModule object is only valid to use while \c CXDepGraph is
+ * valid. Must be disposed with \c clang_experimental_DepGraphModule_dispose.
+ */
+CINDEX_LINKAGE CXDepGraphModule
+clang_experimental_DepGraph_getModuleTopological(CXDepGraph, size_t Index);
 
 CINDEX_LINKAGE void clang_experimental_DepGraphModule_dispose(CXDepGraphModule);
 
@@ -542,6 +448,13 @@ CINDEX_LINKAGE CXCStringArray
     clang_experimental_DepGraphModule_getModuleDeps(CXDepGraphModule);
 
 /**
+ * \returns whether the provided module is comprised of
+ * inputs that resolve into stable directories.
+ */
+CINDEX_LINKAGE bool
+    clang_experimental_DepGraphModule_isInStableDirs(CXDepGraphModule);
+
+/**
  * \returns the canonical command line to build this module.
  *
  * The strings are only valid to use while the \c CXDepGraphModule object is
@@ -549,6 +462,15 @@ CINDEX_LINKAGE CXCStringArray
  */
 CINDEX_LINKAGE CXCStringArray
     clang_experimental_DepGraphModule_getBuildArguments(CXDepGraphModule);
+
+/**
+ * @returns the CASID of the filesystem root for this module, if any.
+ *
+ * The string is only valid to use while the \c CXDepGraphModule object is
+ * valid.
+ */
+CINDEX_LINKAGE const char *
+    clang_experimental_DepGraphModule_getFileSystemRootID(CXDepGraphModule);
 
 /**
  * @returns the CASID of the include-tree for this module, if any.
@@ -567,6 +489,13 @@ CINDEX_LINKAGE const char *
  */
 CINDEX_LINKAGE
 const char *clang_experimental_DepGraphModule_getCacheKey(CXDepGraphModule);
+
+/**
+ * \returns 1 if the scanner ignores the current working directory when
+ * computing the module's context hash. Otherwise returns 0.
+ */
+CINDEX_LINKAGE
+int clang_experimental_DepGraphModule_isCWDIgnored(CXDepGraphModule);
 
 /**
  * \returns the number \c CXDepGraphTUCommand objects in the graph.
@@ -635,6 +564,14 @@ CINDEX_LINKAGE
 CXCStringArray clang_experimental_DepGraph_getTUModuleDeps(CXDepGraph);
 
 /**
+ * @returns the CASID of the filesystem root for this TU, if any.
+ *
+ * This string is only valid to use while the \c CXDepGraph object is valid.
+ */
+CINDEX_LINKAGE
+const char *clang_experimental_DepGraph_getTUFileSystemRootID(CXDepGraph);
+
+/**
  * @returns the CASID of the include-tree for this TU, if any.
  *
  * The string is only valid to use while the \c CXDepGraph object is valid.
@@ -658,6 +595,222 @@ const char *clang_experimental_DepGraph_getTUContextHash(CXDepGraph);
  */
 CINDEX_LINKAGE
 CXDiagnosticSet clang_experimental_DepGraph_getDiagnostics(CXDepGraph);
+
+/**
+ * The kind of scanning file system cache out-of-date entries.
+ */
+typedef enum {
+  /**
+   * The entry is negatively stat cached (which indicates the file did not exist
+   * the first time it was looked up during scanning), but the cached file
+   * exists on the underlying file system.
+   */
+  NegativelyCached,
+
+  /**
+   * The entry indicates that for the cached file, its cached size
+   * is different from its size reported by the underlying file system.
+   */
+  SizeChanged
+} CXDepScanFSCacheOutOfDateKind;
+
+/**
+ * The opaque object that contains the scanning file system cache's out-of-date
+ * entires.
+ */
+typedef struct CXOpaqueDepScanFSOutOfDateEntrySet *CXDepScanFSOutOfDateEntrySet;
+
+/**
+ * The opaque object that represents a single scanning file system cache's out-
+ * of-date entry.
+ */
+typedef struct CXOpaqueDepScanFSOutOfDateEntry *CXDepScanFSOutOfDateEntry;
+
+/**
+ * Returns all the file system cache out-of-date entries given a
+ * \c CXDependencyScannerService .
+ *
+ * This function is intended to be called when the build has finished,
+ * and the \c CXDependencyScannerService instance is about to be disposed.
+ *
+ * The \c CXDependencyScannerService instance owns the strings used
+ * by the out-of-date entries and should be disposed after the
+ * out-of-date entries are used and disposed.
+ */
+CINDEX_LINKAGE CXDepScanFSOutOfDateEntrySet
+clang_experimental_DependencyScannerService_getFSCacheOutOfDateEntrySet(
+    CXDependencyScannerService S);
+
+/**
+ * Returns the number of out-of-date entries contained in a
+ * \c CXDepScanFSOutOfDateEntrySet .
+ */
+CINDEX_LINKAGE size_t
+clang_experimental_DepScanFSCacheOutOfDateEntrySet_getNumOfEntries(
+    CXDepScanFSOutOfDateEntrySet Entries);
+
+/**
+ * Returns the out-of-date entry at offset \p Idx of the \c
+ * CXDepScanFSOutOfDateEntrySet instance.
+ */
+CINDEX_LINKAGE CXDepScanFSOutOfDateEntry
+clang_experimental_DepScanFSCacheOutOfDateEntrySet_getEntry(
+    CXDepScanFSOutOfDateEntrySet Entries, size_t Idx);
+
+/**
+ * Given an instance of \c CXDepScanFSOutOfDateEntry, returns its Kind.
+ */
+CINDEX_LINKAGE CXDepScanFSCacheOutOfDateKind
+clang_experimental_DepScanFSCacheOutOfDateEntry_getKind(
+    CXDepScanFSOutOfDateEntry Entry);
+
+/**
+ * Given an instance of \c CXDepScanFSOutOfDateEntry, returns the path.
+ */
+CINDEX_LINKAGE CXString clang_experimental_DepScanFSCacheOutOfDateEntry_getPath(
+    CXDepScanFSOutOfDateEntry Entry);
+
+/**
+ * Given an instance of \c CXDepScanFSOutOfDateEntry of kind SizeChanged,
+ * returns the cached size.
+ */
+CINDEX_LINKAGE uint64_t
+clang_experimental_DepScanFSCacheOutOfDateEntry_getCachedSize(
+    CXDepScanFSOutOfDateEntry Entry);
+
+/**
+ * Given an instance of \c CXDepScanFSOutOfDateEntry of kind SizeChanged,
+ * returns the actual size on the underlying file system.
+ */
+CINDEX_LINKAGE uint64_t
+clang_experimental_DepScanFSCacheOutOfDateEntry_getActualSize(
+    CXDepScanFSOutOfDateEntry Entry);
+
+/**
+ * Dispose the \c CXDepScanFSOutOfDateEntrySet instance.
+ */
+CINDEX_LINKAGE void
+clang_experimental_DepScanFSCacheOutOfDateEntrySet_disposeSet(
+    CXDepScanFSOutOfDateEntrySet Entries);
+
+/**
+ * Options used to generate a reproducer.
+ */
+typedef struct CXOpaqueDependencyScannerReproducerOptions
+    *CXDependencyScannerReproducerOptions;
+
+/**
+ * Creates a set of settings for
+ * \c clang_experimental_DependencyScanner_generateReproducer action.
+ * Must be disposed with
+ * \c clang_experimental_DependencyScannerReproducerOptions_dispose.
+ *
+ * \param argc the number of compiler invocation arguments (including argv[0]).
+ * \param argv the compiler driver invocation arguments (including argv[0]).
+ * \param ModuleName If non-NULL, reproduce building the named module and all
+ *                   the intermediate modules. Otherwise, reproduce building
+ *                   the whole translation unit.
+ * \param WorkingDirectory the directory in which the invocation runs.
+ * \param ReproducerLocation the directory where to store the reproducer files.
+ *                           If NULL, use a temporary location.
+ * \param UseUniqueReproducerName if reproducer files should have unique names
+ *                                to avoid collisions with existing files.
+ */
+CINDEX_LINKAGE CXDependencyScannerReproducerOptions
+clang_experimental_DependencyScannerReproducerOptions_create(
+    int argc, const char *const *argv, const char *ModuleName,
+    const char *WorkingDirectory, const char *ReproducerLocation,
+    bool UseUniqueReproducerName);
+
+CINDEX_LINKAGE void
+    clang_experimental_DependencyScannerReproducerOptions_dispose(
+        CXDependencyScannerReproducerOptions);
+
+/**
+ * Specify the object store and action cache databases, and CAS options for
+ * generating a reproducer. Should be used if the original compilation uses CAS.
+ */
+CINDEX_LINKAGE void
+clang_experimental_DependencyScannerReproducerOptions_setCASOptions(
+    CXDependencyScannerReproducerOptions, CXCASDatabases, CXCASOptions);
+
+/**
+ * Generates a reproducer to compile a requested file with required modules.
+ *
+ * Here the reproducer means the required input data with the commands to
+ * compile intermediate modules and a requested file. Required intermediate
+ * modules and the order of their compilation are determined by the function
+ * and don't need to be provided.
+ *
+ * \param CXOptions object created via
+ *     \c clang_experimental_DependencyScannerReproducerOptions_create.
+ * \param [out] MessageOut A pointer to store the human-readable message
+ *                         describing the result of the operation. If non-NULL,
+ *                         owned and should be disposed by the caller.
+ *
+ * \returns \c CXError_Success on success; otherwise a non-zero \c CXErrorCode
+ * indicating the kind of error. \p MessageOut is guaranteed to be populated
+ * for a success case but is allowed to be empty when encountered an error.
+ */
+CINDEX_LINKAGE enum CXErrorCode
+clang_experimental_DependencyScanner_generateReproducer(
+    CXDependencyScannerReproducerOptions CXOptions, CXString *MessageOut);
+
+/**
+ * An opaque object that contains a \c CXDepGraphModule 's list of link
+ * libraries.
+ */
+typedef struct CXOpaqueDepGraphModuleLinkLibrarySet
+    *CXDepGraphModuleLinkLibrarySet;
+
+/**
+ * An opaque object that contains information about a link library.
+ */
+typedef struct CXOpaqueDepGraphModuleLinkLibrary *CXDepGraphModuleLinkLibrary;
+
+/**
+ * Get the set of link libraries given a \c CXDepGraphModule instance.
+ * The returned set is a pointer into memory that the \c CXDepGraphModule
+ * instance owns. Therefore the set does not need to be disposed, and it has
+ * the same lifetime as the \c CXDepGraphModule instance.
+ */
+CINDEX_LINKAGE CXDepGraphModuleLinkLibrarySet
+    clang_experimental_DepGraphModule_getLinkLibrarySet(CXDepGraphModule);
+
+/**
+ * Get the size of \c CXDepGraphModuleLinkLibrarySet .
+ */
+CINDEX_LINKAGE size_t clang_experimental_DepGraphModuleLinkLibrarySet_getSize(
+    CXDepGraphModuleLinkLibrarySet);
+
+/**
+ * Retrieve the \c CXDepGraphModuleLinkLibrary instance at index \p Idx from the
+ * \c CXDepGraphModuleLinkLibrarySet instance. The returned object is owned
+ * by the \c CXDepGraphModule instance where the
+ * \c CXDepGraphModuleLinkLibrarySet was retrieved from, and has the same
+ * lifetime as the \c CXDepGraphModule instance.
+ */
+CINDEX_LINKAGE CXDepGraphModuleLinkLibrary
+clang_experimental_DepGraphModuleLinkLibrarySet_getLinkLibrary(
+    CXDepGraphModuleLinkLibrarySet, size_t Idx);
+
+/**
+ * Get the `Library` string from the \c CXDepGraphModuleLinkLibrary instance.
+ * `Library` could be a library name, or an absolute path to a library or a
+ * framework, as specified in the corresponding \c CXDepGraphModule instance's
+ * modulemap. The returned \c CXString is a reference to a string owned
+ * by the \c CXDepGraphModule instance, and has the same lifetime as the
+ * the \c CXDepGraphModule instance.
+ */
+CINDEX_LINKAGE CXString clang_experimental_DepGraphModuleLinkLibrary_getLibrary(
+    CXDepGraphModuleLinkLibrary);
+
+/**
+ * Returns true if the \c CXDepGraphModuleLinkLibrary is a framework, false
+ * otherwise.
+ */
+CINDEX_LINKAGE bool clang_experimental_DepGraphModuleLinkLibrary_isFramework(
+    CXDepGraphModuleLinkLibrary);
 
 /**
  * @}

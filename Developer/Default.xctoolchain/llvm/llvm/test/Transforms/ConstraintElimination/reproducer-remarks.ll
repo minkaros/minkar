@@ -2,6 +2,9 @@
 
 target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 
+
+target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+
 declare void @use(i1)
 
 declare void @llvm.assume(i1)
@@ -19,7 +22,7 @@ define i1 @test_no_known_facts(ptr %dst) {
 entry:
   %dst.0 = getelementptr inbounds ptr, ptr %dst, i64 0
   %upper = getelementptr inbounds ptr, ptr %dst, i64 2
-  %c = icmp ult i32* %dst.0, %upper
+  %c = icmp ult ptr %dst.0, %upper
   ret i1 %c
 }
 
@@ -166,7 +169,16 @@ declare void @noundef(ptr noundef)
 
 ; Currently this fails decomposition. No reproducer should be generated.
 define i1 @test_inbounds_precondition(ptr %src, i32 %n, i32 %idx) {
-; CHECK-NOT: test_inbounds_precondition
+; CHECK-LABEL: define i1 @"{{.*}}test_inbounds_preconditionrepro"(i64 %ub, ptr %src) {
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   %0 = icmp uge i64 %ub, 20
+; CHECK-NEXT:   call void @llvm.assume(i1 %0)
+; CHECK-NEXT:   %upper = getelementptr inbounds i32, ptr %src, i64 5
+; CHECK-NEXT:   %src.idx.4 = getelementptr i32, ptr %src, i64 4
+; CHECK-NEXT:   %cmp.upper.4 = icmp ule ptr %src.idx.4, %upper
+; CHECK-NEXT:   ret i1 %cmp.upper.4
+; CHECK-NEXT: }
+;
 entry:
   %upper = getelementptr inbounds i32, ptr %src, i64 5
   %src.idx.4 = getelementptr i32, ptr %src, i64 4
@@ -183,14 +195,14 @@ else:
 define i32 @test_branch(i32 %a) {
 ; CHECK-LABEL: define i1 @"{{.+}}test_branchrepro"(i32 %a) {
 ; CHECK-NEXT: entry:
-; CHECK-NEXT:   %0 = icmp ult i32 %a, 0
+; CHECK-NEXT:   %0 = icmp ult i32 %a, 4
 ; CHECK-NEXT:   call void @llvm.assume(i1 %0)
 ; CHECK-NEXT:   %c.2 = icmp ugt i32 0, 0
 ; CHECK-NEXT:   ret i1 %c.2
 ; CHECK-NEXT: }
 ;
 entry:
-  %c.1 = icmp ult i32 %a, 0
+  %c.1 = icmp ult i32 %a, 4
   br i1 %c.1, label %then, label %exit
 
 then:

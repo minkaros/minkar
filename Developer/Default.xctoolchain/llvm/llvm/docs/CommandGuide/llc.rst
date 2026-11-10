@@ -43,6 +43,11 @@ End-user Options
 
  Print a summary of command line options.
 
+.. option:: -M
+
+ Pass target-specific InstPrinter options.
+ Refer to the ``-M`` option of :manpage:`llvm-objdump(1)`.
+
 .. option:: -o <filename>
 
  Use ``<filename>`` as the output filename. See the summary above for more
@@ -130,6 +135,12 @@ End-user Options
 .. option:: --stats
 
  Print statistics recorded by code-generation passes.
+
+.. option:: --save-stats, --save-stats=cwd, --save-stats=obj
+
+ Save LLVM statistics to a file in the current directory
+ (:option:`--save-stats`/"--save-stats=cwd") or the directory
+ of the output file ("--save-stats=obj") in JSON format.
 
 .. option:: --time-passes
 

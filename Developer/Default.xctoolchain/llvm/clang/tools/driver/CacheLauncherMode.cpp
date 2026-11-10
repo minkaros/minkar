@@ -8,6 +8,7 @@
 
 #include "CacheLauncherMode.h"
 #include "clang/Basic/DiagnosticCAS.h"
+#include "clang/Driver/Driver.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
@@ -21,21 +22,30 @@
 using namespace clang;
 
 static bool isSameProgram(StringRef clangCachePath, StringRef compilerPath) {
+  using namespace llvm::sys;
+
   // Fast path check, see if they have the same parent path.
-  if (llvm::sys::path::parent_path(clangCachePath) ==
-      llvm::sys::path::parent_path(compilerPath))
+  if (path::parent_path(clangCachePath) == path::parent_path(compilerPath))
     return true;
+
+#if defined(_WIN32)
+  // executables are normally copies on Windows, so we cannot do much more of a
+  // check.
+  return true;
+#else
   // Check the file status IDs;
-  llvm::sys::fs::file_status CacheStat, CompilerStat;
-  if (llvm::sys::fs::status(clangCachePath, CacheStat))
+  fs::file_status CacheStat, CompilerStat;
+  if (fs::status(clangCachePath, CacheStat))
     return false;
-  if (llvm::sys::fs::status(compilerPath, CompilerStat))
+  if (fs::status(compilerPath, CompilerStat))
     return false;
   return CacheStat.getUniqueID() == CompilerStat.getUniqueID();
+#endif
 }
 
 static bool shouldCacheInvocation(ArrayRef<const char *> Args,
-                                  IntrusiveRefCntPtr<DiagnosticsEngine> Diags) {
+                                  IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                                  bool &SupportsMCCAS, bool &IsCOFF) {
   SmallVector<const char *, 128> CheckArgs(Args.begin(), Args.end());
   // Make sure "-###" is not present otherwise we won't get an object back.
   CheckArgs.erase(
@@ -44,8 +54,9 @@ static bool shouldCacheInvocation(ArrayRef<const char *> Args,
   CreateInvocationOptions Opts;
   // Ignore diagnostic parsing diagnostics; if they are real issues they will be
   // seen when compiling. Just fallback to disabling caching here.
-  Opts.Diags = CompilerInstance::createDiagnostics(new DiagnosticOptions,
-                                                   new IgnoringDiagConsumer);
+  DiagnosticOptions DiagOpts;
+  Opts.Diags = CompilerInstance::createDiagnostics(
+      *llvm::vfs::getRealFileSystem(), DiagOpts, new IgnoringDiagConsumer);
   // This enables picking the first invocation in a multi-arch build.
   Opts.RecoverOnError = true;
   std::shared_ptr<CompilerInvocation> CInvok =
@@ -68,6 +79,11 @@ static bool shouldCacheInvocation(ArrayRef<const char *> Args,
         << "AS_SECURE_LOG_FILE is set";
     return false;
   }
+
+  llvm::Triple T(CInvok->getTargetOpts().Triple);
+  SupportsMCCAS = T.isOSBinFormatMachO();
+  IsCOFF = T.isOSBinFormatCOFF();
+
   return true;
 }
 
@@ -93,9 +109,6 @@ static int executeAsProcess(ArrayRef<const char *> Args,
 /// functionalities.
 static void addCommonArgs(bool ForDriver, SmallVectorImpl<const char *> &Args,
                           llvm::StringSaver &Saver) {
-  if (!llvm::sys::Process::GetEnv("CLANG_CACHE_USE_CASFS_DEPSCAN")) {
-    Args.push_back("-fdepscan-include-tree");
-  }
   auto addCC1Args = [&](ArrayRef<const char *> NewArgs) {
     for (const char *Arg : NewArgs) {
       if (ForDriver) {
@@ -123,16 +136,47 @@ static void addCommonArgs(bool ForDriver, SmallVectorImpl<const char *> &Args,
 }
 
 /// Arguments specific to \p clang-cache compiler launcher functionality.
-static void addLauncherArgs(SmallVectorImpl<const char *> &Args,
-                            llvm::StringSaver &Saver) {
-
+static void addLauncherArgs(SmallVectorImpl<const char *> &AllArgs,
+                            llvm::StringSaver &Saver, bool SupportsMCCAS,
+                            bool IsCLMode, bool IsCOFF) {
+  // Split the args at the end of option (EOO) marker "--", if any.
+  auto InsertPoint =
+      llvm::find_if(AllArgs, [](const char *Elem) { return StringRef(Elem) == "--"; });
+  SmallVector<const char *, 128> ArgsBeforeEOO(AllArgs.begin(), InsertPoint);
+  SmallVector<const char *, 128> ArgsAfterEOO(InsertPoint, AllArgs.end());
+  auto AppendArgs = [&](ArrayRef<StringRef> Args) {
+    bool Passthrough = false;
+    for (auto Arg : Args) {
+      if (Arg == "-Xclang" || Arg == "-mllvm") {
+        ArgsBeforeEOO.push_back(Saver.save(Arg).data());
+        Passthrough = true;
+      } else if (Arg.starts_with("-")) {
+        // Arguments which are not passed through to clang-frontend or LLVM need
+        // to go through the driver. `clang-cl` takes non-CL options with a
+        // `/clang:` prefix to namespace and maintain compatibility.
+        if (IsCLMode && !Passthrough)
+          ArgsBeforeEOO.push_back(Saver.save(llvm::Twine("/clang:") + Arg).data());
+        else
+          ArgsBeforeEOO.push_back(Saver.save(Arg).data());
+        Passthrough = false;
+      } else {
+        // We add -Xclang to pass non-flag values in cl mode because the
+        // preceding option has a /clang: prefix. For example,
+        // /clang:-fdepscan-prefix-map -Xclang /path/=^path
+        if (!Passthrough && IsCLMode)
+          ArgsBeforeEOO.push_back("-Xclang");
+        ArgsBeforeEOO.push_back(Saver.save(Arg).data());
+        Passthrough = false;
+      }
+    }
+  };
   if (const char *DaemonPath =
           ::getenv("CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH")) {
     // Instruct clang to connect to scanning daemon that is listening on the
     // provided socket path. The caller is responsible for ensuring the daemon
     // is compatible with the invoked clang.
-    Args.push_back("-fdepscan=daemon");
-    Args.push_back(Saver.save(Twine("-fdepscan-daemon=") + DaemonPath).data());
+    AppendArgs({"-fdepscan=daemon"});
+    AppendArgs({(Twine("-fdepscan-daemon=") + DaemonPath).str()});
   } else if (const char *SessionId = ::getenv("LLVM_CACHE_BUILD_SESSION_ID")) {
     // `LLVM_CACHE_BUILD_SESSION_ID` enables sharing of a depscan daemon
     // using the string it is set to. The clang invocations under the same
@@ -145,44 +189,57 @@ static void addLauncherArgs(SmallVectorImpl<const char *> &Args,
     // toolchains, with different clang versions, running under the same
     // `LLVM_CACHE_BUILD_SESSION_ID`; in such a case there will be one daemon
     // started and shared for each unique clang version.
-    Args.append({"-fdepscan=daemon", "-fdepscan-share-identifier", SessionId});
+    AppendArgs({
+      "-fdepscan=daemon",
+      (Twine{"-fdepscan-share-identifier="} + SessionId).str(),
+    });
   } else {
-    Args.push_back("-fdepscan");
+    AppendArgs({"-fdepscan"});
   }
 
-  addCommonArgs(/*ForDriver*/ true, Args, Saver);
+  addCommonArgs(/*ForDriver*/ true, ArgsBeforeEOO, Saver);
 
   if (const char *PrefixMaps = ::getenv("LLVM_CACHE_PREFIX_MAPS")) {
-    Args.append({"-fdepscan-prefix-map-sdk=/^sdk",
-                 "-fdepscan-prefix-map-toolchain=/^toolchain"});
+    AppendArgs({"-fdepscan-prefix-map-sdk=/^sdk",
+        "-fdepscan-prefix-map-toolchain=/^toolchain"});
     StringRef PrefixMap, Remaining = PrefixMaps;
     while (true) {
       std::tie(PrefixMap, Remaining) = Remaining.split(';');
       if (PrefixMap.empty())
         break;
-      Args.push_back(Saver.save("-fdepscan-prefix-map=" + PrefixMap).data());
+      AppendArgs({(Twine("-fdepscan-prefix-map=") + PrefixMap).str()});
     }
   }
 
   const char *ServicePath = ::getenv("LLVM_CACHE_REMOTE_SERVICE_SOCKET_PATH");
 
   if (ServicePath) {
-    Args.append({"-Xclang", "-fcompilation-caching-service-path", "-Xclang",
-                 ServicePath});
+    if (llvm::sys::Process::GetEnv("LLVM_CACHE_PLUGIN_PATH"))
+      AppendArgs({"-Xclang", "-fcas-plugin-option", "-Xclang",
+                  std::string("remote-service-path=") + ServicePath});
+    else
+      AppendArgs({"-Xclang", "-fcompilation-caching-service-path", "-Xclang",
+                  ServicePath});
   }
-  Args.append({"-greproducible"});
+  if (IsCOFF) {
+    // Suppress timestamp non-determism in COFF object files.
+    AppendArgs({"-mno-incremental-linker-compatible"});
+  }
+  AppendArgs({"-greproducible"});
 
-  if (!llvm::sys::Process::GetEnv("CLANG_CACHE_DISABLE_MCCAS") &&
-      !ServicePath) {
-    Args.push_back("-Xclang");
-    Args.push_back("-fcas-backend");
+  if (SupportsMCCAS && !ServicePath &&
+      !llvm::sys::Process::GetEnv("CLANG_CACHE_DISABLE_MCCAS")) {
+    AppendArgs({"-Xclang", "-fcas-backend"});
     if (llvm::sys::Process::GetEnv("CLANG_CACHE_VERIFY_MCCAS")) {
-      Args.push_back("-Xclang");
-      Args.push_back("-fcas-backend-mode=verify");
+      AppendArgs({"-Xclang", "-fcas-backend-mode=verify"});
     }
-    Args.push_back("-mllvm");
-    Args.push_back("-cas-friendly-debug-info");
+    AppendArgs({"-mllvm", "-cas-friendly-debug-info"});
   }
+
+  // Put them back together at the end
+  AllArgs = ArgsBeforeEOO;
+  std::copy(std::begin(ArgsAfterEOO), std::end(ArgsAfterEOO),
+            std::back_inserter(AllArgs));
 }
 
 static void addScanServerArgs(const char *SocketPath,
@@ -197,23 +254,28 @@ clang::handleClangCacheInvocation(SmallVectorImpl<const char *> &Args,
                                   llvm::StringSaver &Saver) {
   assert(Args.size() >= 1);
 
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
+  std::unique_ptr<DiagnosticOptions> DiagOpts;
   if (std::optional<std::string> WarnOptsValue =
           llvm::sys::Process::GetEnv("LLVM_CACHE_WARNINGS")) {
     SmallVector<const char *, 8> WarnOpts;
     WarnOpts.push_back(Args.front());
+#if defined(_WIN32)
+    llvm::cl::TokenizeWindowsCommandLine(*WarnOptsValue, Saver, WarnOpts);
+#else
     llvm::cl::TokenizeGNUCommandLine(*WarnOptsValue, Saver, WarnOpts);
+#endif
     DiagOpts = CreateAndPopulateDiagOpts(WarnOpts);
   } else {
-    DiagOpts = new DiagnosticOptions();
+    DiagOpts = std::make_unique<DiagnosticOptions>();
   }
-  auto DiagsConsumer = std::make_unique<TextDiagnosticPrinter>(
-      llvm::errs(), DiagOpts.get(), false);
+  auto DiagsConsumer =
+      std::make_unique<TextDiagnosticPrinter>(llvm::errs(), *DiagOpts, false);
   IntrusiveRefCntPtr<DiagnosticsEngine> DiagsPtr(
-      new DiagnosticsEngine(new DiagnosticIDs(), DiagOpts));
+      new DiagnosticsEngine(new DiagnosticIDs(), *DiagOpts));
   DiagnosticsEngine &Diags = *DiagsPtr;
   Diags.setClient(DiagsConsumer.get(), /*ShouldOwnClient=*/false);
-  ProcessWarningOptions(Diags, *DiagOpts);
+  auto VFS = llvm::vfs::getRealFileSystem();
+  ProcessWarningOptions(Diags, *DiagOpts, *VFS);
   if (Diags.hasErrorOccurred())
     return 1;
 
@@ -253,12 +315,14 @@ clang::handleClangCacheInvocation(SmallVectorImpl<const char *> &Args,
     Args[0] = Saver.save(compilerPath).data();
 
   if (isSameProgram(clangCachePath, compilerPath)) {
-    if (!shouldCacheInvocation(Args, DiagsPtr)) {
+    bool SupportsMCCAS = false, IsCOFF = false;
+    if (!shouldCacheInvocation(Args, DiagsPtr, SupportsMCCAS, IsCOFF)) {
       if (Diags.hasErrorOccurred())
         return 1;
       return std::nullopt;
     }
-    addLauncherArgs(Args, Saver);
+    bool IsCLMode = driver::getDriverMode(compilerPath, ArrayRef(Args)) == "cl";
+    addLauncherArgs(Args, Saver, SupportsMCCAS, IsCLMode, IsCOFF);
     return std::nullopt;
   }
 

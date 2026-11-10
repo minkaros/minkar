@@ -15,7 +15,6 @@
 #include "CommandObjectThreadUtil.h"
 #include "CommandObjectTrace.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/ValueObject.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandOptionArgumentTable.h"
@@ -37,6 +36,7 @@
 #include "lldb/Target/Trace.h"
 #include "lldb/Target/TraceDumper.h"
 #include "lldb/Utility/State.h"
+#include "lldb/ValueObject/ValueObject.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -66,7 +66,7 @@ public:
       case 'c':
         if (option_arg.getAsInteger(0, m_count)) {
           m_count = UINT32_MAX;
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid integer value for option '%c': %s", short_option,
               option_arg.data());
         }
@@ -76,7 +76,7 @@ public:
         break;
       case 's':
         if (option_arg.getAsInteger(0, m_start))
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid integer value for option '%c': %s", short_option,
               option_arg.data());
         break;
@@ -85,9 +85,82 @@ public:
         m_extended_backtrace =
             OptionArgParser::ToBoolean(option_arg, false, &success);
         if (!success)
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid boolean value for option '%c': %s", short_option,
               option_arg.data());
+      } break;
+      case 'u':
+        m_filtered_backtrace = false;
+        break;
+      case 'p': {
+        // Parse provider range using same format as breakpoint IDs.
+        // Supports: "N", "N-M", "N to M", "*", "all".
+        llvm::StringRef trimmed = option_arg.trim();
+        if (trimmed == "*" || trimmed.equals_insensitive("all")) {
+          m_show_all_providers = true;
+          m_provider_specific_backtrace = true;
+          break;
+        }
+
+        std::string option_lower = option_arg.lower();
+        static constexpr llvm::StringLiteral range_specifiers[] = {"-", "to"};
+
+        llvm::StringRef range_from;
+        llvm::StringRef range_to;
+        bool is_range = false;
+
+        // Try to find a range specifier.
+        for (auto specifier : range_specifiers) {
+          size_t idx = option_lower.find(specifier);
+          if (idx == std::string::npos)
+            continue;
+
+          range_from = llvm::StringRef(option_lower).take_front(idx).trim();
+          range_to = llvm::StringRef(option_lower)
+                         .drop_front(idx + specifier.size())
+                         .trim();
+
+          if (!range_from.empty() && !range_to.empty()) {
+            is_range = true;
+            break;
+          }
+        }
+
+        if (is_range) {
+          // Parse both start and end IDs.
+          if (range_from.getAsInteger(0, m_provider_start_id)) {
+            error = Status::FromErrorStringWithFormat(
+                "invalid start provider ID for option '%c': %s", short_option,
+                range_from.data());
+            break;
+          }
+          if (range_to.getAsInteger(0, m_provider_end_id)) {
+            error = Status::FromErrorStringWithFormat(
+                "invalid end provider ID for option '%c': %s", short_option,
+                range_to.data());
+            break;
+          }
+
+          // Validate range.
+          if (m_provider_start_id > m_provider_end_id) {
+            error = Status::FromErrorStringWithFormat(
+                "invalid provider range for option '%c': start ID %u > end "
+                "ID %u",
+                short_option, m_provider_start_id, m_provider_end_id);
+            break;
+          }
+        } else {
+          // Single provider ID.
+          if (option_arg.getAsInteger(0, m_provider_start_id)) {
+            error = Status::FromErrorStringWithFormat(
+                "invalid provider ID for option '%c': %s", short_option,
+                option_arg.data());
+            break;
+          }
+          m_provider_end_id = m_provider_start_id;
+        }
+
+        m_provider_specific_backtrace = true;
       } break;
       default:
         llvm_unreachable("Unimplemented option");
@@ -99,29 +172,45 @@ public:
       m_count = UINT32_MAX;
       m_start = 0;
       m_extended_backtrace = false;
+      m_filtered_backtrace = true;
+      m_provider_start_id = 0;
+      m_provider_end_id = 0;
+      m_provider_specific_backtrace = false;
+      m_show_all_providers = false;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::ArrayRef(g_thread_backtrace_options);
+      return g_thread_backtrace_options;
     }
 
     // Instance variables to hold the values for command options.
     uint32_t m_count;
     uint32_t m_start;
     bool m_extended_backtrace;
+    bool m_filtered_backtrace;
+    lldb::frame_list_id_t m_provider_start_id;
+    lldb::frame_list_id_t m_provider_end_id;
+    bool m_provider_specific_backtrace;
+    bool m_show_all_providers;
   };
 
   CommandObjectThreadBacktrace(CommandInterpreter &interpreter)
       : CommandObjectIterateOverThreads(
             interpreter, "thread backtrace",
-            "Show thread call stacks.  Defaults to the current thread, thread "
-            "indexes can be specified as arguments.\n"
+            "Show backtraces of thread call stacks.  Defaults to the current "
+            "thread, thread indexes can be specified as arguments.\n"
             "Use the thread-index \"all\" to see all threads.\n"
             "Use the thread-index \"unique\" to see threads grouped by unique "
             "call stacks.\n"
+            "Use '--provider <id>' or '--provider <start>-<end>' to view "
+            "synthetic frame providers (0=base unwinder, 1+=synthetic). "
+            "Range specifiers '-', 'to', 'To', 'TO' are supported.\n"
             "Use 'settings set frame-format' to customize the printing of "
             "frames in the backtrace and 'settings set thread-format' to "
-            "customize the thread header.",
+            "customize the thread header.\n"
+            "Customizable frame recognizers may filter out less interesting "
+            "frames, which results in gaps in the numbering. "
+            "Use '-u' to see all frames.",
             nullptr,
             eCommandRequiresProcess | eCommandRequiresThread |
                 eCommandTryTargetAPILock | eCommandProcessMustBeLaunched |
@@ -132,7 +221,7 @@ public:
   Options *GetOptions() override { return &m_options; }
 
   std::optional<std::string> GetRepeatCommand(Args &current_args,
-                                              uint32_t idx) override {
+                                              uint32_t index) override {
     llvm::StringRef count_opt("--count");
     llvm::StringRef start_opt("--start");
 
@@ -151,14 +240,14 @@ public:
 
     for (size_t idx = 0; idx < num_entries; idx++) {
       llvm::StringRef arg_string = copy_args[idx].ref();
-      if (arg_string.equals("-c") || count_opt.startswith(arg_string)) {
+      if (arg_string == "-c" || count_opt.starts_with(arg_string)) {
         idx++;
         if (idx == num_entries)
           return std::nullopt;
         count_idx = idx;
         if (copy_args[idx].ref().getAsInteger(0, count_val))
           return std::nullopt;
-      } else if (arg_string.equals("-s") || start_opt.startswith(arg_string)) {
+      } else if (arg_string == "-s" || start_opt.starts_with(arg_string)) {
         idx++;
         if (idx == num_entries)
           return std::nullopt;
@@ -199,7 +288,8 @@ protected:
           strm.PutChar('\n');
           if (ext_thread_sp->GetStatus(strm, m_options.m_start,
                                        m_options.m_count,
-                                       num_frames_with_source, stop_format)) {
+                                       num_frames_with_source, stop_format,
+                                       !m_options.m_filtered_backtrace)) {
             DoExtendedBacktrace(ext_thread_sp.get(), result);
           }
         }
@@ -218,17 +308,120 @@ protected:
     }
 
     Thread *thread = thread_sp.get();
-
     Stream &strm = result.GetOutputStream();
 
-    // Only dump stack info if we processing unique stacks.
-    const bool only_stacks = m_unique_stacks;
+    // Check if provider filtering is requested.
+    if (m_options.m_provider_specific_backtrace) {
+      // Disallow 'bt --provider' from within a scripted frame provider.
+      // A provider's get_frame_at_index running 'bt --provider' would
+      // try to evaluate the very provider that is mid-construction,
+      // leading to infinite recursion.
+      if (thread->IsAnyProviderActive()) {
+        result.AppendErrorWithFormat(
+            "cannot use '--provider' option while a scripted frame provider is "
+            "being constructed on this thread\n");
+        return false;
+      }
 
-    // Don't show source context when doing backtraces.
+      // Print thread status header, like regular bt. This also ensures the
+      // frame list is initialized and any providers are loaded.
+      thread->GetStatus(strm, /*start_frame=*/0, /*num_frames=*/0,
+                        /*num_frames_with_source=*/0, /*stop_format=*/true,
+                        /*show_hidden=*/false, /*only_stacks=*/false);
+
+      if (m_options.m_show_all_providers) {
+        // Show all providers: unwinder (0) through the last in the chain.
+        m_options.m_provider_start_id = 0;
+        const auto &chain = thread->GetProviderChainIds();
+        m_options.m_provider_end_id = chain.empty() ? 0 : chain.back().second;
+      }
+
+      // Provider filter mode: show sequential views for each provider in range.
+      bool first_provider = true;
+      for (lldb::frame_list_id_t provider_id = m_options.m_provider_start_id;
+           provider_id <= m_options.m_provider_end_id; ++provider_id) {
+
+        // Get the frame list for this provider.
+        lldb::StackFrameListSP frame_list_sp =
+            thread->GetFrameListByIdentifier(provider_id);
+
+        if (!frame_list_sp) {
+          // Provider doesn't exist - skip silently.
+          continue;
+        }
+
+        // Add blank line between providers for readability.
+        if (!first_provider)
+          strm.PutChar('\n');
+        first_provider = false;
+
+        // Print provider header.
+        strm.Printf("=== Provider %u", provider_id);
+
+        // Get provider metadata for header.
+        if (provider_id == 0) {
+          strm.Printf(": Base Unwinder ===\n");
+        } else {
+          // Find the descriptor in the provider chain.
+          const auto &provider_chain = thread->GetProviderChainIds();
+          std::string provider_name = "Unknown";
+          std::string provider_desc;
+          std::optional<uint32_t> provider_priority;
+
+          for (const auto &[descriptor, id] : provider_chain) {
+            if (id == provider_id) {
+              provider_name = descriptor.GetName().str();
+              provider_desc = descriptor.GetDescription();
+              provider_priority = descriptor.GetPriority();
+              break;
+            }
+          }
+
+          strm.Printf(": %s", provider_name.c_str());
+          if (provider_priority.has_value()) {
+            strm.Printf(" (priority: %u)", *provider_priority);
+          }
+          strm.Printf(" ===\n");
+
+          if (!provider_desc.empty()) {
+            strm.Printf("Description: %s\n", provider_desc.c_str());
+          }
+        }
+
+        // Print the backtrace for this provider.
+        const uint32_t num_frames_with_source = 0;
+        const StackFrameSP selected_frame_sp =
+            thread->GetSelectedFrame(DoNoSelectMostRelevantFrame);
+        const char *selected_frame_marker = selected_frame_sp ? "->" : nullptr;
+
+        size_t num_frames = frame_list_sp->GetStatus(
+            strm, m_options.m_start, m_options.m_count,
+            /*show_frame_info=*/true, num_frames_with_source,
+            /*show_unique=*/false,
+            /*show_hidden=*/!m_options.m_filtered_backtrace,
+            selected_frame_marker);
+
+        if (num_frames == 0) {
+          strm.Printf("(No frames available)\n");
+        }
+      }
+
+      if (first_provider) {
+        result.AppendErrorWithFormat("no provider found in range %u-%u\n",
+                                     m_options.m_provider_start_id,
+                                     m_options.m_provider_end_id);
+        return false;
+      }
+      return true;
+    }
+
+    // Original behavior: show default backtrace.
+    const bool only_stacks = m_unique_stacks;
     const uint32_t num_frames_with_source = 0;
     const bool stop_format = true;
     if (!thread->GetStatus(strm, m_options.m_start, m_options.m_count,
-                           num_frames_with_source, stop_format, only_stacks)) {
+                           num_frames_with_source, stop_format,
+                           !m_options.m_filtered_backtrace, only_stacks)) {
       result.AppendErrorWithFormat(
           "error displaying backtrace for thread: \"0x%4.4x\"\n",
           thread->GetIndexID());
@@ -246,8 +439,6 @@ protected:
 
   CommandOptions m_options;
 };
-
-enum StepScope { eStepScopeSource, eStepScopeInstruction };
 
 #define LLDB_OPTIONS_thread_step_scope
 #include "CommandOptions.inc"
@@ -278,7 +469,7 @@ public:
       bool avoid_no_debug =
           OptionArgParser::ToBoolean(option_arg, true, &success);
       if (!success)
-        error.SetErrorStringWithFormat(
+        error = Status::FromErrorStringWithFormat(
             "invalid boolean value for option '%c': %s", short_option,
             option_arg.data());
       else {
@@ -291,7 +482,7 @@ public:
       bool avoid_no_debug =
           OptionArgParser::ToBoolean(option_arg, true, &success);
       if (!success)
-        error.SetErrorStringWithFormat(
+        error = Status::FromErrorStringWithFormat(
             "invalid boolean value for option '%c': %s", short_option,
             option_arg.data());
       else {
@@ -301,7 +492,7 @@ public:
 
     case 'c':
       if (option_arg.getAsInteger(0, m_step_count))
-        error.SetErrorStringWithFormat(
+        error = Status::FromErrorStringWithFormat(
             "invalid integer value for option '%c': %s", short_option,
             option_arg.data());
       break;
@@ -318,8 +509,8 @@ public:
         break;
       }
       if (option_arg.getAsInteger(0, m_end_line))
-        error.SetErrorStringWithFormat("invalid end line number '%s'",
-                                       option_arg.str().c_str());
+        error = Status::FromErrorStringWithFormat(
+            "invalid end line number '%s'", option_arg.str().c_str());
       break;
 
     case 'r':
@@ -374,28 +565,14 @@ public:
   CommandObjectThreadStepWithTypeAndScope(CommandInterpreter &interpreter,
                                           const char *name, const char *help,
                                           const char *syntax,
-                                          StepType step_type,
-                                          StepScope step_scope)
+                                          StepType step_type)
       : CommandObjectParsed(interpreter, name, help, syntax,
                             eCommandRequiresProcess | eCommandRequiresThread |
                                 eCommandTryTargetAPILock |
                                 eCommandProcessMustBeLaunched |
                                 eCommandProcessMustBePaused),
-        m_step_type(step_type), m_step_scope(step_scope),
-        m_class_options("scripted step") {
-    CommandArgumentEntry arg;
-    CommandArgumentData thread_id_arg;
-
-    // Define the first (and only) variant of this arg.
-    thread_id_arg.arg_type = eArgTypeThreadID;
-    thread_id_arg.arg_repetition = eArgRepeatOptional;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(thread_id_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+        m_step_type(step_type), m_class_options("scripted step") {
+    AddSimpleArgumentList(eArgTypeThreadIndex, eArgRepeatOptional);
 
     if (step_type == eStepTypeScripted) {
       m_all_options.Append(&m_class_options, LLDB_OPT_SET_1 | LLDB_OPT_SET_2,
@@ -412,10 +589,7 @@ public:
                            OptionElementVector &opt_element_vector) override {
     if (request.GetCursorIndex())
       return;
-
-    lldb_private::CommandCompletions::InvokeCommonCompletionCallbacks(
-        GetCommandInterpreter(), lldb::eThreadIndexCompletion, request,
-        nullptr);
+    CommandObject::HandleArgumentCompletion(request, opt_element_vector);
   }
 
   Options *GetOptions() override { return &m_all_options; }
@@ -498,11 +672,11 @@ protected:
         AddressRange range;
         SymbolContext sc = frame->GetSymbolContext(eSymbolContextEverything);
         if (m_options.m_end_line != LLDB_INVALID_LINE_NUMBER) {
-          Status error;
-          if (!sc.GetAddressRangeFromHereToEndLine(m_options.m_end_line, range,
-                                                   error)) {
-            result.AppendErrorWithFormat("invalid end-line option: %s.",
-                                         error.AsCString());
+          llvm::Error err =
+              sc.GetAddressRangeFromHereToEndLine(m_options.m_end_line, range);
+          if (err) {
+            result.AppendErrorWithFormatv("invalid end-line option: {0}.",
+                                          llvm::toString(std::move(err)));
             return;
           }
         } else if (m_options.m_end_line_is_block_end) {
@@ -631,12 +805,11 @@ protected:
         result.SetStatus(eReturnStatusSuccessContinuingNoResult);
       }
     } else {
-      result.SetError(new_plan_status);
+      result.SetError(std::move(new_plan_status));
     }
   }
 
   StepType m_step_type;
-  StepScope m_step_scope;
   ThreadStepScopeOptionGroup m_options;
   OptionGroupPythonClassWithDict m_class_options;
   OptionGroupOptions m_all_options;
@@ -655,30 +828,10 @@ public:
             nullptr,
             eCommandRequiresThread | eCommandTryTargetAPILock |
                 eCommandProcessMustBeLaunched | eCommandProcessMustBePaused) {
-    CommandArgumentEntry arg;
-    CommandArgumentData thread_idx_arg;
-
-    // Define the first (and only) variant of this arg.
-    thread_idx_arg.arg_type = eArgTypeThreadIndex;
-    thread_idx_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(thread_idx_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeThreadIndex, eArgRepeatPlus);
   }
 
   ~CommandObjectThreadContinue() override = default;
-
-  void
-  HandleArgumentCompletion(CompletionRequest &request,
-                           OptionElementVector &opt_element_vector) override {
-    lldb_private::CommandCompletions::InvokeCommonCompletionCallbacks(
-        GetCommandInterpreter(), lldb::eThreadIndexCompletion, request,
-        nullptr);
-  }
 
   void DoExecute(Args &command, CommandReturnObject &result) override {
     bool synchronous_execution = m_interpreter.GetSynchronous();
@@ -847,15 +1000,15 @@ public:
       case 't':
         if (option_arg.getAsInteger(0, m_thread_idx)) {
           m_thread_idx = LLDB_INVALID_INDEX32;
-          error.SetErrorStringWithFormat("invalid thread index '%s'",
-                                         option_arg.str().c_str());
+          error = Status::FromErrorStringWithFormat("invalid thread index '%s'",
+                                                    option_arg.str().c_str());
         }
         break;
       case 'f':
         if (option_arg.getAsInteger(0, m_frame_idx)) {
           m_frame_idx = LLDB_INVALID_FRAME_ID;
-          error.SetErrorStringWithFormat("invalid frame index '%s'",
-                                         option_arg.str().c_str());
+          error = Status::FromErrorStringWithFormat("invalid frame index '%s'",
+                                                    option_arg.str().c_str());
         }
         break;
       case 'm': {
@@ -906,19 +1059,7 @@ public:
             nullptr,
             eCommandRequiresThread | eCommandTryTargetAPILock |
                 eCommandProcessMustBeLaunched | eCommandProcessMustBePaused) {
-    CommandArgumentEntry arg;
-    CommandArgumentData line_num_arg;
-
-    // Define the first (and only) variant of this arg.
-    line_num_arg.arg_type = eArgTypeLineNum;
-    line_num_arg.arg_repetition = eArgRepeatPlain;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(line_num_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeLineNum);
   }
 
   ~CommandObjectThreadUntil() override = default;
@@ -929,7 +1070,7 @@ protected:
   void DoExecute(Args &command, CommandReturnObject &result) override {
     bool synchronous_execution = m_interpreter.GetSynchronous();
 
-    Target *target = &GetSelectedTarget();
+    Target *target = &GetTarget();
 
     Process *process = m_exe_ctx.GetProcessPtr();
     if (process == nullptr) {
@@ -1001,7 +1142,6 @@ protected:
         }
 
         LineEntry function_start;
-        uint32_t index_ptr = 0, end_ptr = UINT32_MAX;
         std::vector<addr_t> address_list;
 
         // Find the beginning & end index of the function, but first make
@@ -1012,19 +1152,14 @@ protected:
           return;
         }
 
-        AddressRange fun_addr_range = sc.function->GetAddressRange();
-        Address fun_start_addr = fun_addr_range.GetBaseAddress();
-        line_table->FindLineEntryByAddress(fun_start_addr, function_start,
-                                           &index_ptr);
+        RangeVector<uint32_t, uint32_t> line_idx_ranges;
+        for (const AddressRange &range : sc.function->GetAddressRanges()) {
+          auto [begin, end] = line_table->GetLineEntryIndexRange(range);
+          line_idx_ranges.Append(begin, end - begin);
+        }
+        line_idx_ranges.Sort();
 
-        Address fun_end_addr(fun_start_addr.GetSection(),
-                             fun_start_addr.GetOffset() +
-                                 fun_addr_range.GetByteSize());
-
-        bool all_in_function = true;
-
-        line_table->FindLineEntryByAddress(fun_end_addr, function_start,
-                                           &end_ptr);
+        bool found_something = false;
 
         // Since not all source lines will contribute code, check if we are
         // setting the breakpoint on the exact line number or the nearest
@@ -1033,45 +1168,43 @@ protected:
         for (uint32_t line_number : line_numbers) {
           LineEntry line_entry;
           bool exact = false;
-          uint32_t start_idx_ptr = index_ptr;
-          start_idx_ptr = sc.comp_unit->FindLineEntry(
-              index_ptr, line_number, nullptr, exact, &line_entry);
-          if (start_idx_ptr != UINT32_MAX)
-            line_number = line_entry.line;
-          exact = true;
-          start_idx_ptr = index_ptr;
-          while (start_idx_ptr <= end_ptr) {
-            start_idx_ptr = sc.comp_unit->FindLineEntry(
-                start_idx_ptr, line_number, nullptr, exact, &line_entry);
-            if (start_idx_ptr == UINT32_MAX)
-              break;
+          if (sc.comp_unit->FindLineEntry(0, line_number, nullptr, exact,
+                                          &line_entry) == UINT32_MAX)
+            continue;
 
-            addr_t address =
-                line_entry.range.GetBaseAddress().GetLoadAddress(target);
-            if (address != LLDB_INVALID_ADDRESS) {
-              if (fun_addr_range.ContainsLoadAddress(address, target))
+          found_something = true;
+          line_number = line_entry.line;
+          exact = true;
+          uint32_t end_func_idx = line_idx_ranges.GetMaxRangeEnd(0);
+          uint32_t idx = sc.comp_unit->FindLineEntry(
+              line_idx_ranges.GetMinRangeBase(UINT32_MAX), line_number, nullptr,
+              exact, &line_entry);
+          while (idx < end_func_idx) {
+            if (line_idx_ranges.FindEntryIndexThatContains(idx) != UINT32_MAX) {
+              addr_t address =
+                  line_entry.range.GetBaseAddress().GetLoadAddress(target);
+              if (address != LLDB_INVALID_ADDRESS)
                 address_list.push_back(address);
-              else
-                all_in_function = false;
             }
-            start_idx_ptr++;
+            idx = sc.comp_unit->FindLineEntry(idx + 1, line_number, nullptr,
+                                              exact, &line_entry);
           }
         }
 
         for (lldb::addr_t address : m_options.m_until_addrs) {
-          if (fun_addr_range.ContainsLoadAddress(address, target))
+          AddressRange unused;
+          if (sc.function->GetRangeContainingLoadAddress(address, *target,
+                                                         unused))
             address_list.push_back(address);
-          else
-            all_in_function = false;
         }
 
         if (address_list.empty()) {
-          if (all_in_function)
-            result.AppendErrorWithFormat(
-                "No line entries matching until target.\n");
-          else
+          if (found_something)
             result.AppendErrorWithFormat(
                 "Until target outside of the current function.\n");
+          else
+            result.AppendErrorWithFormat(
+                "No line entries matching until target.\n");
 
           return;
         }
@@ -1088,7 +1221,7 @@ protected:
           new_plan_sp->SetIsControllingPlan(true);
           new_plan_sp->SetOkayToDiscard(false);
         } else {
-          result.SetError(new_plan_status);
+          result.SetError(std::move(new_plan_status));
           return;
         }
       } else {
@@ -1138,11 +1271,52 @@ protected:
 
 // CommandObjectThreadSelect
 
+#define LLDB_OPTIONS_thread_select
+#include "CommandOptions.inc"
+
 class CommandObjectThreadSelect : public CommandObjectParsed {
 public:
+  class OptionGroupThreadSelect : public OptionGroup {
+  public:
+    OptionGroupThreadSelect() { OptionParsingStarting(nullptr); }
+
+    ~OptionGroupThreadSelect() override = default;
+
+    void OptionParsingStarting(ExecutionContext *execution_context) override {
+      m_thread_id = LLDB_INVALID_THREAD_ID;
+    }
+
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override {
+      const int short_option = g_thread_select_options[option_idx].short_option;
+      switch (short_option) {
+      case 't': {
+        if (option_arg.getAsInteger(0, m_thread_id)) {
+          m_thread_id = LLDB_INVALID_THREAD_ID;
+          return Status::FromErrorStringWithFormat("Invalid thread ID: '%s'.",
+                                                   option_arg.str().c_str());
+        }
+        break;
+      }
+
+      default:
+        llvm_unreachable("Unimplemented option");
+      }
+
+      return {};
+    }
+
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
+      return llvm::ArrayRef(g_thread_select_options);
+    }
+
+    lldb::tid_t m_thread_id;
+  };
+
   CommandObjectThreadSelect(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "thread select",
-                            "Change the currently selected thread.", nullptr,
+                            "Change the currently selected thread.",
+                            "thread select <thread-index> (or -t <thread-id>)",
                             eCommandRequiresProcess | eCommandTryTargetAPILock |
                                 eCommandProcessMustBeLaunched |
                                 eCommandProcessMustBePaused) {
@@ -1152,6 +1326,7 @@ public:
     // Define the first (and only) variant of this arg.
     thread_idx_arg.arg_type = eArgTypeThreadIndex;
     thread_idx_arg.arg_repetition = eArgRepeatPlain;
+    thread_idx_arg.arg_opt_set_association = LLDB_OPT_SET_1;
 
     // There is only one variant this argument could be; put it into the
     // argument entry.
@@ -1159,6 +1334,9 @@ public:
 
     // Push the data for the first argument into the m_arguments vector.
     m_arguments.push_back(arg);
+
+    m_option_group.Append(&m_options, LLDB_OPT_SET_ALL, LLDB_OPT_SET_2);
+    m_option_group.Finalize();
   }
 
   ~CommandObjectThreadSelect() override = default;
@@ -1174,37 +1352,59 @@ public:
         nullptr);
   }
 
+  Options *GetOptions() override { return &m_option_group; }
+
 protected:
   void DoExecute(Args &command, CommandReturnObject &result) override {
     Process *process = m_exe_ctx.GetProcessPtr();
     if (process == nullptr) {
       result.AppendError("no process");
       return;
-    } else if (command.GetArgumentCount() != 1) {
+    } else if (m_options.m_thread_id == LLDB_INVALID_THREAD_ID &&
+               command.GetArgumentCount() != 1) {
       result.AppendErrorWithFormat(
-          "'%s' takes exactly one thread index argument:\nUsage: %s\n",
+          "'%s' takes exactly one thread index argument, or a thread ID "
+          "option:\nUsage: %s\n",
           m_cmd_name.c_str(), m_cmd_syntax.c_str());
       return;
-    }
-
-    uint32_t index_id;
-    if (!llvm::to_integer(command.GetArgumentAtIndex(0), index_id)) {
-      result.AppendErrorWithFormat("Invalid thread index '%s'",
-                                   command.GetArgumentAtIndex(0));
+    } else if (m_options.m_thread_id != LLDB_INVALID_THREAD_ID &&
+               command.GetArgumentCount() != 0) {
+      result.AppendErrorWithFormat("'%s' cannot take both a thread ID option "
+                                   "and a thread index argument:\nUsage: %s\n",
+                                   m_cmd_name.c_str(), m_cmd_syntax.c_str());
       return;
     }
 
-    Thread *new_thread =
-        process->GetThreadList().FindThreadByIndexID(index_id).get();
-    if (new_thread == nullptr) {
-      result.AppendErrorWithFormat("invalid thread #%s.\n",
-                                   command.GetArgumentAtIndex(0));
-      return;
+    Thread *new_thread = nullptr;
+    if (command.GetArgumentCount() == 1) {
+      uint32_t index_id;
+      if (!llvm::to_integer(command.GetArgumentAtIndex(0), index_id)) {
+        result.AppendErrorWithFormat("Invalid thread index '%s'",
+                                     command.GetArgumentAtIndex(0));
+        return;
+      }
+      new_thread = process->GetThreadList().FindThreadByIndexID(index_id).get();
+      if (new_thread == nullptr) {
+        result.AppendErrorWithFormat("Invalid thread index #%s.\n",
+                                     command.GetArgumentAtIndex(0));
+        return;
+      }
+    } else {
+      new_thread =
+          process->GetThreadList().FindThreadByID(m_options.m_thread_id).get();
+      if (new_thread == nullptr) {
+        result.AppendErrorWithFormat("Invalid thread ID %" PRIu64 ".\n",
+                                     m_options.m_thread_id);
+        return;
+      }
     }
 
     process->GetThreadList().SetSelectedThreadByID(new_thread->GetID(), true);
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
   }
+
+  OptionGroupThreadSelect m_options;
+  OptionGroupOptions m_option_group;
 };
 
 // CommandObjectThreadList
@@ -1253,6 +1453,7 @@ public:
     void OptionParsingStarting(ExecutionContext *execution_context) override {
       m_json_thread = false;
       m_json_stopinfo = false;
+      m_backing_thread = false;
     }
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
@@ -1269,6 +1470,10 @@ public:
         m_json_stopinfo = true;
         break;
 
+      case 'b':
+        m_backing_thread = true;
+        break;
+
       default:
         llvm_unreachable("Unimplemented option");
       }
@@ -1281,6 +1486,7 @@ public:
 
     bool m_json_thread;
     bool m_json_stopinfo;
+    bool m_backing_thread;
   };
 
   CommandObjectThreadInfo(CommandInterpreter &interpreter)
@@ -1317,6 +1523,8 @@ public:
     }
 
     Thread *thread = thread_sp.get();
+    if (m_options.m_backing_thread && thread->GetBackingThread())
+      thread = thread->GetBackingThread().get();
 
     Stream &strm = result.GetOutputStream();
     if (!thread->GetDescription(strm, eDescriptionLevelFull,
@@ -1378,7 +1586,8 @@ public:
       const uint32_t num_frames_with_source = 0;
       const bool stop_format = false;
       exception_thread_sp->GetStatus(strm, 0, UINT32_MAX,
-                                     num_frames_with_source, stop_format);
+                                     num_frames_with_source, stop_format,
+                                     /*filtered*/ false);
     }
 
     return true;
@@ -1464,7 +1673,7 @@ public:
         if (success)
           m_from_expression = tmp_value;
         else {
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid boolean value '%s' for 'x' option",
               option_arg.str().c_str());
         }
@@ -1499,19 +1708,7 @@ public:
                          eCommandRequiresFrame | eCommandTryTargetAPILock |
                              eCommandProcessMustBeLaunched |
                              eCommandProcessMustBePaused) {
-    CommandArgumentEntry arg;
-    CommandArgumentData expression_arg;
-
-    // Define the first (and only) variant of this arg.
-    expression_arg.arg_type = eArgTypeExpression;
-    expression_arg.arg_repetition = eArgRepeatOptional;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(expression_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeExpression, eArgRepeatOptional);
   }
 
   ~CommandObjectThreadReturn() override = default;
@@ -1524,7 +1721,7 @@ protected:
     // I am going to handle this by hand, because I don't want you to have to
     // say:
     // "thread return -- -5".
-    if (command.startswith("-x")) {
+    if (command.starts_with("-x")) {
       if (command.size() != 2U)
         result.AppendWarning("Return values ignored when returning from user "
                              "called expressions");
@@ -1628,16 +1825,21 @@ public:
       case 'f':
         m_filenames.AppendIfUnique(FileSpec(option_arg));
         if (m_filenames.GetSize() > 1)
-          return Status("only one source file expected.");
+          return Status::FromErrorString("only one source file expected.");
         break;
       case 'l':
         if (option_arg.getAsInteger(0, m_line_num))
-          return Status("invalid line number: '%s'.", option_arg.str().c_str());
+          return Status::FromErrorStringWithFormat("invalid line number: '%s'.",
+                                                   option_arg.str().c_str());
         break;
-      case 'b':
+      case 'b': {
+        option_arg.consume_front("+");
+
         if (option_arg.getAsInteger(0, m_line_offset))
-          return Status("invalid line offset: '%s'.", option_arg.str().c_str());
+          return Status::FromErrorStringWithFormat("invalid line offset: '%s'.",
+                                                   option_arg.str().c_str());
         break;
+      }
       case 'a':
         m_load_addr = OptionArgParser::ToAddress(execution_context, option_arg,
                                                  LLDB_INVALID_ADDRESS, &error);
@@ -1704,7 +1906,7 @@ protected:
         line = sym_ctx.line_entry.line + m_options.m_line_offset;
 
       // Try the current file, but override if asked.
-      FileSpec file = sym_ctx.line_entry.file;
+      FileSpec file = sym_ctx.line_entry.GetFile();
       if (m_options.m_filenames.GetSize() == 1)
         file = m_options.m_filenames.GetFileSpecAtIndex(0);
 
@@ -1718,7 +1920,7 @@ protected:
       Status err = thread->JumpToLine(file, line, m_options.m_force, &warnings);
 
       if (err.Fail()) {
-        result.SetError(err);
+        result.SetError(std::move(err));
         return;
       }
 
@@ -1761,7 +1963,8 @@ public:
       case 't':
         lldb::tid_t tid;
         if (option_arg.getAsInteger(0, tid))
-          return Status("invalid tid: '%s'.", option_arg.str().c_str());
+          return Status::FromErrorStringWithFormat("invalid tid: '%s'.",
+                                                   option_arg.str().c_str());
         m_tids.push_back(tid);
         break;
       case 'u':
@@ -1879,19 +2082,7 @@ public:
                                 eCommandTryTargetAPILock |
                                 eCommandProcessMustBeLaunched |
                                 eCommandProcessMustBePaused) {
-    CommandArgumentEntry arg;
-    CommandArgumentData plan_index_arg;
-
-    // Define the first (and only) variant of this arg.
-    plan_index_arg.arg_type = eArgTypeUnsignedInteger;
-    plan_index_arg.arg_repetition = eArgRepeatPlain;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(plan_index_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeUnsignedInteger);
   }
 
   ~CommandObjectThreadPlanDiscard() override = default;
@@ -1952,19 +2143,7 @@ public:
                                 eCommandTryTargetAPILock |
                                 eCommandProcessMustBeLaunched |
                                 eCommandProcessMustBePaused) {
-    CommandArgumentEntry arg;
-    CommandArgumentData tid_arg;
-
-    // Define the first (and only) variant of this arg.
-    tid_arg.arg_type = eArgTypeThreadID;
-    tid_arg.arg_repetition = eArgRepeatStar;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(tid_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeThreadID, eArgRepeatStar);
   }
 
   ~CommandObjectThreadPlanPrune() override = default;
@@ -2181,8 +2360,7 @@ public:
             eCommandRequiresProcess | eCommandRequiresThread |
                 eCommandTryTargetAPILock | eCommandProcessMustBeLaunched |
                 eCommandProcessMustBePaused | eCommandProcessMustBeTraced) {
-    CommandArgumentData thread_arg{eArgTypeThreadIndex, eArgRepeatOptional};
-    m_arguments.push_back({thread_arg});
+    AddSimpleArgumentList(eArgTypeThreadIndex, eArgRepeatOptional);
   }
 
   ~CommandObjectTraceDumpFunctionCalls() override = default;
@@ -2247,7 +2425,7 @@ public:
         int32_t count;
         if (option_arg.empty() || option_arg.getAsInteger(0, count) ||
             count < 0)
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid integer value for option '%s'",
               option_arg.str().c_str());
         else
@@ -2261,7 +2439,7 @@ public:
       case 's': {
         int32_t skip;
         if (option_arg.empty() || option_arg.getAsInteger(0, skip) || skip < 0)
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid integer value for option '%s'",
               option_arg.str().c_str());
         else
@@ -2271,7 +2449,7 @@ public:
       case 'i': {
         uint64_t id;
         if (option_arg.empty() || option_arg.getAsInteger(0, id))
-          error.SetErrorStringWithFormat(
+          error = Status::FromErrorStringWithFormat(
               "invalid integer value for option '%s'",
               option_arg.str().c_str());
         else
@@ -2355,8 +2533,7 @@ public:
             eCommandRequiresProcess | eCommandRequiresThread |
                 eCommandTryTargetAPILock | eCommandProcessMustBeLaunched |
                 eCommandProcessMustBePaused | eCommandProcessMustBeTraced) {
-    CommandArgumentData thread_arg{eArgTypeThreadIndex, eArgRepeatOptional};
-    m_arguments.push_back({thread_arg});
+    AddSimpleArgumentList(eArgTypeThreadIndex, eArgRepeatOptional);
   }
 
   ~CommandObjectTraceDumpInstructions() override = default;
@@ -2580,35 +2757,35 @@ CommandObjectMultiwordThread::CommandObjectMultiwordThread(
                      interpreter, "thread step-in",
                      "Source level single step, stepping into calls.  Defaults "
                      "to current thread unless specified.",
-                     nullptr, eStepTypeInto, eStepScopeSource)));
+                     nullptr, eStepTypeInto)));
 
   LoadSubCommand("step-out",
                  CommandObjectSP(new CommandObjectThreadStepWithTypeAndScope(
                      interpreter, "thread step-out",
                      "Finish executing the current stack frame and stop after "
                      "returning.  Defaults to current thread unless specified.",
-                     nullptr, eStepTypeOut, eStepScopeSource)));
+                     nullptr, eStepTypeOut)));
 
   LoadSubCommand("step-over",
                  CommandObjectSP(new CommandObjectThreadStepWithTypeAndScope(
                      interpreter, "thread step-over",
                      "Source level single step, stepping over calls.  Defaults "
                      "to current thread unless specified.",
-                     nullptr, eStepTypeOver, eStepScopeSource)));
+                     nullptr, eStepTypeOver)));
 
   LoadSubCommand("step-inst",
                  CommandObjectSP(new CommandObjectThreadStepWithTypeAndScope(
                      interpreter, "thread step-inst",
                      "Instruction level single step, stepping into calls.  "
                      "Defaults to current thread unless specified.",
-                     nullptr, eStepTypeTrace, eStepScopeInstruction)));
+                     nullptr, eStepTypeTrace)));
 
   LoadSubCommand("step-inst-over",
                  CommandObjectSP(new CommandObjectThreadStepWithTypeAndScope(
                      interpreter, "thread step-inst-over",
                      "Instruction level single step, stepping over calls.  "
                      "Defaults to current thread unless specified.",
-                     nullptr, eStepTypeTraceOver, eStepScopeInstruction)));
+                     nullptr, eStepTypeTraceOver)));
 
   LoadSubCommand(
       "step-scripted",
@@ -2619,7 +2796,7 @@ CommandObjectMultiwordThread::CommandObjectMultiwordThread(
           "that will be used to populate an SBStructuredData Dictionary, which "
           "will be passed to the constructor of the class implementing the "
           "scripted step.  See the Python Reference for more details.",
-          nullptr, eStepTypeScripted, eStepScopeSource)));
+          nullptr, eStepTypeScripted)));
 
   LoadSubCommand("plan", CommandObjectSP(new CommandObjectMultiwordThreadPlan(
                              interpreter)));

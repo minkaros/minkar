@@ -7,18 +7,45 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CAS/CASFileSystem.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/CAS/FileSystemCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/TreeSchema.h"
-#include "llvm/Support/AlignOf.h"
-#include "llvm/Support/Allocator.h"
 
 using namespace llvm;
 using namespace llvm::cas;
 
+const char CASBackedFileSystem::ID = 0;
+
+llvm::Expected<std::pair<std::unique_ptr<llvm::MemoryBuffer>, cas::ObjectRef>>
+CASBackedFileSystem::getBufferAndObjectRefForFile(const Twine &Name,
+                                                  int64_t FileSize,
+                                                  bool RequiresNullTerminator,
+                                                  bool IsVolatile,
+                                                  bool IsText) {
+  auto F = openCASBackedFileForRead(Name);
+  if (!F)
+    return F.takeError();
+
+  auto Buf =
+      (*F)->getBuffer(Name, FileSize, RequiresNullTerminator, IsVolatile);
+  if (!Buf)
+    return errorCodeToError(Buf.getError());
+
+  auto CASRef = (*F)->getObjectRefForContent();
+  return std::pair{std::move(*Buf), CASRef};
+}
+
+llvm::Expected<cas::ObjectRef>
+CASBackedFileSystem::getObjectRefForFileContent(const Twine &Name) {
+  auto F = openCASBackedFileForRead(Name);
+  if (!F)
+    return F.takeError();
+  return (*F)->getObjectRefForContent();
+}
+
 namespace {
-class CASFileSystem : public ThreadSafeFileSystem {
+class CASFileSystem final
+    : public RTTIExtends<CASFileSystem, CASBackedFileSystem> {
   struct WorkingDirectoryType {
     FileSystemCache::DirectoryEntry *Entry;
 
@@ -46,7 +73,8 @@ public:
                                         bool FollowSymlinks = true);
 
   ErrorOr<vfs::Status> status(const Twine &Path) final;
-  ErrorOr<std::unique_ptr<vfs::File>> openFileForRead(const Twine &Path) final;
+  Expected<std::unique_ptr<CASBackedFile>>
+  openCASBackedFileForRead(const Twine &Path) final;
 
   Expected<const vfs::CachedDirectoryEntry *>
   getDirectoryEntry(const Twine &Path, bool FollowSymlinks) const final;
@@ -68,13 +96,17 @@ public:
     return WorkingDirectory.Path;
   }
 
+  void printImpl(raw_ostream &OS, PrintType Type,
+                 unsigned IndentLevel) const final;
+
   Error initialize(ObjectRef Root);
 
-  CASFileSystem(std::shared_ptr<ObjectStore> DB)
-      : DB(*DB), OwnedDB(std::move(DB)) {}
-  CASFileSystem(ObjectStore &DB) : DB(DB) {}
+  CASFileSystem(std::shared_ptr<ObjectStore> DB, sys::path::Style PathStyle)
+      : DB(*DB), OwnedDB(std::move(DB)), PathStyle(PathStyle) {}
+  CASFileSystem(ObjectStore &DB, sys::path::Style PathStyle)
+      : DB(DB), PathStyle(PathStyle) {}
 
-  IntrusiveRefCntPtr<ThreadSafeFileSystem> createThreadSafeProxyFS() final {
+  IntrusiveRefCntPtr<CASBackedFileSystem> createThreadSafeProxyFS() final {
     return makeIntrusiveRefCnt<CASFileSystem>(*this);
   }
   CASFileSystem(const CASFileSystem &FS) = default;
@@ -87,12 +119,15 @@ private:
 
   IntrusiveRefCntPtr<FileSystemCache> Cache;
   WorkingDirectoryType WorkingDirectory;
+  sys::path::Style PathStyle;
 };
 } // namespace
 
-class CASFileSystem::VFSFile : public vfs::File {
+class CASFileSystem::VFSFile final : public CASBackedFile {
 public:
-  ErrorOr<vfs::Status> status() final { return Entry->getStatus(Name); }
+  ErrorOr<vfs::Status> status() final {
+    return Entry->getStatus(Name, /*FollowSymlinks=*/true);
+  }
 
   ErrorOr<std::string> getName() final { return Name; }
 
@@ -107,9 +142,7 @@ public:
     return Object->getMemoryBuffer(Name.toStringRef(Storage));
   }
 
-  llvm::ErrorOr<std::optional<cas::ObjectRef>> getObjectRefForContent() final {
-    return Entry->getRef();
-  }
+  cas::ObjectRef getObjectRefForContent() final { return *Entry->getRef(); }
 
   /// Closes the file.
   std::error_code close() final { return std::error_code(); }
@@ -119,6 +152,7 @@ public:
       : DB(DB), Name(Name.str()), Entry(&Entry) {
     assert(Entry.isFile());
     assert(Entry.hasNode());
+    assert(Entry.getRef());
   }
 
 private:
@@ -128,10 +162,11 @@ private:
 };
 
 Error CASFileSystem::initialize(ObjectRef Root) {
-  Cache = makeIntrusiveRefCnt<FileSystemCache>(Root);
+  Cache = makeIntrusiveRefCnt<FileSystemCache>(PathStyle);
 
   // Initial working directory is the root.
-  WorkingDirectory.Entry = &Cache->getRoot();
+  StringRef path_separator = get_separator(PathStyle);
+  WorkingDirectory.Entry = &Cache->getRoot(path_separator, Root);
   WorkingDirectory.Path = WorkingDirectory.Entry->getTreePath().str();
 
   // Load the root to confirm it's really a tree.
@@ -139,9 +174,9 @@ Error CASFileSystem::initialize(ObjectRef Root) {
 }
 
 std::error_code CASFileSystem::setCurrentWorkingDirectory(const Twine &Path) {
-  SmallString<128> Storage;
+  PathStorage PathStorage(Path, PathStyle);
   StringRef CanonicalPath = FileSystemCache::canonicalizeWorkingDirectory(
-      Path, WorkingDirectory.Path, Storage);
+      PathStyle, WorkingDirectory.Path, PathStorage.Storage);
 
   // Read and cache all the symlinks in the path by looking it up. Return any
   // error encountered.
@@ -154,6 +189,45 @@ std::error_code CASFileSystem::setCurrentWorkingDirectory(const Twine &Path) {
   return std::error_code();
 }
 
+void CASFileSystem::printImpl(raw_ostream &OS, PrintType Type,
+                              unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "CASFileSystem\n";
+  if (Type == PrintType::Summary)
+    return;
+
+  IndentLevel += 1;
+  printIndent(OS, IndentLevel);
+  StringRef path_separator = get_separator(PathStyle);
+  auto &Root = Cache->getRoot(path_separator);
+  OS << "root: " << Root.getTreePath();
+  assert(Root.getRef() && "missing ID for primary CASFileSystem root");
+  if (Root.getRef())
+    OS << ' ' << DB.getID(*Root.getRef()) << '\n';
+
+  if (Type == PrintType::Contents)
+    return;
+
+  IndentLevel += 1;
+  TreeSchema Schema(DB);
+  auto TreeN = DB.getProxy(*Root.getRef());
+  if (!TreeN) {
+    OS << toString(TreeN.takeError()) << '\n';
+    return;
+  }
+  Error E = Schema.walkFileTreeRecursively(
+      DB, TreeN->getRef(),
+      [&](const NamedTreeEntry &Entry, std::optional<TreeProxy> Tree) -> Error {
+        if (Entry.getKind() != TreeEntry::Tree) {
+          printIndent(OS, IndentLevel);
+          Entry.print(OS, DB);
+        }
+        return Error::success();
+      });
+  if (E)
+    OS << toString(std::move(E)) << '\n';
+}
+
 Error CASFileSystem::loadDirectory(DirectoryEntry &Parent) {
   Directory &D = Parent.asDirectory();
   if (D.isComplete())
@@ -164,7 +238,7 @@ Error CASFileSystem::loadDirectory(DirectoryEntry &Parent) {
   auto makeCachedEntry =
       [&](const NamedTreeEntry &NewEntry) -> DirectoryEntry & {
     Path.resize(ParentPathSize);
-    sys::path::append(Path, sys::path::Style::posix, NewEntry.getName());
+    sys::path::append(Path, PathStyle, NewEntry.getName());
     switch (NewEntry.getKind()) {
     case TreeEntry::Regular:
     case TreeEntry::Executable:
@@ -230,8 +304,8 @@ Error CASFileSystem::loadSymlink(DirectoryEntry &Entry) {
 }
 
 ErrorOr<vfs::Status> CASFileSystem::status(const Twine &Path) {
-  SmallString<128> Storage;
-  StringRef PathRef = Path.toStringRef(Storage);
+  PathStorage PathStorage(Path, PathStyle);
+  StringRef PathRef = PathStorage.Path;
 
   // Lookup only returns an Error if there's a problem communicating with the
   // CAS, or there's data corruption.
@@ -249,42 +323,43 @@ ErrorOr<vfs::Status> CASFileSystem::status(const Twine &Path) {
       return errorToErrorCode(std::move(E));
   }
 
-  return Entry->getStatus(PathRef);
+  return Entry->getStatus(PathRef, /*FollowSymlinks=*/true);
 }
 
 Expected<const vfs::CachedDirectoryEntry *>
 CASFileSystem::getDirectoryEntry(const Twine &Path, bool FollowSymlinks) const {
-  SmallString<128> Storage;
-  StringRef PathRef = Path.toStringRef(Storage);
+  PathStorage PathStorage(Path, PathStyle);
+  StringRef PathRef = PathStorage.Path;
 
   // It's not a const operation, but it's thread-safe.
   return const_cast<CASFileSystem *>(this)->lookupPath(PathRef, FollowSymlinks);
 }
 
-ErrorOr<std::unique_ptr<vfs::File>>
-CASFileSystem::openFileForRead(const Twine &Path) {
-  SmallString<128> Storage;
-  StringRef PathRef = Path.toStringRef(Storage);
+Expected<std::unique_ptr<CASBackedFile>>
+CASFileSystem::openCASBackedFileForRead(const Twine &Path) {
+  PathStorage PathStorage(Path, PathStyle);
+  StringRef PathRef = PathStorage.Path;
 
   Expected<DirectoryEntry *> ExpectedEntry = lookupPath(PathRef);
   if (!ExpectedEntry)
-    return errorToErrorCode(ExpectedEntry.takeError());
+    return ExpectedEntry.takeError();
 
   DirectoryEntry *Entry = *ExpectedEntry;
   if (!Entry->isFile())
-    return std::errc::invalid_argument;
+    return createFileError(Path,
+                           std::make_error_code(std::errc::invalid_argument));
 
   if (!Entry->hasNode())
     if (Error E = loadFile(*Entry))
-      return errorToErrorCode(std::move(E));
+      return std::move(E);
 
   return std::make_unique<VFSFile>(DB, *Entry, PathRef);
 }
 
 ErrorOr<vfs::directory_iterator>
 CASFileSystem::getDirectoryIterator(const Twine &Path) {
-  SmallString<128> Storage;
-  StringRef PathRef = Path.toStringRef(Storage);
+  PathStorage PathStorage(Path, PathStyle);
+  StringRef PathRef = PathStorage.Path;
 
   Expected<DirectoryEntry *> ExpectedEntry = lookupPath(PathRef);
   if (!ExpectedEntry)
@@ -338,8 +413,10 @@ private:
 
 Expected<CASFileSystem::DirectoryEntry *>
 CASFileSystem::lookupPath(StringRef Path, bool FollowSymlinks) {
+  PathStorage PathStorage(Path, PathStyle);
+  StringRef PathRef = PathStorage.Path;
   DiscoveryInstanceImpl DI(*this);
-  return Cache->lookupPath(DI, Path, *WorkingDirectory.Entry, FollowSymlinks);
+  return Cache->lookupPath(DI, PathRef, *WorkingDirectory.Entry, FollowSymlinks);
 }
 
 static Expected<std::unique_ptr<CASFileSystem>>
@@ -355,12 +432,17 @@ initializeCASFileSystem(std::unique_ptr<CASFileSystem> FS,
 }
 
 Expected<std::unique_ptr<vfs::FileSystem>>
-cas::createCASFileSystem(std::shared_ptr<ObjectStore> DB, const CASID &RootID) {
-  return initializeCASFileSystem(std::make_unique<CASFileSystem>(std::move(DB)),
-                                 RootID);
+cas::createCASFileSystem(std::shared_ptr<ObjectStore> DB,
+                         const CASID &RootID,
+                         sys::path::Style PathStyle) {
+  return initializeCASFileSystem(
+      std::make_unique<CASFileSystem>(std::move(DB), PathStyle),
+      RootID);
 }
 
 Expected<std::unique_ptr<vfs::FileSystem>>
-cas::createCASFileSystem(ObjectStore &DB, const CASID &RootID) {
-  return initializeCASFileSystem(std::make_unique<CASFileSystem>(DB), RootID);
+cas::createCASFileSystem(ObjectStore &DB, const CASID &RootID,
+                         sys::path::Style PathStyle) {
+  return initializeCASFileSystem(
+      std::make_unique<CASFileSystem>(DB, PathStyle), RootID);
 }

@@ -34,11 +34,24 @@ OPTIONS
 
 .. option:: --build-variant-suffix <suffix=buildvariant>
 
- Specify the build variant suffix used to build the executabe file.
+ Specify the build variant suffix used to build the executable file.
  There can be multiple variants for the binary of a product, each built
  slightly differently. The most common build variants are 'debug' and
  'profile'. Setting the DYLD_IMAGE_SUFFIX environment variable will
  cause dyld to load the specified variant at runtime.
+
+.. option:: --cas <path to CAS>
+
+ Specify the path to a content addressable storage that dsymutil may used to
+ resolve CASID file paths in the debug info.
+
+.. option:: --cas-plugin-path <path to dylib>
+
+ Specify the path to CAS plugin dylib if used.
+
+.. option:: --cas-plugin-option <cas option>
+
+ Specify the options to pass to CAS plugin dylib if needed.
 
 .. option:: --dump-debug-map
 
@@ -51,6 +64,13 @@ OPTIONS
  This is used for mergeable libraries, so dsymutil knows where to look
  for dSYM files with  debug information about symbols present in those
  libraries.
+
+.. option:: --embed-resource <src-path>=<bundle-relative-path>
+
+ Copy a file or directory into the dSYM bundle's ``Contents/Resources/``
+ directory. The argument is ``<source-path>=<destination-relative-to-Resources>``.
+ If the source is a directory, its contents are copied recursively. This option
+ can be specified multiple times.
 
 .. option:: --fat64
 
@@ -82,6 +102,10 @@ OPTIONS
  dsymutil currently has better equivalents: .apple_names and .apple_types. When
  used in conjunction with ``--update`` option, this option will cause redundant
  accelerator tables to be removed.
+
+.. option:: --no-object-timestamp
+
+ Don't check timestamp for object files.
 
 .. option:: --no-odr
 
@@ -143,10 +167,6 @@ OPTIONS
  size of the debug info in the object file (in bytes) and the size contributed
  (in bytes) to the linked dSYM. The table is sorted by the output size listing
  the object files with the largest contribution first.
-
-.. option:: --symbol-map <bcsymbolmap>
-
- Update the existing dSYMs inplace using symbol map specified.
 
 .. option:: -s, --symtab
 

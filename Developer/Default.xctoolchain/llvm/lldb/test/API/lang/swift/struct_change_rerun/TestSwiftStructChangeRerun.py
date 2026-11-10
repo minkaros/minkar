@@ -18,11 +18,12 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import shutil
-import unittest2
 
 
 class TestSwiftStructChangeRerun(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
+    @skipIfWindows # rdar://178182243 
     def test_swift_struct_change_rerun(self):
         """Test that we display self correctly for an inline-initialized struct"""
         copied_main_swift = self.getBuildArtifact("main.swift")
@@ -54,6 +55,10 @@ class TestSwiftStructChangeRerun(TestBase):
         self.assertFalse(var_a_c.IsValid(), "make sure a.c doesn't exist")
         process.Kill()
 
+        # The updated copied_main_swift might not get rebuilt by Make if it is
+        # changed within the same second, as they will have the same mtime.
+        # A clean build fixes this.
+        self.build(make_targets=["clean"])
         
         print('build with main2.swift')
         cleanup()

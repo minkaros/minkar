@@ -16,7 +16,6 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftRuntimeRecognizer(lldbtest.TestBase):
@@ -24,18 +23,20 @@ class TestSwiftRuntimeRecognizer(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_runtime_recognizer(self):
         """Test Swift Runtime Failure Recognizer"""
         self.build()
         self.runCmd("file " + self.getBuildArtifact("a.out"))
         self.runCmd("process launch")
 
-        self.expect("frame recognizer list",
-                    substrs=['Swift Runtime Failure StackFrame Recognizer, symbol Swift runtime failure (regexp)'])
-
+        self.expect(
+            "frame recognizer list",
+            substrs=["Swift runtime failure frame recognizer"],
+        )
 
         self.expect("frame recognizer info 0",
-                    substrs=['frame 0 is recognized by Swift Runtime Failure StackFrame Recognizer'])
+                    substrs=['frame 0 is recognized by Swift runtime failure frame recognizer'])
 
         self.expect("thread info",
                     substrs=['stop reason = Swift runtime failure: arithmetic overflow'])

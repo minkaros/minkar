@@ -146,17 +146,17 @@ struct C { char a[16]; };
 // CHECK: ClassTemplateSpecializationDecl {{.*}} struct my_union
 // CHECK: CXXRecordDecl {{.*}} implicit struct my_union
 // CHECK: FieldDecl {{.*}} buffer 'char[1024]'
-// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::A':'TestAligns::A'
-// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::B':'TestAligns::B'
-// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::C':'TestAligns::C'
+// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::A'
+// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::B'
+// CHECK-NEXT: AlignedAttr {{.*}} alignas 'TestAligns::C'
 my_union<A, B, C> my_union_val;
 
 // CHECK: ClassTemplateSpecializationDecl {{.*}} struct my_union2
 // CHECK: CXXRecordDecl {{.*}} implicit struct my_union2
 // CHECK: FieldDecl {{.*}} buffer 'char[1024]'
-// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::A':'TestAligns::A'
-// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::B':'TestAligns::B'
-// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::C':'TestAligns::C'
+// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::A'
+// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::B'
+// CHECK-NEXT: AlignedAttr {{.*}} _Alignas 'TestAligns::C'
 my_union2<A, B, C> my_union2_val;
 
 } // namespace TestAligns
@@ -230,8 +230,14 @@ __attribute__((external_source_symbol(generated_declaration, defined_in="module"
 // CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "Swift" "module" GeneratedDeclaration "testUSR"
 
 namespace TestNoEscape {
+  struct S { int *p; };
   void noescapeFunc(int *p0, __attribute__((noescape)) int *p1) {}
-  // CHECK: `-FunctionDecl{{.*}} noescapeFunc 'void (int *, __attribute__((noescape)) int *)'
+  // CHECK: |-FunctionDecl{{.*}} noescapeFunc 'void (int *, __attribute__((noescape)) int *)'
+  // CHECK-NEXT: ParmVarDecl
+  // CHECK-NEXT: ParmVarDecl
+  // CHECK-NEXT: NoEscapeAttr
+  void noescapeFunc2(int *p0, __attribute__((noescape)) S p1) {}
+  // CHECK: `-FunctionDecl{{.*}} noescapeFunc2 'void (int *, __attribute__((noescape)) S)'
   // CHECK-NEXT: ParmVarDecl
   // CHECK-NEXT: ParmVarDecl
   // CHECK-NEXT: NoEscapeAttr

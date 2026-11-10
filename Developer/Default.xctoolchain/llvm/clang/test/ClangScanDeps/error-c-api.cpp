@@ -4,3 +4,4 @@
 
 // CHECK: error: failed to get dependencies
 // CHECK-NEXT: 'missing.h' file not found
+// CHECK-NEXT: number of out of date file system cache entries: 0

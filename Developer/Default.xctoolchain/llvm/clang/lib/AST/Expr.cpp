@@ -13,6 +13,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/ComputeDependence.h"
 #include "clang/AST/DeclCXX.h"
@@ -24,7 +25,6 @@
 #include "clang/AST/IgnoreExpr.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
-#include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/SourceManager.h"
@@ -86,12 +86,12 @@ const Expr *Expr::skipRValueSubobjectAdjustments(
   while (true) {
     E = E->IgnoreParens();
 
-    if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
+    if (const auto *CE = dyn_cast<CastExpr>(E)) {
       if ((CE->getCastKind() == CK_DerivedToBase ||
            CE->getCastKind() == CK_UncheckedDerivedToBase) &&
           E->getType()->isRecordType()) {
         E = CE->getSubExpr();
-        auto *Derived =
+        const auto *Derived =
             cast<CXXRecordDecl>(E->getType()->castAs<RecordType>()->getDecl());
         Adjustments.push_back(SubobjectAdjustment(CE, Derived));
         continue;
@@ -101,10 +101,10 @@ const Expr *Expr::skipRValueSubobjectAdjustments(
         E = CE->getSubExpr();
         continue;
       }
-    } else if (const MemberExpr *ME = dyn_cast<MemberExpr>(E)) {
+    } else if (const auto *ME = dyn_cast<MemberExpr>(E)) {
       if (!ME->isArrow()) {
-        assert(ME->getBase()->getType()->isRecordType());
-        if (FieldDecl *Field = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
+        assert(ME->getBase()->getType()->getAsRecordDecl());
+        if (const auto *Field = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
           if (!Field->isBitField() && !Field->getType()->isReferenceType()) {
             E = ME->getBase();
             Adjustments.push_back(SubobjectAdjustment(Field));
@@ -112,12 +112,11 @@ const Expr *Expr::skipRValueSubobjectAdjustments(
           }
         }
       }
-    } else if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(E)) {
+    } else if (const auto *BO = dyn_cast<BinaryOperator>(E)) {
       if (BO->getOpcode() == BO_PtrMemD) {
         assert(BO->getRHS()->isPRValue());
         E = BO->getLHS();
-        const MemberPointerType *MPT =
-          BO->getRHS()->getType()->getAs<MemberPointerType>();
+        const auto *MPT = BO->getRHS()->getType()->getAs<MemberPointerType>();
         Adjustments.push_back(SubobjectAdjustment(MPT, BO->getRHS()));
         continue;
       }
@@ -197,93 +196,29 @@ bool Expr::isKnownToHaveBooleanValue(bool Semantic) const {
 
   if (const FieldDecl *FD = E->getSourceBitField())
     if (!Semantic && FD->getType()->isUnsignedIntegerType() &&
-        !FD->getBitWidth()->isValueDependent() &&
-        FD->getBitWidthValue(FD->getASTContext()) == 1)
+        !FD->getBitWidth()->isValueDependent() && FD->getBitWidthValue() == 1)
       return true;
 
   return false;
 }
 
 bool Expr::isFlexibleArrayMemberLike(
-    ASTContext &Context,
+    const ASTContext &Ctx,
     LangOptions::StrictFlexArraysLevelKind StrictFlexArraysLevel,
     bool IgnoreTemplateOrMacroSubstitution) const {
-
-  // For compatibility with existing code, we treat arrays of length 0 or
-  // 1 as flexible array members.
-  const auto *CAT = Context.getAsConstantArrayType(getType());
-  if (CAT) {
-    llvm::APInt Size = CAT->getSize();
-
-    using FAMKind = LangOptions::StrictFlexArraysLevelKind;
-
-    if (StrictFlexArraysLevel == FAMKind::IncompleteOnly)
-      return false;
-
-    // GCC extension, only allowed to represent a FAM.
-    if (Size == 0)
-      return true;
-
-    if (StrictFlexArraysLevel == FAMKind::ZeroOrIncomplete && Size.uge(1))
-      return false;
-
-    if (StrictFlexArraysLevel == FAMKind::OneZeroOrIncomplete && Size.uge(2))
-      return false;
-  } else if (!Context.getAsIncompleteArrayType(getType()))
-    return false;
-
   const Expr *E = IgnoreParens();
+  const Decl *D = nullptr;
 
-  const NamedDecl *ND = nullptr;
-  if (const auto *DRE = dyn_cast<DeclRefExpr>(E))
-    ND = DRE->getDecl();
-  else if (const auto *ME = dyn_cast<MemberExpr>(E))
-    ND = ME->getMemberDecl();
+  if (const auto *ME = dyn_cast<MemberExpr>(E))
+    D = ME->getMemberDecl();
+  else if (const auto *DRE = dyn_cast<DeclRefExpr>(E))
+    D = DRE->getDecl();
   else if (const auto *IRE = dyn_cast<ObjCIvarRefExpr>(E))
-    return IRE->getDecl()->getNextIvar() == nullptr;
+    D = IRE->getDecl();
 
-  if (!ND)
-    return false;
-
-  // A flexible array member must be the last member in the class.
-  // FIXME: If the base type of the member expr is not FD->getParent(),
-  // this should not be treated as a flexible array member access.
-  if (const auto *FD = dyn_cast<FieldDecl>(ND)) {
-    // GCC treats an array memeber of a union as an FAM if the size is one or
-    // zero.
-    if (CAT) {
-      llvm::APInt Size = CAT->getSize();
-      if (FD->getParent()->isUnion() && (Size.isZero() || Size.isOne()))
-        return true;
-    }
-
-    // Don't consider sizes resulting from macro expansions or template argument
-    // substitution to form C89 tail-padded arrays.
-    if (IgnoreTemplateOrMacroSubstitution) {
-      TypeSourceInfo *TInfo = FD->getTypeSourceInfo();
-      while (TInfo) {
-        TypeLoc TL = TInfo->getTypeLoc();
-        // Look through typedefs.
-        if (TypedefTypeLoc TTL = TL.getAsAdjusted<TypedefTypeLoc>()) {
-          const TypedefNameDecl *TDL = TTL.getTypedefNameDecl();
-          TInfo = TDL->getTypeSourceInfo();
-          continue;
-        }
-        if (ConstantArrayTypeLoc CTL = TL.getAs<ConstantArrayTypeLoc>()) {
-          const Expr *SizeExpr = dyn_cast<IntegerLiteral>(CTL.getSizeExpr());
-          if (!SizeExpr || SizeExpr->getExprLoc().isMacroID())
-            return false;
-        }
-        break;
-      }
-    }
-
-    RecordDecl::field_iterator FI(
-        DeclContext::decl_iterator(const_cast<FieldDecl *>(FD)));
-    return ++FI == FD->getParent()->field_end();
-  }
-
-  return false;
+  return Decl::isFlexibleArrayMemberLike(Ctx, D, E->getType(),
+                                         StrictFlexArraysLevel,
+                                         IgnoreTemplateOrMacroSubstitution);
 }
 
 const ValueDecl *
@@ -327,6 +262,17 @@ namespace {
   }
 }
 
+QualType Expr::getEnumCoercedType(const ASTContext &Ctx) const {
+  if (isa<EnumType>(getType()))
+    return getType();
+  if (const auto *ECD = getEnumConstantDecl()) {
+    const auto *ED = cast<EnumDecl>(ECD->getDeclContext());
+    if (ED->isCompleteDefinition())
+      return Ctx.getTypeDeclType(ED);
+  }
+  return getType();
+}
+
 SourceLocation Expr::getExprLoc() const {
   switch (getStmtClass()) {
   case Stmt::NoStmtClass: llvm_unreachable("statement without class");
@@ -344,85 +290,86 @@ SourceLocation Expr::getExprLoc() const {
 // Primary Expressions.
 //===----------------------------------------------------------------------===//
 
-static void AssertResultStorageKind(ConstantExpr::ResultStorageKind Kind) {
-  assert((Kind == ConstantExpr::RSK_APValue ||
-          Kind == ConstantExpr::RSK_Int64 || Kind == ConstantExpr::RSK_None) &&
+static void AssertResultStorageKind(ConstantResultStorageKind Kind) {
+  assert((Kind == ConstantResultStorageKind::APValue ||
+          Kind == ConstantResultStorageKind::Int64 ||
+          Kind == ConstantResultStorageKind::None) &&
          "Invalid StorageKind Value");
   (void)Kind;
 }
 
-ConstantExpr::ResultStorageKind
-ConstantExpr::getStorageKind(const APValue &Value) {
+ConstantResultStorageKind ConstantExpr::getStorageKind(const APValue &Value) {
   switch (Value.getKind()) {
   case APValue::None:
   case APValue::Indeterminate:
-    return ConstantExpr::RSK_None;
+    return ConstantResultStorageKind::None;
   case APValue::Int:
     if (!Value.getInt().needsCleanup())
-      return ConstantExpr::RSK_Int64;
+      return ConstantResultStorageKind::Int64;
     [[fallthrough]];
   default:
-    return ConstantExpr::RSK_APValue;
+    return ConstantResultStorageKind::APValue;
   }
 }
 
-ConstantExpr::ResultStorageKind
+ConstantResultStorageKind
 ConstantExpr::getStorageKind(const Type *T, const ASTContext &Context) {
   if (T->isIntegralOrEnumerationType() && Context.getTypeInfo(T).Width <= 64)
-    return ConstantExpr::RSK_Int64;
-  return ConstantExpr::RSK_APValue;
+    return ConstantResultStorageKind::Int64;
+  return ConstantResultStorageKind::APValue;
 }
 
-ConstantExpr::ConstantExpr(Expr *SubExpr, ResultStorageKind StorageKind,
+ConstantExpr::ConstantExpr(Expr *SubExpr, ConstantResultStorageKind StorageKind,
                            bool IsImmediateInvocation)
     : FullExpr(ConstantExprClass, SubExpr) {
-  ConstantExprBits.ResultKind = StorageKind;
+  ConstantExprBits.ResultKind = llvm::to_underlying(StorageKind);
   ConstantExprBits.APValueKind = APValue::None;
   ConstantExprBits.IsUnsigned = false;
   ConstantExprBits.BitWidth = 0;
   ConstantExprBits.HasCleanup = false;
   ConstantExprBits.IsImmediateInvocation = IsImmediateInvocation;
 
-  if (StorageKind == ConstantExpr::RSK_APValue)
+  if (StorageKind == ConstantResultStorageKind::APValue)
     ::new (getTrailingObjects<APValue>()) APValue();
 }
 
 ConstantExpr *ConstantExpr::Create(const ASTContext &Context, Expr *E,
-                                   ResultStorageKind StorageKind,
+                                   ConstantResultStorageKind StorageKind,
                                    bool IsImmediateInvocation) {
   assert(!isa<ConstantExpr>(E));
   AssertResultStorageKind(StorageKind);
 
   unsigned Size = totalSizeToAlloc<APValue, uint64_t>(
-      StorageKind == ConstantExpr::RSK_APValue,
-      StorageKind == ConstantExpr::RSK_Int64);
+      StorageKind == ConstantResultStorageKind::APValue,
+      StorageKind == ConstantResultStorageKind::Int64);
   void *Mem = Context.Allocate(Size, alignof(ConstantExpr));
   return new (Mem) ConstantExpr(E, StorageKind, IsImmediateInvocation);
 }
 
 ConstantExpr *ConstantExpr::Create(const ASTContext &Context, Expr *E,
                                    const APValue &Result) {
-  ResultStorageKind StorageKind = getStorageKind(Result);
+  ConstantResultStorageKind StorageKind = getStorageKind(Result);
   ConstantExpr *Self = Create(Context, E, StorageKind);
   Self->SetResult(Result, Context);
   return Self;
 }
 
-ConstantExpr::ConstantExpr(EmptyShell Empty, ResultStorageKind StorageKind)
+ConstantExpr::ConstantExpr(EmptyShell Empty,
+                           ConstantResultStorageKind StorageKind)
     : FullExpr(ConstantExprClass, Empty) {
-  ConstantExprBits.ResultKind = StorageKind;
+  ConstantExprBits.ResultKind = llvm::to_underlying(StorageKind);
 
-  if (StorageKind == ConstantExpr::RSK_APValue)
+  if (StorageKind == ConstantResultStorageKind::APValue)
     ::new (getTrailingObjects<APValue>()) APValue();
 }
 
 ConstantExpr *ConstantExpr::CreateEmpty(const ASTContext &Context,
-                                        ResultStorageKind StorageKind) {
+                                        ConstantResultStorageKind StorageKind) {
   AssertResultStorageKind(StorageKind);
 
   unsigned Size = totalSizeToAlloc<APValue, uint64_t>(
-      StorageKind == ConstantExpr::RSK_APValue,
-      StorageKind == ConstantExpr::RSK_Int64);
+      StorageKind == ConstantResultStorageKind::APValue,
+      StorageKind == ConstantResultStorageKind::Int64);
   void *Mem = Context.Allocate(Size, alignof(ConstantExpr));
   return new (Mem) ConstantExpr(EmptyShell(), StorageKind);
 }
@@ -431,15 +378,15 @@ void ConstantExpr::MoveIntoResult(APValue &Value, const ASTContext &Context) {
   assert((unsigned)getStorageKind(Value) <= ConstantExprBits.ResultKind &&
          "Invalid storage for this value kind");
   ConstantExprBits.APValueKind = Value.getKind();
-  switch (ConstantExprBits.ResultKind) {
-  case RSK_None:
+  switch (getResultStorageKind()) {
+  case ConstantResultStorageKind::None:
     return;
-  case RSK_Int64:
+  case ConstantResultStorageKind::Int64:
     Int64Result() = *Value.getInt().getRawData();
     ConstantExprBits.BitWidth = Value.getInt().getBitWidth();
     ConstantExprBits.IsUnsigned = Value.getInt().isUnsigned();
     return;
-  case RSK_APValue:
+  case ConstantResultStorageKind::APValue:
     if (!ConstantExprBits.HasCleanup && Value.needsCleanup()) {
       ConstantExprBits.HasCleanup = true;
       Context.addDestruction(&APValueResult());
@@ -451,10 +398,10 @@ void ConstantExpr::MoveIntoResult(APValue &Value, const ASTContext &Context) {
 }
 
 llvm::APSInt ConstantExpr::getResultAsAPSInt() const {
-  switch (ConstantExprBits.ResultKind) {
-  case ConstantExpr::RSK_APValue:
+  switch (getResultStorageKind()) {
+  case ConstantResultStorageKind::APValue:
     return APValueResult().getInt();
-  case ConstantExpr::RSK_Int64:
+  case ConstantResultStorageKind::Int64:
     return llvm::APSInt(llvm::APInt(ConstantExprBits.BitWidth, Int64Result()),
                         ConstantExprBits.IsUnsigned);
   default:
@@ -464,14 +411,14 @@ llvm::APSInt ConstantExpr::getResultAsAPSInt() const {
 
 APValue ConstantExpr::getAPValueResult() const {
 
-  switch (ConstantExprBits.ResultKind) {
-  case ConstantExpr::RSK_APValue:
+  switch (getResultStorageKind()) {
+  case ConstantResultStorageKind::APValue:
     return APValueResult();
-  case ConstantExpr::RSK_Int64:
+  case ConstantResultStorageKind::Int64:
     return APValue(
         llvm::APSInt(llvm::APInt(ConstantExprBits.BitWidth, Int64Result()),
                      ConstantExprBits.IsUnsigned));
-  case ConstantExpr::RSK_None:
+  case ConstantResultStorageKind::None:
     if (ConstantExprBits.APValueKind == APValue::Indeterminate)
       return APValue::IndeterminateValue();
     return APValue();
@@ -491,6 +438,7 @@ DeclRefExpr::DeclRefExpr(const ASTContext &Ctx, ValueDecl *D,
   DeclRefExprBits.HadMultipleCandidates = false;
   DeclRefExprBits.RefersToEnclosingVariableOrCapture =
       RefersToEnclosingVariableOrCapture;
+  DeclRefExprBits.CapturedByCopyInLambdaWithExplicitObjectParameter = false;
   DeclRefExprBits.NonOdrUseReason = NOUR;
   DeclRefExprBits.IsImmediateEscalating = false;
   DeclRefExprBits.Loc = L;
@@ -518,6 +466,7 @@ DeclRefExpr::DeclRefExpr(const ASTContext &Ctx,
     = (TemplateArgs || TemplateKWLoc.isValid()) ? 1 : 0;
   DeclRefExprBits.RefersToEnclosingVariableOrCapture =
       RefersToEnclosingVariableOrCapture;
+  DeclRefExprBits.CapturedByCopyInLambdaWithExplicitObjectParameter = false;
   DeclRefExprBits.NonOdrUseReason = NOUR;
   if (TemplateArgs) {
     auto Deps = TemplateArgumentDependence::None;
@@ -598,11 +547,6 @@ void DeclRefExpr::setDecl(ValueDecl *NewD) {
   setDependence(computeDependence(this, NewD->getASTContext()));
 }
 
-SourceLocation DeclRefExpr::getBeginLoc() const {
-  if (hasQualifier())
-    return getQualifierLoc().getBeginLoc();
-  return getNameInfo().getBeginLoc();
-}
 SourceLocation DeclRefExpr::getEndLoc() const {
   if (hasExplicitTemplateArgs())
     return getRAngleLoc();
@@ -647,7 +591,7 @@ std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context) const {
 std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context,
                                                   QualType Ty) {
   auto MangleCallback = [](ASTContext &Ctx,
-                           const NamedDecl *ND) -> std::optional<unsigned> {
+                           const NamedDecl *ND) -> UnsignedOrNone {
     if (const auto *RD = dyn_cast<CXXRecordDecl>(ND))
       return RD->getDeviceLambdaManglingNumber();
     return std::nullopt;
@@ -659,15 +603,16 @@ std::string SYCLUniqueStableNameExpr::ComputeName(ASTContext &Context,
   std::string Buffer;
   Buffer.reserve(128);
   llvm::raw_string_ostream Out(Buffer);
-  Ctx->mangleTypeName(Ty, Out);
+  Ctx->mangleCanonicalTypeName(Ty, Out);
 
-  return Out.str();
+  return Buffer;
 }
 
-PredefinedExpr::PredefinedExpr(SourceLocation L, QualType FNTy, IdentKind IK,
-                               bool IsTransparent, StringLiteral *SL)
+PredefinedExpr::PredefinedExpr(SourceLocation L, QualType FNTy,
+                               PredefinedIdentKind IK, bool IsTransparent,
+                               StringLiteral *SL)
     : Expr(PredefinedExprClass, FNTy, VK_LValue, OK_Ordinary) {
-  PredefinedExprBits.Kind = IK;
+  PredefinedExprBits.Kind = llvm::to_underlying(IK);
   assert((getIdentKind() == IK) &&
          "IdentKind do not fit in PredefinedExprBitfields!");
   bool HasFunctionName = SL != nullptr;
@@ -685,7 +630,7 @@ PredefinedExpr::PredefinedExpr(EmptyShell Empty, bool HasFunctionName)
 }
 
 PredefinedExpr *PredefinedExpr::Create(const ASTContext &Ctx, SourceLocation L,
-                                       QualType FNTy, IdentKind IK,
+                                       QualType FNTy, PredefinedIdentKind IK,
                                        bool IsTransparent, StringLiteral *SL) {
   bool HasFunctionName = SL != nullptr;
   void *Mem = Ctx.Allocate(totalSizeToAlloc<Stmt *>(HasFunctionName),
@@ -700,23 +645,23 @@ PredefinedExpr *PredefinedExpr::CreateEmpty(const ASTContext &Ctx,
   return new (Mem) PredefinedExpr(EmptyShell(), HasFunctionName);
 }
 
-StringRef PredefinedExpr::getIdentKindName(PredefinedExpr::IdentKind IK) {
+StringRef PredefinedExpr::getIdentKindName(PredefinedIdentKind IK) {
   switch (IK) {
-  case Func:
+  case PredefinedIdentKind::Func:
     return "__func__";
-  case Function:
+  case PredefinedIdentKind::Function:
     return "__FUNCTION__";
-  case FuncDName:
+  case PredefinedIdentKind::FuncDName:
     return "__FUNCDNAME__";
-  case LFunction:
+  case PredefinedIdentKind::LFunction:
     return "L__FUNCTION__";
-  case PrettyFunction:
+  case PredefinedIdentKind::PrettyFunction:
     return "__PRETTY_FUNCTION__";
-  case FuncSig:
+  case PredefinedIdentKind::FuncSig:
     return "__FUNCSIG__";
-  case LFuncSig:
+  case PredefinedIdentKind::LFuncSig:
     return "L__FUNCSIG__";
-  case PrettyFunctionNoVirtual:
+  case PredefinedIdentKind::PrettyFunctionNoVirtual:
     break;
   }
   llvm_unreachable("Unknown ident kind for PredefinedExpr");
@@ -724,10 +669,12 @@ StringRef PredefinedExpr::getIdentKindName(PredefinedExpr::IdentKind IK) {
 
 // FIXME: Maybe this should use DeclPrinter with a special "print predefined
 // expr" policy instead.
-std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
+std::string PredefinedExpr::ComputeName(PredefinedIdentKind IK,
+                                        const Decl *CurrentDecl,
+                                        bool ForceElaboratedPrinting) {
   ASTContext &Context = CurrentDecl->getASTContext();
 
-  if (IK == PredefinedExpr::FuncDName) {
+  if (IK == PredefinedIdentKind::FuncDName) {
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(CurrentDecl)) {
       std::unique_ptr<MangleContext> MC;
       MC.reset(Context.createMangleContext());
@@ -740,15 +687,15 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
           GD = GlobalDecl(CD, Ctor_Base);
         else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(ND))
           GD = GlobalDecl(DD, Dtor_Base);
-        else if (ND->hasAttr<CUDAGlobalAttr>())
-          GD = GlobalDecl(cast<FunctionDecl>(ND));
-        else
+        else if (auto FD = dyn_cast<FunctionDecl>(ND)) {
+          GD = FD->isReferenceableKernel() ? GlobalDecl(FD) : GlobalDecl(ND);
+        } else
           GD = GlobalDecl(ND);
         MC->mangleName(GD, Out);
 
         if (!Buffer.empty() && Buffer.front() == '\01')
           return std::string(Buffer.substr(1));
-        return std::string(Buffer.str());
+        return std::string(Buffer);
       }
       return std::string(ND->getIdentifier()->getName());
     }
@@ -772,17 +719,30 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
     return std::string(Out.str());
   }
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CurrentDecl)) {
-    if (IK != PrettyFunction && IK != PrettyFunctionNoVirtual &&
-        IK != FuncSig && IK != LFuncSig)
+    const auto &LO = Context.getLangOpts();
+    bool IsFuncOrFunctionInNonMSVCCompatEnv =
+        ((IK == PredefinedIdentKind::Func ||
+          IK == PredefinedIdentKind ::Function) &&
+         !LO.MSVCCompat);
+    bool IsLFunctionInMSVCCommpatEnv =
+        IK == PredefinedIdentKind::LFunction && LO.MSVCCompat;
+    bool IsFuncOrFunctionOrLFunctionOrFuncDName =
+        IK != PredefinedIdentKind::PrettyFunction &&
+        IK != PredefinedIdentKind::PrettyFunctionNoVirtual &&
+        IK != PredefinedIdentKind::FuncSig &&
+        IK != PredefinedIdentKind::LFuncSig;
+    if ((ForceElaboratedPrinting &&
+         (IsFuncOrFunctionInNonMSVCCompatEnv || IsLFunctionInMSVCCommpatEnv)) ||
+        (!ForceElaboratedPrinting && IsFuncOrFunctionOrLFunctionOrFuncDName))
       return FD->getNameAsString();
 
     SmallString<256> Name;
     llvm::raw_svector_ostream Out(Name);
 
     if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-      if (MD->isVirtual() && IK != PrettyFunctionNoVirtual)
+      if (MD->isVirtual() && IK != PredefinedIdentKind::PrettyFunctionNoVirtual)
         Out << "virtual ";
-      if (MD->isStatic())
+      if (MD->isStatic() && !ForceElaboratedPrinting)
         Out << "static ";
     }
 
@@ -801,18 +761,29 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
     PrintingPolicy Policy(Context.getLangOpts());
     PrettyCallbacks PrettyCB(Context.getLangOpts());
     Policy.Callbacks = &PrettyCB;
+    if (IK == PredefinedIdentKind::Function && ForceElaboratedPrinting)
+      Policy.SuppressTagKeyword = !LO.MSVCCompat;
     std::string Proto;
     llvm::raw_string_ostream POut(Proto);
 
     const FunctionDecl *Decl = FD;
     if (const FunctionDecl* Pattern = FD->getTemplateInstantiationPattern())
       Decl = Pattern;
-    const FunctionType *AFT = Decl->getType()->getAs<FunctionType>();
+
+    // Bail out if the type of the function has not been set yet.
+    // This can notably happen in the trailing return type of a lambda
+    // expression.
+    const Type *Ty = Decl->getType().getTypePtrOrNull();
+    if (!Ty)
+      return "";
+
+    const FunctionType *AFT = Ty->getAs<FunctionType>();
     const FunctionProtoType *FT = nullptr;
     if (FD->hasWrittenPrototype())
       FT = dyn_cast<FunctionProtoType>(AFT);
 
-    if (IK == FuncSig || IK == LFuncSig) {
+    if (IK == PredefinedIdentKind::FuncSig ||
+        IK == PredefinedIdentKind::LFuncSig) {
       switch (AFT->getCallConv()) {
       case CC_C: POut << "__cdecl "; break;
       case CC_X86StdCall: POut << "__stdcall "; break;
@@ -827,6 +798,11 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
 
     FD->printQualifiedName(POut, Policy);
 
+    if (IK == PredefinedIdentKind::Function) {
+      Out << Proto;
+      return std::string(Name);
+    }
+
     POut << "(";
     if (FT) {
       for (unsigned i = 0, e = Decl->getNumParams(); i != e; ++i) {
@@ -837,7 +813,8 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
       if (FT->isVariadic()) {
         if (FD->getNumParams()) POut << ", ";
         POut << "...";
-      } else if ((IK == FuncSig || IK == LFuncSig ||
+      } else if ((IK == PredefinedIdentKind::FuncSig ||
+                  IK == PredefinedIdentKind::LFuncSig ||
                   !Context.getLangOpts().CPlusPlus) &&
                  !Decl->getNumParams()) {
         POut << "void";
@@ -861,7 +838,7 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
     typedef SmallVector<const ClassTemplateSpecializationDecl *, 8> SpecsTy;
     SpecsTy Specs;
     const DeclContext *Ctx = FD->getDeclContext();
-    while (Ctx && isa<NamedDecl>(Ctx)) {
+    while (isa_and_nonnull<NamedDecl>(Ctx)) {
       const ClassTemplateSpecializationDecl *Spec
                                = dyn_cast<ClassTemplateSpecializationDecl>(Ctx);
       if (Spec && !Spec->isExplicitSpecialization())
@@ -903,21 +880,17 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
       }
     }
 
-    TOut.flush();
     if (!TemplateParams.empty()) {
       // remove the trailing comma and space
       TemplateParams.resize(TemplateParams.size() - 2);
       POut << " [" << TemplateParams << "]";
     }
 
-    POut.flush();
-
     // Print "auto" for all deduced return types. This includes C++1y return
     // type deduction and lambdas. For trailing return types resolve the
     // decltype expression. Otherwise print the real type when this is
     // not a constructor or destructor.
-    if (isa<CXXMethodDecl>(FD) &&
-         cast<CXXMethodDecl>(FD)->getParent()->isLambda())
+    if (isLambdaMethod(FD))
       Proto = "auto " + Proto;
     else if (FT && FT->getReturnType()->getAs<DecltypeType>())
       FT->getReturnType()
@@ -962,7 +935,8 @@ std::string PredefinedExpr::ComputeName(IdentKind IK, const Decl *CurrentDecl) {
 
     return std::string(Name);
   }
-  if (isa<TranslationUnitDecl>(CurrentDecl) && IK == PrettyFunction) {
+  if (isa<TranslationUnitDecl>(CurrentDecl) &&
+      IK == PredefinedIdentKind::PrettyFunction) {
     // __PRETTY_FUNCTION__ -> "top level", the others produce an empty string.
     return "top level";
   }
@@ -1039,24 +1013,24 @@ std::string FixedPointLiteral::getValueAsString(unsigned Radix) const {
   SmallString<64> S;
   FixedPointValueToString(
       S, llvm::APSInt::getUnsigned(getValue().getZExtValue()), Scale);
-  return std::string(S.str());
+  return std::string(S);
 }
 
-void CharacterLiteral::print(unsigned Val, CharacterKind Kind,
+void CharacterLiteral::print(unsigned Val, CharacterLiteralKind Kind,
                              raw_ostream &OS) {
   switch (Kind) {
-  case CharacterLiteral::Ascii:
+  case CharacterLiteralKind::Ascii:
     break; // no prefix.
-  case CharacterLiteral::Wide:
+  case CharacterLiteralKind::Wide:
     OS << 'L';
     break;
-  case CharacterLiteral::UTF8:
+  case CharacterLiteralKind::UTF8:
     OS << "u8";
     break;
-  case CharacterLiteral::UTF16:
+  case CharacterLiteralKind::UTF16:
     OS << 'u';
     break;
-  case CharacterLiteral::UTF32:
+  case CharacterLiteralKind::UTF32:
     OS << 'U';
     break;
   }
@@ -1069,7 +1043,7 @@ void CharacterLiteral::print(unsigned Val, CharacterKind Kind,
     // would result in an invalid \U escape sequence.
     // FIXME: multicharacter literals such as '\xFF\xFF\xFF\xFF'
     // are not correctly handled.
-    if ((Val & ~0xFFu) == ~0xFFu && Kind == CharacterLiteral::Ascii)
+    if ((Val & ~0xFFu) == ~0xFFu && Kind == CharacterLiteralKind::Ascii)
       Val &= 0xFFu;
     if (Val < 256 && isPrintable((unsigned char)Val))
       OS << "'" << (char)Val << "'";
@@ -1120,23 +1094,24 @@ double FloatingLiteral::getValueAsApproximateDouble() const {
 }
 
 unsigned StringLiteral::mapCharByteWidth(TargetInfo const &Target,
-                                         StringKind SK) {
+                                         StringLiteralKind SK) {
   unsigned CharByteWidth = 0;
   switch (SK) {
-  case Ordinary:
-  case UTF8:
+  case StringLiteralKind::Ordinary:
+  case StringLiteralKind::UTF8:
+  case StringLiteralKind::Binary:
     CharByteWidth = Target.getCharWidth();
     break;
-  case Wide:
+  case StringLiteralKind::Wide:
     CharByteWidth = Target.getWCharWidth();
     break;
-  case UTF16:
+  case StringLiteralKind::UTF16:
     CharByteWidth = Target.getChar16Width();
     break;
-  case UTF32:
+  case StringLiteralKind::UTF32:
     CharByteWidth = Target.getChar32Width();
     break;
-  case Unevaluated:
+  case StringLiteralKind::Unevaluated:
     return sizeof(char); // Host;
   }
   assert((CharByteWidth & 7) == 0 && "Assumes character size is byte multiple");
@@ -1147,17 +1122,16 @@ unsigned StringLiteral::mapCharByteWidth(TargetInfo const &Target,
 }
 
 StringLiteral::StringLiteral(const ASTContext &Ctx, StringRef Str,
-                             StringKind Kind, bool Pascal, QualType Ty,
-                             const SourceLocation *Loc,
-                             unsigned NumConcatenated)
+                             StringLiteralKind Kind, bool Pascal, QualType Ty,
+                             ArrayRef<SourceLocation> Locs)
     : Expr(StringLiteralClass, Ty, VK_LValue, OK_Ordinary) {
 
   unsigned Length = Str.size();
 
-  StringLiteralBits.Kind = Kind;
-  StringLiteralBits.NumConcatenated = NumConcatenated;
+  StringLiteralBits.Kind = llvm::to_underlying(Kind);
+  StringLiteralBits.NumConcatenated = Locs.size();
 
-  if (Kind != StringKind::Unevaluated) {
+  if (Kind != StringLiteralKind::Unevaluated) {
     assert(Ctx.getAsConstantArrayType(Ty) &&
            "StringLiteral must be of constant array type!");
     unsigned CharByteWidth = mapCharByteWidth(Ctx.getTargetInfo(), Kind);
@@ -1194,11 +1168,10 @@ StringLiteral::StringLiteral(const ASTContext &Ctx, StringRef Str,
 
   // Initialize the trailing array of SourceLocation.
   // This is safe since SourceLocation is POD-like.
-  std::memcpy(getTrailingObjects<SourceLocation>(), Loc,
-              NumConcatenated * sizeof(SourceLocation));
+  llvm::copy(Locs, getTrailingObjects<SourceLocation>());
 
   // Initialize the trailing array of char holding the string data.
-  std::memcpy(getTrailingObjects<char>(), Str.data(), Str.size());
+  llvm::copy(Str, getTrailingObjects<char>());
 
   setDependence(ExprDependence::None);
 }
@@ -1212,14 +1185,13 @@ StringLiteral::StringLiteral(EmptyShell Empty, unsigned NumConcatenated,
 }
 
 StringLiteral *StringLiteral::Create(const ASTContext &Ctx, StringRef Str,
-                                     StringKind Kind, bool Pascal, QualType Ty,
-                                     const SourceLocation *Loc,
-                                     unsigned NumConcatenated) {
+                                     StringLiteralKind Kind, bool Pascal,
+                                     QualType Ty,
+                                     ArrayRef<SourceLocation> Locs) {
   void *Mem = Ctx.Allocate(totalSizeToAlloc<unsigned, SourceLocation, char>(
-                               1, NumConcatenated, Str.size()),
+                               1, Locs.size(), Str.size()),
                            alignof(StringLiteral));
-  return new (Mem)
-      StringLiteral(Ctx, Str, Kind, Pascal, Ty, Loc, NumConcatenated);
+  return new (Mem) StringLiteral(Ctx, Str, Kind, Pascal, Ty, Locs);
 }
 
 StringLiteral *StringLiteral::CreateEmpty(const ASTContext &Ctx,
@@ -1235,13 +1207,22 @@ StringLiteral *StringLiteral::CreateEmpty(const ASTContext &Ctx,
 
 void StringLiteral::outputString(raw_ostream &OS) const {
   switch (getKind()) {
-  case Unevaluated:
-  case Ordinary:
+  case StringLiteralKind::Unevaluated:
+  case StringLiteralKind::Ordinary:
+  case StringLiteralKind::Binary:
     break; // no prefix.
-  case Wide:  OS << 'L'; break;
-  case UTF8:  OS << "u8"; break;
-  case UTF16: OS << 'u'; break;
-  case UTF32: OS << 'U'; break;
+  case StringLiteralKind::Wide:
+    OS << 'L';
+    break;
+  case StringLiteralKind::UTF8:
+    OS << "u8";
+    break;
+  case StringLiteralKind::UTF16:
+    OS << 'u';
+    break;
+  case StringLiteralKind::UTF32:
+    OS << 'U';
+    break;
   }
   OS << '"';
   static const char Hex[] = "0123456789ABCDEF";
@@ -1255,8 +1236,8 @@ void StringLiteral::outputString(raw_ostream &OS) const {
 
       // Convert UTF-16 surrogate pairs back to codepoints before rendering.
       // Leave invalid surrogates alone; we'll use \x for those.
-      if (getKind() == UTF16 && I != N - 1 && Char >= 0xd800 &&
-          Char <= 0xdbff) {
+      if (getKind() == StringLiteralKind::UTF16 && I != N - 1 &&
+          Char >= 0xd800 && Char <= 0xdbff) {
         uint32_t Trail = getCodeUnit(I + 1);
         if (Trail >= 0xdc00 && Trail <= 0xdfff) {
           Char = 0x10000 + ((Char - 0xd800) << 10) + (Trail - 0xdc00);
@@ -1268,7 +1249,7 @@ void StringLiteral::outputString(raw_ostream &OS) const {
         // If this is a wide string, output characters over 0xff using \x
         // escapes. Otherwise, this is a UTF-16 or UTF-32 string, and Char is a
         // codepoint: use \x escapes for invalid codepoints.
-        if (getKind() == Wide ||
+        if (getKind() == StringLiteralKind::Wide ||
             (Char >= 0xd800 && Char <= 0xdfff) || Char >= 0x110000) {
           // FIXME: Is this the best way to print wchar_t?
           OS << "\\x";
@@ -1345,9 +1326,14 @@ StringLiteral::getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
                                  const LangOptions &Features,
                                  const TargetInfo &Target, unsigned *StartToken,
                                  unsigned *StartTokenByteOffset) const {
-  assert((getKind() == StringLiteral::Ordinary ||
-          getKind() == StringLiteral::UTF8 ||
-          getKind() == StringLiteral::Unevaluated) &&
+  // No source location of bytes for binary literals since they don't come from
+  // source.
+  if (getKind() == StringLiteralKind::Binary)
+    return getStrTokenLoc(0);
+
+  assert((getKind() == StringLiteralKind::Ordinary ||
+          getKind() == StringLiteralKind::UTF8 ||
+          getKind() == StringLiteralKind::Unevaluated) &&
          "Only narrow string literals are currently supported");
 
   // Loop over all of the tokens in this string until we find the one that
@@ -1370,8 +1356,7 @@ StringLiteral::getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
     SourceLocation StrTokSpellingLoc = SM.getSpellingLoc(StrTokLoc);
 
     // Re-lex the token to get its length and original spelling.
-    std::pair<FileID, unsigned> LocInfo =
-        SM.getDecomposedLoc(StrTokSpellingLoc);
+    FileIDAndOffset LocInfo = SM.getDecomposedLoc(StrTokSpellingLoc);
     bool Invalid = false;
     StringRef Buffer = SM.getBufferData(LocInfo.first, &Invalid);
     if (Invalid) {
@@ -1460,6 +1445,29 @@ OverloadedOperatorKind UnaryOperator::getOverloadedOperator(Opcode Opc) {
 //===----------------------------------------------------------------------===//
 // Postfix Operators.
 //===----------------------------------------------------------------------===//
+#ifndef NDEBUG
+static unsigned SizeOfCallExprInstance(Expr::StmtClass SC) {
+  switch (SC) {
+  case Expr::CallExprClass:
+    return sizeof(CallExpr);
+  case Expr::CXXOperatorCallExprClass:
+    return sizeof(CXXOperatorCallExpr);
+  case Expr::CXXMemberCallExprClass:
+    return sizeof(CXXMemberCallExpr);
+  case Expr::UserDefinedLiteralClass:
+    return sizeof(UserDefinedLiteral);
+  case Expr::CUDAKernelCallExprClass:
+    return sizeof(CUDAKernelCallExpr);
+  default:
+    llvm_unreachable("unexpected class deriving from CallExpr!");
+  }
+}
+#endif
+
+// changing the size of SourceLocation, CallExpr, and
+// subclasses requires careful considerations
+static_assert(sizeof(SourceLocation) == 4 && sizeof(CXXOperatorCallExpr) <= 32,
+              "we assume CXXOperatorCallExpr is at most 32 bytes");
 
 CallExpr::CallExpr(StmtClass SC, Expr *Fn, ArrayRef<Expr *> PreArgs,
                    ArrayRef<Expr *> Args, QualType Ty, ExprValueKind VK,
@@ -1470,11 +1478,8 @@ CallExpr::CallExpr(StmtClass SC, Expr *Fn, ArrayRef<Expr *> PreArgs,
   unsigned NumPreArgs = PreArgs.size();
   CallExprBits.NumPreArgs = NumPreArgs;
   assert((NumPreArgs == getNumPreArgs()) && "NumPreArgs overflow!");
-
-  unsigned OffsetToTrailingObjects = offsetToTrailingObjects(SC);
-  CallExprBits.OffsetToTrailingObjects = OffsetToTrailingObjects;
-  assert((CallExprBits.OffsetToTrailingObjects == OffsetToTrailingObjects) &&
-         "OffsetToTrailingObjects overflow!");
+  assert(SizeOfCallExprInstance(SC) <= OffsetToTrailingObjects &&
+         "This CallExpr subclass is too big or unsupported");
 
   CallExprBits.UsesADL = static_cast<bool>(UsesADL);
 
@@ -1489,6 +1494,10 @@ CallExpr::CallExpr(StmtClass SC, Expr *Fn, ArrayRef<Expr *> PreArgs,
   this->computeDependence();
 
   CallExprBits.HasFPFeatures = FPFeatures.requiresTrailingStorage();
+  CallExprBits.IsCoroElideSafe = false;
+  CallExprBits.ExplicitObjectMemFunUsingMemberSyntax = false;
+  CallExprBits.HasTrailingSourceLoc = false;
+
   if (hasStoredFPFeatures())
     setStoredFPFeatures(FPFeatures);
 }
@@ -1498,12 +1507,10 @@ CallExpr::CallExpr(StmtClass SC, unsigned NumPreArgs, unsigned NumArgs,
     : Expr(SC, Empty), NumArgs(NumArgs) {
   CallExprBits.NumPreArgs = NumPreArgs;
   assert((NumPreArgs == getNumPreArgs()) && "NumPreArgs overflow!");
-
-  unsigned OffsetToTrailingObjects = offsetToTrailingObjects(SC);
-  CallExprBits.OffsetToTrailingObjects = OffsetToTrailingObjects;
-  assert((CallExprBits.OffsetToTrailingObjects == OffsetToTrailingObjects) &&
-         "OffsetToTrailingObjects overflow!");
   CallExprBits.HasFPFeatures = HasFPFeatures;
+  CallExprBits.IsCoroElideSafe = false;
+  CallExprBits.ExplicitObjectMemFunUsingMemberSyntax = false;
+  CallExprBits.HasTrailingSourceLoc = false;
 }
 
 CallExpr *CallExpr::Create(const ASTContext &Ctx, Expr *Fn,
@@ -1514,51 +1521,41 @@ CallExpr *CallExpr::Create(const ASTContext &Ctx, Expr *Fn,
   unsigned NumArgs = std::max<unsigned>(Args.size(), MinNumArgs);
   unsigned SizeOfTrailingObjects = CallExpr::sizeOfTrailingObjects(
       /*NumPreArgs=*/0, NumArgs, FPFeatures.requiresTrailingStorage());
-  void *Mem =
-      Ctx.Allocate(sizeof(CallExpr) + SizeOfTrailingObjects, alignof(CallExpr));
-  return new (Mem) CallExpr(CallExprClass, Fn, /*PreArgs=*/{}, Args, Ty, VK,
-                            RParenLoc, FPFeatures, MinNumArgs, UsesADL);
-}
-
-CallExpr *CallExpr::CreateTemporary(void *Mem, Expr *Fn, QualType Ty,
-                                    ExprValueKind VK, SourceLocation RParenLoc,
-                                    ADLCallKind UsesADL) {
-  assert(!(reinterpret_cast<uintptr_t>(Mem) % alignof(CallExpr)) &&
-         "Misaligned memory in CallExpr::CreateTemporary!");
-  return new (Mem) CallExpr(CallExprClass, Fn, /*PreArgs=*/{}, /*Args=*/{}, Ty,
-                            VK, RParenLoc, FPOptionsOverride(),
-                            /*MinNumArgs=*/0, UsesADL);
+  void *Mem = Ctx.Allocate(
+      sizeToAllocateForCallExprSubclass<CallExpr>(SizeOfTrailingObjects),
+      alignof(CallExpr));
+  CallExpr *E =
+      new (Mem) CallExpr(CallExprClass, Fn, /*PreArgs=*/{}, Args, Ty, VK,
+                         RParenLoc, FPFeatures, MinNumArgs, UsesADL);
+  E->updateTrailingSourceLoc();
+  return E;
 }
 
 CallExpr *CallExpr::CreateEmpty(const ASTContext &Ctx, unsigned NumArgs,
                                 bool HasFPFeatures, EmptyShell Empty) {
   unsigned SizeOfTrailingObjects =
       CallExpr::sizeOfTrailingObjects(/*NumPreArgs=*/0, NumArgs, HasFPFeatures);
-  void *Mem =
-      Ctx.Allocate(sizeof(CallExpr) + SizeOfTrailingObjects, alignof(CallExpr));
+  void *Mem = Ctx.Allocate(
+      sizeToAllocateForCallExprSubclass<CallExpr>(SizeOfTrailingObjects),
+      alignof(CallExpr));
   return new (Mem)
       CallExpr(CallExprClass, /*NumPreArgs=*/0, NumArgs, HasFPFeatures, Empty);
 }
 
-unsigned CallExpr::offsetToTrailingObjects(StmtClass SC) {
-  switch (SC) {
-  case CallExprClass:
-    return sizeof(CallExpr);
-  case CXXOperatorCallExprClass:
-    return sizeof(CXXOperatorCallExpr);
-  case CXXMemberCallExprClass:
-    return sizeof(CXXMemberCallExpr);
-  case UserDefinedLiteralClass:
-    return sizeof(UserDefinedLiteral);
-  case CUDAKernelCallExprClass:
-    return sizeof(CUDAKernelCallExpr);
-  default:
-    llvm_unreachable("unexpected class deriving from CallExpr!");
-  }
-}
-
 Decl *Expr::getReferencedDeclOfCallee() {
-  Expr *CEE = IgnoreParenImpCasts();
+
+  // Optimize for the common case first
+  // (simple function or member function call)
+  // then try more exotic possibilities.
+  Expr *CEE = IgnoreImpCasts();
+
+  if (auto *DRE = dyn_cast<DeclRefExpr>(CEE))
+    return DRE->getDecl();
+
+  if (auto *ME = dyn_cast<MemberExpr>(CEE))
+    return ME->getMemberDecl();
+
+  CEE = CEE->IgnoreParens();
 
   while (auto *NTTP = dyn_cast<SubstNonTypeTemplateParmExpr>(CEE))
     CEE = NTTP->getReplacement()->IgnoreParenImpCasts();
@@ -1619,6 +1616,10 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
     // This should never be overloaded and so should never return null.
     CalleeType = Expr::findBoundMemberType(Callee);
     assert(!CalleeType.isNull());
+  } else if (CalleeType->isRecordType()) {
+    // If the Callee is a record type, then it is a not-yet-resolved
+    // dependent call to the call operator of that type.
+    return Ctx.DependentTy;
   } else if (CalleeType->isDependentType() ||
              CalleeType->isSpecificPlaceholderType(BuiltinType::Overload)) {
     return Ctx.DependentTy;
@@ -1628,41 +1629,24 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
   return FnType->getReturnType();
 }
 
-const Attr *CallExpr::getUnusedResultAttr(const ASTContext &Ctx) const {
+std::pair<const NamedDecl *, const Attr *>
+CallExpr::getUnusedResultAttr(const ASTContext &Ctx) const {
+  // If the callee is marked nodiscard, return that attribute
+  if (const Decl *D = getCalleeDecl())
+    if (const auto *A = D->getAttr<WarnUnusedResultAttr>())
+      return {nullptr, A};
+
   // If the return type is a struct, union, or enum that is marked nodiscard,
   // then return the return type attribute.
   if (const TagDecl *TD = getCallReturnType(Ctx)->getAsTagDecl())
     if (const auto *A = TD->getAttr<WarnUnusedResultAttr>())
-      return A;
+      return {TD, A};
 
   for (const auto *TD = getCallReturnType(Ctx)->getAs<TypedefType>(); TD;
        TD = TD->desugar()->getAs<TypedefType>())
     if (const auto *A = TD->getDecl()->getAttr<WarnUnusedResultAttr>())
-      return A;
-
-  // Otherwise, see if the callee is marked nodiscard and return that attribute
-  // instead.
-  const Decl *D = getCalleeDecl();
-  return D ? D->getAttr<WarnUnusedResultAttr>() : nullptr;
-}
-
-SourceLocation CallExpr::getBeginLoc() const {
-  if (const auto *OCE = dyn_cast<CXXOperatorCallExpr>(this))
-    return OCE->getBeginLoc();
-
-  SourceLocation begin = getCallee()->getBeginLoc();
-  if (begin.isInvalid() && getNumArgs() > 0 && getArg(0))
-    begin = getArg(0)->getBeginLoc();
-  return begin;
-}
-SourceLocation CallExpr::getEndLoc() const {
-  if (const auto *OCE = dyn_cast<CXXOperatorCallExpr>(this))
-    return OCE->getEndLoc();
-
-  SourceLocation end = getRParenLoc();
-  if (end.isInvalid() && getNumArgs() > 0 && getArg(getNumArgs() - 1))
-    end = getArg(getNumArgs() - 1)->getEndLoc();
-  return end;
+      return {TD->getDecl(), A};
+  return {nullptr, nullptr};
 }
 
 OffsetOfExpr *OffsetOfExpr::Create(const ASTContext &C, QualType type,
@@ -1723,8 +1707,11 @@ UnaryExprOrTypeTraitExpr::UnaryExprOrTypeTraitExpr(
 }
 
 MemberExpr::MemberExpr(Expr *Base, bool IsArrow, SourceLocation OperatorLoc,
-                       ValueDecl *MemberDecl,
-                       const DeclarationNameInfo &NameInfo, QualType T,
+                       NestedNameSpecifierLoc QualifierLoc,
+                       SourceLocation TemplateKWLoc, ValueDecl *MemberDecl,
+                       DeclAccessPair FoundDecl,
+                       const DeclarationNameInfo &NameInfo,
+                       const TemplateArgumentListInfo *TemplateArgs, QualType T,
                        ExprValueKind VK, ExprObjectKind OK,
                        NonOdrUseReason NOUR)
     : Expr(MemberExprClass, T, VK, OK), Base(Base), MemberDecl(MemberDecl),
@@ -1732,11 +1719,30 @@ MemberExpr::MemberExpr(Expr *Base, bool IsArrow, SourceLocation OperatorLoc,
   assert(!NameInfo.getName() ||
          MemberDecl->getDeclName() == NameInfo.getName());
   MemberExprBits.IsArrow = IsArrow;
-  MemberExprBits.HasQualifierOrFoundDecl = false;
-  MemberExprBits.HasTemplateKWAndArgsInfo = false;
+  MemberExprBits.HasQualifier = QualifierLoc.hasQualifier();
+  MemberExprBits.HasFoundDecl =
+      FoundDecl.getDecl() != MemberDecl ||
+      FoundDecl.getAccess() != MemberDecl->getAccess();
+  MemberExprBits.HasTemplateKWAndArgsInfo =
+      TemplateArgs || TemplateKWLoc.isValid();
   MemberExprBits.HadMultipleCandidates = false;
   MemberExprBits.NonOdrUseReason = NOUR;
   MemberExprBits.OperatorLoc = OperatorLoc;
+
+  if (hasQualifier())
+    new (getTrailingObjects<NestedNameSpecifierLoc>())
+        NestedNameSpecifierLoc(QualifierLoc);
+  if (hasFoundDecl())
+    *getTrailingObjects<DeclAccessPair>() = FoundDecl;
+  if (TemplateArgs) {
+    auto Deps = TemplateArgumentDependence::None;
+    getTrailingObjects<ASTTemplateKWAndArgsInfo>()->initializeFrom(
+        TemplateKWLoc, *TemplateArgs, getTrailingObjects<TemplateArgumentLoc>(),
+        Deps);
+  } else if (TemplateKWLoc.isValid()) {
+    getTrailingObjects<ASTTemplateKWAndArgsInfo>()->initializeFrom(
+        TemplateKWLoc);
+  }
   setDependence(computeDependence(this));
 }
 
@@ -1746,48 +1752,20 @@ MemberExpr *MemberExpr::Create(
     ValueDecl *MemberDecl, DeclAccessPair FoundDecl,
     DeclarationNameInfo NameInfo, const TemplateArgumentListInfo *TemplateArgs,
     QualType T, ExprValueKind VK, ExprObjectKind OK, NonOdrUseReason NOUR) {
-  bool HasQualOrFound = QualifierLoc || FoundDecl.getDecl() != MemberDecl ||
-                        FoundDecl.getAccess() != MemberDecl->getAccess();
+  bool HasQualifier = QualifierLoc.hasQualifier();
+  bool HasFoundDecl = FoundDecl.getDecl() != MemberDecl ||
+                      FoundDecl.getAccess() != MemberDecl->getAccess();
   bool HasTemplateKWAndArgsInfo = TemplateArgs || TemplateKWLoc.isValid();
   std::size_t Size =
-      totalSizeToAlloc<MemberExprNameQualifier, ASTTemplateKWAndArgsInfo,
-                       TemplateArgumentLoc>(
-          HasQualOrFound ? 1 : 0, HasTemplateKWAndArgsInfo ? 1 : 0,
+      totalSizeToAlloc<NestedNameSpecifierLoc, DeclAccessPair,
+                       ASTTemplateKWAndArgsInfo, TemplateArgumentLoc>(
+          HasQualifier, HasFoundDecl, HasTemplateKWAndArgsInfo,
           TemplateArgs ? TemplateArgs->size() : 0);
 
   void *Mem = C.Allocate(Size, alignof(MemberExpr));
-  MemberExpr *E = new (Mem) MemberExpr(Base, IsArrow, OperatorLoc, MemberDecl,
-                                       NameInfo, T, VK, OK, NOUR);
-
-  if (HasQualOrFound) {
-    E->MemberExprBits.HasQualifierOrFoundDecl = true;
-
-    MemberExprNameQualifier *NQ =
-        E->getTrailingObjects<MemberExprNameQualifier>();
-    NQ->QualifierLoc = QualifierLoc;
-    NQ->FoundDecl = FoundDecl;
-  }
-
-  E->MemberExprBits.HasTemplateKWAndArgsInfo =
-      TemplateArgs || TemplateKWLoc.isValid();
-
-  // FIXME: remove remaining dependence computation to computeDependence().
-  auto Deps = E->getDependence();
-  if (TemplateArgs) {
-    auto TemplateArgDeps = TemplateArgumentDependence::None;
-    E->getTrailingObjects<ASTTemplateKWAndArgsInfo>()->initializeFrom(
-        TemplateKWLoc, *TemplateArgs,
-        E->getTrailingObjects<TemplateArgumentLoc>(), TemplateArgDeps);
-    for (const TemplateArgumentLoc &ArgLoc : TemplateArgs->arguments()) {
-      Deps |= toExprDependence(ArgLoc.getArgument().getDependence());
-    }
-  } else if (TemplateKWLoc.isValid()) {
-    E->getTrailingObjects<ASTTemplateKWAndArgsInfo>()->initializeFrom(
-        TemplateKWLoc);
-  }
-  E->setDependence(Deps);
-
-  return E;
+  return new (Mem) MemberExpr(Base, IsArrow, OperatorLoc, QualifierLoc,
+                              TemplateKWLoc, MemberDecl, FoundDecl, NameInfo,
+                              TemplateArgs, T, VK, OK, NOUR);
 }
 
 MemberExpr *MemberExpr::CreateEmpty(const ASTContext &Context,
@@ -1796,12 +1774,11 @@ MemberExpr *MemberExpr::CreateEmpty(const ASTContext &Context,
                                     unsigned NumTemplateArgs) {
   assert((!NumTemplateArgs || HasTemplateKWAndArgsInfo) &&
          "template args but no template arg info?");
-  bool HasQualOrFound = HasQualifier || HasFoundDecl;
   std::size_t Size =
-      totalSizeToAlloc<MemberExprNameQualifier, ASTTemplateKWAndArgsInfo,
-                       TemplateArgumentLoc>(HasQualOrFound ? 1 : 0,
-                                            HasTemplateKWAndArgsInfo ? 1 : 0,
-                                            NumTemplateArgs);
+      totalSizeToAlloc<NestedNameSpecifierLoc, DeclAccessPair,
+                       ASTTemplateKWAndArgsInfo, TemplateArgumentLoc>(
+          HasQualifier, HasFoundDecl, HasTemplateKWAndArgsInfo,
+          NumTemplateArgs);
   void *Mem = Context.Allocate(Size, alignof(MemberExpr));
   return new (Mem) MemberExpr(EmptyShell());
 }
@@ -1871,6 +1848,11 @@ bool CastExpr::CastConsistency() const {
       assert(getType()->isBlockPointerType() ==
              getSubExpr()->getType()->isBlockPointerType());
     }
+    goto CheckNoBasePath;
+
+  case CK_BoundsSafetyPointerCast:
+    assert(getType()->isPointerType());
+    assert(getSubExpr()->getType()->isPointerType());
     goto CheckNoBasePath;
 
   case CK_AnyPointerToBlockPointerCast:
@@ -1958,6 +1940,10 @@ bool CastExpr::CastConsistency() const {
   case CK_UserDefinedConversion:    // operator bool()
   case CK_BuiltinFnToFnPtr:
   case CK_FixedPointToBoolean:
+  case CK_HLSLArrayRValue:
+  case CK_HLSLVectorTruncation:
+  case CK_HLSLElementwiseCast:
+  case CK_HLSLAggregateSplatCast:
   CheckNoBasePath:
     assert(path_empty() && "Cast kind should not have a base path!");
     break;
@@ -1974,6 +1960,53 @@ const char *CastExpr::getCastKindName(CastKind CK) {
 }
 
 namespace {
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  const Expr *skipImplicitTemporary(
+      const Expr *E,
+      llvm::SmallPtrSetImpl<const OpaqueValueExpr *> &BoundValues) {
+    const Expr *Prev;
+    do {
+      Prev = E;
+      // Skip through reference binding to temporary.
+      if (auto *Materialize = dyn_cast<MaterializeTemporaryExpr>(E))
+        E = Materialize->getSubExpr();
+
+      // Skip any temporary bindings; they're implicit.
+      if (auto *Binder = dyn_cast<CXXBindTemporaryExpr>(E))
+        E = Binder->getSubExpr();
+
+      if (auto *MSE = dyn_cast<MaterializeSequenceExpr>(E)) {
+        if (!MSE->isUnbinding()) {
+          BoundValues.insert(MSE->opaquevalues_begin(),
+                             MSE->opaquevalues_end());
+        }
+        E = MSE->getWrappedExpr();
+      }
+
+      if (auto *Opaque = dyn_cast<OpaqueValueExpr>(E))
+        if (BoundValues.count(Opaque) != 0)
+          E = Opaque->getSourceExpr();
+
+      if (auto *BCE = dyn_cast<BoundsCheckExpr>(E)) {
+        BoundValues.insert(BCE->opaquevalues_begin(), BCE->opaquevalues_end());
+        E = BCE->getGuardedExpr();
+      }
+
+      if (auto *FPPE = dyn_cast<BoundsSafetyPointerPromotionExpr>(E))
+        E = FPPE->getSubExpr();
+
+      if (auto *AE = dyn_cast<AssumptionExpr>(E))
+        E = AE->getWrappedExpr();
+    } while (Prev != E);
+    return E;
+  }
+
+  const Expr *skipImplicitTemporary(const Expr *E) {
+    llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+    return skipImplicitTemporary(E, BoundValues);
+  }
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
 // Skip over implicit nodes produced as part of semantic analysis.
 // Designed for use with IgnoreExprNodes.
 static Expr *ignoreImplicitSemaNodes(Expr *E) {
@@ -2006,7 +2039,7 @@ Expr *CastExpr::getSubExprAsWritten() {
       SubExpr = IgnoreExprNodes(cast<CXXConstructExpr>(SubExpr)->getArg(0),
                                 ignoreImplicitSemaNodes);
     } else if (E->getCastKind() == CK_UserDefinedConversion) {
-      assert((isa<CXXMemberCallExpr>(SubExpr) || isa<BlockExpr>(SubExpr)) &&
+      assert((isa<CallExpr, BlockExpr>(SubExpr)) &&
              "Unexpected SubExpr for CK_UserDefinedConversion.");
       if (auto *MCE = dyn_cast<CXXMemberCallExpr>(SubExpr))
         SubExpr = MCE->getImplicitObjectArgument();
@@ -2039,7 +2072,8 @@ CXXBaseSpecifier **CastExpr::path_buffer() {
 #define ABSTRACT_STMT(x)
 #define CASTEXPR(Type, Base)                                                   \
   case Stmt::Type##Class:                                                      \
-    return static_cast<Type *>(this)->getTrailingObjects<CXXBaseSpecifier *>();
+    return static_cast<Type *>(this)                                           \
+        ->getTrailingObjectsNonStrict<CXXBaseSpecifier *>();
 #define STMT(Type, Base)
 #include "clang/AST/StmtNodes.inc"
   default:
@@ -2060,7 +2094,7 @@ const FieldDecl *CastExpr::getTargetFieldForToUnionCast(const RecordDecl *RD,
   for (Field = RD->field_begin(), FieldEnd = RD->field_end();
        Field != FieldEnd; ++Field) {
     if (Ctx.hasSameUnqualifiedType(Field->getType(), OpType) &&
-        !Field->isUnnamedBitfield()) {
+        !Field->isUnnamedBitField()) {
       return *Field;
     }
   }
@@ -2104,8 +2138,8 @@ ImplicitCastExpr *ImplicitCastExpr::Create(const ASTContext &C, QualType T,
   ImplicitCastExpr *E =
       new (Buffer) ImplicitCastExpr(T, Kind, Operand, PathSize, FPO, VK);
   if (PathSize)
-    std::uninitialized_copy_n(BasePath->data(), BasePath->size(),
-                              E->getTrailingObjects<CXXBaseSpecifier *>());
+    llvm::uninitialized_copy(*BasePath,
+                             E->getTrailingObjects<CXXBaseSpecifier *>());
   return E;
 }
 
@@ -2131,8 +2165,8 @@ CStyleCastExpr *CStyleCastExpr::Create(const ASTContext &C, QualType T,
   CStyleCastExpr *E =
       new (Buffer) CStyleCastExpr(T, VK, K, Op, PathSize, FPO, WrittenTy, L, R);
   if (PathSize)
-    std::uninitialized_copy_n(BasePath->data(), BasePath->size(),
-                              E->getTrailingObjects<CXXBaseSpecifier *>());
+    llvm::uninitialized_copy(*BasePath,
+                             E->getTrailingObjects<CXXBaseSpecifier *>());
   return E;
 }
 
@@ -2143,6 +2177,175 @@ CStyleCastExpr *CStyleCastExpr::CreateEmpty(const ASTContext &C,
       C.Allocate(totalSizeToAlloc<CXXBaseSpecifier *, FPOptionsOverride>(
           PathSize, HasFPFeatures));
   return new (Buffer) CStyleCastExpr(EmptyShell(), PathSize, HasFPFeatures);
+}
+
+AssumptionExpr::AssumptionExpr(Expr *ResultExpr,
+                               llvm::ArrayRef<Expr *> Assumptions)
+    : Expr(AssumptionExprClass, ResultExpr->getType(),
+           ResultExpr->getValueKind(), ResultExpr->getObjectKind()) {
+  AssumptionExprBits.NumExprs = Assumptions.size() + 1;
+  auto ExprPtr = getTrailingExprs();
+  *ExprPtr = ResultExpr;
+  for (Expr *E : Assumptions) {
+    ++ExprPtr;
+    *ExprPtr = E;
+  }
+  setDependence(computeDependence(this));
+}
+
+AssumptionExpr *AssumptionExpr::Create(const ASTContext &Ctx, Expr *Result,
+                                       ArrayRef<Expr *> Assumptions) {
+  const unsigned NumExprs = Assumptions.size() + 1;
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Expr*>(NumExprs),
+                           alignof(AssumptionExpr));
+  return new (Mem) AssumptionExpr(Result, Assumptions);
+}
+
+AssumptionExpr *AssumptionExpr::CreateEmpty(const ASTContext &Ctx,
+                                            unsigned NumExprs) {
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Expr*>(NumExprs),
+                           alignof(AssumptionExpr));
+  return new (Mem) AssumptionExpr(EmptyShell(), NumExprs);
+}
+
+Stmt **BoundsSafetyPointerPromotionExpr::getPointerPtr() {
+  return getTrailingObjects();
+}
+
+Stmt **BoundsSafetyPointerPromotionExpr::getLowerBoundPtr() {
+  auto FA = getType()->getAs<PointerType>()->getPointerAttributes();
+  if (!FA.hasLowerBound())
+    return nullptr;
+  return getPointerPtr() + 2;
+}
+
+Stmt **BoundsSafetyPointerPromotionExpr::getUpperBoundPtr() {
+  return getPointerPtr() + 1;
+}
+
+BoundsSafetyPointerPromotionExpr *BoundsSafetyPointerPromotionExpr::CreateEmpty(
+    const ASTContext &Context, unsigned SubExprCount) {
+  assert(SubExprCount >= 1 && "Missing Ptr SubExpr");
+  void *Buffer = Context.Allocate(totalSizeToAlloc<Stmt *>(SubExprCount),
+                                  alignof(BoundsSafetyPointerPromotionExpr));
+  auto *FPPE = new (Buffer) BoundsSafetyPointerPromotionExpr(EmptyShell());
+  return FPPE;
+}
+
+BoundsSafetyPointerPromotionExpr *
+BoundsSafetyPointerPromotionExpr::Create(const ASTContext &Context, QualType QT,
+                                      Expr *Ptr, Expr *UpperBound,
+                                      Expr *LowerBound, bool NullCheck) {
+  auto PtrTy = QT->getAs<PointerType>();
+  auto FA = PtrTy->getPointerAttributes();
+  assert(FA.hasUpperBound());
+  unsigned Count = 1 + FA.hasLowerBound() + FA.hasUpperBound();
+  void *Buffer = Context.Allocate(totalSizeToAlloc<Stmt *>(Count),
+                                  alignof(BoundsSafetyPointerPromotionExpr));
+  auto *FPPE = new (Buffer)
+      BoundsSafetyPointerPromotionExpr(QT, Ptr, UpperBound, LowerBound, NullCheck);
+  return FPPE;
+}
+
+Expr *BoundsSafetyPointerPromotionExpr::getSubExprAsWritten() {
+  const Expr *SubExpr = skipImplicitTemporary(getSubExpr());
+  while (const auto *E = dyn_cast<ImplicitCastExpr>(SubExpr)) {
+    SubExpr = skipImplicitTemporary(E->getSubExpr());
+  }
+  return const_cast<Expr*>(SubExpr);
+}
+
+PredefinedBoundsCheckExpr::PredefinedBoundsCheckExpr(Expr *GuardedExpr,
+                                                     BoundsCheckKind Kind,
+                                                     ArrayRef<Expr *> CheckArgs)
+    : Expr(PredefinedBoundsCheckExprClass, GuardedExpr->getType(),
+           GuardedExpr->getValueKind(), GuardedExpr->getObjectKind()) {
+  PredefinedBoundsCheckExprBits.Kind = static_cast<unsigned>(Kind);
+  PredefinedBoundsCheckExprBits.NumChildren =
+      CheckArgs.size() + PredefinedBoundsCheckExpr::getCheckArgsOffset();
+
+  setGuardedExpr(GuardedExpr);
+  std::copy(CheckArgs.begin(), CheckArgs.end(),
+            getSubExprs() + PredefinedBoundsCheckExpr::getCheckArgsOffset());
+  setDependence(computeDependence(this));
+}
+
+PredefinedBoundsCheckExpr *
+PredefinedBoundsCheckExpr::Create(ASTContext &Ctx, Expr *GuardedExpr,
+                                  BoundsCheckKind Kind,
+                                  ArrayRef<Expr *> CheckArgs) {
+  const unsigned NumExprs = CheckArgs.size() + getCheckArgsOffset();
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Stmt *>(NumExprs),
+                           alignof(PredefinedBoundsCheckExpr));
+  return new (Mem) PredefinedBoundsCheckExpr(GuardedExpr, Kind, CheckArgs);
+}
+
+PredefinedBoundsCheckExpr *
+PredefinedBoundsCheckExpr::CreateEmpty(ASTContext &Ctx, unsigned NumChildren) {
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Stmt *>(NumChildren),
+                           alignof(PredefinedBoundsCheckExpr));
+  return new (Mem) PredefinedBoundsCheckExpr(EmptyShell(), NumChildren);
+}
+
+StringRef PredefinedBoundsCheckExpr::getKindName() const {
+  switch (getKind()) {
+  case BoundsCheckKind::FlexibleArrayCountDeref:
+    return "FlexibleArrayCountDeref(BasePtr, FamPtr, Count)";
+  case BoundsCheckKind::FlexibleArrayCountCast:
+    return "FlexibleArrayCountCast(BasePtr, FamPtr, Count)";
+  case BoundsCheckKind::FlexibleArrayCountAssign:
+    return "FlexibleArrayCountAssign(BasePtr, FamPtr, Count)";
+  }
+  llvm_unreachable("Unexpected PredefinedBoundsCheckKind");
+}
+
+BoundsCheckExpr::BoundsCheckExpr(Expr *GuardedExpr, Expr *Cond,
+                                 ArrayRef<OpaqueValueExpr *> CommonExprs)
+    : Expr(BoundsCheckExprClass, GuardedExpr->getType(),
+           GuardedExpr->getValueKind(), GuardedExpr->getObjectKind()) {
+  BoundsCheckExprBits.NumChildren = CommonExprs.size() + 2;
+
+  setGuardedExpr(GuardedExpr);
+  setCond(Cond);
+  std::copy(CommonExprs.begin(), CommonExprs.end(), getSubExprs() + 2);
+  setDependence(computeDependence(this));
+}
+
+BoundsCheckExpr *BoundsCheckExpr::Create(ASTContext &Ctx, Expr *GuardedExpr,
+                                         Expr *Cond,
+                                         ArrayRef<OpaqueValueExpr *> CommonExprs) {
+  const unsigned NumExprs = CommonExprs.size() + 2;
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Stmt*>(NumExprs),
+                           alignof(BoundsCheckExpr));
+  return new (Mem) BoundsCheckExpr(GuardedExpr, Cond, CommonExprs);
+}
+
+BoundsCheckExpr *BoundsCheckExpr::CreateEmpty(ASTContext &Ctx,
+                                              unsigned NumChildren) {
+  unsigned SizeOfTrailingObjects = NumChildren * sizeof(Stmt *);
+  void *Mem = Ctx.Allocate(sizeof(BoundsCheckExpr) + SizeOfTrailingObjects,
+                           alignof(BoundsCheckExpr));
+  return new (Mem) BoundsCheckExpr(EmptyShell(), NumChildren);
+}
+
+MaterializeSequenceExpr *MaterializeSequenceExpr::CreateEmpty(const ASTContext &Ctx,
+                                                              unsigned NumExprs) {
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Expr*>(NumExprs),
+  alignof(MaterializeSequenceExpr));
+
+  return new (Mem) MaterializeSequenceExpr(EmptyShell(), NumExprs);
+}
+
+MaterializeSequenceExpr *MaterializeSequenceExpr::Create(const ASTContext &Ctx,
+                                                         Expr *WrappedExpr,
+                                                         ArrayRef<OpaqueValueExpr *> Values,
+                                                         bool Unbind) {
+  const unsigned NumExprs = Values.size() + 1;
+
+  void *Mem = Ctx.Allocate(totalSizeToAlloc<Expr*>(NumExprs),
+  alignof(MaterializeSequenceExpr));
+
+  return new (Mem) MaterializeSequenceExpr(WrappedExpr, Values, Unbind);
 }
 
 /// getOpcodeStr - Turn an Opcode enum value into the punctuation char it
@@ -2240,6 +2443,16 @@ bool BinaryOperator::isNullPointerArithmeticExtension(ASTContext &Ctx,
     return false;
   }
 
+  // Workaround for old glibc's __PTR_ALIGN macro
+  if (auto *Select =
+          dyn_cast<ConditionalOperator>(PExp->IgnoreParenNoopCasts(Ctx))) {
+    // If the condition can be constant evaluated, we check the selected arm.
+    bool EvalResult;
+    if (!Select->getCond()->EvaluateAsBooleanCondition(EvalResult, Ctx))
+      return false;
+    PExp = EvalResult ? Select->getTrueExpr() : Select->getFalseExpr();
+  }
+
   // Check that the pointer is a nullptr.
   if (!PExp->IgnoreParenCasts()
           ->isNullPointerConstant(Ctx, Expr::NPC_ValueDependentIsNotNull))
@@ -2253,31 +2466,34 @@ bool BinaryOperator::isNullPointerArithmeticExtension(ASTContext &Ctx,
   return true;
 }
 
-SourceLocExpr::SourceLocExpr(const ASTContext &Ctx, IdentKind Kind,
+SourceLocExpr::SourceLocExpr(const ASTContext &Ctx, SourceLocIdentKind Kind,
                              QualType ResultTy, SourceLocation BLoc,
                              SourceLocation RParenLoc,
                              DeclContext *ParentContext)
     : Expr(SourceLocExprClass, ResultTy, VK_PRValue, OK_Ordinary),
       BuiltinLoc(BLoc), RParenLoc(RParenLoc), ParentContext(ParentContext) {
-  SourceLocExprBits.Kind = Kind;
-  setDependence(ExprDependence::None);
+  SourceLocExprBits.Kind = llvm::to_underlying(Kind);
+  // In dependent contexts, function names may change.
+  setDependence(MayBeDependent(Kind) && ParentContext->isDependentContext()
+                    ? ExprDependence::ValueInstantiation
+                    : ExprDependence::None);
 }
 
 StringRef SourceLocExpr::getBuiltinStr() const {
   switch (getIdentKind()) {
-  case File:
+  case SourceLocIdentKind::File:
     return "__builtin_FILE";
-  case FileName:
+  case SourceLocIdentKind::FileName:
     return "__builtin_FILE_NAME";
-  case Function:
+  case SourceLocIdentKind::Function:
     return "__builtin_FUNCTION";
-  case FuncSig:
+  case SourceLocIdentKind::FuncSig:
     return "__builtin_FUNCSIG";
-  case Line:
+  case SourceLocIdentKind::Line:
     return "__builtin_LINE";
-  case Column:
+  case SourceLocIdentKind::Column:
     return "__builtin_COLUMN";
-  case SourceLocStruct:
+  case SourceLocIdentKind::SourceLocStruct:
     return "__builtin_source_location";
   }
   llvm_unreachable("unexpected IdentKind!");
@@ -2300,6 +2516,15 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
     Context = getParentContext();
   }
 
+  // If we are currently parsing a lambda declarator, we might not have a fully
+  // formed call operator declaration yet, and we could not form a function name
+  // for it. Because we do not have access to Sema/function scopes here, we
+  // detect this case by relying on the fact such method doesn't yet have a
+  // type.
+  if (const auto *D = dyn_cast<CXXMethodDecl>(Context);
+      D && D->getFunctionTypeLoc().isNull() && isLambdaCallOperator(D))
+    Context = D->getParent()->getParent();
+
   PresumedLoc PLoc = Ctx.getSourceManager().getPresumedLoc(
       Ctx.getSourceManager().getExpansionRange(Loc).getEnd());
 
@@ -2312,7 +2537,7 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
   };
 
   switch (getIdentKind()) {
-  case SourceLocExpr::FileName: {
+  case SourceLocIdentKind::FileName: {
     // __builtin_FILE_NAME() is a Clang-specific extension that expands to the
     // the last part of __builtin_FILE().
     SmallString<256> FileName;
@@ -2320,26 +2545,26 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
         FileName, PLoc, Ctx.getLangOpts(), Ctx.getTargetInfo());
     return MakeStringLiteral(FileName);
   }
-  case SourceLocExpr::File: {
+  case SourceLocIdentKind::File: {
     SmallString<256> Path(PLoc.getFilename());
     clang::Preprocessor::processPathForFileMacro(Path, Ctx.getLangOpts(),
                                                  Ctx.getTargetInfo());
     return MakeStringLiteral(Path);
   }
-  case SourceLocExpr::Function:
-  case SourceLocExpr::FuncSig: {
+  case SourceLocIdentKind::Function:
+  case SourceLocIdentKind::FuncSig: {
     const auto *CurDecl = dyn_cast<Decl>(Context);
-    const auto Kind = getIdentKind() == SourceLocExpr::Function
-                          ? PredefinedExpr::Function
-                          : PredefinedExpr::FuncSig;
+    const auto Kind = getIdentKind() == SourceLocIdentKind::Function
+                          ? PredefinedIdentKind::Function
+                          : PredefinedIdentKind::FuncSig;
     return MakeStringLiteral(
         CurDecl ? PredefinedExpr::ComputeName(Kind, CurDecl) : std::string(""));
   }
-  case SourceLocExpr::Line:
+  case SourceLocIdentKind::Line:
     return APValue(Ctx.MakeIntValue(PLoc.getLine(), Ctx.UnsignedIntTy));
-  case SourceLocExpr::Column:
+  case SourceLocIdentKind::Column:
     return APValue(Ctx.MakeIntValue(PLoc.getColumn(), Ctx.UnsignedIntTy));
-  case SourceLocExpr::SourceLocStruct: {
+  case SourceLocIdentKind::SourceLocStruct: {
     // Fill in a std::source_location::__impl structure, by creating an
     // artificial file-scoped CompoundLiteralExpr, and returning a pointer to
     // that.
@@ -2365,7 +2590,7 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
         Value.getStructField(F->getFieldIndex()) = MakeStringLiteral(
             CurDecl && !isa<TranslationUnitDecl>(CurDecl)
                 ? StringRef(PredefinedExpr::ComputeName(
-                      PredefinedExpr::PrettyFunction, CurDecl))
+                      PredefinedIdentKind::PrettyFunction, CurDecl))
                 : "");
       } else if (Name == "_M_line") {
         llvm::APSInt IntVal = Ctx.MakeIntValue(PLoc.getLine(), F->getType());
@@ -2384,6 +2609,17 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
   }
   }
   llvm_unreachable("unhandled case");
+}
+
+EmbedExpr::EmbedExpr(const ASTContext &Ctx, SourceLocation Loc,
+                     EmbedDataStorage *Data, unsigned Begin,
+                     unsigned NumOfElements)
+    : Expr(EmbedExprClass, Ctx.IntTy, VK_PRValue, OK_Ordinary),
+      EmbedKeywordLoc(Loc), Ctx(&Ctx), Data(Data), Begin(Begin),
+      NumOfElements(NumOfElements) {
+  setDependence(ExprDependence::None);
+  FakeChildNode = IntegerLiteral::Create(
+      Ctx, llvm::APInt::getZero(Ctx.getTypeSize(getType())), getType(), Loc);
 }
 
 InitListExpr::InitListExpr(const ASTContext &C, SourceLocation lbraceloc,
@@ -2533,6 +2769,18 @@ Stmt *BlockExpr::getBody() {
 // Generic Expression Routines
 //===----------------------------------------------------------------------===//
 
+/// Helper to determine wether \c E is a CXXConstructExpr constructing
+/// a DecompositionDecl. Used to skip Clang-generated calls to std::get
+/// for structured bindings.
+static bool IsDecompositionDeclRefExpr(const Expr *E) {
+  const auto *Unwrapped = E->IgnoreUnlessSpelledInSource();
+  const auto *Ref = dyn_cast<DeclRefExpr>(Unwrapped);
+  if (!Ref)
+    return false;
+
+  return isa_and_nonnull<DecompositionDecl>(Ref->getDecl());
+}
+
 bool Expr::isReadIfDiscardedInCPlusPlus11() const {
   // In C++11, discarded-value expressions of a certain form are special,
   // according to [expr]p10:
@@ -2599,9 +2847,20 @@ bool Expr::isReadIfDiscardedInCPlusPlus11() const {
 /// be warned about if the result is unused.  If so, fill in Loc and Ranges
 /// with location to warn on and the source range[s] to report with the
 /// warning.
+/* TO_UPSTREAM(BoundsSafety) ON*/
 bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
                                   SourceRange &R1, SourceRange &R2,
                                   ASTContext &Ctx) const {
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 24> BoundExprs;
+  return isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
+}
+/* TO_UPSTREAM(BoundsSafety) OFF*/
+
+bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
+                                  SourceRange &R1, SourceRange &R2,
+                                  ASTContext &Ctx,
+                                  // TO_UPSTREAM(BoundsSafety)
+                                  llvm::SmallPtrSetImpl<const OpaqueValueExpr *> &BoundExprs) const {
   // Don't warn if the expr is type dependent. The type could end up
   // instantiating to void.
   if (isTypeDependent())
@@ -2617,17 +2876,17 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     return true;
   case ParenExprClass:
     return cast<ParenExpr>(this)->getSubExpr()->
-      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case GenericSelectionExprClass:
     return cast<GenericSelectionExpr>(this)->getResultExpr()->
-      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case CoawaitExprClass:
   case CoyieldExprClass:
     return cast<CoroutineSuspendExpr>(this)->getResumeExpr()->
-      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case ChooseExprClass:
     return cast<ChooseExpr>(this)->getChosenSubExpr()->
-      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case UnaryOperatorClass: {
     const UnaryOperator *UO = cast<UnaryOperator>(this);
 
@@ -2655,7 +2914,8 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
         return false;
       break;
     case UO_Extension:
-      return UO->getSubExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      return UO->getSubExpr()->isUnusedResultAWarning(
+          WarnE, Loc, R1, R2, Ctx, BoundExprs);
     }
     WarnE = this;
     Loc = UO->getOperatorLoc();
@@ -2676,12 +2936,15 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
               dyn_cast<IntegerLiteral>(BO->getRHS()->IgnoreParens()))
           if (IE->getValue() == 0)
             return false;
-        return BO->getRHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+        return BO->getRHS()->isUnusedResultAWarning(
+            WarnE, Loc, R1, R2, Ctx, BoundExprs);
       // Consider '||', '&&' to have side effects if the LHS or RHS does.
       case BO_LAnd:
       case BO_LOr:
-        if (!BO->getLHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx) ||
-            !BO->getRHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx))
+        if (!BO->getLHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                  BoundExprs) ||
+            !BO->getRHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                  BoundExprs))
           return false;
         break;
     }
@@ -2703,12 +2966,15 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     // be being used for control flow. Only warn if both the LHS and
     // RHS are warnings.
     const auto *Exp = cast<ConditionalOperator>(this);
-    return Exp->getLHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx) &&
-           Exp->getRHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+    return Exp->getLHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                 BoundExprs) &&
+           Exp->getRHS()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                 BoundExprs);
   }
   case BinaryConditionalOperatorClass: {
     const auto *Exp = cast<BinaryConditionalOperator>(this);
-    return Exp->getFalseExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+    return Exp->getFalseExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                       BoundExprs);
   }
 
   case MemberExprClass:
@@ -2880,10 +3146,10 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     const CompoundStmt *CS = cast<StmtExpr>(this)->getSubStmt();
     if (!CS->body_empty()) {
       if (const Expr *E = dyn_cast<Expr>(CS->body_back()))
-        return E->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+        return E->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
       if (const LabelStmt *Label = dyn_cast<LabelStmt>(CS->body_back()))
         if (const Expr *E = dyn_cast<Expr>(Label->getSubStmt()))
-          return E->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+          return E->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
     }
 
     if (getType()->isVoidType())
@@ -2919,7 +3185,8 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
         if (SubE->getType()->isArrayType())
           return false;
 
-        return SubE->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+        return SubE->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                            BoundExprs);
       }
       return false;
     }
@@ -2927,7 +3194,8 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     // If this is a cast to a constructor conversion, check the operand.
     // Otherwise, the result of the cast is unused.
     if (CE->getCastKind() == CK_ConstructorConversion)
-      return CE->getSubExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+      return CE->getSubExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                      BoundExprs);
     if (CE->getCastKind() == CK_Dependent)
       return false;
 
@@ -2943,6 +3211,27 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     }
     return true;
   }
+  case BoundsSafetyPointerPromotionExprClass:
+    return cast<BoundsSafetyPointerPromotionExpr>(this)
+        ->getPointer()
+        ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
+  case AssumptionExprClass:
+    return cast<AssumptionExpr>(this)
+      ->getWrappedExpr()
+      ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
+  case BoundsCheckExprClass: {
+    const auto *BCE = cast<BoundsCheckExpr>(this);
+    BoundExprs.insert(BCE->opaquevalues_begin(), BCE->opaquevalues_end());
+    return BCE->getGuardedExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2,
+                                                         Ctx, BoundExprs);
+  }
+  case MaterializeSequenceExprClass: {
+    const auto *MSE = cast<MaterializeSequenceExpr>(this);
+    if (!MSE->isUnbinding())
+      BoundExprs.insert(MSE->opaquevalues_begin(), MSE->opaquevalues_end());
+    return MSE->getWrappedExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2,
+                                                         Ctx, BoundExprs);
+  }
   case ImplicitCastExprClass: {
     const CastExpr *ICE = cast<ImplicitCastExpr>(this);
 
@@ -2951,14 +3240,17 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
         ICE->getSubExpr()->getType().isVolatileQualified())
       return false;
 
-    return ICE->getSubExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+    return ICE->getSubExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                     BoundExprs);
   }
   case CXXDefaultArgExprClass:
     return (cast<CXXDefaultArgExpr>(this)
-            ->getExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx));
+            ->getExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                BoundExprs));
   case CXXDefaultInitExprClass:
     return (cast<CXXDefaultInitExpr>(this)
-            ->getExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx));
+            ->getExpr()->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx,
+                                                BoundExprs));
 
   case CXXNewExprClass:
     // FIXME: In theory, there might be new expressions that don't have side
@@ -2968,13 +3260,16 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
   case MaterializeTemporaryExprClass:
     return cast<MaterializeTemporaryExpr>(this)
         ->getSubExpr()
-        ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+        ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case CXXBindTemporaryExprClass:
     return cast<CXXBindTemporaryExpr>(this)->getSubExpr()
-               ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+               ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
   case ExprWithCleanupsClass:
     return cast<ExprWithCleanups>(this)->getSubExpr()
-               ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
+               ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx, BoundExprs);
+  case OpaqueValueExprClass:
+    return cast<OpaqueValueExpr>(this)->getSourceExpr()->isUnusedResultAWarning(
+        WarnE, Loc, R1, R2, Ctx, BoundExprs);
   }
 }
 
@@ -3050,45 +3345,83 @@ QualType Expr::findBoundMemberType(const Expr *expr) {
 }
 
 Expr *Expr::IgnoreImpCasts() {
-  return IgnoreExprNodes(this, IgnoreImplicitCastsSingleStep);
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
+  return IgnoreExprNodes(this, IgnoreImplicitCastsSingleStep,
+                         IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreCasts() {
-  return IgnoreExprNodes(this, IgnoreCastsSingleStep);
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
+  return IgnoreExprNodes(this, IgnoreCastsSingleStep, IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreImplicit() {
-  return IgnoreExprNodes(this, IgnoreImplicitSingleStep);
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
+  return IgnoreExprNodes(this, IgnoreImplicitSingleStep,
+                         IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreImplicitAsWritten() {
-  return IgnoreExprNodes(this, IgnoreImplicitAsWrittenSingleStep);
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
+  return IgnoreExprNodes(this, IgnoreImplicitAsWrittenSingleStep,
+                         IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreParens() {
   return IgnoreExprNodes(this, IgnoreParensSingleStep);
 }
 
-Expr *Expr::IgnoreParenImpCasts() {
+Expr *Expr::IgnoreParenImpCasts(llvm::SmallPtrSetImpl<const OpaqueValueExpr *> &BoundValues) {
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
   return IgnoreExprNodes(this, IgnoreParensSingleStep,
-                         IgnoreImplicitCastsExtraSingleStep);
+                         IgnoreImplicitCastsExtraSingleStep,
+                         IgnoreBoundsSafetyImplicit);
+}
+
+Expr *Expr::IgnoreParenImpCasts() {
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  return IgnoreParenImpCasts(BoundValues);
 }
 
 Expr *Expr::IgnoreParenCasts() {
-  return IgnoreExprNodes(this, IgnoreParensSingleStep, IgnoreCastsSingleStep);
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
+  return IgnoreExprNodes(this, IgnoreParensSingleStep, IgnoreCastsSingleStep,
+                         IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreConversionOperatorSingleStep() {
   if (auto *MCE = dyn_cast<CXXMemberCallExpr>(this)) {
-    if (MCE->getMethodDecl() && isa<CXXConversionDecl>(MCE->getMethodDecl()))
+    if (isa_and_nonnull<CXXConversionDecl>(MCE->getMethodDecl()))
       return MCE->getImplicitObjectArgument();
   }
   return this;
 }
 
 Expr *Expr::IgnoreParenLValueCasts() {
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
   return IgnoreExprNodes(this, IgnoreParensSingleStep,
-                         IgnoreLValueCastsSingleStep);
+                         IgnoreLValueCastsSingleStep,
+                         IgnoreBoundsSafetyImplicit);
 }
 
 Expr *Expr::IgnoreParenBaseCasts() {
@@ -3123,6 +3456,10 @@ Expr *Expr::IgnoreParenNoopCasts(const ASTContext &Ctx) {
 }
 
 Expr *Expr::IgnoreUnlessSpelledInSource() {
+  llvm::SmallPtrSet<const OpaqueValueExpr *, 8> BoundValues;
+  auto IgnoreBoundsSafetyImplicit = [&](Expr *E) {
+    return IgnoreBoundsSafetyImplicitImpl(E, BoundValues);
+  };
   auto IgnoreImplicitConstructorSingleStep = [](Expr *E) {
     if (auto *Cast = dyn_cast<CXXFunctionalCastExpr>(E)) {
       auto *SE = Cast->getSubExpr();
@@ -3158,10 +3495,40 @@ Expr *Expr::IgnoreUnlessSpelledInSource() {
     }
     return E;
   };
+
+  // Used when Clang generates calls to std::get for decomposing
+  // structured bindings.
+  auto IgnoreImplicitCallSingleStep = [](Expr *E) {
+    auto *C = dyn_cast<CallExpr>(E);
+    if (!C)
+      return E;
+
+    // Looking for calls to a std::get, which usually just takes
+    // 1 argument (i.e., the structure being decomposed). If it has
+    // more than 1 argument, the others need to be defaulted.
+    unsigned NumArgs = C->getNumArgs();
+    if (NumArgs == 0 || (NumArgs > 1 && !isa<CXXDefaultArgExpr>(C->getArg(1))))
+      return E;
+
+    Expr *A = C->getArg(0);
+
+    // This was spelled out in source. Don't ignore.
+    if (A->getSourceRange() != E->getSourceRange())
+      return E;
+
+    // If the argument refers to a DecompositionDecl construction,
+    // ignore it.
+    if (IsDecompositionDeclRefExpr(A))
+      return A;
+
+    return E;
+  };
+
   return IgnoreExprNodes(
       this, IgnoreImplicitSingleStep, IgnoreImplicitCastsExtraSingleStep,
       IgnoreParensOnlySingleStep, IgnoreImplicitConstructorSingleStep,
-      IgnoreImplicitMemberCallSingleStep);
+      IgnoreImplicitMemberCallSingleStep, IgnoreImplicitCallSingleStep,
+      IgnoreBoundsSafetyImplicit);
 }
 
 bool Expr::isDefaultArgument() const {
@@ -3220,8 +3587,8 @@ bool Expr::isTemporaryObject(ASTContext &C, const CXXRecordDecl *TempTy) const {
   // refer to temporaries of that type:
 
   // - implicit derived-to-base conversions
-  if (isa<ImplicitCastExpr>(E)) {
-    switch (cast<ImplicitCastExpr>(E)->getCastKind()) {
+  if (const auto *ICE = dyn_cast<ImplicitCastExpr>(E)) {
+    switch (ICE->getCastKind()) {
     case CK_DerivedToBase:
     case CK_UncheckedDerivedToBase:
       return false;
@@ -3234,7 +3601,7 @@ bool Expr::isTemporaryObject(ASTContext &C, const CXXRecordDecl *TempTy) const {
   if (isa<MemberExpr>(E))
     return false;
 
-  if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(E))
+  if (const auto *BO = dyn_cast<BinaryOperator>(E))
     if (BO->isPtrMemOp())
       return false;
 
@@ -3296,6 +3663,17 @@ bool Expr::hasAnyTypeDependentArguments(ArrayRef<Expr *> Exprs) {
 
   return false;
 }
+
+namespace {
+const ValueDecl *getUnderlyingDecl(ASTContext &Ctx, const Expr *E) {
+  E = E->IgnoreParenCasts();
+  if (const auto *ME = dyn_cast<MemberExpr>(E))
+    return ME->getMemberDecl();
+  if (const auto *DRE = dyn_cast<DeclRefExpr>(E))
+    return DRE->getDecl();
+  return nullptr;
+}
+} // namespace
 
 bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
                                  const Expr **Culprit) const {
@@ -3366,9 +3744,29 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
     return DIUE->getBase()->isConstantInitializer(Ctx, false, Culprit) &&
            DIUE->getUpdater()->isConstantInitializer(Ctx, false, Culprit);
   }
+  case ForgePtrExprClass: {
+    const ForgePtrExpr *FPE = cast<ForgePtrExpr>(this);
+    if (!FPE->getAddr()->isConstantInitializer(Ctx, false, Culprit))
+      return false;
+    if (FPE->ForgesBidiIndexablePointer())
+      return FPE->getSize()->isConstantInitializer(Ctx, false, Culprit);
+    if (FPE->ForgesTerminatedByPointer())
+      assert(FPE->getTerminator()->isConstantInitializer(Ctx, false, Culprit));
+    return true;
+  }
   case InitListExprClass: {
+    // C++ [dcl.init.aggr]p2:
+    //   The elements of an aggregate are:
+    //   - for an array, the array elements in increasing subscript order, or
+    //   - for a class, the direct base classes in declaration order, followed
+    //     by the direct non-static data members (11.4) that are not members of
+    //     an anonymous union, in declaration order.
     const InitListExpr *ILE = cast<InitListExpr>(this);
     assert(ILE->isSemanticForm() && "InitListExpr must be in semantic form");
+
+    if (ILE->isTransparent())
+      return ILE->getInit(0)->isConstantInitializer(Ctx, false, Culprit);
+
     if (ILE->getType()->isArrayType()) {
       unsigned numInits = ILE->getNumInits();
       for (unsigned i = 0; i < numInits; i++) {
@@ -3381,13 +3779,26 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
     if (ILE->getType()->isRecordType()) {
       unsigned ElementNo = 0;
       RecordDecl *RD = ILE->getType()->castAs<RecordType>()->getDecl();
+
+      // In C++17, bases were added to the list of members used by aggregate
+      // initialization.
+      if (const auto *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
+        for (unsigned i = 0, e = CXXRD->getNumBases(); i < e; i++) {
+          if (ElementNo < ILE->getNumInits()) {
+            const Expr *Elt = ILE->getInit(ElementNo++);
+            if (!Elt->isConstantInitializer(Ctx, false, Culprit))
+              return false;
+          }
+        }
+      }
+
       for (const auto *Field : RD->fields()) {
         // If this is a union, skip all the fields that aren't being initialized.
         if (RD->isUnion() && ILE->getInitializedFieldInUnion() != Field)
           continue;
 
         // Don't emit anonymous bitfields, they just affect layout.
-        if (Field->isUnnamedBitfield())
+        if (Field->isUnnamedBitField())
           continue;
 
         if (ElementNo < ILE->getNumInits()) {
@@ -3401,6 +3812,32 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
               return false;
             }
           } else {
+            // BoundsSafety : Check if a static initializer for RecordType with
+            // dynamic count fields can be statically evaluated without runtime checks.
+            if (Field->getType()->isCountAttributedType()) {
+              auto Dcl = getUnderlyingDecl(Ctx, Elt);
+              if (Dcl && Dcl->getType()->isConstantArrayType()) {
+                if (Ctx.getTypeSizeInCharsIfKnown(Dcl->getType()).has_value()) {
+                  // Strip the pointer cast and let it fall through.
+                  Elt = Elt->IgnoreParens();
+                  if (auto ICE = dyn_cast<ImplicitCastExpr>(Elt)) {
+                    if (ICE->getCastKind() == CK_BoundsSafetyPointerCast)
+                      Elt = ICE->getSubExpr();
+                  } else if (auto FPPE =
+                      dyn_cast<BoundsSafetyPointerPromotionExpr>(Elt)) {
+                    Elt = FPPE->getPointer();
+                  }
+                }
+              }
+            }
+
+            // FIXME: rdar://81135826
+            if (Field->getType()->isDynamicRangePointerType()) {
+              if (Culprit)
+                *Culprit = Elt;
+              return false;
+            }
+
             bool RefType = Field->getType()->isReferenceType();
             if (!Elt->isConstantInitializer(Ctx, RefType, Culprit))
               return false;
@@ -3434,6 +3871,11 @@ bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef,
     if (Exp->getOpcode() == UO_Extension)
       return Exp->getSubExpr()->isConstantInitializer(Ctx, false, Culprit);
     break;
+  }
+  case PackIndexingExprClass: {
+    return cast<PackIndexingExpr>(this)
+        ->getSelectedExpr()
+        ->isConstantInitializer(Ctx, false, Culprit);
   }
   case CXXFunctionalCastExprClass:
   case CXXStaticCastExprClass:
@@ -3566,7 +4008,6 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case PackExpansionExprClass:
   case SubstNonTypeTemplateParmPackExprClass:
   case FunctionParmPackExprClass:
-  case TypoExprClass:
   case RecoveryExprClass:
   case CXXFoldExprClass:
     // Make a conservative assumption for dependent nodes.
@@ -3604,9 +4045,13 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case CXXUuidofExprClass:
   case OpaqueValueExprClass:
   case SourceLocExprClass:
+  case EmbedExprClass:
   case ConceptSpecializationExprClass:
   case RequiresExprClass:
   case SYCLUniqueStableNameExprClass:
+  case PackIndexingExprClass:
+  case HLSLOutArgExprClass:
+  case OpenACCAsteriskSizeExprClass:
     // These never have a side-effect.
     return false;
 
@@ -3666,7 +4111,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ParenExprClass:
   case ArraySubscriptExprClass:
   case MatrixSubscriptExprClass:
-  case OMPArraySectionExprClass:
+  case ArraySectionExprClass:
   case OMPArrayShapingExprClass:
   case OMPIteratorExprClass:
   case MemberExprClass:
@@ -3686,6 +4131,15 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ShuffleVectorExprClass:
   case ConvertVectorExprClass:
   case AsTypeExprClass:
+  case BoundsSafetyPointerPromotionExprClass:
+  case AssumptionExprClass:
+  case ForgePtrExprClass:
+  case GetBoundExprClass:
+  case PredefinedBoundsCheckExprClass:
+  case BoundsCheckExprClass:
+  case MaterializeSequenceExprClass:
+  case TerminatedByToIndexableExprClass:
+  case TerminatedByFromIndexableExprClass:
   case CXXParenListInitExprClass:
     // These have a side-effect if any subexpression does.
     break;
@@ -3757,10 +4211,18 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
     break;
   }
 
-  case CXXTypeidExprClass:
-    // typeid might throw if its subexpression is potentially-evaluated, so has
-    // side-effects in that case whether or not its subexpression does.
-    return cast<CXXTypeidExpr>(this)->isPotentiallyEvaluated();
+  case CXXTypeidExprClass: {
+    const auto *TE = cast<CXXTypeidExpr>(this);
+    if (!TE->isPotentiallyEvaluated())
+      return false;
+
+    // If this type id expression can throw because of a null pointer, that is a
+    // side-effect independent of if the operand has a side-effect
+    if (IncludePossibleEffects && TE->hasNullCheck())
+      return true;
+
+    break;
+  }
 
   case CXXConstructExprClass:
   case CXXTemporaryObjectExprClass: {
@@ -3838,6 +4300,8 @@ FPOptions Expr::getFPFeaturesInEffect(const LangOptions &LO) const {
     return BO->getFPFeaturesInEffect(LO);
   if (auto Cast = dyn_cast<CastExpr>(this))
     return Cast->getFPFeaturesInEffect(LO);
+  if (auto ConvertVector = dyn_cast<ConvertVectorExpr>(this))
+    return ConvertVector->getFPFeaturesInEffect(LO);
   return FPOptions::defaultWithoutTrailingStorage(LO);
 }
 
@@ -3879,9 +4343,14 @@ namespace {
     }
 
     void VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *E) {
-      if (E->getTemporary()->getDestructor()->isTrivial()) {
-        Inherited::VisitStmt(E);
-        return;
+      // Destructor of the temporary might be null if destructor declaration
+      // is not valid.
+      if (const CXXDestructorDecl *DtorDecl =
+              E->getTemporary()->getDestructor()) {
+        if (DtorDecl->isTrivial()) {
+          Inherited::VisitStmt(E);
+          return;
+        }
       }
 
       NonTrivial = true;
@@ -3894,6 +4363,30 @@ bool Expr::hasNonTrivialCall(const ASTContext &Ctx) const {
   Finder.Visit(this);
   return Finder.hasNonTrivialCall();
 }
+
+/* TO_UPSTREAM(BoundsSafety) ON*/
+Expr::NullPointerConstantKind Expr::isNullPointerConstantIgnoreCastsAndOVEs(
+    ASTContext &Ctx, NullPointerConstantValueDependence NPC) const {
+  // Expr::isNullPointerConstant only handles explict `(void*)` casts so it
+  // won't detect something like `(int*)0` as a null pointer constant. Try to
+  // compensate for that here.
+
+  const Expr *EPrevious = nullptr;
+  const Expr *ECurrent = this;
+  while (EPrevious != ECurrent) {
+    EPrevious = ECurrent;
+
+    // Walk through parens and implicit/explicit casts
+    ECurrent = ECurrent->IgnoreParenCasts();
+
+    // Walk through OVEs
+    if (const auto *OVE = dyn_cast<OpaqueValueExpr>(ECurrent)) {
+      ECurrent = OVE->getSourceExpr();
+    }
+  }
+  return ECurrent->isNullPointerConstant(Ctx, NPC);
+}
+/* TO_UPSTREAM(BoundsSafety) OFF*/
 
 /// isNullPointerConstant - C99 6.3.2.3p3 - Return whether this is a null
 /// pointer constant or not, as well as the specific kind of constant detected.
@@ -3982,7 +4475,7 @@ Expr::isNullPointerConstant(ASTContext &Ctx,
   if (getType().isNull())
     return NPCK_NotNull;
 
-  // C++11/C2x nullptr_t is always a null pointer constant.
+  // C++11/C23 nullptr_t is always a null pointer constant.
   if (getType()->isNullPtrType())
     return NPCK_CXX11_nullptr;
 
@@ -4106,6 +4599,13 @@ FieldDecl *Expr::getSourceBitField() {
     if (UnOp->isPrefix() && UnOp->isIncrementDecrementOp())
       return UnOp->getSubExpr()->getSourceBitField();
 
+  return nullptr;
+}
+
+EnumConstantDecl *Expr::getEnumConstantDecl() {
+  Expr *E = this->IgnoreParenImpCasts();
+  if (auto *DRE = dyn_cast<DeclRefExpr>(E))
+    return dyn_cast<EnumConstantDecl>(DRE->getDecl());
   return nullptr;
 }
 
@@ -4322,7 +4822,8 @@ ShuffleVectorExpr::ShuffleVectorExpr(const ASTContext &C, ArrayRef<Expr *> args,
                                      QualType Type, SourceLocation BLoc,
                                      SourceLocation RP)
     : Expr(ShuffleVectorExprClass, Type, VK_PRValue, OK_Ordinary),
-      BuiltinLoc(BLoc), RParenLoc(RP), NumExprs(args.size()) {
+      BuiltinLoc(BLoc), RParenLoc(RP) {
+  ShuffleVectorExprBits.NumExprs = args.size();
   SubExprs = new (C) Stmt*[args.size()];
   for (unsigned i = 0; i != args.size(); i++)
     SubExprs[i] = args[i];
@@ -4333,9 +4834,9 @@ ShuffleVectorExpr::ShuffleVectorExpr(const ASTContext &C, ArrayRef<Expr *> args,
 void ShuffleVectorExpr::setExprs(const ASTContext &C, ArrayRef<Expr *> Exprs) {
   if (SubExprs) C.Deallocate(SubExprs);
 
-  this->NumExprs = Exprs.size();
-  SubExprs = new (C) Stmt*[NumExprs];
-  memcpy(SubExprs, Exprs.data(), sizeof(Expr *) * Exprs.size());
+  this->ShuffleVectorExprBits.NumExprs = Exprs.size();
+  SubExprs = new (C) Stmt *[ShuffleVectorExprBits.NumExprs];
+  llvm::copy(Exprs, SubExprs);
 }
 
 GenericSelectionExpr::GenericSelectionExpr(
@@ -4356,11 +4857,10 @@ GenericSelectionExpr::GenericSelectionExpr(
   GenericSelectionExprBits.GenericLoc = GenericLoc;
   getTrailingObjects<Stmt *>()[getIndexOfControllingExpression()] =
       ControllingExpr;
-  std::copy(AssocExprs.begin(), AssocExprs.end(),
-            getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
-  std::copy(AssocTypes.begin(), AssocTypes.end(),
-            getTrailingObjects<TypeSourceInfo *>() +
-                getIndexOfStartOfAssociatedTypes());
+  llvm::copy(AssocExprs,
+             getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
+  llvm::copy(AssocTypes, getTrailingObjects<TypeSourceInfo *>() +
+                             getIndexOfStartOfAssociatedTypes());
 
   setDependence(computeDependence(this, ContainsUnexpandedParameterPack));
 }
@@ -4384,11 +4884,10 @@ GenericSelectionExpr::GenericSelectionExpr(
   GenericSelectionExprBits.GenericLoc = GenericLoc;
   getTrailingObjects<TypeSourceInfo *>()[getIndexOfControllingType()] =
       ControllingType;
-  std::copy(AssocExprs.begin(), AssocExprs.end(),
-            getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
-  std::copy(AssocTypes.begin(), AssocTypes.end(),
-            getTrailingObjects<TypeSourceInfo *>() +
-                getIndexOfStartOfAssociatedTypes());
+  llvm::copy(AssocExprs,
+             getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
+  llvm::copy(AssocTypes, getTrailingObjects<TypeSourceInfo *>() +
+                             getIndexOfStartOfAssociatedTypes());
 
   setDependence(computeDependence(this, ContainsUnexpandedParameterPack));
 }
@@ -4409,11 +4908,10 @@ GenericSelectionExpr::GenericSelectionExpr(
   GenericSelectionExprBits.GenericLoc = GenericLoc;
   getTrailingObjects<Stmt *>()[getIndexOfControllingExpression()] =
       ControllingExpr;
-  std::copy(AssocExprs.begin(), AssocExprs.end(),
-            getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
-  std::copy(AssocTypes.begin(), AssocTypes.end(),
-            getTrailingObjects<TypeSourceInfo *>() +
-                getIndexOfStartOfAssociatedTypes());
+  llvm::copy(AssocExprs,
+             getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
+  llvm::copy(AssocTypes, getTrailingObjects<TypeSourceInfo *>() +
+                             getIndexOfStartOfAssociatedTypes());
 
   setDependence(computeDependence(this, ContainsUnexpandedParameterPack));
 }
@@ -4434,11 +4932,10 @@ GenericSelectionExpr::GenericSelectionExpr(
   GenericSelectionExprBits.GenericLoc = GenericLoc;
   getTrailingObjects<TypeSourceInfo *>()[getIndexOfControllingType()] =
       ControllingType;
-  std::copy(AssocExprs.begin(), AssocExprs.end(),
-            getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
-  std::copy(AssocTypes.begin(), AssocTypes.end(),
-            getTrailingObjects<TypeSourceInfo *>() +
-                getIndexOfStartOfAssociatedTypes());
+  llvm::copy(AssocExprs,
+             getTrailingObjects<Stmt *>() + getIndexOfStartOfAssociatedExprs());
+  llvm::copy(AssocTypes, getTrailingObjects<TypeSourceInfo *>() +
+                             getIndexOfStartOfAssociatedTypes());
 
   setDependence(computeDependence(this, ContainsUnexpandedParameterPack));
 }
@@ -4524,7 +5021,7 @@ const IdentifierInfo *DesignatedInitExpr::Designator::getFieldName() const {
 }
 
 DesignatedInitExpr::DesignatedInitExpr(const ASTContext &C, QualType Ty,
-                                       llvm::ArrayRef<Designator> Designators,
+                                       ArrayRef<Designator> Designators,
                                        SourceLocation EqualOrColonLoc,
                                        bool GNUSyntax,
                                        ArrayRef<Expr *> IndexExprs, Expr *Init)
@@ -4557,12 +5054,12 @@ DesignatedInitExpr::DesignatedInitExpr(const ASTContext &C, QualType Ty,
   setDependence(computeDependence(this));
 }
 
-DesignatedInitExpr *
-DesignatedInitExpr::Create(const ASTContext &C,
-                           llvm::ArrayRef<Designator> Designators,
-                           ArrayRef<Expr*> IndexExprs,
-                           SourceLocation ColonOrEqualLoc,
-                           bool UsesColonSyntax, Expr *Init) {
+DesignatedInitExpr *DesignatedInitExpr::Create(const ASTContext &C,
+                                               ArrayRef<Designator> Designators,
+                                               ArrayRef<Expr *> IndexExprs,
+                                               SourceLocation ColonOrEqualLoc,
+                                               bool UsesColonSyntax,
+                                               Expr *Init) {
   void *Mem = C.Allocate(totalSizeToAlloc<Stmt *>(IndexExprs.size() + 1),
                          alignof(DesignatedInitExpr));
   return new (Mem) DesignatedInitExpr(C, C.VoidTy, Designators,
@@ -4597,8 +5094,17 @@ SourceRange DesignatedInitExpr::getDesignatorsSourceRange() const {
 SourceLocation DesignatedInitExpr::getBeginLoc() const {
   auto *DIE = const_cast<DesignatedInitExpr *>(this);
   Designator &First = *DIE->getDesignator(0);
-  if (First.isFieldDesignator())
-    return GNUSyntax ? First.getFieldLoc() : First.getDotLoc();
+  if (First.isFieldDesignator()) {
+    // Skip past implicit designators for anonymous structs/unions, since
+    // these do not have valid source locations.
+    for (unsigned int i = 0; i < DIE->size(); i++) {
+      Designator &Des = *DIE->getDesignator(i);
+      SourceLocation retval = GNUSyntax ? Des.getFieldLoc() : Des.getDotLoc();
+      if (!retval.isValid())
+        continue;
+      return retval;
+    }
+  }
   return First.getLBracketLoc();
 }
 
@@ -4657,8 +5163,7 @@ DesignatedInitUpdateExpr::DesignatedInitUpdateExpr(const ASTContext &C,
            OK_Ordinary) {
   BaseAndUpdaterExprs[0] = baseExpr;
 
-  InitListExpr *ILE =
-      new (C) InitListExpr(C, lBraceLoc, std::nullopt, rBraceLoc);
+  InitListExpr *ILE = new (C) InitListExpr(C, lBraceLoc, {}, rBraceLoc);
   ILE->setType(baseExpr->getType());
   BaseAndUpdaterExprs[1] = ILE;
 
@@ -4679,9 +5184,7 @@ ParenListExpr::ParenListExpr(SourceLocation LParenLoc, ArrayRef<Expr *> Exprs,
     : Expr(ParenListExprClass, QualType(), VK_PRValue, OK_Ordinary),
       LParenLoc(LParenLoc), RParenLoc(RParenLoc) {
   ParenListExprBits.NumExprs = Exprs.size();
-
-  for (unsigned I = 0, N = Exprs.size(); I != N; ++I)
-    getTrailingObjects<Stmt *>()[I] = Exprs[I];
+  llvm::copy(Exprs, getTrailingObjects());
   setDependence(computeDependence(this));
 }
 
@@ -4706,6 +5209,73 @@ ParenListExpr *ParenListExpr::CreateEmpty(const ASTContext &Ctx,
   return new (Mem) ParenListExpr(EmptyShell(), NumExprs);
 }
 
+/// Certain overflow-dependent code patterns can have their integer overflow
+/// sanitization disabled. Check for the common pattern `if (a + b < a)` and
+/// return the resulting BinaryOperator responsible for the addition so we can
+/// elide overflow checks during codegen.
+static std::optional<BinaryOperator *>
+getOverflowPatternBinOp(const BinaryOperator *E) {
+  Expr *Addition, *ComparedTo;
+  if (E->getOpcode() == BO_LT) {
+    Addition = E->getLHS();
+    ComparedTo = E->getRHS();
+  } else if (E->getOpcode() == BO_GT) {
+    Addition = E->getRHS();
+    ComparedTo = E->getLHS();
+  } else {
+    return {};
+  }
+
+  const Expr *AddLHS = nullptr, *AddRHS = nullptr;
+  BinaryOperator *BO = dyn_cast<BinaryOperator>(Addition);
+
+  if (BO && BO->getOpcode() == clang::BO_Add) {
+    // now store addends for lookup on other side of '>'
+    AddLHS = BO->getLHS();
+    AddRHS = BO->getRHS();
+  }
+
+  if (!AddLHS || !AddRHS)
+    return {};
+
+  const Decl *LHSDecl, *RHSDecl, *OtherDecl;
+
+  LHSDecl = AddLHS->IgnoreParenImpCasts()->getReferencedDeclOfCallee();
+  RHSDecl = AddRHS->IgnoreParenImpCasts()->getReferencedDeclOfCallee();
+  OtherDecl = ComparedTo->IgnoreParenImpCasts()->getReferencedDeclOfCallee();
+
+  if (!OtherDecl)
+    return {};
+
+  if (!LHSDecl && !RHSDecl)
+    return {};
+
+  if ((LHSDecl && LHSDecl == OtherDecl && LHSDecl != RHSDecl) ||
+      (RHSDecl && RHSDecl == OtherDecl && RHSDecl != LHSDecl))
+    return BO;
+  return {};
+}
+
+/// Compute and set the OverflowPatternExclusion bit based on whether the
+/// BinaryOperator expression matches an overflow pattern being ignored by
+/// -fsanitize-undefined-ignore-overflow-pattern=add-signed-overflow-test or
+/// -fsanitize-undefined-ignore-overflow-pattern=add-unsigned-overflow-test
+static void computeOverflowPatternExclusion(const ASTContext &Ctx,
+                                            const BinaryOperator *E) {
+  std::optional<BinaryOperator *> Result = getOverflowPatternBinOp(E);
+  if (!Result.has_value())
+    return;
+  QualType AdditionResultType = Result.value()->getType();
+
+  if ((AdditionResultType->isSignedIntegerType() &&
+       Ctx.getLangOpts().isOverflowPatternExcluded(
+           LangOptions::OverflowPatternExclusionKind::AddSignedOverflowTest)) ||
+      (AdditionResultType->isUnsignedIntegerType() &&
+       Ctx.getLangOpts().isOverflowPatternExcluded(
+           LangOptions::OverflowPatternExclusionKind::AddUnsignedOverflowTest)))
+    Result.value()->setExcludedOverflowPattern(true);
+}
+
 BinaryOperator::BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs,
                                Opcode opc, QualType ResTy, ExprValueKind VK,
                                ExprObjectKind OK, SourceLocation opLoc,
@@ -4715,8 +5285,10 @@ BinaryOperator::BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs,
   assert(!isCompoundAssignmentOp() &&
          "Use CompoundAssignOperator for compound assignments");
   BinaryOperatorBits.OpLoc = opLoc;
+  BinaryOperatorBits.ExcludedOverflowPattern = false;
   SubExprs[LHS] = lhs;
   SubExprs[RHS] = rhs;
+  computeOverflowPatternExclusion(Ctx, this);
   BinaryOperatorBits.HasFPFeatures = FPFeatures.requiresTrailingStorage();
   if (hasStoredFPFeatures())
     setStoredFPFeatures(FPFeatures);
@@ -4729,6 +5301,7 @@ BinaryOperator::BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs,
                                FPOptionsOverride FPFeatures, bool dead2)
     : Expr(CompoundAssignOperatorClass, ResTy, VK, OK) {
   BinaryOperatorBits.Opc = opc;
+  BinaryOperatorBits.ExcludedOverflowPattern = false;
   assert(isCompoundAssignmentOp() &&
          "Use CompoundAssignOperator for compound assignments");
   BinaryOperatorBits.OpLoc = opLoc;
@@ -4817,6 +5390,24 @@ UnaryOperator *UnaryOperator::Create(const ASTContext &C, Expr *input,
       UnaryOperator(C, input, opc, type, VK, OK, l, CanOverflow, FPFeatures);
 }
 
+/* TO_UPSTREAM(BoundsSafety) ON*/
+OpaqueValueExpr *OpaqueValueExpr::Wrap(const ASTContext &Context, Expr *E) {
+  assert(!isa<OpaqueValueExpr>(E));
+  return new (Context) OpaqueValueExpr(
+      E->getExprLoc(), E->getType(), E->getValueKind(), E->getObjectKind(), E);
+}
+
+OpaqueValueExpr *OpaqueValueExpr::EnsureWrapped(
+    const ASTContext &Ctx, Expr *E, SmallVectorImpl<OpaqueValueExpr *> &OVEs) {
+  auto *OVE = dyn_cast<OpaqueValueExpr>(E);
+  if (!OVE) {
+    OVE = Wrap(Ctx, E);
+    OVEs.push_back(OVE);
+  }
+  return OVE;
+}
+/* TO_UPSTREAM(BoundsSafety) OFF*/
+
 const OpaqueValueExpr *OpaqueValueExpr::findInCopyConstruct(const Expr *e) {
   if (const ExprWithCleanups *ewc = dyn_cast<ExprWithCleanups>(e))
     e = ewc->getSubExpr();
@@ -4872,17 +5463,19 @@ PseudoObjectExpr::PseudoObjectExpr(QualType type, ExprValueKind VK,
     : Expr(PseudoObjectExprClass, type, VK, OK_Ordinary) {
   PseudoObjectExprBits.NumSubExprs = semantics.size() + 1;
   PseudoObjectExprBits.ResultIndex = resultIndex + 1;
+  MutableArrayRef<Expr *> Trail = getTrailingObjects(semantics.size() + 1);
+  Trail[0] = syntax;
 
-  for (unsigned i = 0, e = semantics.size() + 1; i != e; ++i) {
-    Expr *E = (i == 0 ? syntax : semantics[i-1]);
-    getSubExprsBuffer()[i] = E;
+  assert(llvm::all_of(semantics,
+                      [](const Expr *E) {
+                        return !isa<OpaqueValueExpr>(E) ||
+                               cast<OpaqueValueExpr>(E)->getSourceExpr() !=
+                                   nullptr;
+                      }) &&
+         "opaque-value semantic expressions for pseudo-object "
+         "operations must have sources");
 
-    if (isa<OpaqueValueExpr>(E))
-      assert(cast<OpaqueValueExpr>(E)->getSourceExpr() != nullptr &&
-             "opaque-value semantic expressions for pseudo-object "
-             "operations must have sources");
-  }
-
+  llvm::copy(semantics, Trail.drop_front().begin());
   setDependence(computeDependence(this));
 }
 
@@ -4926,8 +5519,11 @@ unsigned AtomicExpr::getNumSubExprs(AtomicOp Op) {
   case AO__opencl_atomic_init:
   case AO__c11_atomic_load:
   case AO__atomic_load_n:
+  case AO__atomic_test_and_set:
+  case AO__atomic_clear:
     return 2;
 
+  case AO__scoped_atomic_load_n:
   case AO__opencl_atomic_load:
   case AO__hip_atomic_load:
   case AO__c11_atomic_store:
@@ -4962,6 +5558,26 @@ unsigned AtomicExpr::getNumSubExprs(AtomicOp Op) {
   case AO__atomic_fetch_max:
     return 3;
 
+  case AO__scoped_atomic_load:
+  case AO__scoped_atomic_store:
+  case AO__scoped_atomic_store_n:
+  case AO__scoped_atomic_fetch_add:
+  case AO__scoped_atomic_fetch_sub:
+  case AO__scoped_atomic_fetch_and:
+  case AO__scoped_atomic_fetch_or:
+  case AO__scoped_atomic_fetch_xor:
+  case AO__scoped_atomic_fetch_nand:
+  case AO__scoped_atomic_add_fetch:
+  case AO__scoped_atomic_sub_fetch:
+  case AO__scoped_atomic_and_fetch:
+  case AO__scoped_atomic_or_fetch:
+  case AO__scoped_atomic_xor_fetch:
+  case AO__scoped_atomic_nand_fetch:
+  case AO__scoped_atomic_min_fetch:
+  case AO__scoped_atomic_max_fetch:
+  case AO__scoped_atomic_fetch_min:
+  case AO__scoped_atomic_fetch_max:
+  case AO__scoped_atomic_exchange_n:
   case AO__hip_atomic_exchange:
   case AO__hip_atomic_fetch_add:
   case AO__hip_atomic_fetch_sub:
@@ -4983,6 +5599,7 @@ unsigned AtomicExpr::getNumSubExprs(AtomicOp Op) {
   case AO__atomic_exchange:
     return 4;
 
+  case AO__scoped_atomic_exchange:
   case AO__c11_atomic_compare_exchange_strong:
   case AO__c11_atomic_compare_exchange_weak:
     return 5;
@@ -4993,6 +5610,10 @@ unsigned AtomicExpr::getNumSubExprs(AtomicOp Op) {
   case AO__atomic_compare_exchange:
   case AO__atomic_compare_exchange_n:
     return 6;
+
+  case AO__scoped_atomic_compare_exchange:
+  case AO__scoped_atomic_compare_exchange_n:
+    return 7;
   }
   llvm_unreachable("unknown atomic op");
 }
@@ -5004,9 +5625,9 @@ QualType AtomicExpr::getValueType() const {
   return T;
 }
 
-QualType OMPArraySectionExpr::getBaseOriginalType(const Expr *Base) {
+QualType ArraySectionExpr::getBaseOriginalType(const Expr *Base) {
   unsigned ArraySectionCount = 0;
-  while (auto *OASE = dyn_cast<OMPArraySectionExpr>(Base->IgnoreParens())) {
+  while (auto *OASE = dyn_cast<ArraySectionExpr>(Base->IgnoreParens())) {
     Base = OASE->getBase();
     ++ArraySectionCount;
   }
@@ -5024,10 +5645,10 @@ QualType OMPArraySectionExpr::getBaseOriginalType(const Expr *Base) {
   for (unsigned Cnt = 0; Cnt < ArraySectionCount; ++Cnt) {
     if (OriginalTy->isAnyPointerType())
       OriginalTy = OriginalTy->getPointeeType();
-    else {
-      assert (OriginalTy->isArrayType());
+    else if (OriginalTy->isArrayType())
       OriginalTy = OriginalTy->castAsArrayTypeUnsafe()->getElementType();
-    }
+    else
+      return {};
   }
   return OriginalTy;
 }
@@ -5041,7 +5662,7 @@ RecoveryExpr::RecoveryExpr(ASTContext &Ctx, QualType T, SourceLocation BeginLoc,
   assert(!T.isNull());
   assert(!llvm::is_contained(SubExprs, nullptr));
 
-  llvm::copy(SubExprs, getTrailingObjects<Expr *>());
+  llvm::copy(SubExprs, getTrailingObjects());
   setDependence(computeDependence(this));
 }
 
@@ -5108,9 +5729,7 @@ OMPArrayShapingExpr *OMPArrayShapingExpr::CreateEmpty(const ASTContext &Context,
 }
 
 void OMPIteratorExpr::setIteratorDeclaration(unsigned I, Decl *D) {
-  assert(I < NumIterators &&
-         "Idx is greater or equal the number of iterators definitions.");
-  getTrailingObjects<Decl *>()[I] = D;
+  getTrailingObjects<Decl *>(NumIterators)[I] = D;
 }
 
 void OMPIteratorExpr::setAssignmentLoc(unsigned I, SourceLocation Loc) {
@@ -5238,4 +5857,57 @@ OMPIteratorExpr *OMPIteratorExpr::CreateEmpty(const ASTContext &Context,
           NumIterators * static_cast<int>(RangeLocOffset::Total), NumIterators),
       alignof(OMPIteratorExpr));
   return new (Mem) OMPIteratorExpr(EmptyShell(), NumIterators);
+}
+
+HLSLOutArgExpr *HLSLOutArgExpr::Create(const ASTContext &C, QualType Ty,
+                                       OpaqueValueExpr *Base,
+                                       OpaqueValueExpr *OpV, Expr *WB,
+                                       bool IsInOut) {
+  return new (C) HLSLOutArgExpr(Ty, Base, OpV, WB, IsInOut);
+}
+
+HLSLOutArgExpr *HLSLOutArgExpr::CreateEmpty(const ASTContext &C) {
+  return new (C) HLSLOutArgExpr(EmptyShell());
+}
+
+OpenACCAsteriskSizeExpr *OpenACCAsteriskSizeExpr::Create(const ASTContext &C,
+                                                         SourceLocation Loc) {
+  return new (C) OpenACCAsteriskSizeExpr(Loc, C.IntTy);
+}
+
+OpenACCAsteriskSizeExpr *
+OpenACCAsteriskSizeExpr::CreateEmpty(const ASTContext &C) {
+  return new (C) OpenACCAsteriskSizeExpr({}, C.IntTy);
+}
+
+ConvertVectorExpr *ConvertVectorExpr::CreateEmpty(const ASTContext &C,
+                                                  bool hasFPFeatures) {
+  void *Mem = C.Allocate(totalSizeToAlloc<FPOptionsOverride>(hasFPFeatures),
+                         alignof(ConvertVectorExpr));
+  return new (Mem) ConvertVectorExpr(hasFPFeatures, EmptyShell());
+}
+
+ConvertVectorExpr *ConvertVectorExpr::Create(
+    const ASTContext &C, Expr *SrcExpr, TypeSourceInfo *TI, QualType DstType,
+    ExprValueKind VK, ExprObjectKind OK, SourceLocation BuiltinLoc,
+    SourceLocation RParenLoc, FPOptionsOverride FPFeatures) {
+  bool HasFPFeatures = FPFeatures.requiresTrailingStorage();
+  unsigned Size = totalSizeToAlloc<FPOptionsOverride>(HasFPFeatures);
+  void *Mem = C.Allocate(Size, alignof(ConvertVectorExpr));
+  return new (Mem) ConvertVectorExpr(SrcExpr, TI, DstType, VK, OK, BuiltinLoc,
+                                     RParenLoc, FPFeatures);
+}
+
+APValue &CompoundLiteralExpr::getOrCreateStaticValue(ASTContext &Ctx) const {
+  assert(hasStaticStorage());
+  if (!StaticValue) {
+    StaticValue = new (Ctx) APValue;
+    Ctx.addDestruction(StaticValue);
+  }
+  return *StaticValue;
+}
+
+APValue &CompoundLiteralExpr::getStaticValue() const {
+  assert(StaticValue);
+  return *StaticValue;
 }

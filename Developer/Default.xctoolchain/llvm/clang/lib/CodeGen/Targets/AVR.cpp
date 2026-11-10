@@ -45,7 +45,7 @@ public:
     // stack slot, along with a pointer as the function's implicit argument.
     if (getContext().getTypeSize(Ty) > RetRegs * 8) {
       LargeRet = true;
-      return getNaturalAlignIndirect(Ty);
+      return getNaturalAlignIndirect(Ty, getDataLayout().getAllocaAddrSpace());
     }
     // An i8 return value should not be extended to i16, since AVR has 8-bit
     // registers.
@@ -59,7 +59,7 @@ public:
     unsigned TySize = getContext().getTypeSize(Ty);
 
     // An int8 type argument always costs two registers like an int16.
-    if (TySize == 8 && NumRegs >= 2) {
+    if (TySize == 8 && NumRegs >= 2 && Ty->isIntegralOrEnumerationType()) {
       NumRegs -= 2;
       return ABIArgInfo::getExtend(Ty);
     }
@@ -112,7 +112,10 @@ public:
 class AVRTargetCodeGenInfo : public TargetCodeGenInfo {
 public:
   AVRTargetCodeGenInfo(CodeGenTypes &CGT, unsigned NPR, unsigned NRR)
-      : TargetCodeGenInfo(std::make_unique<AVRABIInfo>(CGT, NPR, NRR)) {}
+       : TargetCodeGenInfo(std::make_unique<AVRABIInfo>(CGT, NPR, NRR)) {
+     SwiftInfo =
+         std::make_unique<SwiftABIInfo>(CGT, /*SwiftErrorInRegister=*/false);
+   }
 
   LangAS getGlobalVarAddressSpace(CodeGenModule &CGM,
                                   const VarDecl *D) const override {

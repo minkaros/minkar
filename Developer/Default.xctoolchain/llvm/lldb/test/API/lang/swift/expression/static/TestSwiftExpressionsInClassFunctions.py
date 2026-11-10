@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftExpressionsInClassFunctions(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_expressions_in_class_functions(self):
         """Test expressions in class func contexts"""
@@ -34,9 +34,9 @@ class TestSwiftExpressionsInClassFunctions(TestBase):
             breakpoints.append(
                 target.BreakpointCreateBySourceRegex(
                     "breakpoint " + str(i), lldb.SBFileSpec('main.swift')))
-            self.assertTrue(
-                breakpoints[i].GetNumLocations() > 0,
-                "Didn't get valid breakpoint for %s" % (str(i)))
+            self.assertGreater(
+                breakpoints[i].GetNumLocations(), 0,
+                "Didn't get valid breakpoint for %d"%i)
 
         # Launch the process, and do not stop at the entry point.
         process = target.LaunchSimple(None, None, os.getcwd())
@@ -50,6 +50,8 @@ class TestSwiftExpressionsInClassFunctions(TestBase):
 
             self.assertTrue(len(threads) == 1)
             lldbutil.check_expression(self, self.frame(), "i", str(i), False)
+            if i == 4:
+                self.expect('e self', substrs=['F<Int>.Type'])
             if i == 6:
               lldbutil.check_expression(self, self.frame(), "self", "a.H<Int>")
               frame = threads[0].GetFrameAtIndex(0)

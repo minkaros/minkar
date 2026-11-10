@@ -10,29 +10,31 @@
 #
 # ------------------------------------------------------------------------------
 """
-Tests that Enum variables display correctly
+Tests that function variables display correctly
 """
 import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import os
-import unittest2
 
 
 class TestFunctionVariables(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_function_variables(self):
         """Tests that function type variables display correctly"""
         self.build()
         target, process, thread, _ = lldbutil.run_to_source_breakpoint(
             self, 'Set breakpoint here', lldb.SBFileSpec('main.swift'))
 
-        self.assertGreater(thread.GetNumFrames(), 0)
-        frame = thread.GetSelectedFrame()
+        thin_ptr_value = self.frame().FindVariable('c')
+        self.assertEqual(thin_ptr_value.GetNumChildren(), 0)
 
         # Get the function pointer variable from our frame
-        func_ptr_value = frame.FindVariable('func_ptr')
+        func_ptr_value = self.frame().FindVariable('func_ptr')
+        self.assertEqual(func_ptr_value.GetNumChildren(), 2)
+        self.assertEqual(func_ptr_value.GetChildAtIndex(0).GetNumChildren(), 0)
+        self.assertEqual(func_ptr_value.GetChildAtIndex(1).GetNumChildren(), 0)
 
         # Grab the function pointer value as an unsigned load address
         func_ptr_addr = func_ptr_value.GetValueAsUnsigned()
@@ -47,4 +49,3 @@ class TestFunctionVariables(TestBase):
         # Make sure the function pointer correctly resolved to our a.bar
         # function
         self.assertEqual('a.bar() -> ()', func_ptr_function.name)
-

@@ -11,7 +11,6 @@
 #include "Plugins/ExpressionParser/Clang/ClangASTMetadata.h"
 #include "Plugins/ExpressionParser/Clang/ClangUtil.h"
 #include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
-#include "Plugins/TypeSystem/Clang/ImporterBackedASTSource.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
@@ -25,14 +24,14 @@
 using namespace lldb_private;
 
 class lldb_private::AppleObjCExternalASTSource
-    : public ImporterBackedASTSource {
+    : public clang::ExternalASTSource {
 public:
   AppleObjCExternalASTSource(AppleObjCDeclVendor &decl_vendor)
       : m_decl_vendor(decl_vendor) {}
 
-  // FIXME: unused when 'TypeSystemClang::UseRedeclCompletion == true'
-  bool FindExternalVisibleDeclsByName(const clang::DeclContext *decl_ctx,
-                                      clang::DeclarationName name) override {
+  bool FindExternalVisibleDeclsByName(
+      const clang::DeclContext *decl_ctx, clang::DeclarationName name,
+      const clang::DeclContext *original_dc) override {
 
     Log *log(GetLog(
         LLDBLog::Expressions)); // FIXME - a more appropriate log channel?
@@ -80,9 +79,9 @@ public:
               static_cast<void *>(&tag_decl->getASTContext()),
               static_cast<void *>(tag_decl), tag_decl->getName().str().c_str());
 
-    LLDB_LOG(log, "  AOEAS::CT Before:\n{1}", ClangUtil::DumpDecl(tag_decl));
+    LLDB_LOG(log, "  AOEAS::CT Before:\n{0}", ClangUtil::DumpDecl(tag_decl));
 
-    LLDB_LOG(log, "  AOEAS::CT After:{1}", ClangUtil::DumpDecl(tag_decl));
+    LLDB_LOG(log, "  AOEAS::CT After:{0}", ClangUtil::DumpDecl(tag_decl));
   }
 
   void CompleteType(clang::ObjCInterfaceDecl *interface_decl) override {
@@ -146,9 +145,9 @@ AppleObjCDeclVendor::AppleObjCDeclVendor(ObjCLanguageRuntime &runtime)
   m_ast_ctx = std::make_shared<TypeSystemClang>(
       "AppleObjCDeclVendor AST",
       runtime.GetProcess()->GetTarget().GetArchitecture().GetTriple());
-  m_external_source = new AppleObjCExternalASTSource(*this);
-  llvm::IntrusiveRefCntPtr<clang::ExternalASTSource> external_source_owning_ptr(
-      m_external_source);
+  auto external_source_owning_ptr =
+      llvm::makeIntrusiveRefCnt<AppleObjCExternalASTSource>(*this);
+  m_external_source = external_source_owning_ptr.get();
   m_ast_ctx->getASTContext().setExternalSource(external_source_owning_ptr);
 }
 
@@ -180,13 +179,8 @@ AppleObjCDeclVendor::GetDeclForISA(ObjCLanguageRuntime::ObjCISA isa) {
   meta_data.SetISAPtr(isa);
   m_ast_ctx->SetMetadata(new_iface_decl, meta_data);
 
-  if (TypeSystemClang::UseRedeclCompletion()) {
-    m_interface_to_isa[new_iface_decl] = isa;
-    m_external_source->MarkRedeclChainsAsOutOfDate(m_ast_ctx->getASTContext());
-  } else {
-    new_iface_decl->setHasExternalVisibleStorage();
-    new_iface_decl->setHasExternalLexicalStorage();
-  }
+  new_iface_decl->setHasExternalVisibleStorage();
+  new_iface_decl->setHasExternalLexicalStorage();
 
   ast_ctx.getTranslationUnitDecl()->addDecl(new_iface_decl);
 
@@ -327,12 +321,12 @@ public:
     const bool isSynthesizedAccessorStub = false;
     const bool isImplicitlyDeclared = true;
     const bool isDefined = false;
-    const clang::ObjCMethodDecl::ImplementationControl impControl =
-        clang::ObjCMethodDecl::None;
+    const clang::ObjCImplementationControl impControl =
+        clang::ObjCImplementationControl::None;
     const bool HasRelatedResultType = false;
     const bool for_expression = true;
 
-    std::vector<clang::IdentifierInfo *> selector_components;
+    std::vector<const clang::IdentifierInfo *> selector_components;
 
     const char *name_cursor = name;
     bool is_zero_argument = true;
@@ -351,7 +345,7 @@ public:
       }
     }
 
-    clang::IdentifierInfo **identifier_infos = selector_components.data();
+    const clang::IdentifierInfo **identifier_infos = selector_components.data();
     if (!identifier_infos) {
       return nullptr;
     }
@@ -414,43 +408,21 @@ bool AppleObjCDeclVendor::FinishDecl(clang::ObjCInterfaceDecl *interface_decl) {
   Log *log(
       GetLog(LLDBLog::Expressions)); // FIXME - a more appropriate log channel?
 
-  clang::ObjCInterfaceDecl *iface_def = nullptr;
-  if (TypeSystemClang::UseRedeclCompletion()) {
-    // Already completed.
-    if (interface_decl->hasDefinition())
-      return true;
-
-    clang::QualType qt(interface_decl->getTypeForDecl(), 0U);
-    CompilerType type(m_ast_ctx, qt.getAsOpaquePtr());
-    CompilerType def_type = m_ast_ctx->CreateRedeclaration(type);
-    iface_def = ClangUtil::GetAsObjCDecl(def_type);
-
-    auto isa = m_interface_to_isa[interface_decl];
-    m_isa_to_interface[isa] = iface_def;
-  }
-
-  ClangASTMetadata *metadata = m_ast_ctx->GetMetadata(interface_decl);
   ObjCLanguageRuntime::ObjCISA objc_isa = 0;
-  if (metadata)
+  if (std::optional<ClangASTMetadata> metadata =
+          m_ast_ctx->GetMetadata(interface_decl))
     objc_isa = metadata->GetISAPtr();
 
   if (!objc_isa)
     return false;
 
-  if (!TypeSystemClang::UseRedeclCompletion() &&
-      !interface_decl->hasExternalVisibleStorage())
-    return true;
-
-  // Could've completed during CreateRedeclaration above
-  if (TypeSystemClang::UseRedeclCompletion() && interface_decl->hasDefinition())
+  if (!interface_decl->hasExternalVisibleStorage())
     return true;
 
   interface_decl->startDefinition();
 
-  if (!TypeSystemClang::UseRedeclCompletion()) {
-    interface_decl->setHasExternalVisibleStorage(false);
-    interface_decl->setHasExternalLexicalStorage(false);
-  }
+  interface_decl->setHasExternalVisibleStorage(false);
+  interface_decl->setHasExternalLexicalStorage(false);
 
   ObjCLanguageRuntime::ClassDescriptorSP descriptor =
       m_runtime.GetClassDescriptorFromISA(objc_isa);
@@ -540,10 +512,10 @@ bool AppleObjCDeclVendor::FinishDecl(clang::ObjCInterfaceDecl *interface_decl) {
     return false;
   };
 
-  LLDB_LOGF(log,
-            "[AppleObjCDeclVendor::FinishDecl] Finishing Objective-C "
-            "interface for %s",
-            descriptor->GetClassName().AsCString());
+  LLDB_LOG(log,
+           "[AppleObjCDeclVendor::FinishDecl] Finishing Objective-C interface "
+           "for {0}",
+           descriptor->GetClassName());
 
   if (!descriptor->Describe(superclass_func, instance_method_func,
                             class_method_func, ivar_func))
@@ -567,9 +539,8 @@ uint32_t AppleObjCDeclVendor::FindDecls(ConstString name, bool append,
   Log *log(
       GetLog(LLDBLog::Expressions)); // FIXME - a more appropriate log channel?
 
-  LLDB_LOGF(log, "AppleObjCDeclVendor::FindDecls ('%s', %s, %u, )",
-            (const char *)name.AsCString(), append ? "true" : "false",
-            max_matches);
+  LLDB_LOG(log, "AppleObjCDeclVendor::FindDecls ('{0}', {1}, {2}, )", name,
+           append ? "true" : "false", max_matches);
 
   if (!append)
     decls.clear();
@@ -597,8 +568,8 @@ uint32_t AppleObjCDeclVendor::FindDecls(ConstString name, bool append,
               ast_ctx.getObjCInterfaceType(result_iface_decl);
 
           uint64_t isa_value = LLDB_INVALID_ADDRESS;
-          ClangASTMetadata *metadata = m_ast_ctx->GetMetadata(result_iface_decl);
-          if (metadata)
+          if (std::optional<ClangASTMetadata> metadata =
+                  m_ast_ctx->GetMetadata(result_iface_decl))
             isa_value = metadata->GetISAPtr();
 
           LLDB_LOGF(log,
@@ -615,13 +586,13 @@ uint32_t AppleObjCDeclVendor::FindDecls(ConstString name, bool append,
         break;
       }
     } else if (log) {
-      LLDB_LOGF(log, "AOCTV::FT Couldn't find %s in the ASTContext",
-                name.AsCString());
+      LLDB_LOG(log, "AOCTV::FT Couldn't find {0} in the ASTContext", name);
     }
 
     // It's not.  If it exists, we have to put it into our ASTContext.
 
     ObjCLanguageRuntime::ObjCISA isa = m_runtime.GetISA(name);
+    LLDB_LOG(log, "AOCTV::FT Couldn't find {0} in the ASTContext", name);
 
     if (!isa) {
       LLDB_LOGF(log, "AOCTV::FT Couldn't find the isa");
@@ -643,7 +614,7 @@ uint32_t AppleObjCDeclVendor::FindDecls(ConstString name, bool append,
     if (log) {
       clang::QualType new_iface_type = ast_ctx.getObjCInterfaceType(iface_decl);
 
-      LLDB_LOG(log, "AOCTV::FT Created {1} (isa 0x{2:x})",
+      LLDB_LOG(log, "AOCTV::FT Created {0} (isa 0x{1:x})",
                new_iface_type.getAsString(), (uint64_t)isa);
     }
 

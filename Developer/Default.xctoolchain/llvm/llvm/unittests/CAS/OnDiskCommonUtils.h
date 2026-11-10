@@ -9,6 +9,7 @@
 #include "llvm/CAS/BuiltinObjectHasher.h"
 #include "llvm/CAS/OnDiskGraphDB.h"
 #include "llvm/Support/BLAKE3.h"
+#include "llvm/Testing/Support/Error.h"
 
 namespace llvm::unittest::cas {
 
@@ -30,11 +31,28 @@ inline ObjectID digest(OnDiskGraphDB &DB, StringRef Data,
   for (ObjectID Ref : Refs)
     RefHashes.push_back(DB.getDigest(Ref));
   HashType Digest = digest(Data, RefHashes);
-  return DB.getReference(Digest);
+  std::optional<ObjectID> ID;
+  EXPECT_THAT_ERROR(DB.getReference(Digest).moveInto(ID), Succeeded());
+  return *ID;
 }
 
 inline HashType digest(StringRef Data) {
   return HasherT::hash(arrayRefFromStringRef(Data));
+}
+
+inline HashType digestFile(StringRef FilePath) {
+  std::optional<HashType> Digest;
+  EXPECT_THAT_ERROR(
+      BuiltinObjectHasher<HasherT>::hashFile(FilePath).moveInto(Digest),
+      Succeeded());
+  return *Digest;
+}
+
+inline ObjectID digestFile(OnDiskGraphDB &DB, StringRef FilePath) {
+  HashType Digest = digestFile(FilePath);
+  std::optional<ObjectID> ID;
+  EXPECT_THAT_ERROR(DB.getReference(Digest).moveInto(ID), Succeeded());
+  return *ID;
 }
 
 inline ValueType valueFromString(StringRef S) {
@@ -65,5 +83,9 @@ inline Error printTree(OnDiskGraphDB &DB, ObjectID ID, raw_ostream &OS,
   }
   return Error::success();
 }
+
+std::unique_ptr<unittest::TempFile> createSmallFile(char initChar);
+std::unique_ptr<unittest::TempFile> createLargeFile(char initChar);
+std::unique_ptr<unittest::TempFile> createLargePageAlignedFile(char initChar);
 
 } // namespace llvm::unittest::cas

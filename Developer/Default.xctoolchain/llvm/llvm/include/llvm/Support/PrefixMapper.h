@@ -11,6 +11,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
 #include <optional>
@@ -38,7 +39,8 @@ struct MappedPrefix {
   }
   bool operator!=(const MappedPrefix &RHS) const { return !(*this == RHS); }
 
-  static std::optional<MappedPrefix> getFromJoined(StringRef JoinedMapping);
+  LLVM_ABI static std::optional<MappedPrefix>
+  getFromJoined(StringRef JoinedMapping);
 
   static Error transformJoined(ArrayRef<StringRef> Joined,
                                SmallVectorImpl<MappedPrefix> &Split);
@@ -48,6 +50,9 @@ struct MappedPrefix {
                                      SmallVectorImpl<MappedPrefix> &Split);
   static void transformJoinedIfValid(ArrayRef<std::string> Joined,
                                      SmallVectorImpl<MappedPrefix> &Split);
+  LLVM_ABI static void
+  transformPairs(ArrayRef<std::pair<std::string, std::string>> Pairs,
+                 SmallVectorImpl<MappedPrefix> &Split);
 };
 
 /// Remap path prefixes.
@@ -62,31 +67,31 @@ public:
   ///
   /// \pre \p Path is not a reference into \p NewPath.
   /// \returns true if \c NewPath was mapped.
-  bool map(StringRef Path, SmallVectorImpl<char> &NewPath);
+  LLVM_ABI bool map(StringRef Path, SmallVectorImpl<char> &NewPath);
   /// Map \p Path, and saving the new (or existing) path in \p NewPath.
   ///
   /// \pre \p Path is not a reference into \p NewPath.
   /// \returns true if \c NewPath was mapped.
-  bool map(StringRef Path, std::string &NewPath);
+  LLVM_ABI bool map(StringRef Path, std::string &NewPath);
 
   /// Map \p Path, returning \a std::string.
-  std::string mapToString(StringRef Path);
+  LLVM_ABI std::string mapToString(StringRef Path);
 
   /// Map \p Path in place.
   /// \returns true if the path was modified.
-  bool mapInPlace(SmallVectorImpl<char> &Path);
+  LLVM_ABI bool mapInPlace(SmallVectorImpl<char> &Path);
 
   /// Map \p Path in place.
   /// \returns true if the path was modified.
-  bool mapInPlace(std::string &Path);
+  LLVM_ABI bool mapInPlace(std::string &Path);
 
 protected:
   /// Map (or unmap) \p Path. On a match, fills \p Storage with the mapped path
   /// unless it's an exact match.
   ///
   /// \pre \p Path is not a reference into \p Storage.
-  virtual std::optional<StringRef> mapImpl(StringRef Path,
-                                      SmallVectorImpl<char> &Storage);
+  LLVM_ABI virtual std::optional<StringRef>
+  mapImpl(StringRef Path, SmallVectorImpl<char> &Storage);
 
 public:
   virtual void add(const MappedPrefix &MP) { Mappings.push_back(MP); }
@@ -103,7 +108,7 @@ public:
   /// or std::map.
   ///
   /// TODO: Test.
-  void sort();
+  LLVM_ABI void sort();
 
   template <class RangeT> void addRange(const RangeT &Mappings) {
     for (const MappedPrefix &M : Mappings)
@@ -167,18 +172,19 @@ private:
   /// Find the tree path for \p Path, getting the real path for its parent
   /// directory but not following symlinks in \a sys::path::filename().
   ///
-  /// \returns The tree path, or the original path if there are any errors.
-  StringRef getTreePath(StringRef Path);
+  /// \returns The tree path, or none if there are any errors.
+  std::optional<StringRef> getTreePath(StringRef Path);
 
 public:
   void add(const MappedPrefix &Mapping) override;
 
-  StringRef mapDirEntry(const vfs::CachedDirectoryEntry &Entry,
-                        SmallVectorImpl<char> &Storage);
+  LLVM_ABI StringRef mapDirEntry(const vfs::CachedDirectoryEntry &Entry,
+                                 SmallVectorImpl<char> &Storage);
 
+  LLVM_ABI
   TreePathPrefixMapper(IntrusiveRefCntPtr<vfs::FileSystem> FS,
                        sys::path::Style PathStyle = sys::path::Style::native);
-  ~TreePathPrefixMapper();
+  LLVM_ABI ~TreePathPrefixMapper();
 
 private:
   IntrusiveRefCntPtr<vfs::FileSystem> FS;

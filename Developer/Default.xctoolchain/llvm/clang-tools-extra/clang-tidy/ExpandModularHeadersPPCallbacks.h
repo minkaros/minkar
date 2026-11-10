@@ -9,6 +9,7 @@
 #ifndef LLVM_CLANG_TOOLING_EXPANDMODULARHEADERSPPCALLBACKS_H_
 #define LLVM_CLANG_TOOLING_EXPANDMODULARHEADERSPPCALLBACKS_H_
 
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/DenseSet.h"
@@ -34,14 +35,14 @@ namespace tooling {
 /// including the contents of the modular headers and all their transitive
 /// includes.
 ///
-/// This allows existing tools based on PPCallbacks to retain their functionality
-/// when running with C++ modules enabled. This only works in the backwards
-/// compatible modules mode, i.e. when code can still be parsed in non-modular
-/// way.
+/// This allows existing tools based on PPCallbacks to retain their
+/// functionality when running with C++ modules enabled. This only works in the
+/// backwards compatible modules mode, i.e. when code can still be parsed in
+/// non-modular way.
 class ExpandModularHeadersPPCallbacks : public PPCallbacks {
 public:
   ExpandModularHeadersPPCallbacks(
-      CompilerInstance *Compiler,
+      CompilerInstance *CI,
       IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayFS);
   ~ExpandModularHeadersPPCallbacks();
 
@@ -99,6 +100,10 @@ private:
   void PragmaWarningPop(SourceLocation Loc) override;
   void PragmaAssumeNonNullBegin(SourceLocation Loc) override;
   void PragmaAssumeNonNullEnd(SourceLocation Loc) override;
+  /*TO_UPSTREAM(BoundsSafety) ON*/
+  void PragmaAbiPointerAttributesSet(SourceLocation Loc,
+                                     ArrayRef<const IdentifierInfo *>) override;
+  /*TO_UPSTREAM(BoundsSafety) OFF*/
   void MacroExpands(const Token &MacroNameTok, const MacroDefinition &,
                     SourceRange Range, const MacroArgs *) override;
   void MacroDefined(const Token &MacroNameTok,
@@ -127,8 +132,10 @@ private:
   llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFs;
 
   SourceManager &Sources;
+  DiagnosticOptions DiagOpts;
   DiagnosticsEngine Diags;
   LangOptions LangOpts;
+  HeaderSearchOptions HSOpts;
   TrivialModuleLoader ModuleLoader;
 
   std::unique_ptr<HeaderSearch> HeaderInfo;

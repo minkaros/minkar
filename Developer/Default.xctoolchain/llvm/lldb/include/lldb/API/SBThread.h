@@ -182,6 +182,8 @@ public:
 
   lldb::SBFrame GetFrameAtIndex(uint32_t idx);
 
+  lldb::SBFrameList GetFrames() const;
+
   lldb::SBFrame GetSelectedFrame();
 
   lldb::SBFrame SetSelectedFrame(uint32_t frame_idx);
@@ -237,8 +239,10 @@ private:
   friend class SBBreakpoint;
   friend class SBBreakpointLocation;
   friend class SBBreakpointCallbackBaton;
+  friend class SBSaveCoreOptions;
   friend class SBExecutionContext;
   friend class SBFrame;
+  friend class SBFrameList;
   friend class SBProcess;
   friend class SBDebugger;
   friend class SBValue;
@@ -248,14 +252,14 @@ private:
   friend class SBThreadPlan;
   friend class SBTrace;
 
+  friend class lldb_private::ScriptInterpreter;
   friend class lldb_private::python::SWIGBridge;
 
   SBThread(const lldb::ThreadSP &lldb_object_sp);
 
   void SetThread(const lldb::ThreadSP &lldb_object_sp);
 
-  SBError ResumeNewPlan(lldb_private::ExecutionContext &exe_ctx,
-                        lldb_private::ThreadPlan *new_plan);
+  lldb::ThreadSP GetSP() const;
 
   lldb::ExecutionContextRefSP m_opaque_sp;
 

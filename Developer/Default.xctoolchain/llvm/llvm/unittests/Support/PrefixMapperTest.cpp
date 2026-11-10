@@ -125,6 +125,21 @@ TEST(MappedPrefixTest, transformJoinedIfValid) {
   EXPECT_EQ(ArrayRef(ExpectedSplit), ArrayRef(ComputedSplit));
 }
 
+TEST(PrefixMapperTest, transformPairs) {
+  SmallVector<std::pair<std::string, std::string>> PrefixMappings = {
+    {"", ""}, {"a", "b"}, {"", "a"}, {"a", ""}, {"=a=b=", "=c=d==="}
+  };
+  MappedPrefix ExpectedSplit[] = {
+    MappedPrefix{"", ""}, MappedPrefix{"a", "b"},
+    MappedPrefix{"", "a"}, MappedPrefix{"a", ""},
+    MappedPrefix{"=a=b=", "=c=d==="},
+  };
+
+  SmallVector<MappedPrefix> ComputedSplit;
+  MappedPrefix::transformPairs(PrefixMappings, ComputedSplit);
+  EXPECT_EQ(ArrayRef(ExpectedSplit), ArrayRef(ComputedSplit));
+}
+
 TEST(PrefixMapperTest, construct) {
   for (auto PathStyle : {
            sys::path::Style::posix,
@@ -401,7 +416,7 @@ TEST(TreePathPrefixMapperTest, construct) {
 
 TEST(TreePathPrefixMapperTest, add) {
   auto FS = makeIntrusiveRefCnt<GetDirectoryEntryFileSystem>();
-  TreePathPrefixMapper PM(FS);
+  TreePathPrefixMapper PM(FS, sys::path::Style::posix);
 
   // Non-canonical paths create two map entries: one for the canonical and one
   // for the non-canonical path.
@@ -425,7 +440,7 @@ TEST(TreePathPrefixMapperTest, add) {
 
 TEST(TreePathPrefixMapperTest, addRange) {
   auto FS = makeIntrusiveRefCnt<GetDirectoryEntryFileSystem>();
-  TreePathPrefixMapper PM(FS);
+  TreePathPrefixMapper PM(FS, sys::path::Style::posix);
 
   MappedPrefix MissingMapping[] = {
       {"missing", "/new"},
@@ -450,7 +465,7 @@ TEST(TreePathPrefixMapperTest, addRange) {
 
 TEST(TreePathPrefixMapperTest, addInverseRange) {
   auto FS = makeIntrusiveRefCnt<GetDirectoryEntryFileSystem>();
-  TreePathPrefixMapper PM(FS);
+  TreePathPrefixMapper PM(FS, sys::path::Style::posix);
 
   MappedPrefix MissingMapping[] = {
       {"/new", "missing"},
@@ -498,7 +513,7 @@ struct MapState {
       {"/missing/nested", "/missing/nested"},
       {"/relative/nested", "/relative/nested"},
   };
-  MapState() : PM(FS) {
+  MapState() : PM(FS, sys::path::Style::posix) {
     PM.add(MappedPrefix{"relative", "/new1"});
     PM.add(MappedPrefix{"/absolute", "/new2"});
   }

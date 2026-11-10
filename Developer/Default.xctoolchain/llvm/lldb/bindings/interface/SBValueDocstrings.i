@@ -135,6 +135,26 @@ linked list."
 %feature("docstring", "Expands nested expressions like .a->b[0].c[1]->d."
 ) lldb::SBValue::GetValueForExpressionPath;
 
+%feature("docstring", "
+      Return the value as an address.  On failure, LLDB_INVALID_ADDRESS
+      will be returned.  On architectures like AArch64, where the
+      top (unaddressable) bits can be used for authentication,
+      memory tagging, or top byte ignore,  this method will return
+      the value with those top bits cleared.
+
+      GetValueAsUnsigned returns the actual value, with the
+      authentication/Top Byte Ignore/Memory Tagging Extension bits.
+
+      Calling this on a random value which is not a pointer is
+      incorrect.  Call GetType().IsPointerType() if in doubt.
+
+      An SB API program may want to show both the literal byte value
+      and the address it refers to in memory.  These two SBValue
+      methods allow SB API writers to behave appropriately for their
+      interface."
+) lldb::SBValue::GetValueAsAddress;
+
+
 %feature("doctstring", "
     Returns the number for children.
 
@@ -187,3 +207,13 @@ linked list."
 
 %feature("docstring", "Returns an expression path for this value."
 ) lldb::SBValue::GetExpressionPath;
+
+%feature("docstring", "
+    Returns whether this value can be modified through SetValueFromCString()
+    or SetData().
+
+    Returns False when the value is not writable. An example would be a
+    variable values reconstructed from debug info via a computation or a constant.
+    A True result does not guarantee a write will succeed; other
+    runtime conditions may still prevent a successful write."
+) lldb::SBValue::CanSetValue;

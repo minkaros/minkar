@@ -19,7 +19,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 import sys
 if sys.version_info.major == 2:
@@ -31,13 +30,13 @@ def execute_command(command):
     (exit_status, output) = subprocess.getstatusoutput(command)
     return exit_status
 
-
 class TestUnitTests(TestBase):
     @swiftTest
     @skipIf(debug_info=no_match(["dsym"]), bugnumber="This test is building a dSYM")
     @expectedFailureAll(
         oslist=["linux"],
         bugnumber="rdar://28180489")
+    @skipEmbeddedSwift
     def test_equality_operators_fileprivate(self):
         """Test that we resolve expression operators correctly"""
         self.build()
@@ -48,6 +47,7 @@ class TestUnitTests(TestBase):
     @expectedFailureAll(
         oslist=["linux"],
         bugnumber="rdar://28180489")
+    @skipEmbeddedSwift
     def test_equality_operators_private(self):
         """Test that we resolve expression operators correctly"""
         self.build()

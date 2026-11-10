@@ -107,6 +107,15 @@ public:
     eRISCVSubType_riscv64,
   };
 
+  enum LoongArcheflags {
+    eLoongArch_abi_soft_float = 0x00000000, /// soft float
+    eLoongArch_abi_single_float =
+        0x00000001, /// single precision floating point, +f
+    eLoongArch_abi_double_float =
+        0x00000002, /// double precision floating point, +d
+    eLoongArch_abi_mask = 0x00000003,
+  };
+
   enum LoongArchSubType {
     eLoongArchSubType_unknown,
     eLoongArchSubType_loongarch32,
@@ -123,12 +132,16 @@ public:
     eCore_arm_armv6,
     eCore_arm_armv6m,
     eCore_arm_armv7,
+    eCore_arm_armv7a,
     eCore_arm_armv7l,
     eCore_arm_armv7f,
     eCore_arm_armv7s,
     eCore_arm_armv7k,
     eCore_arm_armv7m,
     eCore_arm_armv7em,
+    eCore_arm_armv8m_base,
+    eCore_arm_armv8m_main,
+    eCore_arm_armv8_1m_main,
     eCore_arm_xscale,
 
     eCore_thumb,
@@ -145,6 +158,7 @@ public:
     eCore_thumbv7em,
     eCore_arm_arm64,
     eCore_arm_armv8,
+    eCore_arm_armv8a,
     eCore_arm_armv8l,
     eCore_arm_arm64e,
     eCore_arm_arm64_32,
@@ -204,6 +218,8 @@ public:
 
     eCore_x86_64_x86_64,
     eCore_x86_64_x86_64h, // Haswell enabled x86_64
+    eCore_x86_64_amd64,
+
     eCore_hexagon_generic,
     eCore_hexagon_hexagonv4,
     eCore_hexagon_hexagonv5,
@@ -551,6 +567,7 @@ protected:
 /// \return true if \a lhs is less than \a rhs
 bool operator<(const ArchSpec &lhs, const ArchSpec &rhs);
 bool operator==(const ArchSpec &lhs, const ArchSpec &rhs);
+bool operator!=(const ArchSpec &lhs, const ArchSpec &rhs);
 
 bool ParseMachCPUDashSubtypeTriple(llvm::StringRef triple_str, ArchSpec &arch);
 

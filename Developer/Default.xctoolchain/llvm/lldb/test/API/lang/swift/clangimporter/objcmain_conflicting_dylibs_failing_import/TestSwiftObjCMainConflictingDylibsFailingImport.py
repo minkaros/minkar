@@ -15,13 +15,13 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 import shutil
 
 class TestSwiftObjCMainConflictingDylibsFailingImport(TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
     @skipUnlessDarwin
@@ -63,4 +63,3 @@ class TestSwiftObjCMainConflictingDylibsFailingImport(TestBase):
         # self.expect("expression foo", "expected result", substrs=["$R3", "23"])
         # self.expect("expression $R3", "expected result", substrs=["23"])
         # self.expect("expression $R4", "expected result", substrs=["23"])
-

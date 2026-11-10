@@ -17,11 +17,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftOptionalType(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_optional_type(self):
         """Check formatting for T? and T!"""
         self.do_check_consistency()
@@ -93,13 +93,13 @@ class TestSwiftOptionalType(TestBase):
             self,
             optString_Some,
             use_dynamic=False,
-            num_children=1)
+            num_children=0)
         uoptString_Some = self.frame().FindVariable("uoptString_Some")
         lldbutil.check_variable(
             self,
             uoptString_Some,
             use_dynamic=False,
-            num_children=1)
+            num_children=0)
         uoptString_Some.GetChildAtIndex(99)
 
         optTrue = self.frame().FindVariable("optTrue")
@@ -107,7 +107,7 @@ class TestSwiftOptionalType(TestBase):
             self,
             optTrue,
             use_dynamic=False,
-            num_children=1,
+            num_children=0,
             summary='true')
 
         optFalse = self.frame().FindVariable("optFalse")
@@ -115,7 +115,7 @@ class TestSwiftOptionalType(TestBase):
             self,
             optFalse,
             use_dynamic=False,
-            num_children=1,
+            num_children=0,
             summary='false')
 
         optNil = self.frame().FindVariable("optNil")

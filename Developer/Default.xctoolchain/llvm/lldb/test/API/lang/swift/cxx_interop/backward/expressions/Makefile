@@ -1,3 +1,4 @@
+SWIFT_ENABLE_EXPLICIT_MODULES := NO
 SWIFT_CXX_HEADER := swift-types.h
 SWIFT_SOURCES := swift-types.swift
 CXX_SOURCES := main.cpp

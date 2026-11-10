@@ -17,7 +17,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftGenericEnumTypes(TestBase):
@@ -27,6 +26,7 @@ class TestSwiftGenericEnumTypes(TestBase):
         var.SetPreferSyntheticValue(True)
         return var
 
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_generic_enum_types(self):
         """Test that we handle reasonably generically-typed enums"""
@@ -43,10 +43,9 @@ class TestSwiftGenericEnumTypes(TestBase):
         self.assertTrue(enumvar.GetValue() is None,
                         "static type has a value when it shouldn't")
         enumvar = enumvar.GetDynamicValue(lldb.eDynamicCanRunTarget)
-        # FIXME?
-        #self.assertEqual(
-        #    enumvar.GetValue(), "Some",
-        #    "dynamic type's value should be Some")
+        self.assertEqual(
+            enumvar.GetValue(), "3",
+            "dynamic type's value should be 3")
         self.assertEqual(
             enumvar.GetSummary(), "3",
             "Some's summary should be 3")

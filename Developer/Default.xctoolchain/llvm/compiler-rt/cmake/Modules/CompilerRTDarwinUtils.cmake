@@ -1,4 +1,3 @@
-include(CMakeParseArguments)
 include(CompilerRTUtils)
 include(BuiltinTests)
 
@@ -100,7 +99,6 @@ function(darwin_get_toolchain_supported_archs output_var)
     message(WARNING "Detecting supported architectures from 'ld -v' failed. Returning default set.")
     set(ARCHES "i386;x86_64;armv7;armv7s;arm64")
   endif()
-  
   set(${output_var} ${ARCHES} PARENT_SCOPE)
 endfunction()
 
@@ -113,38 +111,38 @@ function(darwin_test_archs os valid_archs)
   endif()
 
   set(archs ${ARGN})
+
+  # Disable building for i386 for macOS SDK >= 10.15. The SDK doesn't support
+  # linking for i386 and the corresponding OS doesn't allow running macOS i386
+  # binaries.
+  if ("${os}" STREQUAL "osx")
+    find_darwin_sdk_version(macosx_sdk_version "macosx")
+    if ("${macosx_sdk_version}" VERSION_GREATER 10.15 OR "${macosx_sdk_version}" VERSION_EQUAL 10.15)
+      message(STATUS "Disabling i386 slice for ${valid_archs}")
+      list(REMOVE_ITEM archs "i386")
+    endif()
+  endif()
+
   if(NOT TEST_COMPILE_ONLY)
     message(STATUS "Finding valid architectures for ${os}...")
     set(SIMPLE_C ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/src.c)
-    file(WRITE ${SIMPLE_C} "#include <stdio.h>\nint main(void) { printf(__FILE__); return 0; }\n")
+    file(WRITE ${SIMPLE_C} "#include <stdio.h>\n#include <unistd.h>\nint main(void) { printf(__FILE__); fork(); return 0; }\n")
 
     set(os_linker_flags)
     foreach(flag ${DARWIN_${os}_LINK_FLAGS})
       set(os_linker_flags "${os_linker_flags} ${flag}")
     endforeach()
-
-    # Disable building for i386 for macOS SDK >= 10.15. The SDK doesn't support
-    # linking for i386 and the corresponding OS doesn't allow running macOS i386
-    # binaries.
-    #if ("${os}" STREQUAL "osx")
-    #  find_darwin_sdk_version(macosx_sdk_version "macosx")
-    #  if ("${macosx_sdk_version}" VERSION_GREATER 10.15 OR "${macosx_sdk_version}" VERSION_EQUAL 10.15)
-        message(STATUS "Disabling i386 slice for ${valid_archs}")
-        list(REMOVE_ITEM archs "i386")
-    #  endif()
-    #endif()
   endif()
 
-  # The simple program will build for x86_64h on the simulator because it is 
+  # The simple program will build for x86_64h on the simulator because it is
   # compatible with x86_64 libraries (mostly), but since x86_64h isn't actually
-  # a valid or useful architecture for the iOS simulator we should drop it.
+  # a valid or useful architecture for the simulators. We should drop it.
   if(${os} MATCHES "^(iossim|tvossim|watchossim)$")
     list(REMOVE_ITEM archs "x86_64h")
-  endif()
-
-  if(${os} MATCHES "iossim")
-    message(STATUS "Disabling i386 slice for iossim")
-    list(REMOVE_ITEM archs "i386")
+    if ("i386" IN_LIST archs)
+      list(REMOVE_ITEM archs "i386")
+      message(STATUS "Disabling i386 slice for simulator")
+    endif()
   endif()
 
   if(${os} MATCHES "^ios$")
@@ -154,7 +152,7 @@ function(darwin_test_archs os valid_archs)
 
   set(working_archs)
   foreach(arch ${archs})
-   
+
     set(arch_linker_flags "-arch ${arch} ${os_linker_flags}")
     if(TEST_COMPILE_ONLY)
       # `-w` is used to surpress compiler warnings which `try_compile_only()` treats as an error.
@@ -269,7 +267,7 @@ function(darwin_find_excluded_builtins_list output_var)
         ${DARWIN_EXCLUDE_DIR}/${LIB_OS}${smallest_version}-${LIB_ARCH}.txt)
     endif()
   endif()
-  
+
   set(${output_var}
       ${${LIB_ARCH}_${LIB_OS}_BUILTINS}
       ${${LIB_OS}_${LIB_ARCH}_BASE_BUILTINS}
@@ -336,7 +334,7 @@ macro(darwin_add_builtin_library name suffix)
 
   list(APPEND ${LIB_OS}_${suffix}_libs ${libname})
   list(APPEND ${LIB_OS}_${suffix}_lipo_flags -arch ${arch} $<TARGET_FILE:${libname}>)
-  set_target_properties(${libname} PROPERTIES FOLDER "Compiler-RT Libraries")
+  set_target_properties(${libname} PROPERTIES FOLDER "Compiler-RT/Libraries")
 endmacro()
 
 function(darwin_lipo_libs name)
@@ -355,7 +353,7 @@ function(darwin_lipo_libs name)
       )
     add_custom_target(${name}
       DEPENDS ${LIB_OUTPUT_DIR}/lib${name}.a)
-    set_target_properties(${name} PROPERTIES FOLDER "Compiler-RT Misc")
+    set_target_properties(${name} PROPERTIES FOLDER "Compiler-RT/Misc")
     add_dependencies(${LIB_PARENT_TARGET} ${name})
 
     if(CMAKE_CONFIGURATION_TYPES)
@@ -447,7 +445,18 @@ macro(darwin_add_builtin_libraries)
                               OS ${os}
                               ARCH ${arch}
                               MIN_VERSION ${DARWIN_${os}_BUILTIN_MIN_VER})
-
+      cmake_push_check_state()
+      set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -arch ${arch}")
+      check_c_source_compiles("_Float16 foo(_Float16 x) { return x; }"
+                              COMPILER_RT_HAS_${arch}_FLOAT16)
+      append_list_if(COMPILER_RT_HAS_${arch}_FLOAT16 -DCOMPILER_RT_HAS_FLOAT16 BUILTIN_CFLAGS_${arch})
+      check_c_source_compiles("__bf16 foo(__bf16 x) { return x; }"
+                              COMPILER_RT_HAS_${arch}_BFLOAT16)
+      cmake_pop_check_state()
+      # Build BF16 files only when "__bf16" is available.
+      if(COMPILER_RT_HAS_${arch}_BFLOAT16)
+        list(APPEND ${arch}_SOURCES ${BF16_SOURCES})
+      endif()
       darwin_filter_builtin_sources(filtered_sources
         ${os}_${arch}
         EXCLUDE ${arch}_${os}_EXCLUDED_BUILTINS
@@ -515,8 +524,8 @@ endmacro()
 macro(darwin_add_embedded_builtin_libraries)
   # this is a hacky opt-out. If you can't target both intel and arm
   # architectures we bail here.
-  set(DARWIN_SOFT_FLOAT_ARCHS armv6m armv7m armv7em armv7)
-  set(DARWIN_HARD_FLOAT_ARCHS armv7em armv7)
+  set(DARWIN_SOFT_FLOAT_ARCHS armv6m armv7m armv7em armv7 armv8m.main armv8.1m.main)
+  set(DARWIN_HARD_FLOAT_ARCHS armv7em armv7 armv8m.main armv8.1m.main)
   if(COMPILER_RT_SUPPORTED_ARCH MATCHES ".*armv.*")
     list(FIND COMPILER_RT_SUPPORTED_ARCH i386 i386_idx)
     if(i386_idx GREATER -1)
@@ -542,13 +551,13 @@ macro(darwin_add_embedded_builtin_libraries)
     set(PIC_FLAG -fPIC)
     set(STATIC_FLAG -static)
 
-    set(DARWIN_macho_embedded_ARCHS armv6m armv7m armv7em armv7 i386 x86_64)
+    set(DARWIN_macho_embedded_ARCHS armv6m armv7m armv7em armv7 armv8m.main armv8.1m.main i386 x86_64)
 
     set(DARWIN_macho_embedded_LIBRARY_OUTPUT_DIR
       ${COMPILER_RT_OUTPUT_LIBRARY_DIR}/macho_embedded)
     set(DARWIN_macho_embedded_LIBRARY_INSTALL_DIR
       ${COMPILER_RT_INSTALL_LIBRARY_DIR}/macho_embedded)
-      
+
     set(CFLAGS_armv7 -target thumbv7-apple-darwin-eabi)
     set(CFLAGS_i386 -march=pentium)
 
@@ -563,6 +572,8 @@ macro(darwin_add_embedded_builtin_libraries)
     set(armv7m_FUNCTIONS ${common_FUNCTIONS} ${arm_FUNCTIONS} ${thumb2_FUNCTIONS})
     set(armv7em_FUNCTIONS ${common_FUNCTIONS} ${arm_FUNCTIONS} ${thumb2_FUNCTIONS})
     set(armv7_FUNCTIONS ${common_FUNCTIONS} ${arm_FUNCTIONS} ${thumb2_FUNCTIONS} ${thumb2_64_FUNCTIONS})
+    set(armv8m.main_FUNCTIONS ${common_FUNCTIONS} ${arm_FUNCTIONS} ${thumb2_FUNCTIONS} ${thumb2_64_FUNCTIONS})
+    set(armv8.1m.main_FUNCTIONS ${common_FUNCTIONS} ${arm_FUNCTIONS} ${thumb2_FUNCTIONS} ${thumb2_64_FUNCTIONS})
     set(i386_FUNCTIONS ${common_FUNCTIONS} ${i386_FUNCTIONS})
     set(x86_64_FUNCTIONS ${common_FUNCTIONS})
 

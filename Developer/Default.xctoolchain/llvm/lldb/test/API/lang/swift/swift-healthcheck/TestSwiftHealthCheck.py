@@ -2,7 +2,6 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftHealthCheck(TestBase):
@@ -10,6 +9,7 @@ class TestSwiftHealthCheck(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     @skipIfDarwinEmbedded
     def test_run_healthcheck(self):
         """Test that an underspecified triple is upgraded with a version number.
@@ -20,7 +20,8 @@ class TestSwiftHealthCheck(TestBase):
             self, 'main')
         self.expect("expression 1")
         result = lldb.SBCommandReturnObject()
-        ret_val = self.dbg.GetCommandInterpreter().HandleCommand("swift-healthcheck", result)
+        ret_val = self.ci.HandleCommand("swift-healthcheck", result)
+        self.assertEqual(ret_val, lldb.eReturnStatusSuccessFinishResult)
         log = result.GetOutput()[:-1].split(" ")[-1]
         self.assertEqual(log[-4:], ".log")
         import io, re
@@ -38,6 +39,7 @@ class TestSwiftHealthCheck(TestBase):
         self.assertEqual(bad, 0)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     @skipIfDarwinEmbedded
     def test_help_healthcheck(self):
         self.expect("help swift-healthcheck",

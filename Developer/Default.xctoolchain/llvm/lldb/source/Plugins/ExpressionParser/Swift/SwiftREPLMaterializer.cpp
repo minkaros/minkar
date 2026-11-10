@@ -16,11 +16,11 @@
 
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "lldb/Core/DumpDataExtractor.h"
-#include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Expression/IRMemoryMap.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/ValueObject/ValueObjectConstResult.h"
 
 #include "swift/Demangling/Demangle.h"
 
@@ -100,15 +100,16 @@ public:
         execution_unit.GetBestExecutionContextScope();
 
     if (!exe_scope) {
-      err.SetErrorString("Couldn't dematerialize a result variable: invalid "
-                         "execution context scope");
+      err = Status::FromErrorString("Couldn't dematerialize a result variable: "
+                                    "invalid execution context scope");
       return;
     }
 
     lldb::TargetSP target_sp = exe_scope->CalculateTarget();
 
     if (!target_sp) {
-      err.SetErrorString("Couldn't dematerialize a result variable: no target");
+      err = Status::FromErrorString(
+          "Couldn't dematerialize a result variable: no target");
       return;
     }
 
@@ -121,8 +122,8 @@ public:
         target_sp->GetPersistentExpressionStateForLanguage(lang);
 
     if (!persistent_state) {
-      err.SetErrorString("Couldn't dematerialize a result variable: language "
-                         "doesn't have persistent state");
+      err = Status::FromErrorString("Couldn't dematerialize a result variable: "
+                                    "language doesn't have persistent state");
       return;
     }
 
@@ -139,9 +140,10 @@ public:
               ->shared_from_this();
 
     if (!ret) {
-      err.SetErrorStringWithFormat("couldn't dematerialize a result variable: "
-                                   "failed to make persistent variable %s",
-                                   name.AsCString());
+      err = Status::FromErrorStringWithFormatv(
+          "couldn't dematerialize a result variable: "
+          "failed to make persistent variable {0}",
+          name);
       return;
     }
 
@@ -156,7 +158,13 @@ public:
     ret->ValueUpdated();
 
     if (variable) {
-      const size_t pvar_byte_size = ret->GetByteSize().value_or(0);
+      auto pvar_byte_size_or_err = ret->GetByteSize();
+      if (!pvar_byte_size_or_err) {
+        err = Status::FromError(pvar_byte_size_or_err.takeError());
+        return;
+      }
+
+      const uint64_t pvar_byte_size = *pvar_byte_size_or_err;
       uint8_t *pvar_data = ret->GetValueBytes();
 
       Status read_error;
@@ -172,8 +180,8 @@ public:
                                 read_error);
 
       if (!read_error.Success()) {
-        err.SetErrorString("Couldn't dematerialize a result variable: couldn't "
-                           "read its memory");
+        err = Status::FromErrorString("Couldn't dematerialize a result "
+                                      "variable: couldn't read its memory");
         return;
       }
     }
@@ -224,15 +232,18 @@ public:
       demangle_ctx.clear();
     }
 
-    std::optional<uint64_t> size =
+    auto size_or_err =
         m_type.GetByteSize(execution_unit->GetBestExecutionContextScope());
-    if (size && *size == 0) {
+    if (!size_or_err) {
+      err = Status::FromError(size_or_err.takeError());
+      return;
+    }
+    if (*size_or_err == 0) {
       MakeREPLResult(*execution_unit, err, nullptr);
       return;
     }
 
-    err.SetErrorToGenericError();
-    err.SetErrorStringWithFormat(
+    err = Status::FromErrorString(
         "Couldn't dematerialize result: corresponding symbol wasn't found");
   }
 
@@ -378,14 +389,15 @@ public:
       if (last_component.empty())
         continue;
 
-      if (m_persistent_variable_sp->GetName().GetStringRef().equals(
-              last_component)) {
+      if (m_persistent_variable_sp->GetName().GetStringRef() ==
+              last_component) {
         ExecutionContextScope *exe_scope =
             execution_unit->GetBestExecutionContextScope();
 
         if (!exe_scope) {
-          err.SetErrorString("Couldn't dematerialize a persistent variable: "
-                             "invalid execution context scope");
+          err = Status::FromErrorString(
+              "Couldn't dematerialize a persistent variable: invalid execution "
+              "context scope");
           return;
         }
 
@@ -411,16 +423,20 @@ public:
               FixupResilientGlobal(var_addr, compiler_type, *execution_unit,
                                    exe_scope->CalculateProcess(), read_error);
 
+        auto size_or_err = m_persistent_variable_sp->GetByteSize();
+        if (!size_or_err) {
+          err = Status::FromError(size_or_err.takeError());
+          return;
+        }
+
         // FIXME: This may not work if the value is not bitwise-takable.
-        execution_unit->ReadMemory(
-            m_persistent_variable_sp->GetValueBytes(), var_addr,
-            m_persistent_variable_sp->GetByteSize().value_or(0), read_error);
+        execution_unit->ReadMemory(m_persistent_variable_sp->GetValueBytes(),
+                                   var_addr, *size_or_err, read_error);
 
         if (!read_error.Success()) {
-          err.SetErrorStringWithFormat(
-              "couldn't read the contents of %s from memory: %s",
-              m_persistent_variable_sp->GetName().GetCString(),
-              read_error.AsCString());
+          err = Status::FromErrorStringWithFormatv(
+              "couldn't read the contents of {0} from memory: {1}",
+              m_persistent_variable_sp->GetName(), read_error);
           return;
         }
 
@@ -432,10 +448,9 @@ public:
       demangle_ctx.clear();
     }
 
-    err.SetErrorToGenericError();
-    err.SetErrorStringWithFormat(
-        "Couldn't dematerialize %s: corresponding symbol wasn't found",
-        m_persistent_variable_sp->GetName().GetCString());
+    err = Status::FromErrorStringWithFormatv(
+        "Couldn't dematerialize {0}: corresponding symbol wasn't found",
+        m_persistent_variable_sp->GetName());
   }
 
   void DumpToLog(IRMemoryMap &map, lldb::addr_t process_address,
@@ -446,9 +461,8 @@ public:
 
     const lldb::addr_t load_addr = process_address + m_offset;
 
-    dump_stream.Printf("0x%" PRIx64 ": EntityPersistentVariable (%s)\n",
-                       load_addr,
-                       m_persistent_variable_sp->GetName().AsCString());
+    dump_stream.Format("{0:x}: EntityPersistentVariable ({1})\n", load_addr,
+                       m_persistent_variable_sp->GetName());
 
     {
       dump_stream.Printf("Pointer:\n");
@@ -477,12 +491,13 @@ public:
       if (!err.Success()) {
         dump_stream.Printf("  <could not be read>\n");
       } else {
-        DataBufferHeap data(m_persistent_variable_sp->GetByteSize().value_or(0),
-                            0);
+        uint64_t size =
+            llvm::expectedToOptional(m_persistent_variable_sp->GetByteSize())
+                .value_or(0);
 
-        map.ReadMemory(data.GetBytes(), target_address,
-                       m_persistent_variable_sp->GetByteSize().value_or(0),
-                       err);
+        DataBufferHeap data(size, 0);
+
+        map.ReadMemory(data.GetBytes(), target_address, size, err);
 
         if (!err.Success()) {
           dump_stream.Printf("  <could not be read>\n");

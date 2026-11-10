@@ -523,3 +523,8 @@ bool CrashRecoveryContext::RunSafelyOnThread(function_ref<void()> Fn,
     CRC->setSwitchedThread();
   return Info.Result;
 }
+
+bool CrashRecoveryContext::RunSafelyOnNewStack(function_ref<void()> Fn,
+                                               unsigned RequestedStackSize) {
+  return RunSafelyOnThread(Fn, RequestedStackSize);
+}

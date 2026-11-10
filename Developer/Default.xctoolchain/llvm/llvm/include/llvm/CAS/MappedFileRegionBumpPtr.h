@@ -16,6 +16,10 @@
 
 namespace llvm::cas {
 
+namespace ondisk {
+class OnDiskCASLogger;
+}
+
 /// Allocator for an owned mapped file region that supports thread-safe and
 /// process-safe bump pointer allocation.
 ///
@@ -46,8 +50,9 @@ public:
   /// \param BumpPtrOffset the offset at which to store the bump pointer.
   /// \param NewFileConstructor is for constructing new files. It has exclusive
   /// access to the file. Must call \c initializeBumpPtr.
-  static Expected<MappedFileRegionBumpPtr>
+  LLVM_ABI_FOR_TEST static Expected<MappedFileRegionBumpPtr>
   create(const Twine &Path, uint64_t Capacity, int64_t BumpPtrOffset,
+         std::shared_ptr<ondisk::OnDiskCASLogger> Logger,
          function_ref<Error(MappedFileRegionBumpPtr &)> NewFileConstructor);
 
   /// Finish initializing the bump pointer. Must be called by
@@ -63,14 +68,17 @@ public:
   }
 
   /// Allocate at least \p AllocSize. Rounds up to \a getAlign().
-  char *allocate(uint64_t AllocSize) {
-    return data() + allocateOffset(AllocSize);
+  Expected<char *> allocate(uint64_t AllocSize) {
+    auto Offset = allocateOffset(AllocSize);
+    if (LLVM_UNLIKELY(!Offset))
+      return Offset.takeError();
+    return data() + *Offset;
   }
   /// Allocate, returning the offset from \a data() instead of a pointer.
-  int64_t allocateOffset(uint64_t AllocSize);
+  LLVM_ABI_FOR_TEST Expected<int64_t> allocateOffset(uint64_t AllocSize);
 
   char *data() const { return Region.data(); }
-  uint64_t size() const { return *BumpPtr; }
+  uint64_t size() const { return H->BumpPtr; }
   uint64_t capacity() const { return Region.size(); }
 
   RegionT &getRegion() { return Region; }
@@ -89,21 +97,27 @@ public:
   MappedFileRegionBumpPtr &operator=(const MappedFileRegionBumpPtr &) = delete;
 
 private:
-  void destroyImpl();
+  LLVM_ABI_FOR_TEST void destroyImpl();
   void moveImpl(MappedFileRegionBumpPtr &RHS) {
     std::swap(Region, RHS.Region);
-    std::swap(BumpPtr, RHS.BumpPtr);
+    std::swap(H, RHS.H);
     std::swap(Path, RHS.Path);
     std::swap(FD, RHS.FD);
     std::swap(SharedLockFD, RHS.SharedLockFD);
+    std::swap(Logger, RHS.Logger);
   }
 
 private:
+  struct Header {
+    std::atomic<int64_t> BumpPtr;
+    std::atomic<int64_t> AllocatedSize;
+  };
   RegionT Region;
-  std::atomic<int64_t> *BumpPtr = nullptr;
+  Header *H = nullptr;
   std::string Path;
   std::optional<int> FD;
   std::optional<int> SharedLockFD;
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger = nullptr;
 };
 
 } // namespace llvm::cas

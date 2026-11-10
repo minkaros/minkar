@@ -2,9 +2,9 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftClangImporterExtraInhabitants(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     @skipUnlessDarwin
     # Don't run ClangImporter tests if Clangimporter is disabled.

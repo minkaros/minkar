@@ -8,6 +8,7 @@ from lldbsuite.test.decorators import *
 
 class TestExternalProviderExtraInhabitants(TestBase):
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     def test(self):
@@ -15,6 +16,6 @@ class TestExternalProviderExtraInhabitants(TestBase):
         lldbutil.run_to_source_breakpoint(
             self, 'Set breakpoint here.', lldb.SBFileSpec('main.swift'))
 
-        self.expect('v object.size.some.width', substrs=['10'])
-        self.expect('v object.size.some.height', substrs=['20'])
+        self.expect('frame var object.size.width', substrs=['10'])
+        self.expect('frame var object.size.height', substrs=['20'])
 

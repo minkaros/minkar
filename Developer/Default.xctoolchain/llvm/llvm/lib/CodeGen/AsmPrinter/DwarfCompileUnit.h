@@ -25,7 +25,6 @@
 #include "llvm/CodeGen/LexicalScopes.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/Casting.h"
-#include <cassert>
 #include <cstdint>
 #include <memory>
 
@@ -83,6 +82,10 @@ class DwarfCompileUnit final : public DwarfUnit {
   // List of abstract local scopes (either DISubprogram or DILexicalBlock).
   DenseMap<const DILocalScope *, DIE *> AbstractLocalScopeDIEs;
 
+  // List of inlined lexical block scopes that belong to subprograms within this
+  // CU.
+  DenseMap<const DILocalScope *, SmallVector<DIE *, 2>> InlinedLocalScopeDIEs;
+
   DenseMap<const DINode *, std::unique_ptr<DbgEntity>> AbstractEntities;
 
   /// DWO ID for correlating skeleton and split units.
@@ -91,9 +94,34 @@ class DwarfCompileUnit final : public DwarfUnit {
   const DIFile *LastFile = nullptr;
   unsigned LastFileID;
 
-  /// Construct a DIE for the given DbgVariable without initializing the
-  /// DbgVariable's DIE reference.
-  DIE *constructVariableDIEImpl(const DbgVariable &DV, bool Abstract);
+  /// \anchor applyConcreteDbgVariableAttribute
+  /// \name applyConcreteDbgVariableAttribute
+  /// Overload set which applies attributes to \c VariableDie based on
+  /// the active variant of \c DV, which is passed as the first argument.
+  ///@{
+
+  /// See \ref applyConcreteDbgVariableAttribute
+  void applyConcreteDbgVariableAttributes(const Loc::Single &Single,
+                                          const DbgVariable &DV,
+                                          DIE &VariableDie);
+  /// See \ref applyConcreteDbgVariableAttribute
+  void applyConcreteDbgVariableAttributes(const Loc::Multi &Multi,
+                                          const DbgVariable &DV,
+                                          DIE &VariableDie);
+  /// See \ref applyConcreteDbgVariableAttribute
+  void applyConcreteDbgVariableAttributes(const Loc::MMI &MMI,
+                                          const DbgVariable &DV,
+                                          DIE &VariableDie);
+  /// See \ref applyConcreteDbgVariableAttribute
+  void applyConcreteDbgVariableAttributes(const Loc::EntryValue &EntryValue,
+                                          const DbgVariable &DV,
+                                          DIE &VariableDie);
+  /// See \ref applyConcreteDbgVariableAttribute
+  void applyConcreteDbgVariableAttributes(const std::monostate &,
+                                          const DbgVariable &DV,
+                                          DIE &VariableDie);
+
+  ///@}
 
   bool isDwoUnit() const override;
 
@@ -127,6 +155,8 @@ public:
   }
 
   bool includeMinimalInlineScopes() const;
+
+  bool emitFuncLineTableOffsets() const;
 
   void initStmtList();
 
@@ -183,11 +213,10 @@ public:
   void attachLowHighPC(DIE &D, const MCSymbol *Begin, const MCSymbol *End);
 
   /// Find DIE for the given subprogram and attach appropriate
-  /// DW_AT_low_pc and DW_AT_high_pc attributes. If there are global
-  /// variables in this scope then create and insert DIEs for these
-  /// variables.
-  DIE &updateSubprogramScopeDIE(const DISubprogram *SP);
-  DIE &updateSubprogramScopeDIEImpl(const DISubprogram *SP, DIE *SPDie);
+  /// DW_AT_low_pc, DW_AT_high_pc and DW_AT_LLVM_stmt_sequence attributes.
+  /// If there are global variables in this scope then create and insert DIEs
+  /// for these variables.
+  DIE &updateSubprogramScopeDIE(const DISubprogram *SP, MCSymbol *LineTableSym);
 
   void constructScopeDIE(LexicalScope *Scope, DIE &ParentScopeDIE);
 
@@ -213,9 +242,11 @@ public:
   /// and it's an error, if it hasn't.
   DIE *getLexicalBlockDIE(const DILexicalBlock *LB);
 
-  /// constructVariableDIE - Construct a DIE for the given DbgVariable.
+  /// Construct a DIE for the given DbgVariable.
   DIE *constructVariableDIE(DbgVariable &DV, bool Abstract = false);
 
+  /// Convenience overload which writes the DIE pointer into an out variable
+  /// ObjectPointer in addition to returning it.
   DIE *constructVariableDIE(DbgVariable &DV, const LexicalScope &Scope,
                             DIE *&ObjectPointer);
 
@@ -229,8 +260,8 @@ public:
   DIE *getOrCreateContextDIE(const DIScope *Ty) override;
 
   /// Construct a DIE for this subprogram scope.
-  DIE &constructSubprogramScopeDIE(const DISubprogram *Sub,
-                                   LexicalScope *Scope);
+  DIE &constructSubprogramScopeDIE(const DISubprogram *Sub, LexicalScope *Scope,
+                                   MCSymbol *LineTableSym);
 
   DIE *createAndAddScopeChildren(LexicalScope *Scope, DIE &ScopeDIE);
 
@@ -272,6 +303,7 @@ public:
 
   void finishSubprogramDefinition(const DISubprogram *SP);
   void finishEntityDefinition(const DbgEntity *Entity);
+  void attachLexicalScopesAbstractOrigins();
 
   /// Find abstract variable associated with Var.
   using InlinedEntity = DbgValueHistoryMap::InlinedEntity;
@@ -310,8 +342,8 @@ public:
   void addGlobalNameForTypeUnit(StringRef Name, const DIScope *Context);
 
   /// Add a new global type to the compile unit.
-  void addGlobalType(const DIType *Ty, const DIE &Die,
-                     const DIScope *Context) override;
+  void addGlobalTypeImpl(const DIType *Ty, const DIE &Die,
+                         const DIScope *Context) override;
 
   /// Add a new global type present in a type unit to this compile unit.
   void addGlobalTypeUnitType(const DIType *Ty, const DIScope *Context);
@@ -337,7 +369,11 @@ public:
 
   /// Add a Dwarf loclistptr attribute data and value.
   void addLocationList(DIE &Die, dwarf::Attribute Attribute, unsigned Index);
-  void applyVariableAttributes(const DbgVariable &Var, DIE &VariableDie);
+
+  /// Add attributes to \p Var which reflect the common attributes of \p
+  /// VariableDie, namely those which are not dependant on the active variant.
+  void applyCommonDbgVariableAttributes(const DbgVariable &Var,
+                                        DIE &VariableDie);
 
   /// Add a Dwarf expression attribute data and value.
   void addExpr(DIELoc &Die, dwarf::Form Form, const MCExpr *Expr);

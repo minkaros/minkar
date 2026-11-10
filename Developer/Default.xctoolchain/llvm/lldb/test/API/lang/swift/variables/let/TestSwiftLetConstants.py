@@ -2,11 +2,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftLetConstants(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_let_constants(self):
         """Test that let constants aren't writeable"""
         self.build()

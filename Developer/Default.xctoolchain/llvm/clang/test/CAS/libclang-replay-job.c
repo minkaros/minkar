@@ -6,7 +6,7 @@
 
 // RUN: clang-scan-deps -compilation-database %t/cdb.json \
 // RUN:   -format experimental-include-tree-full \
-// RUN:   -cas-path %t/cas -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -cas-path %t/cas -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option no-logging \
 // RUN:   > %t/deps.json
 
@@ -25,7 +25,7 @@
 // RUN:   -e "s/' .*$//" > %t/cache-key
 
 // RUN: c-index-test core -upload-cached-job -cas-path %t/cas @%t/cache-key -test-cas-cancellation \
-// RUN:   -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option upstream-path=%t/cas-upstream \
 // RUN:   2>&1 | FileCheck %s --check-prefix=UPLOAD-CANCEL
 // UPLOAD-CANCEL: actioncache_put_for_digest_async cancelled
@@ -36,21 +36,21 @@
 // Re-run the scan to populate the include-tree in the cas
 // RUN: clang-scan-deps -compilation-database %t/cdb.json \
 // RUN:   -format experimental-include-tree-full \
-// RUN:   -cas-path %t/cas -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -cas-path %t/cas -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option no-logging \
 // RUN:   > %t/deps2.json
 // RUN: diff -u %t/deps.json %t/deps2.json
 
 
 // RUN: c-index-test core -materialize-cached-job -cas-path %t/cas @%t/cache-key -test-cas-cancellation \
-// RUN:   -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option upstream-path=%t/cas-upstream \
 // RUN:   2>&1 | FileCheck %s --check-prefix=MATERIALIZE-CANCEL
 // MATERIALIZE-CANCEL: actioncache_get_for_digest_async cancelled
 // MATERIALIZE-CANCEL: load_object_async cancelled
 
 // RUN: c-index-test core -replay-cached-job -cas-path %t/cas @%t/cache-key \
-// RUN:   -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option no-logging \
 // RUN:   -working-dir %t \
 // RUN: -- @%t/cc1.rsp \
@@ -66,7 +66,7 @@
 // RUN: mkdir -p %t/a/b
 // RUN: cd %t/a
 // RUN: c-index-test core -replay-cached-job -cas-path %t/cas @%t/cache-key \
-// RUN:   -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
 // RUN:   -fcas-plugin-option no-logging \
 // RUN:   -working-dir %t/a/b \
 // RUN: -- @%t/cc1.rsp \
@@ -76,6 +76,37 @@
 // RUN: diff %t/output1.o %t/a/b/reloutput.o
 // RUN: diff -u %t/t1.d %t/a/b/rel.d
 // FIXME: Get clang's `-working-directory` to affect relative path for serialized diagnostics.
+
+// Check with -fdiagnostics-absolute-path
+// RUN: cd %t
+// RUN: c-index-test core -replay-cached-job -cas-path %t/cas @%t/cache-key \
+// RUN:   -fcas-plugin-path %llvmshlibdir/%pluginpreCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-option no-logging \
+// RUN:   -working-dir %t \
+// RUN: -- @%t/cc1.rsp \
+// RUN:   -fdiagnostics-absolute-paths \
+// RUN:   -Rcompile-job-cache-hit \
+// RUN:   -dependency-file %t/t3.d -o %t/output3.o 2> %t/output3.txt
+// RUN: FileCheck %s -input-file=%t/output2.txt -check-prefix=REL_DIAG
+// RUN: FileCheck %s -input-file=%t/output3.txt -check-prefix=ABS_DIAG
+// RUN: diff %t/output1.o %t/output3.o
+// RUN: diff -u %t/t1.d %t/t3.d
+// REL_DIAG: remark: compile job cache hit for
+// REL_DIAG: {{^}}main.c:1:2: warning:
+// ABS_DIAG: remark: compile job cache hit for
+// ABS_DIAG: libclang-replay-job.c.tmp{{.}}main.c:1:2: warning:
+
+// Check with a bad include-tree ID.
+// RUN: sed "s|llvmcas://[[:xdigit:]]*|llvmcas://bad|" %t/cc1.rsp > %t/cc1.bad.rsp
+// RUN: not c-index-test core -replay-cached-job -cas-path %t/cas @%t/cache-key \
+// RUN:   -fcas-plugin-path %llvmshlibdir/libCASPluginTest%pluginext \
+// RUN:   -fcas-plugin-option no-logging \
+// RUN:   -working-dir %t \
+// RUN: -- @%t/cc1.bad.rsp \
+// RUN:   -serialize-diagnostic-file %t/t4.dia -Rcompile-job-cache-hit \
+// RUN:   -dependency-file %t/t4.d -o %t/output4.o 2> %t/output4.txt
+// RUN: FileCheck %s --input-file=%t/output4.txt -check-prefix=ERR_DIAG
+// ERR_DIAG: error constructing virtual filesystem for replay: fatal error: CAS cannot parse root-id 'llvmcas://bad' specified by '-fcas-*' options
 
 // Use relative path to inputs and outputs.
 //--- cdb.json.template

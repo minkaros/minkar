@@ -10,6 +10,7 @@ add_lldb_library(lldbExpression ${PLUGIN_DEPENDENCY_ARG}
   DWARFExpression.cpp
   DWARFExpressionList.cpp
   Expression.cpp
+  ExpressionParser.cpp
   ExpressionTypeSystemHelper.cpp
   ExpressionVariable.cpp
   FunctionCaller.cpp
@@ -23,9 +24,15 @@ add_lldb_library(lldbExpression ${PLUGIN_DEPENDENCY_ARG}
   UserExpression.cpp
   UtilityFunction.cpp
 
+  ADDITIONAL_HEADER_DIRS
+    ${LLDB_INCLUDE_DIR}/lldb/Expression
   DEPENDS
   intrinsics_gen
 
+  LINK_COMPONENTS
+    Core
+    ExecutionEngine
+    Support
   LINK_LIBS
     lldbCore
     lldbHost
@@ -33,10 +40,11 @@ add_lldb_library(lldbExpression ${PLUGIN_DEPENDENCY_ARG}
     lldbSymbol
     lldbTarget
     lldbUtility
+    lldbValueObject
 
-    # Begin Swift Mods
+    ## BEGIN SWIFT
     ${SWIFT_LIBS}
-    # End Swift Mods
+    ## END SWIFT
 
   LINK_COMPONENTS
     Core

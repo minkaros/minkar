@@ -176,8 +176,7 @@
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/CAS/CASID.h"
 #include "llvm/CAS/ObjectStore.h"
-#include "llvm/MC/MCAsmLayout.h"
-#include "llvm/MCCAS/MCCASFormatSchemaBase.h"
+#include "llvm/MC/MCCASFormatSchemaBase.h"
 #include "llvm/MCCAS/MCCASReader.h"
 #include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/DataExtractor.h"
@@ -267,14 +266,15 @@ public:
   /// before calling this.
   bool isNode(const cas::ObjectProxy &Node) const override;
 
-  Expected<cas::ObjectProxy> createFromMCAssemblerImpl(
-      llvm::MachOCASWriter &ObjectWriter, llvm::MCAssembler &Asm,
-      const llvm::MCAsmLayout &Layout, raw_ostream *DebugOS) const override;
+  Expected<cas::ObjectProxy>
+  createFromMCAssemblerImpl(llvm::MachOCASWriter &ObjectWriter,
+                            llvm::MCAssembler &Asm,
+                            raw_ostream *DebugOS) const override;
 
-  Error serializeObjectFile(cas::ObjectProxy RootNode,
-                            raw_ostream &OS) const override;
+  LLVM_ABI Error serializeObjectFile(cas::ObjectProxy RootNode,
+                                     raw_ostream &OS) const override;
 
-  MCSchema(cas::ObjectStore &CAS);
+  LLVM_ABI MCSchema(cas::ObjectStore &CAS);
 
   Expected<MCObjectProxy> create(ArrayRef<cas::ObjectRef> Refs,
                                  StringRef Data) const {
@@ -457,9 +457,10 @@ public:
     return get(Schema.get(ID));
   }
 
-  static Expected<MCAssemblerRef>
-  create(const MCSchema &Schema, MachOCASWriter &ObjectWriter, MCAssembler &Asm,
-         const MCAsmLayout &Layout, raw_ostream *DebugOS = nullptr);
+  static Expected<MCAssemblerRef> create(const MCSchema &Schema,
+                                         MachOCASWriter &ObjectWriter,
+                                         MCAssembler &Asm,
+                                         raw_ostream *DebugOS = nullptr);
 
   Error materialize(raw_ostream &OS) const;
 
@@ -507,15 +508,13 @@ public:
   MachOCASWriter &ObjectWriter;
   const MCSchema &Schema;
   MCAssembler &Asm;
-  const MCAsmLayout &Layout;
   raw_ostream *DebugOS;
 
   MCCASBuilder(const MCSchema &Schema, MachOCASWriter &ObjectWriter,
-               MCAssembler &Asm, const MCAsmLayout &Layout,
-               raw_ostream *DebugOS)
+               MCAssembler &Asm, raw_ostream *DebugOS)
       : CAS(Schema.CAS), ObjectWriter(ObjectWriter), Schema(Schema), Asm(Asm),
-        Layout(Layout), DebugOS(DebugOS), FragmentOS(FragmentData),
-        CurrentContext(&Sections), DwarfSections(getDwarfSections(Asm)) {}
+        DebugOS(DebugOS), FragmentOS(FragmentData), CurrentContext(&Sections),
+        DwarfSections(getDwarfSections(Asm)) {}
 
   Error prepare();
   Error buildMachOHeader();
@@ -554,7 +553,7 @@ private:
   friend class MCAssemblerRef;
 
   Expected<SmallVector<char, 0>>
-  mergeMCFragmentContents(const MCSection::FragmentListType &FragmentList,
+  mergeMCFragmentContents(const MCSection *Section,
                           bool IsDebugLineSection = false);
 
   // Helper functions.
@@ -685,8 +684,8 @@ public:
   uint64_t AddendBufferIndex = 0;
 
   MCCASReader(raw_ostream &OS, const Triple &Target, const MCSchema &Schema);
-  support::endianness getEndian() {
-    return Target.isLittleEndian() ? support::little : support::big;
+  endianness getEndian() {
+    return Target.isLittleEndian() ? endianness::little : endianness::big;
   }
 
   bool isLittleEndian() { return Target.isLittleEndian(); }
@@ -806,6 +805,9 @@ Error visitDebugInfo(
     std::function<void(bool)> EndTagCallback, bool IsLittleEndian,
     uint8_t AddressSize,
     std::function<void(StringRef)> NewBlockCallback = [](StringRef) {});
+
+/// If MCCAS supports the target.
+bool isSupportedTarget(Triple Triple);
 
 } // namespace v1
 } // namespace mccasformats

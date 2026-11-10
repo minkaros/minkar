@@ -331,6 +331,8 @@ StringExtractorGDBRemote::GetServerPacketType() const {
       return eServerPacketType_jLLDBTraceGetState;
     if (PACKET_STARTS_WITH("jLLDBTraceGetBinaryData:"))
       return eServerPacketType_jLLDBTraceGetBinaryData;
+    if (PACKET_STARTS_WITH("jMultiBreakpoint:"))
+      return eServerPacketType_jMultiBreakpoint;
     break;
 
   case 'v':
@@ -500,13 +502,11 @@ lldb_private::Status StringExtractorGDBRemote::GetStatus() {
   if (GetResponseType() == eError) {
     SetFilePos(1);
     uint8_t errc = GetHexU8(255);
-    error.SetError(errc, lldb::eErrorTypeGeneric);
-
-    error.SetErrorStringWithFormat("Error %u", errc);
+    error = lldb_private::Status::FromErrorStringWithFormat("Error %u", errc);
     std::string error_messg;
     if (GetChar() == ';') {
       GetHexByteString(error_messg);
-      error.SetErrorString(error_messg);
+      error = lldb_private::Status(error_messg);
     }
   }
   return error;

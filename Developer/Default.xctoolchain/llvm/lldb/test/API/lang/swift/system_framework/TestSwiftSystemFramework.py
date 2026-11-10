@@ -2,13 +2,13 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftSystemFramework(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     @swiftTest
     @skipIf(oslist=no_match(["macosx"]))
     def test_system_framework(self):
@@ -19,9 +19,7 @@ class TestSwiftSystemFramework(lldbtest.TestBase):
 
         log = self.getBuildArtifact("types.log")
         self.runCmd('log enable lldb types -f "%s"' % log)
-        self.expect("settings set target.use-all-compiler-flags true")
         self.expect("expression -- 0")
-        self.filecheck('platform shell cat "%s"' % log, __file__)
-#       CHECK: SwiftASTContextForExpressions{{.*}}-- rejecting framework path
+        self.filecheck_log(log, __file__)
 #       CHECK: SwiftASTContextForExpressions{{.*}}LogConfiguration()
 #       CHECK-NOT: LogConfiguration(){{.*}}/System/Library/Frameworks

@@ -1,5 +1,6 @@
 import itertools
 import os
+import pathlib
 import platform
 import re
 import subprocess
@@ -11,6 +12,17 @@ from lit.llvm.subst import FindTool
 from lit.llvm.subst import ToolSubst
 
 lit_path_displayed = False
+
+
+def user_is_root():
+    # os.getuid() is not available on all platforms
+    try:
+        if os.getuid() == 0:
+            return True
+    except:
+        pass
+
+    return False
 
 
 class LLVMConfig(object):
@@ -42,9 +54,22 @@ class LLVMConfig(object):
             self.use_lit_shell = True
 
             global lit_path_displayed
-            if not self.lit_config.quiet and lit_path_displayed is False:
+            if (
+                self.lit_config.diagnostic_level_enabled("note")
+                and lit_path_displayed is False
+            ):
                 self.lit_config.note("using lit tools: {}".format(path))
                 lit_path_displayed = True
+
+        if platform.system() == "OS/390":
+            self.with_environment("_BPXK_AUTOCVT", "ON")
+            self.with_environment("_TAG_REDIR_IN", "TXT")
+            self.with_environment("_TAG_REDIR_OUT", "TXT")
+            self.with_environment("_TAG_REDIR_ERR", "TXT")
+            self.with_environment("_CEE_RUNOPTS", "FILETAG(AUTOCVT,AUTOTAG) POSIX(ON)")
+
+        if lit_config.update_tests:
+            self.use_lit_shell = True
 
         # Choose between lit's internal shell pipeline runner and a real shell.
         # If LIT_USE_INTERNAL_SHELL is in the environment, we use that as an
@@ -52,6 +77,8 @@ class LLVMConfig(object):
         lit_shell_env = os.environ.get("LIT_USE_INTERNAL_SHELL")
         if lit_shell_env:
             self.use_lit_shell = lit.util.pythonize_bool(lit_shell_env)
+            if not self.use_lit_shell and lit_config.update_tests:
+                print("note: --update-tests is not supported when using external shell")
 
         if not self.use_lit_shell:
             features.add("shell")
@@ -65,6 +92,7 @@ class LLVMConfig(object):
                 "UBSAN_SYMBOLIZER_PATH" "ASAN_OPTIONS",
                 "HWASAN_OPTIONS",
                 "MSAN_OPTIONS",
+                "RTSAN_OPTIONS",
                 "TSAN_OPTIONS",
                 "UBSAN_OPTIONS",
             ]
@@ -72,9 +100,6 @@ class LLVMConfig(object):
 
         # Running on Darwin OS
         if platform.system() == "Darwin":
-            # FIXME: lld uses the first, other projects use the second.
-            # We should standardize on the former.
-            features.add("system-linker-mach-o")
             features.add("system-darwin")
         elif platform.system() == "Windows":
             # For tests that require Windows to run.
@@ -97,6 +122,7 @@ class LLVMConfig(object):
         # part of the standard header.  But currently they aren't)
         host_triple = getattr(config, "host_triple", None)
         target_triple = getattr(config, "target_triple", None)
+        features.add("host=%s" % host_triple)
         features.add("target=%s" % target_triple)
         if host_triple and host_triple == target_triple:
             features.add("native")
@@ -112,6 +138,8 @@ class LLVMConfig(object):
             features.add("msan")
         if "undefined" in sanitizers:
             features.add("ubsan")
+        if "thread" in sanitizers:
+            features.add("tsan")
 
         have_zlib = getattr(config, "have_zlib", None)
         if have_zlib:
@@ -150,8 +178,17 @@ class LLVMConfig(object):
                 features.add("target-aarch64")
             elif re.match(r"^arm.*", target_triple):
                 features.add("target-arm")
-            if re.match(r'^ppc64le.*-linux', target_triple):
-                features.add('target=powerpc64le-linux')
+            elif re.match(r"^ppc64le.*-linux", target_triple):
+                features.add("target=powerpc64le-linux")
+            elif re.match(r"^riscv64-.*-elf", target_triple):
+                features.add("target-riscv64")
+            elif re.match(r"^riscv32-.*-elf.", target_triple):
+                features.add("target-riscv32")
+            elif re.match(r"^loongarch64.*", target_triple):
+                features.add("target-loongarch64")
+
+        if not user_is_root():
+            features.add("non-root-user")
 
         use_gmalloc = lit_config.params.get("use_gmalloc", None)
         if lit.util.pythonize_bool(use_gmalloc):
@@ -165,10 +202,7 @@ class LLVMConfig(object):
 
     def _find_git_windows_unix_tools(self, tools_needed):
         assert sys.platform == "win32"
-        if sys.version_info.major >= 3:
-            import winreg
-        else:
-            import _winreg as winreg
+        import winreg
 
         # Search both the 64 and 32-bit hives, as well as HKLM + HKCU
         masks = [0, winreg.KEY_WOW64_64KEY]
@@ -194,6 +228,14 @@ class LLVMConfig(object):
         return None
 
     def with_environment(self, variable, value, append_path=False):
+        ### BEGIN SWIFT
+        # On Windows, env vars are case-insensitive and swiftc will
+        # crash if passed two variables that differ only in case.
+        if platform.system() == "Windows":
+            for key in list(self.config.environment):
+                if key.lower() == variable.lower() and key != variable:
+                    del self.config.environment[key]
+        ### END SWIFT
         if append_path:
             # For paths, we should be able to take a list of them and process
             # all of them.
@@ -329,6 +371,14 @@ class LLVMConfig(object):
             return major_version_number >= 5
 
         return False
+
+    # Normalize 3-field target triple to 4-field triple with "unknown" as environment
+    def normalize_triple(self, triple):
+        compoments = triple.split("-", maxsplit=3)
+        if len(compoments) == 4:
+            return triple
+        assert len(compoments) == 3
+        return triple + "-unknown"
 
     def make_itanium_abi_triple(self, triple):
         m = re.match(r"(\w+)-(\w+)-(\w+)", triple)
@@ -483,23 +533,34 @@ class LLVMConfig(object):
 
         if tool:
             tool = os.path.normpath(tool)
-            if not self.lit_config.quiet and not quiet:
+            if not quiet:
                 self.lit_config.note("using {}: {}".format(name, tool))
         return tool
 
-    def use_clang(
+    def _get_clang_paths(self, additional_tool_dirs):
+        # Put Clang first to avoid LLVM from overriding out-of-tree clang
+        # builds.
+        exe_dir_props = [
+            self.config.name.lower() + "_tools_dir",
+            "clang_tools_dir",
+            "llvm_tools_dir",
+        ]
+        paths = [
+            getattr(self.config, pp)
+            for pp in exe_dir_props
+            if getattr(self.config, pp, None)
+        ]
+        paths = additional_tool_dirs + paths
+        return paths
+
+    def clang_setup(
         self,
         additional_tool_dirs=[],
-        additional_flags=[],
-        required=True,
-        use_installed=False,
     ):
-        """Configure the test suite to be able to invoke clang.
+        """Perform the setup needed to be able to invoke clang.
 
-        Sets up some environment variables important to clang, locates a
-        just-built or optionally an installed clang, and add a set of standard
-        substitutions useful to any test suite that makes use of clang.
-
+        This function performs all the necessary setup to execute clang (or
+        tooling based on clang) but does not actually add clang as a tool.
         """
         # Clear some environment variables that might affect Clang.
         #
@@ -540,20 +601,9 @@ class LLVMConfig(object):
         self.clear_environment(possibly_dangerous_env_vars)
 
         # Tweak the PATH to include the tools dir and the scripts dir.
-        # Put Clang first to avoid LLVM from overriding out-of-tree clang
-        # builds.
-        exe_dir_props = [
-            self.config.name.lower() + "_tools_dir",
-            "clang_tools_dir",
-            "llvm_tools_dir",
-        ]
-        paths = [
-            getattr(self.config, pp)
-            for pp in exe_dir_props
-            if getattr(self.config, pp, None)
-        ]
-        paths = additional_tool_dirs + paths
-        self.with_environment("PATH", paths, append_path=True)
+        self.with_environment(
+            "PATH", self._get_clang_paths(additional_tool_dirs), append_path=True
+        )
 
         lib_dir_props = [
             self.config.name.lower() + "_libs_dir",
@@ -566,7 +616,10 @@ class LLVMConfig(object):
             if getattr(self.config, pp, None)
         ]
 
-        self.with_environment("LD_LIBRARY_PATH", lib_paths, append_path=True)
+        if platform.system() == "AIX":
+            self.with_environment("LIBPATH", lib_paths, append_path=True)
+        else:
+            self.with_environment("LD_LIBRARY_PATH", lib_paths, append_path=True)
 
         shl = getattr(self.config, "llvm_shlib_dir", None)
         pext = getattr(self.config, "llvm_plugin_ext", None)
@@ -574,72 +627,31 @@ class LLVMConfig(object):
             self.config.substitutions.append(("%llvmshlibdir", shl))
         if pext:
             self.config.substitutions.append(("%pluginext", pext))
+        if platform.system() != "Windows":
+            self.config.substitutions.append(("%pluginpre", "lib"))
+        else:
+            self.config.substitutions.append(("%pluginpre", ""))
 
-        # Discover the 'clang' and 'clangcc' to use.
-        self.config.clang = self.use_llvm_tool(
-            "clang",
-            search_env="CLANG",
-            required=required,
-            search_paths=paths,
-            use_installed=use_installed,
-        )
-        if self.config.clang:
-            self.config.available_features.add("clang")
-            builtin_include_dir = self.get_clang_builtin_include_dir(self.config.clang)
-            tool_substitutions = [
-                ToolSubst(
-                    "%clang", command=self.config.clang, extra_args=additional_flags
-                ),
-                ToolSubst(
-                    "%clang_analyze_cc1",
-                    command="%clang_cc1",
-                    extra_args=["-analyze", "%analyze", "-setup-static-analyzer"]
-                    + additional_flags,
-                ),
-                ToolSubst(
-                    "%clang_cc1",
-                    command=self.config.clang,
-                    extra_args=[
-                        "-cc1",
-                        "-internal-isystem",
-                        builtin_include_dir,
-                        "-nostdsysteminc",
-                    ]
-                    + additional_flags,
-                ),
-                ToolSubst(
-                    "%clang_cpp",
-                    command=self.config.clang,
-                    extra_args=["--driver-mode=cpp"] + additional_flags,
-                ),
-                ToolSubst(
-                    "%clang_cl",
-                    command=self.config.clang,
-                    extra_args=["--driver-mode=cl"] + additional_flags,
-                ),
-                ToolSubst(
-                    "%clang_dxc",
-                    command=self.config.clang,
-                    extra_args=["--driver-mode=dxc"] + additional_flags,
-                ),
-                ToolSubst(
-                    "%clangxx",
-                    command=self.config.clang,
-                    extra_args=["--driver-mode=g++"] + additional_flags,
-                ),
-            ]
-            self.add_tool_substitutions(tool_substitutions)
-            self.config.substitutions.append(("%resource_dir", builtin_include_dir))
-
-        self.config.substitutions.append(
-            (
-                "%itanium_abi_triple",
-                self.make_itanium_abi_triple(self.config.target_triple),
+        # There will be no default target triple if one was not specifically
+        # set, and the host's architecture is not an enabled target.
+        if self.config.target_triple:
+            self.config.substitutions.append(
+                (
+                    "%itanium_abi_triple",
+                    self.normalize_triple(
+                        self.make_itanium_abi_triple(self.config.target_triple)
+                    ),
+                )
             )
-        )
-        self.config.substitutions.append(
-            ("%ms_abi_triple", self.make_msabi_triple(self.config.target_triple))
-        )
+            self.config.substitutions.append(
+                ("%ms_abi_triple", self.make_msabi_triple(self.config.target_triple))
+            )
+        else:
+            self.lit_config.note(
+                "No default target triple was found, some tests may fail as a result."
+            )
+            self.config.substitutions.append(("%itanium_abi_triple", ""))
+            self.config.substitutions.append(("%ms_abi_triple", ""))
 
         # The host triple might not be set, at least if we're compiling clang
         # from an already installed llvm.
@@ -679,6 +691,95 @@ class LLVMConfig(object):
         add_std_cxx("%std_cxx17-")
         add_std_cxx("%std_cxx20-")
         add_std_cxx("%std_cxx23-")
+
+    def use_clang(
+        self,
+        additional_tool_dirs=[],
+        additional_flags=[],
+        required=True,
+        use_installed=False,
+    ):
+        """Configure the test suite to be able to invoke clang.
+
+        Sets up some environment variables important to clang, locates a
+        just-built or optionally an installed clang, and add a set of standard
+        substitutions useful to any test suite that makes use of clang.
+
+        """
+        self.clang_setup(additional_tool_dirs)
+
+        paths = self._get_clang_paths(additional_tool_dirs)
+
+        # Discover the 'clang' and 'clangcc' to use.
+        self.config.clang = self.use_llvm_tool(
+            "clang",
+            search_env="CLANG",
+            required=required,
+            search_paths=paths,
+            use_installed=use_installed,
+        )
+        if self.config.clang:
+            self.config.available_features.add("clang")
+            builtin_include_dir = self.get_clang_builtin_include_dir(self.config.clang)
+            tool_substitutions = [
+                ToolSubst(
+                    "%clang", command=self.config.clang, extra_args=additional_flags
+                ),
+                ToolSubst(
+                    "%/clang", command=self.config.clang.replace("\\", "/"), extra_args=additional_flags
+                ),
+                ToolSubst(
+                    "%clang_analyze_cc1",
+                    command="%clang_cc1",
+                    # -setup-static-analyzer ensures that __clang_analyzer__ is defined
+                    extra_args=["-analyze", "-setup-static-analyzer"]
+                    + additional_flags,
+                ),
+                ToolSubst(
+                    "%clang_cc1",
+                    command=self.config.clang,
+                    extra_args=[
+                        "-cc1",
+                        "-internal-isystem",
+                        builtin_include_dir,
+                        "-nostdsysteminc",
+                    ]
+                    + additional_flags,
+                ),
+                ToolSubst(
+                    "%clang_cpp",
+                    command=self.config.clang,
+                    extra_args=["--driver-mode=cpp"] + additional_flags,
+                ),
+                ToolSubst(
+                    "%clang_cl",
+                    command=self.config.clang,
+                    extra_args=["--driver-mode=cl"] + additional_flags,
+                ),
+                ToolSubst(
+                    "%clang_dxc",
+                    command=self.config.clang,
+                    extra_args=["--driver-mode=dxc"] + additional_flags,
+                ),
+                ToolSubst(
+                    "%clangxx",
+                    command=self.config.clang,
+                    extra_args=["--driver-mode=g++"] + additional_flags,
+                ),
+                # A clang path with natural casing on Windows. Same as
+                # %/clang on non-Windows.
+                ToolSubst(
+                    "%/ncclang",
+                    command = (
+                        str(pathlib.Path(self.config.clang).resolve(strict=False)).replace("\\", "/")
+                        if platform.system() == "Windows"
+                        else self.config.clang.replace("\\", "/")
+                    ),
+                    extra_args=additional_flags
+                ),
+            ]
+            self.add_tool_substitutions(tool_substitutions)
+            self.config.substitutions.append(("%resource_dir", builtin_include_dir))
 
         # FIXME: Find nicer way to prohibit this.
         def prefer(this, to):

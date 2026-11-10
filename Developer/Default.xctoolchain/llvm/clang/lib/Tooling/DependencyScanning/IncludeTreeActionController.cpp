@@ -37,6 +37,8 @@ private:
                    CompilerInvocation &NewInvocation) override;
   Error finalize(CompilerInstance &ScanInstance,
                  CompilerInvocation &NewInvocation) override;
+  std::optional<std::string>
+  getCacheKey(const CompilerInvocation &NewInvocation) override;
 
   Error initializeModuleBuild(CompilerInstance &ModuleScanInstance) override;
   Error finalizeModuleBuild(CompilerInstance &ModuleScanInstance) override;
@@ -57,6 +59,7 @@ private:
   // pointer so the builder cannot move when resizing.
   SmallVector<std::unique_ptr<IncludeTreeBuilder>> BuilderStack;
   std::optional<cas::IncludeTreeRoot> IncludeTreeResult;
+  llvm::StringMap<std::string> OutputToCacheKey;
 };
 
 /// Callbacks for building an include-tree for a given translation unit or
@@ -99,7 +102,7 @@ private:
   Expected<cas::ObjectRef>
   getObjectForFileNonCached(FileManager &FM, const SrcMgr::FileInfo &FI);
   Expected<cas::ObjectRef> getObjectForBuffer(const SrcMgr::FileInfo &FI);
-  Expected<cas::ObjectRef> addToFileList(FileManager &FM, const FileEntry *FE);
+  Expected<cas::ObjectRef> addToFileList(FileManager &FM, FileEntryRef FE);
   Expected<cas::IncludeTree> getCASTreeForFileIncludes(FilePPState &&PPState);
   Expected<cas::IncludeTree::File> createIncludeFile(StringRef Filename,
                                                      cas::ObjectRef Contents);
@@ -248,8 +251,8 @@ public:
   LookupPCHModulesListener(ASTReader &R) : Reader(R) {}
 
 private:
-  void visitModuleFile(StringRef Filename,
-                       serialization::ModuleKind Kind) final {
+  void visitModuleFile(StringRef Filename, serialization::ModuleKind Kind,
+                       bool DirectlyImported) final {
     // Any prebuilt or explicit modules seen during scanning are "full" modules
     // rather than implicitly built scanner modules.
     if (Kind == serialization::MK_PrebuiltModule ||
@@ -279,10 +282,11 @@ void dependencies::addReversePrefixMappingFileSystem(
   llvm::PrefixMapper ReverseMapper;
   ReverseMapper.addInverseRange(PrefixMapper.getMappings());
   ReverseMapper.sort();
-  std::unique_ptr<llvm::vfs::FileSystem> FS =
+  IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
       llvm::vfs::createPrefixMappingFileSystem(
           std::move(ReverseMapper), &ScanInstance.getVirtualFileSystem());
 
+  ScanInstance.setVirtualFileSystem(FS);
   ScanInstance.getFileManager().setVirtualFileSystem(std::move(FS));
 }
 
@@ -338,23 +342,59 @@ Error IncludeTreeActionController::initialize(
 
 Error IncludeTreeActionController::finalize(CompilerInstance &ScanInstance,
                                             CompilerInvocation &NewInvocation) {
-  assert(!IncludeTreeResult);
-  assert(BuilderStack.size() == 1);
-  auto Builder = BuilderStack.pop_back_val();
-  Error E = Builder->finishIncludeTree(ScanInstance, NewInvocation)
-                .moveInto(IncludeTreeResult);
-  if (E)
-    return E;
+  auto GetInputCacheKey = [&]() -> std::optional<StringRef> {
+    if (NewInvocation.getFrontendOpts().Inputs.size() != 1)
+      return {};
+    const auto &FIF = NewInvocation.getFrontendOpts().Inputs.front();
+    if (!FIF.isFile())
+      return {};
+    auto It = OutputToCacheKey.find(FIF.getFile());
+    if (It == OutputToCacheKey.end())
+      return {};
 
-  configureInvocationForCaching(NewInvocation, CASOpts,
-                                IncludeTreeResult->getID().toString(),
+    return It->second;
+  };
+
+  std::string InputID;
+  CachingInputKind InputKind;
+  if (auto InputCacheKey = GetInputCacheKey()) {
+    InputID = InputCacheKey->str();
+    InputKind = CachingInputKind::CachedCompilation;
+  } else {
+    assert(!IncludeTreeResult);
+    assert(BuilderStack.size() == 1);
+    auto Builder = BuilderStack.pop_back_val();
+    Error E = Builder->finishIncludeTree(ScanInstance, NewInvocation)
+                  .moveInto(IncludeTreeResult);
+    if (E)
+      return E;
+    InputID = IncludeTreeResult->getID().toString();
+    InputKind = CachingInputKind::IncludeTree;
+  }
+
+  configureInvocationForCaching(NewInvocation, CASOpts, InputID, InputKind,
                                 // FIXME: working dir?
-                                /*CASFSWorkingDir=*/"",
-                                /*ProduceIncludeTree=*/true);
+                                /*CASFSWorkingDir=*/"");
 
   DepscanPrefixMapping::remapInvocationPaths(NewInvocation, PrefixMapper);
 
+  auto &CAS = ScanInstance.getOrCreateObjectStore();
+  // FIXME: Make this return an error and propagate it up.
+  auto Key = createCompileJobCacheKey(CAS, ScanInstance.getDiagnostics(),
+                                      NewInvocation);
+  if (Key)
+    OutputToCacheKey[NewInvocation.getFrontendOpts().OutputFile] =
+        Key->toString();
   return Error::success();
+}
+
+std::optional<std::string> IncludeTreeActionController::getCacheKey(
+    const CompilerInvocation &NewInvocation) {
+  auto It = OutputToCacheKey.find(NewInvocation.getFrontendOpts().OutputFile);
+  // FIXME: Assert this does not happen.
+  if (It == OutputToCacheKey.end())
+    return std::nullopt;
+  return It->second;
 }
 
 Error IncludeTreeActionController::initializeModuleBuild(
@@ -386,12 +426,19 @@ Error IncludeTreeActionController::finalizeModuleBuild(
       ModuleScanInstance.getInvocation().getLangOpts(),
       ModuleScanInstance.getInvocation().getCodeGenOpts());
   auto Builder = BuilderStack.pop_back_val();
+
+  // If there was an error, bail out early. The state of `Builder` may be
+  // inconsistent since there is no guarantee that exitedInclude or
+  // finalizeModuleBuild have been called for all imports.
+  if (ModuleScanInstance.getDiagnostics().hasUnrecoverableErrorOccurred())
+    return Error::success(); // Already reported.
+
   auto Tree = Builder->finishIncludeTree(ModuleScanInstance,
                                          ModuleScanInstance.getInvocation());
   if (!Tree)
     return Tree.takeError();
 
-  ModuleScanInstance.getASTContext().setCASIncludeTreeID(
+  ModuleScanInstance.getPreprocessor().setCASIncludeTreeID(
       Tree->getID().toString());
 
   return Error::success();
@@ -408,8 +455,8 @@ Error IncludeTreeActionController::finalizeModuleInvocation(
   CompilerInvocation CI(CowCI);
 
   configureInvocationForCaching(CI, CASOpts, *MD.IncludeTreeID,
-                                /*CASFSWorkingDir=*/"",
-                                /*ProduceIncludeTree=*/true);
+                                CachingInputKind::IncludeTree,
+                                /*CASFSWorkingDir=*/"");
 
   DepscanPrefixMapping::remapInvocationPaths(CI, PrefixMapper);
 
@@ -424,13 +471,18 @@ void IncludeTreeBuilder::enteredInclude(Preprocessor &PP, FileID FID) {
   if (!StartedEnteringIncludes) {
     StartedEnteringIncludes = true;
 
+    SmallVector<OptionalFileEntryRef> UIDToFE;
+    PP.getFileManager().GetUniqueIDMapping(UIDToFE);
+
     // Get the included files (coming from a PCH), and keep track of the
     // filenames that were recorded in the PCH.
     for (const FileEntry *FE : PP.getIncludedFiles()) {
       unsigned UID = FE->getUID();
       if (UID >= PreIncludedFileNames.size())
         PreIncludedFileNames.resize(UID + 1);
-      PreIncludedFileNames[UID] = FE->getName();
+      OptionalFileEntryRef FERef = UIDToFE[FE->getUID()];
+      assert(FERef && "No FileEntryRef with given UID");
+      PreIncludedFileNames[UID] = FERef->getName();
     }
   }
 
@@ -546,6 +598,7 @@ getIncludeTreeModule(cas::ObjectStore &DB, Module *M) {
   Flags.InferExplicitSubmodules = M->InferExplicitSubmodules;
   Flags.InferExportWildcard = M->InferExportWildcard;
   Flags.UseExportAsModuleLinkName = M->UseExportAsModuleLinkName;
+  Flags.ModuleMapIsPrivate = M->ModuleMapIsPrivate;
 
   bool GlobalWildcardExport = false;
   SmallVector<ITModule::ExportList::Export> Exports;
@@ -579,8 +632,20 @@ getIncludeTreeModule(cas::ObjectStore &DB, Module *M) {
     LinkLibraries = LL->getRef();
   }
 
+  SmallVector<ITModule::RequirementList::Requirement> Requirements;
+  for (const auto &R : M->Requirements) {
+    Requirements.push_back({R.FeatureName, R.RequiredState});
+  }
+  std::optional<cas::ObjectRef> RequirementsList;
+  if (!Requirements.empty()) {
+    auto RL = ITModule::RequirementList::create(DB, Requirements);
+    if (!RL)
+      return RL.takeError();
+    RequirementsList = RL->getRef();
+  }
+
   return ITModule::create(DB, M->Name, M->ExportAsModule, Flags, Submodules,
-                          ExportList, LinkLibraries);
+                          ExportList, LinkLibraries, RequirementsList);
 }
 
 Expected<cas::IncludeTreeRoot>
@@ -595,11 +660,14 @@ IncludeTreeBuilder::finishIncludeTree(CompilerInstance &ScanInstance,
                      bool IgnoreFileError = false) -> Error {
     if (FilePath.empty())
       return Error::success();
-    llvm::ErrorOr<const FileEntry *> FE = FM.getFile(FilePath);
+    llvm::Expected<FileEntryRef> FE = FM.getFileRef(FilePath);
     if (!FE) {
-      if (IgnoreFileError)
+      auto Err = FE.takeError();
+      if (IgnoreFileError) {
+        llvm::consumeError(std::move(Err));
         return Error::success();
-      return llvm::errorCodeToError(FE.getError());
+      }
+      return Err;
     }
     std::optional<cas::ObjectRef> Ref;
     return addToFileList(FM, *FE).moveInto(Ref);
@@ -646,17 +714,12 @@ IncludeTreeBuilder::finishIncludeTree(CompilerInstance &ScanInstance,
     if (PPOpts.ImplicitPCHInclude.empty())
       return Error::success(); // no need for additional work.
 
-    llvm::ErrorOr<std::optional<cas::ObjectRef>> CASContents =
+    llvm::ErrorOr<cas::ObjectRef> CASContents =
         FM.getObjectRefForFileContent(PPOpts.ImplicitPCHInclude);
     if (!CASContents)
-      return llvm::errorCodeToError(CASContents.getError());
+      return llvm::createFileError(PPOpts.ImplicitPCHInclude, CASContents.getError());
 
-    StringRef PCHFilename = "<PCH>";
-    if (NewInvocation.getFrontendOpts().IncludeTreePreservePCHPath)
-      PCHFilename = PPOpts.ImplicitPCHInclude;
-
-    auto PCHFile =
-        cas::IncludeTree::File::create(DB, PCHFilename, **CASContents);
+    auto PCHFile = cas::IncludeTree::File::create(DB, "<PCH>", *CASContents);
     if (!PCHFile)
       return PCHFile.takeError();
     PCHRef = PCHFile->getRef();
@@ -695,7 +758,7 @@ IncludeTreeBuilder::finishIncludeTree(CompilerInstance &ScanInstance,
       auto Notes = ANM.getCurrentModuleAPINotes(
           M, ScanInstance.getLangOpts().APINotesModules,
           ScanInstance.getAPINotesOpts().ModuleSearchPaths);
-      for (auto *File : Notes) {
+      for (auto File : Notes) {
         if (auto Buf =
                 ScanInstance.getSourceManager().getMemoryBufferForFileOrNone(
                     File)) {
@@ -791,7 +854,7 @@ Expected<cas::ObjectRef> IncludeTreeBuilder::getObjectForFile(Preprocessor &PP,
     return *ModuleIncludesBufferRef;
   }
   assert(FI.getContentCache().OrigEntry);
-  auto &FileRef = ObjectForFile[FI.getContentCache().OrigEntry];
+  auto &FileRef = ObjectForFile[*FI.getContentCache().OrigEntry];
   if (!FileRef) {
     auto Ref = getObjectForFileNonCached(SM.getFileManager(), FI);
     if (!Ref)
@@ -804,7 +867,7 @@ Expected<cas::ObjectRef> IncludeTreeBuilder::getObjectForFile(Preprocessor &PP,
 Expected<cas::ObjectRef>
 IncludeTreeBuilder::getObjectForFileNonCached(FileManager &FM,
                                               const SrcMgr::FileInfo &FI) {
-  const FileEntry *FE = FI.getContentCache().OrigEntry;
+  OptionalFileEntryRef FE = FI.getContentCache().OrigEntry;
   assert(FE);
 
   // Mark the include as already seen.
@@ -812,7 +875,7 @@ IncludeTreeBuilder::getObjectForFileNonCached(FileManager &FM,
     SeenIncludeFiles.resize(FE->getUID() + 1);
   SeenIncludeFiles.set(FE->getUID());
 
-  return addToFileList(FM, FE);
+  return addToFileList(FM, *FE);
 }
 
 Expected<cas::ObjectRef>
@@ -829,10 +892,10 @@ IncludeTreeBuilder::getObjectForBuffer(const SrcMgr::FileInfo &FI) {
   return FileNode->getRef();
 }
 
-Expected<cas::ObjectRef>
-IncludeTreeBuilder::addToFileList(FileManager &FM, const FileEntry *FE) {
+Expected<cas::ObjectRef> IncludeTreeBuilder::addToFileList(FileManager &FM,
+                                                           FileEntryRef FE) {
   SmallString<128> PathStorage;
-  StringRef Filename = FE->getName();
+  StringRef Filename = FE.getName();
   // Apply -working-directory to relative paths. This option causes filesystem
   // lookups to use absolute paths, so make paths in the include-tree filesystem
   // absolute to match.
@@ -843,26 +906,25 @@ IncludeTreeBuilder::addToFileList(FileManager &FM, const FileEntry *FE) {
     Filename = PathStorage;
   }
 
-  llvm::ErrorOr<std::optional<cas::ObjectRef>> CASContents =
+  llvm::ErrorOr<cas::ObjectRef> CASContents =
       FM.getObjectRefForFileContent(Filename);
   if (!CASContents)
-    return llvm::errorCodeToError(CASContents.getError());
-  assert(*CASContents);
+    return llvm::createFileError(Filename, CASContents.getError());
 
   auto addFile = [&](StringRef Filename) -> Expected<cas::ObjectRef> {
     assert(!Filename.empty());
-    auto FileNode = createIncludeFile(Filename, **CASContents);
+    auto FileNode = createIncludeFile(Filename, *CASContents);
     if (!FileNode)
       return FileNode.takeError();
     IncludedFiles.push_back(
         {FileNode->getRef(),
-         static_cast<cas::IncludeTree::FileList::FileSizeTy>(FE->getSize())});
+         static_cast<cas::IncludeTree::FileList::FileSizeTy>(FE.getSize())});
     return FileNode->getRef();
   };
 
   // Check whether another path coming from the PCH is associated with the same
   // file.
-  unsigned UID = FE->getUID();
+  unsigned UID = FE.getUID();
   if (UID < PreIncludedFileNames.size() && !PreIncludedFileNames[UID].empty() &&
       PreIncludedFileNames[UID] != Filename) {
     auto FileNode = addFile(PreIncludedFileNames[UID]);

@@ -26,11 +26,13 @@ add_lldb_library(lldbSymbol ${PLUGIN_DEPENDENCY_ARG}
   CompilerDecl.cpp
   CompilerDeclContext.cpp
   CompilerType.cpp
+  SaveCoreOptions.cpp
   DWARFCallFrameInfo.cpp
   DebugMacros.cpp
   DeclVendor.cpp
   FuncUnwinders.cpp
   Function.cpp
+  ImportedDeclaration.cpp
   LineEntry.cpp
   LineTable.cpp
   ObjectContainer.cpp
@@ -52,8 +54,14 @@ add_lldb_library(lldbSymbol ${PLUGIN_DEPENDENCY_ARG}
   Variable.cpp
   VariableList.cpp
 
+  ## BEGIN SWIFT
   ${SWIFT_SOURCES}
+  ## END SWIFT
 
+  ADDITIONAL_HEADER_DIRS
+    ${LLDB_INCLUDE_DIR}/lldb/Symbol
+  LINK_COMPONENTS
+    Support
   LINK_LIBS
     clangAST
     clangBasic
@@ -63,11 +71,12 @@ add_lldb_library(lldbSymbol ${PLUGIN_DEPENDENCY_ARG}
     lldbHost
     lldbTarget
     lldbUtility
+    lldbValueObject
     ${LLDB_PLUGIN_DEPENDENCIES}
+    ## BEGIN SWIFT
     ${SWIFT_LIBS}
+    ## END SWIFT
 
-  LINK_COMPONENTS
-    Support
   )
 if(CMAKE_CXX_COMPILER_ID STREQUAL Clang AND NOT SWIFT_COMPILER_IS_MSVC_LIKE)
   target_compile_options(lldbSymbol PRIVATE -Wno-dollar-in-identifier-extension)

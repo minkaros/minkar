@@ -37,8 +37,7 @@ public:
   virtual Expected<ObjectRef>
   storeFromNullTerminatedRegion(ArrayRef<uint8_t> ComputedHash,
                                 sys::fs::mapped_file_region Map) {
-    return storeImpl(ComputedHash, std::nullopt,
-                     ArrayRef(Map.data(), Map.size()));
+    return storeImpl(ComputedHash, {}, ArrayRef(Map.data(), Map.size()));
   }
 
   /// Both builtin CAS implementations provide lifetime for free, so this can
@@ -70,7 +69,7 @@ public:
                              "corrupt storage");
   }
 
-  Error validate(const CASID &ID) final;
+  Error validateObject(const CASID &ID) final;
 };
 
 /// Create a \p UnifiedOnDiskCache instance that uses \p BLAKE3 hashing.
@@ -86,6 +85,10 @@ std::unique_ptr<ObjectStore> createObjectStoreFromUnifiedOnDiskCache(
 /// createBuiltinUnifiedOnDiskCache.
 std::unique_ptr<ActionCache> createActionCacheFromUnifiedOnDiskCache(
     std::shared_ptr<ondisk::UnifiedOnDiskCache> UniDB);
+
+/// Convenience wrapper for \c BuiltinObjectHasher.
+void hashingFunc(ArrayRef<ArrayRef<uint8_t>> Refs, ArrayRef<char> Data,
+                 SmallVectorImpl<uint8_t> &Result);
 
 // FIXME: Proxy not portable. Maybe also error-prone?
 constexpr StringLiteral DefaultDirProxy = "/^llvm::cas::builtin::default";

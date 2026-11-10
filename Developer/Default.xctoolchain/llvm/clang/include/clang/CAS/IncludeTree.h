@@ -36,7 +36,7 @@ protected:
                                 ArrayRef<char> Data);
 
   static bool isValid(const ObjectProxy &Node) {
-    return Node.getData().startswith(NodeT::getNodeKind());
+    return Node.getData().starts_with(NodeT::getNodeKind());
   }
 
   friend NodeT;
@@ -239,6 +239,13 @@ public:
   static Expected<File> create(ObjectStore &DB, StringRef Filename,
                                ObjectRef Contents);
 
+  static Expected<File> get(ObjectStore &DB, ObjectRef Ref) {
+    auto Node = DB.getProxy(Ref);
+    if (!Node)
+      return Node.takeError();
+    return File(std::move(*Node));
+  }
+
   llvm::Error print(llvm::raw_ostream &OS, unsigned Indent = 0);
 
   static bool isValid(const ObjectProxy &Node) {
@@ -305,15 +312,8 @@ private:
   size_t getNumFilesCurrentList() const;
   FileSizeTy getFileSize(size_t I) const;
 
-  Expected<File> getFile(ObjectRef Ref) {
-    auto Node = getCAS().getProxy(Ref);
-    if (!Node)
-      return Node.takeError();
-    return File(std::move(*Node));
-  }
-
   llvm::Error
-  forEachFileImpl(llvm::DenseSet<ObjectRef> &Seen,
+  forEachFileImpl(llvm::DenseMap<ObjectRef, ObjectRef> &Seen,
                   llvm::function_ref<llvm::Error(File, FileSizeTy)> Callback);
 
   static bool isValid(const ObjectProxy &Node);
@@ -453,6 +453,7 @@ public:
 
   class ExportList;
   class LinkLibraryList;
+  class RequirementList;
 
   struct ModuleFlags {
     bool IsFramework : 1;
@@ -463,11 +464,12 @@ public:
     bool InferExplicitSubmodules : 1;
     bool InferExportWildcard : 1;
     bool UseExportAsModuleLinkName: 1;
+    bool ModuleMapIsPrivate : 1;
     ModuleFlags()
         : IsFramework(false), IsExplicit(false), IsExternC(false),
           IsSystem(false), InferSubmodules(false),
           InferExplicitSubmodules(false), InferExportWildcard(false),
-          UseExportAsModuleLinkName(false) {}
+          UseExportAsModuleLinkName(false), ModuleMapIsPrivate(false) {}
   };
 
   ModuleFlags getFlags() const;
@@ -503,6 +505,11 @@ public:
       return getReference(*Index);
     return std::nullopt;
   }
+  std::optional<ObjectRef> getRequirementsRef() const {
+    if (std::optional<unsigned> Index = getRequirementsIndex())
+      return getReference(*Index);
+    return std::nullopt;
+  }
 
   /// The list of modules that this submodule re-exports.
   Expected<std::optional<ExportList>> getExports();
@@ -510,13 +517,17 @@ public:
   /// The list of modules that this submodule re-exports.
   Expected<std::optional<LinkLibraryList>> getLinkLibraries();
 
+  /// The list of requirements for this module (e.g. "requires cplusplus").
+  Expected<std::optional<RequirementList>> getRequirements();
+
   llvm::Error print(llvm::raw_ostream &OS, unsigned Indent = 0);
 
   static Expected<Module> create(ObjectStore &DB, StringRef ModuleName,
                                  StringRef ExportAs, ModuleFlags Flags,
                                  ArrayRef<ObjectRef> Submodules,
                                  std::optional<ObjectRef> ExportList,
-                                 std::optional<ObjectRef> LinkLibraries);
+                                 std::optional<ObjectRef> LinkLibraries,
+                                 std::optional<ObjectRef> Requirements);
 
   static bool isValid(const ObjectProxy &Node) {
     if (!IncludeTreeBase::isValid(Node))
@@ -538,8 +549,10 @@ private:
   StringRef dataAfterFlags() const { return getData().drop_front(2); }
   bool hasExports() const;
   bool hasLinkLibraries() const;
+  bool hasRequirements() const;
   std::optional<unsigned> getExportsIndex() const;
   std::optional<unsigned> getLinkLibrariesIndex() const;
+  std::optional<unsigned> getRequirementsIndex() const;
 
   explicit Module(ObjectProxy Node) : IncludeTreeBase(std::move(Node)) {
     assert(isValid(*this));
@@ -665,6 +678,53 @@ private:
   }
 
   friend class IncludeTreeBase<LinkLibraryList>;
+  friend class Module;
+};
+
+/// The set of feature requirements for a module (e.g. "requires cplusplus").
+/// Stored as a single blob: for each requirement, a state byte (0 or 1)
+/// followed by a null-terminated feature name.
+class IncludeTree::Module::RequirementList
+    : public IncludeTreeBase<RequirementList> {
+public:
+  static constexpr StringRef getNodeKind() { return "ReqL"; }
+
+  struct Requirement {
+    StringRef FeatureName;
+    bool RequiredState;
+  };
+
+  /// Calls \p CB for each requirement.
+  llvm::Error
+  forEachRequirement(llvm::function_ref<llvm::Error(Requirement)> CB);
+
+  llvm::Error print(llvm::raw_ostream &OS, unsigned Indent = 0);
+
+  static Expected<RequirementList> create(ObjectStore &DB,
+                                          ArrayRef<Requirement> Requirements);
+
+  static bool isValid(const ObjectProxy &Node) {
+    if (!IncludeTreeBase::isValid(Node))
+      return false;
+    IncludeTreeBase Base(Node);
+    return Base.getNumReferences() == 0;
+  }
+  static bool isValid(ObjectStore &DB, ObjectRef Ref) {
+    auto Node = DB.getProxy(Ref);
+    if (!Node) {
+      llvm::consumeError(Node.takeError());
+      return false;
+    }
+    return isValid(*Node);
+  }
+
+private:
+  explicit RequirementList(ObjectProxy Node)
+      : IncludeTreeBase(std::move(Node)) {
+    assert(isValid(*this));
+  }
+
+  friend class IncludeTreeBase<RequirementList>;
   friend class Module;
 };
 
@@ -864,15 +924,16 @@ private:
 
 /// An implementation of a \p vfs::FileSystem that supports the simple queries
 /// of the preprocessor, for creating \p FileEntries using a file path, while
-/// "replaying" an \p IncludeTreeRoot. It is not intended to be a complete
+/// "replaying" an \p IncludeTree::FileList. It is not intended to be a complete
 /// implementation of a file system.
 Expected<IntrusiveRefCntPtr<llvm::vfs::FileSystem>>
-createIncludeTreeFileSystem(IncludeTreeRoot &Root);
+createIncludeTreeFileSystem(IncludeTree::FileList &List);
 
-/// Create the same IncludeTreeFileSystem but from IncludeTree::FileList.
-Expected<IntrusiveRefCntPtr<llvm::vfs::FileSystem>>
-createIncludeTreeFileSystem(llvm::cas::ObjectStore &CAS,
-                            IncludeTree::FileList &List);
+/// Create the same IncludeTreeFileSystem but from
+/// ArrayRef<IncludeTree::FileEntry>.
+Expected<IntrusiveRefCntPtr<llvm::vfs::FileSystem>> createIncludeTreeFileSystem(
+    llvm::cas::ObjectStore &CAS,
+    llvm::ArrayRef<IncludeTree::FileList::FileEntry> Files);
 
 } // namespace cas
 } // namespace clang

@@ -15,6 +15,7 @@
 #include <limits>
 #include <optional>
 #include <thread>
+#include <variant>
 
 #include "GDBRemoteCommunicationServerLLGS.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
@@ -212,6 +213,9 @@ void GDBRemoteCommunicationServerLLGS::RegisterPacketHandlers() {
   RegisterMemberFunctionHandler(
       StringExtractorGDBRemote::eServerPacketType_jLLDBTraceGetBinaryData,
       &GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceGetBinaryData);
+  RegisterMemberFunctionHandler(
+      StringExtractorGDBRemote::eServerPacketType_jMultiBreakpoint,
+      &GDBRemoteCommunicationServerLLGS::Handle_jMultiBreakpoint);
 
   RegisterMemberFunctionHandler(StringExtractorGDBRemote::eServerPacketType_g,
                                 &GDBRemoteCommunicationServerLLGS::Handle_g);
@@ -261,8 +265,8 @@ Status GDBRemoteCommunicationServerLLGS::LaunchProcess() {
   Log *log = GetLog(LLDBLog::Process);
 
   if (!m_process_launch_info.GetArguments().GetArgumentCount())
-    return Status("%s: no process command line specified to launch",
-                  __FUNCTION__);
+    return Status::FromErrorStringWithFormat(
+        "%s: no process command line specified to launch", __FUNCTION__);
 
   const bool should_forward_stdio =
       m_process_launch_info.GetFileActionForFD(STDIN_FILENO) == nullptr ||
@@ -277,7 +281,7 @@ Status GDBRemoteCommunicationServerLLGS::LaunchProcess() {
     // lldb-server on Windows.
 #if !defined(_WIN32)
     if (llvm::Error Err = m_process_launch_info.SetUpPtyRedirection())
-      return Status(std::move(Err));
+      return Status::FromError(std::move(Err));
 #endif
   }
 
@@ -287,7 +291,7 @@ Status GDBRemoteCommunicationServerLLGS::LaunchProcess() {
                                            "process but one already exists");
     auto process_or = m_process_manager.Launch(m_process_launch_info, *this);
     if (!process_or)
-      return Status(process_or.takeError());
+      return Status::FromError(process_or.takeError());
     m_continue_process = m_current_process = process_or->get();
     m_debugged_processes.emplace(
         m_current_process->GetID(),
@@ -348,15 +352,15 @@ Status GDBRemoteCommunicationServerLLGS::AttachToProcess(lldb::pid_t pid) {
   // Before we try to attach, make sure we aren't already monitoring something
   // else.
   if (!m_debugged_processes.empty())
-    return Status("cannot attach to process %" PRIu64
-                  " when another process with pid %" PRIu64
-                  " is being debugged.",
-                  pid, m_current_process->GetID());
+    return Status::FromErrorStringWithFormat(
+        "cannot attach to process %" PRIu64
+        " when another process with pid %" PRIu64 " is being debugged.",
+        pid, m_current_process->GetID());
 
   // Try to attach.
   auto process_or = m_process_manager.Attach(pid, *this);
   if (!process_or) {
-    Status status(process_or.takeError());
+    Status status = Status::FromError(process_or.takeError());
     llvm::errs() << llvm::formatv("failed to attach to process {0}: {1}\n", pid,
                                   status);
     return status;
@@ -447,7 +451,7 @@ Status GDBRemoteCommunicationServerLLGS::AttachWaitProcess(
         error_stream.Format("{0}.", loop_process_list.back().GetProcessID());
 
         Status error;
-        error.SetErrorString(error_stream.GetString());
+        error = Status(error_stream.GetString().str());
         return error;
       }
     }
@@ -595,6 +599,8 @@ static llvm::StringRef GetKindGenericOrEmpty(const RegisterInfo &reg_info) {
     return "arg7";
   case LLDB_REGNUM_GENERIC_ARG8:
     return "arg8";
+  case LLDB_REGNUM_GENERIC_TP:
+    return "tp";
   default:
     return "";
   }
@@ -631,7 +637,7 @@ static void WriteRegisterValueInHexFixedWidth(
   } else {
     // Zero-out any unreadable values.
     if (reg_info.byte_size > 0) {
-      std::basic_string<uint8_t> zeros(reg_info.byte_size, '\0');
+      std::vector<uint8_t> zeros(reg_info.byte_size, '\0');
       AppendHexValue(response, zeros.data(), zeros.size(), false);
     }
   }
@@ -712,6 +718,9 @@ static const char *GetStopReasonString(StopReason stop_reason) {
     return "vfork";
   case eStopReasonVForkDone:
     return "vforkdone";
+  case eStopReasonInterrupt:
+    return "async interrupt";
+  case eStopReasonHistoryBoundary:
   case eStopReasonInstrumentation:
   case eStopReasonInvalid:
   case eStopReasonPlanComplete:
@@ -1208,14 +1217,15 @@ Status GDBRemoteCommunicationServerLLGS::SetSTDIOFileDescriptor(int fd) {
   std::unique_ptr<ConnectionFileDescriptor> conn_up(
       new ConnectionFileDescriptor(fd, true));
   if (!conn_up) {
-    error.SetErrorString("failed to create ConnectionFileDescriptor");
+    error =
+        Status::FromErrorString("failed to create ConnectionFileDescriptor");
     return error;
   }
 
   m_stdio_communication.SetCloseOnEOF(false);
   m_stdio_communication.SetConnection(std::move(conn_up));
   if (!m_stdio_communication.IsConnected()) {
-    error.SetErrorString(
+    error = Status::FromErrorString(
         "failed to set connection for inferior I/O communication");
     return error;
   }
@@ -1284,7 +1294,7 @@ GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceSupported(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   return SendJSONResponse(m_current_process->TraceSupported());
 }
@@ -1295,7 +1305,7 @@ GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceStop(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   packet.ConsumeFront("jLLDBTraceStop:");
   Expected<TraceStopRequest> stop_request =
@@ -1316,7 +1326,7 @@ GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceStart(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   packet.ConsumeFront("jLLDBTraceStart:");
   Expected<TraceStartRequest> request =
@@ -1337,7 +1347,7 @@ GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceGetState(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   packet.ConsumeFront("jLLDBTraceGetState:");
   Expected<TraceGetStateRequest> request =
@@ -1355,14 +1365,14 @@ GDBRemoteCommunicationServerLLGS::Handle_jLLDBTraceGetBinaryData(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   packet.ConsumeFront("jLLDBTraceGetBinaryData:");
   llvm::Expected<TraceGetBinaryDataRequest> request =
       llvm::json::parse<TraceGetBinaryDataRequest>(packet.Peek(),
                                                    "TraceGetBinaryDataRequest");
   if (!request)
-    return SendErrorResponse(Status(request.takeError()));
+    return SendErrorResponse(Status::FromError(request.takeError()));
 
   if (Expected<std::vector<uint8_t>> bytes =
           m_current_process->TraceGetBinaryData(*request)) {
@@ -2085,7 +2095,7 @@ void GDBRemoteCommunicationServerLLGS::AddProcessThreads(
 GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_qfThreadInfo(
     StringExtractorGDBRemote &packet) {
-  assert(m_debugged_processes.size() == 1 ||
+  assert(m_debugged_processes.size() <= 1 ||
          bool(m_extensions_supported &
               NativeProcessProtocol::Extension::multiprocess));
 
@@ -2521,28 +2531,18 @@ GDBRemoteCommunicationServerLLGS::Handle_memory_read(
   size_t bytes_read = 0;
   Status error = m_current_process->ReadMemoryWithoutTrap(
       read_addr, &buf[0], byte_count, bytes_read);
-  if (error.Fail()) {
-    LLDB_LOGF(log,
-              "GDBRemoteCommunicationServerLLGS::%s pid %" PRIu64
-              " mem 0x%" PRIx64 ": failed to read. Error: %s",
-              __FUNCTION__, m_current_process->GetID(), read_addr,
-              error.AsCString());
+  LLDB_LOG(
+      log,
+      "ReadMemoryWithoutTrap({0}) read {1} of {2} requested bytes (error: {3})",
+      read_addr, byte_count, bytes_read, error);
+  if (bytes_read == 0)
     return SendErrorResponse(0x08);
-  }
-
-  if (bytes_read == 0) {
-    LLDB_LOGF(log,
-              "GDBRemoteCommunicationServerLLGS::%s pid %" PRIu64
-              " mem 0x%" PRIx64 ": read 0 of %" PRIu64 " requested bytes",
-              __FUNCTION__, m_current_process->GetID(), read_addr, byte_count);
-    return SendErrorResponse(0x08);
-  }
 
   StreamGDBRemote response;
   packet.SetFilePos(0);
   char kind = packet.GetChar('?');
   if (kind == 'x')
-    response.PutEscapedBytes(buf.data(), byte_count);
+    response.PutEscapedBytes(buf.data(), bytes_read);
   else {
     assert(kind == 'm');
     for (size_t i = 0; i < bytes_read; ++i)
@@ -2801,11 +2801,18 @@ GDBRemoteCommunicationServerLLGS::Handle_qMemoryRegionInfo(
     // Flags
     MemoryRegionInfo::OptionalBool memory_tagged =
         region_info.GetMemoryTagged();
-    if (memory_tagged != MemoryRegionInfo::eDontKnow) {
+    MemoryRegionInfo::OptionalBool is_shadow_stack =
+        region_info.IsShadowStack();
+
+    if (memory_tagged != MemoryRegionInfo::eDontKnow ||
+        is_shadow_stack != MemoryRegionInfo::eDontKnow) {
       response.PutCString("flags:");
-      if (memory_tagged == MemoryRegionInfo::eYes) {
-        response.PutCString("mt");
-      }
+      // Space is the separator.
+      if (memory_tagged == MemoryRegionInfo::eYes)
+        response.PutCString("mt ");
+      if (is_shadow_stack == MemoryRegionInfo::eYes)
+        response.PutCString("ss ");
+
       response.PutChar(';');
     }
 
@@ -2821,155 +2828,146 @@ GDBRemoteCommunicationServerLLGS::Handle_qMemoryRegionInfo(
   return SendPacketNoLock(response.GetString());
 }
 
-GDBRemoteCommunication::PacketResult
-GDBRemoteCommunicationServerLLGS::Handle_Z(StringExtractorGDBRemote &packet) {
+namespace {
+struct UseBreakpoint {
+  bool want_hardware = false;
+};
+struct UseWatchpoint {
+  uint32_t flags;
+  static constexpr bool want_hardware = true;
+};
+struct InvalidStoppoint {};
+
+std::variant<UseBreakpoint, UseWatchpoint, InvalidStoppoint>
+getBreakpointKind(GDBStoppointType stoppoint_type) {
+  switch (stoppoint_type) {
+  case eBreakpointSoftware:
+    return UseBreakpoint{/*want_hardware*/ false};
+  case eBreakpointHardware:
+    return UseBreakpoint{/*want_hardware*/ true};
+  case eWatchpointWrite:
+    return UseWatchpoint{/*flags*/ 1};
+  case eWatchpointRead:
+    return UseWatchpoint{/*flags*/ 2};
+  case eWatchpointReadWrite:
+    return UseWatchpoint{/*flags*/ 3};
+  case eStoppointInvalid:
+    return InvalidStoppoint();
+  }
+  llvm_unreachable("unhandled GDBStoppointType");
+}
+} // namespace
+
+GDBRemoteCommunicationServerLLGS::BreakpointResult
+GDBRemoteCommunicationServerLLGS::ExecuteSetBreakpoint(
+    llvm::StringRef packet_str) {
   // Ensure we have a process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID)) {
     Log *log = GetLog(LLDBLog::Process);
     LLDB_LOG(log, "failed, no process available");
-    return SendErrorResponse(0x15);
+    return BreakpointError{0x15};
   }
+
+  StringExtractorGDBRemote packet(packet_str);
 
   // Parse out software or hardware breakpoint or watchpoint requested.
   packet.SetFilePos(strlen("Z"));
   if (packet.GetBytesLeft() < 1)
-    return SendIllFormedResponse(
-        packet, "Too short Z packet, missing software/hardware specifier");
-
-  bool want_breakpoint = true;
-  bool want_hardware = false;
-  uint32_t watch_flags = 0;
+    return BreakpointIllFormed{
+        "Too short Z packet, missing software/hardware specifier"};
 
   const GDBStoppointType stoppoint_type =
       GDBStoppointType(packet.GetS32(eStoppointInvalid));
-  switch (stoppoint_type) {
-  case eBreakpointSoftware:
-    want_hardware = false;
-    want_breakpoint = true;
-    break;
-  case eBreakpointHardware:
-    want_hardware = true;
-    want_breakpoint = true;
-    break;
-  case eWatchpointWrite:
-    watch_flags = 1;
-    want_hardware = true;
-    want_breakpoint = false;
-    break;
-  case eWatchpointRead:
-    watch_flags = 2;
-    want_hardware = true;
-    want_breakpoint = false;
-    break;
-  case eWatchpointReadWrite:
-    watch_flags = 3;
-    want_hardware = true;
-    want_breakpoint = false;
-    break;
-  case eStoppointInvalid:
-    return SendIllFormedResponse(
-        packet, "Z packet had invalid software/hardware specifier");
-  }
+  std::variant<UseBreakpoint, UseWatchpoint, InvalidStoppoint> bp_variant =
+      getBreakpointKind(stoppoint_type);
+  if (std::holds_alternative<InvalidStoppoint>(bp_variant))
+    return BreakpointIllFormed{
+        "Z packet had invalid software/hardware specifier"};
 
   if ((packet.GetBytesLeft() < 1) || packet.GetChar() != ',')
-    return SendIllFormedResponse(
-        packet, "Malformed Z packet, expecting comma after stoppoint type");
+    return BreakpointIllFormed{
+        "Malformed Z packet, expecting comma after stoppoint type"};
 
   // Parse out the stoppoint address.
   if (packet.GetBytesLeft() < 1)
-    return SendIllFormedResponse(packet, "Too short Z packet, missing address");
+    return BreakpointIllFormed{"Too short Z packet, missing address"};
   const lldb::addr_t addr = packet.GetHexMaxU64(false, 0);
 
   if ((packet.GetBytesLeft() < 1) || packet.GetChar() != ',')
-    return SendIllFormedResponse(
-        packet, "Malformed Z packet, expecting comma after address");
+    return BreakpointIllFormed{
+        "Malformed Z packet, expecting comma after address"};
 
   // Parse out the stoppoint size (i.e. size hint for opcode size).
   const uint32_t size =
       packet.GetHexMaxU32(false, std::numeric_limits<uint32_t>::max());
   if (size == std::numeric_limits<uint32_t>::max())
-    return SendIllFormedResponse(
-        packet, "Malformed Z packet, failed to parse size argument");
+    return BreakpointIllFormed{
+        "Malformed Z packet, failed to parse size argument"};
 
-  if (want_breakpoint) {
-    // Try to set the breakpoint.
+  // Try to set a breakpoint.
+  if (auto *bp_kind = std::get_if<UseBreakpoint>(&bp_variant)) {
     const Status error =
-        m_current_process->SetBreakpoint(addr, size, want_hardware);
+        m_current_process->SetBreakpoint(addr, size, bp_kind->want_hardware);
     if (error.Success())
-      return SendOKResponse();
+      return BreakpointOK();
     Log *log = GetLog(LLDBLog::Breakpoints);
     LLDB_LOG(log, "pid {0} failed to set breakpoint: {1}",
              m_current_process->GetID(), error);
-    return SendErrorResponse(0x09);
-  } else {
-    // Try to set the watchpoint.
-    const Status error = m_current_process->SetWatchpoint(
-        addr, size, watch_flags, want_hardware);
-    if (error.Success())
-      return SendOKResponse();
-    Log *log = GetLog(LLDBLog::Watchpoints);
-    LLDB_LOG(log, "pid {0} failed to set watchpoint: {1}",
-             m_current_process->GetID(), error);
-    return SendErrorResponse(0x09);
+    return BreakpointError{0x09};
   }
+
+  // Try to set a watchpoint.
+  auto wp_kind = std::get<UseWatchpoint>(bp_variant);
+  const Status error = m_current_process->SetWatchpoint(
+      addr, size, wp_kind.flags, wp_kind.want_hardware);
+  if (error.Success())
+    return BreakpointOK();
+  Log *log = GetLog(LLDBLog::Watchpoints);
+  LLDB_LOG(log, "pid {0} failed to set watchpoint: {1}",
+           m_current_process->GetID(), error);
+  return BreakpointError{0x09};
 }
 
-GDBRemoteCommunication::PacketResult
-GDBRemoteCommunicationServerLLGS::Handle_z(StringExtractorGDBRemote &packet) {
+GDBRemoteCommunicationServerLLGS::BreakpointResult
+GDBRemoteCommunicationServerLLGS::ExecuteRemoveBreakpoint(
+    llvm::StringRef packet_str) {
   // Ensure we have a process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID)) {
     Log *log = GetLog(LLDBLog::Process);
     LLDB_LOG(log, "failed, no process available");
-    return SendErrorResponse(0x15);
+    return BreakpointError{0x15};
   }
+
+  StringExtractorGDBRemote packet(packet_str);
 
   // Parse out software or hardware breakpoint or watchpoint requested.
   packet.SetFilePos(strlen("z"));
   if (packet.GetBytesLeft() < 1)
-    return SendIllFormedResponse(
-        packet, "Too short z packet, missing software/hardware specifier");
-
-  bool want_breakpoint = true;
-  bool want_hardware = false;
+    return BreakpointIllFormed{
+        "Too short z packet, missing software/hardware specifier"};
 
   const GDBStoppointType stoppoint_type =
       GDBStoppointType(packet.GetS32(eStoppointInvalid));
-  switch (stoppoint_type) {
-  case eBreakpointHardware:
-    want_breakpoint = true;
-    want_hardware = true;
-    break;
-  case eBreakpointSoftware:
-    want_breakpoint = true;
-    break;
-  case eWatchpointWrite:
-    want_breakpoint = false;
-    break;
-  case eWatchpointRead:
-    want_breakpoint = false;
-    break;
-  case eWatchpointReadWrite:
-    want_breakpoint = false;
-    break;
-  default:
-    return SendIllFormedResponse(
-        packet, "z packet had invalid software/hardware specifier");
-  }
+  std::variant<UseBreakpoint, UseWatchpoint, InvalidStoppoint> bp_variant =
+      getBreakpointKind(stoppoint_type);
+  if (std::holds_alternative<InvalidStoppoint>(bp_variant))
+    return BreakpointIllFormed{
+        "z packet had invalid software/hardware specifier"};
 
   if ((packet.GetBytesLeft() < 1) || packet.GetChar() != ',')
-    return SendIllFormedResponse(
-        packet, "Malformed z packet, expecting comma after stoppoint type");
+    return BreakpointIllFormed{
+        "Malformed z packet, expecting comma after stoppoint type"};
 
   // Parse out the stoppoint address.
   if (packet.GetBytesLeft() < 1)
-    return SendIllFormedResponse(packet, "Too short z packet, missing address");
+    return BreakpointIllFormed{"Too short z packet, missing address"};
   const lldb::addr_t addr = packet.GetHexMaxU64(false, 0);
 
   if ((packet.GetBytesLeft() < 1) || packet.GetChar() != ',')
-    return SendIllFormedResponse(
-        packet, "Malformed z packet, expecting comma after address");
+    return BreakpointIllFormed{
+        "Malformed z packet, expecting comma after address"};
 
   /*
   // Parse out the stoppoint size (i.e. size hint for opcode size).
@@ -2980,26 +2978,121 @@ GDBRemoteCommunicationServerLLGS::Handle_z(StringExtractorGDBRemote &packet) {
   size argument");
   */
 
-  if (want_breakpoint) {
-    // Try to clear the breakpoint.
+  // Try to clear the breakpoint.
+  if (auto *bp_kind = std::get_if<UseBreakpoint>(&bp_variant)) {
     const Status error =
-        m_current_process->RemoveBreakpoint(addr, want_hardware);
+        m_current_process->RemoveBreakpoint(addr, bp_kind->want_hardware);
     if (error.Success())
-      return SendOKResponse();
+      return BreakpointOK();
     Log *log = GetLog(LLDBLog::Breakpoints);
     LLDB_LOG(log, "pid {0} failed to remove breakpoint: {1}",
              m_current_process->GetID(), error);
-    return SendErrorResponse(0x09);
-  } else {
-    // Try to clear the watchpoint.
-    const Status error = m_current_process->RemoveWatchpoint(addr);
-    if (error.Success())
-      return SendOKResponse();
-    Log *log = GetLog(LLDBLog::Watchpoints);
-    LLDB_LOG(log, "pid {0} failed to remove watchpoint: {1}",
-             m_current_process->GetID(), error);
-    return SendErrorResponse(0x09);
+    return BreakpointError{0x09};
   }
+  // Try to clear the watchpoint.
+  const Status error = m_current_process->RemoveWatchpoint(addr);
+  if (error.Success())
+    return BreakpointOK();
+  Log *log = GetLog(LLDBLog::Watchpoints);
+  LLDB_LOG(log, "pid {0} failed to remove watchpoint: {1}",
+           m_current_process->GetID(), error);
+  return BreakpointError{0x09};
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::SendBreakpointResponse(
+    StringExtractorGDBRemote &packet, const BreakpointResult &result) {
+  return std::visit(
+      [&](auto &&arg) {
+        using T = std::decay_t<decltype(arg)>;
+        static_assert(std::is_same_v<T, BreakpointOK> ||
+                          std::is_same_v<T, BreakpointError> ||
+                          std::is_same_v<T, BreakpointIllFormed>,
+                      "non-exhaustive visitor!");
+        if constexpr (std::is_same_v<T, BreakpointOK>)
+          return SendOKResponse();
+        else if constexpr (std::is_same_v<T, BreakpointError>)
+          return SendErrorResponse(arg.error_code);
+        else
+          return SendIllFormedResponse(packet, arg.message.c_str());
+      },
+      result);
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_Z(StringExtractorGDBRemote &packet) {
+  return SendBreakpointResponse(packet,
+                                ExecuteSetBreakpoint(packet.GetStringRef()));
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_z(StringExtractorGDBRemote &packet) {
+  return SendBreakpointResponse(packet,
+                                ExecuteRemoveBreakpoint(packet.GetStringRef()));
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunicationServerLLGS::Handle_jMultiBreakpoint(
+    StringExtractorGDBRemote &packet) {
+  llvm::StringRef packet_str = packet.GetStringRef();
+  if (!packet_str.consume_front("jMultiBreakpoint:"))
+    return SendIllFormedResponse(packet,
+                                 "Invalid jMultiBreakpoint packet prefix");
+
+  llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(packet_str);
+  if (!parsed) {
+    llvm::consumeError(parsed.takeError());
+    return SendIllFormedResponse(packet,
+                                 "jMultiBreakpoint did not contain valid JSON");
+  }
+  llvm::json::Object *request_dict = parsed->getAsObject();
+  if (!request_dict)
+    return SendIllFormedResponse(
+        packet, "jMultiBreakpoint did not contain a JSON dictionary");
+
+  llvm::json::Array *request_array =
+      request_dict->getArray("breakpoint_requests");
+  if (!request_array)
+    return SendIllFormedResponse(
+        packet,
+        "jMultiBreakpoint did not contain a valid 'breakpoint_requests' field");
+
+  llvm::json::Array reply_array;
+  for (const llvm::json::Value &value : *request_array) {
+    std::optional<llvm::StringRef> request = value.getAsString();
+    if (!request)
+      return SendIllFormedResponse(packet,
+                                   "jMultiBreakpoint had a non-string entry");
+    BreakpointResult result = request->starts_with("Z")
+                                  ? ExecuteSetBreakpoint(*request)
+                                  : ExecuteRemoveBreakpoint(*request);
+    std::visit(
+        [&](const auto &arg) {
+          using T = std::decay_t<decltype(arg)>;
+          static_assert(std::is_same_v<T, BreakpointOK> ||
+                            std::is_same_v<T, BreakpointError> ||
+                            std::is_same_v<T, BreakpointIllFormed>,
+                        "non-exhaustive visitor!");
+          if constexpr (std::is_same_v<T, BreakpointOK>)
+            reply_array.push_back("OK");
+          else if constexpr (std::is_same_v<T, BreakpointError>)
+            reply_array.push_back(
+                llvm::formatv("E{0:X-2}", arg.error_code).str());
+          else
+            reply_array.push_back("E03");
+        },
+        result);
+  }
+
+  llvm::json::Object dict;
+  dict.try_emplace("results", std::move(reply_array));
+
+  StreamString stream;
+  stream.AsRawOstream() << llvm::json::Value(std::move(dict));
+  StringRef response_str = stream.GetString();
+  StreamGDBRemote response;
+  response.PutEscapedBytes(response_str.data(), response_str.size());
+  return SendPacketNoLock(response.GetString());
 }
 
 GDBRemoteCommunication::PacketResult
@@ -3081,6 +3174,7 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
   if (registers_count)
     response.IndentMore();
 
+  llvm::StringSet<> field_enums_seen;
   for (int reg_index = 0; reg_index < registers_count; reg_index++) {
     const RegisterInfo *reg_info =
         reg_context.GetRegisterInfoAtIndex(reg_index);
@@ -3090,6 +3184,13 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
                 "%s failed to get register info for register index %" PRIu32,
                 "target.xml", reg_index);
       continue;
+    }
+
+    if (reg_info->flags_type) {
+      response.IndentMore();
+      reg_info->flags_type->EnumsToXML(response, field_enums_seen);
+      reg_info->flags_type->ToXML(response);
+      response.IndentLess();
     }
 
     response.Indent();
@@ -3110,6 +3211,9 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
     llvm::StringRef format = GetFormatNameOrEmpty(*reg_info);
     if (!format.empty())
       response << "format=\"" << format << "\" ";
+
+    if (reg_info->flags_type)
+      response << "type=\"" << reg_info->flags_type->GetID() << "\" ";
 
     const char *const register_set_name =
         reg_context.GetRegisterSetNameForRegisterAtIndex(reg_index);
@@ -3524,7 +3628,7 @@ GDBRemoteCommunicationServerLLGS::Handle_vRun(
   }
 
   if (argv.empty())
-    return SendErrorResponse(Status("No arguments"));
+    return SendErrorResponse(Status::FromErrorString("No arguments"));
   m_process_launch_info.GetExecutableFile().SetFile(
       m_process_launch_info.GetArguments()[0].ref(), FileSpec::Style::native);
   m_process_launch_error = LaunchProcess();
@@ -3584,7 +3688,8 @@ GDBRemoteCommunicationServerLLGS::Handle_D(StringExtractorGDBRemote &packet) {
   if (detach_error)
     return SendErrorResponse(std::move(detach_error));
   if (!detached)
-    return SendErrorResponse(Status("PID %" PRIu64 " not traced", pid));
+    return SendErrorResponse(
+        Status::FromErrorStringWithFormat("PID %" PRIu64 " not traced", pid));
   return SendOKResponse();
 }
 
@@ -3905,18 +4010,19 @@ GDBRemoteCommunicationServerLLGS::Handle_qSaveCore(
   // Fail if we don't have a current process.
   if (!m_current_process ||
       (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
-    return SendErrorResponse(Status("Process not running."));
+    return SendErrorResponse(Status::FromErrorString("Process not running."));
 
   std::string path_hint;
 
   StringRef packet_str{packet.GetStringRef()};
-  assert(packet_str.startswith("qSaveCore"));
+  assert(packet_str.starts_with("qSaveCore"));
   if (packet_str.consume_front("qSaveCore;")) {
     for (auto x : llvm::split(packet_str, ';')) {
       if (x.consume_front("path-hint:"))
         StringExtractor(x).GetHexByteString(path_hint);
       else
-        return SendErrorResponse(Status("Unsupported qSaveCore option"));
+        return SendErrorResponse(
+            Status::FromErrorString("Unsupported qSaveCore option"));
     }
   }
 
@@ -3936,7 +4042,7 @@ GDBRemoteCommunicationServerLLGS::Handle_QNonStop(
   Log *log = GetLog(LLDBLog::Process);
 
   StringRef packet_str{packet.GetStringRef()};
-  assert(packet_str.startswith("QNonStop:"));
+  assert(packet_str.starts_with("QNonStop:"));
   packet_str.consume_front("QNonStop:");
   if (packet_str == "0") {
     if (m_non_stop)
@@ -3967,7 +4073,8 @@ GDBRemoteCommunicationServerLLGS::Handle_QNonStop(
       StartSTDIOForwarding();
     m_non_stop = true;
   } else
-    return SendErrorResponse(Status("Invalid QNonStop packet"));
+    return SendErrorResponse(
+        Status::FromErrorString("Invalid QNonStop packet"));
   return SendOKResponse();
 }
 
@@ -3980,7 +4087,8 @@ GDBRemoteCommunicationServerLLGS::HandleNotificationAck(
   // the last message in the queue is ACK-ed, in which case the packet sends
   // an OK response.
   if (queue.empty())
-    return SendErrorResponse(Status("No pending notification to ack"));
+    return SendErrorResponse(
+        Status::FromErrorString("No pending notification to ack"));
   queue.pop_front();
   if (!queue.empty())
     return SendPacketNoLock(queue.front());
@@ -4010,7 +4118,8 @@ GDBRemoteCommunication::PacketResult
 GDBRemoteCommunicationServerLLGS::Handle_vCtrlC(
     StringExtractorGDBRemote &packet) {
   if (!m_non_stop)
-    return SendErrorResponse(Status("vCtrl is only valid in non-stop mode"));
+    return SendErrorResponse(
+        Status::FromErrorString("vCtrl is only valid in non-stop mode"));
 
   PacketResult interrupt_res = Handle_interrupt(packet);
   // If interrupting the process failed, pass the result through.
@@ -4202,6 +4311,7 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
                             "QListThreadsInStopReply+",
                             "qXfer:features:read+",
                             "QNonStop+",
+                            "jMultiBreakpoint+",
                         });
 
   // report server-only features
@@ -4229,6 +4339,10 @@ std::vector<std::string> GDBRemoteCommunicationServerLLGS::HandleFeatures(
             .Case("fork-events+", Extension::fork)
             .Case("vfork-events+", Extension::vfork)
             .Default({});
+
+  // We consume lldb's swbreak/hwbreak feature, but it doesn't change the
+  // behaviour of lldb-server. We always adjust the program counter for targets
+  // like x86
 
   m_extensions_supported &= plugin_features;
 
@@ -4295,7 +4409,7 @@ lldb_private::process_gdb_remote::LLGSArgToURL(llvm::StringRef url_arg,
   std::string host_port = url_arg.str();
   // If host_and_port starts with ':', default the host to be "localhost" and
   // expect the remainder to be the port.
-  if (url_arg.startswith(":"))
+  if (url_arg.starts_with(":"))
     host_port.insert(0, "localhost");
 
   // Try parsing the (preprocessed) argument as host:port pair.

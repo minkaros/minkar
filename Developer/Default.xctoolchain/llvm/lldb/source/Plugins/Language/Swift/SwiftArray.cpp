@@ -14,15 +14,19 @@
 
 #include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
+#include "Plugins/TypeSystem/Swift/SwiftDemangle.h"
 #include "Plugins/TypeSystem/Swift/TypeSystemSwiftTypeRef.h"
-#include "lldb/Core/ValueObjectConstResult.h"
+#include "lldb/Core/Address.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
+#include "lldb/ValueObject/ValueObjectConstResult.h"
 
 // FIXME: we should not need this
 #include "Plugins/Language/ObjC/Cocoa.h"
 #include "lldb/lldb-enumerations.h"
+#include "swift/Demangling/Demangler.h"
+#include "swift/Demangling/ManglingFlavor.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -37,7 +41,8 @@ lldb_private::CompilerType SwiftArrayNativeBufferHandler::GetElementType() {
   return m_elem_type;
 }
 
-ValueObjectSP SwiftArrayNativeBufferHandler::GetElementAtIndex(size_t idx) {
+ValueObjectSP SwiftArrayNativeBufferHandler::GetElementAtIndex(size_t idx, 
+    ValueObject *parent) {
   if (idx >= m_size)
     return ValueObjectSP();
 
@@ -57,17 +62,21 @@ ValueObjectSP SwiftArrayNativeBufferHandler::GetElementAtIndex(size_t idx) {
                      process_sp->GetAddressByteSize());
   StreamString name;
   name.Printf("[%zu]", idx);
-  return ValueObject::CreateValueObjectFromData(name.GetData(), data,
+  if (!parent)
+    parent = m_valobj_sp.get();
+  return parent->CreateChildValueObjectFromData(name.GetData(), data,
                                                 m_exe_ctx_ref, m_elem_type);
 }
 
 SwiftArrayNativeBufferHandler::SwiftArrayNativeBufferHandler(
     ValueObject &valobj, lldb::addr_t native_ptr, CompilerType elem_type)
-    : m_metadata_ptr(LLDB_INVALID_ADDRESS),
-      m_reserved_word(LLDB_INVALID_ADDRESS), m_size(0), m_capacity(0),
-      m_first_elem_ptr(LLDB_INVALID_ADDRESS), m_elem_type(elem_type),
-      m_element_size(0), m_element_stride(0),
-      m_exe_ctx_ref(valobj.GetExecutionContextRef()) {
+    : m_elem_type(elem_type), m_exe_ctx_ref(valobj.GetExecutionContextRef()), 
+    m_valobj_sp(valobj.GetSP()) {
+  if (ConstString mangled = valobj.GetCompilerType().GetMangledTypeName())
+    m_is_embedded_swift =
+        SwiftLanguageRuntime::GetManglingFlavor(mangled.GetStringRef()) ==
+        ::swift::Mangle::ManglingFlavor::Embedded;
+
   if (native_ptr == LLDB_INVALID_ADDRESS)
     return;
   if (native_ptr == 0) {
@@ -82,12 +91,12 @@ SwiftArrayNativeBufferHandler::SwiftArrayNativeBufferHandler(
   ProcessSP process_sp(m_exe_ctx_ref.GetProcessSP());
   if (!process_sp)
     return;
-  auto opt_size = elem_type.GetByteSize(process_sp.get());
+  auto opt_size =
+      llvm::expectedToOptional(elem_type.GetByteSize(process_sp.get()));
   if (opt_size)
     m_element_size = *opt_size;
   auto opt_stride = elem_type.GetByteStride(process_sp.get());
-  if (opt_stride)
-    m_element_stride = *opt_stride;
+  m_element_stride = opt_stride.value_or(m_element_size);
   size_t ptr_size = process_sp->GetAddressByteSize();
   Status error;
   lldb::addr_t next_read = native_ptr;
@@ -114,12 +123,19 @@ SwiftArrayNativeBufferHandler::SwiftArrayNativeBufferHandler(
 }
 
 bool SwiftArrayNativeBufferHandler::IsValid() {
-  return m_metadata_ptr != LLDB_INVALID_ADDRESS && m_metadata_ptr &&
+  // In embedded Swift, the empty array singleton (_swiftEmptyArrayStorage)
+  // has metadata_ptr = 0 because there's no runtime type metadata, so we check
+  // if either the metadata ptr is valid OR if we're dealing with an embedded
+  // swift type.
+  return (m_is_embedded_swift ||
+          (m_metadata_ptr != LLDB_INVALID_ADDRESS && m_metadata_ptr)) &&
          m_first_elem_ptr != LLDB_INVALID_ADDRESS && m_capacity >= m_size &&
          m_elem_type.IsValid();
 }
 
 size_t SwiftArrayBridgedBufferHandler::GetCount() {
+  if (!m_frontend)
+    return 0;
   return m_frontend->CalculateNumChildrenIgnoringErrors();
 }
 
@@ -130,7 +146,10 @@ lldb_private::CompilerType SwiftArrayBridgedBufferHandler::GetElementType() {
 }
 
 lldb::ValueObjectSP
-SwiftArrayBridgedBufferHandler::GetElementAtIndex(size_t idx) {
+SwiftArrayBridgedBufferHandler::GetElementAtIndex(size_t idx,
+    ValueObject *parent) {
+  if (!m_frontend)
+    return {};
   return m_frontend->GetChildAtIndex(idx);
 }
 
@@ -166,7 +185,7 @@ lldb_private::CompilerType SwiftArraySliceBufferHandler::GetElementType() {
 }
 
 lldb::ValueObjectSP
-SwiftArraySliceBufferHandler::GetElementAtIndex(size_t idx) {
+SwiftArraySliceBufferHandler::GetElementAtIndex(size_t idx, ValueObject *parent) {
   if (idx >= m_size)
     return ValueObjectSP();
 
@@ -189,7 +208,9 @@ SwiftArraySliceBufferHandler::GetElementAtIndex(size_t idx) {
                      process_sp->GetAddressByteSize());
   StreamString name;
   name.Printf("[%" PRIu64 "]", effective_idx);
-  return ValueObject::CreateValueObjectFromData(name.GetData(), data,
+  if (!parent)
+    parent = m_valobj_sp.get();
+  return parent->CreateChildValueObjectFromData(name.GetData(), data,
                                                 m_exe_ctx_ref, m_elem_type);
 }
 
@@ -199,7 +220,7 @@ SwiftArraySliceBufferHandler::SwiftArraySliceBufferHandler(
     : m_size(0), m_first_elem_ptr(LLDB_INVALID_ADDRESS), m_elem_type(elem_type),
       m_element_size(0), m_element_stride(0),
       m_exe_ctx_ref(valobj.GetExecutionContextRef()), m_native_buffer(false),
-      m_start_index(0) {
+      m_start_index(0), m_valobj_sp(valobj.GetSP()) {
   static ConstString g_start("subscriptBaseAddress");
   static ConstString g_value("_value");
   static ConstString g__rawValue("_rawValue");
@@ -210,7 +231,8 @@ SwiftArraySliceBufferHandler::SwiftArraySliceBufferHandler(
   if (!process_sp)
     return;
 
-  auto opt_size = elem_type.GetByteSize(process_sp.get());
+  auto opt_size =
+      llvm::expectedToOptional(elem_type.GetByteSize(process_sp.get()));
   if (opt_size)
     m_element_size = *opt_size;
 
@@ -247,11 +269,42 @@ bool SwiftArraySliceBufferHandler::IsValid() {
   return m_first_elem_ptr != LLDB_INVALID_ADDRESS && m_elem_type.IsValid();
 }
 
+size_t SwiftArrayInlineBufferHandler::GetCount() { return m_size; }
+
+size_t SwiftArrayInlineBufferHandler::GetCapacity() { return GetCount(); }
+
+lldb_private::CompilerType SwiftArrayInlineBufferHandler::GetElementType() {
+  return m_elem_type;
+}
+
+// The parent is not used here because m_valobj_sp is a direct child of the
+// ValueObject representing the array, and so its parent is already set 
+// correctly.
+ValueObjectSP SwiftArrayInlineBufferHandler::GetElementAtIndex(size_t idx,
+    ValueObject *parent) {
+  if (idx >= m_size)
+    return {};
+  return m_valobj_sp->GetChildAtIndex(idx);
+}
+
+SwiftArrayInlineBufferHandler::SwiftArrayInlineBufferHandler(
+    ValueObjectSP valobj, lldb::addr_t native_ptr, CompilerType elem_type)
+    : m_valobj_sp(valobj),
+      m_size(
+          llvm::expectedToOptional(m_valobj_sp->GetNumChildren()).value_or(0)) {
+}
+
+bool SwiftArrayInlineBufferHandler::IsValid() { return m_valobj_sp.get(); }
+
 size_t SwiftSyntheticFrontEndBufferHandler::GetCount() {
+  if (!m_frontend)
+    return 0;
   return m_frontend->CalculateNumChildrenIgnoringErrors();
 }
 
 size_t SwiftSyntheticFrontEndBufferHandler::GetCapacity() {
+  if (!m_frontend)
+    return 0;
   return m_frontend->CalculateNumChildrenIgnoringErrors();
 }
 
@@ -261,8 +314,14 @@ SwiftSyntheticFrontEndBufferHandler::GetElementType() {
   return CompilerType();
 }
 
+// We don't need to use the parent here because this class makes its children
+// in one of the SyntheticFrontEnd Providers directly, so its up to the FrontEnd
+// to get the parent attribution correctly.
 lldb::ValueObjectSP
-SwiftSyntheticFrontEndBufferHandler::GetElementAtIndex(size_t idx) {
+SwiftSyntheticFrontEndBufferHandler::GetElementAtIndex(size_t idx,
+    ValueObject *parent) {
+  if (!m_frontend)
+    return {};
   return m_frontend->GetChildAtIndex(idx);
 }
 
@@ -297,8 +356,8 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
 
   // For now we have to keep the old mangled name since the Objc->Swift bindings
   // that are in Foundation don't get the new mangling.
-  if (valobj_typename.startswith("_TtCs23_ContiguousArrayStorage") ||
-      valobj_typename.startswith("Swift._ContiguousArrayStorage")) {
+  if (valobj_typename.starts_with("_TtCs23_ContiguousArrayStorage") ||
+      valobj_typename.starts_with("Swift._ContiguousArrayStorage")) {
     CompilerType anyobject_type = clang_ts_sp->GetBasicType(
             lldb::eBasicTypeObjCID);
     auto handler = std::unique_ptr<SwiftArrayBufferHandler>(
@@ -310,8 +369,8 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
     return nullptr;
   }
 
-  if (valobj_typename.startswith("_TtCs22__SwiftDeferredNSArray") ||
-      valobj_typename.startswith("Swift.__SwiftDeferredNSArray")) {
+  if (valobj_typename.starts_with("_TtCs22__SwiftDeferredNSArray") ||
+      valobj_typename.starts_with("Swift.__SwiftDeferredNSArray")) {
     ProcessSP process_sp(valobj.GetProcessSP());
     if (!process_sp)
       return nullptr;
@@ -330,10 +389,8 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
 
     // Get the type of the array elements.
     CompilerType argument_type;
-    auto scratch_ctx_reader = valobj.GetSwiftScratchContext();
-    if (!scratch_ctx_reader)
-      return nullptr;
-    auto *ts = scratch_ctx_reader->get();
+    auto ts = TypeSystemSwiftTypeRefForExpressions::GetForTarget(
+        *valobj.GetTargetSP());
     if (!ts)
       return nullptr;
     auto *swift_runtime = SwiftLanguageRuntime::Get(process_sp);
@@ -357,7 +414,7 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
 
   ExecutionContext exe_ctx(valobj.GetExecutionContextRef());
   ExecutionContextScope *exe_scope = exe_ctx.GetBestExecutionContextScope();
-  if (valobj_typename.startswith("Swift.ContiguousArray<")) {
+  if (valobj_typename.starts_with("Swift.ContiguousArray<")) {
     // Swift.NativeArray
     static ConstString g__buffer("_buffer");
     static ConstString g__storage("_storage");
@@ -378,9 +435,9 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
     if (handler && handler->IsValid())
       return handler;
     return nullptr;
-  } else if (valobj_typename.startswith("Swift.ArraySlice<") ||
-             (valobj_typename.startswith("Swift.Array<") &&
-              valobj_typename.endswith(">.SubSequence"))) {
+  } else if (valobj_typename.starts_with("Swift.ArraySlice<") ||
+             (valobj_typename.starts_with("Swift.Array<") &&
+              valobj_typename.ends_with(">.SubSequence"))) {
     // ArraySlice or Array<T>.SubSequence, which is a typealias to ArraySlice.
     static ConstString g_buffer("_buffer");
 
@@ -397,6 +454,28 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
     if (handler && handler->IsValid())
       return handler;
     return nullptr;
+  } else if (valobj_typename.starts_with("Swift.InlineArray<")) {
+    CompilerType elem_type(
+        valobj.GetCompilerType().GetArrayElementType(exe_scope));
+    if (!elem_type)
+      return nullptr;
+
+    static ConstString g__storage("_storage");
+    auto nonsynth_sp = valobj.GetNonSyntheticValue();
+    if (!nonsynth_sp)
+      return nullptr;
+    ValueObjectSP storage_sp(nonsynth_sp->GetChildMemberWithName(g__storage));
+
+    lldb::addr_t storage_location =
+        storage_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+    if (auto process_sp = valobj.GetProcessSP())
+      if (auto *swift_runtime = SwiftLanguageRuntime::Get(process_sp))
+        storage_location =
+            swift_runtime->MaskMaybeBridgedPointer(storage_location);
+    std::unique_ptr<SwiftArrayBufferHandler> handler;
+    handler.reset(new SwiftArrayInlineBufferHandler(
+        storage_sp, storage_location, elem_type));
+    return handler;
   } else {
     // Swift.Array
     static ConstString g_buffer("_buffer");
@@ -416,6 +495,41 @@ SwiftArrayBufferHandler::CreateBufferHandler(ValueObject &static_valobj) {
 
     lldb::addr_t storage_location =
         buffer_sp->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+
+    lldb_private::Address addr = Address();
+    addr.SetLoadAddress(storage_location, exe_ctx.GetTargetPtr());
+
+    // If the storage_location points to a swiftEmptyArrayStorage symbol, return
+    // a SwiftArrayEmptyBufferHandler.
+    if (auto *symbol = addr.CalculateSymbolContextSymbol()) {
+      auto mangledName = symbol->GetMangled().GetMangledName().GetStringRef();
+      using namespace ::swift::Demangle;
+      Demangler dem;
+      NodePointer node = dem.demangleSymbol(mangledName);
+      if (node && swift_demangle::NodeAtPath(node, Node::Kind::Global)) {
+        auto *class_node = swift_demangle::ChildAtPath(
+            node,
+            {Node::Kind::TypeMetadata, Node::Kind::Type, Node::Kind::Class});
+        if (class_node && class_node->getNumChildren() == 2) {
+          auto *module_node = class_node->getFirstChild();
+          auto *ident_node = class_node->getLastChild();
+          if (module_node->getKind() == Node::Kind::Module &&
+              module_node->hasText() &&
+              ident_node->getKind() == Node::Kind::Identifier &&
+              ident_node->hasText()) {
+            auto module_name = module_node->getText();
+            auto class_name = ident_node->getText();
+            if (module_name == ::swift::STDLIB_NAME &&
+                class_name == "__EmptyArrayStorage") {
+              CompilerType elem_type(
+                  valobj.GetCompilerType().GetArrayElementType(exe_scope));
+              return std::unique_ptr<SwiftArrayBufferHandler>(
+                  new SwiftArrayEmptyBufferHandler(elem_type));
+            }
+          }
+        }
+      }
+    }
 
     if (storage_location != LLDB_INVALID_ADDRESS) {
       ProcessSP process_sp(valobj.GetProcessSP());
@@ -487,7 +601,7 @@ lldb_private::formatters::swift::ArraySyntheticFrontEnd::GetChildAtIndex(
   if (!m_array_buffer)
     return ValueObjectSP();
 
-  lldb::ValueObjectSP child_sp = m_array_buffer->GetElementAtIndex(idx);
+  lldb::ValueObjectSP child_sp = m_array_buffer->GetElementAtIndex(idx, &m_backend);
   if (child_sp)
     child_sp->SetSyntheticChildrenGenerated(true);
 
@@ -510,15 +624,16 @@ bool lldb_private::formatters::swift::ArraySyntheticFrontEnd::
   return true;
 }
 
-size_t lldb_private::formatters::swift::ArraySyntheticFrontEnd::
+llvm::Expected<size_t> lldb_private::formatters::swift::ArraySyntheticFrontEnd::
     GetIndexOfChildWithName(ConstString name) {
   if (!m_array_buffer)
-    return UINT32_MAX;
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
   const char *item_name = name.GetCString();
-  uint32_t idx = ExtractIndexFromString(item_name);
-  if (idx < UINT32_MAX && idx >= CalculateNumChildrenIgnoringErrors())
-    return UINT32_MAX;
-  return idx;
+  auto optional_idx = ExtractIndexFromString(item_name);
+  if (!optional_idx ||
+      optional_idx.value() >= CalculateNumChildrenIgnoringErrors())
+    return llvm::createStringErrorV("Type has no child named '{0}'", name);
+  return optional_idx.value();
 }
 
 SyntheticChildrenFrontEnd *

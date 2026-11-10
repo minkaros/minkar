@@ -44,11 +44,61 @@ APValue::LValueBase::LValueBase(const ValueDecl *P, unsigned I, unsigned V)
 APValue::LValueBase::LValueBase(const Expr *P, unsigned I, unsigned V)
     : Ptr(P), Local{I, V} {}
 
+// Separated definitions of these template functions to avoid nasty build issues
+// caused by header dependency.
+template <class T>
+APValue::LValueBase::EnableIfDAOrForged<T, bool>
+APValue::LValueBase::is() const {
+  if (!isa<DynamicAllocOrForgedPtrLValue>(Ptr))
+    return false;
+  DynamicAllocOrForgedPtrLValue::BaseTy DAOrForged =
+      cast<DynamicAllocOrForgedPtrLValue>(Ptr);
+  return isa<T>(DAOrForged);
+}
+
+template APValue::LValueBase::EnableIfDAOrForged<ForgedPtrLValue, bool>
+APValue::LValueBase::is<ForgedPtrLValue>() const;
+template APValue::LValueBase::EnableIfDAOrForged<DynamicAllocLValue, bool>
+APValue::LValueBase::is<DynamicAllocLValue>() const;
+
+template <class T>
+APValue::LValueBase::EnableIfDAOrForged<T> APValue::LValueBase::get() const {
+  DynamicAllocOrForgedPtrLValue::BaseTy DAOrForged =
+      cast<DynamicAllocOrForgedPtrLValue>(Ptr);
+  return cast<T>(DAOrForged);
+}
+
+template APValue::LValueBase::EnableIfDAOrForged<ForgedPtrLValue>
+APValue::LValueBase::get<ForgedPtrLValue>() const;
+template APValue::LValueBase::EnableIfDAOrForged<DynamicAllocLValue>
+APValue::LValueBase::get<DynamicAllocLValue>() const;
+
+template <class T>
+APValue::LValueBase::EnableIfDAOrForged<T>
+APValue::LValueBase::dyn_cast() const {
+  if (is<T>())
+    return cast<DynamicAllocOrForgedPtrLValue>(Ptr).dyn_cast<T>();
+  return T();
+}
+
+template APValue::LValueBase::EnableIfDAOrForged<ForgedPtrLValue>
+APValue::LValueBase::dyn_cast<ForgedPtrLValue>() const;
+template APValue::LValueBase::EnableIfDAOrForged<DynamicAllocLValue>
+APValue::LValueBase::dyn_cast<DynamicAllocLValue>() const;
+
 APValue::LValueBase APValue::LValueBase::getDynamicAlloc(DynamicAllocLValue LV,
                                                          QualType Type) {
   LValueBase Base;
-  Base.Ptr = LV;
+  Base.Ptr = DynamicAllocOrForgedPtrLValue(LV);
   Base.DynamicAllocType = Type.getAsOpaquePtr();
+  return Base;
+}
+
+APValue::LValueBase APValue::LValueBase::getForgedPtr(ForgedPtrLValue LV,
+                                                      QualType Type) {
+  LValueBase Base;
+  Base.Ptr = DynamicAllocOrForgedPtrLValue(LV);
+  Base.ForgedPtrAsArrayType = Type.getAsOpaquePtr();
   return Base;
 }
 
@@ -61,6 +111,11 @@ APValue::LValueBase APValue::LValueBase::getTypeInfo(TypeInfoLValue LV,
 }
 
 QualType APValue::LValueBase::getType() const {
+  // BOUNDS-SAFETY: forged ptr's base is null, when it's constant but it can
+  // still have a valid type information.
+  if (is<ForgedPtrLValue>())
+    return getForgedPtrAsArrayType();
+
   if (!*this) return QualType();
   if (const ValueDecl *D = dyn_cast<const ValueDecl*>()) {
     // FIXME: It's unclear where we're supposed to take the type from, and
@@ -90,7 +145,7 @@ QualType APValue::LValueBase::getType() const {
   // For a materialized temporary, the type of the temporary we materialized
   // may not be the type of the expression.
   if (const MaterializeTemporaryExpr *MTE =
-          clang::dyn_cast<MaterializeTemporaryExpr>(Base)) {
+          llvm::dyn_cast<MaterializeTemporaryExpr>(Base)) {
     SmallVector<const Expr *, 2> CommaLHSs;
     SmallVector<SubobjectAdjustment, 2> Adjustments;
     const Expr *Temp = MTE->getSubExpr();
@@ -106,12 +161,17 @@ QualType APValue::LValueBase::getType() const {
 }
 
 unsigned APValue::LValueBase::getCallIndex() const {
-  return (is<TypeInfoLValue>() || is<DynamicAllocLValue>()) ? 0
-                                                            : Local.CallIndex;
+  return (is<TypeInfoLValue>() || is<DynamicAllocLValue>() ||
+          is<ForgedPtrLValue>())
+             ? 0
+             : Local.CallIndex;
 }
 
 unsigned APValue::LValueBase::getVersion() const {
-  return (is<TypeInfoLValue>() || is<DynamicAllocLValue>()) ? 0 : Local.Version;
+  return (is<TypeInfoLValue>() || is<DynamicAllocLValue>() ||
+          is<ForgedPtrLValue>())
+             ? 0
+             : Local.Version;
 }
 
 QualType APValue::LValueBase::getTypeInfoType() const {
@@ -124,9 +184,23 @@ QualType APValue::LValueBase::getDynamicAllocType() const {
   return QualType::getFromOpaquePtr(DynamicAllocType);
 }
 
+QualType APValue::LValueBase::getForgedPtrAsArrayType() const {
+  assert(is<ForgedPtrLValue>() && "not a forged ptr lvalue");
+  return QualType::getFromOpaquePtr(ForgedPtrAsArrayType);
+}
+
+const ValueDecl *APValue::LValueBase::getValueDecl() const {
+  if (const ValueDecl *D = dyn_cast<const ValueDecl *>())
+    return D;
+  if (ForgedPtrLValue LV = dyn_cast<ForgedPtrLValue>())
+    return LV.getBaseValueDecl();
+  return nullptr;
+}
+
 void APValue::LValueBase::Profile(llvm::FoldingSetNodeID &ID) const {
   ID.AddPointer(Ptr.getOpaqueValue());
-  if (is<TypeInfoLValue>() || is<DynamicAllocLValue>())
+  if (is<TypeInfoLValue>() || is<DynamicAllocLValue>() ||
+      is<ForgedPtrLValue>())
     return;
   ID.AddInteger(Local.CallIndex);
   ID.AddInteger(Local.Version);
@@ -137,7 +211,8 @@ bool operator==(const APValue::LValueBase &LHS,
                 const APValue::LValueBase &RHS) {
   if (LHS.Ptr != RHS.Ptr)
     return false;
-  if (LHS.is<TypeInfoLValue>() || LHS.is<DynamicAllocLValue>())
+  if (LHS.is<TypeInfoLValue>() || LHS.is<DynamicAllocLValue>() ||
+      LHS.is<ForgedPtrLValue>())
     return true;
   return LHS.Local.CallIndex == RHS.Local.CallIndex &&
          LHS.Local.Version == RHS.Local.Version;
@@ -162,16 +237,6 @@ QualType APValue::LValuePathSerializationHelper::getType() {
   return QualType::getFromOpaquePtr(Ty);
 }
 
-namespace {
-  struct LVBase {
-    APValue::LValueBase Base;
-    CharUnits Offset;
-    unsigned PathLength;
-    bool IsNullPtr : 1;
-    bool IsOnePastTheEnd : 1;
-  };
-}
-
 void *APValue::LValueBase::getOpaqueValue() const {
   return Ptr.getOpaqueValue();
 }
@@ -181,6 +246,9 @@ bool APValue::LValueBase::isNull() const {
 }
 
 APValue::LValueBase::operator bool () const {
+  if (is<DynamicAllocOrForgedPtrLValue>()) {
+    return static_cast<bool>(get<DynamicAllocOrForgedPtrLValue>());
+  }
   return static_cast<bool>(Ptr);
 }
 
@@ -200,7 +268,8 @@ llvm::DenseMapInfo<clang::APValue::LValueBase>::getTombstoneKey() {
 
 namespace clang {
 llvm::hash_code hash_value(const APValue::LValueBase &Base) {
-  if (Base.is<TypeInfoLValue>() || Base.is<DynamicAllocLValue>())
+  if (Base.is<TypeInfoLValue>() || Base.is<DynamicAllocLValue>() ||
+      Base.is<ForgedPtrLValue>())
     return llvm::hash_value(Base.getOpaqueValue());
   return llvm::hash_combine(Base.getOpaqueValue(), Base.getCallIndex(),
                             Base.getVersion());
@@ -219,6 +288,7 @@ bool llvm::DenseMapInfo<clang::APValue::LValueBase>::isEqual(
 }
 
 struct APValue::LV : LVBase {
+  static_assert(DataSize >= sizeof(LVBase) && "LVBase too big");
   static const unsigned InlinePathSpace =
       (DataSize - sizeof(LVBase)) / sizeof(LValuePathEntry);
 
@@ -308,7 +378,8 @@ APValue::UnionData::~UnionData () {
   delete Value;
 }
 
-APValue::APValue(const APValue &RHS) : Kind(None) {
+APValue::APValue(const APValue &RHS)
+    : Kind(None), AllowConstexprUnknown(RHS.AllowConstexprUnknown) {
   switch (RHS.getKind()) {
   case None:
   case Indeterminate:
@@ -348,6 +419,20 @@ APValue::APValue(const APValue &RHS) : Kind(None) {
     else
       setLValue(RHS.getLValueBase(), RHS.getLValueOffset(), NoLValuePath(),
                 RHS.isNullPointer());
+    if (RHS.isLValueForgeSingle()) {
+      assert(!isNullPointer() && !isLValueForgeBidi() &&
+             !isLValueForgeTerminatedBy());
+      setLValueForgedSingle(RHS.getLValueForgedOffset());
+    } else if (RHS.isLValueForgeBidi()) {
+      assert(!isNullPointer() && !isLValueForgeSingle() &&
+             !isLValueForgeTerminatedBy());
+      setLValueForgedBidi(RHS.getLValueForgedSize(),
+                          RHS.getLValueForgedOffset());
+    } else if (RHS.isLValueForgeTerminatedBy()) {
+      assert(!isNullPointer() && !isLValueForgeSingle() &&
+             !isLValueForgeBidi());
+      setLValueForgedTerminatedBy(RHS.getLValueForgedOffset());
+    }
     break;
   case Array:
     MakeArray(RHS.getArrayInitializedElts(), RHS.getArraySize());
@@ -379,22 +464,28 @@ APValue::APValue(const APValue &RHS) : Kind(None) {
   }
 }
 
-APValue::APValue(APValue &&RHS) : Kind(RHS.Kind), Data(RHS.Data) {
+APValue::APValue(APValue &&RHS)
+    : Kind(RHS.Kind), AllowConstexprUnknown(RHS.AllowConstexprUnknown),
+      Data(RHS.Data) {
   RHS.Kind = None;
 }
 
 APValue &APValue::operator=(const APValue &RHS) {
   if (this != &RHS)
     *this = APValue(RHS);
+
   return *this;
 }
 
 APValue &APValue::operator=(APValue &&RHS) {
-  if (Kind != None && Kind != Indeterminate)
-    DestroyDataAndMakeUninit();
-  Kind = RHS.Kind;
-  Data = RHS.Data;
-  RHS.Kind = None;
+  if (this != &RHS) {
+    if (Kind != None && Kind != Indeterminate)
+      DestroyDataAndMakeUninit();
+    Kind = RHS.Kind;
+    Data = RHS.Data;
+    AllowConstexprUnknown = RHS.AllowConstexprUnknown;
+    RHS.Kind = None;
+  }
   return *this;
 }
 
@@ -424,6 +515,7 @@ void APValue::DestroyDataAndMakeUninit() {
   else if (Kind == AddrLabelDiff)
     ((AddrLabelDiffData *)(char *)&Data)->~AddrLabelDiffData();
   Kind = None;
+  AllowConstexprUnknown = false;
 }
 
 bool APValue::needsCleanup() const {
@@ -466,6 +558,10 @@ bool APValue::needsCleanup() const {
 void APValue::swap(APValue &RHS) {
   std::swap(Kind, RHS.Kind);
   std::swap(Data, RHS.Data);
+  // We can't use std::swap w/ bit-fields
+  bool tmp = AllowConstexprUnknown;
+  AllowConstexprUnknown = RHS.AllowConstexprUnknown;
+  RHS.AllowConstexprUnknown = tmp;
 }
 
 /// Profile the value of an APInt, excluding its bit-width.
@@ -604,6 +700,8 @@ void APValue::Profile(llvm::FoldingSetNodeID &ID) const {
       for (LValuePathEntry E : getLValuePath())
         E.Profile(ID);
     }
+    ID.AddInteger(getLValueForgedOffset().getQuantity());
+    ID.AddInteger(getLValueForgedSize().getQuantity());
     return;
 
   case MemberPointer:
@@ -688,6 +786,34 @@ static bool TryPrintAsStringLiteral(raw_ostream &Out,
   return true;
 }
 
+static void printForgedPtrLValue(raw_ostream &Out, const PrintingPolicy &Policy,
+                                 const ASTContext *Ctx, const APValue &V,
+                                 ForgedPtrLValue FP, QualType Ty) {
+  Out << "__unsafe_forge_"
+      << (V.isLValueForgeSingle()
+              ? "single("
+              : (V.isLValueForgeTerminatedBy() ? "terminated_by("
+                                               : "bidi_indexable("));
+  QualType(Ty->getPointeeOrArrayElementType(), 0).print(Out, Policy);
+  Out << ", ";
+
+  if (auto BaseVD = FP.getBaseValueDecl()) {
+    Out << *BaseVD << " + ";
+  }
+  // LValueOffset + ForgedOffset
+  Out << V.getUnwrappedLValueOffset().getQuantity();
+
+  if (V.isLValueForgeSingle()) {
+    Out << ")";
+  } else if (V.isLValueForgeTerminatedBy()) {
+    Out << ", " << Ty->getAs<ValueTerminatedType>()->getTerminatorValue(*Ctx)
+        << ")";
+  } else {
+    assert(V.isLValueForgeBidi());
+    Out << ", " << V.getLValueForgedSize().getQuantity() << ")";
+  }
+}
+
 void APValue::printPretty(raw_ostream &Out, const ASTContext &Ctx,
                           QualType Ty) const {
   printPretty(Out, Ctx.getPrintingPolicy(), Ty, &Ctx);
@@ -701,6 +827,9 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
     Out << "void()";
     return;
   }
+
+  if (const auto *AT = Ty->getAs<AtomicType>())
+    Ty = AT->getValueType();
 
   switch (getKind()) {
   case APValue::None:
@@ -752,17 +881,17 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
         Out << (Policy.Nullptr ? "nullptr" : "0");
       } else if (IsReference) {
         Out << "*(" << InnerTy.stream(Policy) << "*)"
-            << getLValueOffset().getQuantity();
+            << getUnwrappedLValueOffset().getQuantity();
       } else {
         Out << "(" << Ty.stream(Policy) << ")"
-            << getLValueOffset().getQuantity();
+            << getUnwrappedLValueOffset().getQuantity();
       }
       return;
     }
 
     if (!hasLValuePath()) {
       // No lvalue path: just print the offset.
-      CharUnits O = getLValueOffset();
+      CharUnits O = getUnwrappedLValueOffset();
       CharUnits S = Ctx ? Ctx->getTypeSizeInCharsIfKnown(InnerTy).value_or(
                               CharUnits::Zero())
                         : CharUnits::Zero();
@@ -786,6 +915,8 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
         Out << "{*new "
             << Base.getDynamicAllocType().stream(Policy) << "#"
             << DA.getIndex() << "}";
+      } else if (ForgedPtrLValue FP = Base.dyn_cast<ForgedPtrLValue>()) {
+        printForgedPtrLValue(Out, Policy, Ctx, *this, FP, Ty);
       } else {
         assert(Base.get<const Expr *>() != nullptr &&
                "Expecting non-null Expr");
@@ -806,7 +937,7 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
     else if (isLValueOnePastTheEnd())
       Out << "*(&";
 
-    QualType ElemTy = Base.getType();
+    QualType ElemTy = Base.getType().getNonReferenceType();
     if (const ValueDecl *VD = Base.dyn_cast<const ValueDecl*>()) {
       Out << *VD;
     } else if (TypeInfoLValue TI = Base.dyn_cast<TypeInfoLValue>()) {
@@ -814,6 +945,9 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
     } else if (DynamicAllocLValue DA = Base.dyn_cast<DynamicAllocLValue>()) {
       Out << "{*new " << Base.getDynamicAllocType().stream(Policy) << "#"
           << DA.getIndex() << "}";
+    } else if (ForgedPtrLValue FP = Base.dyn_cast<ForgedPtrLValue>()) {
+      printForgedPtrLValue(Out, Policy, Ctx, *this, FP, Ty);
+      return;
     } else {
       const Expr *E = Base.get<const Expr*>();
       assert(E != nullptr && "Expecting non-null Expr");
@@ -839,6 +973,10 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
           Out << *VD;
           ElemTy = VD->getType();
         }
+      } else if (ElemTy->isAnyComplexType()) {
+        // The lvalue refers to a complex type
+        Out << (Path[I].getAsArrayIndex() == 0 ? ".real" : ".imag");
+        ElemTy = ElemTy->castAs<ComplexType>()->getElementType();
       } else {
         // The lvalue must refer to an array.
         Out << '[' << Path[I].getAsArrayIndex() << ']';
@@ -899,7 +1037,8 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
     for (const auto *FI : RD->fields()) {
       if (!First)
         Out << ", ";
-      if (FI->isUnnamedBitfield()) continue;
+      if (FI->isUnnamedBitField())
+        continue;
       getStructField(FI->getFieldIndex()).
         printPretty(Out, Policy, FI->getType(), Ctx);
       First = false;
@@ -937,7 +1076,6 @@ std::string APValue::getAsString(const ASTContext &Ctx, QualType Ty) const {
   std::string Result;
   llvm::raw_string_ostream Out(Result);
   printPretty(Out, Ctx, Ty);
-  Out.flush();
   return Result;
 }
 
@@ -954,7 +1092,7 @@ bool APValue::toIntegralConstant(APSInt &Result, QualType SrcTy,
   }
 
   if (isLValue() && !getLValueBase()) {
-    Result = Ctx.MakeIntValue(getLValueOffset().getQuantity(), SrcTy);
+    Result = Ctx.MakeIntValue(getUnwrappedLValueOffset().getQuantity(), SrcTy);
     return true;
   }
 
@@ -976,6 +1114,22 @@ CharUnits &APValue::getLValueOffset() {
   return ((LV *)(void *)&Data)->Offset;
 }
 
+CharUnits &APValue::getLValueForgedSize() {
+  assert(isLValue() && "Invalid accessor");
+  return ((LV *)(void *)&Data)->ForgedSize;
+}
+
+CharUnits &APValue::getLValueForgedOffset() {
+  assert(isLValue() && "Invalid accessor");
+  return ((LV *)(void *)&Data)->ForgedOffset;
+}
+
+CharUnits APValue::getUnwrappedLValueOffset() const {
+  if (isLValueForge())
+    return getLValueOffset() + getLValueForgedOffset();
+  return getLValueOffset();
+}
+
 bool APValue::hasLValuePath() const {
   assert(isLValue() && "Invalid accessor");
   return ((const LV *)(const char *)&Data)->hasPath();
@@ -984,7 +1138,7 @@ bool APValue::hasLValuePath() const {
 ArrayRef<APValue::LValuePathEntry> APValue::getLValuePath() const {
   assert(isLValue() && hasLValuePath() && "Invalid accessor");
   const LV &LVal = *((const LV *)(const char *)&Data);
-  return llvm::ArrayRef(LVal.getPath(), LVal.PathLength);
+  return {LVal.getPath(), LVal.PathLength};
 }
 
 unsigned APValue::getLValueCallIndex() const {
@@ -1002,6 +1156,27 @@ bool APValue::isNullPointer() const {
   return ((const LV *)(const char *)&Data)->IsNullPtr;
 }
 
+bool APValue::isLValueForgeBidi() const {
+  assert(isLValue() && "Invalid usage");
+  return ((const LV *)(const char *)&Data)->IsForgeBidi;
+}
+
+bool APValue::isLValueForgeSingle() const {
+  assert(isLValue() && "Invalid usage");
+  return ((const LV *)(const char *)&Data)->IsForgeSingle;
+}
+
+bool APValue::isLValueForgeTerminatedBy() const {
+  assert(isLValue() && "Invalid usage");
+  return ((const LV *)(const char *)&Data)->IsForgeTerminatedBy;
+}
+
+bool APValue::isLValueForge() const {
+  assert(isLValue() && "Invalid usage");
+  return isLValueForgeBidi() || isLValueForgeSingle() ||
+         isLValueForgeTerminatedBy();
+}
+
 void APValue::setLValue(LValueBase B, const CharUnits &O, NoLValuePath,
                         bool IsNullPtr) {
   assert(isLValue() && "Invalid accessor");
@@ -1011,6 +1186,10 @@ void APValue::setLValue(LValueBase B, const CharUnits &O, NoLValuePath,
   LVal.Offset = O;
   LVal.resizePath((unsigned)-1);
   LVal.IsNullPtr = IsNullPtr;
+  LVal.IsForgeBidi = false;
+  LVal.IsForgeSingle = false;
+  LVal.IsForgeTerminatedBy = false;
+  LVal.ForgedSize = CharUnits::Zero();
 }
 
 MutableArrayRef<APValue::LValuePathEntry>
@@ -1023,7 +1202,45 @@ APValue::setLValueUninit(LValueBase B, const CharUnits &O, unsigned Size,
   LVal.Offset = O;
   LVal.IsNullPtr = IsNullPtr;
   LVal.resizePath(Size);
+  LVal.IsForgeBidi = false;
+  LVal.IsForgeSingle = false;
+  LVal.IsForgeTerminatedBy = false;
+  LVal.ForgedSize = CharUnits::Zero();
   return {LVal.getPath(), Size};
+}
+
+void APValue::setLValueForgedBidi(const CharUnits &Size,
+                                  const CharUnits &Offset) {
+  assert(isLValue() && "Invalid accessor");
+  LV &LVal = *((LV *)(char *)&Data);
+  // For the purposes of constant evaluation, forged lvalues are never NULL,
+  // even if their address is 0.
+  LVal.IsNullPtr = false;
+  LVal.IsForgeBidi = true;
+  LVal.ForgedSize = Size;
+  LVal.IsForgeSingle = false;
+  LVal.IsForgeTerminatedBy = false;
+  LVal.ForgedOffset = Offset;
+}
+
+void APValue::setLValueForgedSingle(const CharUnits &Offset) {
+  assert(isLValue() && "Invalid accessor");
+  LV &LVal = *((LV *)(char *)&Data);
+  LVal.IsNullPtr = false;
+  LVal.IsForgeBidi = false;
+  LVal.IsForgeSingle = true;
+  LVal.IsForgeTerminatedBy = false;
+  LVal.ForgedOffset = Offset;
+}
+
+void APValue::setLValueForgedTerminatedBy(const CharUnits &Offset) {
+  assert(isLValue() && "Invalid accessor");
+  LV &LVal = *((LV *)(char *)&Data);
+  LVal.IsNullPtr = false;
+  LVal.IsForgeBidi = false;
+  LVal.IsForgeSingle = false;
+  LVal.IsForgeTerminatedBy = true;
+  LVal.ForgedOffset = Offset;
 }
 
 void APValue::setLValue(LValueBase B, const CharUnits &O,
@@ -1062,7 +1279,7 @@ ArrayRef<const CXXRecordDecl*> APValue::getMemberPointerPath() const {
   assert(isMemberPointer() && "Invalid accessor");
   const MemberPointerData &MPD =
       *((const MemberPointerData *)(const char *)&Data);
-  return llvm::ArrayRef(MPD.getPath(), MPD.PathLength);
+  return {MPD.getPath(), MPD.PathLength};
 }
 
 void APValue::MakeLValue() {
@@ -1077,10 +1294,6 @@ void APValue::MakeArray(unsigned InitElts, unsigned Size) {
   new ((void *)(char *)&Data) Arr(InitElts, Size);
   Kind = Array;
 }
-
-MutableArrayRef<APValue::LValuePathEntry>
-setLValueUninit(APValue::LValueBase B, const CharUnits &O, unsigned Size,
-                bool OnePastTheEnd, bool IsNullPtr);
 
 MutableArrayRef<const CXXRecordDecl *>
 APValue::setMemberPointerUninit(const ValueDecl *Member, bool IsDerivedMember,
@@ -1109,7 +1322,7 @@ LinkageInfo LinkageComputer::getLVForValue(const APValue &V,
 
   auto MergeLV = [&](LinkageInfo MergeLV) {
     LV.merge(MergeLV);
-    return LV.getLinkage() == InternalLinkage;
+    return LV.getLinkage() == Linkage::Internal;
   };
   auto Merge = [&](const APValue &V) {
     return MergeLV(getLVForValue(V, computation));
@@ -1177,6 +1390,12 @@ LinkageInfo LinkageComputer::getLVForValue(const APValue &V,
         return LinkageInfo::internal();
       if (MergeLV(getLVForDecl(MTE->getExtendingDecl(), computation)))
         break;
+    } else if (const auto FP = V.getLValueBase().dyn_cast<ForgedPtrLValue>()) {
+      if (const auto *VD = FP.getBaseValueDecl()) {
+        MergeLV(getLVForDecl(VD, computation));
+      }
+      // Otherwise, it's null or absolute address, which is considered external.
+      break;
     } else {
       assert(V.getLValueBase().is<DynamicAllocLValue>() &&
              "unexpected LValueBase kind");

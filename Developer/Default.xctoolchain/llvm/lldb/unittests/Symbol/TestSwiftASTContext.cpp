@@ -43,24 +43,17 @@ public:
 };
 
 struct SwiftASTContextTester : public SwiftASTContext {
-  #ifndef NDEBUG
-    SwiftASTContextTester() : SwiftASTContext() {}
-  #endif
+#ifndef NDEBUG
+  SwiftASTContextTester()
+      : SwiftASTContext(), m_typeref_typesystem(new TypeSystemSwiftTypeRef()) {}
+#endif
 
-  TypeSystemSwiftTypeRef &GetTypeSystemSwiftTypeRef() override {
+  TypeSystemSwiftTypeRefSP GetTypeSystemSwiftTypeRef() override {
     return m_typeref_typesystem;
   }
 
-  TypeSystemSwiftTypeRef m_typeref_typesystem;
+  TypeSystemSwiftTypeRefSP m_typeref_typesystem;
 };
-
-TEST_F(TestSwiftASTContext, IsNonTriviallyManagedReferenceType) {
-#ifndef NDEBUG
-  // The mock constructor is only available in asserts mode.
-  auto context = std::make_shared<SwiftASTContextTester>();
-  EXPECT_FALSE(context->GetNonTriviallyManagedReferenceKind(nullptr));
-#endif
-}
 
 TEST_F(TestSwiftASTContext, SwiftFriendlyTriple) {
   EXPECT_EQ(SwiftASTContext::GetSwiftFriendlyTriple(
@@ -168,6 +161,42 @@ TEST_F(TestSwiftASTContext, ApplyWorkingDir) {
   EXPECT_EQ(dot_dot_path, llvm::SmallString<128>("-iquote."));
 }
 
+TEST_F(TestSwiftASTContext, WorkingDirectoryVariousForms) {
+  std::string module_map_flag = "-fmodule-map-file=module.modulemap";
+  const std::vector<std::string> expected = {
+      "-fmodule-map-file=/abs/dir/module.modulemap"};
+
+  {
+    // Separate
+    const std::vector<std::string> source = {"-working-directory", "/abs/dir",
+                                             module_map_flag};
+    std::vector<std::string> dest;
+    SwiftASTContext::AddExtraClangArgs(source, dest);
+
+    const std::vector<std::string> expected = {
+        "-fmodule-map-file=/abs/dir/module.modulemap"};
+    EXPECT_EQ(dest, expected);
+  }
+  {
+    // Joined with no '='
+    const std::vector<std::string> source = {"-working-directory/abs/dir",
+                                             module_map_flag};
+    std::vector<std::string> dest;
+    SwiftASTContext::AddExtraClangArgs(source, dest);
+
+    EXPECT_EQ(dest, expected);
+  }
+  {
+    // Joined with '='
+    const std::vector<std::string> source = {"-working-directory=/abs/dir",
+                                             module_map_flag};
+    std::vector<std::string> dest;
+    SwiftASTContext::AddExtraClangArgs(source, dest);
+
+    EXPECT_EQ(dest, expected);
+  }
+}
+
 TEST_F(TestSwiftASTContext, PluginPath) {
   llvm::StringRef path(
       "/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/"
@@ -258,6 +287,8 @@ TEST_F(ClangArgs, DoubleDash) {
 }
 
 TEST_F(TestSwiftASTContext, IVFS) {
+#ifndef NDEBUG
+  // The mock constructor is only available in asserts mode.
   const auto *Info = testing::UnitTest::GetInstance()->current_test_info();
   llvm::SmallString<128> name;
   auto ec = llvm::sys::fs::createTemporaryFile(
@@ -288,8 +319,29 @@ TEST_F(TestSwiftASTContext, IVFS) {
   expected.push_back("-ivfsstatcache");
   expected.push_back(valid);
 
-  SwiftASTContext::FilterClangImporterOptions(args);
+  auto context = std::make_shared<SwiftASTContextTester>();
+  context->FilterClangImporterOptions(args);
 
   // Check that all ignored arguments got removed.
   EXPECT_EQ(args, expected);
+#endif
+}
+
+TEST_F(TestSwiftASTContext, GetTypeNameNullType) {
+#ifndef NDEBUG
+  // The mock constructor is only available in asserts mode.
+  auto context = std::make_shared<SwiftASTContextTester>();
+  EXPECT_EQ(context->GetTypeName(nullptr, false),
+            ConstString("<invalid type>"));
+#endif
+}
+
+TEST_F(TestSwiftASTContext, GetTypeNameFatalError) {
+#ifndef NDEBUG
+  // The mock constructor is only available in asserts mode.
+  auto context = std::make_shared<SwiftASTContextTester>();
+  context->RaiseFatalError("unit test error");
+  EXPECT_EQ(context->GetTypeName(nullptr, false),
+            ConstString("<invalid Swift context>"));
+#endif
 }

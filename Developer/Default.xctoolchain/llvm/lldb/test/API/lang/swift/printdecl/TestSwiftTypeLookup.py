@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftTypeLookup(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_type_lookup(self):
         """Test the ability to look for type definitions at the command line"""

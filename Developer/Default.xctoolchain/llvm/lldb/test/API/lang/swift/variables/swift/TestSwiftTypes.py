@@ -16,12 +16,12 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 import platform
 
 
 class TestSwiftTypes(TestBase):
     @swiftTest
+    @skipEmbeddedSwift
     def test_swift_types(self):
         """Test that we can inspect basic Swift types"""
         self.build()
@@ -128,7 +128,10 @@ class TestSwiftTypes(TestBase):
                 'Double',
                 'float64',
                 'value = 2.5'])
-        if self.getArchitecture() == "x86_64":
+        if (
+            self.getArchitecture() == "x86_64"
+            and lldbplatformutil.getPlatform() != "windows"
+        ):
             self.expect(
                 "frame variable --raw float80",
                 substrs=[
@@ -169,4 +172,3 @@ class TestSwiftTypes(TestBase):
         self.expect(
             'frame variable uint64_max',
             substrs=['18446744073709551615'])
-

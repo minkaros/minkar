@@ -10,10 +10,10 @@
 
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/StreamBuffer.h"
 #include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/StreamBuffer.h"
 
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
@@ -25,6 +25,12 @@
 #include "CodeViewRegisterMapping.h"
 #include "PdbFPOProgramToDWARFExpression.h"
 #include <optional>
+
+// BEGIN SWIFT
+#if LLDB_ENABLE_SWIFT
+#include "swift/Demangling/Demangle.h"
+#endif // LLDB_ENABLE_SWIFT
+// END SWIFT
 
 using namespace lldb;
 using namespace lldb_private;
@@ -74,33 +80,80 @@ static bool IsSimpleTypeSignedInteger(SimpleTypeKind kind) {
   }
 }
 
-static std::pair<size_t, bool> GetIntegralTypeInfo(TypeIndex ti,
-                                                   TpiStream &tpi) {
+static llvm::Expected<std::pair<size_t, bool>>
+GetIntegralTypeInfo(TypeIndex ti, TpiStream &tpi) {
   if (ti.isSimple()) {
     SimpleTypeKind stk = ti.getSimpleKind();
-    return {GetTypeSizeForSimpleKind(stk), IsSimpleTypeSignedInteger(stk)};
+    return std::make_pair(GetTypeSizeForSimpleKind(stk),
+                          IsSimpleTypeSignedInteger(stk));
   }
 
   CVType cvt = tpi.getType(ti);
   switch (cvt.kind()) {
   case LF_MODIFIER: {
     ModifierRecord mfr;
-    llvm::cantFail(TypeDeserializer::deserializeAs<ModifierRecord>(cvt, mfr));
+    if (auto err = TypeDeserializer::deserializeAs<ModifierRecord>(cvt, mfr))
+      return std::move(err);
     return GetIntegralTypeInfo(mfr.ModifiedType, tpi);
   }
   case LF_POINTER: {
     PointerRecord pr;
-    llvm::cantFail(TypeDeserializer::deserializeAs<PointerRecord>(cvt, pr));
-    return GetIntegralTypeInfo(pr.ReferentType, tpi);
+    if (auto err = TypeDeserializer::deserializeAs<PointerRecord>(cvt, pr))
+      return std::move(err);
+    return std::make_pair(pr.getSize(), false);
   }
   case LF_ENUM: {
     EnumRecord er;
-    llvm::cantFail(TypeDeserializer::deserializeAs<EnumRecord>(cvt, er));
+    if (auto err = TypeDeserializer::deserializeAs<EnumRecord>(cvt, er))
+      return std::move(err);
     return GetIntegralTypeInfo(er.UnderlyingType, tpi);
   }
+// BEGIN SWIFT
+#if LLDB_ENABLE_SWIFT
+  // Swift integral types are structs.
+  case LF_STRUCTURE:
+  case LF_CLASS: {
+    ClassRecord cr;
+    if (auto err = TypeDeserializer::deserializeAs<ClassRecord>(cvt, cr))
+      return std::move(err);
+    if (!cr.hasUniqueName() || !swift::Demangle::isSwiftSymbol(cr.UniqueName))
+      return llvm::make_error<llvm::StringError>(
+          "Class/structure type is not a Swift type",
+          llvm::inconvertibleErrorCode());
+
+    if (cr.isForwardRef()) {
+      auto expected_ti = tpi.findFullDeclForForwardRef(ti);
+      if (!expected_ti)
+        return expected_ti.takeError();
+      CVType resolved_cvt = tpi.getType(*expected_ti);
+      ClassRecord resolved_cr;
+      if (auto err = TypeDeserializer::deserializeAs<ClassRecord>(
+              resolved_cvt, resolved_cr))
+        return std::move(err);
+      cr = std::move(resolved_cr);
+    }
+
+    // Display name is qualified (for example "Swift::Int".
+    llvm::StringRef name = cr.Name;
+    name.consume_front("Swift::");
+
+    // Check against hardcoded allowlists.
+    static constexpr llvm::StringLiteral kSignedIntTypes[] = {
+        "Int", "Int8", "Int16", "Int32", "Int64"};
+    static constexpr llvm::StringLiteral kUnsignedIntTypes[] = {
+        "UInt", "UInt8", "UInt16", "UInt32", "UInt64", "Bool"};
+    if (llvm::is_contained(kSignedIntTypes, name))
+      return std::make_pair(cr.getSize(), true);
+    if (llvm::is_contained(kUnsignedIntTypes, name))
+      return std::make_pair(cr.getSize(), false);
+    return llvm::make_error<llvm::StringError>(
+        "Swift type is not an integral type", llvm::inconvertibleErrorCode());
+  }
+#endif // LLDB_ENABLE_SWIFT
+// END SWIFT
   default:
-    assert(false && "Type is not integral!");
-    return {0, false};
+    return llvm::make_error<llvm::StringError>("Type is not integral",
+                                               llvm::inconvertibleErrorCode());
   }
 }
 
@@ -224,15 +277,18 @@ DWARFExpression lldb_private::npdb::MakeGlobalLocationExpression(
       });
 }
 
-DWARFExpression lldb_private::npdb::MakeConstantLocationExpression(
-    TypeIndex underlying_ti, TpiStream &tpi, const llvm::APSInt &constant,
-    ModuleSP module) {
+llvm::Expected<DWARFExpression>
+lldb_private::npdb::MakeConstantLocationExpression(TypeIndex underlying_ti,
+                                                   TpiStream &tpi,
+                                                   const llvm::APSInt &constant,
+                                                   ModuleSP module) {
   const ArchSpec &architecture = module->GetArchitecture();
   uint32_t address_size = architecture.GetAddressByteSize();
 
-  size_t size = 0;
-  bool is_signed = false;
-  std::tie(size, is_signed) = GetIntegralTypeInfo(underlying_ti, tpi);
+  auto type_info = GetIntegralTypeInfo(underlying_ti, tpi);
+  if (!type_info)
+    return type_info.takeError();
+  auto [size, is_signed] = *type_info;
 
   union {
     llvm::support::little64_t I;

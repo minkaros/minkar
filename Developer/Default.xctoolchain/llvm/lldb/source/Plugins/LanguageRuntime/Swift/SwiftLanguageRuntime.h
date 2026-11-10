@@ -19,11 +19,14 @@
 #include "lldb/Breakpoint/BreakpointPrecondition.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Target/LanguageRuntime.h"
+#include "lldb/Target/Process.h"
 #include "lldb/lldb-private.h"
+#include "swift/Demangling/ManglingFlavor.h"
 
-#include <optional>
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Casting.h"
+#include <optional>
 
 #include <mutex>
 #include <tuple>
@@ -41,6 +44,10 @@ template <unsigned PointerSize> struct RuntimeTarget;
 namespace reflection {
 template <typename T> class ReflectionContext;
 class TypeInfo;
+class BuiltinTypeInfo;
+struct FieldInfo;
+class TypeRef;
+class RecordTypeInfo;
 } // namespace reflection
 
 namespace remoteAST {
@@ -57,21 +64,17 @@ struct LockGuarded;
 class SwiftLanguageRuntimeStub;
 class SwiftLanguageRuntimeImpl;
 class ReflectionContextInterface;
+class LLDBMemoryReader;
+class MemoryReaderLocalBufferHolder;
+struct SuperClassType;
 
 using ThreadSafeReflectionContext = LockGuarded<ReflectionContextInterface>;
 
 class SwiftLanguageRuntime : public LanguageRuntime {
+  friend class SwiftRuntimeTypeVisitor;
+
 protected:
-  SwiftLanguageRuntime(Process *process);
-  /// The private implementation object, either a stub or a full
-  /// runtime.
-  ///
-  /// TODO: Instead of using these pImpl objects, it would be more
-  ///   elegant to have CreateInstance return the right object,
-  ///   unfortunately Process wants to cache the returned language
-  ///   runtimes and doesn't call CreateInstance() ever again.
-  std::unique_ptr<SwiftLanguageRuntimeStub> m_stub;
-  std::unique_ptr<SwiftLanguageRuntimeImpl> m_impl;
+  SwiftLanguageRuntime(Process &process);
 
 public:
   ThreadSafeReflectionContext GetReflectionContext();
@@ -104,10 +107,23 @@ public:
   static SwiftLanguageRuntime *Get(lldb::ProcessSP process_sp) {
     return SwiftLanguageRuntime::Get(process_sp.get());
   }
+
+  /// Returns the Module containing the Swift Concurrency runtime, if it exists.
+  static lldb::ModuleSP FindConcurrencyModule(Process &process);
+
+  /// Returns the version of the swift concurrency runtime debug layout.
+  /// If no Concurrency module is found, or if errors occur, nullopt is
+  /// returned.
+  /// Returns 0 for versions of the module prior to the introduction
+  /// of versioning.
+  static std::optional<uint32_t> FindConcurrencyDebugVersion(Process &process);
   /// \}
 
   /// PluginInterface protocol.
   llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
+
+  /// It is impossible to create a SwiftLanguageRuntime without a process.
+  Process &GetProcess() const { return *m_process; }
 
   llvm::Error
   GetObjectDescription(Stream &str, Value &value,
@@ -117,11 +133,19 @@ public:
         "Swift values do not have an object description");
   }
 
+private:
+  llvm::Error PrintObjectViaPointer(Stream &strm, ValueObject &object,
+                                    Process &process) const;
+
+public:
   lldb::LanguageType GetLanguageType() const override {
     return lldb::eLanguageTypeSwift;
   }
 
-  void SymbolsDidLoad(const ModuleList &module_list) override;
+  unsigned GetGeneration() const { return m_generation; }
+  void SymbolsDidLoad(const ModuleList &module_list) override {
+    ++m_generation;
+  }
   void ModulesDidLoad(const ModuleList &module_list) override;
 
   bool IsSymbolARuntimeThunk(const Symbol &symbol) override;
@@ -132,12 +156,57 @@ public:
   /// since some day we may want to support more than one swift variant.
   static bool IsSwiftMangledName(llvm::StringRef name);
 
+  static swift::Mangle::ManglingFlavor
+  GetManglingFlavor(llvm::StringRef mangledName) {
+    if (mangledName.starts_with("$e") || mangledName.starts_with("_$e"))
+      return swift::Mangle::ManglingFlavor::Embedded;
+    return swift::Mangle::ManglingFlavor::Default;
+  }
+
+  /// Construct a full mangled name from a suffix (without "$s"/"$e" prefix)
+  /// and a mangling flavor.
+  static std::string MakeMangledName(llvm::StringRef suffix,
+                                     swift::Mangle::ManglingFlavor flavor) {
+    return ((flavor == swift::Mangle::ManglingFlavor::Embedded) ? "$e" : "$s") +
+           suffix.str();
+  }
+  enum class FuncletComparisonResult {
+    NotBothFunclets,
+    DifferentAsyncFunctions,
+    SameAsyncFunction
+  };
+
+  /// Compares name1 and name2 to decide whether they are both async funclets.
+  /// If either is not an async funclet, returns NotBothFunclets.
+  /// If they are both funclets but of different async functions, returns
+  /// DifferentAsyncFunctions.
+  /// Otherwise, returns SameAsyncFunction.
+  static FuncletComparisonResult
+  AreFuncletsOfSameAsyncFunction(llvm::StringRef name1, llvm::StringRef name2);
+
+  /// See AreFuncletsOfSameAsyncFunction(StringRef, StringRef).
+  static FuncletComparisonResult
+  AreFuncletsOfSameAsyncFunction(swift::Demangle::NodePointer node1,
+                                 swift::Demangle::NodePointer node2);
+
   /// Return true if name is a Swift async function symbol.
   static bool IsSwiftAsyncFunctionSymbol(llvm::StringRef name);
 
   /// Return true if name is a Swift async function, await resume partial
   /// function, or suspend resume partial function symbol.
   static bool IsAnySwiftAsyncFunctionSymbol(llvm::StringRef name);
+
+  /// Return true if node is a Swift async function, await resume partial
+  /// function, or suspend resume partial function symbol.
+  static bool IsAnySwiftAsyncFunctionSymbol(swift::Demangle::NodePointer node);
+
+  /// If node is a Swift async funclet, return its funclet number.
+  static std::optional<uint64_t>
+  GetFuncletNumber(swift::Demangle::NodePointer node);
+
+  /// If name is a Swift async funclet, return its funclet number.
+  static std::optional<uint64_t>
+  GetFuncletNumber(llvm::StringRef name);
 
   /// Return the async context address using the target's specific register.
   static lldb::addr_t GetAsyncContext(RegisterContext *regctx);
@@ -146,10 +215,18 @@ public:
   IsSwiftAsyncAwaitResumePartialFunctionSymbol(llvm::StringRef name);
 
   enum DemangleMode { eSimplified, eTypeName, eDisplayTypeName };
+
   static std::string
   DemangleSymbolAsString(llvm::StringRef symbol, DemangleMode mode,
                          const SymbolContext *sc = nullptr,
                          const ExecutionContext *exe_ctx = nullptr);
+
+  static std::string GetParentNameIfClosure(Function &func);
+
+  static std::pair<std::string, DemangledNameInfo>
+  TrackedDemangleSymbolAsString(llvm::StringRef symbol, DemangleMode mode,
+                                const SymbolContext *sc = nullptr,
+                                const ExecutionContext *exe_ctx = nullptr);
 
   /// Demangle a symbol to a swift::Demangle node tree.
   ///
@@ -218,9 +295,12 @@ public:
   bool GetDynamicTypeAndAddress(ValueObject &in_value,
                                 lldb::DynamicValueType use_dynamic,
                                 TypeAndOrName &class_type_or_name,
-                                Address &address,
-                                Value::ValueType &value_type) override;
+                                Address &address, Value::ValueType &value_type,
+                                llvm::ArrayRef<uint8_t> &local_buffer) override;
 
+  llvm::Expected<CompilerType> BindGenericPackType(StackFrame &frame,
+                                                   CompilerType pack_type,
+                                                   bool *indirect = nullptr);
   CompilerType BindGenericTypeParameters(
       CompilerType unbound_type,
       std::function<CompilerType(unsigned, unsigned)> finder);
@@ -242,6 +322,7 @@ public:
   llvm::Error GetObjectDescription(Stream &str, ValueObject &object) override;
   CompilerType GetConcreteType(ExecutionContextScope *exe_scope,
                                ConstString abstract_type_name) override;
+  CompilerType GetBaseClass(CompilerType class_ty);
 
   CompilerType GetTypeFromMetadata(TypeSystemSwift &tss, Address address);
   /// Build the artificial type metadata variable name for \p swift_type.
@@ -253,6 +334,7 @@ public:
   /// context.
   static void GetGenericParameterNamesForFunction(
       const SymbolContext &sc, const ExecutionContext *exe_ctx,
+      swift::Mangle::ManglingFlavor flavor,
       llvm::DenseMap<ArchetypePath, llvm::StringRef> &dict);
 
   /// Invoke callback for each DependentGenericParamType.
@@ -290,12 +372,20 @@ public:
     unsigned dependent_generic_param_count = 0;
     unsigned num_counts = 0;
 
-    unsigned GetNumValuePacks() { return count_for_value_pack.size(); }
-    unsigned GetNumTypePacks() { return count_for_type_pack.size(); }
-    unsigned GetCountForValuePack(unsigned i) {
+    unsigned GetNumValuePacks() const { return count_for_value_pack.size(); }
+    unsigned GetNumTypePacks() const { return count_for_type_pack.size(); }
+    unsigned GetCountForValuePack(unsigned i) const {
       return count_for_value_pack[i];
     }
-    unsigned GetCountForTypePack(unsigned i) { return count_for_type_pack[i]; }
+    unsigned GetCountForTypePack(unsigned i) const { return count_for_type_pack[i]; }
+    bool HasPacks() const { return pack_expansions.size(); }
+    bool IsPack(unsigned depth, unsigned index) const {
+      if (HasPacks())
+        for (auto param : generic_params)
+          if (param.depth == depth && param.index == index)
+            return param.is_pack;
+      return false;
+    }
   };
   /// Extract the generic signature out of a mangled Swift function name.
   static std::optional<GenericSignature>
@@ -306,10 +396,13 @@ public:
   /// version of \p base_type that replaces all generic type
   /// parameters with bound generic types. If a generic type parameter
   /// cannot be resolved, the input type is returned.
-  CompilerType BindGenericTypeParameters(StackFrame &stack_frame,
-                                         CompilerType base_type);
+  llvm::Expected<CompilerType>
+  BindGenericTypeParameters(StackFrame &stack_frame, CompilerType base_type);
 
   bool IsStoredInlineInBuffer(CompilerType type) override;
+
+  /// Check if this type alias is listed in any witness tables and resolve it.
+  llvm::Expected<CompilerType> ResolveTypeAlias(CompilerType alias);
 
   /// Retrieve the offset of the named member variable within an instance
   /// of the given type.
@@ -322,13 +415,19 @@ public:
 
   /// Ask Remote Mirrors about the children of a composite type.
   llvm::Expected<uint32_t> GetNumChildren(CompilerType type,
-                                          ExecutionContextScope *exe_scope);
+                                          ExecutionContextScope *exe_scope,
+                                          bool include_superclass = true,
+                                          bool omit_empty_base_classes = true);
 
   /// Determine the enum case name for the \p data value of the enum \p type.
   /// This is performed using Swift reflection.
-  std::optional<std::string> GetEnumCaseName(CompilerType type,
+  llvm::Expected<std::string> GetEnumCaseName(CompilerType type,
                                               const DataExtractor &data,
                                               ExecutionContext *exe_ctx);
+
+  /// Determine the payload type if any and whether it is an indrect case.
+  /// This is performed using Swift reflection.
+  llvm::Expected<lldb::ValueObjectSP> ProjectEnum(ValueObject &valobj);
 
   enum LookupResult {
     /// Failed due to missing reflection meatadata or unimplemented
@@ -351,11 +450,10 @@ public:
   ///                     don't have an index.
   ///
   /// \returns {true, {num_idexes}} on success.
-  std::pair<LookupResult, std::optional<size_t>>
-  GetIndexOfChildMemberWithName(CompilerType type, llvm::StringRef name,
-                                ExecutionContext *exe_ctx,
-                                bool omit_empty_base_classes,
-                                std::vector<uint32_t> &child_indexes);
+  std::pair<LookupResult, std::optional<size_t>> GetIndexOfChildMemberWithName(
+      CompilerType type, llvm::StringRef name, ExecutionContext *exe_ctx,
+      bool omit_empty_base_classes, bool include_clang_types,
+      std::vector<uint32_t> &child_indexes);
 
   /// Ask Remote Mirrors about a child of a composite type.
   llvm::Expected<CompilerType> GetChildCompilerTypeAtIndex(
@@ -368,11 +466,11 @@ public:
       uint64_t &language_flags);
 
   /// Ask Remote Mirrors about the fields of a composite type.
-  std::optional<unsigned> GetNumFields(CompilerType type,
+  llvm::Expected<unsigned> GetNumFields(CompilerType type,
                                         ExecutionContext *exe_ctx);
 
   /// Ask Remote Mirrors for the size of a Swift type.
-  std::optional<uint64_t> GetBitSize(CompilerType type,
+  llvm::Expected<uint64_t> GetBitSize(CompilerType type,
                                       ExecutionContextScope *exe_scope);
 
   /// Ask Remote mirrors for the stride of a Swift type.
@@ -405,6 +503,8 @@ public:
   /// \return true if this is a Swift tagged pointer (as opposed to an
   /// Objective-C tagged pointer).
   bool IsTaggedPointer(lldb::addr_t addr, CompilerType type);
+  /// \return true if this is an Objective-C object.
+  bool IsObjCInstance(ValueObject &instance);
   std::pair<lldb::addr_t, bool> FixupPointerValue(lldb::addr_t addr,
                                                   CompilerType type) override;
   lldb::addr_t FixupAddress(lldb::addr_t addr, CompilerType type,
@@ -413,7 +513,7 @@ public:
   lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
                                                   bool stop_others) override;
 
-  StructuredDataImpl *GetLanguageSpecificData(StackFrame &frame) override;
+  StructuredData::ObjectSP GetLanguageSpecificData(SymbolContext sc) override;
 
   /// If you are at the initial instruction of the frame passed in,
   /// then this will examine the call arguments, and if any of them is
@@ -453,6 +553,8 @@ public:
   static const char *GetErrorBackstopName();
   ConstString GetStandardLibraryName();
   static const char *GetStandardLibraryBaseName();
+  static const char *GetConcurrencyLibraryBaseName();
+
   static bool IsSwiftClassName(const char *name);
   /// Determines wether \c variable is the "self" object.
   static bool IsSelf(Variable &variable);
@@ -473,7 +575,146 @@ public:
   const SwiftLanguageRuntime &operator=(const SwiftLanguageRuntime &) = delete;
 
   static AppleObjCRuntimeV2 *GetObjCRuntime(lldb_private::Process &process);
+
 protected:
+  friend class LLDBTypeInfoProvider;
+  /// Enter an anonymous Clang type with a name key into a side table.
+  void RegisterAnonymousClangType(const char *key, CompilerType clang_type);
+  /// Look up an anonymous Clang type with a name key into a side table.
+  CompilerType LookupAnonymousClangType(const char *key);
+
+  std::optional<const swift::reflection::TypeInfo *>
+  lookupClangTypeInfo(CompilerType clang_type);
+
+  const swift::reflection::TypeInfo *
+  emplaceClangTypeInfo(CompilerType clang_type,
+                       std::optional<uint64_t> byte_size,
+                       std::optional<size_t> bit_align,
+                       llvm::ArrayRef<swift::reflection::FieldInfo> fields);
+
+  /// Use the reflection context to build a TypeRef object.
+  llvm::Expected<const swift::reflection::TypeRef &>
+  GetTypeRef(CompilerType type, TypeSystemSwiftTypeRef *module_holder);
+
+  /// Returns a non-null type system or an error.
+  static llvm::Expected<TypeSystemSwiftTypeRefSP>
+  GetReflectionTypeSystem(CompilerType for_type, ExecutionContext exe_ctx);
+
+  /// Ask Remote Mirrors for the type info about a Swift type.
+  /// This will return a nullptr if the lookup fails.
+  llvm::Expected<const swift::reflection::TypeInfo &>
+  GetSwiftRuntimeTypeInfo(CompilerType type, ExecutionContextScope *exe_scope,
+                          swift::reflection::TypeRef const **out_tr = nullptr);
+
+  std::optional<uint64_t>
+  GetMemberVariableOffsetRemoteAST(CompilerType instance_type,
+                                   ValueObject *instance,
+                                   llvm::StringRef member_name);
+  std::optional<uint64_t> GetMemberVariableOffsetRemoteMirrors(
+      CompilerType instance_type, ValueObject *instance,
+      llvm::StringRef member_name, Status *error);
+
+  /// If \p instance points to a Swift object, retrieve its
+  /// RecordTypeInfo and pass it to the callback \p fn. Repeat the
+  /// process with all superclasses. If \p fn returns \p true, early
+  /// exit and return \p true. Otherwise return \p false.
+  bool ForEachSuperClassType(ValueObject &instance,
+                             std::function<bool(SuperClassType)> fn);
+
+  /// Retrieve the remote AST context for the given Swift AST context.
+  swift::remoteAST::RemoteASTContext &
+  GetRemoteASTContext(SwiftASTContext &swift_ast_ctx);
+
+  /// Like \p BindGenericTypeParameters but for TypeSystemSwiftTypeRef.
+  llvm::Expected<CompilerType>
+  BindGenericTypeParameters(StackFrame &stack_frame, TypeSystemSwiftTypeRef &ts,
+                            ConstString mangled_name);
+
+  /// Like \p BindGenericTypeParameters but for RemoteAST.
+  llvm::Expected<CompilerType>
+  BindGenericTypeParametersRemoteAST(StackFrame &stack_frame,
+                                     CompilerType base_type);
+
+  bool GetDynamicTypeAndAddress_Pack(ValueObject &in_value,
+                                     CompilerType pack_type,
+                                     lldb::DynamicValueType use_dynamic,
+                                     TypeAndOrName &class_type_or_name,
+                                     Address &address,
+                                     Value::ValueType &value_type);
+
+  bool GetDynamicTypeAndAddress_Class(ValueObject &in_value,
+                                      CompilerType class_type,
+                                      lldb::DynamicValueType use_dynamic,
+                                      TypeAndOrName &class_type_or_name,
+                                      Address &address,
+                                      Value::ValueType &value_type,
+                                      llvm::ArrayRef<uint8_t> &local_buffer);
+#ifndef NDEBUG
+  ConstString GetDynamicTypeName_ClassRemoteAST(ValueObject &in_value,
+                                                lldb::addr_t instance_ptr);
+#endif
+  bool GetDynamicTypeAndAddress_Existential(ValueObject &in_value,
+                                            CompilerType protocol_type,
+                                            lldb::DynamicValueType use_dynamic,
+                                            TypeAndOrName &class_type_or_name,
+                                            Address &address);
+#ifndef NDEBUG
+  std::optional<std::pair<CompilerType, Address>>
+  GetDynamicTypeAndAddress_ExistentialRemoteAST(
+      ValueObject &in_value, CompilerType protocol_type, bool use_local_buffer,
+      lldb::addr_t existential_address);
+#endif
+
+  bool GetDynamicTypeAndAddress_ExistentialMetatype(
+      ValueObject &in_value, CompilerType meta_type,
+      lldb::DynamicValueType use_dynamic, TypeAndOrName &class_type_or_name,
+      Address &address, Value::ValueType &value_type);
+
+  bool GetDynamicTypeAndAddress_Value(ValueObject &in_value,
+                                      CompilerType &bound_type,
+                                      lldb::DynamicValueType use_dynamic,
+                                      TypeAndOrName &class_type_or_name,
+                                      Address &address,
+                                      Value::ValueType &value_type,
+                                      llvm::ArrayRef<uint8_t> &local_buffer);
+
+  bool GetDynamicTypeAndAddress_ClangType(
+      ValueObject &in_value, lldb::DynamicValueType use_dynamic,
+      TypeAndOrName &class_type_or_name, Address &address,
+      Value::ValueType &value_type, llvm::ArrayRef<uint8_t> &local_buffer);
+
+  /// Resolves the dynamic type of an embedded Swift class type.
+  CompilerType GetDynamicTypeAndAddress_EmbeddedClass(uint64_t instance_ptr,
+                                                      CompilerType class_type);
+
+  /// Resolves the dynamic type of a class-constrained embedded Swift
+  /// existential.
+  std::optional<std::pair<CompilerType, uint64_t>>
+  GetDynamicTypeAndAddress_ClassConstrainedExistentialEmbedded(
+      lldb::addr_t existential_address, CompilerType existential_type);
+
+  /// Resolves the dynamic type of an embedded Swift existential container.
+  std::optional<std::pair<CompilerType, uint64_t>>
+  GetDynamicTypeAndAddress_ExistentialContainerEmbedded(
+      lldb::addr_t existential_address, CompilerType existential_type);
+
+  /// Resolves the dynamic type of an embedded Swift existential.
+  /// Tries class-constrained first, then falls back to existential container.
+  llvm::Expected<std::pair<CompilerType, uint64_t>>
+  GetDynamicTypeAndAddress_ExistentialEmbedded(lldb::addr_t existential_address,
+                                               CompilerType existential_type);
+
+  /// Dynamic type resolution tends to want to generate scalar data -
+  /// but there are caveats Per original comment here "Our address is
+  /// the location of the dynamic type stored in memory.  It isn't a
+  /// load address, because we aren't pointing to the LOCATION that
+  /// stores the pointer to us, we're pointing to us..."  See inlined
+  /// comments for exceptions to this general rule.
+  Value::ValueType GetValueType(ValueObject &in_value,
+                                CompilerType dynamic_type,
+                                Value::ValueType static_value_type,
+                                llvm::ArrayRef<uint8_t> &local_buffer);
+
   lldb::UnwindPlanSP
   GetRuntimeUnwindPlan(lldb::ProcessSP process_sp,
                        lldb_private::RegisterContext *regctx,
@@ -481,9 +722,8 @@ protected:
 
   bool GetTargetOfPartialApply(SymbolContext &curr_sc, ConstString &apply_name,
                                SymbolContext &sc);
-  AppleObjCRuntimeV2 *GetObjCRuntime();
+  AppleObjCRuntimeV2 *GetObjCRuntime() const;
 
-private:
   /// Creates an UnwindPlan for following the AsyncContext chain up the stack,
   /// from a current AsyncContext frame.
   lldb::UnwindPlanSP
@@ -496,9 +736,252 @@ private:
   /// address of the first non-prologue instruction.
   std::optional<lldb::addr_t>
   TrySkipVirtualParentProlog(lldb::addr_t async_reg_val, Process &process,
-                             unsigned num_indirections);
+                             unsigned num_indirections = 0);
+
+  const CompilerType &GetBoxMetadataType();
+
+  /// A proxy object to support lazy binding of Archetypes.
+  class MetadataPromise {
+    friend class SwiftLanguageRuntime;
+
+    MetadataPromise(ValueObject &, SwiftLanguageRuntime &, lldb::addr_t);
+
+    lldb::ValueObjectSP m_for_object_sp;
+    SwiftLanguageRuntime &m_swift_runtime;
+    lldb::addr_t m_metadata_location;
+    std::optional<swift::MetadataKind> m_metadata_kind;
+    std::optional<CompilerType> m_compiler_type;
+
+  public:
+    CompilerType FulfillTypePromise(const SymbolContext &sc,
+                                    Status *error = nullptr);
+  };
+  typedef std::shared_ptr<MetadataPromise> MetadataPromiseSP;
+
+  MetadataPromiseSP GetMetadataPromise(const SymbolContext &sc,
+                                       lldb::addr_t addr,
+                                       ValueObject &for_object);
+  MetadataPromiseSP GetPromiseForTypeNameAndFrame(const char *type_name,
+                                                  StackFrame *frame);
+
+  std::optional<lldb::addr_t>
+  GetTypeMetadataForTypeNameAndFrame(llvm::StringRef mdvar_name,
+                                     StackFrame &frame);
+
+  std::shared_ptr<LLDBMemoryReader> GetMemoryReader();
+
+  MemoryReaderLocalBufferHolder PushLocalBuffer(uint64_t local_buffer,
+                                                uint64_t local_buffer_size);
+
+  // These are the helper functions for GetObjectDescription for various
+  // types of swift objects.
+  std::string GetObjectDescriptionExpr_Result(ValueObject &object);
+  std::string GetObjectDescriptionExpr_Ref(ValueObject &object);
+  std::string GetObjectDescriptionExpr_Copy(ValueObject &object,
+                                            lldb::addr_t &copy_location);
+  llvm::Error RunObjectDescriptionExpr(ValueObject &object,
+                                       std::string &expr_string,
+                                       Stream &result);
+
+  static lldb::BreakpointPreconditionSP
+  GetBreakpointExceptionPrecondition(lldb::LanguageType language,
+                                     bool throw_bp);
+
+  class SwiftExceptionPrecondition : public BreakpointPrecondition {
+  public:
+    SwiftExceptionPrecondition();
+
+    virtual ~SwiftExceptionPrecondition() {}
+
+    bool EvaluatePrecondition(StoppointCallbackContext &context) override;
+    void GetDescription(Stream &stream, lldb::DescriptionLevel level) override;
+    Status ConfigurePrecondition(Args &args) override;
+
+  protected:
+    void AddTypeName(const char *type_name);
+    void AddEnumSpec(const char *enum_name, const char *element_name);
+
+  private:
+    std::unordered_set<std::string> m_type_names;
+    std::unordered_map<std::string, std::vector<std::string>> m_enum_spec;
+  };
+
+  /// We have to load swift dependent libraries by hand, but if they
+  /// are missing, we shouldn't keep trying.
+  llvm::StringSet<> m_library_negative_cache;
+  std::mutex m_negative_cache_mutex;
+
+  std::shared_ptr<LLDBMemoryReader> m_memory_reader_sp;
+
+  llvm::DenseMap<std::pair<swift::ASTContext *, lldb::addr_t>,
+                 MetadataPromiseSP>
+      m_promises_map;
+
+  llvm::DenseMap<swift::ASTContext *,
+                 std::unique_ptr<swift::remoteAST::RemoteASTContext>>
+      m_remote_ast_contexts;
+
+  /// Uses ConstStrings as keys to avoid storing the strings twice.
+  llvm::DenseMap<const char *, lldb::SyntheticChildrenSP>
+      m_bridged_synthetics_map;
+
+  /// Cached member variable offsets.
+  using MemberID = std::pair<const swift::TypeBase *, const char *>;
+  llvm::DenseMap<MemberID, uint64_t> m_member_offsets;
+
+  CompilerType m_box_metadata_type;
+
+  llvm::StringMap<std::vector<std::string>> m_conformances;
+
+private:
+  /// Don't call these directly.
+  /// \{
+  /// There is a global variable \p _swift_classIsSwiftMask that is
+  /// used to communicate with the Swift language runtime. It needs to
+  /// be initialized by us, but could in theory also be written to by
+  /// the runtime.
+  void SetupABIBit();
+  void SetupExclusivity();
+  void SetupReflection();
+  void SetupSwiftError();
+  /// \}
+
+  /// Whether \p SetupReflection() has been run.
+  bool m_initialized_reflection_ctx = false;
+
+  /// Lazily initialize and return \p m_dynamic_exclusivity_flag_addr.
+  std::optional<lldb::addr_t> GetDynamicExclusivityFlagAddr();
+
+  // Add the modules in m_modules_to_add to the Reflection Context. The
+  // ModulesDidLoad() callback appends to m_modules_to_add.
+  void ProcessModulesToAdd();
+
+  /// Lazily initialize and return \p m_SwiftNativeNSErrorISA.
+  std::optional<lldb::addr_t> GetSwiftNativeNSErrorISA();
+
+  SwiftMetadataCache *GetSwiftMetadataCache();
+
+  /// Find all conformances for a nominal type in the reflection metadata.
+  std::vector<std::string> GetConformances(llvm::StringRef mangled_name);
+
+  /// These members are used to track and toggle the state of the "dynamic
+  /// exclusivity enforcement flag" in the swift runtime. This flag is set to
+  /// true when an LLDB expression starts running, and reset to its original
+  /// state after that expression (and any other concurrently running
+  /// expressions) terminates.
+  /// \{
+  std::mutex m_active_user_expr_mutex;
+  uint32_t m_active_user_expr_count = 0;
+
+  bool m_original_dynamic_exclusivity_flag_state = false;
+  std::optional<lldb::addr_t> m_dynamic_exclusivity_flag_addr;
+  /// \}
+
+  /// Reflection context.
+  /// \{
+  std::unique_ptr<ReflectionContextInterface> m_reflection_ctx;
+
+  /// Mutex guarding accesses to the reflection context.
+  std::recursive_mutex m_reflection_ctx_mutex;
+
+  SwiftMetadataCache m_swift_metadata_cache;
+
+  /// Record modules added through ModulesDidLoad, which are to be
+  /// added to the reflection context once it's being initialized.
+  ModuleList m_modules_to_add;
+
+  /// Increased every time SymbolsDidLoad is called.
+  unsigned m_generation = 0;
+  /// Add the image to the reflection context.
+  /// \return true on success.
+  bool AddModuleToReflectionContext(const lldb::ModuleSP &module_sp);
+  /// \}
+
+  /// Add the contents of the object file to the reflection context.
+  /// \return true on success.
+  bool AddJitObjectFileToReflectionContext(
+      ObjectFile &obj_file, llvm::Triple::ObjectFormatType obj_format_type,
+      llvm::SmallVector<llvm::StringRef, 1> likely_module_names);
+
+  /// Add the reflections sections to the reflection context by extracting
+  /// the directly from the object file.
+  /// \return the info id of the newly registered reflection info on success, or
+  /// std::nullopt otherwise.
+  std::optional<uint32_t> AddObjectFileToReflectionContext(
+      lldb::ModuleSP module,
+      llvm::SmallVector<llvm::StringRef, 1> likely_module_names);
+
+  /// Cache for the debug-info-originating type infos.
+  /// \{
+  llvm::DenseMap<lldb::opaque_compiler_type_t,
+                 swift::reflection::BuiltinTypeInfo>
+      m_clang_builtin_type_info;
+  llvm::DenseMap<lldb::opaque_compiler_type_t,
+                 swift::reflection::RecordTypeInfo>
+      m_clang_record_type_info;
+  llvm::DenseSet<lldb::opaque_compiler_type_t> m_clang_type_info_negative_cache;
+  llvm::DenseMap<const char *, CompilerType> m_anonymous_clang_types;
+  unsigned m_num_anonymous_clang_types = 0;
+  std::recursive_mutex m_clang_type_info_mutex;
+  /// \}
+
+  /// Swift native NSError isa.
+  std::optional<lldb::addr_t> m_SwiftNativeNSErrorISA;
+
+  static std::pair<std::string, std::optional<DemangledNameInfo>>
+  DemangleSymbolAsString(llvm::StringRef symbol, DemangleMode mode,
+                         bool tracking, const SymbolContext *sc,
+                         const ExecutionContext *exe_ctx);
 };
 
+/// The target specific register numbers used for async unwinding.
+///
+/// For UnwindPlans, these use eh_frame / dwarf register numbering.
+struct AsyncUnwindRegisterNumbers {
+  uint32_t async_ctx_regnum;
+  uint32_t pc_regnum;
+
+  /// All register numbers in this struct are given in the eRegisterKindDWARF
+  /// domain.
+  lldb::RegisterKind GetRegisterKind() const { return lldb::eRegisterKindDWARF; }
+};
+
+std::optional<AsyncUnwindRegisterNumbers>
+GetAsyncUnwindRegisterNumbers(llvm::Triple::ArchType triple);
+
+/// A helper class to find and cache the location of Task pointer inside TLS.
+class TaskInspector {
+public:
+  /// Inspects thread local storage to find the address of the currently
+  /// executing task, if any.
+  std::optional<lldb::addr_t> GetTaskAddrFromThreadLocalStorage(Thread &thread);
+
+  /// Inspects thread local storage to find the address of the currently
+  /// executing task, if any.
+  llvm::SmallVector<std::optional<lldb::addr_t>>
+  GetTaskAddrFromThreadLocalStorage(llvm::ArrayRef<Thread *> threads);
+
+private:
+  /// For each thread in `threads`, return the location of the its task
+  /// pointer, if it exists.
+  llvm::SmallVector<std::optional<lldb::addr_t>>
+  GetTaskAddrLocations(llvm::ArrayRef<Thread *> threads);
+
+  /// If reading from a cached task address location failed, invalidate the
+  /// cache and try again.
+  std::optional<lldb::addr_t> RetryRead(Thread &thread,
+                                        lldb::addr_t task_addr_location);
+
+  llvm::DenseMap<uint64_t, lldb::addr_t> m_tid_to_task_addr_location;
+};
+
+llvm::Expected<std::optional<std::string>> GetTaskName(lldb::addr_t task,
+                                                       Process &process);
+
+/// Finds the function for which `load_address` belongs, and returns its
+/// prologue size.
+llvm::Expected<uint64_t> FindPrologueSize(Process &process,
+                                          uint64_t load_address);
 } // namespace lldb_private
 
 #endif // liblldb_SwiftLanguageRuntime_h_

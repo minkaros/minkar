@@ -21,6 +21,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/bit.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MathExtras.h"
 #include <array>
 #include <initializer_list>
@@ -32,7 +33,7 @@ namespace llvm {
 class raw_ostream;
 class Triple;
 
-const unsigned MAX_SUBTARGET_WORDS = 4;
+const unsigned MAX_SUBTARGET_WORDS = 6;
 const unsigned MAX_SUBTARGET_FEATURES = MAX_SUBTARGET_WORDS * 64;
 
 /// Container class for subtarget features.
@@ -56,28 +57,22 @@ public:
   }
 
   FeatureBitset &set() {
-    std::fill(std::begin(Bits), std::end(Bits), -1ULL);
+    llvm::fill(Bits, -1ULL);
     return *this;
   }
 
   constexpr FeatureBitset &set(unsigned I) {
-    // GCC <6.2 crashes if this is written in a single statement.
-    uint64_t NewBits = Bits[I / 64] | (uint64_t(1) << (I % 64));
-    Bits[I / 64] = NewBits;
+    Bits[I / 64] |= uint64_t(1) << (I % 64);
     return *this;
   }
 
   constexpr FeatureBitset &reset(unsigned I) {
-    // GCC <6.2 crashes if this is written in a single statement.
-    uint64_t NewBits = Bits[I / 64] & ~(uint64_t(1) << (I % 64));
-    Bits[I / 64] = NewBits;
+    Bits[I / 64] &= ~(uint64_t(1) << (I % 64));
     return *this;
   }
 
   constexpr FeatureBitset &flip(unsigned I) {
-    // GCC <6.2 crashes if this is written in a single statement.
-    uint64_t NewBits = Bits[I / 64] ^ (uint64_t(1) << (I % 64));
-    Bits[I / 64] = NewBits;
+    Bits[I / 64] ^= uint64_t(1) << (I % 64);
     return *this;
   }
 
@@ -114,9 +109,8 @@ public:
   }
 
   constexpr FeatureBitset &operator&=(const FeatureBitset &RHS) {
-    for (unsigned I = 0, E = Bits.size(); I != E; ++I) {
+    for (unsigned I = 0, E = Bits.size(); I != E; ++I)
       Bits[I] &= RHS.Bits[I];
-    }
     return *this;
   }
   constexpr FeatureBitset operator&(const FeatureBitset &RHS) const {
@@ -183,27 +177,27 @@ class SubtargetFeatures {
   std::vector<std::string> Features;    ///< Subtarget features as a vector
 
 public:
-  explicit SubtargetFeatures(StringRef Initial = "");
+  LLVM_ABI explicit SubtargetFeatures(StringRef Initial = "");
 
   /// Returns features as a string.
-  std::string getString() const;
+  LLVM_ABI std::string getString() const;
 
   /// Adds Features.
-  void AddFeature(StringRef String, bool Enable = true);
+  LLVM_ABI void AddFeature(StringRef String, bool Enable = true);
 
-  void addFeaturesVector(const ArrayRef<std::string> OtherFeatures);
+  LLVM_ABI void addFeaturesVector(const ArrayRef<std::string> OtherFeatures);
 
   /// Returns the vector of individual subtarget features.
   const std::vector<std::string> &getFeatures() const { return Features; }
 
   /// Prints feature string.
-  void print(raw_ostream &OS) const;
+  LLVM_ABI void print(raw_ostream &OS) const;
 
   // Dumps feature info.
-  void dump() const;
+  LLVM_ABI void dump() const;
 
   /// Adds the default features for the specified target triple.
-  void getDefaultSubtargetFeatures(const Triple& Triple);
+  LLVM_ABI void getDefaultSubtargetFeatures(const Triple &Triple);
 
   /// Determine if a feature has a flag; '+' or '-'
   static bool hasFlag(StringRef Feature) {
@@ -229,7 +223,7 @@ public:
   }
 
   /// Splits a string of comma separated items in to a vector of strings.
-  static void Split(std::vector<std::string> &V, StringRef S);
+  LLVM_ABI static void Split(std::vector<std::string> &V, StringRef S);
 };
 
 } // end namespace llvm

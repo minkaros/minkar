@@ -21,6 +21,7 @@
 #include "lldb/Utility/Flags.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-private.h"
+#include "swift/Demangling/ManglingFlavor.h"
 
 namespace clang {
 class Decl;
@@ -29,32 +30,49 @@ class Decl;
 namespace lldb_private {
 class TypeSystemClang;
 class SwiftASTContext;
+class SwiftASTContextForExpressions;
+class TypeSystemSwift;
 class TypeSystemSwiftTypeRef;
+class TypeSystemSwiftTypeRefForExpressions;
+typedef std::shared_ptr<TypeSystemSwift> TypeSystemSwiftSP;
+typedef std::shared_ptr<TypeSystemSwiftTypeRef> TypeSystemSwiftTypeRefSP;
+typedef std::shared_ptr<TypeSystemSwiftTypeRefForExpressions>
+    TypeSystemSwiftTypeRefForExpressionsSP;
+typedef std::shared_ptr<SwiftASTContext> SwiftASTContextSP;
+typedef std::shared_ptr<SwiftASTContextForExpressions>
+    SwiftASTContextForExpressionsSP;
+
 /// The implementation of lldb::Type's m_payload field for TypeSystemSwift.
 class TypePayloadSwift {
-  /// Layout: bit 1 ... IsFixedValueBuffer.
-  Type::Payload m_payload = 0;
-
-  static constexpr unsigned FixedValueBufferBit = 1;
-
 public:
+  enum class Options : uint32_t {
+    FixedValueBuffer = 1,
+    IsMarkerProtocol = 1 << 1
+  };
   TypePayloadSwift() = default;
-  explicit TypePayloadSwift(bool is_fixed_value_buffer);
-  explicit TypePayloadSwift(Type::Payload opaque_payload)
-      : m_payload(opaque_payload) {}
-  operator Type::Payload() { return m_payload; }
+
+  explicit TypePayloadSwift(Options option) {
+    m_flags.Set(llvm::to_underlying(option));
+  }
+
+  explicit TypePayloadSwift(Type::Payload opaque_payload) {
+    m_flags.Reset(opaque_payload);
+  }
+
+  operator Type::Payload() { return m_flags.Get(); }
 
   /// \return whether this is a Swift fixed-size buffer. Resilient variables in
   /// fixed-size buffers may be indirect depending on the runtime size of the
   /// type. This is more a property of the value than of its type.
   bool IsFixedValueBuffer() {
-    return Flags(m_payload).Test(FixedValueBufferBit);
+    return m_flags.Test(llvm::to_underlying(Options::FixedValueBuffer));
   }
-  void SetIsFixedValueBuffer(bool is_fixed_value_buffer) {
-    m_payload = is_fixed_value_buffer
-                    ? Flags(m_payload).Set(FixedValueBufferBit)
-                    : Flags(m_payload).Clear(FixedValueBufferBit);
+  bool IsMarkerProtocol() {
+    return m_flags.Test(llvm::to_underlying(Options::IsMarkerProtocol));
   }
+
+private:
+  Flags m_flags;
 };
 
 /// Abstract base class for all Swift TypeSystems.
@@ -115,17 +133,29 @@ public:
 
   const std::string &GetDescription() const { return m_description; }
   static LanguageSet GetSupportedLanguagesForTypes();
-  virtual SwiftASTContext *GetSwiftASTContext(const SymbolContext *sc) const = 0;
-  virtual TypeSystemSwiftTypeRef &GetTypeSystemSwiftTypeRef() = 0;
-  virtual const TypeSystemSwiftTypeRef &GetTypeSystemSwiftTypeRef() const = 0;
-  virtual void SetTriple(const llvm::Triple triple) = 0;
+  /// Returns true if the given flag is present in the given compile unit.
+  static bool CheckFlagInCU(CompileUnit *cu, const char *flag);
+  static bool ShouldEnableCXXInterop(CompileUnit *cu);
+  static bool ShouldEnableEmbeddedSwift(CompileUnit *cu);
+
+  virtual SwiftASTContextSP
+  GetSwiftASTContext(const SymbolContext &sc) const = 0;
+  virtual TypeSystemSwiftTypeRefSP GetTypeSystemSwiftTypeRef() = 0;
+  virtual std::shared_ptr<const TypeSystemSwiftTypeRef>
+  GetTypeSystemSwiftTypeRef() const = 0;
+  virtual void SetTriple(const SymbolContext &sc,
+                         const llvm::Triple triple) = 0;
   virtual void ClearModuleDependentCaches() = 0;
   virtual lldb::TargetWP GetTargetWP() const = 0;
 
   virtual bool IsImportedType(lldb::opaque_compiler_type_t type,
                               CompilerType *original_type) = 0;
-  virtual bool IsErrorType(lldb::opaque_compiler_type_t type) = 0;
-  virtual CompilerType GetErrorType() = 0;
+  virtual bool IsErrorType(lldb::opaque_compiler_type_t type,
+                           const ExecutionContext *exe_ctx) = 0;
+  virtual CompilerType GetErrorType(swift::Mangle::ManglingFlavor flavor) = 0;
+  virtual CompilerType GetWeakReferent(lldb::opaque_compiler_type_t type) {
+    return {};
+  }
   virtual CompilerType GetReferentType(lldb::opaque_compiler_type_t type) = 0;
   static CompilerType GetInstanceType(CompilerType ct,
                                       ExecutionContextScope *exe_scope);
@@ -143,7 +173,8 @@ public:
         : element_name(name), element_type(type) {}
   };
   virtual CompilerType
-  CreateTupleType(const std::vector<TupleElement> &elements) = 0;
+  CreateTupleType(const std::vector<TupleElement> &elements,
+                  swift::Mangle::ManglingFlavor flavor) = 0;
   virtual bool IsTupleType(lldb::opaque_compiler_type_t type) = 0;
 
   enum class NonTriviallyManagedReferenceKind : uint8_t {
@@ -155,9 +186,10 @@ public:
   GetNonTriviallyManagedReferenceKind(lldb::opaque_compiler_type_t type) = 0;
 
   /// Creates a GenericTypeParamType with the desired depth and index.
-  virtual CompilerType CreateGenericTypeParamType(unsigned int depth,
-                                                       unsigned int index) = 0;
-                                                       
+  virtual CompilerType
+  CreateGenericTypeParamType(unsigned int depth, unsigned int index,
+                             swift::Mangle::ManglingFlavor flavor) = 0;
+
   using TypeSystem::DumpTypeDescription;
   virtual void DumpTypeDescription(
       lldb::opaque_compiler_type_t type, bool print_help_if_available,
@@ -181,21 +213,31 @@ public:
   virtual std::string GetSwiftName(const clang::Decl *clang_decl,
                                    TypeSystemClang &clang_typesystem) = 0;
 
-  virtual CompilerType GetBuiltinRawPointerType() = 0;
+  CompilerType GetBuiltinRawPointerType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType
+  GetBuiltinUnknownObjectType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetBoolType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetUnsafeRawPointerType(swift::Mangle::ManglingFlavor flavor);
+  /// The unsubstituted FixedArray<A, B> type.
+  CompilerType
+  GetUnsubstitutedFixedArrayType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType Get(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetUInt64Type(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetTaskPriorityType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType
+  GetOptionalUnsafeRawPointerType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetUnsafeCurrentTaskType(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetUInt8Type(swift::Mangle::ManglingFlavor flavor);
+  CompilerType GetAnyType(swift::Mangle::ManglingFlavor flavor);
 
   /// Attempts to convert a Clang type into a Swift type.
   /// For example, int is converted to Int32.
-  virtual CompilerType ConvertClangTypeToSwiftType(CompilerType clang_type) = 0;
-
-  void DumpValue(lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx,
-                 Stream &s, lldb::Format format, const DataExtractor &data,
-                 lldb::offset_t data_offset, size_t data_byte_size,
-                 uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
-                 bool show_types, bool show_summary, bool verbose,
-                 uint32_t depth) override;
+  virtual CompilerType
+  ConvertClangTypeToSwiftType(CompilerType clang_type,
+                              swift::Mangle::ManglingFlavor flavor) = 0;
 
   /// \see lldb_private::TypeSystem::Dump
-  void Dump(llvm::raw_ostream &output) override;
+  void Dump(llvm::raw_ostream &output, llvm::StringRef filter) override;
 
   lldb::Format GetFormat(lldb::opaque_compiler_type_t type) override;
 
@@ -219,8 +261,7 @@ public:
     return true;
   }
   bool IsConst(lldb::opaque_compiler_type_t type) override { return false; }
-  bool IsFloatingPointType(lldb::opaque_compiler_type_t type, uint32_t &count,
-                           bool &is_complex) override;
+  bool IsFloatingPointType(lldb::opaque_compiler_type_t type) override;
   bool IsIntegerType(lldb::opaque_compiler_type_t type,
                      bool &is_signed) override;
   bool IsScopedEnumerationType(lldb::opaque_compiler_type_t type) override {
@@ -231,10 +272,6 @@ public:
     return {};
   }
   bool IsScalarType(lldb::opaque_compiler_type_t type) override;
-  bool IsCStringType(lldb::opaque_compiler_type_t type,
-                     uint32_t &length) override {
-    return false;
-  }
   bool IsVectorType(lldb::opaque_compiler_type_t type,
                     CompilerType *element_type, uint64_t *size) override {
     return false;
@@ -247,6 +284,14 @@ public:
                           CompilerType *function_pointer_type_ptr) override {
     return false;
   }
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  bool IsBoundsSafetyIndexable(lldb::opaque_compiler_type_t type) override {
+    return false;
+  }
+  bool IsBoundsSafetyBidiIndexable(lldb::opaque_compiler_type_t type) override {
+    return false;
+  }
+  /* TO_UPSTREAM(BoundsSafety) OFF */
   bool IsMemberFunctionPointerType(
           lldb::opaque_compiler_type_t type) override {
     return false;
@@ -305,10 +350,10 @@ public:
 
   /// Lookup a child given a name. This function will match base class names
   /// and member names in \p type only, not descendants.
-  uint32_t GetIndexOfChildWithName(lldb::opaque_compiler_type_t type,
-                                   llvm::StringRef name,
-                                   ExecutionContext *exe_ctx,
-                                   bool omit_empty_base_classes) override;
+  llvm::Expected<uint32_t>
+  GetIndexOfChildWithName(lldb::opaque_compiler_type_t type,
+                          llvm::StringRef name, ExecutionContext *exe_ctx,
+                          bool omit_empty_base_classes) override;
 
   CompilerType
   GetLValueReferenceType(lldb::opaque_compiler_type_t type) override {
@@ -324,18 +369,23 @@ public:
     return {};
   }
 
-  // TODO: This method appear unused. Should they be removed?
-  void DumpSummary(lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx,
-                   Stream &s, const DataExtractor &data,
-                   lldb::offset_t data_offset, size_t data_byte_size) override {
-  }
+  unsigned GetPtrAuthKey(lldb::opaque_compiler_type_t type) override;
+  unsigned GetPtrAuthDiscriminator(lldb::opaque_compiler_type_t type) override;
+  bool GetPtrAuthAddressDiversity(lldb::opaque_compiler_type_t type) override;
+
+  llvm::Expected<CompilerType>
+  GetDereferencedType(lldb::opaque_compiler_type_t type,
+                      ExecutionContext *exe_ctx, std::string &deref_name,
+                      uint32_t &deref_byte_size, int32_t &deref_byte_offset,
+                      ValueObject *valobj, uint64_t &language_flags) override;
+
   /// \}
 protected:
   /// Used in the logs.
   std::string m_description;
   /// The module this typesystem belongs to if any.
   Module *m_module = nullptr;
-  };
+};
 
 } // namespace lldb_private
 

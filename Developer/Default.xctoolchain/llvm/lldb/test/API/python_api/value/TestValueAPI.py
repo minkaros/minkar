@@ -3,9 +3,9 @@ Test some SBValue APIs.
 """
 
 import lldb
+from lldbsuite.test import lldbutil
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-from lldbsuite.test import lldbutil
 
 
 class ValueAPITestCase(TestBase):
@@ -140,10 +140,8 @@ class ValueAPITestCase(TestBase):
         val_i = target.EvaluateExpression("i")
         val_s = target.EvaluateExpression("s")
         val_a = target.EvaluateExpression("a")
-        self.assertTrue(
-            val_s.GetChildMemberWithName("a").GetAddress().IsValid(), VALID_VARIABLE
-        )
-        self.assertTrue(val_s.GetChildMemberWithName("a").AddressOf(), VALID_VARIABLE)
+        self.assertTrue(val_s.member["a"].GetAddress().IsValid(), VALID_VARIABLE)
+        self.assertTrue(val_s.member["a"].AddressOf(), VALID_VARIABLE)
         self.assertTrue(val_a.Cast(val_i.GetType()).AddressOf(), VALID_VARIABLE)
 
         # Test some other cases of the Cast API.  We allow casts from one struct type
@@ -210,7 +208,7 @@ class ValueAPITestCase(TestBase):
         weird_cast = f_var.Cast(val_s.GetType())
         self.assertSuccess(weird_cast.GetError(), "Can cast from a larger to a smaller")
         self.assertEqual(
-            weird_cast.GetChildMemberWithName("a").GetValueAsSigned(0),
+            weird_cast.member["a"].GetValueAsSigned(0),
             33,
             "Got the right value",
         )
@@ -257,4 +255,28 @@ class ValueAPITestCase(TestBase):
             frame0.FindVariable("sinthex").GetValueAsSigned(),
             -526164208,
             "signed sinthex == -526164208",
+        )
+
+        # Check that hex value printing works as expected.
+        self.assertEqual(
+            frame0.FindVariable("fixed_int_ptr").GetValue(),
+            "0x000000aa" if target.addr_size == 4 else "0x00000000000000aa",
+        )
+        self.runCmd(
+            "settings set target.show-hex-variable-values-with-leading-zeroes false"
+        )
+        self.assertEqual(
+            frame0.FindVariable("another_fixed_int_ptr").GetValue(),
+            "0xaa",
+        )
+        a_null_int_ptr = frame0.FindVariable("a_null_int_ptr")
+        self.assertEqual(a_null_int_ptr.GetValue(), "0x0")
+
+        # Check that dereferencing a null pointer produces reasonable results
+        # (does not crash).
+        self.assertEqual(
+            a_null_int_ptr.Dereference().GetError().GetCString(), "parent is NULL"
+        )
+        self.assertEqual(
+            a_null_int_ptr.Dereference().GetLoadAddress(), lldb.LLDB_INVALID_ADDRESS
         )

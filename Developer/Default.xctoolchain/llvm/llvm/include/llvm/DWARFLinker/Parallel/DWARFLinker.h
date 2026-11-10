@@ -9,13 +9,13 @@
 #ifndef LLVM_DWARFLINKER_PARALLEL_DWARFLINKER_H
 #define LLVM_DWARFLINKER_PARALLEL_DWARFLINKER_H
 
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/DWARFLinker/DWARFFile.h"
 #include "llvm/DWARFLinker/DWARFLinkerBase.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFDie.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/TargetParser/Triple.h"
 
 /// ------------------------------------------------------------------
@@ -93,7 +93,7 @@ namespace parallel {
 /// This structure keeps data of the concrete section.
 struct SectionDescriptorBase {
   SectionDescriptorBase(DebugSectionKind SectionKind, dwarf::FormParams Format,
-                        support::endianness Endianess)
+                        llvm::endianness Endianess)
       : SectionKind(SectionKind), Format(Format), Endianess(Endianess) {}
   virtual ~SectionDescriptorBase() = default;
   /// Returns section content.
@@ -103,7 +103,7 @@ struct SectionDescriptorBase {
   /// Returns section name.
   const StringLiteral &getName() const { return getSectionName(SectionKind); }
   /// Returns endianess used by section.
-  support::endianness getEndianess() const { return Endianess; }
+  llvm::endianness getEndianess() const { return Endianess; }
   /// Returns FormParams used by section.
   dwarf::FormParams getFormParams() const { return Format; }
 
@@ -112,7 +112,7 @@ protected:
   DebugSectionKind SectionKind = DebugSectionKind::NumberOfEnumEntries;
   /// Output format.
   dwarf::FormParams Format = {4, 4, dwarf::DWARF32};
-  support::endianness Endianess = support::endianness::little;
+  llvm::endianness Endianess = llvm::endianness::little;
 };
 
 using SectionHandlerTy =
@@ -123,9 +123,8 @@ public:
   virtual ~DWARFLinker() = default;
 
   /// Creates dwarf linker instance.
-  static std::unique_ptr<DWARFLinker>
-  createLinker(MessageHandlerTy ErrorHandler, MessageHandlerTy WarningHandler,
-               TranslatorFuncTy StringsTranslator = nullptr);
+  LLVM_ABI static std::unique_ptr<DWARFLinker>
+  createLinker(MessageHandlerTy ErrorHandler, MessageHandlerTy WarningHandler);
 
   /// Set output DWARF handler. Result of linking DWARF is set of sections
   /// containing final debug info. DWARFLinkerBase::link() pass generated

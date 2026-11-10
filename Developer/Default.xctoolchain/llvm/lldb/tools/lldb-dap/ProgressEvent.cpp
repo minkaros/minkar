@@ -9,6 +9,7 @@
 #include "ProgressEvent.h"
 
 #include "JSONUtils.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <optional>
 
 using namespace lldb_dap;
@@ -85,18 +86,21 @@ ProgressEvent::Create(uint64_t progress_id, std::optional<StringRef> message,
 bool ProgressEvent::EqualsForIDE(const ProgressEvent &other) const {
   return m_progress_id == other.m_progress_id &&
          m_event_type == other.m_event_type &&
-         m_percentage == other.m_percentage;
+         m_percentage == other.m_percentage && m_message == other.m_message;
 }
 
 ProgressEventType ProgressEvent::GetEventType() const { return m_event_type; }
 
 StringRef ProgressEvent::GetEventName() const {
-  if (m_event_type == progressStart)
+  switch (m_event_type) {
+  case progressStart:
     return "progressStart";
-  else if (m_event_type == progressEnd)
-    return "progressEnd";
-  else
+  case progressUpdate:
     return "progressUpdate";
+  case progressEnd:
+    return "progressEnd";
+  }
+  llvm_unreachable("All cases handled above!");
 }
 
 json::Value ProgressEvent::ToJSON() const {
@@ -106,13 +110,15 @@ json::Value ProgressEvent::ToJSON() const {
   std::string progress_id_str;
   llvm::raw_string_ostream progress_id_strm(progress_id_str);
   progress_id_strm << m_progress_id;
-  progress_id_strm.flush();
   body.try_emplace("progressId", progress_id_str);
 
   if (m_event_type == progressStart) {
     EmplaceSafeString(body, "title", m_message);
     body.try_emplace("cancellable", false);
   }
+
+  if (m_event_type == progressUpdate)
+    EmplaceSafeString(body, "message", m_message);
 
   std::string timestamp(llvm::formatv("{0:f9}", m_creation_time.count()));
   EmplaceSafeString(body, "timestamp", timestamp);
@@ -161,10 +167,10 @@ const ProgressEvent &ProgressEventManager::GetMostRecentEvent() const {
   return m_last_update_event ? *m_last_update_event : m_start_event;
 }
 
-void ProgressEventManager::Update(uint64_t progress_id, uint64_t completed,
-                                  uint64_t total) {
+void ProgressEventManager::Update(uint64_t progress_id, llvm::StringRef message,
+                                  uint64_t completed, uint64_t total) {
   if (std::optional<ProgressEvent> event = ProgressEvent::Create(
-          progress_id, std::nullopt, completed, total, &GetMostRecentEvent())) {
+          progress_id, message, completed, total, &GetMostRecentEvent())) {
     if (event->GetEventType() == progressEnd)
       m_finished = true;
 
@@ -224,7 +230,7 @@ void ProgressEventReporter::Push(uint64_t progress_id, const char *message,
       m_unreported_start_events.push(event_manager);
     }
   } else {
-    it->second->Update(progress_id, completed, total);
+    it->second->Update(progress_id, StringRef(message), completed, total);
     if (it->second->Finished())
       m_event_managers.erase(it);
   }

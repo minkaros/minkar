@@ -58,7 +58,7 @@ swift::SILValue SwiftSILManipulator::emitLValueForVariable(
              "UnsafeMutablePointer") != std::string::npos);
 
   swift::CanType unsafe_mutable_pointer_can_type =
-      struct_argument->getType().getSwiftRValueType();
+      struct_argument->getType().getASTType();
 
   swift::BoundGenericStructType *unsafe_mutable_pointer_struct_type =
       llvm::cast<swift::BoundGenericStructType>(
@@ -70,7 +70,7 @@ swift::SILValue SwiftSILManipulator::emitLValueForVariable(
 
   for (swift::Decl *member : unsafe_mutable_pointer_struct_decl->getMembers()) {
     if (swift::VarDecl *member_var = llvm::dyn_cast<swift::VarDecl>(member)) {
-      if (member_var->getName().str().equals("_rawValue")) {
+      if (member_var->getName().str() == "_rawValue") {
         value_member_decl = member_var;
         break;
       }
@@ -103,8 +103,7 @@ swift::SILValue SwiftSILManipulator::emitLValueForVariable(
   swift::LoadInst *pointer_to_variable =
       m_builder.createLoad(null_loc, pointer_to_return_slot,
                            swift::LoadOwnershipQualifier::Trivial);
-  auto type = var->getDeclContext()->mapTypeIntoContext(
-      var->getInterfaceType());
+  auto type = var->getTypeInContext();
   auto loweredType = converter.getLoweredRValueType(
       swift::TypeExpansionContext::minimal(), type);
 

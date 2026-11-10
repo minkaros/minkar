@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftOneCaseEnum(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_one_case_enum(self):
         """Test that an enum with only one case does not crash LLDB"""

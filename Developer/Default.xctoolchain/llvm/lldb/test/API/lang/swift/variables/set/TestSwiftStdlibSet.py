@@ -17,11 +17,12 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftStdlibSet(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
+    @skipEmbeddedSwiftOnLinux # Linker failure with arc4random_buf
     def test_swift_stdlib_set(self):
         """Tests that we properly vend synthetic children for Swift.Set"""
         self.build()

@@ -29,6 +29,8 @@ typedef std::pair<unsigned, const Instruction &> SourceRef;
 struct SourceMgr {
   using UniqueInst = std::unique_ptr<Instruction>;
 
+  LLVM_ABI SourceMgr() = default;
+
   /// Provides a fixed range of \a UniqueInst to iterate.
   virtual ArrayRef<UniqueInst> getInstructions() const = 0;
 
@@ -50,7 +52,7 @@ struct SourceMgr {
   /// Advance to the next \a SourceRef.
   virtual void updateNext() = 0;
 
-  virtual ~SourceMgr() {}
+  LLVM_ABI virtual ~SourceMgr() {}
 };
 
 /// The default implementation of \a SourceMgr. It always takes a fixed number

@@ -17,7 +17,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 def check_for_idx(child, idx):
@@ -39,6 +38,7 @@ class TestSwiftNestedArray(TestBase):
         self.main_source_spec = lldb.SBFileSpec(self.main_source)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_nested_array(self):
         """Test Arrays of Arrays in Swift"""
         self.build()

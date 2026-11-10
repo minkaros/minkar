@@ -17,10 +17,10 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftGenericTypes(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_generic_types(self):
         """Test support for generic types"""
@@ -41,10 +41,9 @@ class TestSwiftGenericTypes(TestBase):
                     substrs=['(Int) c = 255'])
 
         self.expect("frame variable --raw-output --show-types o_some",
-                    substrs=['(Swift.Optional<Swift.String>) o_some = some {',
-                             '(Swift.String) some ='])
+                    substrs=['(Swift.Optional<Swift.String>) o_some = some {}'])
         self.expect("frame variable --raw-output --show-types o_none",
-                    substrs=['(Swift.Optional<Swift.String>) o_none = none'])
+                    substrs=['(Swift.Optional<Swift.String>) o_none = nil'])
 
         self.expect(
             "frame variable o_some o_none",

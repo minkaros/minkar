@@ -41,14 +41,12 @@ TypeSystem::TypeSystem() = default;
 TypeSystem::~TypeSystem() = default;
 
 static TypeSystemSP CreateInstanceHelper(lldb::LanguageType language,
-                                         Module *module, Target *target,
-                                         const char *compiler_options) {
+                                         Module *module, Target *target) {
   uint32_t i = 0;
   TypeSystemCreateInstance create_callback;
   while ((create_callback = PluginManager::GetTypeSystemCreateCallbackAtIndex(
               i++)) != nullptr) {
-    if (auto type_system_sp =
-        create_callback(language, module, target, compiler_options))
+    if (auto type_system_sp = create_callback(language, module, target))
       return type_system_sp;
   }
 
@@ -57,18 +55,12 @@ static TypeSystemSP CreateInstanceHelper(lldb::LanguageType language,
 
 lldb::TypeSystemSP TypeSystem::CreateInstance(lldb::LanguageType language,
                                               Module *module) {
-  return CreateInstanceHelper(language, module, nullptr, nullptr);
+  return CreateInstanceHelper(language, module, nullptr);
 }
 
 lldb::TypeSystemSP TypeSystem::CreateInstance(lldb::LanguageType language,
                                               Target *target) {
-  return CreateInstanceHelper(language, nullptr, target, nullptr);
-}
-
-lldb::TypeSystemSP TypeSystem::CreateInstance(lldb::LanguageType language,
-                                              Target *target,
-                                              const char *compiler_options) {
-  return CreateInstanceHelper(language, nullptr, target, compiler_options);
+  return CreateInstanceHelper(language, nullptr, target);
 }
 
 #ifndef NDEBUG
@@ -102,6 +94,11 @@ CompilerType TypeSystem::AddConstModifier(lldb::opaque_compiler_type_t type) {
   return CompilerType();
 }
 
+CompilerType TypeSystem::AddPtrAuthModifier(lldb::opaque_compiler_type_t type,
+                                            uint32_t payload) {
+  return CompilerType();
+}
+
 CompilerType
 TypeSystem::AddVolatileModifier(lldb::opaque_compiler_type_t type) {
   return CompilerType();
@@ -111,6 +108,23 @@ CompilerType
 TypeSystem::AddRestrictModifier(lldb::opaque_compiler_type_t type) {
   return CompilerType();
 }
+
+/* TO_UPSTREAM(BoundsSafety) ON */
+CompilerType
+TypeSystem::AddBoundsSafetyIndexableAttribute(lldb::opaque_compiler_type_t type) {
+  return CompilerType();
+}
+
+CompilerType
+TypeSystem::AddBoundsSafetyBidiIndexableAttribute(lldb::opaque_compiler_type_t type) {
+  return CompilerType();
+}
+
+CompilerType
+TypeSystem::AddBoundsSafetyUnspecifiedAttribute(lldb::opaque_compiler_type_t type) {
+  return CompilerType();
+}
+/* TO_UPSTREAM(BoundsSafety) OFF */
 
 CompilerType TypeSystem::CreateTypedef(lldb::opaque_compiler_type_t type,
                                        const char *name,
@@ -125,6 +139,17 @@ CompilerType TypeSystem::GetBuiltinTypeByName(ConstString name) {
 
 CompilerType TypeSystem::GetTypeForFormatters(void *type) {
   return CompilerType(weak_from_this(), type);
+}
+
+bool TypeSystem::IsPromotableIntegerType(lldb::opaque_compiler_type_t type) {
+  return false;
+}
+
+llvm::Expected<CompilerType>
+TypeSystem::DoIntegralPromotion(CompilerType from,
+                                ExecutionContextScope *exe_scope) {
+  return llvm::createStringError(
+      "Integral promotion is not implemented for this TypeSystem");
 }
 
 bool TypeSystem::IsTemplateType(lldb::opaque_compiler_type_t type) {
@@ -160,8 +185,6 @@ LazyBool TypeSystem::ShouldPrintAsOneLiner(void *type, ValueObject *valobj) {
 bool TypeSystem::IsMeaninglessWithoutDynamicResolution(void *type) {
   return false;
 }
-
-void TypeSystem::DiagnoseWarnings(Process &process, Module &module) const {}
 
 Status TypeSystem::IsCompatible() {
   // Assume a language is compatible. Override this virtual function
@@ -215,6 +238,11 @@ TypeSystem::CreateUtilityFunction(std::string text, std::string name) {
 
 std::optional<llvm::json::Value> TypeSystem::ReportStatistics() {
   return std::nullopt;
+}
+
+CompilerDeclContext
+TypeSystem::GetCompilerDeclContextForType(const CompilerType &type) {
+  return CompilerDeclContext();
 }
 
 #pragma mark TypeSystemMap
@@ -349,29 +377,13 @@ TypeSystemMap::GetTypeSystemForLanguage(lldb::LanguageType language,
   return GetTypeSystemForLanguage(language);
 }
 
-// BEGIN SWIFT
-llvm::Expected<TypeSystemSP>
-TypeSystemMap::GetTypeSystemForLanguage(lldb::LanguageType language,
-                                        Target *target, bool can_create,
-                                        const char *compiler_options) {
-  if (can_create) {
-    return GetTypeSystemForLanguage(
-        language,
-        std::optional<CreateCallback>([language, target, compiler_options]() {
-          return TypeSystem::CreateInstance(language, target, compiler_options);
-        }));
-  }
-  return GetTypeSystemForLanguage(language);
-}
+bool TypeSystem::SupportsLanguageStatic(lldb::LanguageType language) {
+  if (language == eLanguageTypeUnknown || language >= eNumLanguageTypes)
+    return false;
 
-void TypeSystemMap::RemoveTypeSystemsForLanguage(lldb::LanguageType language) {
-  std::lock_guard<std::mutex> guard(m_mutex);
-  collection::iterator pos = m_map.find(language);
-  // If we are clearing the map, we don't need to remove this individual item.
-  // It will go away soon enough.
-  if (!m_clear_in_progress) {
-    if (pos != m_map.end())
-      m_map.erase(pos);
-  }
+  LanguageSet languages =
+      PluginManager::GetAllTypeSystemSupportedLanguagesForTypes();
+  if (languages.Empty())
+    return false;
+  return languages[language];
 }
-// END SWIFT

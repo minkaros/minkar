@@ -17,7 +17,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftStdlibDictionary(TestBase):
@@ -84,6 +83,7 @@ class TestSwiftStdlibDictionary(TestBase):
                 found, ("found a not expected child for '%s':'%s'" %
                         (key_str, value_str)))
 
+    @skipEmbeddedSwift
     @swiftTest
     # @skipIfLinux  # bugs.swift.org/SR-844
     def test_swift_stdlib_dictionary(self):

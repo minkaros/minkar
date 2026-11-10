@@ -57,7 +57,7 @@ public:
 
   void EnableCategory(ConstString category_name,
                       TypeCategoryMap::Position pos, lldb::LanguageType lang) {
-    TypeCategoryMap::ValueSP category_sp;
+    lldb::TypeCategoryImplSP category_sp;
     if (m_categories_map.Get(category_name, category_sp) && category_sp) {
       m_categories_map.Enable(category_sp, pos);
       category_sp->AddLanguage(lang);
@@ -67,7 +67,7 @@ public:
   void EnableCategory(ConstString category_name,
                       TypeCategoryMap::Position pos = TypeCategoryMap::Default,
                       std::initializer_list<lldb::LanguageType> langs = {}) {
-    TypeCategoryMap::ValueSP category_sp;
+    lldb::TypeCategoryImplSP category_sp;
     if (m_categories_map.Get(category_name, category_sp) && category_sp) {
       m_categories_map.Enable(category_sp, pos);
       for (const lldb::LanguageType lang : langs)
@@ -149,7 +149,7 @@ public:
   }
 
   static bool GetFormatFromCString(const char *format_cstr,
-                                   bool partial_match_ok, lldb::Format &format);
+                                   lldb::Format &format);
 
   static char GetFormatAsFormatChar(lldb::Format format);
 
@@ -191,7 +191,8 @@ private:
                                  lldb::DynamicValueType use_dynamic,
                                  FormattersMatchVector &entries,
                                  FormattersMatchCandidate::Flags current_flags,
-                                 bool root_level = false);
+                                 bool root_level = false,
+                                 uint32_t ptr_stripped_depth = 0);
 
   std::atomic<uint32_t> m_last_revision;
   FormatCache m_format_cache;

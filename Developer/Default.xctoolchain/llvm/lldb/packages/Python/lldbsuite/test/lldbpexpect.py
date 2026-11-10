@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 # System modules
 import os
 import sys
@@ -12,7 +10,8 @@ from lldbsuite.test.decorators import *
 
 
 @skipIfRemote
-@skipIfWindows  # llvm.org/pr22274: need a pexpect replacement for windows
+@skipIfWindows
+@add_test_categories(["pexpect"])
 class PExpectTest(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
     PROMPT = "(lldb) "
@@ -31,7 +30,12 @@ class PExpectTest(TestBase):
         encoding=None,
         use_colors=False,
     ):
-        logfile = getattr(sys.stdout, "buffer", sys.stdout) if self.TraceOn() else None
+        # Using a log file is incompatible with using utf-8 as the encoding.
+        logfile = (
+            getattr(sys.stdout, "buffer", sys.stdout)
+            if (self.TraceOn() and not encoding)
+            else None
+        )
 
         args = []
         if run_under is not None:
@@ -101,4 +105,4 @@ class PExpectTest(TestBase):
         Returns the escape sequence to move the cursor forward/right
         by a certain amount of characters.
         """
-        return b"\x1b\[" + str(chars_to_move).encode("utf-8") + b"C"
+        return b"\x1b\\[" + str(chars_to_move).encode("utf-8") + b"C"

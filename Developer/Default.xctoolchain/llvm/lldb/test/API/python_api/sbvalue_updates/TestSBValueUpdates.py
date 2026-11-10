@@ -5,7 +5,6 @@ import lldb
 import lldbsuite.test.decorators as decorators
 import lldbsuite.test.lldbtest as lldbtest
 import os
-import unittest2
 
 
 class TestSBValueUpdates(lldbtest.TestBase):
@@ -13,6 +12,7 @@ class TestSBValueUpdates(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @decorators.swiftTest
+    @decorators.skipEmbeddedSwift
     def test_update_and_format_with_type_change(self):
         """Test that an SBValue can update and format itself as its type
         changes"""
@@ -67,4 +67,4 @@ if __name__ == '__main__':
     import atexit
     lldb.SBDebugger.Initialize()
     atexit.register(lldb.SBDebugger.Terminate)
-    unittest2.main()
+    unittest.main()

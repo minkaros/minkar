@@ -14,12 +14,14 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_CGCALL_H
 #define LLVM_CLANG_LIB_CODEGEN_CGCALL_H
 
+#include "CGPointerAuthInfo.h"
 #include "CGValue.h"
 #include "EHScopeStack.h"
 #include "clang/AST/ASTFwd.h"
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Type.h"
+#include "llvm/ADT/STLForwardCompat.h"
 #include "llvm/IR/Value.h"
 
 namespace llvm {
@@ -55,36 +57,6 @@ public:
     return CalleeProtoTy;
   }
   const GlobalDecl getCalleeDecl() const { return CalleeDecl; }
-};
-
-/// Information necessary for pointer authentication.
-class CGPointerAuthInfo {
-  unsigned Signed : 1;
-  unsigned Key : 31;
-  llvm::Value *Discriminator;
-
-public:
-  CGPointerAuthInfo() { Signed = false; }
-  CGPointerAuthInfo(unsigned key, llvm::Value *discriminator)
-      : Discriminator(discriminator) {
-    assert(!discriminator || discriminator->getType()->isIntegerTy() ||
-           discriminator->getType()->isPointerTy());
-    Signed = true;
-    Key = key;
-  }
-
-  explicit operator bool() const { return isSigned(); }
-
-  bool isSigned() const { return Signed; }
-
-  unsigned getKey() const {
-    assert(isSigned());
-    return Key;
-  }
-  llvm::Value *getDiscriminator() const {
-    assert(isSigned());
-    return Discriminator;
-  }
 };
 
 /// All available information about a concrete callee.
@@ -223,9 +195,9 @@ public:
     KindOrFunctionPointer =
         SpecialKind(reinterpret_cast<uintptr_t>(functionPtr));
   }
-  void setPointerAuthInfo(CGPointerAuthInfo pointerAuth) {
+  void setPointerAuthInfo(CGPointerAuthInfo PointerAuth) {
     assert(isOrdinary());
-    OrdinaryInfo.PointerAuthInfo = pointerAuth;
+    OrdinaryInfo.PointerAuthInfo = PointerAuth;
   }
 
   bool isVirtual() const {
@@ -300,7 +272,7 @@ public:
 /// arguments in a call.
 class CallArgList : public SmallVector<CallArg, 8> {
 public:
-  CallArgList() : StackBase(nullptr) {}
+  CallArgList() = default;
 
   struct Writeback {
     /// The original argument.  Note that the argument l-value
@@ -312,6 +284,13 @@ public:
 
     /// A value to "use" after the writeback, or null.
     llvm::Value *ToUse;
+
+    /// An Expression (optional) that performs the writeback with any required
+    /// casting.
+    const Expr *WritebackExpr;
+
+    // Size for optional lifetime end on the temporary.
+    llvm::Value *LifetimeSz;
   };
 
   struct CallArgCleanup {
@@ -332,19 +311,18 @@ public:
   /// this, the old CallArgList retains its list of arguments, but must not
   /// be used to emit a call.
   void addFrom(const CallArgList &other) {
-    insert(end(), other.begin(), other.end());
-    Writebacks.insert(Writebacks.end(), other.Writebacks.begin(),
-                      other.Writebacks.end());
-    CleanupsToDeactivate.insert(CleanupsToDeactivate.end(),
-                                other.CleanupsToDeactivate.begin(),
-                                other.CleanupsToDeactivate.end());
+    llvm::append_range(*this, other);
+    llvm::append_range(Writebacks, other.Writebacks);
+    llvm::append_range(CleanupsToDeactivate, other.CleanupsToDeactivate);
     assert(!(StackBase && other.StackBase) && "can't merge stackbases");
     if (!StackBase)
       StackBase = other.StackBase;
   }
 
-  void addWriteback(LValue srcLV, Address temporary, llvm::Value *toUse) {
-    Writeback writeback = {srcLV, temporary, toUse};
+  void addWriteback(LValue srcLV, Address temporary, llvm::Value *toUse,
+                    const Expr *writebackExpr = nullptr,
+                    llvm::Value *lifetimeSz = nullptr) {
+    Writeback writeback = {srcLV, temporary, toUse, writebackExpr, lifetimeSz};
     Writebacks.push_back(writeback);
   }
 
@@ -377,6 +355,11 @@ public:
   /// memory.
   bool isUsingInAlloca() const { return StackBase; }
 
+  // Support reversing writebacks for MSVC ABI.
+  void reverseWritebacks() {
+    std::reverse(Writebacks.begin(), Writebacks.end());
+  }
+
 private:
   SmallVector<Writeback, 1> Writebacks;
 
@@ -386,7 +369,7 @@ private:
   SmallVector<CallArgCleanup, 1> CleanupsToDeactivate;
 
   /// The stacksave call.  It dominates all of the argument evaluation.
-  llvm::CallInst *StackBase;
+  llvm::CallInst *StackBase = nullptr;
 };
 
 /// FunctionArgList - Type for representing both the decl and type
@@ -400,8 +383,11 @@ class ReturnValueSlot {
   Address Addr = Address::invalid();
 
   // Return value slot flags
+  LLVM_PREFERRED_TYPE(bool)
   unsigned IsVolatile : 1;
+  LLVM_PREFERRED_TYPE(bool)
   unsigned IsUnused : 1;
+  LLVM_PREFERRED_TYPE(bool)
   unsigned IsExternallyDestructed : 1;
 
 public:
@@ -417,12 +403,28 @@ public:
   Address getValue() const { return Addr; }
   bool isUnused() const { return IsUnused; }
   bool isExternallyDestructed() const { return IsExternallyDestructed; }
+  Address getAddress() const { return Addr; }
 };
 
-/// Helper to add attributes to \p F according to the CodeGenOptions and
-/// LangOptions without requiring a CodeGenModule to be constructed.
+/// Adds attributes to \p F according to our \p CodeGenOpts and \p LangOpts, as
+/// though we had emitted it ourselves. We remove any attributes on F that
+/// conflict with the attributes we add here.
+///
+/// This is useful for adding attrs to bitcode modules that you want to link
+/// with but don't control, such as CUDA's libdevice.  When linking with such
+/// a bitcode library, you might want to set e.g. its functions'
+/// "unsafe-fp-math" attribute to match the attr of the functions you're
+/// codegen'ing.  Otherwise, LLVM will interpret the bitcode module's lack of
+/// unsafe-fp-math attrs as tantamount to unsafe-fp-math=false, and then LLVM
+/// will propagate unsafe-fp-math=false up to every transitive caller of a
+/// function in the bitcode library!
+///
+/// With the exception of fast-math attrs, this will only make the attributes
+/// on the function more conservative.  But it's unsafe to call this on a
+/// function which relies on particular fast-math attributes for correctness.
+/// It's up to you to ensure that this is safe.
 void mergeDefaultFunctionDefinitionAttributes(llvm::Function &F,
-                                              const CodeGenOptions CodeGenOpts,
+                                              const CodeGenOptions &CodeGenOpts,
                                               const LangOptions &LangOpts,
                                               const TargetOptions &TargetOpts,
                                               bool WillInternalize);
@@ -435,26 +437,30 @@ enum class FnInfoOpts {
 };
 
 inline FnInfoOpts operator|(FnInfoOpts A, FnInfoOpts B) {
-  return static_cast<FnInfoOpts>(
-      static_cast<std::underlying_type_t<FnInfoOpts>>(A) |
-      static_cast<std::underlying_type_t<FnInfoOpts>>(B));
+  return static_cast<FnInfoOpts>(llvm::to_underlying(A) |
+                                 llvm::to_underlying(B));
 }
 
 inline FnInfoOpts operator&(FnInfoOpts A, FnInfoOpts B) {
-  return static_cast<FnInfoOpts>(
-      static_cast<std::underlying_type_t<FnInfoOpts>>(A) &
-      static_cast<std::underlying_type_t<FnInfoOpts>>(B));
+  return static_cast<FnInfoOpts>(llvm::to_underlying(A) &
+                                 llvm::to_underlying(B));
 }
 
-inline FnInfoOpts operator|=(FnInfoOpts A, FnInfoOpts B) {
+inline FnInfoOpts &operator|=(FnInfoOpts &A, FnInfoOpts B) {
   A = A | B;
   return A;
 }
 
-inline FnInfoOpts operator&=(FnInfoOpts A, FnInfoOpts B) {
+inline FnInfoOpts &operator&=(FnInfoOpts &A, FnInfoOpts B) {
   A = A & B;
   return A;
 }
+
+struct DisableDebugLocationUpdates {
+  CodeGenFunction &CGF;
+  DisableDebugLocationUpdates(CodeGenFunction &CGF);
+  ~DisableDebugLocationUpdates();
+};
 
 } // end namespace CodeGen
 } // end namespace clang

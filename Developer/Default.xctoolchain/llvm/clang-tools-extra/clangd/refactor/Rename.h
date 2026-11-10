@@ -11,8 +11,10 @@
 
 #include "Protocol.h"
 #include "SourceCode.h"
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Tooling/Refactoring/Rename/SymbolName.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include <optional>
 
@@ -34,13 +36,52 @@ struct RenameOptions {
   bool RenameVirtual = true;
 };
 
-struct RenameInputs {
-  /// The position triggering the rename
-  Position Pos;
+/// A name of a symbol that should be renamed.
+///
+/// Symbol's name can be composed of multiple strings. For example, Objective-C
+/// methods can contain multiple argument labels:
+///
+/// \code
+/// - (void) myMethodNamePiece: (int)x anotherNamePieces:(int)y;
+///          ^~ string 0 ~~~~~         ^~ string 1 ~~~~~
+/// \endcode
+class RenameSymbolName {
+  llvm::SmallVector<std::string, 1> NamePieces;
 
-  /// The new name to give to the symbol or `nullopt` to perform a fake rename
-  /// that checks if rename is possible.
-  std::optional<llvm::StringRef> NewName;
+public:
+  RenameSymbolName();
+
+  /// Create a new \c SymbolName with the specified pieces.
+  explicit RenameSymbolName(ArrayRef<std::string> NamePieces);
+
+  explicit RenameSymbolName(const DeclarationName &Name);
+
+  ArrayRef<std::string> getNamePieces() const { return NamePieces; }
+
+  /// If this symbol consists of a single piece return it, otherwise return
+  /// `None`.
+  ///
+  /// Only symbols in Objective-C can consist of multiple pieces, so this
+  /// function always returns a value for non-Objective-C symbols.
+  std::optional<std::string> getSinglePiece() const;
+
+  /// Returns a human-readable version of this symbol name.
+  ///
+  /// If the symbol consists of multiple pieces (aka. it is an Objective-C
+  /// selector/method name), the pieces are separated by `:`, otherwise just an
+  /// identifier name.
+  std::string getAsString() const;
+
+  void print(raw_ostream &OS) const;
+
+  bool operator==(const RenameSymbolName &Other) const {
+    return NamePieces == Other.NamePieces;
+  }
+};
+
+struct RenameInputs {
+  Position Pos; // the position triggering the rename
+  llvm::StringRef NewName;
 
   ParsedAST &AST;
   llvm::StringRef MainFilePath;
@@ -72,15 +113,34 @@ editsForLocations(const llvm::StringMap<std::vector<Range>> &Ranges,
                   const LangOptions &LangOpts);
 
 struct RenameResult {
-  /// The range of the symbol that the user can attempt to rename.
+  // The range of the symbol that the user can attempt to rename.
   Range Target;
-  /// The current name of the declaration at the cursor.
-  std::string OldName;
-  /// Rename occurrences for the current main file.
+  // Placeholder text for the rename operation if non-empty.
+  std::string Placeholder;
+  // Rename occurrences for the current main file.
   std::vector<Range> LocalChanges;
-  /// Complete edits for the rename, including LocalChanges.
-  /// If the full set of changes is unknown, this field is empty.
+  // Complete edits for the rename, including LocalChanges.
+  // If the full set of changes is unknown, this field is empty.
   FileEdits GlobalChanges;
+};
+
+/// Represents a symbol range where the symbol can potentially have multiple
+/// tokens.
+struct SymbolRange {
+  /// Ranges for the tokens that make up the symbol's name.
+  /// Usually a single range, but there can be multiple ranges if the tokens for
+  /// the symbol are split, e.g. ObjC selectors.
+  std::vector<Range> Ranges;
+
+  SymbolRange(Range R);
+  SymbolRange(std::vector<Range> Ranges);
+
+  /// Returns the first range.
+  Range range() const;
+
+  friend bool operator==(const SymbolRange &LHS, const SymbolRange &RHS);
+  friend bool operator!=(const SymbolRange &LHS, const SymbolRange &RHS);
+  friend bool operator<(const SymbolRange &LHS, const SymbolRange &RHS);
 };
 
 /// Renames all occurrences of the symbol. The result edits are unformatted.
@@ -89,19 +149,13 @@ struct RenameResult {
 llvm::Expected<RenameResult> rename(const RenameInputs &RInputs);
 
 /// Generates rename edits that replaces all given occurrences with the
-/// `NewName`.
-///
-/// `OldName` and `Tokens` are used to to find the argument labels of
-/// Objective-C selectors.
-///
+/// NewName.
 /// Exposed for testing only.
-///
 /// REQUIRED: Occurrences is sorted and doesn't have duplicated ranges.
-llvm::Expected<Edit>
-buildRenameEdit(llvm::StringRef AbsFilePath, llvm::StringRef InitialCode,
-                std::vector<Range> Occurrences, tooling::SymbolName OldName,
-                tooling::SymbolName NewName,
-                const syntax::UnexpandedTokenBuffer &Tokens);
+llvm::Expected<Edit> buildRenameEdit(llvm::StringRef AbsFilePath,
+                                     llvm::StringRef InitialCode,
+                                     std::vector<SymbolRange> Occurrences,
+                                     llvm::ArrayRef<llvm::StringRef> NewNames);
 
 /// Adjusts indexed occurrences to match the current state of the file.
 ///
@@ -113,9 +167,9 @@ buildRenameEdit(llvm::StringRef AbsFilePath, llvm::StringRef InitialCode,
 /// The API assumes that Indexed contains only named occurrences (each
 /// occurrence has the same length).
 /// REQUIRED: Indexed is sorted.
-std::optional<std::vector<Range>>
-adjustRenameRanges(const syntax::UnexpandedTokenBuffer &Tokens,
-                   llvm::StringRef Identifier, std::vector<Range> Indexed);
+std::optional<std::vector<SymbolRange>>
+adjustRenameRanges(llvm::StringRef DraftCode, const RenameSymbolName &Name,
+                   std::vector<Range> Indexed, const LangOptions &LangOpts);
 
 /// Calculates the lexed occurrences that the given indexed occurrences map to.
 /// Returns std::nullopt if we don't find a mapping.
@@ -123,15 +177,16 @@ adjustRenameRanges(const syntax::UnexpandedTokenBuffer &Tokens,
 /// Exposed for testing only.
 ///
 /// REQUIRED: Indexed and Lexed are sorted.
-std::optional<std::vector<Range>> getMappedRanges(ArrayRef<Range> Indexed,
-                                                  ArrayRef<Range> Lexed);
+std::optional<std::vector<SymbolRange>>
+getMappedRanges(ArrayRef<Range> Indexed, ArrayRef<SymbolRange> Lexed);
 /// Evaluates how good the mapped result is. 0 indicates a perfect match.
 ///
 /// Exposed for testing only.
 ///
 /// REQUIRED: Indexed and Lexed are sorted, Indexed and MappedIndex have the
 /// same size.
-size_t renameRangeAdjustmentCost(ArrayRef<Range> Indexed, ArrayRef<Range> Lexed,
+size_t renameRangeAdjustmentCost(ArrayRef<Range> Indexed,
+                                 ArrayRef<SymbolRange> Lexed,
                                  ArrayRef<size_t> MappedIndex);
 
 } // namespace clangd

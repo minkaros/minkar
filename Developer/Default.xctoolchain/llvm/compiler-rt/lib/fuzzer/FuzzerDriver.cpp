@@ -24,10 +24,11 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <fstream>
 
 // This function should be present in the libFuzzer so that the client
 // binary can test for its existence.
@@ -229,6 +230,7 @@ static void PulseThread() {
 
 static void WorkerThread(const Command &BaseCmd, std::atomic<unsigned> *Counter,
                          unsigned NumJobs, std::atomic<bool> *HasErrors) {
+  ScopedDisableMsanInterceptorChecks S;
   while (true) {
     unsigned C = (*Counter)++;
     if (C >= NumJobs) break;
@@ -293,9 +295,12 @@ static int RunInMultipleProcesses(const std::vector<std::string> &Args,
   std::vector<std::thread> V;
   std::thread Pulse(PulseThread);
   Pulse.detach();
-  for (unsigned i = 0; i < NumWorkers; i++)
-    V.push_back(std::thread(WorkerThread, std::ref(Cmd), &Counter, NumJobs,
-                            &HasErrors));
+  V.resize(NumWorkers);
+  for (unsigned i = 0; i < NumWorkers; i++) {
+    V[i] = std::thread(WorkerThread, std::ref(Cmd), &Counter, NumJobs,
+                            &HasErrors);
+    SetThreadName(V[i], "FuzzerWorker");
+  }
   for (auto &T : V)
     T.join();
   return HasErrors ? 1 : 0;
@@ -829,6 +834,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   Options.HandleInt = Flags.handle_int;
   Options.HandleSegv = Flags.handle_segv;
   Options.HandleTerm = Flags.handle_term;
+  Options.HandleTrap = Flags.handle_trap;
   Options.HandleXfsz = Flags.handle_xfsz;
   Options.HandleUsr1 = Flags.handle_usr1;
   Options.HandleUsr2 = Flags.handle_usr2;

@@ -2,7 +2,6 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftDeserializationFailure(TestBase):
@@ -31,22 +30,18 @@ class TestSwiftDeserializationFailure(TestBase):
         # FIXME: this is formatted incorrectly.
         self.expect("fr var -d no-dynamic t", substrs=["(T)"]) #, "world"])
 
+    @skipEmbeddedSwift
     @swiftTest
-    @skipIf(oslist=['windows'])
     @skipIf(debug_info=no_match(["dwarf"]))
-    @expectedFailureAll(archs=["arm64", "arm64e", 'arm64_32'], bugnumber="<rdar://problem/58096919>")
-    @expectedFailureAll(archs=["arm64", "arm64e", 'arm64_32'], bugnumber="<rdar://problem/58097436>")
     def test_missing_module(self):
         """Test what happens when a .swiftmodule can't be loaded"""
         self.prepare()
         target, process, _, _ = lldbutil.run_to_name_breakpoint(self, 'main')
         self.run_tests(target, process)
 
+    @skipEmbeddedSwift
     @swiftTest
-    @skipIf(oslist=['windows'])
     @skipIf(debug_info=no_match(["dwarf"]))
-    @expectedFailureAll(archs=["arm64", "arm64e", 'arm64_32'], bugnumber="<rdar://problem/58096919>")
-    @expectedFailureAll(archs=["arm64", "arm64e", 'arm64_32'], bugnumber="<rdar://problem/58097436>")
     def test_damaged_module(self):
         """Test what happens when a .swiftmodule can't be loaded"""
         self.prepare()

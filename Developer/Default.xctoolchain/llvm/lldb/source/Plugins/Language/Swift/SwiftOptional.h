@@ -22,42 +22,6 @@
 
 namespace lldb_private {
 namespace formatters {
-// ExtractSomeIfAny() can return EITHER a child member or some other long-lived
-// ValueObject
-// OR an entirely consed-up ValueObject
-// The lifetime of these two is radically different, and there is no trivial way
-// to do the right
-// thing for both cases - except have a class that can wrap either and is safe
-// to store and pass around
-class PointerOrSP {
-public:
-  PointerOrSP(std::nullptr_t) : m_raw_ptr(nullptr), m_shared_ptr(nullptr) {}
-
-  PointerOrSP(ValueObject *valobj) : m_raw_ptr(valobj), m_shared_ptr(nullptr) {}
-
-  PointerOrSP(lldb::ValueObjectSP valobj_sp)
-      : m_raw_ptr(nullptr), m_shared_ptr(valobj_sp) {}
-
-  ValueObject *operator->() {
-    if (m_shared_ptr)
-      return m_shared_ptr.get();
-    return m_raw_ptr;
-  }
-
-  ValueObject &operator*() { return *(this->operator->()); }
-
-  operator ValueObject *() { return this->operator->(); }
-
-  explicit operator bool() const {
-    return (m_shared_ptr.get() != nullptr) || (m_raw_ptr != nullptr);
-  }
-
-  bool operator==(std::nullptr_t) const { return !(this->operator bool()); }
-
-protected:
-  ValueObject *m_raw_ptr;
-  lldb::ValueObjectSP m_shared_ptr;
-};
 
 namespace swift {
 struct SwiftOptionalSummaryProvider : public TypeSummaryImpl {
@@ -67,6 +31,7 @@ struct SwiftOptionalSummaryProvider : public TypeSummaryImpl {
   bool FormatObject(ValueObject *valobj, std::string &dest,
                     const TypeSummaryOptions &options) override;
   std::string GetDescription() override;
+  std::string GetName() override;
   bool DoesPrintChildren(ValueObject *valobj) const override;
   bool DoesPrintValue(ValueObject *valobj) const override;
 
@@ -86,13 +51,17 @@ public:
   lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override;
   lldb::ChildCacheState Update() override;
   bool MightHaveChildren() override;
-  size_t GetIndexOfChildWithName(ConstString name) override;
+  /// Returns the optional child, this is only used by other
+  /// dataformatters that need direct access.
+  /// For example, for an Int??, this returns an Int? child.
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override;
+  /// Returns the optional value's synthetic value.
+  /// For example, for an Int??, this returns an Int.
   lldb::ValueObjectSP GetSyntheticValue() override;
 
 private:
-  bool m_is_none;
-  bool m_children;
-  PointerOrSP m_some;
+  bool m_is_none = false;
+  lldb::ValueObjectSP m_some;
 
   bool IsEmpty() const;
 };

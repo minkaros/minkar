@@ -798,8 +798,8 @@ define i64 @looped(ptr nocapture noundef readonly %p, i32 noundef %st) {
 ; CHECK-NEXT:    br label [[FOR_COND1_PREHEADER:%.*]]
 ; CHECK:       for.cond1.preheader:
 ; CHECK-NEXT:    [[Y_038:%.*]] = phi i32 [ 0, [[ENTRY:%.*]] ], [ [[INC13:%.*]], [[FOR_COND1_PREHEADER]] ]
-; CHECK-NEXT:    [[SQ_037:%.*]] = phi i32 [ 0, [[ENTRY]] ], [ [[ADD11_15:%.*]], [[FOR_COND1_PREHEADER]] ]
-; CHECK-NEXT:    [[SM_036:%.*]] = phi i32 [ 0, [[ENTRY]] ], [ [[ADD_15:%.*]], [[FOR_COND1_PREHEADER]] ]
+; CHECK-NEXT:    [[SQ_037:%.*]] = phi i32 [ 0, [[ENTRY]] ], [ [[OP_RDX:%.*]], [[FOR_COND1_PREHEADER]] ]
+; CHECK-NEXT:    [[SM_036:%.*]] = phi i32 [ 0, [[ENTRY]] ], [ [[OP_RDX1:%.*]], [[FOR_COND1_PREHEADER]] ]
 ; CHECK-NEXT:    [[P_ADDR_035:%.*]] = phi ptr [ [[P:%.*]], [[ENTRY]] ], [ [[ADD_PTR:%.*]], [[FOR_COND1_PREHEADER]] ]
 ; CHECK-NEXT:    [[TMP0:%.*]] = load i16, ptr [[P_ADDR_035]], align 2
 ; CHECK-NEXT:    [[CONV:%.*]] = zext i16 [[TMP0]] to i32
@@ -893,16 +893,16 @@ define i64 @looped(ptr nocapture noundef readonly %p, i32 noundef %st) {
 ; CHECK-NEXT:    [[ARRAYIDX_15:%.*]] = getelementptr inbounds i16, ptr [[P_ADDR_035]], i64 15
 ; CHECK-NEXT:    [[TMP15:%.*]] = load i16, ptr [[ARRAYIDX_15]], align 2
 ; CHECK-NEXT:    [[CONV_15:%.*]] = zext i16 [[TMP15]] to i32
-; CHECK-NEXT:    [[ADD_15]] = add i32 [[ADD_14]], [[CONV_15]]
+; CHECK-NEXT:    [[OP_RDX1]] = add i32 [[ADD_14]], [[CONV_15]]
 ; CHECK-NEXT:    [[MUL_15:%.*]] = mul nuw nsw i32 [[CONV_15]], [[CONV_15]]
-; CHECK-NEXT:    [[ADD11_15]] = add i32 [[MUL_15]], [[ADD11_14]]
+; CHECK-NEXT:    [[OP_RDX]] = add i32 [[MUL_15]], [[ADD11_14]]
 ; CHECK-NEXT:    [[ADD_PTR]] = getelementptr inbounds i16, ptr [[P_ADDR_035]], i64 [[IDX_EXT]]
 ; CHECK-NEXT:    [[INC13]] = add nuw nsw i32 [[Y_038]], 1
 ; CHECK-NEXT:    [[EXITCOND_NOT:%.*]] = icmp eq i32 [[INC13]], 16
 ; CHECK-NEXT:    br i1 [[EXITCOND_NOT]], label [[FOR_COND_CLEANUP:%.*]], label [[FOR_COND1_PREHEADER]]
 ; CHECK:       for.cond.cleanup:
-; CHECK-NEXT:    [[CONV15:%.*]] = zext i32 [[ADD_15]] to i64
-; CHECK-NEXT:    [[CONV16:%.*]] = zext i32 [[ADD11_15]] to i64
+; CHECK-NEXT:    [[CONV15:%.*]] = zext i32 [[OP_RDX1]] to i64
+; CHECK-NEXT:    [[CONV16:%.*]] = zext i32 [[OP_RDX]] to i64
 ; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i64 [[CONV16]], 32
 ; CHECK-NEXT:    [[ADD17:%.*]] = or i64 [[SHL]], [[CONV15]]
 ; CHECK-NEXT:    ret i64 [[ADD17]]

@@ -6,6 +6,7 @@
 //
 //===-----------------------------------------------------------------------===/
 
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/TextAPI/InterfaceFile.h"
 #include <algorithm>
@@ -39,7 +40,7 @@ inline bool operator==(const ExportedSymbol &LHS, const ExportedSymbol &RHS) {
 }
 
 inline std::string stripWhitespace(std::string S) {
-  S.erase(std::remove_if(S.begin(), S.end(), ::isspace), S.end());
+  llvm::erase_if(S, ::isspace);
   return S;
 }
 

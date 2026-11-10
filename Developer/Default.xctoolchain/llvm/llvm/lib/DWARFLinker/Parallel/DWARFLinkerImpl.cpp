@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "DWARFLinkerImpl.h"
-#include "DIEGenerator.h"
 #include "DependencyTracker.h"
 #include "llvm/DWARFLinker/Utils.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugAbbrev.h"
@@ -20,11 +19,9 @@ using namespace dwarf_linker;
 using namespace dwarf_linker::parallel;
 
 DWARFLinkerImpl::DWARFLinkerImpl(MessageHandlerTy ErrorHandler,
-                                 MessageHandlerTy WarningHandler,
-                                 TranslatorFuncTy StringsTranslator)
+                                 MessageHandlerTy WarningHandler)
     : UniqueUnitID(0), DebugStrStrings(GlobalData),
       DebugLineStrStrings(GlobalData), CommonSections(GlobalData) {
-  GlobalData.setTranslator(StringsTranslator);
   GlobalData.setErrorHandler(ErrorHandler);
   GlobalData.setWarningHandler(WarningHandler);
 }
@@ -43,8 +40,8 @@ DWARFLinkerImpl::LinkContext::LinkContext(LinkingGlobalData &GlobalData,
     // Set context format&endianness based on the input file.
     Format.Version = File.Dwarf->getMaxVersion();
     Format.AddrSize = File.Dwarf->getCUAddrSize();
-    Endianness = File.Dwarf->isLittleEndian() ? support::endianness::little
-                                              : support::endianness::big;
+    Endianness = File.Dwarf->isLittleEndian() ? llvm::endianness::little
+                                              : llvm::endianness::big;
   }
 }
 
@@ -62,7 +59,8 @@ void DWARFLinkerImpl::LinkContext::addModulesCompileUnit(
 }
 
 void DWARFLinkerImpl::addObjectFile(DWARFFile &File, ObjFileLoaderTy Loader,
-                                    CompileUnitHandlerTy OnCUDieLoaded) {
+                                    CompileUnitHandlerTy OnCUDieLoaded,
+                                    CASLoaderTy CASLoader) {
   ObjectContexts.emplace_back(std::make_unique<LinkContext>(
       GlobalData, File, ClangModules, UniqueUnitID));
 
@@ -79,8 +77,8 @@ void DWARFLinkerImpl::addObjectFile(DWARFFile &File, ObjFileLoaderTy Loader,
 
       // Register mofule reference.
       if (!GlobalData.getOptions().UpdateIndexTablesOnly)
-        ObjectContexts.back()->registerModuleReference(CUDie, Loader,
-                                                       OnCUDieLoaded);
+        ObjectContexts.back()->registerModuleReference(
+            CUDie, Loader, OnCUDieLoaded, CASLoader);
     }
   }
 }
@@ -98,18 +96,18 @@ Error DWARFLinkerImpl::link() {
 
   dwarf::FormParams GlobalFormat = {GlobalData.getOptions().TargetDWARFVersion,
                                     0, dwarf::DwarfFormat::DWARF32};
-  support::endianness GlobalEndianness = support::endian::system_endianness();
+  llvm::endianness GlobalEndianness = llvm::endianness::native;
 
   if (std::optional<std::reference_wrapper<const Triple>> CurTriple =
           GlobalData.getTargetTriple()) {
     GlobalEndianness = (*CurTriple).get().isLittleEndian()
-                           ? support::endianness::little
-                           : support::endianness::big;
+                           ? llvm::endianness::little
+                           : llvm::endianness::big;
   }
   std::optional<uint16_t> Language;
 
   for (std::unique_ptr<LinkContext> &Context : ObjectContexts) {
-    if (Context->InputDWARFFile.Dwarf.get() == nullptr) {
+    if (Context->InputDWARFFile.Dwarf == nullptr) {
       Context->setOutputFormat(Context->getFormParams(), GlobalEndianness);
       continue;
     }
@@ -144,7 +142,7 @@ Error DWARFLinkerImpl::link() {
     // twice. And then following handling might be removed.
     for (const std::unique_ptr<DWARFUnit> &OrigCU :
          Context->InputDWARFFile.Dwarf->compile_units()) {
-      DWARFDie UnitDie = OrigCU.get()->getUnitDIE();
+      DWARFDie UnitDie = OrigCU->getUnitDIE();
 
       if (!Language) {
         if (std::optional<DWARFFormValue> Val =
@@ -192,7 +190,7 @@ Error DWARFLinkerImpl::link() {
       Context->InputDWARFFile.unload();
     }
   } else {
-    ThreadPool Pool(llvm::parallel::strategy);
+    DefaultThreadPool Pool(llvm::parallel::strategy);
     for (std::unique_ptr<LinkContext> &Context : ObjectContexts)
       Pool.async([&]() {
         // Link object file.
@@ -205,13 +203,13 @@ Error DWARFLinkerImpl::link() {
     Pool.wait();
   }
 
-  if (ArtificialTypeUnit.get() != nullptr && !ArtificialTypeUnit->getTypePool()
-                                                  .getRoot()
-                                                  ->getValue()
-                                                  .load()
-                                                  ->Children.empty()) {
+  if (ArtificialTypeUnit != nullptr && !ArtificialTypeUnit->getTypePool()
+                                            .getRoot()
+                                            ->getValue()
+                                            .load()
+                                            ->Children.empty()) {
     if (GlobalData.getTargetTriple().has_value())
-      if (Error Err = ArtificialTypeUnit.get()->finishCloningAndEmit(
+      if (Error Err = ArtificialTypeUnit->finishCloningAndEmit(
               (*GlobalData.getTargetTriple()).get()))
         return Err;
   }
@@ -344,7 +342,8 @@ std::pair<bool, bool> DWARFLinkerImpl::LinkContext::isClangModuleRef(
 /// hash.
 bool DWARFLinkerImpl::LinkContext::registerModuleReference(
     const DWARFDie &CUDie, ObjFileLoaderTy Loader,
-    CompileUnitHandlerTy OnCUDieLoaded, unsigned Indent) {
+    CompileUnitHandlerTy OnCUDieLoaded, CASLoaderTy CASLoader,
+    unsigned Indent) {
   std::string PCMFile =
       getPCMFile(CUDie, GlobalData.getOptions().ObjectPrefixMap);
   std::pair<bool, bool> IsClangModuleRef =
@@ -363,8 +362,8 @@ bool DWARFLinkerImpl::LinkContext::registerModuleReference(
   // shouldn't run into an infinite loop, so mark it as processed now.
   ClangModules.insert({PCMFile, getDwoId(CUDie)});
 
-  if (Error E =
-          loadClangModule(Loader, CUDie, PCMFile, OnCUDieLoaded, Indent + 2)) {
+  if (Error E = loadClangModule(Loader, CUDie, PCMFile, OnCUDieLoaded,
+                                CASLoader, Indent + 2)) {
     consumeError(std::move(E));
     return false;
   }
@@ -373,37 +372,51 @@ bool DWARFLinkerImpl::LinkContext::registerModuleReference(
 
 Error DWARFLinkerImpl::LinkContext::loadClangModule(
     ObjFileLoaderTy Loader, const DWARFDie &CUDie, const std::string &PCMFile,
-    CompileUnitHandlerTy OnCUDieLoaded, unsigned Indent) {
+    CompileUnitHandlerTy OnCUDieLoaded, CASLoaderTy CASLoader,
+    unsigned Indent) {
 
   uint64_t DwoId = getDwoId(CUDie);
   std::string ModuleName = dwarf::toString(CUDie.find(dwarf::DW_AT_name), "");
 
-  /// Using a SmallString<0> because loadClangModule() is recursive.
-  SmallString<0> Path(GlobalData.getOptions().PrependPath);
-  if (sys::path::is_relative(PCMFile))
-    resolveRelativeObjectPath(Path, CUDie);
-  sys::path::append(Path, PCMFile);
-  // Don't use the cached binary holder because we have no thread-safety
-  // guarantee and the lifetime is limited.
-
-  if (Loader == nullptr) {
-    GlobalData.error("cann't load clang module: loader is not specified.",
-                     InputDWARFFile.FileName);
-    return Error::success();
+  DWARFFile *PCM = nullptr;
+  if (CASLoader) {
+    auto LoadPCM = CASLoader(PCMFile, InputDWARFFile.FileName);
+    if (!LoadPCM)
+      return LoadPCM.takeError();
+    PCM = *LoadPCM;
   }
 
-  auto ErrOrObj = Loader(InputDWARFFile.FileName, Path);
-  if (!ErrOrObj)
-    return Error::success();
+  if (!PCM) {
+    /// Using a SmallString<0> because loadClangModule() is recursive.
+    SmallString<0> Path(GlobalData.getOptions().PrependPath);
+    if (sys::path::is_relative(PCMFile))
+      resolveRelativeObjectPath(Path, CUDie);
+    sys::path::append(Path, PCMFile);
+    // Don't use the cached binary holder because we have no thread-safety
+    // guarantee and the lifetime is limited.
+
+    if (Loader == nullptr) {
+      GlobalData.error("cann't load clang module: loader is not specified.",
+                       InputDWARFFile.FileName);
+      return Error::success();
+    }
+
+    auto ErrOrObj = Loader(InputDWARFFile.FileName, Path);
+    if (!ErrOrObj)
+      return Error::success();
+
+    PCM = &*ErrOrObj;
+  }
 
   std::unique_ptr<CompileUnit> Unit;
-  for (const auto &CU : ErrOrObj->Dwarf->compile_units()) {
+  for (const auto &CU : PCM->Dwarf->compile_units()) {
     OnCUDieLoaded(*CU);
     // Recursively get all modules imported by this one.
     auto ChildCUDie = CU->getUnitDIE();
     if (!ChildCUDie)
       continue;
-    if (!registerModuleReference(ChildCUDie, Loader, OnCUDieLoaded, Indent)) {
+    if (!registerModuleReference(ChildCUDie, Loader, OnCUDieLoaded, CASLoader,
+                                 Indent)) {
       if (Unit) {
         std::string Err =
             (PCMFile +
@@ -432,13 +445,13 @@ Error DWARFLinkerImpl::LinkContext::loadClangModule(
 
       // Add this module.
       Unit = std::make_unique<CompileUnit>(
-          GlobalData, *CU, UniqueUnitID.fetch_add(1), ModuleName, *ErrOrObj,
+          GlobalData, *CU, UniqueUnitID.fetch_add(1), ModuleName, *PCM,
           getUnitForOffset, CU->getFormParams(), getEndianness());
     }
   }
 
   if (Unit) {
-    ModulesCompileUnits.emplace_back(RefModuleUnit{*ErrOrObj, std::move(Unit)});
+    ModulesCompileUnits.emplace_back(RefModuleUnit{*PCM, std::move(Unit)});
     // Preload line table, as it can't be loaded asynchronously.
     ModulesCompileUnits.back().Unit->loadLineTable();
   }
@@ -618,7 +631,7 @@ void DWARFLinkerImpl::LinkContext::linkSingleCompileUnit(
             // warnings were already displayed in the first iteration.
             if (registerModuleReference(
                     CU.getOrigUnit().getUnitDIE(), nullptr,
-                    [](const DWARFUnit &) {}, 0))
+                    [](const DWARFUnit &) {}, nullptr, 0))
               CU.setStage(CompileUnit::Stage::PatchesUpdated);
             else
               CU.setStage(CompileUnit::Stage::Loaded);
@@ -734,7 +747,7 @@ Error DWARFLinkerImpl::LinkContext::cloneAndEmitDebugFrame() {
   if (!GlobalData.getTargetTriple().has_value())
     return Error::success();
 
-  if (InputDWARFFile.Dwarf.get() == nullptr)
+  if (InputDWARFFile.Dwarf == nullptr)
     return Error::success();
 
   const DWARFObject &InputDWARFObj = InputDWARFFile.Dwarf->getDWARFObj();
@@ -867,7 +880,7 @@ void DWARFLinkerImpl::glueCompileUnitsAndWriteToTheOutput() {
   // units into the resulting file.
   emitCommonSectionsAndWriteCompileUnitsToTheOutput();
 
-  if (ArtificialTypeUnit.get() != nullptr)
+  if (ArtificialTypeUnit != nullptr)
     ArtificialTypeUnit.reset();
 
   // Write common debug sections into the resulting file.
@@ -893,10 +906,9 @@ void DWARFLinkerImpl::printStatistic() {
               CU->tryGetSectionDescriptor(DebugSectionKind::DebugInfo))
         AllDebugInfoSectionsSize += (*DebugInfo)->getContents().size();
 
-    SizeByObject[Context->InputDWARFFile.FileName].Input =
-        Context->OriginalDebugInfoSize;
-    SizeByObject[Context->InputDWARFFile.FileName].Output =
-        AllDebugInfoSectionsSize;
+    auto &Size = SizeByObject[Context->InputDWARFFile.FileName];
+    Size.Input = Context->OriginalDebugInfoSize;
+    Size.Output = AllDebugInfoSectionsSize;
   }
 
   // Create a vector sorted in descending order by output size.
@@ -1020,7 +1032,7 @@ void DWARFLinkerImpl::forEachOutputString(
     });
   });
 
-  if (ArtificialTypeUnit.get() != nullptr) {
+  if (ArtificialTypeUnit != nullptr) {
     ArtificialTypeUnit->forEach([&](SectionDescriptor &OutSection) {
       OutSection.ListDebugStrPatch.forEach([&](DebugStrPatch &Patch) {
         StringHandler(StringDestinationKind::DebugStr, Patch.String);
@@ -1051,7 +1063,7 @@ void DWARFLinkerImpl::forEachOutputString(
 void DWARFLinkerImpl::forEachObjectSectionsSet(
     function_ref<void(OutputSections &)> SectionsSetHandler) {
   // Handle artificial type unit first.
-  if (ArtificialTypeUnit.get() != nullptr)
+  if (ArtificialTypeUnit != nullptr)
     SectionsSetHandler(*ArtificialTypeUnit);
 
   // Then all modules(before regular compilation units).
@@ -1074,7 +1086,7 @@ void DWARFLinkerImpl::forEachObjectSectionsSet(
 
 void DWARFLinkerImpl::forEachCompileAndTypeUnit(
     function_ref<void(DwarfUnit *CU)> UnitHandler) {
-  if (ArtificialTypeUnit.get() != nullptr)
+  if (ArtificialTypeUnit != nullptr)
     UnitHandler(ArtificialTypeUnit.get());
 
   // Enumerate module units.
@@ -1350,7 +1362,7 @@ void DWARFLinkerImpl::emitDWARFv5DebugNamesSection(const Triple &TargetTriple) {
   forEachCompileAndTypeUnit([&](DwarfUnit *CU) {
     bool HasRecords = false;
     CU->forEachAcceleratorRecord([&](const DwarfUnit::AccelInfo &Info) {
-      if (DebugNames.get() == nullptr)
+      if (DebugNames == nullptr)
         DebugNames = std::make_unique<DWARF5AccelTable>();
 
       HasRecords = true;
@@ -1360,7 +1372,8 @@ void DWARFLinkerImpl::emitDWARFv5DebugNamesSection(const Triple &TargetTriple) {
       case DwarfUnit::AccelType::Type: {
         DebugNames->addName(*DebugStrStrings.getExistingEntry(Info.String),
                             Info.OutOffset, std::nullopt /*ParentDIEOffset*/,
-                            Info.Tag, CU->getUniqueID());
+                            Info.Tag, CU->getUniqueID(),
+                            CU->getTag() == dwarf::DW_TAG_type_unit);
       } break;
 
       default:
@@ -1376,7 +1389,7 @@ void DWARFLinkerImpl::emitDWARFv5DebugNamesSection(const Triple &TargetTriple) {
     }
   });
 
-  if (DebugNames.get() != nullptr) {
+  if (DebugNames != nullptr) {
     // FIXME: we use AsmPrinter to emit accelerator sections.
     // It might be beneficial to directly emit accelerator data
     // to the raw_svector_ostream.

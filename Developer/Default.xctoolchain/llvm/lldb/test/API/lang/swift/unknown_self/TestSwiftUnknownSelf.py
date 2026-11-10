@@ -14,20 +14,18 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftUnknownSelf(lldbtest.TestBase):
 
     def check_class(self, var_self, weak):
         self.expect("v self", substrs=["hello", "world"])
-        lldbutil.check_variable(self, var_self, num_children=2)
-        m_base_string = var_self.GetChildMemberWithName("base_string")
+        lldbutil.check_variable(self, var_self, num_children=0)
+        # If self is Optional, an extra indirection is needed.
+        parent = var_self.GetChildAtIndex(0) if weak else var_self
+        m_base_string = parent.GetChildMemberWithName("base_string")
         m_string = var_self.GetChildMemberWithName("string")
-        # FIXME: This is inconsistent. If self is Optional, an extra
-        #        indirection is needed.
-        if not weak:
-            lldbutil.check_variable(self, m_base_string, summary='"hello"')
+        lldbutil.check_variable(self, m_base_string, summary='"hello"')
         lldbutil.check_variable(self, m_string, summary='"world"')
         # Also check the expression evaluator.
         self.expect("expr self", substrs=["hello", "world"])
@@ -35,6 +33,7 @@ class TestSwiftUnknownSelf(lldbtest.TestBase):
                     substrs=["hello"])
 
 
+    @skipEmbeddedSwift
     @skipIf(bugnumber="SR-10216", archs=['ppc64le'])
     @swiftTest
     @skipUnlessFoundation

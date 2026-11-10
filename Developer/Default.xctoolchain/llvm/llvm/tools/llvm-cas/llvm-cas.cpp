@@ -8,11 +8,11 @@
 
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/BuiltinUnifiedCASDatabases.h"
+#include "llvm/CAS/CASFSBuilder.h"
 #include "llvm/CAS/CASFileSystem.h"
-#include "llvm/CAS/CachingOnDiskFileSystem.h"
-#include "llvm/CAS/HierarchicalTreeBuilder.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/TreeSchema.h"
+#include "llvm/CAS/UnifiedOnDiskCache.h"
 #include "llvm/CAS/Utils.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/CommandLine.h"
@@ -21,9 +21,6 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/PrefixMapper.h"
-#include "llvm/Support/StringSaver.h"
-#include "llvm/Support/ThreadPool.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
 #include <system_error>
@@ -64,8 +61,13 @@ static int putCacheKey(ObjectStore &CAS, ActionCache &AC,
                        ArrayRef<std::string> Objects);
 static int getCacheResult(ObjectStore &CAS, ActionCache &AC, const CASID &ID);
 static int validateObject(ObjectStore &CAS, const CASID &ID);
+static int validate(ObjectStore &CAS, ActionCache &AC, bool CheckHash);
+static int validateIfNeeded(StringRef Path, StringRef PluginPath,
+                            ArrayRef<std::string> PluginOpts, bool CheckHash,
+                            bool Force, bool AllowRecovery, bool InProcess,
+                            const char *Argv0);
 static int ingestCasIDFile(cas::ObjectStore &CAS, ArrayRef<std::string> CASIDs);
-static int checkLockFiles(StringRef CASPath);
+static int prune(cas::ObjectStore &CAS);
 
 int main(int Argc, char **Argv) {
   InitLLVM X(Argc, Argv);
@@ -83,6 +85,13 @@ int main(int Argc, char **Argv) {
   cl::opt<std::string> DataPath("data",
                                 cl::desc("Path to data or '-' for stdin."),
                                 cl::value_desc("path"));
+  cl::opt<bool> CheckHash("check-hash",
+                          cl::desc("check all hashes during validation"));
+  cl::opt<bool> AllowRecovery("allow-recovery",
+                              cl::desc("allow recovery of cas data"));
+  cl::opt<bool> Force("force",
+                      cl::desc("force validation even if unnecessary"));
+  cl::opt<bool> InProcess("in-process", cl::desc("validate in-process"));
 
   enum CommandKind {
     Invalid,
@@ -103,8 +112,10 @@ int main(int Argc, char **Argv) {
     Import,
     PutCacheKey,
     GetCacheResult,
-    CheckLockFiles,
     Validate,
+    ValidateObject,
+    ValidateIfNeeded,
+    Prune,
   };
   cl::opt<CommandKind> Command(
       cl::desc("choose command action:"),
@@ -129,9 +140,12 @@ int main(int Argc, char **Argv) {
                      "set a value for a cache key"),
           clEnumValN(GetCacheResult, "get-cache-result",
                      "get the result value from a cache key"),
-          clEnumValN(CheckLockFiles, "check-lock-files",
-                     "Test file locking behaviour of on-disk CAS"),
-          clEnumValN(Validate, "validate", "validate the object for CASID")),
+          clEnumValN(Validate, "validate", "validate ObjectStore"),
+          clEnumValN(ValidateObject, "validate-object",
+                     "validate the object for CASID"),
+          clEnumValN(ValidateIfNeeded, "validate-if-needed",
+                     "validate cas contents if needed"),
+          clEnumValN(Prune, "prune", "prune local cas storage")),
       cl::init(CommandKind::Invalid));
 
   cl::ParseCommandLineOptions(Argc, Argv, "llvm-cas CAS tool\n");
@@ -146,8 +160,9 @@ int main(int Argc, char **Argv) {
     ExitOnErr(
         createStringError(inconvertibleErrorCode(), "missing --cas=<path>"));
 
-  if (Command == CheckLockFiles)
-    return checkLockFiles(CASPath);
+  if (Command == ValidateIfNeeded)
+    return validateIfNeeded(CASPath, CASPluginPath, CASPluginOpts, CheckHash,
+                            Force, AllowRecovery, InProcess, Argv[0]);
 
   std::shared_ptr<ObjectStore> CAS;
   std::shared_ptr<ActionCache> AC;
@@ -177,6 +192,9 @@ int main(int Argc, char **Argv) {
   if (Command == Dump)
     return dump(*CAS);
 
+  if (Command == Validate)
+    return validate(*CAS, *AC, CheckHash);
+
   if (Command == MakeBlob)
     return makeBlob(*CAS, DataPath);
 
@@ -201,6 +219,9 @@ int main(int Argc, char **Argv) {
   if (Command == MergeTrees)
     return mergeTrees(*CAS, Inputs);
 
+  if (Command == Prune)
+    return prune(*CAS);
+
   if (Inputs.empty())
     ExitOnErr(createStringError(inconvertibleErrorCode(),
                                 "missing <object> to operate on"));
@@ -209,7 +230,8 @@ int main(int Argc, char **Argv) {
     if (!UpstreamCAS)
       ExitOnErr(createStringError(inconvertibleErrorCode(),
                                   "missing '-upstream-cas'"));
-    return import(*CAS, *UpstreamCAS, Inputs);
+
+    return import(*UpstreamCAS, *CAS, Inputs);
   }
 
   if (Command == PutCacheKey || Command == GetCacheResult) {
@@ -251,7 +273,7 @@ int main(int Argc, char **Argv) {
   if (Command == GetCASIDForFile)
     return getCASIDForFile(*CAS, ID, DataPath);
 
-  if (Command == Validate)
+  if (Command == ValidateObject)
     return validateObject(*CAS, ID);
 
   assert(Command == CatBlob);
@@ -333,8 +355,7 @@ int makeBlob(ObjectStore &CAS, StringRef DataPath) {
   ExitOnError ExitOnErr("llvm-cas: make-blob: ");
   std::unique_ptr<MemoryBuffer> Buffer = ExitOnErr(openBuffer(DataPath));
 
-  ObjectProxy Blob =
-      ExitOnErr(CAS.createProxy(std::nullopt, Buffer->getBuffer()));
+  ObjectProxy Blob = ExitOnErr(CAS.createProxy({}, Buffer->getBuffer()));
   llvm::outs() << Blob.getID() << "\n";
   return 0;
 }
@@ -475,65 +496,14 @@ int traverseGraph(ObjectStore &CAS, const CASID &ID) {
   return 0;
 }
 
-static Error
-recursiveAccess(CachingOnDiskFileSystem &FS, StringRef Path,
-                llvm::DenseSet<llvm::sys::fs::UniqueID> &SeenDirectories) {
-  auto ST = FS.status(Path);
-
-  // Ignore missing entries, which can be a symlink to a missing file, which is
-  // not an error in the filesystem itself.
-  // FIXME: add status(follow=false) to VFS instead, which would let us detect
-  // this case directly.
-  if (ST.getError() == llvm::errc::no_such_file_or_directory)
-    return Error::success();
-
-  if (!ST)
-    return createFileError(Path, ST.getError());
-
-  // Check that this is the first time we see the directory to prevent infinite
-  // recursion into symlinks. The status() above will ensure all symlinks are
-  // ingested.
-  // FIXME: add status(follow=false) to VFS instead, and then only traverse
-  // a directory and not a symlink to a directory.
-  if (ST->isDirectory() && SeenDirectories.insert(ST->getUniqueID()).second) {
-    std::error_code EC;
-    for (llvm::vfs::directory_iterator I = FS.dir_begin(Path, EC), IE;
-         !EC && I != IE; I.increment(EC)) {
-      auto Err = recursiveAccess(FS, I->path(), SeenDirectories);
-      if (Err)
-        return Err;
-    }
-  }
-
-  return Error::success();
-}
-
 static Expected<ObjectProxy> ingestFileSystemImpl(ObjectStore &CAS,
                                                   ArrayRef<std::string> Paths) {
-  auto FS = createCachingOnDiskFileSystem(CAS);
-  if (!FS)
-    return FS.takeError();
-
-  TreePathPrefixMapper Mapper(*FS);
-  SmallVector<llvm::MappedPrefix> Split;
-  if (!PrefixMapPaths.empty()) {
-    MappedPrefix::transformJoinedIfValid(PrefixMapPaths, Split);
-    Mapper.addRange(Split);
-    Mapper.sort();
-  }
-
-  (*FS)->trackNewAccesses();
-
-  llvm::DenseSet<llvm::sys::fs::UniqueID> SeenDirectories;
+  CASFSBuilder Builder(CAS);
   for (auto &Path : Paths)
-    if (Error E = recursiveAccess(**FS, Path, SeenDirectories))
-      return std::move(E);
+    if (Error E = Builder.ingestFileSystemPath(Path))
+      return E;
 
-  return (*FS)->createTreeFromNewAccesses(
-      [&](const llvm::vfs::CachedDirectoryEntry &Entry,
-          SmallVectorImpl<char> &Storage) {
-        return Mapper.mapDirEntry(Entry, Storage);
-      });
+  return Builder.finish();
 }
 
 /// Check that we are not attempting to ingest the CAS into itself, which can
@@ -544,7 +514,7 @@ Error checkCASIngestPath(StringRef CASPath, StringRef DataPath) {
     return createFileError(CASPath, EC);
   if (std::error_code EC = sys::fs::real_path(StringRef(DataPath), RealData))
     return createFileError(DataPath, EC);
-  if (RealCAS.startswith(RealData) &&
+  if (RealCAS.starts_with(RealData) &&
       (RealCAS.size() == RealData.size() ||
        sys::path::is_separator(RealCAS[RealData.size()])))
     return createStringError(inconvertibleErrorCode(),
@@ -571,23 +541,22 @@ int ingestFileSystem(ObjectStore &CAS, std::optional<StringRef> CASPath,
 static int mergeTrees(ObjectStore &CAS, ArrayRef<std::string> Objects) {
   ExitOnError ExitOnErr("llvm-cas: merge: ");
 
-  HierarchicalTreeBuilder Builder;
+  CASFSBuilder Builder(CAS);
   for (const auto &Object : Objects) {
     auto ID = CAS.parseID(Object);
     if (ID) {
       if (std::optional<ObjectRef> Ref = CAS.getReference(*ID))
-        Builder.pushTreeContent(*Ref, "");
+        Builder.mergeCASFSRoot(*Ref);
       else
         ExitOnErr(createStringError(inconvertibleErrorCode(),
                                     "unknown node with id: " + ID->toString()));
     } else {
       consumeError(ID.takeError());
-      auto Ref = ExitOnErr(ingestFileSystemImpl(CAS, Object));
-      Builder.pushTreeContent(Ref.getRef(), "");
+      ExitOnErr(Builder.ingestFileSystemPath(Object));
     }
   }
 
-  auto Ref = ExitOnErr(Builder.create(CAS));
+  auto Ref = ExitOnErr(Builder.finish());
   outs() << Ref.getID() << "\n";
   return 0;
 }
@@ -599,42 +568,32 @@ int getCASIDForFile(ObjectStore &CAS, const CASID &ID,
   if (!FS)
     ExitOnErr(FS.takeError());
 
-  auto FileRef = (*FS)->getObjectRefForFileContent(Path.front());
+  auto *CASFS = cast<CASBackedFileSystem>(FS->get());
+  auto FileRef = CASFS->getObjectRefForFileContent(Path.front());
   if (!FileRef)
     ExitOnErr(errorCodeToError(
         std::make_error_code(std::errc::no_such_file_or_directory)));
 
-  CASID FileID = CAS.getID(**FileRef);
+  CASID FileID = CAS.getID(*FileRef);
   outs() << FileID << "\n";
   return 0;
 }
 
-static ObjectRef importNode(ObjectStore &CAS, ObjectStore &UpstreamCAS,
-                            const CASID &ID) {
-  ExitOnError ExitOnErr("llvm-cas: import: ");
-
-  std::optional<ObjectRef> PrimaryRef = CAS.getReference(ID);
-  if (PrimaryRef)
-    return *PrimaryRef; // object is present.
-
-  ObjectProxy UpstreamObj = ExitOnErr(UpstreamCAS.getProxy(ID));
-  SmallVector<ObjectRef> Refs;
-  ExitOnErr(UpstreamObj.forEachReference([&](ObjectRef UpstreamRef) -> Error {
-    ObjectRef Ref =
-        importNode(CAS, UpstreamCAS, UpstreamCAS.getID(UpstreamRef));
-    Refs.push_back(Ref);
-    return Error::success();
-  }));
-  return ExitOnErr(CAS.storeFromString(Refs, UpstreamObj.getData()));
-}
-
-static int import(ObjectStore &CAS, ObjectStore &UpstreamCAS,
+static int import(ObjectStore &FromCAS, ObjectStore &ToCAS,
                   ArrayRef<std::string> Objects) {
   ExitOnError ExitOnErr("llvm-cas: import: ");
 
   for (StringRef Object : Objects) {
-    CASID ID = ExitOnErr(CAS.parseID(Object));
-    importNode(CAS, UpstreamCAS, ID);
+    CASID ID = ExitOnErr(FromCAS.parseID(Object));
+    auto Ref = FromCAS.getReference(ID);
+    if (!Ref) {
+      ExitOnErr(createStringError(inconvertibleErrorCode(),
+                                  "input not found: " + ID.toString()));
+      return 1;
+    }
+
+    auto Imported = ExitOnErr(ToCAS.importObject(FromCAS, *Ref));
+    llvm::outs() << ToCAS.getID(Imported).toString() << "\n";
   }
   return 0;
 }
@@ -667,48 +626,56 @@ static int getCacheResult(ObjectStore &CAS, ActionCache &AC, const CASID &ID) {
   return 0;
 }
 
-static int checkLockFiles(StringRef CASPath) {
-  ExitOnError ExitOnErr("llvm-cas: check-lock-files: ");
-
-  SmallString<128> DataPoolPath(CASPath);
-  sys::path::append(DataPoolPath, "v1.1/v8.data");
-
-  auto OpenCASAndGetDataPoolSize = [&]() -> Expected<uint64_t> {
-    auto Result = createOnDiskUnifiedCASDatabases(CASPath);
-    if (!Result)
-      return Result.takeError();
-
-    sys::fs::file_status DataStat;
-    if (std::error_code EC = sys::fs::status(DataPoolPath, DataStat))
-      ExitOnErr(createFileError(DataPoolPath, EC));
-    return DataStat.getSize();
-  };
-
-  // Get the normal size of an open CAS data pool to compare against later.
-  uint64_t OpenSize = ExitOnErr(OpenCASAndGetDataPoolSize());
-
-  ThreadPool Pool;
-  for (int i = 0; i < 1000; ++i) {
-    Pool.async([&, i] {
-      uint64_t DataPoolSize = ExitOnErr(OpenCASAndGetDataPoolSize());
-      if (DataPoolSize < OpenSize)
-        ExitOnErr(createStringError(
-            inconvertibleErrorCode(),
-            StringRef("CAS data file size (" + std::to_string(DataPoolSize) +
-                      ") is smaller than expected (" +
-                      std::to_string(OpenSize) + ") in iteration " +
-                      std::to_string(i))));
-    });
-  }
-
-  Pool.wait();
-
+int validateObject(ObjectStore &CAS, const CASID &ID) {
+  ExitOnError ExitOnErr("llvm-cas: validate-object: ");
+  ExitOnErr(CAS.validateObject(ID));
+  outs() << ID << ": validated successfully\n";
   return 0;
 }
 
-int validateObject(ObjectStore &CAS, const CASID &ID) {
+int validate(ObjectStore &CAS, ActionCache &AC, bool CheckHash) {
   ExitOnError ExitOnErr("llvm-cas: validate: ");
-  ExitOnErr(CAS.validate(ID));
-  outs() << ID << ": validated successfully\n";
+  ExitOnErr(CAS.validate(CheckHash));
+  ExitOnErr(AC.validate());
+  outs() << "validated successfully\n";
+  return 0;
+}
+
+int validateIfNeeded(StringRef Path, StringRef PluginPath,
+                     ArrayRef<std::string> PluginOpts, bool CheckHash,
+                     bool Force, bool AllowRecovery, bool InProcess,
+                     const char *Argv0) {
+  ExitOnError ExitOnErr("llvm-cas: validate-if-needed: ");
+  std::string ExecStorage;
+  std::optional<StringRef> Exec;
+  if (!InProcess) {
+    ExecStorage = sys::fs::getMainExecutable(Argv0, (void *)validateIfNeeded);
+    Exec = ExecStorage;
+  }
+  ValidationResult Result;
+  if (PluginPath.empty()) {
+    Result = ExitOnErr(validateOnDiskUnifiedCASDatabasesIfNeeded(
+        Path, CheckHash, AllowRecovery, Force, Exec));
+  } else {
+    // FIXME: add a hook for plugin validation
+    Result = ValidationResult::Skipped;
+  }
+  switch (Result) {
+  case ValidationResult::Valid:
+    outs() << "validated successfully\n";
+    break;
+  case ValidationResult::Recovered:
+    outs() << "recovered from invalid data\n";
+    break;
+  case ValidationResult::Skipped:
+    outs() << "validation skipped\n";
+    break;
+  }
+  return 0;
+}
+
+static int prune(cas::ObjectStore &CAS) {
+  ExitOnError ExitOnErr("llvm-cas: prune: ");
+  ExitOnErr(CAS.pruneStorageData());
   return 0;
 }

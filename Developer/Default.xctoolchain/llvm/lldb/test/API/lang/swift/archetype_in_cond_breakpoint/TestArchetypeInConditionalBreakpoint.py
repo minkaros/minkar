@@ -2,22 +2,25 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestArchetypeInConditionalBreakpoint(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_stops_free_function(self):
         self.stops("break here for free function")
 
+    @skipEmbeddedSwift
     @swiftTest
     def test_doesnt_stop_free_function(self):
         self.doesnt_stop("break here for free function")
 
+    @skipEmbeddedSwiftOnWindows
     @swiftTest
     def test_stops_class(self):
         self.stops("break here for class")
 
+    @skipEmbeddedSwiftOnWindows
     @swiftTest
     def test_doesnt_stop_class(self):
         self.doesnt_stop("break here for class")

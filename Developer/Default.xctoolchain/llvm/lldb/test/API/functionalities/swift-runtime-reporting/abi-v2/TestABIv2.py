@@ -17,7 +17,6 @@ import lldbsuite.test.decorators as decorators
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 import json
 
 
@@ -26,6 +25,7 @@ class SwiftRuntimeReportingABIv2TestCase(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @decorators.swiftTest
+    @decorators.skipIfWindows
     @decorators.skipIfLinux
     def test_swift_runtime_reporting(self):
         self.build()

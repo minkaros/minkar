@@ -7,10 +7,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "SwiftExpressionSourceCode.h"
+#include "Plugins/LanguageRuntime/Swift/SwiftLanguageRuntime.h"
 #include "SwiftPersistentExpressionState.h"
 
 #include "Plugins/ExpressionParser/Swift/SwiftASTManipulator.h"
 #include "Plugins/TypeSystem/Swift/SwiftASTContext.h"
+#include "lldb/Symbol/Variable.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Target.h"
@@ -20,6 +22,7 @@
 #include "swift/Demangling/Demangle.h"
 #include "swift/Demangling/Demangler.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 
@@ -56,11 +59,18 @@ static llvm::Expected<std::string> TransformPackType(
   if (!tss)
     return llvm::createStringError(llvm::errc::not_supported,
                                    "unexpected typesystem");
-  auto &ts = tss->GetTypeSystemSwiftTypeRef();
+  auto ts = tss->GetTypeSystemSwiftTypeRef();
+  if (!ts)
+    return llvm::createStringError(llvm::errc::not_supported,
+                                   "no typeref typesystem");
+
+  auto mangled_name = type.GetMangledTypeName().GetStringRef();
+  auto flavor = SwiftLanguageRuntime::GetManglingFlavor(mangled_name);
+
   using namespace swift::Demangle;
   Demangler dem;
-  NodePointer node = ts.GetCanonicalDemangleTree(
-      dem, type.GetMangledTypeName().GetStringRef());
+
+  NodePointer node = ts->GetCanonicalDemangleTree(dem, mangled_name);
 
   node = TypeSystemSwiftTypeRef::Transform(dem, node, [](NodePointer n) {
     if (n->getKind() == Node::Kind::SILPackIndirect &&
@@ -73,7 +83,8 @@ static llvm::Expected<std::string> TransformPackType(
   });
 
   bool error = false;
-  ConstString type_name = ts.RemangleAsType(dem, node).GetMangledTypeName();
+  ConstString type_name =
+      ts->RemangleAsType(dem, node, flavor).GetMangledTypeName();
   swift::Demangle::DemangleOptions options;
   options = swift::Demangle::DemangleOptions::SimplifiedUIDemangleOptions();
   options.DisplayStdlibModule = false;
@@ -105,6 +116,63 @@ struct CallsAndArgs {
   std::string lldb_call;
 };
 
+static llvm::SmallVector<const SwiftASTManipulator::VariableInfo *>
+CollectMetadataVariables(
+    llvm::ArrayRef<SwiftASTManipulator::VariableInfo> local_variables) {
+  llvm::SmallVector<const SwiftASTManipulator::VariableInfo *>
+      metadata_variables;
+  for (auto &var : local_variables)
+    if (var.IsOutermostMetadataPointer())
+      metadata_variables.push_back(&var);
+  return metadata_variables;
+}
+
+struct MetadataInfo {
+  bool is_pack = false;
+  unsigned depth;
+  unsigned index;
+  llvm::StringRef archetype_name;
+
+  MetadataInfo(bool is_pack, unsigned depth, unsigned index, llvm::StringRef archetype_name)
+      : is_pack(is_pack), depth(depth), index(index), archetype_name(archetype_name) {}
+};
+
+static llvm::Expected<llvm::SmallVector<MetadataInfo>> CollectMetadataInfos(
+    llvm::ArrayRef<const SwiftASTManipulator::VariableInfo *>
+        metadata_variables,
+    const std::optional<SwiftLanguageRuntime::GenericSignature> &generic_sig) {
+  llvm::SmallVector<MetadataInfo> metadata_info;
+
+  for (size_t i = 0; i < metadata_variables.size(); ++i) {
+    auto variable_sp =
+        llvm::cast<SwiftASTManipulatorBase::VariableMetadataVariable>(
+            metadata_variables[i]->GetMetadata())
+            ->m_variable_sp;
+    auto archetype_name = variable_sp->GetType()->GetName();
+    auto maybe_depth_and_index =
+        ParseSwiftGenericParameter(metadata_variables[i]->GetName().str());
+    if (!maybe_depth_and_index)
+      return llvm::createStringError(llvm::errc::not_supported,
+                                     "unexpected metadata variable");
+    unsigned depth = maybe_depth_and_index->first;
+    unsigned index = maybe_depth_and_index->second;
+
+    // Whether this is a pack is only known from the generic signature.
+    bool is_pack = false;
+    if (generic_sig) {
+      const auto &params = generic_sig->generic_params;
+      const auto *it = llvm::find_if(params, [&](const auto &param) {
+        return param.depth == depth && param.index == index;
+      });
+      if (it != params.end())
+        is_pack = it->is_pack;
+    }
+
+    metadata_info.emplace_back(is_pack, depth, index, archetype_name);
+  }
+  return metadata_info;
+}
+
 /// Constructs the signatures for the expression evaluation functions based on
 /// the metadata variables in scope and any variadic functiontion parameters.
 /// For every outermost metadata pointer in scope ($τ_0_0, $τ_0_1, etc), we want
@@ -115,8 +183,18 @@ struct CallsAndArgs {
 /// func $__lldb_user_expr<T0, T1, ..., Tn>
 ///     (_ $__lldb_arg: UnsafeMutablePointer<(T0, T1, ..., Tn)>)
 ///
-/// - An optional $__lldb_trampoline signature like the above, but
-///   that also takes in a pointer to self:
+///   With \p inherit_context_generic_params -- an instance method in an
+///   extension of the generic context -- those parameters are already in
+///   scope under the same archetype names, and are the only ones that get
+///   this far. Declaring them again would shadow them and drop their
+///   requirements, so the list is omitted and $__lldb_arg's tuple refers to
+///   the context's parameters:
+///
+/// func $__lldb_user_expr
+///     (_ $__lldb_arg: UnsafeMutablePointer<(T0, T1, ..., Tn)>)
+///
+/// - An optional $__lldb_trampoline signature, which always declares the
+///   parameters and also takes in a pointer to self:
 ///
 /// func $__lldb_trampoline<T0, T1, ..., Tn>
 ///      (_ $__lldb_arg: UnsafeMutablePointer<(T0, T1, ..., Tn)>,
@@ -139,13 +217,8 @@ struct CallsAndArgs {
 static llvm::Expected<CallsAndArgs> MakeGenericSignaturesAndCalls(
     llvm::ArrayRef<SwiftASTManipulator::VariableInfo> local_variables,
     const std::optional<SwiftLanguageRuntime::GenericSignature> &generic_sig,
-    bool needs_object_ptr) {
-  llvm::SmallVector<const SwiftASTManipulator::VariableInfo *>
-      metadata_variables;
-  for (auto &var : local_variables)
-    if (var.IsOutermostMetadataPointer())
-      metadata_variables.push_back(&var);
-
+    bool needs_object_ptr, bool inherit_context_generic_params) {
+  auto metadata_variables = CollectMetadataVariables(local_variables);
   // The number of metadata variables could be > if the function is in
   // a generic context.
   if (generic_sig &&
@@ -153,37 +226,27 @@ static llvm::Expected<CallsAndArgs> MakeGenericSignaturesAndCalls(
     return llvm::createStringError(llvm::errc::not_supported,
                                    "Inconsistent generic signature");
 
+  auto maybe_metadata_infos = CollectMetadataInfos(metadata_variables, generic_sig);
+  if (!maybe_metadata_infos)
+    return maybe_metadata_infos.takeError();
+  auto metadata_infos = *maybe_metadata_infos;
+
   llvm::SmallDenseMap<std::pair<unsigned, unsigned>, llvm::SmallString<4>> subs;
   std::string generic_params;
   std::string generic_params_no_packs;
   llvm::raw_string_ostream s_generic_params(generic_params);
   llvm::raw_string_ostream s_generic_params_no_packs(generic_params_no_packs);
-  for (size_t i = 0; i < metadata_variables.size(); ++i) {
-    llvm::SmallString<4> archetype_name;
-    llvm::raw_svector_ostream s_archetype_name(archetype_name);
-    bool is_pack = false;
-    unsigned depth, index;
-    if (generic_sig) {
-      auto &gp = generic_sig->generic_params[i];
-      is_pack = gp.is_pack;
-      depth = gp.depth;
-      index = gp.index;
-    } else {
-      auto di =
-          ParseSwiftGenericParameter(metadata_variables[i]->GetName().str());
-      if (!di)
-        return llvm::createStringError(llvm::errc::not_supported,
-                                       "unexpected metadata variable");
-      depth = di->first;
-      index = di->second;
-    }
+
+  for (auto &[is_pack, depth, index, archetype_name] : metadata_infos) {
+    llvm::SmallString<4> sig_archetype_name;
+    llvm::raw_svector_ostream s_sig_archetype_name(sig_archetype_name);
     if (is_pack)
-      s_archetype_name << "each ";
-    s_archetype_name << "T" << i;
+      s_sig_archetype_name << "each ";
+    s_sig_archetype_name << archetype_name;
     if (!is_pack)
-      s_generic_params_no_packs << archetype_name << ",";
-    subs.insert({{depth, index}, archetype_name});
-    s_generic_params << archetype_name << ",";
+      s_generic_params_no_packs << sig_archetype_name << ",";
+    s_generic_params << sig_archetype_name << ",";
+    subs.insert({{depth, index}, sig_archetype_name});
   }
 
   if (!generic_params.empty())
@@ -191,10 +254,12 @@ static llvm::Expected<CallsAndArgs> MakeGenericSignaturesAndCalls(
   if (!generic_params_no_packs.empty())
     generic_params_no_packs.pop_back();
 
-  std::string user_expr; 
+  std::string user_expr;
   llvm::raw_string_ostream user_expr_stream(user_expr);
-  user_expr_stream << "func $__lldb_user_expr<" << generic_params
-                   << ">(_ $__lldb_arg: UnsafeMutablePointer<("
+  user_expr_stream << "func $__lldb_user_expr";
+  if (!inherit_context_generic_params)
+    user_expr_stream << "<" << generic_params << ">";
+  user_expr_stream << "(_ $__lldb_arg: UnsafeMutablePointer<("
                    << generic_params_no_packs << ")>";
   for (auto &var : local_variables)
     if (var.GetType().GetTypeInfo() & lldb::eTypeIsPack) {
@@ -385,9 +450,6 @@ do {
   if (needs_object_ptr || static_method) {
     const char *func_decorator = "";
     if (static_method) {
-      if (is_class)
-        func_decorator = "final class";
-      else
         func_decorator = "static";
     } else if (is_class && !weak_self) {
       func_decorator = "final";
@@ -399,7 +461,8 @@ do {
         weak_self ? "Swift.Optional where Wrapped == " : "";
 
     // The expression text is inserted into the body of $__lldb_user_expr_%u.
-    if (options.GetBindGenericTypes() == lldb::eDontBind) {
+    if (!SwiftASTManipulator::ShouldBindGenericTypes(
+            options.GetSwiftBindGenericTypes())) {
       // A Swift program can't have types with non-bound generic type parameters
       // inside a non generic function. For example, the following program would
       // not compile as T is not part of foo's signature.
@@ -439,10 +502,18 @@ do {
       // FIXME: the current approach names the generic parameter "T", use the
       // user's name for the generic parameter, so they can refer to it in
       // their expression.
+      //
+      // $__lldb_user_expr can only inherit the context's generic parameters
+      // when the extension it lands in is an extension of the generic context
+      // itself. With a weak self it is an extension of Swift.Optional, where
+      // only `Wrapped` is in scope, so there the parameters have to be
+      // redeclared.
+      bool inherit_context_generic_params = needs_object_ptr && !weak_self;
       auto c = MakeGenericSignaturesAndCalls(local_variables, generic_sig,
-                                             needs_object_ptr);
+                                             needs_object_ptr,
+                                             inherit_context_generic_params);
       if (!c) {
-        status.SetErrorString(llvm::toString(c.takeError()));
+        status = Status::FromError(c.takeError());
         return status;
       }
       wrapped_stream.Printf(
@@ -502,11 +573,16 @@ func $__lldb_expr(_ $__lldb_arg : UnsafeMutablePointer<Any>) {
                             wrapped_expr_text.GetData(), availability.c_str(),
                             current_counter);
     }
-  } else if (options.GetBindGenericTypes() == lldb::eDontBind) {
-    auto c = MakeGenericSignaturesAndCalls(local_variables, generic_sig,
-                                           needs_object_ptr);
+  } else if (!SwiftASTManipulator::ShouldBindGenericTypes(
+                 options.GetSwiftBindGenericTypes())) {
+    // Without a self there is no extension to inherit generic parameters
+    // from: $__lldb_user_expr is emitted at the top level and has to declare
+    // them itself.
+    auto c = MakeGenericSignaturesAndCalls(
+        local_variables, generic_sig, needs_object_ptr,
+        /*inherit_context_generic_params=*/false);
     if (!c) {
-      status.SetErrorString(llvm::toString(c.takeError()));
+      status = Status::FromError(c.takeError());
       return status;
     }
     wrapped_stream.Printf(R"(
@@ -578,7 +654,7 @@ Status SwiftExpressionSourceCode::GetText(
     }
 
     if (wrapping_language.name != llvm::dwarf::DW_LNAME_Swift) {
-      status.SetErrorString("language is not Swift");
+      status = Status::FromErrorString("language is not Swift");
       return status;
     }
 
@@ -596,15 +672,22 @@ Status SwiftExpressionSourceCode::GetText(
     if (triple.isOSDarwin()) {
       if (auto process_sp = exe_ctx.GetProcessSP()) {
         os_vers << getAvailabilityName(triple) << " ";
-        auto platform = target->GetPlatform();
-        bool is_simulator = platform->GetPluginName().endswith("-simulator");
-        if (is_simulator) {
-          // The simulators look like the host OS to Process, but Platform
-          // can the version out of an environment variable.
-          os_vers << platform->GetOSVersion(process_sp.get()).getAsString();
+        if (options.GetUseContextFreeSwiftPrintObject()) {
+          // Disable availability by setting the OS version to 9999. This
+          // placeholder OS version used for future OS versions when building
+          // the Swift standard library locally.
+          os_vers << "9999";
         } else {
-          llvm::VersionTuple version = process_sp->GetHostOSVersion();
-          os_vers << version.getAsString();
+          auto platform = target->GetPlatform();
+          bool is_simulator = platform->GetPluginName().ends_with("-simulator");
+          if (is_simulator) {
+            // The simulators look like the host OS to Process, but Platform
+            // can get the version out of an environment variable.
+            os_vers << platform->GetOSVersion(process_sp.get()).getAsString();
+          } else {
+            llvm::VersionTuple version = process_sp->GetHostOSVersion();
+            os_vers << version.getAsString();
+          }
         }
       }
     }
@@ -614,7 +697,7 @@ Status SwiftExpressionSourceCode::GetText(
             target->GetPersistentExpressionStateForLanguage(
                 lldb::eLanguageTypeSwift));
     if (!persistent_state) {
-      status.SetErrorString("no persistent state");
+      status = Status::FromErrorString("no persistent state");
       return status;
     }
     std::vector<CompilerDecl> persistent_results;

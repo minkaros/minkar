@@ -18,8 +18,10 @@
 #include "lldb/Symbol/TypeMap.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Symbol/VariableList.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/StreamString.h"
+#include "lldb/Utility/StructuredData.h"
 #include "lldb/lldb-private.h"
 
 #include <future>
@@ -101,6 +103,16 @@ SymbolFile *SymbolFile::FindPlugin(ObjectFileSP objfile_sp) {
       // Let the winning symbol file parser initialize itself more completely
       // now that it has been chosen
       best_symfile_up->InitializeObject();
+
+      // Register the object file's directory so the module can lazily search
+      // for a compilation-prefix-map.json when source paths are first remapped.
+      if (ObjectFile *obj = best_symfile_up->GetMainObjectFile())
+        if (ModuleSP mod = obj->GetModule()) {
+          FileSpec dir = obj->GetFileSpec();
+          dir.ClearFilename();
+          if (dir)
+            mod->AddPrefixMapSearchDir(std::move(dir));
+        }
     }
   }
   return best_symfile_up.release();
@@ -133,6 +145,14 @@ void SymbolFile::FindFunctions(const Module::LookupInfo &lookup_info,
                                bool include_inlines,
                                SymbolContextList &sc_list) {}
 
+void SymbolFile::FindFunctions(
+    const std::vector<Module::LookupInfo> &lookup_infos,
+    const CompilerDeclContext &parent_decl_ctx, bool include_inlines,
+    SymbolContextList &sc_list) {
+  for (const auto &lookup_info : lookup_infos)
+    FindFunctions(lookup_info, parent_decl_ctx, include_inlines, sc_list);
+}
+
 void SymbolFile::FindFunctions(const RegularExpression &regex,
                                bool include_inlines,
                                SymbolContextList &sc_list) {}
@@ -159,10 +179,10 @@ void SymbolFile::AssertModuleLock() {
 
 SymbolFile::RegisterInfoResolver::~RegisterInfoResolver() = default;
 
-Symtab *SymbolFileCommon::GetSymtab() {
+Symtab *SymbolFileCommon::GetSymtab(bool can_create) {
   std::lock_guard<std::recursive_mutex> guard(GetModuleMutex());
   // Fetch the symtab from the main object file.
-  auto *symtab = GetMainObjectFile()->GetSymtab();
+  auto *symtab = GetMainObjectFile()->GetSymtab(can_create);
   if (m_symtab != symtab) {
     m_symtab = symtab;
 
@@ -212,7 +232,7 @@ void SymbolFileCommon::SetCompileUnitAtIndex(uint32_t idx,
   std::lock_guard<std::recursive_mutex> guard(GetModuleMutex());
   const size_t num_compile_units = GetNumCompileUnits();
   assert(idx < num_compile_units);
-  (void)num_compile_units;
+  UNUSED_IF_ASSERT_DISABLED(num_compile_units);
 
   // Fire off an assertion if this compile unit already exists for now. The
   // partial parsing should take care of only setting the compile unit
@@ -234,7 +254,7 @@ SymbolFileCommon::GetTypeSystemForLanguage(lldb::LanguageType language) {
   return type_system_or_err;
 }
 
-uint64_t SymbolFileCommon::GetDebugInfoSize() {
+uint64_t SymbolFileCommon::GetDebugInfoSize(bool load_all_debug_info) {
   if (!m_objfile_sp)
     return 0;
   ModuleSP module_sp(m_objfile_sp->GetModule());
@@ -265,4 +285,10 @@ void SymbolFileCommon::Dump(Stream &s) {
 
   if (Symtab *symtab = GetSymtab())
     symtab->Dump(&s, nullptr, eSortOrderNone);
+}
+
+std::string SymbolFile::GetObjectName() const {
+  if (const ObjectFile *object_file = GetObjectFile())
+    return object_file->GetObjectName();
+  return "";
 }

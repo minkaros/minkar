@@ -4,16 +4,21 @@ let Definition = "modulelist" in {
   def EnableExternalLookup: Property<"enable-external-lookup", "Boolean">,
     Global,
     DefaultTrue,
-    Desc<"Control the use of external tools and repositories to locate symbol files. Directories listed in target.debug-file-search-paths and directory of the executable are always checked first for separate debug info files. Then depending on this setting: On macOS, Spotlight would be also used to locate a matching .dSYM bundle based on the UUID of the executable. On NetBSD, directory /usr/libdata/debug would be also searched. On platforms other than NetBSD directory /usr/lib/debug would be also searched.">;
+    Desc<"Control the use of external tools and repositories to locate symbol files. Directories listed in target.debug-file-search-paths and directory of the executable are always checked first for separate debug info files. Then depending on this setting: On macOS, Spotlight would be also used to locate a matching .dSYM bundle based on the UUID of the executable. On NetBSD, directory /usr/libdata/debug would be also searched. On platforms other than NetBSD directory /usr/lib/debug would be also searched. If all other methods fail there may be symbol-locator plugins that, if configured properly, will also attempt to acquire symbols. The debuginfod plugin defaults to the DEGUFINFOD_URLS environment variable which is configurable through the 'plugin.symbol-locator.debuginfod.server_urls' setting.">;
   def EnableBackgroundLookup: Property<"enable-background-lookup", "Boolean">,
     Global,
     DefaultFalse,
-    Desc<"Alias for backward compatibility: when enabled this is the equivalent to 'symbols.download background'.">;
+    Desc<"Alias for backward compatibility: when enabled this is the equivalent to 'symbols.auto-download background'.">;
   def AutoDownload: Property<"auto-download", "Enum">,
     Global,
     DefaultEnumValue<"eSymbolDownloadOff">,
     EnumValues<"OptionEnumValues(g_auto_download_enum_values)">,
     Desc<"On macOS, automatically download symbols with dsymForUUID (or an equivalent script/binary) for relevant images in the debug session.">;
+  def SharedCacheBinaryLoading: Property<"shared-cache-binary-loading", "Enum">,
+    Global,
+    DefaultEnumValue<"eSymbolSharedCacheUseHostAndInferiorSharedCache">,
+    EnumValues<"OptionEnumValues(g_shared_cache_use_enum_values)">,
+    Desc<"On macOS, lldb can use its own in-memory shared cache, or operate on shared cache binaries directly, this setting controls which are used.">;
   def ClangModulesCachePath: Property<"clang-modules-cache-path", "FileSpec">,
     Global,
     DefaultStringValue<"">,
@@ -25,19 +30,28 @@ let Definition = "modulelist" in {
   def UseSwiftDWARFImporter: Property<"use-swift-dwarfimporter", "Boolean">,
     DefaultTrue,
     Desc<"Reconstruct Clang module dependencies from DWARF when debugging Swift code">;
-  def UseSwiftTypeRefTypeSystem: Property<"use-swift-typeref-typesystem", "Boolean">,
-    DefaultTrue,
-    Desc<"Prefer Swift Remote Mirrors over Remote AST">;
+  def UseSwiftExplicitModuleLoader
+      : Property<"use-swift-explicit-module-loader", "Boolean">,
+        DefaultTrue,
+        Desc<"Prefer explicitly specified modules over ones found in dSYMs">;
   def SwiftValidateTypeSystem: Property<"swift-validate-typesystem", "Boolean">,
     DefaultFalse,
     Desc<"Validate all Swift typesystem queries. Used for testing an asserts-enabled LLDB only.">;
-  def UseSwiftPreciseCompilerInvocation: Property<"swift-precise-compiler-invocation", "Boolean">,
-    DefaultTrue,
-    Desc<"In the Swift expression evaluator, create many Swift compiler instances with the precise invocation for the current context, instead of a single compiler instance that merges all flags from the entire project.">;
+  def SwiftTypeSystemFallback
+      : Property<"swift-typesystem-compiler-fallback", "Boolean">,
+        DefaultTrue,
+        Desc<"If a query against reflection metadata / debug info fails, retry "
+             "using Swift modules.">;
+  def SwiftLoadConformances: Property<"swift-load-conformances", "Boolean">,
+    DefaultFalse,
+    Desc<"Resolve type alias via the conformance section. Disabled for performance reasons">;
   def SwiftModuleLoadingMode: Property<"swift-module-loading-mode", "Enum">,
     DefaultEnumValue<"eSwiftModuleLoadingModePreferSerialized">,
     EnumValues<"OptionEnumValues(g_swift_module_loading_mode_enums)">,
     Desc<"The module loading mode to use when loading modules for Swift.">;
+  def SwiftPreferSerializedBridgingHeader: Property<"swift-prefer-serialized-bridging-header", "Boolean">,
+    DefaultTrue,
+    Desc<"Prefer serialized preprocessed bridging headers in Swift modules over on-disk headers.">;
   def EnableSwiftMetadataCache: Property<"enable-swift-metadata-cache", "Boolean">,
     Global,
     DefaultTrue,
@@ -69,6 +83,19 @@ let Definition = "modulelist" in {
     DefaultTrue,
     Desc<"Enable instantiating Swift AST contexts.">;
 // END SWIFT
+// BEGIN CAS
+  def CASOnDiskPath: Property<"cas-path", "FileSpec">,
+    Global,
+    DefaultStringValue<"">,
+    Desc<"The path for CAS storage">;
+  def CASPluginPath: Property<"cas-plugin-path", "FileSpec">,
+    Global,
+    DefaultStringValue<"">,
+    Desc<"The path for CAS plugin dynamic library">;
+  def CASPluginOptions: Property<"cas-plugin-options", "Array">,
+    ElementType<"String">,
+    Desc<"A list of options to be passed to CAS plugins">;
+// END CAS
   def SymLinkPaths: Property<"debug-info-symlink-paths", "FileSpecList">,
     Global,
     DefaultStringValue<"">,
@@ -99,6 +126,20 @@ let Definition = "modulelist" in {
     Desc<"Enable on demand symbol loading in LLDB. LLDB will load debug info on demand for each module based on various conditions (e.g. matched breakpoint, resolved stack frame addresses and matched global variables/function symbols in symbol table) to improve performance. Please refer to docs/use/ondemand.rst for details.">;
 }
 
+#ifndef NDEBUG
+let Definition = "testing" in {
+  def InjectVarLocListError
+      : Property<"inject-variable-location-error", "Boolean">,
+        Global,
+        DefaultFalse,
+        Desc<"Used for testing LLDB only. Hide locations of local variables.">;
+  def SafeAutoloadPaths : Property<"safe-auto-load-paths", "FileSpecList">,
+                          DefaultStringValue<"">,
+                          Desc<"List of paths that LLDB will automatically "
+                               "load scripting resources from.">;
+}
+#endif
+
 let Definition = "debugger" in {
   def AutoConfirm: Property<"auto-confirm", "Boolean">,
     Global,
@@ -110,7 +151,7 @@ let Definition = "debugger" in {
     Desc<"The default disassembly format string to use when disassembling instruction sequences.">;
   def FrameFormat: Property<"frame-format", "FormatEntity">,
     Global,
-    DefaultStringValue<"frame #${frame.index}: ${ansi.fg.yellow}${frame.pc}${ansi.normal}{ ${module.file.basename}{`${function.name-with-args}{${frame.no-debug}${function.pc-offset}}}}{ at ${ansi.fg.cyan}${line.file.basename}${ansi.normal}:${ansi.fg.yellow}${line.number}${ansi.normal}{:${ansi.fg.yellow}${line.column}${ansi.normal}}}{${function.is-optimized} [opt]}{${frame.is-artificial} [artificial]}\\\\n">,
+    DefaultStringValue<"frame #${frame.index}: {${ansi.fg.cyan}${frame.pc}${ansi.normal} }{${module.file.basename}{`}}{${function.name-with-args}{${frame.no-debug}${function.pc-offset}}}{ at ${ansi.fg.cyan}${line.file.basename}${ansi.normal}:${ansi.fg.yellow}${line.number}${ansi.normal}{:${ansi.fg.yellow}${line.column}${ansi.normal}}}${frame.kind}{${function.is-optimized} [opt]}{${function.is-inlined} [inlined]}{${frame.is-artificial} [artificial]}\\\\n">,
     Desc<"The default frame format string to use when displaying stack frame information for threads.">;
   def NotiftVoid: Property<"notify-void", "Boolean">,
     Global,
@@ -142,11 +183,13 @@ let Definition = "debugger" in {
     Global,
     DefaultUnsignedValue<4>,
     Desc<"The number of disassembly lines to show when displaying a stopped context.">;
-  def StopDisassemblyDisplay: Property<"stop-disassembly-display", "Enum">,
-    Global,
-    DefaultEnumValue<"Debugger::eStopDisassemblyTypeNoDebugInfo">,
-    EnumValues<"OptionEnumValues(g_show_disassembly_enum_values)">,
-    Desc<"Control when to display disassembly when displaying a stopped context.">;
+  def StopDisassemblyDisplay
+      : Property<"stop-disassembly-display", "Enum">,
+        Global,
+        DefaultEnumValue<"eStopDisassemblyTypeNoDebugInfo">,
+        EnumValues<"OptionEnumValues(g_show_disassembly_enum_values)">,
+        Desc<"Control when to display disassembly when displaying a stopped "
+             "context.">;
   def StopDisassemblyMaxSize: Property<"stop-disassembly-max-size", "UInt64">,
     Global,
     DefaultUnsignedValue<32000>,
@@ -163,6 +206,10 @@ let Definition = "debugger" in {
     Global,
     DefaultTrue,
     Desc<"If true, LLDB will highlight the displayed source code.">;
+  def MarkHiddenFrames: Property<"mark-hidden-frames", "Boolean">,
+    Global,
+    DefaultTrue,
+    Desc<"If true, LLDB will add a marker to delimit hidden frames in backtraces.">;
   def StopShowColumn: Property<"stop-show-column", "Enum">,
     DefaultEnumValue<"eStopShowColumnAnsiOrCaret">,
     EnumValues<"OptionEnumValues(s_stop_show_column_values)">,
@@ -187,6 +234,10 @@ let Definition = "debugger" in {
     Global,
     DefaultUnsignedValue<80>,
     Desc<"The maximum number of columns to use for displaying text.">;
+  def TerminalHeight: Property<"term-height", "UInt64">,
+    Global,
+    DefaultUnsignedValue<24>,
+    Desc<"The number of rows used for displaying text.">;
   def ThreadFormat: Property<"thread-format", "FormatEntity">,
     Global,
     DefaultStringValue<"thread #${thread.index}: tid = ${thread.id%tid}{, ${frame.pc}}{ ${module.file.basename}{`${function.name-with-args}{${frame.no-debug}${function.pc-offset}}}}{ at ${ansi.fg.cyan}${line.file.basename}${ansi.normal}:${ansi.fg.yellow}${line.number}${ansi.normal}{:${ansi.fg.yellow}${line.column}${ansi.normal}}}{, name = ${ansi.fg.green}'${thread.name}'${ansi.normal}}{, queue = ${ansi.fg.green}'${thread.queue}'${ansi.normal}}{, activity = ${ansi.fg.green}'${thread.info.activity.name}'${ansi.normal}}{, ${thread.info.trace_messages} messages}{, stop reason = ${ansi.fg.red}${thread.stop-reason}${ansi.normal}}{\\\\nReturn value: ${thread.return-value}}{\\\\nCompleted expression: ${thread.completed-expression}}\\\\n">,
@@ -219,6 +270,39 @@ let Definition = "debugger" in {
     Global,
     DefaultStringValue<"${ansi.normal}">,
     Desc<"When displaying progress in a color-enabled terminal, use the ANSI terminal code specified in this format immediately after the progress message.">;
+  def ShowStatusline: Property<"show-statusline", "Boolean">,
+    Global,
+    DefaultTrue,
+    Desc<"Whether to show a statusline at the bottom of the terminal (not supported on Windows).">;
+  def Separator : Property<"separator", "String">,
+                  Global,
+                  DefaultStringValue<"│ ">,
+                  Desc<"A separator used, e.g., in the status line.">;
+  def StatuslineFormat
+      : Property<"statusline-format", "FormatEntity">,
+        Global,
+        DefaultStringValue<
+            "${ansi.negative}{${target.file.basename}|no target}{ "
+            "${separator}${line.file.basename}:${line.number}:${line.column}}{ "
+            "${separator}${thread.stop-reason}}{ "
+            "${separator}{${progress.count} }${progress.message}}">,
+        Desc<"The default statusline format string.">;
+
+  def ShowDisabledAnsiPrefix
+      : Property<"disable-ansi-prefix", "String">,
+        Global,
+        DefaultStringValue<"${ansi.faint}">,
+        Desc<"If something has been disabled in a color-enabled terminal, use "
+             "the ANSI terminal code specified immediately before whatever has "
+             "been disabled.">;
+  def ShowDisabledAnsiSuffix
+      : Property<"disable-ansi-suffix", "String">,
+        Global,
+        DefaultStringValue<"${ansi.normal}">,
+        Desc<"When somehing has been disabled in a color-enabled terminal, use "
+             "the ANSI terminal code specified immediately after whatever has "
+             "been disabled.">;
+
   def UseSourceCache: Property<"use-source-cache", "Boolean">,
     Global,
     DefaultTrue,
@@ -237,15 +321,15 @@ let Definition = "debugger" in {
     Desc<"If true, LLDB will print the values of variables declared in an expression. Currently only supported in the REPL (default: true).">;
   def TabSize: Property<"tab-size", "UInt64">,
     Global,
-    DefaultUnsignedValue<4>,
-    Desc<"The tab size to use when indenting code in multi-line input mode (default: 4).">;
+    DefaultUnsignedValue<2>,
+    Desc<"The tab size to use when indenting code in multi-line input mode (default: 2).">;
   def EscapeNonPrintables: Property<"escape-non-printables", "Boolean">,
     Global,
     DefaultTrue,
     Desc<"If true, LLDB will automatically escape non-printable and escape characters when formatting strings.">;
   def FrameFormatUnique: Property<"frame-format-unique", "FormatEntity">,
     Global,
-    DefaultStringValue<"frame #${frame.index}: ${ansi.fg.yellow}${frame.pc}${ansi.normal}{ ${module.file.basename}{`${function.name-without-args}{${frame.no-debug}${function.pc-offset}}}}{ at ${ansi.fg.cyan}${line.file.basename}${ansi.normal}:${ansi.fg.yellow}${line.number}${ansi.normal}{:${ansi.fg.yellow}${line.column}${ansi.normal}}}{${function.is-optimized} [opt]}{${frame.is-artificial} [artificial]}\\\\n">,
+    DefaultStringValue<"frame #${frame.index}: {${ansi.fg.cyan}${frame.pc}${ansi.normal} }{${module.file.basename}{`}}{${function.name-without-args}{${frame.no-debug}${function.pc-offset}}}{ at ${ansi.fg.cyan}${line.file.basename}${ansi.normal}:${ansi.fg.yellow}${line.number}${ansi.normal}{:${ansi.fg.yellow}${line.column}${ansi.normal}}}${frame.kind}{${function.is-optimized} [opt]}{${function.is-inlined} [inlined]}{${frame.is-artificial} [artificial]}\\\\n">,
     Desc<"The default frame format string to use when displaying stack frame information for threads from thread backtrace unique.">;
   def ShowAutosuggestion: Property<"show-autosuggestion", "Boolean">,
     Global,
@@ -259,6 +343,14 @@ let Definition = "debugger" in {
     Global,
     DefaultStringValue<"${ansi.normal}">,
     Desc<"When displaying suggestion in a color-enabled terminal, use the ANSI terminal code specified in this format immediately after the suggestion.">;
+  def ShowRegexMatchAnsiPrefix: Property<"show-regex-match-ansi-prefix", "String">,
+    Global,
+    DefaultStringValue<"${ansi.fg.red}">,
+    Desc<"When displaying a regex match in a color-enabled terminal, use the ANSI terminal code specified in this format immediately before the match.">;
+  def ShowRegexMatchAnsiSuffix: Property<"show-regex-match-ansi-suffix", "String">,
+    Global,
+    DefaultStringValue<"${ansi.normal}">,
+    Desc<"When displaying a regex match in a color-enabled terminal, use the ANSI terminal code specified in this format immediately after the match.">;
   def ShowDontUsePoHint: Property<"show-dont-use-po-hint", "Boolean">,
     Global,
     DefaultTrue,
@@ -268,4 +360,8 @@ let Definition = "debugger" in {
     DefaultEnumValue<"eDWIMPrintVerbosityNone">,
     EnumValues<"OptionEnumValues(g_dwim_print_verbosities)">,
     Desc<"The verbosity level used by dwim-print.">;
+  def ShowInlineDiagnostics: Property<"show-inline-diagnostics", "Boolean">,
+    Global,
+    DefaultFalse,
+    Desc<"Controls whether diagnostics can refer directly to the command input, drawing arrows to it. If false, diagnostics will echo the input.">;
 }

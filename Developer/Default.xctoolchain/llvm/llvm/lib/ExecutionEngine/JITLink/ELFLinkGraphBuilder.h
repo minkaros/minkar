@@ -51,14 +51,15 @@ private:
   Section *CommonSection = nullptr;
 };
 
-/// Ling-graph building code that's specific to the given ELFT, but common
+/// LinkGraph building code that's specific to the given ELFT, but common
 /// across all architectures.
 template <typename ELFT>
 class ELFLinkGraphBuilder : public ELFLinkGraphBuilderBase {
   using ELFFile = object::ELFFile<ELFT>;
 
 public:
-  ELFLinkGraphBuilder(const object::ELFFile<ELFT> &Obj, Triple TT,
+  ELFLinkGraphBuilder(const object::ELFFile<ELFT> &Obj,
+                      std::shared_ptr<orc::SymbolStringPool> SSP, Triple TT,
                       SubtargetFeatures Features, StringRef FileName,
                       LinkGraph::GetEdgeKindNameFunction GetEdgeKindName);
 
@@ -189,11 +190,11 @@ protected:
 
 template <typename ELFT>
 ELFLinkGraphBuilder<ELFT>::ELFLinkGraphBuilder(
-    const ELFFile &Obj, Triple TT, SubtargetFeatures Features,
-    StringRef FileName, LinkGraph::GetEdgeKindNameFunction GetEdgeKindName)
+    const ELFFile &Obj, std::shared_ptr<orc::SymbolStringPool> SSP, Triple TT,
+    SubtargetFeatures Features, StringRef FileName,
+    LinkGraph::GetEdgeKindNameFunction GetEdgeKindName)
     : ELFLinkGraphBuilderBase(std::make_unique<LinkGraph>(
-          FileName.str(), Triple(std::move(TT)), std::move(Features),
-          ELFT::Is64Bits ? 8 : 4, support::endianness(ELFT::TargetEndianness),
+          FileName.str(), std::move(SSP), std::move(TT), std::move(Features),
           std::move(GetEdgeKindName))),
       Obj(Obj) {
   LLVM_DEBUG(
@@ -366,7 +367,7 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySections() {
       GraphSec = &G->createSection(*Name, Prot);
       // Non-SHF_ALLOC sections get NoAlloc memory lifetimes.
       if (!(Sec.sh_flags & ELF::SHF_ALLOC)) {
-        GraphSec->setMemLifetimePolicy(orc::MemLifetimePolicy::NoAlloc);
+        GraphSec->setMemLifetime(orc::MemLifetime::NoAlloc);
         LLVM_DEBUG({
           dbgs() << "      " << SecIndex << ": \"" << *Name
                  << "\" is not a SHF_ALLOC section. Using NoAlloc lifetime.\n";
@@ -389,6 +390,12 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySections() {
       B = &G->createZeroFillBlock(*GraphSec, Sec.sh_size,
                                   orc::ExecutorAddr(Sec.sh_addr),
                                   Sec.sh_addralign, 0);
+
+    if (Sec.sh_type == ELF::SHT_ARM_EXIDX) {
+      // Add live symbol to avoid dead-stripping for .ARM.exidx sections
+      G->addAnonymousSymbol(*B, orc::ExecutorAddrDiff(),
+                            orc::ExecutorAddrDiff(), false, true);
+    }
 
     setGraphBlock(SecIndex, B);
   }
@@ -459,7 +466,7 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
       Symbol &GSym = G->addDefinedSymbol(
           G->createZeroFillBlock(getCommonSection(), Sym.st_size,
                                  orc::ExecutorAddr(), Sym.getValue(), 0),
-          0, *Name, Sym.st_size, Linkage::Strong, Scope::Default, false, false);
+          0, *Name, Sym.st_size, Linkage::Weak, Scope::Default, false, false);
       setGraphSymbol(SymIndex, GSym);
       continue;
     }
@@ -501,8 +508,26 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
 
         // Truncate symbol if it would overflow -- ELF size fields can't be
         // trusted.
+        // FIXME: this makes the following error check unreachable, but it's
+        // left here to reduce merge conflicts.
         uint64_t Size =
           std::min(static_cast<uint64_t>(Sym.st_size), B->getSize() - Offset);
+
+        if (Offset + Size > B->getSize()) {
+          std::string ErrMsg;
+          raw_string_ostream ErrStream(ErrMsg);
+          ErrStream << "In " << G->getName() << ", symbol ";
+          if (!Name->empty())
+            ErrStream << *Name;
+          else
+            ErrStream << "<anon>";
+          ErrStream << " (" << (B->getAddress() + Offset) << " -- "
+                    << (B->getAddress() + Offset + Sym.st_size) << ") extends "
+                    << formatv("{0:x}", Offset + Sym.st_size - B->getSize())
+                    << " bytes past the end of its containing block ("
+                    << B->getRange() << ")";
+          return make_error<JITLinkError>(std::move(ErrMsg));
+        }
 
         // In RISCV, temporary symbols (Used to generate dwarf, eh_frame
         // sections...) will appear in object code's symbol table, and LLVM does

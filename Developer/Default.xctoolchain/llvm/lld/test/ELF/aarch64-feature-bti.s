@@ -185,7 +185,7 @@
 # RELV-NEXT:           nop
 # RELV-LABEL: <funcRelVtable@plt>:
 # RELV-NEXT:   103c8:  bti     c
-# RELV-NEXT:           adrp    x16, 0x30000 <_DYNAMIC+0xfc20>
+# RELV-NEXT:           adrp    x16, 0x30000
 # RELV-NEXT:           ldr     x17, [x16, #1216]
 # RELV-NEXT:           add     x16, x16, #1216
 # RELV-NEXT:           br      x17
@@ -257,6 +257,10 @@
 # FORCE-NEXT:           br      x17
 # FORCE-NEXT:           nop
 # FORCE-NEXT:           nop
+
+# RUN: not ld.lld %t.o -z bti-report=u -o /dev/null 2>&1 | FileCheck --check-prefix=REPORT-ERR %s
+# REPORT-ERR: error: unknown -z bti-report= value: u{{$}}
+# REPORT-EMPTY:
 
 .section ".note.gnu.property", "a"
 .long 4

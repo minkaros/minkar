@@ -15,6 +15,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Index/IndexDataConsumer.h"
+#include "clang/Sema/HeuristicResolver.h"
 
 using namespace clang;
 using namespace index;
@@ -24,6 +25,17 @@ static bool isGeneratedDecl(const Decl *D) {
     return attr->getGeneratedDeclaration();
   }
   return false;
+}
+
+IndexingContext::IndexingContext(IndexingOptions IndexOpts,
+                                 IndexDataConsumer &DataConsumer)
+    : IndexOpts(IndexOpts), DataConsumer(DataConsumer) {}
+
+IndexingContext::~IndexingContext() = default;
+
+void IndexingContext::setASTContext(ASTContext &ctx) {
+  Ctx = &ctx;
+  Resolver = Ctx ? std::make_unique<HeuristicResolver>(*Ctx) : nullptr;
 }
 
 bool IndexingContext::shouldIndex(const Decl *D) {
@@ -77,8 +89,7 @@ bool IndexingContext::handleReference(const NamedDecl *D, SourceLocation Loc,
                                       const DeclContext *DC,
                                       SymbolRoleSet Roles,
                                       ArrayRef<SymbolRelation> Relations,
-                                      const Expr *RefE,
-                                      const Decl *RefD) {
+                                      const Expr *RefE) {
   if (!shouldIndexFunctionLocalSymbols() && isFunctionLocalSymbol(D))
     return true;
 
@@ -88,7 +99,7 @@ bool IndexingContext::handleReference(const NamedDecl *D, SourceLocation Loc,
     return true;
   }
   return handleDeclOccurrence(D, Loc, /*IsRef=*/true, Parent, Roles, Relations,
-                              RefE, RefD, DC);
+                              RefE, nullptr, DC);
 }
 
 static void reportModuleReferences(const Module *Mod,
@@ -234,7 +245,7 @@ bool IndexingContext::isSystemFile(FileID FID) {
   bool &isSystemDir = pair.first->second;
   bool wasInserted = pair.second;
   if (wasInserted) {
-    isSystemDir = StringRef(dirEntry.getName()).startswith(SysrootPath);
+    isSystemDir = StringRef(dirEntry.getName()).starts_with(SysrootPath);
   }
   return result(isSystemDir);
 }

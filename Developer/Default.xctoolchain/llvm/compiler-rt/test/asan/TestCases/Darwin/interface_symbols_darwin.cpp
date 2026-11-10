@@ -35,6 +35,9 @@
 // RUN:  %p/../../../../lib/sanitizer_common/sanitizer_coverage_interface.inc     \
 // RUN:  | grep -e "INTERFACE_\(WEAK_\)\?FUNCTION"                                \
 // RUN:  | grep -v "__sanitizer_weak_hook"                                        \
+// RUN:  | grep -v "__sanitizer_override_function"                                \
+// RUN:  | grep -v "__sanitizer_override_function_by_addr"                        \
+// RUN:  | grep -v "__sanitizer_register_weak_function"                           \
 // RUN:  | sed -e "s/.*(//" -e "s/).*//" > %t.imports
 //
 // RUN: cat %t.imports | sort | uniq > %t.imports-sorted
@@ -44,6 +47,6 @@
 // RUN: echo "=== NOTE === If you see a mismatch below, please update sanitizer_interface.inc files."
 // RUN: diff %t.imports-sorted %t.exports-sorted
 
-// UNSUPPORTED: ios
+// UNSUPPORTED: darwin-remote
 
 int main() { return 0; }

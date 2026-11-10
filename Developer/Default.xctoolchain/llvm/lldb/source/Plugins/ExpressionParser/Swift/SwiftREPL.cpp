@@ -18,11 +18,10 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/StreamFile.h"
-#include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Host/HostInfo.h"
+#include "lldb/Host/StreamFile.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -31,6 +30,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/AnsiTerminal.h"
+#include "lldb/ValueObject/ValueObject.h"
 #include "llvm/ADT/ScopeExit.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -55,7 +55,8 @@ lldb::REPLSP SwiftREPL::CreateInstance(Status &err, lldb::LanguageType language,
   }
 
   if (!target && !debugger) {
-    err.SetErrorString("must have a debugger or a target to create a REPL");
+    err = Status::FromErrorString(
+        "must have a debugger or a target to create a REPL");
     return nullptr;
   }
 
@@ -69,7 +70,8 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromTarget(Status &err, Target &target,
                                                  const char *repl_options) {
   // Sanity check the target to make sure a REPL would work here.
   if (!target.GetProcessSP() || !target.GetProcessSP()->IsAlive()) {
-    err.SetErrorString("can't launch a Swift REPL without a running process");
+    err = Status::FromErrorString(
+        "can't launch a Swift REPL without a running process");
     return nullptr;
   }
 
@@ -78,18 +80,19 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromTarget(Status &err, Target &target,
                                                 eSymbolTypeAny, sc_list);
 
   if (!sc_list.GetSize()) {
-    err.SetErrorString("can't launch a Swift REPL in a process that doesn't "
-                       "have the Swift standard library");
+    err = Status::FromErrorString(
+        "can't launch a Swift REPL in a process that doesn't "
+        "have the Swift standard library");
     return nullptr;
   }
 
   // Check that we can get a type system, or we aren't going anywhere:
-  auto type_system_or_err = target.GetScratchTypeSystemForLanguage(
-      eLanguageTypeSwift, true, repl_options ? repl_options : "");
+  auto type_system_or_err =
+      target.GetScratchTypeSystemForLanguage(eLanguageTypeSwift, true);
   if (!type_system_or_err) {
     llvm::consumeError(type_system_or_err.takeError());
-    err.SetErrorString("Could not construct an expression "
-                       "context for the REPL.\n");
+    err = Status::FromErrorString("Could not construct an expression "
+                                  "context for the REPL.\n");
     return nullptr;
   }
 
@@ -107,7 +110,7 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
   FileSpec repl_executable = HostInfo::GetSupportExeDir();
 
   if (!repl_executable) {
-    err.SetErrorString("unable to locate REPL executable");
+    err = Status::FromErrorString("unable to locate REPL executable");
     return nullptr;
   }
 
@@ -120,8 +123,8 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
   std::string repl_exe_path(repl_executable.GetPath());
 
   if (!FileSystem::Instance().Exists(repl_executable)) {
-    err.SetErrorStringWithFormat("REPL executable does not exist: '%s'",
-                                 repl_exe_path.c_str());
+    err = Status::FromErrorStringWithFormatv(
+        "REPL executable does not exist: {0}'", repl_exe_path);
     return nullptr;
   }
 
@@ -143,8 +146,8 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
       debugger, repl_exe_path.c_str(), target_triple.getTriple(),
       eLoadDependentsYes, nullptr, target_sp);
   if (!err.Success()) {
-    err.SetErrorStringWithFormat("failed to create REPL target: %s",
-                                 err.AsCString());
+    err = Status::FromErrorStringWithFormatv(
+        "failed to create REPL target: {0}", err);
     return nullptr;
   }
 
@@ -155,13 +158,14 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
   // Limit the breakpoint to our executable module
   ModuleSP exe_module_sp(target_sp->GetExecutableModule());
   if (!exe_module_sp) {
-    err.SetErrorString("unable to resolve REPL executable module");
+    err = Status::FromErrorString("unable to resolve REPL executable module");
     target_sp->Destroy();
     return nullptr;
   }
 
   FileSpecList containingModules;
-  containingModules.Append(exe_module_sp->GetFileSpec());
+  containingModules.Append(
+      FileSpec(exe_module_sp->GetFileSpec().GetFilename().GetStringRef()));
 
   BreakpointSP main_bp_sp = target_sp->CreateBreakpoint(
       &containingModules,    // Limit to these modules
@@ -170,13 +174,14 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
       eFunctionNameTypeAuto, // Name type
       eLanguageTypeUnknown,  // Language
       0,                     // offset
+      false,                 // offset_is_insn_count
       eLazyBoolYes,          // skip_prologue,
       true,                  // internal
       false);                // request_hardware
 
   if (main_bp_sp->GetNumLocations() == 0) {
-    err.SetErrorStringWithFormat("failed to resolve REPL breakpoint for '%s'",
-                                 bp_name);
+    err = Status::FromErrorStringWithFormatv(
+        "failed to resolve REPL breakpoint for '{0}'", bp_name);
     return nullptr;
   }
 
@@ -185,15 +190,11 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
                                     // breakpoint above, it better
                                     // say it is internal
 
-  lldb_private::ProcessLaunchInfo launch_info;
+  lldb_private::ProcessLaunchInfo launch_info =
+      target_sp->GetProcessLaunchInfo();
+
+  // FIXME: Why is this necessary? Document or change once we know the answer.
   llvm::StringRef target_settings_argv0 = target_sp->GetArg0();
-
-  if (target_sp->GetDisableASLR())
-    launch_info.GetFlags().Set(eLaunchFlagDisableASLR);
-
-  if (target_sp->GetDisableSTDIO())
-    launch_info.GetFlags().Set(eLaunchFlagDisableSTDIO);
-
   if (!target_settings_argv0.empty()) {
     launch_info.GetArguments().AppendArgument(target_settings_argv0);
     launch_info.SetExecutableFile(exe_module_sp->GetPlatformFileSpec(), false);
@@ -201,20 +202,19 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
     launch_info.SetExecutableFile(exe_module_sp->GetPlatformFileSpec(), true);
   }
 
-  launch_info.GetEnvironment() = target_sp->GetTargetEnvironment();
   debugger.SetAsyncExecution(false);
   err = target_sp->Launch(launch_info, nullptr);
   debugger.SetAsyncExecution(true);
 
   if (!err.Success()) {
-    err.SetErrorStringWithFormat("failed to launch REPL process: %s",
-                                 err.AsCString());
+    err = Status::FromErrorStringWithFormatv(
+        "failed to launch REPL process: {0}", err);
     return nullptr;
   }
 
   ProcessSP process_sp(target_sp->GetProcessSP());
   if (!process_sp) {
-    err.SetErrorString("failed to launch REPL process");
+    err = Status::FromErrorString("failed to launch REPL process");
     return nullptr;
   }
 
@@ -230,14 +230,14 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
   StateType state = process_sp->GetState();
 
   if (state != eStateStopped) {
-    err.SetErrorString("failed to stop process at REPL breakpoint");
+    err = Status::FromErrorString("failed to stop process at REPL breakpoint");
     return nullptr;
   }
 
   ThreadList &thread_list = process_sp->GetThreadList();
   const uint32_t num_threads = thread_list.GetSize();
   if (num_threads == 0) {
-    err.SetErrorString("process is not in valid state (no threads)");
+    err = Status::FromErrorString("process is not in valid state (no threads)");
     return nullptr;
   }
 
@@ -257,12 +257,12 @@ lldb::REPLSP SwiftREPL::CreateInstanceFromDebugger(Status &err,
   // Check that we can get a type system, or we aren't
   // going anywhere.  Remember to pass in the repl_options
   // in case they set up framework paths we need, etc.
-  auto type_system_or_err = target_sp->GetScratchTypeSystemForLanguage(
-      eLanguageTypeSwift, true, repl_options ? repl_options : "");
+  auto type_system_or_err =
+      target_sp->GetScratchTypeSystemForLanguage(eLanguageTypeSwift, true);
   if (!type_system_or_err) {
     llvm::consumeError(type_system_or_err.takeError());
-    err.SetErrorString("Could not construct an expression "
-                       "context for the REPL.\n");
+    err = Status::FromErrorString("Could not construct an expression "
+                                  "context for the REPL.\n");
     return nullptr;
   }
 
@@ -298,15 +298,24 @@ SwiftREPL::SwiftREPL(Target &target) : REPL(target), m_swift_ast(nullptr) {}
 SwiftREPL::~SwiftREPL() {}
 
 Status SwiftREPL::DoInitialization() {
-  if (m_compiler_options.empty())
-    return Status();
-
   auto type_system_or_err =
-      m_target.GetScratchTypeSystemForLanguage(eLanguageTypeSwift, true,
-                                               m_compiler_options.c_str());
+      m_target.GetScratchTypeSystemForLanguage(eLanguageTypeSwift, true);
   if (!type_system_or_err)
-    return Status(type_system_or_err.takeError());
-  return Status();
+    return Status::FromError(type_system_or_err.takeError());
+  std::static_pointer_cast<TypeSystemSwiftTypeRefForExpressions>(
+      *type_system_or_err)
+      ->SetCompilerOptions(/*repl=*/true, /*playgrounds=*/false,
+                           m_compiler_options.c_str());
+
+  std::string format_str = "${ansi.negative}Swift " +
+                           swift::version::getCompilerVersion() +
+                           "{ | {${progress.count} }${progress.message}}";
+  FormatEntity::Entry format_entry;
+  Status error = FormatEntity::Parse(format_str, format_entry);
+  if (error.Success())
+    m_target.GetDebugger().SetStatuslineFormat(format_entry);
+
+  return error;
 }
 
 llvm::StringRef SwiftREPL::GetSourceFileBasename() {
@@ -317,9 +326,13 @@ llvm::StringRef SwiftREPL::GetSourceFileBasename() {
 bool SwiftREPL::SourceIsComplete(const std::string &source) {
   std::unique_ptr<llvm::MemoryBuffer> source_buffer_ap(
       llvm::MemoryBuffer::getMemBuffer(source));
-  swift::ide::SourceCompleteResult result =
-      swift::ide::isSourceInputComplete(std::move(source_buffer_ap),
-                                        swift::SourceFileKind::Main);
+  auto *swift_ast = getSwiftASTContext();
+  if (!swift_ast)
+    return true;
+
+  swift::ide::SourceCompleteResult result = swift::ide::isSourceInputComplete(
+      std::move(source_buffer_ap), swift::SourceFileKind::Main,
+      swift_ast->GetLanguageOptions());
   return result.IsComplete;
 }
 
@@ -352,9 +365,14 @@ lldb::offset_t SwiftREPL::GetDesiredIndentation(const StringList &lines,
   std::string source_string(prior_lines.CopyList());
   std::unique_ptr<llvm::MemoryBuffer> source_buffer_ap(
       llvm::MemoryBuffer::getMemBuffer(source_string));
-  swift::ide::SourceCompleteResult result =
-      swift::ide::isSourceInputComplete(std::move(source_buffer_ap),
-                                        swift::SourceFileKind::Main);
+
+  auto *swift_ast = getSwiftASTContext();
+  if (!swift_ast)
+    return LLDB_INVALID_OFFSET;
+
+  swift::ide::SourceCompleteResult result = swift::ide::isSourceInputComplete(
+      std::move(source_buffer_ap), swift::SourceFileKind::Main,
+      swift_ast->GetLanguageOptions());
 
   int desired_indent =
       (result.IndentLevel * tab_size) + result.IndentPrefix.length();
@@ -395,8 +413,8 @@ lldb::offset_t SwiftREPL::GetDesiredIndentation(const StringList &lines,
           // this as a cast statement
           bool outdent = false;
           if (line.empty())
-            outdent = !identifier.equals("case");
-          else if (identifier.equals("case")) {
+            outdent = (identifier != "case");
+          else if (identifier == "case") {
             outdent = true;
           } else {
             line = line.rtrim(); // Skip trailing spaces
@@ -433,7 +451,7 @@ bool isThrownError(ValueObjectSP valobj_sp) {
   if (length < 3)
     return false;
 
-  const char *name_cstr = name.AsCString();
+  const char *name_cstr = name.AsCString("");
   if (name_cstr[0] != '$')
     return false;
   if (name_cstr[1] != 'E')
@@ -447,7 +465,8 @@ bool isThrownError(ValueObjectSP valobj_sp) {
   return true;
 }
 
-bool SwiftREPL::PrintOneVariable(Debugger &debugger, StreamFileSP &output_sp,
+bool SwiftREPL::PrintOneVariable(Debugger &debugger,
+                                 LockableStreamFileSP &output_stream_sp,
                                  ValueObjectSP &valobj_sp,
                                  ExpressionVariable *var) {
   bool is_computed = false;
@@ -489,19 +508,35 @@ bool SwiftREPL::PrintOneVariable(Debugger &debugger, StreamFileSP &output_sp,
 
     DumpValueObjectOptions options;
     options.SetUseDynamicType(lldb::eDynamicCanRunTarget);
-    options.SetMaximumPointerDepth(
-        {DumpValueObjectOptions::PointerDepth::Mode::Formatters, 1});
+    options.SetMaximumPointerDepth(1);
     options.SetUseSyntheticValue(true);
     options.SetRevealEmptyAggregates(false);
     options.SetHidePointerValue(true);
     options.SetVariableFormatDisplayLanguage(lldb::eLanguageTypeSwift);
-    options.SetDeclPrintingHelper([](ConstString type_name,
-                                     ConstString var_name,
-                                     const DumpValueObjectOptions &options,
-                                     Stream &stream) -> bool {
+    options.SetDeclPrintingHelper([&](ConstString type_name,
+                                      ConstString var_name,
+                                      const DumpValueObjectOptions &options,
+                                      Stream &stream) -> bool {
       if (!type_name || !var_name)
         return false;
 
+      // Try to get the SwiftASTContext representation of the type. It
+      // will hide Objective-C implemention details that are not
+      // publicly declared in the SDK.
+      if (valobj_sp) {
+        auto static_valobj_sp = valobj_sp->GetStaticValue();
+        auto dynamic_valobj_sp =
+            valobj_sp->GetDynamicValue(lldb::eDynamicCanRunTarget);
+        if (static_valobj_sp && dynamic_valobj_sp) {
+          CompilerType static_type = static_valobj_sp->GetCompilerType();
+          CompilerType dynamic_type = dynamic_valobj_sp->GetCompilerType();
+          auto ts =
+              dynamic_type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwift>();
+          if (ts &&
+              ts->IsImportedType(dynamic_type.GetOpaqueQualType(), nullptr))
+            type_name = static_type.GetDisplayTypeName();
+        }
+      }
       std::string type_name_str(type_name ? type_name.GetCString() : "");
       for (auto iter = type_name_str.find(" *"); iter != std::string::npos;
            iter = type_name_str.find(" *")) {
@@ -529,125 +564,155 @@ bool SwiftREPL::PrintOneVariable(Debugger &debugger, StreamFileSP &output_sp,
           new StringSummaryFormat(flags, "<computed property>")));
     }
 
-    if (colorize_out) {
-      const char *color = isThrownError(valobj_sp)
-                              ? ANSI_ESCAPE1(ANSI_FG_COLOR_RED)
-                              : ANSI_ESCAPE1(ANSI_FG_COLOR_CYAN);
-      fprintf(output_sp->GetFile().GetStream(), "%s", color);
+    {
+      // Suspend the statusline while printing to prevent its ANSI cursor
+      // save/restore sequences from interleaving with the output.
+      LockedStreamFile locked_stream = output_stream_sp->Lock();
+      if (colorize_out) {
+        const char *color = isThrownError(valobj_sp)
+                                ? ANSI_ESCAPE1(ANSI_FG_COLOR_RED)
+                                : ANSI_ESCAPE1(ANSI_FG_COLOR_CYAN);
+        fprintf(locked_stream.GetFile().GetStream(), "%s", color);
+      }
+
+      if (llvm::Error error = valobj_sp->Dump(locked_stream, options))
+        locked_stream << "error: " << toString(std::move(error));
+
+      if (colorize_out)
+        fprintf(locked_stream.GetFile().GetStream(),
+                ANSI_ESCAPE1(ANSI_CTRL_NORMAL));
+
+      handled = true;
     }
-
-    if (llvm::Error error = valobj_sp->Dump(*output_sp, options))
-      *output_sp << "error: " << toString(std::move(error));
-
-    if (colorize_out)
-      fprintf(output_sp->GetFile().GetStream(), ANSI_ESCAPE1(ANSI_CTRL_NORMAL));
-
-    handled = true;
   }
 
   return handled;
 }
 
-void SwiftREPL::CompleteCode(const std::string &current_code,
-                             CompletionRequest &request) {
+SwiftASTContextForExpressions *SwiftREPL::getSwiftASTContext() {
   //----------------------------------------------------------------------g
   // If we use the target's SwiftASTContext for completion, it reaaallly
   // slows down subsequent expressions. The compiler team doesn't have time
   // to fix this issue currently, so we need to work around it by making
   // our own copy of the AST and using this separate AST for completion.
   //----------------------------------------------------------------------
-  Status error;
-  if (!m_swift_ast) {
-    auto type_system_or_err =
-        m_target.GetScratchTypeSystemForLanguage(eLanguageTypeSwift);
-    if (!type_system_or_err) {
-      llvm::consumeError(type_system_or_err.takeError());
-      return;
-    }
-    auto *swift_ts =
-        llvm::dyn_cast_or_null<TypeSystemSwiftTypeRefForExpressions>(
-            type_system_or_err->get());
-    auto *target_swift_ast =
-        llvm::dyn_cast_or_null<SwiftASTContextForExpressions>(
-            swift_ts->GetSwiftASTContext(nullptr));
-    m_swift_ast = target_swift_ast;
-  }
-  SwiftASTContextForExpressions *swift_ast = m_swift_ast;
+  if (m_swift_ast)
+    return m_swift_ast.get();
 
-  if (swift_ast) {
-    ThreadSafeASTContext ast = swift_ast->GetASTContext();
-    swift::REPLCompletions completions;
-    SourceModule completion_module_info;
-    completion_module_info.path.push_back(ConstString("repl"));
-    swift::ModuleDecl *repl_module = nullptr;
-    if (m_completion_module_initialized)
-      repl_module = swift_ast->GetModule(completion_module_info, error);
-    if (repl_module == nullptr) {
-      swift::ImplicitImportInfo importInfo;
-      importInfo.StdlibKind = swift::ImplicitStdlibKind::Stdlib;
-      repl_module = swift_ast->CreateModule(completion_module_info, error,
-                                            importInfo);
-      std::optional<unsigned> bufferID;
+  auto type_system_or_err =
+      m_target.GetScratchTypeSystemForLanguage(eLanguageTypeSwift, false);
+  if (!type_system_or_err) {
+    llvm::consumeError(type_system_or_err.takeError());
+    return nullptr;
+  }
+  auto *swift_ts = llvm::dyn_cast_or_null<TypeSystemSwiftTypeRefForExpressions>(
+      type_system_or_err->get());
+
+  // Use the stdlib as symbol context to get a different one than the main REPL.
+  SymbolContextList sc_list;
+  m_target.GetImages().FindSymbolsWithNameAndType(ConstString("_swift_release"),
+                                                  eSymbolTypeAny, sc_list);
+  if (!sc_list.GetSize())
+    return nullptr;
+
+  m_swift_ast = std::static_pointer_cast<SwiftASTContextForExpressions>(
+      swift_ts->GetSwiftASTContext(sc_list[0]));
+  return m_swift_ast.get();
+}
+
+void SwiftREPL::CompleteCode(const std::string &current_code,
+                             CompletionRequest &request) {
+  auto *swift_ast = getSwiftASTContext();
+  if (!swift_ast)
+    return;
+
+  Status error;
+  ThreadSafeASTContext ast = swift_ast->GetASTContext();
+  swift::REPLCompletions completions;
+  SourceModule completion_module_info;
+  completion_module_info.path.push_back(ConstString("repl"));
+  swift::ModuleDecl *repl_module = nullptr;
+  if (m_completion_module_initialized) {
+    auto m_or_err = swift_ast->GetModule(completion_module_info);
+    if (!m_or_err)
+      llvm::consumeError(m_or_err.takeError());
+    else
+      repl_module = &*m_or_err;
+  }
+  if (!repl_module) {
+    swift::ImplicitImportInfo importInfo;
+    importInfo.StdlibKind = swift::ImplicitStdlibKind::Stdlib;
+
+    auto repl_module_or_err = swift_ast->CreateModule(
+        completion_module_info.path.back().GetString(), importInfo,
+        [&](swift::ModuleDecl *repl_module, auto addFile) {
+      auto bufferID = (*ast)->SourceMgr.addMemBufferCopy("// swift repl\n");
       swift::SourceFile *repl_source_file = new (**ast) swift::SourceFile(
           *repl_module, swift::SourceFileKind::Main, bufferID);
-      repl_module->addFile(*repl_source_file);
-      swift::performImportResolution(*repl_source_file);
-      m_completion_module_initialized = true;
+      addFile(repl_source_file);
+    });
+    if (!repl_module_or_err) {
+      llvm::consumeError(repl_module_or_err.takeError());
+      return;
     }
-    if (repl_module) {
-      swift::SourceFile &repl_source_file =
-          repl_module->getMainSourceFile();
+    repl_module = &*repl_module_or_err;
 
-      // Swift likes to give us strings to append to the current token but
-      // the CompletionRequest requires a replacement for the full current
-      // token. Fix this by getting the current token here and we attach
-      // the suffix we get from Swift.
-      std::string prefix = request.GetCursorArgumentPrefix().str();
-      llvm::StringRef current_code_ref(current_code);
-      completions.populate(repl_source_file, current_code_ref);
+    swift::performImportResolution(repl_module);
+    m_completion_module_initialized = true;
+  }
+  if (repl_module) {
+    swift::SourceFile &repl_source_file = repl_module->getMainSourceFile();
 
-      // The root is the unique completion we need to use, so let's add it
-      // to the completion list. As the completion is unique we can stop here.
+    // Swift likes to give us strings to append to the current token but
+    // the CompletionRequest requires a replacement for the full current
+    // token. Fix this by getting the current token here and we attach
+    // the suffix we get from Swift.
+    std::string prefix = request.GetCursorArgumentPrefix().str();
+    llvm::StringRef current_code_ref(current_code);
+    completions.populate(repl_source_file, current_code_ref);
+
+    // The root is the unique completion we need to use, so let's add it
+    // to the completion list. As the completion is unique we can stop here.
+    llvm::StringRef root = completions.getRoot();
+    if (!root.empty()) {
+      request.AddCompletion(prefix + root.str(), "", CompletionMode::Partial);
+      return;
+    }
+
+    // Otherwise, advance through the completion state machine.
+    const swift::CompletionState completion_state = completions.getState();
+    switch (completion_state) {
+    case swift::CompletionState::CompletedRoot: {
+      // Display the completion list.
+      llvm::ArrayRef<llvm::StringRef> llvm_matches =
+          completions.getCompletionList();
+      for (const auto &llvm_match : llvm_matches) {
+        // The completions here aren't really useful for actually completing
+        // the token but are more descriptive hints for the user
+        // (e.g. "isMultiple(of: Int) -> Bool"). They aren't useful for
+        // actually completing anything so let's use the current token as
+        // a placeholder that is always valid.
+        if (!llvm_match.empty())
+          request.AddCompletion(prefix, llvm_match);
+      }
+    } break;
+
+    case swift::CompletionState::DisplayedCompletionList: {
+      // Complete the next completion stem in the cycle.
+      request.AddCompletion(
+          prefix + completions.getPreviousStem().InsertableString.str());
+    } break;
+
+    case swift::CompletionState::Empty:
+    case swift::CompletionState::Unique: {
       llvm::StringRef root = completions.getRoot();
-      if (!root.empty()) {
-        request.AddCompletion(prefix + root.str(), "", CompletionMode::Partial);
-        return;
-      }
 
-      // Otherwise, advance through the completion state machine.
-      const swift::CompletionState completion_state = completions.getState();
-      switch (completion_state) {
-      case swift::CompletionState::CompletedRoot: {
-        // Display the completion list.
-        llvm::ArrayRef<llvm::StringRef> llvm_matches =
-            completions.getCompletionList();
-        for (const auto &llvm_match : llvm_matches) {
-          // The completions here aren't really useful for actually completing
-          // the token but are more descriptive hints for the user
-          // (e.g. "isMultiple(of: Int) -> Bool"). They aren't useful for
-          // actually completing anything so let's use the current token as
-          // a placeholder that is always valid.
-          if (!llvm_match.empty())
-            request.AddCompletion(prefix, llvm_match);
-        }
-      } break;
+      if (!root.empty())
+        request.AddCompletion(prefix + root.str());
+    } break;
 
-      case swift::CompletionState::DisplayedCompletionList: {
-        // Complete the next completion stem in the cycle.
-        request.AddCompletion(prefix + completions.getPreviousStem().InsertableString.str());
-      } break;
-
-      case swift::CompletionState::Empty:
-      case swift::CompletionState::Unique: {
-        llvm::StringRef root = completions.getRoot();
-
-        if (!root.empty())
-          request.AddCompletion(prefix + root.str());
-      } break;
-
-      case swift::CompletionState::Invalid:
-        llvm_unreachable("got an invalid completion set?!");
-      }
+    case swift::CompletionState::Invalid:
+      llvm_unreachable("got an invalid completion set?!");
     }
   }
 }

@@ -16,6 +16,7 @@
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/BinaryFormat/MachO.h"
+#include "llvm/BinaryFormat/XCOFF.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/TargetParser/ARMTargetParser.h"
 
@@ -59,6 +60,8 @@ static const CoreDefinition g_core_definitions[] = {
      "armv6m"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv7,
      "armv7"},
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv7a,
+     "armv7a"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv7l,
      "armv7l"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv7f,
@@ -71,6 +74,12 @@ static const CoreDefinition g_core_definitions[] = {
      "armv7m"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv7em,
      "armv7em"},
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm,
+     ArchSpec::eCore_arm_armv8m_base, "armv8m.base"},
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm,
+     ArchSpec::eCore_arm_armv8m_main, "armv8m.main"},
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm,
+     ArchSpec::eCore_arm_armv8_1m_main, "armv8.1m.main"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_xscale,
      "xscale"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb, ArchSpec::eCore_thumb,
@@ -101,6 +110,8 @@ static const CoreDefinition g_core_definitions[] = {
      ArchSpec::eCore_arm_arm64, "arm64"},
     {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
      ArchSpec::eCore_arm_armv8, "armv8"},
+    {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
+     ArchSpec::eCore_arm_armv8a, "armv8a"},
     {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv8l,
      "armv8l"},
     {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
@@ -213,6 +224,9 @@ static const CoreDefinition g_core_definitions[] = {
      ArchSpec::eCore_x86_64_x86_64, "x86_64"},
     {eByteOrderLittle, 8, 1, 15, llvm::Triple::x86_64,
      ArchSpec::eCore_x86_64_x86_64h, "x86_64h"},
+    {eByteOrderLittle, 8, 1, 15, llvm::Triple::x86_64,
+     ArchSpec::eCore_x86_64_amd64, "amd64"},
+
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::hexagon,
      ArchSpec::eCore_hexagon_generic, "hexagon"},
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::hexagon,
@@ -220,9 +234,9 @@ static const CoreDefinition g_core_definitions[] = {
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::hexagon,
      ArchSpec::eCore_hexagon_hexagonv5, "hexagonv5"},
 
-    {eByteOrderLittle, 4, 2, 4, llvm::Triple::riscv32, ArchSpec::eCore_riscv32,
+    {eByteOrderLittle, 4, 2, 8, llvm::Triple::riscv32, ArchSpec::eCore_riscv32,
      "riscv32"},
-    {eByteOrderLittle, 8, 2, 4, llvm::Triple::riscv64, ArchSpec::eCore_riscv64,
+    {eByteOrderLittle, 8, 2, 8, llvm::Triple::riscv64, ArchSpec::eCore_riscv64,
      "riscv64"},
 
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::loongarch32,
@@ -301,6 +315,9 @@ static const ArchDefinitionEntry g_macho_arch_entries[] = {
     {ArchSpec::eCore_arm_armv7k,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7K,       UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_arm_armv7m,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7M,       UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_arm_armv7em,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7EM,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv8m_base,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V8M_BASE,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv8m_main,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V8M_MAIN,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv8_1m_main,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V8_1M_MAIN,      UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_arm_arm64e,      llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64E,        UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64_ALL,     UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64_V8,      UINT32_MAX, SUBTYPE_MASK},
@@ -345,6 +362,8 @@ static const ArchDefinitionEntry g_macho_arch_entries[] = {
     {ArchSpec::eCore_x86_64_x86_64,   llvm::MachO::CPU_TYPE_X86_64,     llvm::MachO::CPU_SUBTYPE_X86_ARCH1,     UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_x86_64_x86_64h,  llvm::MachO::CPU_TYPE_X86_64,     llvm::MachO::CPU_SUBTYPE_X86_64_H,      UINT32_MAX, SUBTYPE_MASK},
     {ArchSpec::eCore_x86_64_x86_64,   llvm::MachO::CPU_TYPE_X86_64,     CPU_ANY, UINT32_MAX, UINT32_MAX},
+    {ArchSpec::eCore_riscv32,         llvm::MachO::CPU_TYPE_RISCV,      llvm::MachO::CPU_SUBTYPE_RISCV_ALL,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_riscv32,         llvm::MachO::CPU_TYPE_RISCV,      CPU_ANY,                                UINT32_MAX, SUBTYPE_MASK},
     // Catch any unknown mach architectures so we can always use the object and symbol mach-o files
     {ArchSpec::eCore_uknownMach32,    0,                                0,                                      0xFF000000u, 0x00000000u},
     {ArchSpec::eCore_uknownMach64,    llvm::MachO::CPU_ARCH_ABI64,      0,                                      0xFF000000u, 0x00000000u}};
@@ -459,10 +478,23 @@ static const ArchDefinition g_coff_arch_def = {
     "pe-coff",
 };
 
+static const ArchDefinitionEntry g_xcoff_arch_entries[] = {
+    {ArchSpec::eCore_ppc_generic, llvm::XCOFF::TCPU_COM, LLDB_INVALID_CPUTYPE,
+     0xFFFFFFFFu, 0xFFFFFFFFu},
+    {ArchSpec::eCore_ppc64_generic, llvm::XCOFF::TCPU_PPC64,
+     LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu}};
+
+static const ArchDefinition g_xcoff_arch_def = {
+    eArchTypeXCOFF,
+    std::size(g_xcoff_arch_entries),
+    g_xcoff_arch_entries,
+    "xcoff",
+};
+
 //===----------------------------------------------------------------------===//
 // Table of all ArchDefinitions
 static const ArchDefinition *g_arch_definitions[] = {
-    &g_macho_arch_def, &g_elf_arch_def, &g_coff_arch_def};
+    &g_macho_arch_def, &g_elf_arch_def, &g_coff_arch_def, &g_xcoff_arch_def};
 
 //===----------------------------------------------------------------------===//
 // Static helper functions.
@@ -903,6 +935,9 @@ bool ArchSpec::SetArchitecture(ArchitectureType arch_type, uint32_t cpu,
         } else if (arch_type == eArchTypeCOFF && os == llvm::Triple::Win32) {
           m_triple.setVendor(llvm::Triple::PC);
           m_triple.setOS(llvm::Triple::Win32);
+        } else if (arch_type == eArchTypeXCOFF && os == llvm::Triple::AIX) {
+          m_triple.setVendor(llvm::Triple::IBM);
+          m_triple.setOS(llvm::Triple::AIX);
         } else {
           m_triple.setVendor(llvm::Triple::UnknownVendor);
           m_triple.setOS(llvm::Triple::UnknownOS);
@@ -1015,6 +1050,12 @@ bool ArchSpec::IsMatch(const ArchSpec &rhs, MatchType match) const {
         (lhs_triple_os == llvm::Triple::MacOSX &&
          rhs_triple_os == llvm::Triple::IOS &&
          rhs_triple_env == llvm::Triple::MacABI))
+      return true;
+    // x86_64-apple-driverkit, x86_64-apple-macosx are compatible, no match.
+    if ((lhs_triple_os == llvm::Triple::DriverKit &&
+         rhs_triple_os == llvm::Triple::MacOSX) ||
+        (lhs_triple_os == llvm::Triple::MacOSX &&
+         rhs_triple_os == llvm::Triple::DriverKit))
       return true;
   }
 
@@ -1206,6 +1247,7 @@ static bool cores_match(const ArchSpec::Core core1, const ArchSpec::Core core2,
     break;
 
   case ArchSpec::eCore_x86_64_x86_64h:
+  case ArchSpec::eCore_x86_64_amd64:
     if (!enforce_exact_match) {
       try_inverse = false;
       if (core2 == ArchSpec::eCore_x86_64_x86_64)
@@ -1406,6 +1448,10 @@ bool lldb_private::operator==(const ArchSpec &lhs, const ArchSpec &rhs) {
   return lhs.GetCore() == rhs.GetCore();
 }
 
+bool lldb_private::operator!=(const ArchSpec &lhs, const ArchSpec &rhs) {
+  return !(lhs == rhs);
+}
+
 bool ArchSpec::IsFullySpecifiedTriple() const {
   if (!TripleOSWasSpecified())
     return false;
@@ -1422,7 +1468,6 @@ bool ArchSpec::IsFullySpecifiedTriple() const {
 }
 
 bool ArchSpec::IsAlwaysThumbInstructions() const {
-  std::string Status;
   if (GetTriple().getArch() == llvm::Triple::arm ||
       GetTriple().getArch() == llvm::Triple::thumb) {
     // v. https://en.wikipedia.org/wiki/ARM_Cortex-M

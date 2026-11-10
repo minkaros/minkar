@@ -12,6 +12,7 @@
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Error.h"
 
 using namespace llvm;
 using namespace llvm::cas;
@@ -128,6 +129,8 @@ public:
   Expected<CASID> parseID(StringRef ID) final;
   Expected<ObjectRef> store(ArrayRef<ObjectRef> Refs,
                             ArrayRef<char> Data) final;
+  Expected<ObjectRef> storeFromFile(StringRef Path) final;
+  Error exportDataToFile(ObjectHandle Node, StringRef Path) const final;
   CASID getID(ObjectRef Ref) const final;
   std::optional<ObjectRef> getReference(const CASID &ID) const final;
   Expected<bool> isMaterialized(ObjectRef Ref) const final;
@@ -143,10 +146,12 @@ public:
   size_t getNumRefs(ObjectHandle Node) const final;
   ArrayRef<char> getData(ObjectHandle Node,
                          bool RequiresNullTerminator = false) const final;
-  Error validate(const CASID &ID) final {
+  Error validateObject(const CASID &ID) final {
     // Not supported yet. Always return success.
     return Error::success();
   }
+
+  Error validate(bool CheckHash) const final;
 
   Error setSizeLimit(std::optional<uint64_t> SizeLimit) final;
   Expected<std::optional<uint64_t>> getStorageSize() const final;
@@ -219,6 +224,35 @@ Expected<ObjectRef> PluginObjectStore::store(ArrayRef<ObjectRef> Refs,
     return Ctx->errorAndDispose(c_err);
 
   return ObjectRef::getFromInternalRef(*this, c_stored_id.opaque);
+}
+
+Expected<ObjectRef> PluginObjectStore::storeFromFile(StringRef Path) {
+  if (!Ctx->Functions.cas_store_from_filepath)
+    return ObjectStore::storeFromFile(Path);
+
+  llcas_objectid_t c_stored_id;
+  char *c_err = nullptr;
+  std::string PathStr = Path.str();
+  if (Ctx->Functions.cas_store_from_filepath(Ctx->c_cas, PathStr.c_str(),
+                                             &c_stored_id, &c_err))
+    return Ctx->errorAndDispose(c_err);
+
+  return ObjectRef::getFromInternalRef(*this, c_stored_id.opaque);
+}
+
+Error PluginObjectStore::exportDataToFile(ObjectHandle Node,
+                                          StringRef Path) const {
+  if (!Ctx->Functions.loaded_object_export_data_to_filepath)
+    return ObjectStore::exportDataToFile(Node, Path);
+
+  char *c_err = nullptr;
+  std::string PathStr = Path.str();
+  if (Ctx->Functions.loaded_object_export_data_to_filepath(
+          Ctx->c_cas, llcas_loaded_object_t{Node.getInternalRef(*this)},
+          PathStr.c_str(), &c_err))
+    return Ctx->errorAndDispose(c_err);
+
+  return Error::success();
 }
 
 static StringRef toStringRef(llcas_digest_t c_digest) {
@@ -422,6 +456,16 @@ Error PluginObjectStore::pruneStorageData() {
   return Error::success();
 }
 
+Error PluginObjectStore::validate(bool CheckHash) const {
+  if (Ctx->Functions.cas_validate) {
+    char *c_err = nullptr;
+    if (Ctx->Functions.cas_validate(Ctx->c_cas, CheckHash, &c_err))
+      return Ctx->errorAndDispose(c_err);
+    return Error::success();
+  }
+  return createStringError("plugin cas doesn't support validation");
+}
+
 PluginObjectStore::PluginObjectStore(std::shared_ptr<PluginCASContext> CASCtx)
     : ObjectStore(*CASCtx), Ctx(std::move(CASCtx)) {}
 
@@ -447,6 +491,8 @@ public:
                     std::unique_ptr<Cancellable> *CancelObj) final;
 
   PluginActionCache(std::shared_ptr<PluginCASContext>);
+
+  Error validate() const final;
 
 private:
   std::shared_ptr<PluginCASContext> Ctx;
@@ -582,6 +628,16 @@ void PluginActionCache::putImplAsync(ArrayRef<uint8_t> ResolvedKey,
 
 PluginActionCache::PluginActionCache(std::shared_ptr<PluginCASContext> CASCtx)
     : ActionCache(*CASCtx), Ctx(std::move(CASCtx)) {}
+
+Error PluginActionCache::validate() const {
+  if (Ctx->Functions.actioncache_validate) {
+    char *c_err = nullptr;
+    if (Ctx->Functions.actioncache_validate(Ctx->c_cas, &c_err))
+      return Ctx->errorAndDispose(c_err);
+    return Error::success();
+  }
+  return createStringError("plugin action cache doesn't support validation");
+}
 
 //===----------------------------------------------------------------------===//
 // createPluginCASDatabases API

@@ -16,11 +16,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
-
 
 class TestSwiftConditionalBreakpoint(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnLinux # Linker failure with arc4random_buf
+    @skipEmbeddedSwiftOnWindows
     def test_swift_conditional_breakpoint(self):
         """Tests that we can set a conditional breakpoint in Swift code"""
         self.build()

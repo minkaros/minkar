@@ -17,11 +17,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftRangeType(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_range_type(self):
         """Test the Swift.Range<T> type"""
         self.build()

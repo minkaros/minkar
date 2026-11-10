@@ -17,12 +17,11 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftStructInit(TestBase):
     @swiftTest
-    @skipIf(oslist=['windows'])
+    @skipEmbeddedSwiftOnWindows
     def test_swift_struct_init(self):
         """Test that we display self correctly for an inline-initialized struct"""
         self.build()

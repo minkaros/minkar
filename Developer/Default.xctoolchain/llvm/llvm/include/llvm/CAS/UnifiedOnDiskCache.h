@@ -10,6 +10,7 @@
 #define LLVM_CAS_UNIFIEDONDISKCACHE_H
 
 #include "llvm/CAS/OnDiskGraphDB.h"
+#include "llvm/CAS/ValidationResult.h"
 
 namespace llvm::cas::ondisk {
 
@@ -21,7 +22,7 @@ class OnDiskKeyValueDB;
 /// High-level properties:
 /// * While \p UnifiedOnDiskCache is open on a directory, by any process, the
 ///   storage size in that directory will keep growing unrestricted. For data to
-///   become eligible for garbase-collection there should be no open instances
+///   become eligible for garbage-collection there should be no open instances
 ///   of \p UnifiedOnDiskCache for that directory, by any process.
 /// * Garbage-collection needs to be triggered explicitly by the client. It can
 ///   be triggered on a directory concurrently, at any time and by any process,
@@ -40,6 +41,9 @@ class UnifiedOnDiskCache {
 public:
   /// The \p OnDiskGraphDB instance for the open directory.
   OnDiskGraphDB &getGraphDB() { return *PrimaryGraphDB; }
+
+  /// The \p OnDiskGraphDB instance for the open directory.
+  const OnDiskGraphDB &getGraphDB() const { return *PrimaryGraphDB; }
 
   /// Associate an \p ObjectID, of the \p OnDiskGraphDB instance, with a key.
   ///
@@ -76,37 +80,66 @@ public:
   /// \param FaultInPolicy Controls how nodes are copied to primary store. This
   /// is recorded at creation time and subsequent opens need to pass the same
   /// policy otherwise the \p open will fail.
-  static Expected<std::unique_ptr<UnifiedOnDiskCache>>
+  LLVM_ABI_FOR_TEST static Expected<std::unique_ptr<UnifiedOnDiskCache>>
   open(StringRef Path, std::optional<uint64_t> SizeLimit, StringRef HashName,
        unsigned HashByteSize,
        OnDiskGraphDB::FaultInPolicy FaultInPolicy =
            OnDiskGraphDB::FaultInPolicy::FullTree);
 
+  /// Validate the data in \p Path, if needed to ensure correctness.
+  ///
+  /// Note: if invalid data is detected and \p AllowRecovery is true, then
+  /// recovery requires exclusive access to the CAS and it is an error to
+  /// attempt recovery if there is concurrent use of the CAS.
+  ///
+  /// \param Path directory for the on-disk database.
+  /// \param HashName Identifier name for the hashing algorithm that is going to
+  /// be used.
+  /// \param HashByteSize Size for the object digest hash bytes.
+  /// \param CheckHash Whether to validate hashes match the data.
+  /// \param AllowRecovery Whether to automatically recover from invalid data by
+  /// marking the files for garbage collection.
+  /// \param ForceValidation Whether to force validation to occur even if it
+  /// should not be necessary.
+  /// \param LLVMCasBinary If provided, validation is performed out-of-process
+  /// using the given \c llvm-cas executable which protects against crashes
+  /// during validation. Otherwise validation is performed in-process.
+  ///
+  /// \returns \c Valid if the data is already valid, \c Recovered if data
+  /// was invalid but has been cleared, \c Skipped if validation is not needed,
+  /// or an \c Error if validation cannot be performed or if the data is left
+  /// in an invalid state because \p AllowRecovery is false.
+  static Expected<ValidationResult>
+  validateIfNeeded(StringRef Path, StringRef HashName, unsigned HashByteSize,
+                   bool CheckHash, OnDiskGraphDB::HashingFuncT HashFn,
+                   bool AllowRecovery, bool ForceValidation,
+                   std::optional<StringRef> LLVMCasBinary);
+
   /// This is called implicitly at destruction time, so it is not required for a
   /// client to call this. After calling \p close the only method that is valid
-  /// to call is \p needsGarbaseCollection.
+  /// to call is \p needsGarbageCollection.
   ///
   /// \param CheckSizeLimit if true it will check whether the primary store has
   /// exceeded its intended size limit. If false the check is skipped even if a
   /// \p SizeLimit was passed to the \p open call.
-  Error close(bool CheckSizeLimit = true);
+  LLVM_ABI_FOR_TEST Error close(bool CheckSizeLimit = true);
 
   /// Set the size for limiting growth. This has an effect for when the instance
   /// is closed.
-  void setSizeLimit(std::optional<uint64_t> SizeLimit);
+  LLVM_ABI_FOR_TEST void setSizeLimit(std::optional<uint64_t> SizeLimit);
 
   /// \returns the storage size of the cache data.
-  uint64_t getStorageSize() const;
+  LLVM_ABI_FOR_TEST uint64_t getStorageSize() const;
 
   /// \returns whether the primary store has exceeded the intended size limit.
   /// This can return false even if the overall size of the opened directory is
   /// over the \p SizeLimit passed to \p open. To know whether garbage
   /// collection needs to be triggered or not, call \p needsGarbaseCollection.
-  bool hasExceededSizeLimit() const;
+  LLVM_ABI_FOR_TEST bool hasExceededSizeLimit() const;
 
   /// \returns whether there are unused data that can be deleted using a
   /// \p collectGarbage call.
-  bool needsGarbaseCollection() const { return NeedsGarbageCollection; }
+  bool needsGarbageCollection() const { return NeedsGarbageCollection; }
 
   /// Remove any unused data from the directory at \p Path. If there are no such
   /// data the operation is a no-op.
@@ -117,11 +150,16 @@ public:
   ///
   /// It is recommended that garbage-collection is triggered concurrently in the
   /// background, so that it has minimal effect on the workload of the process.
-  static Error collectGarbage(StringRef Path);
+  LLVM_ABI_FOR_TEST static Error
+  collectGarbage(StringRef Path, ondisk::OnDiskCASLogger *Logger = nullptr);
 
   Error collectGarbage();
 
-  ~UnifiedOnDiskCache();
+  LLVM_ABI_FOR_TEST ~UnifiedOnDiskCache();
+
+  Error validateActionCache();
+
+  OnDiskGraphDB *getUpstreamGraphDB() const { return UpstreamGraphDB; }
 
 private:
   UnifiedOnDiskCache();
@@ -145,6 +183,8 @@ private:
 
   std::unique_ptr<OnDiskKeyValueDB> UpstreamKVDB;
   std::unique_ptr<OnDiskKeyValueDB> PrimaryKVDB;
+
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger = nullptr;
 };
 
 } // namespace llvm::cas::ondisk

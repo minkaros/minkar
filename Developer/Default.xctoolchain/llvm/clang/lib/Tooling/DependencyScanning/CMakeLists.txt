@@ -1,5 +1,4 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
   Core
   Option
   Support
@@ -8,13 +7,13 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_clang_library(clangDependencyScanning
-  CASFSActionController.cpp
-  DependencyScanningCASFilesystem.cpp
   DependencyScanningFilesystem.cpp
   DependencyScanningService.cpp
   DependencyScanningWorker.cpp
   DependencyScanningTool.cpp
   IncludeTreeActionController.cpp
+  DependencyScannerImpl.cpp
+  InProcessModuleCache.cpp
   ModuleDepCollector.cpp
   ScanAndUpdateArgs.cpp
 
@@ -25,10 +24,9 @@ add_clang_library(clangDependencyScanning
   clangAST
   clangBasic
   clangCAS
-  clangCodeGen
   clangDriver
   clangFrontend
   clangLex
   clangSerialization
-  clangTooling
+  ${LLVM_PTHREAD_LIB}
   )

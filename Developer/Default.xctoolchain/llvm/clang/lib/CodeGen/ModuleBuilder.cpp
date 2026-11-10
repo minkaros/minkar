@@ -23,6 +23,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include <memory>
 
@@ -149,21 +150,26 @@ namespace {
     }
 
     void Initialize(ASTContext &Context) override {
+      Initialize(Context, Context.getTargetInfo());
+    }
+
+    void Initialize(ASTContext &Context, const TargetInfo &CodeGenTargetInfo) override {
       Ctx = &Context;
 
-      M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
-      M->setDataLayout(Ctx->getTargetInfo().getDataLayoutString());
-      const auto &SDKVersion = Ctx->getTargetInfo().getSDKVersion();
+      M->setTargetTriple(CodeGenTargetInfo.getTriple());
+      M->setDataLayout(CodeGenTargetInfo.getDataLayoutString());
+      const auto &SDKVersion = CodeGenTargetInfo.getSDKVersion();
       if (!SDKVersion.empty())
         M->setSDKVersion(SDKVersion);
-      if (const auto *TVT = Ctx->getTargetInfo().getDarwinTargetVariantTriple())
+      if (const auto *TVT = CodeGenTargetInfo.getDarwinTargetVariantTriple())
         M->setDarwinTargetVariantTriple(TVT->getTriple());
       if (auto TVSDKVersion =
-              Ctx->getTargetInfo().getDarwinTargetVariantSDKVersion())
+          CodeGenTargetInfo.getDarwinTargetVariantSDKVersion())
         M->setDarwinTargetVariantSDKVersion(*TVSDKVersion);
       Builder.reset(new CodeGen::CodeGenModule(Context, FS, HeaderSearchOpts,
                                                PreprocessorOpts, CodeGenOpts,
-                                               *M, Diags, CoverageInfo));
+                                               CodeGenTargetInfo, *M,
+                                               Diags, CoverageInfo));
 
       for (auto &&Lib : CodeGenOpts.DependentLibraries)
         Builder->AddDependentLib(Lib);
@@ -180,14 +186,14 @@ namespace {
 
     bool HandleTopLevelDecl(DeclGroupRef DG) override {
       // FIXME: Why not return false and abort parsing?
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return true;
 
       HandlingTopLevelDeclRAII HandlingDecl(*this);
 
       // Make sure to emit all elements of a Decl.
-      for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I)
-        Builder->EmitTopLevelDecl(*I);
+      for (auto &I : DG)
+        Builder->EmitTopLevelDecl(I);
 
       return true;
     }
@@ -206,7 +212,7 @@ namespace {
     }
 
     void HandleInlineFunctionDefinition(FunctionDecl *D) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       assert(D->doesThisDeclarationHaveABody());
@@ -233,7 +239,7 @@ namespace {
     /// client hack on the type, which can occur at any point in the file
     /// (because these can be defined in declspecs).
     void HandleTagDeclDefinition(TagDecl *D) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       // Don't allow re-entrant calls to CodeGen triggered by PCH
@@ -269,7 +275,7 @@ namespace {
     }
 
     void HandleTagDeclRequiredDefinition(const TagDecl *D) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       // Don't allow re-entrant calls to CodeGen triggered by PCH
@@ -283,7 +289,7 @@ namespace {
 
     void HandleTranslationUnit(ASTContext &Ctx) override {
       // Release the Builder when there is no error.
-      if (!Diags.hasErrorOccurred() && Builder)
+      if (!Diags.hasUnrecoverableErrorOccurred() && Builder)
         Builder->Release();
 
       // If there are errors before or when releasing the Builder, reset
@@ -297,25 +303,25 @@ namespace {
     }
 
     void AssignInheritanceModel(CXXRecordDecl *RD) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       Builder->RefreshTypeCacheForClass(RD);
     }
 
     void CompleteTentativeDefinition(VarDecl *D) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       Builder->EmitTentativeDefinition(D);
     }
 
-    void CompleteExternalDeclaration(VarDecl *D) override {
+    void CompleteExternalDeclaration(DeclaratorDecl *D) override {
       Builder->EmitExternalDeclaration(D);
     }
 
     void HandleVTable(CXXRecordDecl *RD) override {
-      if (Diags.hasErrorOccurred())
+      if (Diags.hasUnrecoverableErrorOccurred())
         return;
 
       Builder->EmitVTable(RD);
@@ -371,3 +377,31 @@ clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags, llvm::StringRef ModuleName,
                                HeaderSearchOpts, PreprocessorOpts, CGO, C,
                                CoverageInfo);
 }
+
+namespace clang {
+namespace CodeGen {
+std::optional<std::pair<StringRef, StringRef>>
+DemangleTrapReasonInDebugInfo(StringRef FuncName) {
+  static auto TrapRegex =
+      llvm::Regex(llvm::formatv("^{0}\\$(.*)\\$(.*)$", ClangTrapPrefix).str());
+  llvm::SmallVector<llvm::StringRef, 3> Matches;
+  std::string *ErrorPtr = nullptr;
+#ifndef NDEBUG
+  std::string Error;
+  ErrorPtr = &Error;
+#endif
+  if (!TrapRegex.match(FuncName, &Matches, ErrorPtr)) {
+    assert(ErrorPtr && ErrorPtr->empty() && "Invalid regex pattern");
+    return {};
+  }
+
+  if (Matches.size() != 3) {
+    assert(0 && "Expected 3 matches from Regex::match");
+    return {};
+  }
+
+  // Returns { Trap Category, Trap Message }
+  return std::make_pair(Matches[1], Matches[2]);
+}
+} // namespace CodeGen
+} // namespace clang

@@ -8,7 +8,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 import sys
 if sys.version_info.major == 2:
@@ -23,6 +22,7 @@ def execute_command(command):
 
 
 class TestSwiftResilience(TestBase):
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     # Because we rename the .swiftmodule files after building the
@@ -34,6 +34,7 @@ class TestSwiftResilience(TestBase):
         self.build()
         self.doTestWithFlavor("a", "a")
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(debug_info=no_match(["dsym"]))
@@ -42,6 +43,7 @@ class TestSwiftResilience(TestBase):
         self.build()
         self.doTestWithFlavor("a", "b")
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(debug_info=no_match(["dsym"]))
@@ -50,6 +52,7 @@ class TestSwiftResilience(TestBase):
         self.build()
         self.doTestWithFlavor("b", "a")
 
+    @skipEmbeddedSwift
     @skipUnlessDarwin
     @swiftTest
     @skipIf(debug_info=no_match(["dsym"]))

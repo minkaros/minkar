@@ -18,7 +18,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 import sys
 if sys.version_info.major == 2:
@@ -41,6 +40,7 @@ class TestSwiftDifferentClangFlags(TestBase):
     @skipIf(
         debug_info=decorators.no_match("dsym"),
         bugnumber="This test requires a stripped binary and a dSYM")
+    @skipEmbeddedSwift
     def test_swift_different_clang_flags(self):
         """Test that we use the right compiler flags when debugging"""
         self.build()

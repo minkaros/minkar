@@ -12,6 +12,7 @@
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Target/PathMappingList.h"
 #include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Iterable.h"
 #include "lldb/Utility/Stream.h"
@@ -28,14 +29,15 @@ class ModuleSpec {
 public:
   ModuleSpec() = default;
 
-  /// If the \c data argument is passed, its contents will be used
+  /// If the \c extractor_sp argument is passed, its contents will be used
   /// as the module contents instead of trying to read them from
   /// \c file_spec .
   ModuleSpec(const FileSpec &file_spec, const UUID &uuid = UUID(),
-             lldb::DataBufferSP data = lldb::DataBufferSP())
-      : m_file(file_spec), m_uuid(uuid), m_object_offset(0), m_data(data) {
-    if (data)
-      m_object_size = data->GetByteSize();
+             lldb::DataExtractorSP extractor_sp = lldb::DataExtractorSP())
+      : m_file(file_spec), m_uuid(uuid), m_object_offset(0),
+        m_extractor_sp(extractor_sp) {
+    if (extractor_sp)
+      m_object_size = extractor_sp->GetByteSize();
     else if (m_file)
       m_object_size = FileSystem::Instance().GetByteSize(file_spec);
   }
@@ -124,7 +126,7 @@ public:
 
   PathMappingList &GetSourceMappingList() const { return m_source_mappings; }
 
-  lldb::DataBufferSP GetData() const { return m_data; }
+  lldb::DataExtractorSP GetExtractor() const { return m_extractor_sp; }
 
   void Clear() {
     m_file.Clear();
@@ -269,7 +271,7 @@ protected:
   uint64_t m_object_size = 0;
   llvm::sys::TimePoint<> m_object_mod_time;
   mutable PathMappingList m_source_mappings;
-  lldb::DataBufferSP m_data = {};
+  lldb::DataExtractorSP m_extractor_sp = {};
 };
 
 class ModuleSpecList {
@@ -389,8 +391,7 @@ public:
   }
 
   typedef std::vector<ModuleSpec> collection;
-  typedef LockingAdaptedIterable<collection, ModuleSpec, vector_adapter,
-                                 std::recursive_mutex>
+  typedef LockingAdaptedIterable<std::recursive_mutex, collection>
       ModuleSpecIterable;
 
   ModuleSpecIterable ModuleSpecs() {

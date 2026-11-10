@@ -6,8 +6,7 @@ import lldbsuite.test.lldbutil as lldbutil
 
 class TestSwiftAnonymousClangTypes(lldbtest.TestBase):
     @swiftTest
-    # FIXME: This broke when adapting the swift-driver based Makefile.rules
-    @expectedFailureAll(oslist=['linux'])
+    @skipIfWindows
     def test(self):
         self.build()
 

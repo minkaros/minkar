@@ -23,6 +23,8 @@
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Target/Target.h"
 
+#include "swift/Demangling/ManglingFlavor.h"
+
 #include <functional>
 
 namespace lldb_private {
@@ -71,12 +73,12 @@ private:
   CreateCocoaHandler(lldb::ValueObjectSP storage_sp) const;
 
   lldb::ValueObjectSP
-  StorageObjectAtAddress(
-    const ExecutionContext &exe_ctx,
-    lldb::addr_t address) const;
+  StorageObjectAtAddress(const ExecutionContext &exe_ctx, lldb::addr_t address,
+                         ::swift::Mangle::ManglingFlavor flavor) const;
 
   lldb::ValueObjectSP
   CocoaObjectAtAddress(
+    ValueObject &valobj, // The ValueObject this Cocoa object is a child of
     const ExecutionContext &exe_ctx,
     lldb::addr_t address) const;
 
@@ -96,8 +98,8 @@ protected:
   ConstString m_syntheticChildrenName;
 
   ConstString m_collection_demangledRegex;
-  
-  ConstString m_nativeStorageRoot_mangled;
+
+  ConstString m_nativeStorageRoot_mangledSuffix;
   ConstString m_nativeStorageRoot_demangled;
 
   ConstString m_nativeStorage_mangledRegex_ObjC;
@@ -122,7 +124,7 @@ public:
 
   virtual CompilerType GetElementType() = 0;
 
-  virtual lldb::ValueObjectSP GetElementAtIndex(size_t) = 0;
+  virtual lldb::ValueObjectSP GetElementAtIndex(size_t, ValueObject *parent) = 0;
 
   virtual bool IsValid() = 0;
 
@@ -138,7 +140,7 @@ public:
   lldb::ValueObjectSP GetChildAtIndex(uint32_t idx) override;
   lldb::ChildCacheState Update() override;
   bool MightHaveChildren() override;
-  size_t GetIndexOfChildWithName(ConstString name) override;
+  llvm::Expected<size_t> GetIndexOfChildWithName(ConstString name) override;
 
 private:
   const HashedCollectionConfig &m_config;

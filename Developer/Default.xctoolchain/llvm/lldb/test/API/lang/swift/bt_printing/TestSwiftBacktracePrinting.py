@@ -16,10 +16,10 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import os
-import unittest2
 
 
 class TestSwiftBacktracePrinting(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_backtrace_printing(self):
         """Test printing Swift backtrace"""

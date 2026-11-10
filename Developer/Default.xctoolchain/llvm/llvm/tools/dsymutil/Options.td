@@ -65,6 +65,10 @@ def no_swiftmodule_timestamp: F<"no-swiftmodule-timestamp">,
   HelpText<"Don't check timestamp for swiftmodule files.">,
   Group<grp_general>;
 
+def no_object_timestamp: F<"no-object-timestamp">,
+  HelpText<"Don't check timestamp for object files.">,
+  Group<grp_general>;
+
 def no_odr: F<"no-odr">,
   HelpText<"Do not use ODR (One Definition Rule) for type uniquing.">,
   Group<grp_general>;
@@ -129,24 +133,18 @@ def: Joined<["--", "-"], "oso-prepend-path=">, Alias<oso_prepend_path>;
 
 def object_prefix_map: Separate<["--", "-"], "object-prefix-map">,
     MetaVarName<"<prefix=remapped>">,
-    HelpText<"Remap object file paths (but no source paths) before processing."
-             "Use this for Clang objects where the module cache location was"
-             "remapped using -fdebug-prefix-map; to help dsymutil"
+    HelpText<"Remap object file paths (but no source paths) before processing. "
+             "Use this for Clang objects where the module cache location was "
+             "remapped using -fdebug-prefix-map; to help dsymutil "
              "find the Clang module cache.">,
     Group<grp_general>;
 def: Joined<["--", "-"], "object-prefix-map=">, Alias<object_prefix_map>;
 
-def symbolmap: Separate<["--", "-"], "symbol-map">,
-  MetaVarName<"<bcsymbolmap>">,
-  HelpText<"Updates the existing dSYMs inplace using symbol map specified.">,
-  Group<grp_general>;
-def: Joined<["--", "-"], "symbol-map=">, Alias<symbolmap>;
-
 def arch: Separate<["--", "-"], "arch">,
   MetaVarName<"<arch>">,
-  HelpText<"Link DWARF debug information only for specified CPU architecture"
-           "types. This option can be specified multiple times, once for each"
-           "desired architecture. All CPU architectures will be linked by"
+  HelpText<"Link DWARF debug information only for specified CPU architecture "
+           "types. This option can be specified multiple times, once for each "
+           "desired architecture. All CPU architectures will be linked by "
            "default.">,
   Group<grp_general>;
 def: Joined<["--", "-"], "arch=">, Alias<arch>;
@@ -212,11 +210,32 @@ def: Joined<["--", "-"], "linker=">, Alias<linker>;
 
 def build_variant_suffix: Separate<["--", "-"], "build-variant-suffix">,
   MetaVarName<"<suffix=buildvariant>">,
-  HelpText<"Specify the build variant suffix used to build the executabe file.">,
+  HelpText<"Specify the build variant suffix used to build the executable file.">,
   Group<grp_general>;
 def: Joined<["--", "-"], "build-variant-suffix=">, Alias<build_variant_suffix>;
 
+def embed_resource: Separate<["--", "-"], "embed-resource">,
+  MetaVarName<"<src-path>=<bundle-relative-path>">,
+  HelpText<"Copy a file or directory into the dSYM bundle's Resources directory. "
+           "The argument is <source-path>=<destination-relative-to-Resources>. "
+           "If the source is a directory, its contents are copied recursively. "
+           "This option can be specified multiple times.">,
+  Group<grp_general>;
+def: Joined<["--", "-"], "embed-resource=">, Alias<embed_resource>;
 def dsym_search_path: Separate<["-", "--"], "D">,
   MetaVarName<"<path>">,
   HelpText<"Specify a directory that contain dSYM files to search for.">,
+  Group<grp_general>;
+
+def cas : Separate<["-", "--"], "cas">,
+  MetaVarName<"<path>">,
+  HelpText<"Specify CAS directory to load CAS references from.">,
+  Group<grp_general>;
+def cas_plugin_path : Separate<["-", "--"], "cas-plugin-path">,
+  MetaVarName<"<path>">,
+  HelpText<"Path to CAS plugin library if used">,
+  Group<grp_general>;
+def cas_plugin_option : Separate<["-", "--"], "cas-plugin-option">,
+  MetaVarName<"<Option>=<Value>">,
+  HelpText<"Plugin CAS options">,
   Group<grp_general>;

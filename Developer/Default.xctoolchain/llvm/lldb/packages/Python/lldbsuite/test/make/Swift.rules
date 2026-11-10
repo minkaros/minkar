@@ -15,15 +15,35 @@
 #   o cxx_compiler
 #   o cxx_linker
 #----------------------------------------------------------------------
-SWIFTC ?= $(shell $(VPATH)/$(LEVEL)/find-swift.py)
+PYTHON ?= python3
+
+SWIFTC ?= $(shell $(PYTHON) "$(VPATH)/$(LEVEL)/find-swift.py")
 ifeq "$(SDKROOT)" ""
-	SWIFTSDKROOT = $(shell $(VPATH)/$(LEVEL)/find-swift.py -s)
+	SWIFTSDKROOT = $(shell $(PYTHON) "$(VPATH)/$(LEVEL)/find-swift.py" -s)
 else
 	SWIFTSDKROOT = $(SDKROOT)
 endif
-PYTHON ?= python3
 
-SWIFTFLAGS ?= $(DEBUG_INFO_FLAG) -Onone -Xfrontend -serialize-debugging-options
+ifeq "$(MAKE_PDB)" "YES"
+	# Need to disable incremental linking to keep Edit-and-Continue padding
+	# from breaking metadata sections.
+	# See https://github.com/swiftlang/swift/issues/88566 for details.
+	SWIFT_DEBUG_INFO_FLAG ?= -g -debug-info-format=codeview -Xlinker /INCREMENTAL:NO
+else ifeq "$(OS)" "Windows_NT"
+	SWIFT_DEBUG_INFO_FLAG ?= -g -use-ld=lld -Xlinker -debug:dwarf
+else
+	SWIFT_DEBUG_INFO_FLAG ?= $(DEBUG_INFO_FLAG)
+endif
+
+SWIFTFLAGS ?= $(SWIFT_DEBUG_INFO_FLAG) -Onone -Xfrontend -serialize-debugging-options
+
+ifeq "$(MAKE_PDB)" "YES"
+SWIFT_LINK_FLAGS = $(SWIFTFLAGS) -Xlinker /debug
+else
+# On Darwin, `-g` automatically runs `dsymutil`. Removed so it can be enabled explicitly
+# as neeeded.
+SWIFT_LINK_FLAGS = $(patsubst -g,,$(SWIFTFLAGS))
+endif
 
 SWIFTFLAGS += $(SWIFTFLAGS_EXTRAS)
 SWIFTFLAGS += $(FRAMEWORK_INCLUDES)
@@ -31,8 +51,18 @@ ifeq "$(findstring -target,$(SWIFTFLAGS))" ""
   SWIFTFLAGS += $(TARGET_SWIFTFLAGS)
 endif
 
-ifneq "$(SWIFT_ENABLE_EXPLICIT_MODULES)" ""
+ifeq "$(OS)" "Windows_NT"
+  SWIFTFLAGS += -resource-dir "$(SWIFTSDKROOT)/usr/lib/swift"
+endif
+
+SWIFT_ENABLE_EXPLICIT_MODULES ?= YES
+ifneq "$(SWIFT_ENABLE_EXPLICIT_MODULES)" "NO"
 SWIFTFLAGS += -explicit-module-build
+endif
+
+SWIFT_ENABLE_COMPILE_CACHE ?= NO
+ifneq "$(SWIFT_ENABLE_COMPILE_CACHE)" "NO"
+SWIFTFLAGS += -cache-compile-job -cas-path $(BUILDDIR)/cas
 endif
 
 # Swift bridging headers.
@@ -76,7 +106,10 @@ endif
 # If C++ interop is enabled, the generated header file will try to include 
 # SWIFT_LIBS_DIR/swiftToCxx/_SwiftCxxInteroperability.h
 ifneq "$(SWIFT_CXX_INTEROP)" ""
-  CFLAGS += -I$(SWIFT_LIBS_DIR)
+	CFLAGS += -I$(SWIFT_LIBS_DIR)
+	ifeq "$(OS)" "Windows_NT"
+		CXXFLAGS += -D_MT -D_DLL
+	endif
 endif
 
 
@@ -100,7 +133,7 @@ endif
 
 ifeq "$(USESWIFTDRIVER)" "1"
 	LDFLAGS +=-L"$(SWIFTLIBS)"
-	ifeq "$(OS)" "Darwin"
+	ifeq ($(filter $(OS),Darwin Windows_NT),$(OS))
 		SWIFTFLAGS += -sdk "$(SWIFTSDKROOT)"
 	endif
 	SWIFTFLAGS += -tools-directory "$(shell dirname $(CC))"
@@ -131,11 +164,45 @@ ifeq "$(SWIFT_CXX_INTEROP)" "1"
 endif
 
 #----------------------------------------------------------------------
+# SWIFT_EMBEDDED_CONCURRENCY implies SWIFT_EMBEDDED_MODE
+#----------------------------------------------------------------------
+ifeq "$(SWIFT_EMBEDDED_CONCURRENCY)" "1"
+	SWIFT_EMBEDDED_MODE = 1
+endif
+
+#----------------------------------------------------------------------
 # Check if we should compile in Swift embedded mode
 #----------------------------------------------------------------------
 ifeq "$(SWIFT_EMBEDDED_MODE)" "1"
-	SWIFTFLAGS += -gdwarf-types -enable-experimental-feature Embedded -Xfrontend -disable-objc-interop -runtime-compatibility-version none
+	SWIFTFLAGS += -gdwarf-types -enable-experimental-feature Embedded -enable-experimental-feature ValueGenerics -Xfrontend -disable-objc-interop -runtime-compatibility-version none
+	ifeq "$(OS)" "Darwin"
+		# If TARGET_SWIFTFLAGS already specifies a -target (e.g. for remote-ios),
+		# honour it; the embedded triple is the target triple with the version
+		# number stripped (e.g. arm64-apple-ios26.0 → arm64-apple-ios).
+		# Otherwise default to a macOS host build.
+		ifneq "$(findstring -target,$(TARGET_SWIFTFLAGS))" ""
+			# Extract the triple from TARGET_SWIFTFLAGS (e.g. "-target arm64-apple-ios26.0"
+			# becomes "arm64-apple-ios26.0"), then strip the version number so the result
+			# matches the directory names under lib/swift/embedded/ (e.g. "arm64-apple-ios").
+			SWIFT_EMBEDDED_TRIPLE_VERSIONED = $(shell echo $(TARGET_SWIFTFLAGS) | sed -E 's/.*-target ([^ ]+).*/\1/')
+			SWIFT_EMBEDDED_TRIPLE = $(shell echo $(SWIFT_EMBEDDED_TRIPLE_VERSIONED) | sed -E 's/([^-]+-[^-]+-[^.0-9]+).*/\1/')
+		else
+			SWIFTFLAGS += -target $(ARCH)-apple-macos14
+			SWIFT_EMBEDDED_TRIPLE = $(ARCH)-apple-macos
+		endif
+	endif
 	SWIFT_WMO = 1
+endif
+
+#----------------------------------------------------------------------
+# Check if we need embedded Swift concurrency support
+#----------------------------------------------------------------------
+ifeq "$(SWIFT_EMBEDDED_CONCURRENCY)" "1"
+	SWIFT_EMBEDDED_LIB_DIR = $(shell dirname $(SWIFTC))/../lib/swift/embedded/$(SWIFT_EMBEDDED_TRIPLE)
+	LD_EXTRAS +=  -Xlinker $(SWIFT_EMBEDDED_LIB_DIR)/libswift_Concurrency.a
+	LD_EXTRAS +=  -Xlinker $(SWIFT_EMBEDDED_LIB_DIR)/libswift_ConcurrencyDefaultExecutor.a
+	LD_EXTRAS += -lc++
+	LD_EXTRAS += -Xlinker -dead_strip
 endif
 
 #----------------------------------------------------------------------
@@ -149,6 +216,17 @@ ifeq "$(USESWIFTDRIVER)" "1"
 #----------------------------------------------------------------------
 ifeq "$(DYLIB_NAME)" ""
 MODULENAME?=$(shell basename $(EXE) .out)
+# Compile with -parse-as-library when main.swift contains "@main".
+# $(file ...) requires GNU Make 4.0+, unavailable on macOS (ships with 3.81).
+ifeq "$(OS)" "Windows_NT"
+ifneq "$(findstring @main,$(file <$(VPATH)/main.swift))" ""
+PARSE_AS_LIBRARY = -parse-as-library
+endif
+else
+ifneq "$(shell grep -w '@main' $(VPATH)/main.swift 2>/dev/null)" ""
+PARSE_AS_LIBRARY = -parse-as-library
+endif
+endif
 else
 EXE = $(DYLIB_FILENAME)
 MODULENAME?=$(DYLIB_NAME)
@@ -161,7 +239,7 @@ ALL_SWIFT_SOURCES = $(SWIFT_SOURCES) $(DYLIB_SWIFT_SOURCES)
 SWIFT_OBJECTS = $(strip $(ALL_SWIFT_SOURCES:.swift=.swift.o))
 
 ifeq "$(DISABLE_SWIFT_INTERFACE)" ""
-SWIFT_INTERFACE_FLAGS=-emit-module-interface-path $(BUILDDIR)/$(MODULENAME).swiftinterface
+SWIFT_INTERFACE_FLAGS=-swift-version 5 -emit-module-interface-path $(BUILDDIR)/$(MODULENAME).swiftinterface
 endif
 
 ifeq "$(SWIFT_WMO)" "1"
@@ -206,7 +284,7 @@ LD_SWIFTFLAGS =
 endif
 $(EXE): $(OBJECTS)
 	@echo "### Linking" $(EXE)
-	$(SWIFTC) $(LD_EXTRAS) $(LD_SWIFTFLAGS) $(OBJECTS) $(patsubst -g,,$(SWIFTFLAGS)) -o "$(EXE)"
+	$(SWIFTC) $(LD_EXTRAS) $(LD_SWIFTFLAGS) $(OBJECTS) $(SWIFT_LINK_FLAGS) -o "$(EXE)"
 ifneq "$(CODESIGN)" ""
 	$(CODESIGN) -s - "$(EXE)"
 endif
@@ -220,7 +298,7 @@ endif
 
 $(EXE): $(OBJECTS)
 	@echo "### Linking" $(EXE)
-	$(SWIFTC) $(LD_EXTRAS) $(LD_SWIFTFLAGS) $(WRAPPED_SWIFTMODULE) $^ $(patsubst -g,,$(SWIFTFLAGS)) -o "$(EXE)"
+	$(SWIFTC) $(LD_EXTRAS) $(LD_SWIFTFLAGS) $(WRAPPED_SWIFTMODULE) $^ $(SWIFT_LINK_FLAGS) -o "$(EXE)"
 ifneq "$(HIDE_SWIFTMODULE)" ""
 	rm -f $(MODULENAME).swiftmodule
 endif
@@ -247,20 +325,33 @@ endif # Darwin
 $(DYLIB_FILENAME) : $(DYLIB_OBJECTS) $(MODULE_INTERFACE)
 	@echo "### Linking dynamic library $(DYLIB_NAME)"
 ifneq "$(FRAMEWORK)" ""
-	mkdir -p $(FRAMEWORK).framework/Versions/A/Headers
-	mkdir -p $(FRAMEWORK).framework/Versions/A/Modules
-	mkdir -p $(FRAMEWORK).framework/Versions/A/Resources
+	$(call MKDIR_P,$(FRAMEWORK).framework/Versions/A/Headers)
+	$(call MKDIR_P,$(FRAMEWORK).framework/Versions/A/Modules)
+	$(call MKDIR_P,$(FRAMEWORK).framework/Versions/A/Resources)
+ifneq "$(FRAMEWORK_HEADERS)" ""
+	$(call CP_R,$(FRAMEWORK_HEADERS),$(FRAMEWORK).framework/Versions/A/Headers)
+endif
+ifneq "$(FRAMEWORK_MODULES)" ""
+	$(call CP_R,$(FRAMEWORK_MODULES),$(FRAMEWORK).framework/Versions/A/Modules)
+endif
+ifneq "$(FRAMEWORK_PRIVATE_HEADERS)" ""
+	$(call MKDIR_P,$(FRAMEWORK).framework/Versions/A/PrivateHeaders)
+	$(call CP_R,$(FRAMEWORK_PRIVATE_HEADERS),$(FRAMEWORK).framework/Versions/A/PrivateHeaders)
+	cd $(FRAMEWORK).framework && $(call LN_SF,Versions/A/PrivateHeaders,PrivateHeaders)
+endif
+ifeq "$(DYLIB_HIDE_SWIFTMODULE)" ""
 ifneq "$(MODULENAME)" ""
-	mkdir -p $(FRAMEWORK).framework/Versions/A/Modules/$(MODULENAME).swiftmodule
-	cp -r $(MODULENAME).swiftmodule $(FRAMEWORK).framework/Versions/A/Modules/$(MODULENAME).swiftmodule/$(ARCH).swiftmodule
+	$(call MKDIR_P,$(FRAMEWORK).framework/Versions/A/Modules/$(MODULENAME).swiftmodule)
+	$(call CP_R,$(MODULENAME).swiftmodule,$(FRAMEWORK).framework/Versions/A/Modules/$(MODULENAME).swiftmodule/$(ARCH).swiftmodule)
 endif
-	(cd $(FRAMEWORK).framework/Versions; ln -sf A Current)
-	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Headers Headers)
-	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Modules Modules)
-	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Resources Resources)
-	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/$(FRAMEWORK) $(FRAMEWORK))
 endif
-	$(SWIFTC) $(patsubst -g,,$(SWIFTFLAGS)) \
+	cd $(FRAMEWORK).framework/Versions && $(call LN_SF,A,Current)
+	cd $(FRAMEWORK).framework && $(call LN_SF,Versions/A/Headers,Headers)
+	cd $(FRAMEWORK).framework && $(call LN_SF,Versions/A/Modules,Modules)
+	cd $(FRAMEWORK).framework && $(call LN_SF,Versions/A/Resources,Resources)
+	cd $(FRAMEWORK).framework && $(call LN_SF,Versions/A/$(FRAMEWORK),$(FRAMEWORK))
+endif
+	$(SWIFTC) $(SWIFT_LINK_FLAGS) \
             -emit-library $(DYLIB_SWIFT_FLAGS) -o $@ $(DYLIB_OBJECTS)
 ifneq "$(CODESIGN)" ""
 	$(CODESIGN) -s - "$(DYLIB_FILENAME)"
@@ -268,6 +359,9 @@ endif
 ifneq "$(MAKE_DSYM)" "NO"
 ifneq "$(DS)" ""
 	"$(DS)" $(DSFLAGS) "$(DYLIB_FILENAME)"
+ifneq "$(FRAMEWORK)" ""
+	mv "$(DYLIB_FILENAME).dSYM"  "$(DYLIB_FILENAME).framework.dSYM"
+endif
 endif
 endif
 

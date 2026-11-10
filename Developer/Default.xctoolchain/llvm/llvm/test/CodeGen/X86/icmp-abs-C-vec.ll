@@ -50,7 +50,7 @@ define <4 x i1> @illegal_abs_unchanged2(<4 x i8> %x) {
 ; AVX512:       # %bb.0:
 ; AVX512-NEXT:    vpabsb %xmm0, %xmm0
 ; AVX512-NEXT:    vpcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    vpmovzxbd {{.*#+}} xmm0 = xmm0[0],zero,zero,zero,xmm0[1],zero,zero,zero,xmm0[2],zero,zero,zero,xmm0[3],zero,zero,zero
 ; AVX512-NEXT:    retq
 ;
@@ -120,7 +120,7 @@ define <4 x i1> @illegal_abs_to_eq_or(<4 x i64> %x) {
 ; SSE41-NEXT:    psubq %xmm1, %xmm3
 ; SSE41-NEXT:    movdqa %xmm1, %xmm0
 ; SSE41-NEXT:    blendvpd %xmm0, %xmm3, %xmm1
-; SSE41-NEXT:    movdqa {{.*#+}} xmm0 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm0 = [129,129]
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm2
 ; SSE41-NEXT:    packssdw %xmm1, %xmm2
@@ -139,12 +139,11 @@ define <4 x i1> @illegal_abs_to_eq_or(<4 x i64> %x) {
 ; SSE2-NEXT:    psubq %xmm2, %xmm1
 ; SSE2-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
 ; SSE2-NEXT:    pcmpeqd %xmm2, %xmm1
-; SSE2-NEXT:    pshufd {{.*#+}} xmm3 = xmm1[1,0,3,2]
-; SSE2-NEXT:    pand %xmm1, %xmm3
 ; SSE2-NEXT:    pcmpeqd %xmm2, %xmm0
-; SSE2-NEXT:    pshufd {{.*#+}} xmm1 = xmm0[1,0,3,2]
-; SSE2-NEXT:    pand %xmm1, %xmm0
-; SSE2-NEXT:    packssdw %xmm3, %xmm0
+; SSE2-NEXT:    movdqa %xmm0, %xmm2
+; SSE2-NEXT:    shufps {{.*#+}} xmm2 = xmm2[1,3],xmm1[1,3]
+; SSE2-NEXT:    shufps {{.*#+}} xmm0 = xmm0[0,2],xmm1[0,2]
+; SSE2-NEXT:    andps %xmm2, %xmm0
 ; SSE2-NEXT:    retq
   %abs = call <4 x i64> @llvm.abs.v4i64(<4 x i64> %x, i1 true)
   %cmp = icmp eq <4 x i64> %abs, <i64 129, i64 129, i64 129, i64 129>
@@ -179,7 +178,7 @@ define <4 x i64> @illegal_abs_to_eq_or_sext(<4 x i64> %x) {
 ; SSE41-NEXT:    psubq %xmm2, %xmm3
 ; SSE41-NEXT:    movdqa %xmm2, %xmm0
 ; SSE41-NEXT:    blendvpd %xmm0, %xmm3, %xmm2
-; SSE41-NEXT:    movdqa {{.*#+}} xmm0 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm0 = [129,129]
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm2
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm1
 ; SSE41-NEXT:    movdqa %xmm2, %xmm0
@@ -243,7 +242,7 @@ define <4 x i1> @illegal_abs_to_ne_and(<4 x i64> %x) {
 ; SSE41-NEXT:    psubq %xmm1, %xmm3
 ; SSE41-NEXT:    movdqa %xmm1, %xmm0
 ; SSE41-NEXT:    blendvpd %xmm0, %xmm3, %xmm1
-; SSE41-NEXT:    movdqa {{.*#+}} xmm0 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm0 = [129,129]
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm2
 ; SSE41-NEXT:    packssdw %xmm1, %xmm2
@@ -263,14 +262,13 @@ define <4 x i1> @illegal_abs_to_ne_and(<4 x i64> %x) {
 ; SSE2-NEXT:    psubq %xmm2, %xmm1
 ; SSE2-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
 ; SSE2-NEXT:    pcmpeqd %xmm2, %xmm1
-; SSE2-NEXT:    pshufd {{.*#+}} xmm3 = xmm1[1,0,3,2]
-; SSE2-NEXT:    pand %xmm1, %xmm3
 ; SSE2-NEXT:    pcmpeqd %xmm2, %xmm0
-; SSE2-NEXT:    pshufd {{.*#+}} xmm1 = xmm0[1,0,3,2]
-; SSE2-NEXT:    pand %xmm1, %xmm0
-; SSE2-NEXT:    packssdw %xmm3, %xmm0
+; SSE2-NEXT:    movdqa %xmm0, %xmm2
+; SSE2-NEXT:    shufps {{.*#+}} xmm2 = xmm2[1,3],xmm1[1,3]
+; SSE2-NEXT:    shufps {{.*#+}} xmm0 = xmm0[0,2],xmm1[0,2]
+; SSE2-NEXT:    andps %xmm2, %xmm0
 ; SSE2-NEXT:    pcmpeqd %xmm1, %xmm1
-; SSE2-NEXT:    pxor %xmm1, %xmm0
+; SSE2-NEXT:    xorps %xmm1, %xmm0
 ; SSE2-NEXT:    retq
   %abs = call <4 x i64> @llvm.abs.v4i64(<4 x i64> %x, i1 true)
   %cmp = icmp ne <4 x i64> %abs, <i64 129, i64 129, i64 129, i64 129>
@@ -283,7 +281,7 @@ define <4 x i64> @illegal_abs_to_ne_and_sext(<4 x i64> %x) {
 ; AVX512-NEXT:    vpabsq %ymm0, %ymm0
 ; AVX512-NEXT:    vpbroadcastq {{.*#+}} ymm1 = [129,129,129,129]
 ; AVX512-NEXT:    vpcmpeqq %ymm1, %ymm0, %ymm0
-; AVX512-NEXT:    vpternlogq $15, %ymm0, %ymm0, %ymm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} ymm0 = ~ymm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: illegal_abs_to_ne_and_sext:
@@ -308,7 +306,7 @@ define <4 x i64> @illegal_abs_to_ne_and_sext(<4 x i64> %x) {
 ; SSE41-NEXT:    psubq %xmm2, %xmm3
 ; SSE41-NEXT:    movdqa %xmm2, %xmm0
 ; SSE41-NEXT:    blendvpd %xmm0, %xmm3, %xmm2
-; SSE41-NEXT:    movdqa {{.*#+}} xmm0 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm0 = [129,129]
 ; SSE41-NEXT:    pcmpeqq %xmm0, %xmm2
 ; SSE41-NEXT:    pcmpeqd %xmm3, %xmm3
 ; SSE41-NEXT:    pxor %xmm3, %xmm2
@@ -419,7 +417,7 @@ define <4 x i1> @legal_abs_ne_unchangedd(<4 x i32> %x) {
 ; AVX512-NEXT:    vpabsd %xmm0, %xmm0
 ; AVX512-NEXT:    vpbroadcastd {{.*#+}} xmm1 = [129,129,129,129]
 ; AVX512-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: legal_abs_ne_unchangedd:
@@ -460,7 +458,7 @@ define <4 x i32> @legal_abs_ne_unchangedd_sext(<4 x i32> %x) {
 ; AVX512-NEXT:    vpabsd %xmm0, %xmm0
 ; AVX512-NEXT:    vpbroadcastd {{.*#+}} xmm1 = [129,129,129,129]
 ; AVX512-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: legal_abs_ne_unchangedd_sext:
@@ -520,11 +518,11 @@ define <4 x i1> @eq_or_to_abs_vec4x64(<4 x i64> %x) {
 ;
 ; SSE41-LABEL: eq_or_to_abs_vec4x64:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm2 = [129,129]
 ; SSE41-NEXT:    movdqa %xmm0, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm2, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm1, %xmm2
-; SSE41-NEXT:    movdqa {{.*#+}} xmm4 = [18446744073709551487,18446744073709551487]
+; SSE41-NEXT:    pmovsxwq {{.*#+}} xmm4 = [18446744073709551487,18446744073709551487]
 ; SSE41-NEXT:    pcmpeqq %xmm4, %xmm0
 ; SSE41-NEXT:    por %xmm3, %xmm0
 ; SSE41-NEXT:    pcmpeqq %xmm4, %xmm1
@@ -576,11 +574,11 @@ define <4 x i64> @eq_or_to_abs_vec4x64_sext(<4 x i64> %x) {
 ;
 ; SSE41-LABEL: eq_or_to_abs_vec4x64_sext:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm2 = [129,129]
 ; SSE41-NEXT:    movdqa %xmm0, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm2, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm1, %xmm2
-; SSE41-NEXT:    movdqa {{.*#+}} xmm4 = [18446744073709551487,18446744073709551487]
+; SSE41-NEXT:    pmovsxwq {{.*#+}} xmm4 = [18446744073709551487,18446744073709551487]
 ; SSE41-NEXT:    pcmpeqq %xmm4, %xmm0
 ; SSE41-NEXT:    por %xmm3, %xmm0
 ; SSE41-NEXT:    pcmpeqq %xmm4, %xmm1
@@ -651,12 +649,12 @@ define <4 x i1> @ne_and_to_abs_vec4x64(<4 x i64> %x) {
 ;
 ; SSE41-LABEL: ne_and_to_abs_vec4x64:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm2 = [129,129]
 ; SSE41-NEXT:    movdqa %xmm0, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm2, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm1, %xmm2
 ; SSE41-NEXT:    pcmpeqd %xmm4, %xmm4
-; SSE41-NEXT:    movdqa {{.*#+}} xmm5 = [18446744073709551487,18446744073709551487]
+; SSE41-NEXT:    pmovsxwq {{.*#+}} xmm5 = [18446744073709551487,18446744073709551487]
 ; SSE41-NEXT:    pcmpeqq %xmm5, %xmm0
 ; SSE41-NEXT:    por %xmm3, %xmm0
 ; SSE41-NEXT:    pcmpeqq %xmm5, %xmm1
@@ -698,7 +696,7 @@ define <4 x i64> @ne_and_to_abs_vec4x64_sext(<4 x i64> %x) {
 ; AVX512-NEXT:    vpbroadcastq {{.*#+}} ymm1 = [129,129,129,129]
 ; AVX512-NEXT:    vpabsq %ymm0, %ymm0
 ; AVX512-NEXT:    vpcmpeqq %ymm1, %ymm0, %ymm0
-; AVX512-NEXT:    vpternlogq $15, %ymm0, %ymm0, %ymm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} ymm0 = ~ymm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: ne_and_to_abs_vec4x64_sext:
@@ -714,12 +712,12 @@ define <4 x i64> @ne_and_to_abs_vec4x64_sext(<4 x i64> %x) {
 ;
 ; SSE41-LABEL: ne_and_to_abs_vec4x64_sext:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm2 = [129,129]
+; SSE41-NEXT:    pmovzxbq {{.*#+}} xmm2 = [129,129]
 ; SSE41-NEXT:    movdqa %xmm0, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm2, %xmm3
 ; SSE41-NEXT:    pcmpeqq %xmm1, %xmm2
 ; SSE41-NEXT:    pcmpeqd %xmm4, %xmm4
-; SSE41-NEXT:    movdqa {{.*#+}} xmm5 = [18446744073709551487,18446744073709551487]
+; SSE41-NEXT:    pmovsxwq {{.*#+}} xmm5 = [18446744073709551487,18446744073709551487]
 ; SSE41-NEXT:    pcmpeqq %xmm5, %xmm0
 ; SSE41-NEXT:    por %xmm3, %xmm0
 ; SSE41-NEXT:    pcmpeqq %xmm5, %xmm1
@@ -844,7 +842,7 @@ define <4 x i1> @ne_and_to_abs_vec4x32(<4 x i32> %x) {
 ; AVX512-NEXT:    vpbroadcastd {{.*#+}} xmm1 = [1,1,1,1]
 ; AVX512-NEXT:    vpabsd %xmm0, %xmm0
 ; AVX512-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: ne_and_to_abs_vec4x32:
@@ -885,7 +883,7 @@ define <4 x i32> @ne_and_to_abs_vec4x32_sext(<4 x i32> %x) {
 ; AVX512-NEXT:    vpbroadcastd {{.*#+}} xmm1 = [1,1,1,1]
 ; AVX512-NEXT:    vpabsd %xmm0, %xmm0
 ; AVX512-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    retq
 ;
 ; AVX2-LABEL: ne_and_to_abs_vec4x32_sext:
@@ -946,7 +944,7 @@ define <4 x i1> @eq_or_to_abs_vec4x16(<4 x i16> %x) {
 ;
 ; SSE41-LABEL: eq_or_to_abs_vec4x16:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u>
+; SSE41-NEXT:    pmovsxbw {{.*#+}} xmm1 = [88,88,88,88,88,88,88,88]
 ; SSE41-NEXT:    pcmpeqw %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; SSE41-NEXT:    por %xmm1, %xmm0
@@ -955,7 +953,7 @@ define <4 x i1> @eq_or_to_abs_vec4x16(<4 x i16> %x) {
 ;
 ; SSE2-LABEL: eq_or_to_abs_vec4x16:
 ; SSE2:       # %bb.0:
-; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u>
+; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u]
 ; SSE2-NEXT:    pcmpeqw %xmm0, %xmm1
 ; SSE2-NEXT:    pcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; SSE2-NEXT:    por %xmm1, %xmm0
@@ -977,7 +975,7 @@ define <4 x i8> @eq_or_to_abs_vec4x8_sext(<4 x i8> %x) {
 ; AVX512-NEXT:    vpmovsxbd %xmm0, %zmm0
 ; AVX512-NEXT:    vptestmd %zmm0, %zmm0, %k1
 ; AVX512-NEXT:    korw %k1, %k0, %k1
-; AVX512-NEXT:    vpternlogd $255, %zmm0, %zmm0, %zmm0 {%k1} {z}
+; AVX512-NEXT:    vpternlogd {{.*#+}} zmm0 {%k1} {z} = -1
 ; AVX512-NEXT:    vpmovdb %zmm0, %xmm0
 ; AVX512-NEXT:    vzeroupper
 ; AVX512-NEXT:    retq
@@ -991,7 +989,7 @@ define <4 x i8> @eq_or_to_abs_vec4x8_sext(<4 x i8> %x) {
 ;
 ; SSE41-LABEL: eq_or_to_abs_vec4x8_sext:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u>
+; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u]
 ; SSE41-NEXT:    pcmpeqb %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; SSE41-NEXT:    por %xmm1, %xmm0
@@ -999,7 +997,7 @@ define <4 x i8> @eq_or_to_abs_vec4x8_sext(<4 x i8> %x) {
 ;
 ; SSE2-LABEL: eq_or_to_abs_vec4x8_sext:
 ; SSE2:       # %bb.0:
-; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u>
+; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u]
 ; SSE2-NEXT:    pcmpeqb %xmm0, %xmm1
 ; SSE2-NEXT:    pcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; SSE2-NEXT:    por %xmm1, %xmm0
@@ -1015,11 +1013,11 @@ define <4 x i1> @ne_and_to_abs_vec4x8(<4 x i8> %x) {
 ; AVX512-LABEL: ne_and_to_abs_vec4x8:
 ; AVX512:       # %bb.0:
 ; AVX512-NEXT:    vpcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0, %xmm1
-; AVX512-NEXT:    vpternlogq $15, %xmm1, %xmm1, %xmm1
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm1 = ~xmm1
 ; AVX512-NEXT:    vpmovsxbd %xmm1, %zmm1
 ; AVX512-NEXT:    vptestmd %zmm1, %zmm1, %k0
 ; AVX512-NEXT:    vpcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    vpmovsxbd %xmm0, %zmm0
 ; AVX512-NEXT:    vptestmd %zmm0, %zmm0, %k1
 ; AVX512-NEXT:    kandw %k1, %k0, %k1
@@ -1040,7 +1038,7 @@ define <4 x i1> @ne_and_to_abs_vec4x8(<4 x i8> %x) {
 ;
 ; SSE41-LABEL: ne_and_to_abs_vec4x8:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u>
+; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u]
 ; SSE41-NEXT:    pcmpeqb %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqd %xmm2, %xmm2
 ; SSE41-NEXT:    pcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
@@ -1051,7 +1049,7 @@ define <4 x i1> @ne_and_to_abs_vec4x8(<4 x i8> %x) {
 ;
 ; SSE2-LABEL: ne_and_to_abs_vec4x8:
 ; SSE2:       # %bb.0:
-; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u>
+; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u,u,u,u,u,u,u,u,u]
 ; SSE2-NEXT:    pcmpeqb %xmm0, %xmm1
 ; SSE2-NEXT:    pcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; SSE2-NEXT:    por %xmm1, %xmm0
@@ -1070,11 +1068,11 @@ define <4 x i16> @ne_and_to_abs_vec4x16_sext(<4 x i16> %x) {
 ; AVX512-LABEL: ne_and_to_abs_vec4x16_sext:
 ; AVX512:       # %bb.0:
 ; AVX512-NEXT:    vpcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0, %xmm1
-; AVX512-NEXT:    vpternlogq $15, %xmm1, %xmm1, %xmm1
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm1 = ~xmm1
 ; AVX512-NEXT:    vpmovsxwd %xmm1, %ymm1
 ; AVX512-NEXT:    vptestmd %ymm1, %ymm1, %k0
 ; AVX512-NEXT:    vpcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0, %xmm0
-; AVX512-NEXT:    vpternlogq $15, %xmm0, %xmm0, %xmm0
+; AVX512-NEXT:    vpternlogq {{.*#+}} xmm0 = ~xmm0
 ; AVX512-NEXT:    vpmovsxwd %xmm0, %ymm0
 ; AVX512-NEXT:    vptestmd %ymm0, %ymm0, %k1
 ; AVX512-NEXT:    kandw %k1, %k0, %k1
@@ -1095,7 +1093,7 @@ define <4 x i16> @ne_and_to_abs_vec4x16_sext(<4 x i16> %x) {
 ;
 ; SSE41-LABEL: ne_and_to_abs_vec4x16_sext:
 ; SSE41:       # %bb.0:
-; SSE41-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u>
+; SSE41-NEXT:    pmovsxbw {{.*#+}} xmm1 = [88,88,88,88,88,88,88,88]
 ; SSE41-NEXT:    pcmpeqw %xmm0, %xmm1
 ; SSE41-NEXT:    pcmpeqd %xmm2, %xmm2
 ; SSE41-NEXT:    pcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
@@ -1105,7 +1103,7 @@ define <4 x i16> @ne_and_to_abs_vec4x16_sext(<4 x i16> %x) {
 ;
 ; SSE2-LABEL: ne_and_to_abs_vec4x16_sext:
 ; SSE2:       # %bb.0:
-; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = <88,88,88,88,u,u,u,u>
+; SSE2-NEXT:    movdqa {{.*#+}} xmm1 = [88,88,88,88,u,u,u,u]
 ; SSE2-NEXT:    pcmpeqw %xmm0, %xmm1
 ; SSE2-NEXT:    pcmpeqd %xmm2, %xmm2
 ; SSE2-NEXT:    pcmpeqw {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0

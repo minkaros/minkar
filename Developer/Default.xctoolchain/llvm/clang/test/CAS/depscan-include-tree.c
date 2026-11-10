@@ -1,34 +1,32 @@
 // RUN: rm -rf %t
 // RUN: split-file %s %t
 
-// RUN: %clang -cc1depscan -o %t/inline.rsp -fdepscan=inline -fdepscan-include-tree -cc1-args -cc1 -triple x86_64-apple-macos11.0 \
+// RUN: %clang -cc1depscan -o %t/inline.rsp -fdepscan=inline -cc1-args -cc1 -triple x86_64-apple-macos11.0 \
 // RUN:     -emit-obj %t/t.c -o %t/t.o -dwarf-ext-refs -fmodule-format=obj  \
-// RUN:     -coverage-notes-file %t/t.gcno -coverage-data-file %t/t.gcda \
+// RUN:     -coverage-notes-file=%t/t.gcno -coverage-data-file=%t/t.gcda \
 // RUN:     -I %t/includes -isysroot %S/Inputs/SDK -fcas-path %t/cas -DSOME_MACRO -dependency-file %t/inline.d -MT deps
 
-// RUN: FileCheck %s -input-file %t/inline.rsp -DPREFIX=%t
-// RUN: FileCheck %s -input-file %t/inline.rsp -DPREFIX=%t -check-prefix=SHOULD
+// RUN: cat %t/inline.rsp | %PathSanitizingFileCheck %s --sanitize PREFIX=%/t --enable-yaml-compatibility
+// RUN: cat %t/inline.rsp | %PathSanitizingFileCheck %s --sanitize PREFIX=%/t -check-prefix=SHOULD  --enable-yaml-compatibility
 
 // RUN: %clang @%t/inline.rsp
 
-// CHECK: "-fcas-path" "[[PREFIX]]/cas"
+// CHECK: "-fcas-path" "PREFIX{{/|\\}}cas"
 // CHECK: "-fcas-include-tree"
 // CHECK: "-isysroot"
-// CHECK: "-coverage-data-file" "[[PREFIX]]/t.gcda"
-// CHECK: "-coverage-notes-file" "[[PREFIX]]/t.gcno"
-// SHOULD-NOT: "-fcas-fs"
-// SHOULD-NOT: "-fcas-fs-working-directory"
+// CHECK: "-fmodule-format=obj"
+// CHECK: "-dwarf-ext-refs"
+// CHECK: "-coverage-data-file=PREFIX{{/|\\}}t.gcda"
+// CHECK: "-coverage-notes-file=PREFIX{{/|\\}}t.gcno"
 // SHOULD-NOT: "-I"
-// SHOULD-NOT: "[[PREFIX]]/t.c"
+// SHOULD-NOT: "PREFIX{{/|\\}}t.c"
 // SHOULD-NOT: "-D"
-// SHOULD-NOT: "-dwarf-ext-refs"
-// SHOULD-NOT: "-fmodule-format=obj"
 
-// RUN: FileCheck %s -input-file %t/inline.d -check-prefix=DEPS -DPREFIX=%t
+// RUN: cat %t/inline.d | %PathSanitizingFileCheck %s -check-prefix=DEPS --sanitize PREFIX=%/t
 
 // DEPS: deps:
-// DEPS: [[PREFIX]]/t.c
-// DEPS: [[PREFIX]]/includes/t.h
+// DEPS: PREFIX{{/|\\}}t.c
+// DEPS: PREFIX{{/|\\}}includes{{/|\\}}t.h
 
 //--- t.c
 #include "t.h"

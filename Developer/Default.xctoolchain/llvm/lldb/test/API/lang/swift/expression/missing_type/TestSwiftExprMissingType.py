@@ -5,6 +5,7 @@ import lldbsuite.test.lldbutil as lldbutil
 
 class TestSwiftExprMissingType(lldbtest.TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test(self):
         self.build()
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(
@@ -12,4 +13,4 @@ class TestSwiftExprMissingType(lldbtest.TestBase):
         )
         self.expect("frame variable invisible", substrs=["1", "2"])
         self.expect("expr invisible", error=True,
-                    substrs=["Missing type debug info", "invisible"])
+                    substrs=["Missing debug info", "invisible"])

@@ -47,15 +47,53 @@
 // without affecting any active readers/writers in the same process or other
 // processes.
 //
+// The \c UnifiedOnDiskCache also provides validation and recovery on top of the
+// underlying on-disk storage. The low-level storage is designed to remain
+// coherent across regular process crashes, but may be invalid after power loss
+// or similar system failures. \c UnifiedOnDiskCache::validateIfNeeded allows
+// validating the contents once per boot and can recover by marking invalid
+// data for garbage collection.
+//
+// The data recovery described above requires exclusive access to the CAS, and
+// it is an error to attempt recovery if the CAS is open in any process/thread.
+// In order to maximize backwards compatibility with tools that do not perform
+// validation before opening the CAS, we do not attempt to get exclusive access
+// until recovery is actually performed, meaning as long as the data is valid
+// it will not conflict with concurrent use.
+//
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CAS/UnifiedOnDiskCache.h"
 #include "OnDiskCommon.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/CAS/OnDiskCASLogger.h"
+#include "llvm/CAS/OnDiskGraphDB.h"
 #include "llvm/CAS/OnDiskKeyValueDB.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
+#include "llvm/Support/raw_ostream.h"
+#include <chrono>
+#include <optional>
+
+#if __has_include(<sys/sysctl.h>)
+#include <sys/sysctl.h>
+#endif
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 using namespace llvm;
 using namespace llvm::cas;
@@ -65,6 +103,9 @@ using namespace llvm::cas::ondisk;
 /// how to handle the leftover sub-directories of the previous version, within
 /// the \p UnifiedOnDiskCache::collectGarbage function.
 static constexpr StringLiteral DBDirPrefix = "v1.";
+
+static constexpr StringLiteral ValidationFilename = "v1.validation";
+static constexpr StringLiteral CorruptPrefix = "corrupt.";
 
 Expected<ObjectID> UnifiedOnDiskCache::KVPut(ObjectID Key, ObjectID Value) {
   return KVPut(PrimaryGraphDB->getDigest(Key), Value);
@@ -114,15 +155,47 @@ UnifiedOnDiskCache::faultInFromUpstreamKV(ArrayRef<uint8_t> Key) {
   assert(UpstreamValue->size() == sizeof(uint64_t));
   ObjectID UpstreamID = ObjectID::fromOpaqueData(
       support::endian::read64le(UpstreamValue->data()));
-  ObjectID PrimaryID =
+  auto PrimaryID =
       PrimaryGraphDB->getReference(UpstreamGraphDB->getDigest(UpstreamID));
-  return KVPut(Key, PrimaryID);
+  if (LLVM_UNLIKELY(!PrimaryID))
+    return PrimaryID.takeError();
+  return KVPut(Key, *PrimaryID);
+}
+
+Error UnifiedOnDiskCache::validateActionCache() {
+  SmallVector<std::pair<OnDiskKeyValueDB *, OnDiskGraphDB *>> CachePairs;
+  CachePairs.emplace_back(PrimaryKVDB.get(), PrimaryGraphDB.get());
+  if (UpstreamKVDB && UpstreamGraphDB) {
+    CachePairs.emplace_back(UpstreamKVDB.get(), UpstreamGraphDB);
+  }
+
+  for (auto &CachePair : CachePairs) {
+    auto ValidateRef = [&](FileOffset Offset, ArrayRef<char> Value) -> Error {
+      assert(Value.size() == sizeof(uint64_t) && "should be validated already");
+      auto ID = ObjectID::fromOpaqueData(support::endian::read64le(Value.data()));
+      auto formatError = [&](Twine Msg) {
+        return createStringError(
+            llvm::errc::illegal_byte_sequence,
+            "bad record at 0x" +
+                utohexstr((unsigned)Offset.get(), /*LowerCase=*/true) + ": " +
+                Msg.str());
+      };
+      if (Error E = CachePair.second->validateObjectID(ID))
+        return formatError(llvm::toString(std::move(E)));
+      return Error::success();
+    };
+
+    if (Error E = CachePair.first->validate(ValidateRef))
+      return E;
+  }
+  return Error::success();
 }
 
 /// \returns all the 'v<version>.<x>' names of sub-directories, sorted with
-/// ascending order of the integer after the dot.
-static Error getAllDBDirs(StringRef Path,
-                          SmallVectorImpl<std::string> &DBDirs) {
+/// ascending order of the integer after the dot. Corrupt directories, if
+/// included, will come first.
+static Error getAllDBDirs(StringRef Path, SmallVectorImpl<std::string> &DBDirs,
+                          bool IncludeCorrupt = false) {
   struct DBDir {
     uint64_t Order;
     std::string Name;
@@ -135,7 +208,11 @@ static Error getAllDBDirs(StringRef Path,
     if (DirI->type() != sys::fs::file_type::directory_file)
       continue;
     StringRef SubDir = sys::path::filename(DirI->path());
-    if (!SubDir.startswith(DBDirPrefix))
+    if (IncludeCorrupt && SubDir.starts_with(CorruptPrefix)) {
+      FoundDBDirs.push_back({0, std::string(SubDir)});
+      continue;
+    }
+    if (!SubDir.starts_with(DBDirPrefix))
       continue;
     uint64_t Order;
     if (SubDir.substr(DBDirPrefix.size()).getAsInteger(10, Order))
@@ -154,15 +231,265 @@ static Error getAllDBDirs(StringRef Path,
   return Error::success();
 }
 
+static Error getAllGarbageDirs(StringRef Path,
+                               SmallVectorImpl<std::string> &DBDirs) {
+  if (Error E = getAllDBDirs(Path, DBDirs, /*IncludeCorrupt=*/true))
+    return E;
+
+  // FIXME: When the version of \p DBDirPrefix is bumped up we need to figure
+  // out how to handle the leftover sub-directories of the previous version.
+
+  for (unsigned Keep = 2; Keep > 0 && !DBDirs.empty(); --Keep) {
+    StringRef Back(DBDirs.back());
+    if (Back.starts_with(CorruptPrefix))
+      break;
+    DBDirs.pop_back();
+  }
+  return Error::success();
+}
+
 /// \returns Given a sub-directory named 'v<version>.<x>', it outputs the
 /// 'v<version>.<x+1>' name.
 static void getNextDBDirName(StringRef DBDir, llvm::raw_ostream &OS) {
-  assert(DBDir.startswith(DBDirPrefix));
+  assert(DBDir.starts_with(DBDirPrefix));
   uint64_t Count;
   bool Failed = DBDir.substr(DBDirPrefix.size()).getAsInteger(10, Count);
   assert(!Failed);
   (void)Failed;
   OS << DBDirPrefix << Count + 1;
+}
+
+static Error validateOutOfProcess(StringRef LLVMCasBinary, StringRef RootPath,
+                                  bool CheckHash) {
+  SmallVector<StringRef> Args{LLVMCasBinary, "-cas", RootPath, "-validate"};
+  if (CheckHash)
+    Args.push_back("-check-hash");
+
+  llvm::SmallString<128> StdErrPath;
+  int StdErrFD = -1;
+  if (std::error_code EC = sys::fs::createTemporaryFile(
+          "llvm-cas-validate-stderr", "txt", StdErrFD, StdErrPath,
+          llvm::sys::fs::OF_Text))
+    return createStringError(EC, "failed to create temporary file");
+  FileRemover OutputRemover(StdErrPath.c_str());
+
+  std::optional<llvm::StringRef> Redirects[] = {
+      {""}, // stdin = /dev/null
+      {""}, // stdout = /dev/null
+      StdErrPath.str(),
+  };
+
+  std::string ErrMsg;
+  int Result =
+      sys::ExecuteAndWait(LLVMCasBinary, Args, /*Env=*/std::nullopt, Redirects,
+                          /*SecondsToWait=*/120, /*MemoryLimit=*/0, &ErrMsg);
+
+  if (Result == -1)
+    return createStringError("failed to exec " + join(Args, " ") + ": " +
+                             ErrMsg);
+  if (Result != 0) {
+    llvm::SmallString<64> Err("cas contents invalid");
+    if (!ErrMsg.empty()) {
+      Err += ": ";
+      Err += ErrMsg;
+    }
+    auto StdErrBuf = MemoryBuffer::getFile(StdErrPath.c_str());
+    if (StdErrBuf && !(*StdErrBuf)->getBuffer().empty()) {
+      Err += ": ";
+      Err += (*StdErrBuf)->getBuffer();
+    }
+    return createStringError(Err);
+  }
+  return Error::success();
+}
+
+static Error validateInProcess(StringRef RootPath, StringRef HashName,
+                               unsigned HashByteSize, bool CheckHash,
+                               OnDiskGraphDB::HashingFuncT HashFn) {
+  std::shared_ptr<UnifiedOnDiskCache> UniDB;
+  if (Error E = UnifiedOnDiskCache::open(RootPath, std::nullopt, HashName,
+                                         HashByteSize)
+                    .moveInto(UniDB))
+    return E;
+  if (Error E = UniDB->getGraphDB().validate(CheckHash, HashFn))
+    return E;
+  if (Error E = UniDB->validateActionCache())
+    return E;
+  return Error::success();
+}
+
+static Expected<uint64_t> getBootTime() {
+#if __has_include(<sys/sysctl.h>) && defined(KERN_BOOTTIME)
+  // macOS/BSD: Use sysctl to get boot time
+  struct timeval TV;
+  size_t TVLen = sizeof(TV);
+  int KernBoot[2] = {CTL_KERN, KERN_BOOTTIME};
+  if (sysctl(KernBoot, 2, &TV, &TVLen, nullptr, 0) < 0)
+    return createStringError(llvm::errnoAsErrorCode(),
+                             "failed to get boottime");
+  if (TVLen != sizeof(TV))
+    return createStringError("sysctl kern.boottime unexpected format");
+  return TV.tv_sec;
+#elif defined(__linux__)
+  // Linux: Use the mtime for /proc, which is recreated during system boot.
+  // We could also read /proc/stat and search for 'btime'.
+  sys::fs::file_status Status;
+  if (std::error_code EC = sys::fs::status("/proc", Status))
+    return createFileError("/proc", EC);
+  return Status.getLastModificationTime().time_since_epoch().count();
+#elif defined(_WIN32)
+  // Windows: Calculate boot time from current time minus uptime
+  // GetTickCount64() returns milliseconds since boot
+  auto now = std::chrono::system_clock::now();
+  ULONGLONG uptimeMs = GetTickCount64();
+  auto bootTime = now - std::chrono::milliseconds(uptimeMs);
+  return std::chrono::duration_cast<std::chrono::seconds>(
+      bootTime.time_since_epoch()).count();
+#else
+  llvm::report_fatal_error("getBootTime unimplemented for this platform");
+#endif
+}
+
+Expected<ValidationResult> UnifiedOnDiskCache::validateIfNeeded(
+    StringRef RootPath, StringRef HashName, unsigned HashByteSize,
+    bool CheckHash, OnDiskGraphDB::HashingFuncT HashFn, bool AllowRecovery,
+    bool ForceValidation, std::optional<StringRef> LLVMCasBinary) {
+  if (std::error_code EC = sys::fs::create_directories(RootPath))
+    return createFileError(RootPath, EC);
+
+  SmallString<256> PathBuf(RootPath);
+  sys::path::append(PathBuf, ValidationFilename);
+  int FD = -1;
+  if (std::error_code EC = sys::fs::openFileForReadWrite(
+          PathBuf, FD, sys::fs::CD_OpenAlways, sys::fs::OF_None))
+    return createFileError(PathBuf, EC);
+  assert(FD != -1);
+
+  sys::fs::file_t File = sys::fs::convertFDToNativeFile(FD);
+  auto CloseFile = make_scope_exit([&]() { sys::fs::closeFile(File); });
+
+  if (std::error_code EC = lockFileThreadSafe(FD, /*Exclusive=*/true))
+    return createFileError(PathBuf, EC);
+  auto UnlockFD = make_scope_exit([&]() { unlockFileThreadSafe(FD); });
+
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger;
+  if (Error E =
+          ondisk::OnDiskCASLogger::openIfEnabled(RootPath).moveInto(Logger))
+    return std::move(E);
+
+  SmallString<8> Bytes;
+  if (Error E = sys::fs::readNativeFileToEOF(File, Bytes))
+    return createFileError(PathBuf, std::move(E));
+
+  uint64_t ValidationBootTime = 0;
+  if (!Bytes.empty() &&
+      StringRef(Bytes).trim().getAsInteger(10, ValidationBootTime))
+    return createFileError(PathBuf, errc::illegal_byte_sequence,
+                           "expected integer");
+
+  static uint64_t BootTime = 0;
+  if (BootTime == 0)
+    if (Error E = getBootTime().moveInto(BootTime))
+      return std::move(E);
+
+  bool Recovered = false;
+  bool Skipped = false;
+  std::string LogValidationError;
+
+  auto Log = llvm::make_scope_exit([&] {
+    if (!Logger)
+      return;
+    Logger->log_UnifiedOnDiskCache_validateIfNeeded(
+        RootPath, BootTime, ValidationBootTime, CheckHash, AllowRecovery,
+        ForceValidation, LLVMCasBinary, LogValidationError, Skipped, Recovered);
+  });
+
+  if (ValidationBootTime == BootTime && !ForceValidation) {
+    Skipped = true;
+    return ValidationResult::Skipped;
+  }
+
+  // Validate!
+  bool NeedsRecovery = false;
+  Error E = LLVMCasBinary
+                ? validateOutOfProcess(*LLVMCasBinary, RootPath, CheckHash)
+                : validateInProcess(RootPath, HashName, HashByteSize, CheckHash,
+                                    HashFn);
+  if (E) {
+    if (Logger)
+      LogValidationError = toStringWithoutConsuming(E);
+    if (AllowRecovery) {
+      consumeError(std::move(E));
+      NeedsRecovery = true;
+    } else {
+      return std::move(E);
+    }
+  }
+
+  if (NeedsRecovery) {
+    sys::path::remove_filename(PathBuf);
+    sys::path::append(PathBuf, "lock");
+
+    int LockFD = -1;
+    if (std::error_code EC = sys::fs::openFileForReadWrite(
+            PathBuf, LockFD, sys::fs::CD_OpenAlways, sys::fs::OF_None))
+      return createFileError(PathBuf, EC);
+    sys::fs::file_t LockFile = sys::fs::convertFDToNativeFile(LockFD);
+    auto CloseLock = make_scope_exit([&]() { sys::fs::closeFile(LockFile); });
+    if (std::error_code EC = tryLockFileThreadSafe(LockFD)) {
+      if (EC == std::errc::no_lock_available)
+        return createFileError(
+            PathBuf, EC,
+            "CAS validation requires exclusive access but CAS was in use");
+      return createFileError(PathBuf, EC);
+    }
+    auto UnlockFD = make_scope_exit([&]() { unlockFileThreadSafe(LockFD); });
+
+    SmallVector<std::string, 4> DBDirs;
+    if (Error E = getAllDBDirs(RootPath, DBDirs))
+      return std::move(E);
+
+    for (StringRef DBDir : DBDirs) {
+      sys::path::remove_filename(PathBuf);
+      sys::path::append(PathBuf, DBDir);
+      std::error_code EC;
+      int Attempt = 0, MaxAttempts = 100;
+      SmallString<128> GCPath;
+      for (; Attempt < MaxAttempts; ++Attempt) {
+        GCPath.assign(RootPath);
+        sys::path::append(GCPath, CorruptPrefix + std::to_string(Attempt) +
+                                      "." + DBDir);
+        EC = sys::fs::rename(PathBuf, GCPath);
+        // Darwin uses ENOTEMPTY. Linux may return either ENOTEMPTY or EEXIST.
+        if (EC != errc::directory_not_empty && EC != errc::file_exists)
+          break;
+      }
+      if (Attempt == MaxAttempts)
+        return createStringError(
+            EC, "rename " + PathBuf +
+                    " failed: too many CAS directories awaiting pruning");
+      if (EC)
+        return createStringError(EC, "rename " + PathBuf + " to " + GCPath +
+                                         " failed: " + EC.message());
+    }
+    Recovered = true;
+  }
+
+  if (ValidationBootTime != BootTime) {
+    // Fix filename in case we have error to report.
+    sys::path::remove_filename(PathBuf);
+    sys::path::append(PathBuf, ValidationFilename);
+    if (std::error_code EC = sys::fs::resize_file(FD, 0))
+      return createFileError(PathBuf, EC);
+    raw_fd_ostream OS(FD, /*shouldClose=*/false);
+    OS.seek(0); // resize does not reset position
+    OS << BootTime << '\n';
+    if (OS.has_error())
+      return createFileError(PathBuf, OS.error());
+  }
+
+  return NeedsRecovery ? ValidationResult::Recovered
+                       : ValidationResult::Valid;
 }
 
 Expected<std::unique_ptr<UnifiedOnDiskCache>>
@@ -194,6 +521,11 @@ UnifiedOnDiskCache::open(StringRef RootPath, std::optional<uint64_t> SizeLimit,
 
   assert(!DBDirs.empty());
 
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger;
+  if (Error E =
+          ondisk::OnDiskCASLogger::openIfEnabled(RootPath).moveInto(Logger))
+    return std::move(E);
+
   /// If there is only one directory open databases on it. If there are 2 or
   /// more directories, get the most recent directories and chain them, with the
   /// most recent being the primary one. The remaining directories are unused
@@ -204,13 +536,14 @@ UnifiedOnDiskCache::open(StringRef RootPath, std::optional<uint64_t> SizeLimit,
     StringRef UpstreamDir = *(DBDirs.end() - 2);
     PathBuf = RootPath;
     sys::path::append(PathBuf, UpstreamDir);
-    if (Error E = OnDiskGraphDB::open(PathBuf, HashName, HashByteSize,
-                                      /*UpstreamDB=*/nullptr, FaultInPolicy)
-                      .moveInto(UpstreamGraphDB))
+    if (Error E =
+            OnDiskGraphDB::open(PathBuf, HashName, HashByteSize,
+                                /*UpstreamDB=*/nullptr, Logger, FaultInPolicy)
+                .moveInto(UpstreamGraphDB))
       return std::move(E);
     if (Error E = OnDiskKeyValueDB::open(PathBuf, HashName, HashByteSize,
                                          /*ValueName=*/"objectid",
-                                         /*ValueSize=*/sizeof(uint64_t))
+                                         /*ValueSize=*/sizeof(uint64_t), Logger)
                       .moveInto(UpstreamKVDB))
       return std::move(E);
   }
@@ -220,16 +553,17 @@ UnifiedOnDiskCache::open(StringRef RootPath, std::optional<uint64_t> SizeLimit,
   PathBuf = RootPath;
   sys::path::append(PathBuf, PrimaryDir);
   std::unique_ptr<OnDiskGraphDB> PrimaryGraphDB;
-  if (Error E = OnDiskGraphDB::open(PathBuf, HashName, HashByteSize,
-                                    std::move(UpstreamGraphDB), FaultInPolicy)
-                    .moveInto(PrimaryGraphDB))
+  if (Error E =
+          OnDiskGraphDB::open(PathBuf, HashName, HashByteSize,
+                              std::move(UpstreamGraphDB), Logger, FaultInPolicy)
+              .moveInto(PrimaryGraphDB))
     return std::move(E);
   std::unique_ptr<OnDiskKeyValueDB> PrimaryKVDB;
   // \p UnifiedOnDiskCache does manual chaining for key-value requests,
   // including an extra translation step of the value during fault-in.
   if (Error E = OnDiskKeyValueDB::open(PathBuf, HashName, HashByteSize,
                                        /*ValueName=*/"objectid",
-                                       /*ValueSize=*/sizeof(uint64_t))
+                                       /*ValueSize=*/sizeof(uint64_t), Logger)
                     .moveInto(PrimaryKVDB))
     return std::move(E);
 
@@ -243,6 +577,7 @@ UnifiedOnDiskCache::open(StringRef RootPath, std::optional<uint64_t> SizeLimit,
   UniDB->PrimaryGraphDB = std::move(PrimaryGraphDB);
   UniDB->UpstreamKVDB = std::move(UpstreamKVDB);
   UniDB->PrimaryKVDB = std::move(PrimaryKVDB);
+  UniDB->Logger = std::move(Logger);
 
   return std::move(UniDB);
 }
@@ -268,6 +603,14 @@ bool UnifiedOnDiskCache::hasExceededSizeLimit() const {
   uint64_t CurSizeLimit = SizeLimit;
   if (!CurSizeLimit)
     return false;
+
+  // If the hard limit is beyond 85%, declare above limit and request clean up.
+  unsigned CurrentPrecent =
+      std::max(PrimaryGraphDB->getHardStorageLimitUtilization(),
+               PrimaryKVDB->getHardStorageLimitUtilization());
+  if (CurrentPrecent > 85)
+    return true;
+
   // We allow each of the directories in the chain to reach up to half the
   // intended size limit. Check whether the primary directory has exceeded half
   // the limit or not, in order to decide whether we need to start a new chain.
@@ -336,19 +679,17 @@ UnifiedOnDiskCache::UnifiedOnDiskCache() = default;
 
 UnifiedOnDiskCache::~UnifiedOnDiskCache() { consumeError(close()); }
 
-Error UnifiedOnDiskCache::collectGarbage(StringRef Path) {
+Error UnifiedOnDiskCache::collectGarbage(StringRef Path,
+                                         ondisk::OnDiskCASLogger *Logger) {
   SmallVector<std::string, 4> DBDirs;
-  if (Error E = getAllDBDirs(Path, DBDirs))
+  if (Error E = getAllGarbageDirs(Path, DBDirs))
     return E;
-  if (DBDirs.size() <= 2)
-    return Error::success(); // no unused directories.
-
-  // FIXME: When the version of \p DBDirPrefix is bumped up we need to figure
-  // out how to handle the leftover sub-directories of the previous version.
 
   SmallString<256> PathBuf(Path);
-  for (StringRef UnusedSubDir : ArrayRef(DBDirs).drop_back(2)) {
+  for (StringRef UnusedSubDir : DBDirs) {
     sys::path::append(PathBuf, UnusedSubDir);
+    if (Logger)
+      Logger->log_UnifiedOnDiskCache_collectGarbage(PathBuf);
     if (std::error_code EC = sys::fs::remove_directories(PathBuf))
       return createFileError(PathBuf, EC);
     sys::path::remove_filename(PathBuf);
@@ -356,4 +697,6 @@ Error UnifiedOnDiskCache::collectGarbage(StringRef Path) {
   return Error::success();
 }
 
-Error UnifiedOnDiskCache::collectGarbage() { return collectGarbage(RootPath); }
+Error UnifiedOnDiskCache::collectGarbage() {
+  return collectGarbage(RootPath, Logger.get());
+}

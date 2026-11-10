@@ -131,8 +131,8 @@ Status OptionValueProperties::SetSubValue(const ExecutionContext *exe_ctx,
     // Don't set an error if the path contained .experimental. - those are
     // allowed to be missing and should silently fail.
     if (!name_contains_experimental && error.AsCString() == nullptr) {
-      error.SetErrorStringWithFormat("invalid value path '%s'",
-                                     name.str().c_str());
+      error = Status::FromErrorStringWithFormat("invalid value path '%s'",
+                                                name.str().c_str());
     }
   }
   return error;
@@ -326,6 +326,8 @@ void OptionValueProperties::DumpValue(const ExecutionContext *exe_ctx,
     if (property) {
       OptionValue *option_value = property->GetValue().get();
       assert(option_value);
+      if ((dump_mask & eDumpOptionOnlyChanged) && option_value->IsDefault())
+        continue;
       const bool transparent_value = option_value->ValueIsTransparent();
       property->Dump(exe_ctx, strm, dump_mask);
       if (!transparent_value)
@@ -334,8 +336,17 @@ void OptionValueProperties::DumpValue(const ExecutionContext *exe_ctx,
   }
 }
 
+bool OptionValueProperties::IsDefault() const {
+  for (const Property &property : m_properties) {
+    if (OptionValue *value = property.GetValue().get())
+      if (!value->IsDefault())
+        return false;
+  }
+  return true;
+}
+
 llvm::json::Value
-OptionValueProperties::ToJSON(const ExecutionContext *exe_ctx) {
+OptionValueProperties::ToJSON(const ExecutionContext *exe_ctx) const {
   llvm::json::Object json_properties;
   const size_t num_properties = m_properties.size();
   for (size_t i = 0; i < num_properties; ++i) {
@@ -364,11 +375,9 @@ Status OptionValueProperties::DumpPropertyValue(const ExecutionContext *exe_ctx,
       if (dump_mask & ~eDumpOptionName)
         strm.PutChar(' ');
     }
-    if (is_json) {
-      strm.Printf(
-          "%s",
-          llvm::formatv("{0:2}", value_sp->ToJSON(exe_ctx)).str().c_str());
-    } else
+    if (is_json)
+      strm << llvm::formatv("{0:2}", value_sp->ToJSON(exe_ctx));
+    else
       value_sp->DumpValue(exe_ctx, strm, dump_mask);
   }
   return error;

@@ -3,13 +3,13 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestSwiftOptimizedBoundGenericEnum(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
+    @skipEmbeddedSwiftOnWindows
     @swiftTest
     def test(self):
         """Test the bound generic enum types in "optimized" code."""

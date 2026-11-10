@@ -2,12 +2,11 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftExtraClangFlags(TestBase):
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(oslist=['windows'])
+    @skipIf(oslist=["windows"])
     @swiftTest
     def test_sanity(self):
         self.build()
@@ -18,7 +17,7 @@ class TestSwiftExtraClangFlags(TestBase):
 
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(oslist=['windows'])
+    @skipIf(oslist=["windows"])
     @swiftTest
     def test_extra_clang_flags(self):
         """
@@ -26,6 +25,12 @@ class TestSwiftExtraClangFlags(TestBase):
         VFS overlay using target.swift-extra-clang-flags.
         """
         self.build()
+
+        # Because the bridging header isn't precompiled or in a module
+        # we don't have DWARF type information for the types it contains.
+        self.expect("settings set symbols.swift-typesystem-compiler-fallback true")
+        self.expect("settings set symbols.swift-prefer-serialized-bridging-header false")
+
         # FIXME: this doesn't work if LLDB's build dir contains a space.
         overlay = self.getBuildArtifact('overlay.yaml')
         self.addTearDownHook(
@@ -56,7 +61,7 @@ class TestSwiftExtraClangFlags(TestBase):
 
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(oslist=['windows'])
+    @skipIf(oslist=["windows"])
     @swiftTest
     def test_invalid_extra_clang_flags(self):
         """
@@ -67,6 +72,7 @@ class TestSwiftExtraClangFlags(TestBase):
         self.addTearDownHook(
             lambda: self.runCmd("settings clear target.swift-extra-clang-flags"))
 
+        self.expect("settings set symbols.swift-prefer-serialized-bridging-header false")
         self.expect('settings set target.swift-extra-clang-flags -- -v')
 
         lldbutil.run_to_source_breakpoint(self, "break here",

@@ -2,13 +2,17 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
+def get_num_registers(frame):
+    general_purpose_regs = frame.GetRegisters()[0]
+    num_regs = sum(reg.GetError().Success() for reg in general_purpose_regs)
+    return num_regs
 
 class TestSwiftAsyncUnwind(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
+    @skipEmbeddedSwift
     @swiftTest
     @skipIf(oslist=['windows', 'linux'])
     def test(self):
@@ -30,8 +34,8 @@ class TestSwiftAsyncUnwind(lldbtest.TestBase):
         # Check that we can only get a limited number of registers for
         # frames that unwound with an AsyncContext, as a sanity check
         # to see that this is really the async unwinder.
-        self.assertIn(thread.GetFrameAtIndex(1).GetRegisters().GetSize(), [2,3,4])
-        self.assertIn(thread.GetFrameAtIndex(2).GetRegisters().GetSize(), [2,3,4])
+        self.assertIn(get_num_registers(thread.GetFrameAtIndex(1)), [2,3,4])
+        self.assertIn(get_num_registers(thread.GetFrameAtIndex(2)), [2,3,4])
 
         # Delete the old breakpoint, otherwise it would be reached again.
         target.BreakpointDelete(bkpt.GetID())

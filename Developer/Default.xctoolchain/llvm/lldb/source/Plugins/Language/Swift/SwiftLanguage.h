@@ -64,10 +64,47 @@ public:
 
   bool IsUninitializedReference(ValueObject &valobj) override;
 
-  bool GetFunctionDisplayName(const SymbolContext *sc,
+  bool GetFunctionDisplayName(const SymbolContext &sc,
                               const ExecutionContext *exe_ctx,
                               FunctionNameRepresentation representation,
                               Stream &s) override;
+
+  std::string GetDemangledFunctionName(const SymbolContext &sc,
+                                       const ExecutionContext *exe_ctx);
+
+  /// Returns the name of function up to the first generic or opening
+  /// parenthesis.
+  ///
+  /// The following function will have the name "foo":
+  /// \code{.swift}
+  /// func foo<T>(bar: T) {}
+  /// \endcode
+  ///
+  /// \param sc        The associated SymbolContext.
+  /// \param exe_ctx   The associated ExecutionContext.
+  /// \returns The name of a function as an std::string.
+  std::string GetFunctionName(const SymbolContext &sc,
+                              const ExecutionContext *exe_ctx);
+
+  std::string GetFunctionTemplateArguments(const SymbolContext &sc,
+                                           const ExecutionContext *exe_ctx);
+
+  /// Returns the arguments of a function call with its generics if any.
+  ///
+  /// Calling GetFunctionDisplayArgs on the following function call will return
+  /// "<Int>(bar=1)"
+  /// \code{.swift}
+  /// func foo<T>(bar: T) {}
+  /// foo(1)
+  /// \endcode
+  ///
+  /// \param sc        The associated SymbolContext.
+  /// \param args      The VariableList that are passed to the function.
+  /// \param exe_ctx   The associated ExecutionContext.
+  /// \returns The generics and arguments of a function call as an std::string.
+  std::string
+  GetFunctionDisplayArgs(const SymbolContext &sc, VariableList &args,
+                         const lldb_private::ExecutionContext *exe_ctx);
 
   void GetExceptionResolverDescription(bool catch_on, bool throw_on,
                                        Stream &s) override;
@@ -75,6 +112,17 @@ public:
   ConstString
   GetDemangledFunctionNameWithoutArguments(Mangled mangled) const override;
 
+  /// Returns whether two SymbolContexts correspond to funclets of the same
+  /// async function.
+  /// If either SymbolContext is not a funclet, nullopt is returned.
+  std::optional<bool>
+  AreEqualForFrameComparison(const SymbolContext &sc1,
+                             const SymbolContext &sc2) const override;
+
+  std::pair<lldb::FunctionNameType, std::optional<ConstString>>
+  GetFunctionNameInfo(ConstString name) const override;
+
+  std::string GetParentNameIfClosure(Function &func) const override;
   //------------------------------------------------------------------
   // Static Functions
   //------------------------------------------------------------------
@@ -86,14 +134,28 @@ public:
 
   static llvm::StringRef GetPluginNameStatic() { return "swift"; }
 
-  bool SymbolNameFitsToLanguage(Mangled mangled) const override;
+  bool SymbolNameFitsToLanguage(const Mangled &mangled) const override;
 
-  llvm::StringRef GetInstanceVariableName() override { return "self"; }
+  llvm::StringRef GetInstanceName() override { return "self"; }
+
+  bool HandleFrameFormatVariable(const SymbolContext &sc,
+                                 const ExecutionContext *exe_ctx,
+                                 FormatEntity::Entry::Type type,
+                                 Stream &s) override;
+
+  FormatEntity::Entry GetFunctionNameFormat() const override;
+
+  /// Override that skips breakpoints inside await resume ("Q") async funclets.
+  void FilterForLineBreakpoints(
+      llvm::SmallVectorImpl<SymbolContext> &) const override;
 
   //------------------------------------------------------------------
   // PluginInterface protocol
   //------------------------------------------------------------------
   llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
+
+private:
+  static void DebuggerInitialize(Debugger &);
 };
 
 } // namespace lldb_private

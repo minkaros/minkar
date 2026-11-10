@@ -11,17 +11,27 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Tooling/DependencyScanning/DependencyScanningTool.h"
-#include "llvm/CAS/CachingOnDiskFileSystem.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/PrefixMapper.h"
 
 using namespace clang;
 using namespace clang::tooling::dependencies;
 using llvm::Error;
 
+static void updateRelativePath(std::string &Path,
+                               const std::string &WorkingDir) {
+  if (Path.empty() || llvm::sys::path::is_absolute(Path) || WorkingDir.empty())
+    return;
+
+  SmallString<128> PathStorage(WorkingDir);
+  llvm::sys::path::append(PathStorage, Path);
+  Path = PathStorage.str();
+}
+
 void tooling::dependencies::configureInvocationForCaching(
-    CompilerInvocation &CI, CASOptions CASOpts, std::string RootID,
-    std::string WorkingDir, bool ProduceIncludeTree) {
+    CompilerInvocation &CI, CASOptions CASOpts, std::string InputID,
+    CachingInputKind InputKind, std::string WorkingDir) {
   CI.getCASOpts() = std::move(CASOpts);
   auto &FrontendOpts = CI.getFrontendOpts();
   FrontendOpts.CacheCompileJob = true;
@@ -34,7 +44,7 @@ void tooling::dependencies::configureInvocationForCaching(
     CodeGenOpts.UseCASBackend = false;
     CodeGenOpts.EmitCASIDFile = false;
     auto &LLVMArgs = FrontendOpts.LLVMArgs;
-    llvm::erase_value(LLVMArgs, "-cas-friendly-debug-info");
+    llvm::erase(LLVMArgs, "-cas-friendly-debug-info");
   }
   CodeGenOpts.DwarfDebugFlags.clear();
   resetBenignCodeGenOptions(FrontendOpts.ProgramAction, CI.getLangOpts(),
@@ -46,8 +56,35 @@ void tooling::dependencies::configureInvocationForCaching(
 
   // "Fix" the CAS options.
   auto &FileSystemOpts = CI.getFileSystemOpts();
-  if (ProduceIncludeTree) {
-    FrontendOpts.CASIncludeTreeID = std::move(RootID);
+  switch (InputKind) {
+  case CachingInputKind::IncludeTree: {
+    using llvm::sys::path::is_relative;
+    // The only way to get relative source paths is a relative main file or
+    // include directory, since includes are resolved relative to , and
+    // includer-relative search is relative to an already-included file.
+    bool HasRelativeIncludes = [&]{
+      if (!FileSystemOpts.WorkingDir.empty())
+        return false; // -working-directory makes all paths absolute.
+      // FIXME: this might have false positives if a relative search path is not
+      // used. Ideally we would calculate this when the include tree is built.
+      if (!HSOpts.Sysroot.empty() && is_relative(HSOpts.Sysroot))
+        return true;
+      if (is_relative(HSOpts.ResourceDir))
+        return true;
+      for (auto &Input : FrontendOpts.Inputs)
+        if (Input.isFile() && is_relative(Input.getFile()))
+          return true;
+      for (auto &Entry : HSOpts.UserEntries)
+        if (Entry.IgnoreSysRoot || HSOpts.Sysroot.empty())
+          if (is_relative(Entry.Path))
+            return true;
+      for (auto &Prefix : HSOpts.SystemHeaderPrefixes)
+        if (is_relative(Prefix.Prefix))
+          return true;
+      return false;
+    }();
+
+    FrontendOpts.CASIncludeTreeID = std::move(InputID);
     FrontendOpts.Inputs.clear();
     FrontendOpts.ModuleMapFiles.clear();
     HeaderSearchOptions OriginalHSOpts;
@@ -64,6 +101,9 @@ void tooling::dependencies::configureInvocationForCaching(
     HSOpts.PrebuiltModuleFiles = std::move(OriginalHSOpts.PrebuiltModuleFiles);
     // Preserve -gmodules (see below for caveats).
     HSOpts.ModuleFormat = OriginalHSOpts.ModuleFormat;
+    HSOpts.UseBuiltinIncludes = false;
+    HSOpts.UseStandardSystemIncludes = false;
+    HSOpts.UseStandardCXXIncludes = false;
 
     auto &PPOpts = CI.getPreprocessorOpts();
     // We don't need this because we save the contents of the PCH file in the
@@ -79,18 +119,33 @@ void tooling::dependencies::configureInvocationForCaching(
       PPOpts.MacroIncludes.clear();
       PPOpts.Includes.clear();
     }
-    if (!FrontendOpts.IncludeTreePreservePCHPath) {
-      // Disable `-gmodules` to avoid debug info referencing a non-existent PCH
-      // filename.
-      // FIXME: we should also allow -gmodules if there is no PCH involved.
-      CodeGenOpts.DebugTypeExtRefs = false;
-      HSOpts.ModuleFormat = "raw";
-    }
     // Clear APINotes options.
     CI.getAPINotesOpts().ModuleSearchPaths = {};
-  } else {
-    FileSystemOpts.CASFileSystemRootID = std::move(RootID);
-    FileSystemOpts.CASFileSystemWorkingDirectory = std::move(WorkingDir);
+
+    // Reset debug compilation directory if source paths are absolute.
+    if (!HasRelativeIncludes) {
+      CodeGenOpts.DebugCompilationDir.clear();
+    }
+
+    // Update output paths, and clear working directory.
+    auto CWD = FileSystemOpts.WorkingDir;
+    updateRelativePath(FrontendOpts.OutputFile, CWD);
+    updateRelativePath(CI.getDiagnosticOpts().DiagnosticSerializationFile, CWD);
+    updateRelativePath(CI.getDiagnosticOpts().DiagnosticLogFile, CWD);
+    updateRelativePath(CI.getDependencyOutputOpts().OutputFile, CWD);
+    FileSystemOpts.WorkingDir.clear();
+    break;
+  }
+  case CachingInputKind::CachedCompilation: {
+    FrontendOpts.Inputs.clear();
+    FrontendOpts.CASInputFileCacheKey = std::move(InputID);
+    FrontendOpts.ModuleMapFiles.clear();
+    // TODO: Strip more of the things we already strip for include-tree.
+    break;
+  case CachingInputKind::Object: {
+    assert(false && "Object should not be available during scanning");
+  }
+  }
   }
 }
 
@@ -107,7 +162,7 @@ void DepscanPrefixMapping::remapInvocationPaths(CompilerInvocation &Invocation,
   // Pass the remappings so that we can map cached diagnostics to the local
   // paths during diagnostic rendering.
   for (const llvm::MappedPrefix &Map : Mapper.getMappings()) {
-    FrontendOpts.PathPrefixMappings.push_back(Map.Old + "=" + Map.New);
+    FrontendOpts.PathPrefixMappings.emplace_back(Map.Old, Map.New);
   }
 
   auto mapInPlaceAll = [&](std::vector<std::string> &Vector) {
@@ -116,7 +171,6 @@ void DepscanPrefixMapping::remapInvocationPaths(CompilerInvocation &Invocation,
   };
 
   auto &FileSystemOpts = Invocation.getFileSystemOpts();
-  Mapper.mapInPlace(FileSystemOpts.CASFileSystemWorkingDirectory);
 
   // Remap header search.
   auto &HeaderSearchOpts = Invocation.getHeaderSearchOpts();
@@ -174,8 +228,6 @@ void DepscanPrefixMapping::remapInvocationPaths(CompilerInvocation &Invocation,
   mapInPlaceAll(FrontendOpts.ASTMergeFiles);
   Mapper.mapInPlace(FrontendOpts.OverrideRecordLayoutsFile);
   Mapper.mapInPlace(FrontendOpts.StatsFile);
-  for (auto &[Path, _] : FrontendOpts.ModuleCacheKeys)
-    Mapper.mapInPlace(Path);
 
   // Filesystem options.
   Mapper.mapInPlace(FileSystemOpts.WorkingDir);
@@ -208,12 +260,12 @@ void DepscanPrefixMapping::configurePrefixMapper(const CompilerInvocation &CI,
 }
 
 void DepscanPrefixMapping::configurePrefixMapper(
-    ArrayRef<std::string> PathPrefixMappings, llvm::PrefixMapper &Mapper) {
+    ArrayRef<std::pair<std::string, std::string>> PathPrefixMappings, llvm::PrefixMapper &Mapper) {
   if (PathPrefixMappings.empty())
     return;
 
   llvm::SmallVector<llvm::MappedPrefix> Split;
-  llvm::MappedPrefix::transformJoinedIfValid(PathPrefixMappings, Split);
+  llvm::MappedPrefix::transformPairs(PathPrefixMappings, Split);
   for (auto &MappedPrefix : Split)
     Mapper.add(MappedPrefix);
 
@@ -228,18 +280,7 @@ Expected<llvm::cas::CASID> clang::scanAndUpdateCC1InlineWithTool(
   // out of InputArgs) but if they have been overridden we want the new ones.
   Invocation.getCASOpts() = Tool.getCASOpts();
 
-  bool ProduceIncludeTree =
-      Tool.getScanningFormat() ==
-      tooling::dependencies::ScanningOutputFormat::IncludeTree;
-
-  std::unique_ptr<llvm::PrefixMapper> MapperPtr;
-  if (ProduceIncludeTree) {
-    MapperPtr = std::make_unique<llvm::PrefixMapper>();
-  } else {
-    MapperPtr = std::make_unique<llvm::TreePathPrefixMapper>(
-        Tool.getCachingFileSystem());
-  }
-  llvm::PrefixMapper &Mapper = *MapperPtr;
+  llvm::PrefixMapper Mapper;
   DepscanPrefixMapping::configurePrefixMapper(Invocation, Mapper);
 
   auto ScanInvocation = std::make_shared<CompilerInvocation>(Invocation);
@@ -247,29 +288,23 @@ Expected<llvm::cas::CASID> clang::scanAndUpdateCC1InlineWithTool(
   // failed, but warnings are ignored and deferred for the main compilation.
   ScanInvocation->getDiagnosticOpts().IgnoreWarnings = true;
 
+  LookupModuleOutputCallback Lookup;
+
   std::optional<llvm::cas::CASID> Root;
-  if (ProduceIncludeTree) {
-    if (Error E =
-            Tool.getIncludeTreeFromCompilerInvocation(
-                    DB, std::move(ScanInvocation), WorkingDirectory,
-                    /*LookupModuleOutput=*/nullptr, DiagsConsumer, VerboseOS,
-                    /*DiagGenerationAsCompilation*/ true)
-                .moveInto(Root))
-      return std::move(E);
-  } else {
-    if (Error E = Tool.getDependencyTreeFromCompilerInvocation(
-                          std::move(ScanInvocation), WorkingDirectory,
-                          DiagsConsumer, VerboseOS,
-                          /*DiagGenerationAsCompilation*/ true)
-                      .moveInto(Root))
-      return std::move(E);
-  }
+  if (Error E =
+          Tool.getIncludeTreeFromCompilerInvocation(
+                  DB, std::move(ScanInvocation), WorkingDirectory,
+                  /*LookupModuleOutput=*/nullptr, DiagsConsumer, VerboseOS,
+                  /*DiagGenerationAsCompilation*/ true)
+              .moveInto(Root))
+    return std::move(E);
 
   // Turn off dependency outputs. Should have already been emitted.
   Invocation.getDependencyOutputOpts().OutputFile.clear();
 
   configureInvocationForCaching(Invocation, Tool.getCASOpts(), Root->toString(),
-                                WorkingDirectory.str(), ProduceIncludeTree);
+                                CachingInputKind::IncludeTree,
+                                WorkingDirectory.str());
   DepscanPrefixMapping::remapInvocationPaths(Invocation, Mapper);
   return *Root;
 }

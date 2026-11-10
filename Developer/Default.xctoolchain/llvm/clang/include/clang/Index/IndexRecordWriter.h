@@ -53,10 +53,12 @@ typedef llvm::function_ref<Symbol(OpaqueDecl, SmallVectorImpl<char> &Scratch)>
 /// beginRecord, and if the file does not already exist, then proceed to add
 /// all symbol occurrences (addOccurrence) and finally finish with endRecord.
 class IndexRecordWriter {
+  /// Whether to compress the index record using zlib.
+  bool Compress;
   SmallString<64> RecordsPath; ///< The records directory path.
   void *Record = nullptr;      ///< The state of the current record.
 public:
-  IndexRecordWriter(StringRef IndexPath);
+  IndexRecordWriter(StringRef IndexPath, bool Compress);
 
   enum class Result {
     Success,
@@ -75,7 +77,7 @@ public:
   /// \returns Success if we should continue writing this record, AlreadyExists
   /// if the record file has already been written, or Failure if there was an
   /// error, in which case \p Error will be set.
-  Result beginRecord(StringRef Filename, llvm::hash_code RecordHash,
+  Result beginRecord(StringRef Filename, uint64_t RecordHash,
                      std::string &Error, std::string *RecordFile = nullptr);
 
   /// Finish writing the record file.

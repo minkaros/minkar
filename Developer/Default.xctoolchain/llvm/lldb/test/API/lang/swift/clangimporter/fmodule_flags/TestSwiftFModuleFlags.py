@@ -3,12 +3,13 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 class TestSwiftFModuleFlags(TestBase):
     @skipIf(macos_version=["<", "14.0"])
     @skipIfDarwinEmbedded
     @swiftTest
+    @skipEmbeddedSwiftOnLinux # Failed to load SwiftCore.so
+    @skipIfWindows
     def test(self):
         """Test that -fmodule flags get stripped out"""
         self.build()
@@ -19,9 +20,10 @@ class TestSwiftFModuleFlags(TestBase):
         self.expect("expression 1", substrs=["1"])
 
         # Scan through the types log.
-        self.filecheck('platform shell cat "%s"' % log, __file__)
-#       CHECK: -DMARKER1
+
+        self.filecheck_log(log, __file__)
+#       CHECK: main.swift{{.*}} PCM validation is
+#       CHECK: main.swift{{.*}} -DMARKER1
 #       CHECK-NOT: -fno-implicit-modules
 #       CHECK-NOT: -fno-implicit-module-maps
-#       CHECK: -DMARKER2
-#       CHECK: PCM validation is
+#       CHECK: main.swift{{.*}} -DMARKER2

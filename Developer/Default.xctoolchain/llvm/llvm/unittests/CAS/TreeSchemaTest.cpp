@@ -24,9 +24,9 @@ TEST(TreeSchemaTest, Trees) {
 
   auto createBlobInBoth = [&](StringRef Content) {
     std::optional<ObjectRef> H1, H2;
-    EXPECT_THAT_ERROR(CAS1->storeFromString(std::nullopt, Content).moveInto(H1),
+    EXPECT_THAT_ERROR(CAS1->storeFromString({}, Content).moveInto(H1),
                       Succeeded());
-    EXPECT_THAT_ERROR(CAS2->storeFromString(std::nullopt, Content).moveInto(H2),
+    EXPECT_THAT_ERROR(CAS2->storeFromString({}, Content).moveInto(H2),
                       Succeeded());
     EXPECT_EQ(CAS1->getID(*H1), CAS2->getID(*H2));
     return *H1;
@@ -88,7 +88,7 @@ TEST(TreeSchemaTest, Trees) {
 
   // Run validation.
   for (int I = 1, E = FlatIDs.size(); I != E; ++I)
-    ASSERT_THAT_ERROR(CAS1->validate(FlatIDs[I]), Succeeded());
+    ASSERT_THAT_ERROR(CAS1->validateObject(FlatIDs[I]), Succeeded());
 
   // Confirm these trees don't exist in a fresh CAS instance. Skip the first
   // tree, which is empty and could be implicitly in some CAS.
@@ -179,7 +179,7 @@ TEST(TreeSchemaTest, Trees) {
       ASSERT_THAT_ERROR(Schema.create(NewEntries).moveInto(Tree),
                         Succeeded());
       ASSERT_EQ(*ID, Tree->getID());
-      ASSERT_THAT_ERROR(CAS->validate(*ID), Succeeded());
+      ASSERT_THAT_ERROR(CAS->validateObject(*ID), Succeeded());
       Tree.reset();
       std::optional<ObjectRef> Ref = CAS->getReference(*ID);
       ASSERT_TRUE(Ref);
@@ -193,7 +193,7 @@ TEST(TreeSchemaTest, Trees) {
 TEST(TreeSchemaTest, Lookup) {
   std::unique_ptr<ObjectStore> CAS = createInMemoryCAS();
   std::optional<ObjectRef> Node;
-  EXPECT_THAT_ERROR(CAS->storeFromString(std::nullopt, "blob").moveInto(Node),
+  EXPECT_THAT_ERROR(CAS->storeFromString({}, "blob").moveInto(Node),
                     Succeeded());
   ObjectRef Blob = *Node;
   SmallVector<NamedTreeEntry> FlatTreeEntries = {
@@ -228,10 +228,10 @@ TEST(TreeSchemaTest, walkFileTreeRecursively) {
   std::unique_ptr<ObjectStore> CAS = createInMemoryCAS();
 
   auto make = [&](StringRef Content) {
-    return cantFail(CAS->storeFromString(std::nullopt, Content));
+    return cantFail(CAS->storeFromString({}, Content));
   };
 
-  HierarchicalTreeBuilder Builder;
+  HierarchicalTreeBuilder Builder(sys::path::Style::posix);
   Builder.push(make("blob2"), TreeEntry::Regular, "/d2");
   Builder.push(make("blob1"), TreeEntry::Regular, "/t1/d1");
   Builder.push(make("blob3"), TreeEntry::Regular, "/t3/d3");

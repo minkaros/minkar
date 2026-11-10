@@ -33,7 +33,7 @@ public:
   SmallVector<OutputFile> takeOutputs() { return std::move(Outputs); }
 
   /// Add a CAS object to the path in the output backend.
-  void addObject(StringRef Path, ObjectRef Object);
+  LLVM_ABI void addObject(StringRef Path, ObjectRef Object);
 
 private:
   Expected<std::unique_ptr<vfs::OutputFileImpl>>
@@ -47,8 +47,8 @@ private:
   }
 
 public:
-  CASOutputBackend(std::shared_ptr<ObjectStore> CAS);
-  CASOutputBackend(ObjectStore &CAS);
+  LLVM_ABI CASOutputBackend(std::shared_ptr<ObjectStore> CAS);
+  LLVM_ABI CASOutputBackend(ObjectStore &CAS);
   ~CASOutputBackend();
 
 private:

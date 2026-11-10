@@ -14,7 +14,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
-import unittest2
 
 import sys
 if sys.version_info.major == 2:
@@ -108,7 +107,9 @@ class PlaygroundREPLTest(TestBase):
         error = self.get_stream_data(result)
         print("Crash Error: {}".format(error))
 
+    @skipEmbeddedSwift
     @swiftTest
+    @skipIfRemote
     def test_playgrounds(self):
         # Build
         self.build_all()
@@ -121,4 +122,4 @@ if __name__ == '__main__':
     import atexit
     lldb.SBDebugger.Initialize()
     atexit.register(lldb.SBDebugger.Terminate)
-    unittest2.main()
+    unittest.main()

@@ -87,19 +87,7 @@ CXString createRef(StringRef String) {
   if (String.empty())
     return createEmpty();
 
-  // If the string is not nul-terminated, we have to make a copy.
-
-  // FIXME: This is doing a one past end read, and should be removed! For memory
-  // we don't manage, the API string can become unterminated at any time outside
-  // our control.
-
-  if (String.data()[String.size()] != 0)
-    return createDup(String);
-
-  CXString Result;
-  Result.data = String.data();
-  Result.private_flags = (unsigned) CXS_Unmanaged;
-  return Result;
+  return createDup(String);
 }
 
 CXString createDup(StringRef String) {
@@ -130,13 +118,13 @@ CXStringSet *createSet(const std::vector<std::string> &Strings) {
 
 CXStringSet *createSet(const llvm::StringSet<> &StringsUnordered) {
   std::vector<StringRef> Strings;
-  
-  for (auto SI = StringsUnordered.begin(),
-            SE = StringsUnordered.end(); SI != SE; ++SI)
+
+  for (auto SI = StringsUnordered.begin(), SE = StringsUnordered.end();
+       SI != SE; ++SI)
     Strings.push_back(SI->getKey());
-  
+
   llvm::sort(Strings);
-  
+
   CXStringSet *Set = new CXStringSet;
   Set->Count = Strings.size();
   Set->Strings = new CXString[Set->Count];

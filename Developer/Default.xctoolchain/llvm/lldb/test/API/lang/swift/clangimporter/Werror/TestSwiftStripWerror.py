@@ -7,10 +7,9 @@ class TestSwiftWerror(TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     # Don't run ClangImporter tests if Clangimporter is disabled.
-    @expectedFailureAll(setting=('plugin.typesystem.clang.experimental-redecl-completion', 'true'))
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(setting=('symbols.swift-precise-compiler-invocation', 'true'))
     @skipUnlessDarwin
     @swiftTest
     def test(self):
@@ -27,7 +26,7 @@ class TestSwiftWerror(TestBase):
         self.expect('log enable lldb types -f "%s"' % log)
 
         self.expect("expression foo", DATA_TYPES_DISPLAYED_CORRECTLY, substrs=["42"])
-        self.filecheck('platform shell cat "%s"' % log, __file__)
+        self.filecheck_log(log, __file__)
 #       CHECK-NOT: SwiftASTContextForExpressions{{.*}}-Werror
 #       CHECK:     SwiftASTContextForExpressions{{.*}}-DCONFLICT
 #       CHECK-NOT: SwiftASTContextForExpressions{{.*}}-Werror

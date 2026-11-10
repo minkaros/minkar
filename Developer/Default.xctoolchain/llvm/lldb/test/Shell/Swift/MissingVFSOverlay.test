@@ -1,6 +1,5 @@
 # Test that error messages from constructing ClangImporter
 # are surfaced to the user.
-# REQUIRES: 135553659
 # REQUIRES: swift
 
 # RUN: rm -rf %t && mkdir %t && cd %t
@@ -16,5 +15,4 @@ run
 expression 1
 
 # The {{ }} avoids accidentally matching the input script!
-# CHECK: warning:{{ }}{{.*}}Swift{{.*}}a.out
 # CHECK: warning:{{ }}{{.*}}Ignoring missing VFS{{.*}}overlay.yaml

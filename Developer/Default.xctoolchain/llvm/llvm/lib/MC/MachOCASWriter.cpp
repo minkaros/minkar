@@ -6,71 +6,50 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CASUtil/Utils.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCFixupKindInfo.h"
-#include "llvm/MC/MCFragment.h"
 #include "llvm/MC/MCMachOCASWriter.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSection.h"
-#include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCSymbolMachO.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/MCCAS/MCCASFormatSchemaBase.h"
-#include "llvm/MCCAS/MCCASObjectV1.h"
-#include "llvm/Support/Alignment.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
 
 using namespace llvm;
 using namespace llvm::cas;
-using namespace llvm::mccasformats;
 
 #define DEBUG_TYPE "mc"
 
 MachOCASWriter::MachOCASWriter(
     std::unique_ptr<MCMachObjectTargetWriter> MOTW, const Triple &TT,
     cas::ObjectStore &CAS, CASBackendMode Mode, raw_pwrite_stream &OS,
-    bool IsLittleEndian,
-    std::function<const cas::ObjectProxy(
-        llvm::MachOCASWriter &, llvm::MCAssembler &, const llvm::MCAsmLayout &,
-        cas::ObjectStore &, raw_ostream *)>
-        CreateFromMcAssembler,
-    std::function<Error(cas::ObjectProxy, cas::ObjectStore &, raw_ostream &)>
-        SerializeObjectFile,
+    bool IsLittleEndian, std::unique_ptr<mccasformats::MCCASSchema> Schema,
     std::optional<MCTargetOptions::ResultCallBackTy> ResultCallBack,
     raw_pwrite_stream *CasIDOS)
-    : Target(TT), CAS(CAS), Mode(Mode), ResultCallBack(ResultCallBack), OS(OS),
-      CasIDOS(CasIDOS), InternalOS(InternalBuffer),
-      MOW(std::move(MOTW), InternalOS, IsLittleEndian),
-      CreateFromMcAssembler(CreateFromMcAssembler),
-      SerializeObjectFile(SerializeObjectFile) {
+    : MachObjectWriter(std::move(MOTW), InternalOS, IsLittleEndian), Target(TT),
+      CAS(CAS), Mode(Mode), ResultCallBack(ResultCallBack), OS(OS),
+      CasIDOS(CasIDOS), InternalOS(InternalBuffer), Schema(std::move(Schema)) {
   assert(TT.isLittleEndian() == IsLittleEndian && "Endianess should match");
 }
 
-uint64_t MachOCASWriter::writeObject(MCAssembler &Asm,
-                                     const MCAsmLayout &Layout) {
+uint64_t MachOCASWriter::writeObject() {
+  auto &Asm = *this->Asm;
   uint64_t StartOffset = OS.tell();
-  auto CASObj = CreateFromMcAssembler(*this, Asm, Layout, CAS, nullptr);
+  auto CASObj = Schema->createFromMCAssembler(*this, Asm, nullptr);
+  if (!CASObj)
+    getContext().reportError(SMLoc(), toString(CASObj.takeError()));
 
   auto VerifyObject = [&]() -> Error {
     SmallString<512> ObjectBuffer;
     raw_svector_ostream ObjectOS(ObjectBuffer);
-    if (auto E = SerializeObjectFile(CASObj, CAS, ObjectOS))
+    if (auto E = Schema->serializeObjectFile(*CASObj, ObjectOS))
       return E;
 
     if (!ObjectBuffer.equals(InternalBuffer))
@@ -78,44 +57,35 @@ uint64_t MachOCASWriter::writeObject(MCAssembler &Asm,
           inconvertibleErrorCode(),
           "CASBackend output round-trip verification error");
 
+    OS << ObjectBuffer;
     return Error::success();
   };
 
   if (CasIDOS)
-    writeCASIDBuffer(CASObj.getID(), *CasIDOS);
+    writeCASIDBuffer(CASObj->getID(), *CasIDOS);
 
   // If there is a callback, then just hand off the result through callback.
   if (ResultCallBack) {
-    cantFail((*ResultCallBack)(CASObj.getID()));
-    if (Mode == CASBackendMode::Verify) {
-      if (auto E = VerifyObject())
-        report_fatal_error(std::move(E));
-    }
-    return 0;
+    if (auto E = (*ResultCallBack)(CASObj->getID()))
+      getContext().reportError(SMLoc(), toString(std::move(E)));
   }
 
   switch (Mode) {
   case CASBackendMode::CASID:
-    writeCASIDBuffer(CASObj.getID(), OS);
+    writeCASIDBuffer(CASObj->getID(), OS);
     break;
   case CASBackendMode::Native: {
-    auto E = SerializeObjectFile(CASObj, CAS, OS);
+    auto E = Schema->serializeObjectFile(*CASObj, OS);
     if (E)
-      report_fatal_error(std::move(E));
+      getContext().reportError(SMLoc(), toString(std::move(E)));
     break;
   }
   case CASBackendMode::Verify: {
-    SmallString<512> ObjectBuffer;
-    raw_svector_ostream ObjectOS(ObjectBuffer);
-    auto E = SerializeObjectFile(CASObj, CAS, ObjectOS);
-    if (E)
-      report_fatal_error(std::move(E));
-
-    if (!ObjectBuffer.equals(InternalBuffer))
-      report_fatal_error("CASBackend output round-trip verification error");
-
-    OS << ObjectBuffer;
-    break;
+    if (!getContext().hadError()) {
+      // Verify only when there is no error.
+      if (auto E = VerifyObject())
+        getContext().reportError(SMLoc(), toString(std::move(E)));
+    }
   }
   }
 
@@ -125,16 +95,10 @@ uint64_t MachOCASWriter::writeObject(MCAssembler &Asm,
 std::unique_ptr<MCObjectWriter> llvm::createMachOCASWriter(
     std::unique_ptr<MCMachObjectTargetWriter> MOTW, const Triple &TT,
     cas::ObjectStore &CAS, CASBackendMode Mode, raw_pwrite_stream &OS,
-    bool IsLittleEndian,
-    std::function<const cas::ObjectProxy(
-        llvm::MachOCASWriter &, llvm::MCAssembler &, const llvm::MCAsmLayout &,
-        cas::ObjectStore &, raw_ostream *)>
-        CreateFromMcAssembler,
-    std::function<Error(cas::ObjectProxy, cas::ObjectStore &, raw_ostream &)>
-        SerializeObjectFile,
+    bool IsLittleEndian, std::unique_ptr<mccasformats::MCCASSchema> Schema,
     std::optional<MCTargetOptions::ResultCallBackTy> ResultCallBack,
     raw_pwrite_stream *CasIDOS) {
-  return std::make_unique<MachOCASWriter>(
-      std::move(MOTW), TT, CAS, Mode, OS, IsLittleEndian, CreateFromMcAssembler,
-      SerializeObjectFile, ResultCallBack, CasIDOS);
+  return std::make_unique<MachOCASWriter>(std::move(MOTW), TT, CAS, Mode, OS,
+                                          IsLittleEndian, std::move(Schema),
+                                          ResultCallBack, CasIDOS);
 }

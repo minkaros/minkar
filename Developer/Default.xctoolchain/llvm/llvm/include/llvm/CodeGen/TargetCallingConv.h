@@ -13,8 +13,8 @@
 #ifndef LLVM_CODEGEN_TARGETCALLINGCONV_H
 #define LLVM_CODEGEN_TARGETCALLINGCONV_H
 
-#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGenTypes/MachineValueType.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
@@ -28,6 +28,7 @@ namespace ISD {
   private:
     unsigned IsZExt : 1;     ///< Zero extended
     unsigned IsSExt : 1;     ///< Sign extended
+    unsigned IsNoExt : 1;    ///< No extension
     unsigned IsInReg : 1;    ///< Passed in register
     unsigned IsSRet : 1;     ///< Hidden struct-ret ptr
     unsigned IsByVal : 1;    ///< Struct passed by value
@@ -40,14 +41,15 @@ namespace ISD {
     unsigned IsSplitEnd : 1;   ///< Last part of a split
     unsigned IsSwiftSelf : 1;  ///< Swift self parameter
     unsigned IsSwiftAsync : 1;  ///< Swift async context parameter
+    unsigned IsSwiftCoro : 1;  ///< Swift coro parameter
     unsigned IsSwiftError : 1; ///< Swift error parameter
     unsigned IsCFGuardTarget : 1; ///< Control Flow Guard target
     unsigned IsHva : 1;        ///< HVA field for
     unsigned IsHvaStart : 1;   ///< HVA structure start
     unsigned IsSecArgPass : 1; ///< Second argument
-    unsigned MemAlign : 4;     ///< Log 2 of alignment when arg is passed in memory
-                               ///< (including byval/byref). The max alignment is
-                               ///< verified in IR verification.
+    unsigned MemAlign : 6; ///< Log 2 of alignment when arg is passed in memory
+                           ///< (including byval/byref). The max alignment is
+                           ///< verified in IR verification.
     unsigned OrigAlign : 5;    ///< Log 2 of original alignment
     unsigned IsInConsecutiveRegsLast : 1;
     unsigned IsInConsecutiveRegs : 1;
@@ -60,14 +62,15 @@ namespace ISD {
 
   public:
     ArgFlagsTy()
-        : IsZExt(0), IsSExt(0), IsInReg(0), IsSRet(0), IsByVal(0), IsByRef(0),
-          IsNest(0), IsReturned(0), IsSplit(0), IsInAlloca(0),
+        : IsZExt(0), IsSExt(0), IsNoExt(0), IsInReg(0), IsSRet(0), IsByVal(0),
+          IsByRef(0), IsNest(0), IsReturned(0), IsSplit(0), IsInAlloca(0),
           IsPreallocated(0), IsSplitEnd(0), IsSwiftSelf(0), IsSwiftAsync(0),
+          IsSwiftCoro(0),
           IsSwiftError(0), IsCFGuardTarget(0), IsHva(0), IsHvaStart(0),
           IsSecArgPass(0), MemAlign(0), OrigAlign(0),
           IsInConsecutiveRegsLast(0), IsInConsecutiveRegs(0),
           IsCopyElisionCandidate(0), IsPointer(0) {
-      static_assert(sizeof(*this) == 3 * sizeof(unsigned), "flags are too big");
+      static_assert(sizeof(*this) == 4 * sizeof(unsigned), "flags are too big");
     }
 
     bool isZExt() const { return IsZExt; }
@@ -75,6 +78,9 @@ namespace ISD {
 
     bool isSExt() const { return IsSExt; }
     void setSExt() { IsSExt = 1; }
+
+    bool isNoExt() const { return IsNoExt; }
+    void setNoExt() { IsNoExt = 1; }
 
     bool isInReg() const { return IsInReg; }
     void setInReg() { IsInReg = 1; }
@@ -99,6 +105,9 @@ namespace ISD {
 
     bool isSwiftAsync() const { return IsSwiftAsync; }
     void setSwiftAsync() { IsSwiftAsync = 1; }
+
+    bool isSwiftCoro() const { return IsSwiftCoro; }
+    void setSwiftCoro() { IsSwiftCoro = 1; }
 
     bool isSwiftError() const { return IsSwiftError; }
     void setSwiftError() { IsSwiftError = 1; }

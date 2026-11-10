@@ -16,10 +16,10 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftProtocolTypes(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test_swift_protocol_types(self):
         """Test support for protocol types"""
@@ -73,7 +73,7 @@ class TestSwiftProtocolTypes(TestBase):
         self.expect("expression --dynamic-type no-dynamic-values"
                     " --raw-output --show-types -- loc3dCB",
                     substrs=['PointUtils & Swift.AnyObject) $R',
-                             '(Builtin.RawPointer) object = 0x',
+                             '(Builtin.UnknownObject) object = 0x',
                              '(Builtin.RawPointer) wtable = 0x'])
  
         self.expect("expression -- loc3dCB",

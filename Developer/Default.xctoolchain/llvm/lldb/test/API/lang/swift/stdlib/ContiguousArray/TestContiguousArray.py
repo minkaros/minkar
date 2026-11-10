@@ -6,7 +6,6 @@ from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 
 
 class TestContiguousArray(lldbtest.TestBase):
@@ -14,6 +13,7 @@ class TestContiguousArray(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_frame_contiguous_array(self):
         """Test that contiguous array prints correctly"""
         self.build()

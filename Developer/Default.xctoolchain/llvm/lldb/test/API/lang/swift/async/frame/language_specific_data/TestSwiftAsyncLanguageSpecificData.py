@@ -7,6 +7,7 @@ class TestCase(lldbtest.TestBase):
 
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
+    @no_debug_info_test
     @swiftTest
     @skipIf(oslist=['windows', 'linux'])
     def test(self):
@@ -26,10 +27,16 @@ class TestCase(lldbtest.TestBase):
 
         while process.state == lldb.eStateStopped:
             thread = process.GetSelectedThread()
+            if thread.GetStopReason() != lldb.eStopReasonBreakpoint:
+                break
             frame = thread.frames[0]
+            # Spin up the compiler so it can answer the explicit modules question.
+            self.expect("expression 1")
             data = frame.GetLanguageSpecificData()
             is_async = data.GetValueForKey("IsSwiftAsyncFunction").GetBooleanValue()
             self.assertTrue(is_async)
+            is_explicit = data.GetValueForKey("SwiftExplicitModules").GetBooleanValue()
+            self.assertTrue(is_explicit)
 
             process.Continue()
 

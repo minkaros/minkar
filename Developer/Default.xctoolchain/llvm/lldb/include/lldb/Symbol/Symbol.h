@@ -13,6 +13,7 @@
 #include "lldb/Core/Mangled.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/SymbolContextScope.h"
+#include "lldb/Utility/Stream.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-private.h"
 #include "llvm/Support/JSON.h"
@@ -174,8 +175,9 @@ public:
 
   void SetFlags(uint32_t flags) { m_flags = flags; }
 
-  void GetDescription(Stream *s, lldb::DescriptionLevel level,
-                      Target *target) const;
+  void GetDescription(
+      Stream *s, lldb::DescriptionLevel level, Target *target,
+      std::optional<Stream::HighlightSettings> settings = std::nullopt) const;
 
   bool IsSynthetic() const { return m_is_synthetic; }
 
@@ -220,6 +222,13 @@ public:
   // in bytes, else it will return zero.
   uint32_t GetPrologueByteSize();
 
+  void SetPrologueByteSize(uint32_t prologue_byte_size) {
+    assert(m_type == lldb::eSymbolTypeCode ||
+           m_type == lldb::eSymbolTypeResolver);
+    m_type_data = prologue_byte_size;
+    m_type_data_resolved = true;
+  }
+
   bool GetDemangledNameIsSynthesized() const {
     return m_demangled_is_synthesized;
   }
@@ -256,7 +265,7 @@ public:
   bool ContainsFileAddress(lldb::addr_t file_addr) const;
 
   static llvm::StringRef GetSyntheticSymbolPrefix() {
-    return "___lldb_unnamed_symbol";
+    return "___lldb_unnamed_symbol_";
   }
 
   /// Decode a serialized version of this object from data.

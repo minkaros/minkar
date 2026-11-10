@@ -1,3 +1,4 @@
+SWIFT_ENABLE_EXPLICIT_MODULES := NO
 SWIFT_SOURCES := main.swift
 SWIFT_CXX_INTEROP := 1
 SWIFTFLAGS_EXTRAS = -I.
@@ -8,7 +9,7 @@ all: libDylib.dylib a.out
 include Makefile.rules
 
 libDylib.dylib: Dylib.swift
-	$(MAKE) MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
+	"$(MAKE)" MAKE_DSYM=$(MAKE_DSYM) CC=$(CC) SWIFTC=$(SWIFTC) \
 		ARCH=$(ARCH) DSYMUTIL=$(DSYMUTIL) \
 		VPATH=$(SRCDIR) -I $(SRCDIR) \
 		-f $(THIS_FILE_DIR)/Makefile.rules \

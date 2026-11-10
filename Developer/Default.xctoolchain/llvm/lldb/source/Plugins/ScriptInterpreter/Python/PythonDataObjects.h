@@ -52,7 +52,6 @@
 
 #if LLDB_ENABLE_PYTHON
 
-// LLDB Python header must be included first
 #include "lldb-python.h"
 
 #include "lldb/Host/File.h"
@@ -563,6 +562,8 @@ public:
   explicit PythonDictionary(PyInitialValue value);
 
   static bool Check(PyObject *py_obj);
+
+  bool HasKey(const llvm::Twine &key) const;
 
   uint32_t GetSize() const;
 

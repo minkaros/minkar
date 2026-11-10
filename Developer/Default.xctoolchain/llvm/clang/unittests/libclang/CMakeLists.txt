@@ -1,10 +1,8 @@
 add_clang_unittest(libclangTests
   LibclangTest.cpp
   DriverTest.cpp
-  )
-
-target_link_libraries(libclangTests
-  PRIVATE
+  DependencyScanningCAPITests.cpp
+  LINK_LIBS
   libclang
   )
 

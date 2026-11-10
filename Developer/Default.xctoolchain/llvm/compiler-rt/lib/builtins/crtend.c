@@ -3,11 +3,8 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
-
-#ifndef __MINKAR__
 
 #include <stdint.h>
 
@@ -23,5 +20,3 @@ fp __CTOR_LIST_END__[]
 fp __DTOR_LIST_END__[]
     __attribute__((section(".dtors"), visibility("hidden"), used)) = {0};
 #endif
-
-#endif // __MINKAR__

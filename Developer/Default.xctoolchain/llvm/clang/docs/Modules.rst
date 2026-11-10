@@ -152,7 +152,7 @@ first include path that would refer to the current file. ``#include_next`` is
 interpreted as if the current file had been found in that path.
 If this search finds a file named by a module map, the ``#include_next``
 directive is translated into an import, just like for a ``#include``
-directive.``
+directive.
 
 Module maps
 -----------
@@ -588,6 +588,9 @@ c11
 c17
   C17 support is available.
 
+c23
+  C23 support is available.
+
 freestanding
   A freestanding environment is available.
 
@@ -610,10 +613,10 @@ tls
   A specific target feature (e.g., ``sse4``, ``avx``, ``neon``) is available.
 
 *platform/os*
-  A os/platform variant (e.g. ``freebsd``, ``win32``, ``windows``, ``linux``, ``ios``, ``macos``, ``iossimulator``) is available.
+  An os/platform variant (e.g. ``freebsd``, ``win32``, ``windows``, ``linux``, ``ios``, ``macos``, ``iossimulator``) is available.
 
 *environment*
-  A environment variant (e.g. ``gnu``, ``gnueabi``, ``android``, ``msvc``) is available.
+  An environment variant (e.g. ``gnu``, ``gnueabi``, ``android``, ``msvc``) is available.
 
 **Example:** The ``std`` module can be extended to also include C++ and C++11 headers using a *requires-declaration*:
 
@@ -672,6 +675,14 @@ token sequence within the prebuilt module representation.
 
 A header with the ``exclude`` specifier is excluded from the module. It will not be included when the module is built, nor will it be considered to be part of the module, even if an ``umbrella`` header or directory would otherwise make it part of the module.
 
+.. note::
+
+    Header paths that use ``..`` to refer to files outside of the module
+    directory are deprecated in module maps that are found via implicit search
+    (``-fimplicit-module-maps``). Use ``-Wmodule-map-path-outside-directory``
+    to warn on such paths. Future versions of Clang may reject these paths
+    in implicitly discovered module maps.
+
 **Example:** The C header ``assert.h`` is an excellent candidate for a textual header, because it is meant to be included multiple times (possibly with different ``NDEBUG`` settings). However, declarations within it should typically be split into a separate modular header.
 
 .. parsed-literal::
@@ -704,6 +715,12 @@ An umbrella directory declaration specifies that all of the headers in the speci
     ``umbrella`` *string-literal*
 
 The *string-literal* refers to a directory. When the module is built, all of the header files in that directory (and its subdirectories) are included in the module.
+
+.. note::
+
+    Umbrella directory paths that use ``..`` to refer to directories outside of
+    the module directory are deprecated in implicitly discovered module maps.
+    See the note in `Header declaration`_ for details.
 
 An *umbrella-dir-declaration* shall not refer to the same directory as the location of an umbrella *header-declaration*. In other words, only a single kind of umbrella can be specified for a given directory.
 

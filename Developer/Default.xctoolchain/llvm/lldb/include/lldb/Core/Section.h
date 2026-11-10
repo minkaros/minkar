@@ -101,10 +101,26 @@ protected:
 };
 
 struct JSONSection {
+  std::optional<lldb::user_id_t> user_id;
   std::string name;
   std::optional<lldb::SectionType> type;
   std::optional<uint64_t> address;
   std::optional<uint64_t> size;
+  std::optional<uint64_t> file_offset;
+  std::optional<uint64_t> file_size;
+  std::optional<uint64_t> log2align;
+  std::optional<uint64_t> flags;
+
+  // Section permissions;
+  std::optional<bool> read;
+  std::optional<bool> write;
+  std::optional<bool> execute;
+
+  std::optional<bool> fake;
+  std::optional<bool> encrypted;
+  std::optional<bool> thread_specific;
+
+  std::vector<JSONSection> subsections;
 };
 
 class Section : public std::enable_shared_from_this<Section>,
@@ -261,6 +277,9 @@ public:
   /// fast and simple only sections that contains only debug information should
   /// return true.
   bool ContainsOnlyDebugInfo() const;
+
+  /// Returns true if this is a global offset table section.
+  bool IsGOTSection() const;
 
 protected:
   ObjectFile *m_obj_file;   // The object file that data for this section should

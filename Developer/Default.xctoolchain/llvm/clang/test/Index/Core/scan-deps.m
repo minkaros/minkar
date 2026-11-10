@@ -21,13 +21,18 @@
 // CHECK-NEXT:   module:
 // CHECK-NEXT:     name: ModA
 // CHECK-NEXT:     context-hash: [[HASH_MOD_A:[A-Z0-9]+]]
+// CHECK-NEXT:     cwd-ignored: 0
 // CHECK-NEXT:     module-map-path: [[PREFIX]]/Inputs/module/module.modulemap
 // CHECK-NEXT:     module-deps:
 // CHECK-NEXT:     file-deps:
+// CHECK-NEXT:       [[PREFIX]]/Inputs/module/module.modulemap
 // CHECK-NEXT:       [[PREFIX]]/Inputs/module/ModA.h
 // CHECK-NEXT:       [[PREFIX]]/Inputs/module/SubModA.h
 // CHECK-NEXT:       [[PREFIX]]/Inputs/module/SubSubModA.h
-// CHECK-NEXT:       [[PREFIX]]/Inputs/module/module.modulemap
+// CHECK-NEXT:     link libraries:
+// CHECK-NEXT:         libModA(framework)
+// CHECK-NEXT:         libModB
+// CHECK-NEXT:         /absolute/path/to/a/lib/file
 // CHECK-NEXT:     build-args: {{.*}} -emit-module {{.*}} -fmodule-name=ModA {{.*}} -fno-implicit-modules {{.*}}
 
 // CHECK-NEXT: dependencies:

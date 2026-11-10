@@ -12,7 +12,6 @@
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/Stack.h"
 #include "clang/Basic/TargetOptions.h"
-#include "clang/CodeGen/ObjectFilePCHContainerOperations.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/CompileJobCacheKey.h"
@@ -27,11 +26,13 @@
 #include "clang/Tooling/DependencyScanning/ScanAndUpdateArgs.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/CAS/ActionCache.h"
+#include "llvm/CAS/BuiltinUnifiedCASDatabases.h"
 #include "llvm/CAS/CASProvidingFileSystem.h"
-#include "llvm/CAS/CachingOnDiskFileSystem.h"
 #include "llvm/CAS/HierarchicalTreeBuilder.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/Option/ArgList.h"
@@ -40,7 +41,9 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/PrefixMapper.h"
 #include "llvm/Support/Process.h"
@@ -49,13 +52,25 @@
 #include "llvm/Support/ThreadPool.h"
 #include "llvm/Support/VirtualOutputBackends.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/raw_socket_stream.h"
+#include "llvm/Support/ConvertUTF.h"
+#include <chrono>
 #include <cstdio>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 
 #if LLVM_ON_UNIX
-#include <sys/file.h> // FIXME: Unix-only. Not portable.
-#include <sys/signal.h> // FIXME: Unix-only. Not portable.
+#include <sys/file.h>
+#include <sys/signal.h>
+#include <unistd.h>
+#endif // LLVM_ON_UNIX
+
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#include <tlhelp32.h> // For process enumeration
+#endif
 
 #ifdef CLANG_HAVE_RLIMITS
 #include <sys/resource.h>
@@ -158,6 +173,28 @@ static void ensureSufficientStack() {
   // that we can actually use that much, if necessary.
   ensureStackAddressSpace();
 }
+#elif defined(_WIN32)
+/// Check that we have sufficient stack space on Windows.
+/// Note: Unlike Unix, Windows stack size cannot be changed at runtime.
+/// It's set at process creation time via the PE header or CreateThread.
+static void ensureSufficientStack() {
+  // GetCurrentThreadStackLimits requires Windows 8 or later
+  ULONG_PTR LowLimit, HighLimit;
+  GetCurrentThreadStackLimits(&LowLimit, &HighLimit);
+
+  // Calculate available stack size
+  size_t StackSize = HighLimit - LowLimit;
+
+  // If we don't have enough stack space, warn the user
+  // We can't increase it dynamically on Windows like we can on Unix
+  if (StackSize < DesiredStackSize) {
+    llvm::errs() << "Warning: Stack size (" << StackSize
+                 << " bytes) is less than desired size ("
+                 << DesiredStackSize << " bytes).\n";
+    llvm::errs() << "Consider increasing stack size via linker flags "
+                 << "(/STACK on MSVC) or executable properties.\n";
+  }
+}
 #else
 static void ensureSufficientStack() {}
 #endif
@@ -201,11 +238,18 @@ private:
 } // namespace
 
 namespace {
-/// FIXME: Move to LLVMSupport; probably llvm/Support/Process.h.
+/// Process ancestry information for daemon sharing.
 ///
-/// TODO: Get this working on Linux:
-/// - Reading `/proc/[pid]/comm` for the command names.
-/// - Walk up the `ppid` fields in `/proc/[pid]/stat`.
+/// Provides cross-platform access to process parent/child relationships:
+/// - Apple: Uses libproc API (proc_pidinfo)
+/// - Linux: Reads /proc/[pid]/stat and /proc/[pid]/comm
+/// - Windows: Uses CreateToolhelp32Snapshot for process enumeration
+///
+/// All three platforms provide PID, parent PID, and process name.
+///
+/// Note: This could potentially be moved to llvm/Support/Process.h as a
+/// cross-platform utility, but process ancestry is primarily used for
+/// daemon sharing heuristics and may not have broad applicability.
 struct ProcessAncestor {
   uint64_t PID = ~0ULL;
   uint64_t PPID = ~0ULL;
@@ -246,20 +290,45 @@ private:
 } // end namespace
 
 uint64_t ProcessAncestorIterator::getThisPID() {
-  // FIXME: Not portable.
-  return ::getpid();
+  return llvm::sys::Process::getProcessId();
 }
 
 uint64_t ProcessAncestorIterator::getParentPID() {
-  // FIXME: Not portable.
+#if defined(_WIN32)
+  DWORD CurrentPID = GetCurrentProcessId();
+  HANDLE Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (Snapshot == INVALID_HANDLE_VALUE)
+    return ~0ULL;
+
+  // Use ANSI version explicitly to ensure char-based strings
+  PROCESSENTRY32 Entry;
+  Entry.dwSize = sizeof(PROCESSENTRY32);
+
+  bool Found = false;
+  DWORD ParentPID = 0;
+  if (Process32First(Snapshot, &Entry)) {
+    do {
+      if (Entry.th32ProcessID == CurrentPID) {
+        ParentPID = Entry.th32ParentProcessID;
+        Found = true;
+        break;
+      }
+    } while (Process32Next(Snapshot, &Entry));
+  }
+
+  CloseHandle(Snapshot);
+  return Found ? static_cast<uint64_t>(ParentPID) : ~0ULL;
+#else
   return ::getppid();
+#endif
 }
 
 ProcessAncestorIterator &ProcessAncestorIterator::setPID(uint64_t NewPID) {
   // Reset state in case NewPID isn't found.
   Ancestor = ProcessAncestor();
 
-#ifdef USE_APPLE_LIBPROC_FOR_DEPSCAN_ANCESTORS
+#if defined(USE_APPLE_LIBPROC_FOR_DEPSCAN_ANCESTORS)
+  // Apple: Use libproc API
   pid_t TypeCorrectPID = NewPID;
   if (proc_pidinfo(TypeCorrectPID, PROC_PIDTBSDINFO, 0, &ProcInfo,
                    sizeof(ProcInfo)) != sizeof(ProcInfo))
@@ -268,9 +337,104 @@ ProcessAncestorIterator &ProcessAncestorIterator::setPID(uint64_t NewPID) {
   Ancestor.PID = NewPID;
   Ancestor.PPID = ProcInfo.pbi_ppid;
   Ancestor.Name = StringRef(ProcInfo.pbi_name);
+
+#elif defined(__linux__)
+  // Linux: Read from /proc filesystem
+  SmallString<64> StatPath;
+  llvm::raw_svector_ostream(StatPath) << "/proc/" << NewPID << "/stat";
+
+  auto StatBuf = llvm::MemoryBuffer::getFile(StatPath);
+  if (!StatBuf)
+    return *this; // Process not found or no access
+
+  // Parse the stat file: PID (name) state ppid ...
+  // The name can contain spaces and parentheses, so we need to find the last ')'
+  StringRef StatContent = StatBuf.get()->getBuffer();
+  size_t LastParen = StatContent.rfind(')');
+  if (LastParen == StringRef::npos)
+    return *this; // Invalid format
+
+  // Extract PPID (4th field after the closing parenthesis)
+  StringRef AfterName = StatContent.substr(LastParen + 1).ltrim();
+  SmallVector<StringRef, 8> Fields;
+  AfterName.split(Fields, ' ', /*MaxSplit=*/3);
+  if (Fields.size() < 3)
+    return *this; // Not enough fields
+
+  uint64_t PPID;
+  if (Fields[1].getAsInteger(10, PPID))
+    return *this; // Failed to parse PPID
+
+  // Read process name from /proc/[pid]/comm
+  SmallString<64> CommPath;
+  llvm::raw_svector_ostream(CommPath) << "/proc/" << NewPID << "/comm";
+
+  auto CommBuf = llvm::MemoryBuffer::getFile(CommPath);
+  StringRef ProcName;
+  if (CommBuf) {
+    ProcName = CommBuf.get()->getBuffer().trim();
+    // Store the name in a static container to ensure it persists
+    static llvm::StringMap<std::string> ProcessNames;
+    auto [It, Inserted] = ProcessNames.try_emplace(ProcName.str(), ProcName.str());
+    ProcName = It->second;
+  }
+
+  Ancestor.PID = NewPID;
+  Ancestor.PPID = PPID;
+  Ancestor.Name = ProcName;
+
+#elif defined(_WIN32)
+  // Windows: Use CreateToolhelp32Snapshot to enumerate processes
+  HANDLE Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (Snapshot == INVALID_HANDLE_VALUE)
+    return *this; // Cannot create snapshot
+
+  // Use Unicode version to properly handle international characters
+  PROCESSENTRY32W Entry;
+  Entry.dwSize = sizeof(PROCESSENTRY32W);
+
+  bool Found = false;
+  if (Process32FirstW(Snapshot, &Entry)) {
+    do {
+      if (Entry.th32ProcessID == static_cast<DWORD>(NewPID)) {
+        // Convert UTF-16 process name to UTF-8
+        std::string ExePathUTF8;
+        size_t ExeFileLen = wcslen(Entry.szExeFile);
+        ArrayRef<llvm::UTF16> ExeFileUTF16(
+            reinterpret_cast<const llvm::UTF16 *>(Entry.szExeFile), ExeFileLen);
+
+        if (!convertUTF16ToUTF8String(ExeFileUTF16, ExePathUTF8)) {
+          // If conversion fails, skip this process
+          CloseHandle(Snapshot);
+          return *this;
+        }
+
+        // Extract the executable name (without path)
+        StringRef ExePath(ExePathUTF8);
+        StringRef ExeName = llvm::sys::path::filename(ExePath);
+
+        // Store the name in a static container to ensure it persists
+        static llvm::StringMap<std::string> ProcessNames;
+        auto [It, Inserted] = ProcessNames.try_emplace(ExeName.str(), ExeName.str());
+
+        Ancestor.PID = NewPID;
+        Ancestor.PPID = Entry.th32ParentProcessID;
+        Ancestor.Name = It->second;
+        Found = true;
+        break;
+      }
+    } while (Process32NextW(Snapshot, &Entry));
+  }
+
+  CloseHandle(Snapshot);
+  if (!Found)
+    return *this; // Process not found
+
 #else
+  // Other platforms: No process ancestry support
   (void)NewPID;
 #endif
+
   return *this;
 }
 
@@ -284,7 +448,7 @@ makeDepscanDaemonKey(StringRef Mode, const DepscanSharing &Sharing) {
     // Using same hash size as the module cache hash.
     auto Hash = Hasher.final<sizeof(uint64_t)>();
     uint64_t HashVal =
-        llvm::support::endian::read<uint64_t, llvm::support::native>(
+        llvm::support::endian::read<uint64_t, llvm::endianness::native>(
             Hash.data());
     return toString(llvm::APInt(64, HashVal), 36, /*Signed=*/false);
   };
@@ -352,29 +516,90 @@ makeDepscanDaemonPath(StringRef Mode, const DepscanSharing &Sharing) {
   return std::nullopt;
 }
 
-static Expected<llvm::cas::CASID> scanAndUpdateCC1Inline(
-    const char *Exec, ArrayRef<const char *> InputArgs,
-    StringRef WorkingDirectory, SmallVectorImpl<const char *> &OutputArgs,
-    bool ProduceIncludeTree, bool &DiagnosticErrorOccurred,
-    llvm::function_ref<const char *(const Twine &)> SaveArg,
-    const CASOptions &CASOpts, std::shared_ptr<llvm::cas::ObjectStore> DB,
-    std::shared_ptr<llvm::cas::ActionCache> Cache);
+
+//===----------------------------------------------------------------------===//
+// Shared Scanning Functions
+//===----------------------------------------------------------------------===//
 
 static Expected<llvm::cas::CASID> scanAndUpdateCC1InlineWithTool(
     tooling::dependencies::DependencyScanningTool &Tool,
     DiagnosticConsumer &DiagsConsumer, raw_ostream *VerboseOS, const char *Exec,
     ArrayRef<const char *> InputArgs, StringRef WorkingDirectory,
     SmallVectorImpl<const char *> &OutputArgs, llvm::cas::ObjectStore &DB,
-    llvm::function_ref<const char *(const Twine &)> SaveArg);
+    llvm::function_ref<const char *(const Twine &)> SaveArg) {
+  DiagnosticOptions DiagOpts;
+  DiagnosticsEngine Diags(new DiagnosticIDs(), DiagOpts);
+  Diags.setClient(&DiagsConsumer, /*ShouldOwnClient=*/false);
+  auto Invocation = std::make_shared<CompilerInvocation>();
+  if (!CompilerInvocation::CreateFromArgs(*Invocation, InputArgs, Diags, Exec))
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "failed to create compiler invocation");
 
-static llvm::Expected<llvm::cas::CASID> scanAndUpdateCC1UsingDaemon(
+  Expected<llvm::cas::CASID> Root = scanAndUpdateCC1InlineWithTool(
+      Tool, DiagsConsumer, VerboseOS, *Invocation, WorkingDirectory, DB);
+  if (!Root)
+    return Root;
+
+  OutputArgs.resize(1);
+  OutputArgs[0] = "-cc1";
+  Invocation->generateCC1CommandLine(OutputArgs, SaveArg);
+  return *Root;
+}
+
+static int
+scanAndUpdateCC1Inline(const char *Exec, ArrayRef<const char *> InputArgs,
+                       StringRef WorkingDirectory,
+                       SmallVectorImpl<const char *> &OutputArgs,
+                       llvm::function_ref<const char *(const Twine &)> SaveArg,
+                       const CASOptions &CASOpts, DiagnosticsEngine &Diag,
+                       std::optional<llvm::cas::CASID> &RootID) {
+  auto [DB, Cache] = CASOpts.createDatabases(Diag);
+  if (!DB || !Cache)
+    return 1;
+
+  tooling::dependencies::DependencyScanningService Service(
+      tooling::dependencies::ScanningMode::DependencyDirectivesScan,
+      tooling::dependencies::ScanningOutputFormat::IncludeTree, CASOpts, DB,
+      Cache);
+  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> UnderlyingFS =
+      llvm::vfs::createPhysicalFileSystem();
+  UnderlyingFS =
+      llvm::cas::createCASProvidingFileSystem(DB, std::move(UnderlyingFS));
+  tooling::dependencies::DependencyScanningTool Tool(Service,
+                                                     std::move(UnderlyingFS));
+
+  std::unique_ptr<DiagnosticOptions> DiagOpts =
+      CreateAndPopulateDiagOpts(InputArgs);
+  auto DiagsConsumer =
+      std::make_unique<TextDiagnosticPrinter>(llvm::errs(), *DiagOpts, false);
+
+  auto E = scanAndUpdateCC1InlineWithTool(
+               Tool, *DiagsConsumer, /*VerboseOS*/ nullptr, Exec, InputArgs,
+               WorkingDirectory, OutputArgs, *DB, SaveArg)
+               .moveInto(RootID);
+  if (E) {
+    Diag.Report(diag::err_cas_depscan_failed) << std::move(E);
+    return 1;
+  }
+
+  return DiagsConsumer->getNumErrors() != 0;
+}
+
+//===----------------------------------------------------------------------===//
+// Client-Side Code
+//===----------------------------------------------------------------------===//
+
+static int scanAndUpdateCC1UsingDaemon(
     const char *Exec, ArrayRef<const char *> OldArgs,
     StringRef WorkingDirectory, SmallVectorImpl<const char *> &NewArgs,
-    bool &DiagnosticErrorOccurred, StringRef Path,
-    const DepscanSharing &Sharing,
+    StringRef Path, const DepscanSharing &Sharing, DiagnosticsEngine &Diag,
     llvm::function_ref<const char *(const Twine &)> SaveArg,
-    llvm::cas::ObjectStore &CAS) {
+    const CASOptions &CASOpts, std::optional<llvm::cas::CASID> &Root) {
   using namespace clang::cc1depscand;
+  auto reportScanFailure = [&](Error E) {
+    Diag.Report(diag::err_cas_depscan_failed) << std::move(E);
+    return 1;
+  };
 
   // FIXME: Skip some of this if -fcas-fs has been passed.
 
@@ -384,39 +609,46 @@ static llvm::Expected<llvm::cas::CASID> scanAndUpdateCC1UsingDaemon(
                     ? ScanDaemon::connectToDaemonAndShakeHands(Path)
                     : ScanDaemon::constructAndShakeHands(Path, Exec, Sharing);
   if (!Daemon)
-    return Daemon.takeError();
-  CC1DepScanDProtocol Comms(*Daemon);
+    return reportScanFailure(Daemon.takeError());
+  CC1DepScanDProtocol Comms(Daemon->getStream());
 
   // llvm::dbgs() << "sending request...\n";
   if (auto E = Comms.putCommand(WorkingDirectory, OldArgs))
-    return std::move(E);
+    return reportScanFailure(std::move(E));
 
   llvm::BumpPtrAllocator Alloc;
   llvm::StringSaver Saver(Alloc);
   SmallVector<const char *> RawNewArgs;
-  StringRef DiagnosticOutput;
   CC1DepScanDProtocol::ResultKind Result;
   StringRef FailedReason;
   StringRef RootID;
-  if (auto E = Comms.getScanResult(Saver, Result, FailedReason, RootID,
-                                   RawNewArgs, DiagnosticOutput))
-    return std::move(E);
+  StringRef DiagOut;
+  auto E = Comms.getScanResult(Saver, Result, FailedReason, RootID, RawNewArgs,
+                               DiagOut);
+  // Send the diagnostics to std::err.
+  llvm::errs() << DiagOut;
+  if (E)
+    return reportScanFailure(std::move(E));
 
   if (Result != CC1DepScanDProtocol::SuccessResult)
-    return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   "depscan daemon failed: " + FailedReason);
+    return reportScanFailure(
+        llvm::createStringError("depscan daemon failed: " + FailedReason));
 
   // FIXME: Avoid this duplication.
   NewArgs.resize(RawNewArgs.size());
   for (int I = 0, E = RawNewArgs.size(); I != E; ++I)
     NewArgs[I] = SaveArg(RawNewArgs[I]);
 
-  DiagnosticErrorOccurred = !DiagnosticOutput.empty();
-  if (DiagnosticErrorOccurred) {
-    llvm::errs() << DiagnosticOutput;
-  }
+  // Create CAS after daemon returns the result so daemon can perform corrupted
+  // CAS recovery.
+  auto [CAS, _] = CASOpts.createDatabases(Diag);
+  if (!CAS)
+    return 1;
 
-  return CAS.parseID(RootID);
+  if (auto E = CAS->parseID(RootID).moveInto(Root))
+    return reportScanFailure(std::move(E));
+
+  return 0;
 }
 
 // FIXME: This is a copy of Command::writeResponseFile. Command is too deeply
@@ -443,8 +675,6 @@ static int scanAndUpdateCC1(const char *Exec, ArrayRef<const char *> OldArgs,
                             DiagnosticsEngine &Diag,
                             const llvm::opt::ArgList &Args,
                             const CASOptions &CASOpts,
-                            std::shared_ptr<llvm::cas::ObjectStore> DB,
-                            std::shared_ptr<llvm::cas::ActionCache> Cache,
                             std::optional<llvm::cas::CASID> &RootID) {
   using namespace clang::driver;
 
@@ -473,6 +703,7 @@ static int scanAndUpdateCC1(const char *Exec, ArrayRef<const char *> OldArgs,
     Sharing.Stop = A->getValue();
   if (Arg *A = Args.getLastArg(options::OPT_fdepscan_share_EQ,
                                options::OPT_fdepscan_share_identifier,
+                               options::OPT_fdepscan_share_identifier_EQ,
                                options::OPT_fdepscan_share_parent,
                                options::OPT_fdepscan_share_parent_EQ,
                                options::OPT_fno_depscan_share)) {
@@ -484,7 +715,8 @@ static int scanAndUpdateCC1(const char *Exec, ArrayRef<const char *> OldArgs,
     } else if (A->getOption().matches(options::OPT_fdepscan_share_parent)) {
       Sharing.Name = "";
       Sharing.OnlyShareParent = true;
-    } else if (A->getOption().matches(options::OPT_fdepscan_share_identifier)) {
+    } else if (A->getOption().matches(options::OPT_fdepscan_share_identifier) ||
+               A->getOption().matches(options::OPT_fdepscan_share_identifier_EQ)) {
       Sharing.Name = A->getValue();
       Sharing.ShareViaIdentifier = true;
     }
@@ -503,52 +735,40 @@ static int scanAndUpdateCC1(const char *Exec, ArrayRef<const char *> OldArgs,
     }
   }
 
-  bool ProduceIncludeTree = Args.hasArg(options::OPT_fdepscan_include_tree);
-
   auto SaveArg = [&Args](const Twine &T) { return Args.MakeArgString(T); };
   CompilerInvocation::GenerateCASArgs(CASOpts, Sharing.CASArgs, SaveArg);
-  if (ProduceIncludeTree)
-    Sharing.CASArgs.push_back("-fdepscan-include-tree");
 
-  bool DiagnosticErrorOccurred = false;
-  auto ScanAndUpdate = [&]() {
-    if (std::optional<std::string> DaemonPath =
-            makeDepscanDaemonPath(Mode, Sharing))
-      return scanAndUpdateCC1UsingDaemon(Exec, OldArgs, WorkingDirectory,
-                                         NewArgs, DiagnosticErrorOccurred,
-                                         *DaemonPath, Sharing, SaveArg, *DB);
-    return scanAndUpdateCC1Inline(Exec, OldArgs, WorkingDirectory, NewArgs,
-                                  ProduceIncludeTree, DiagnosticErrorOccurred,
-                                  SaveArg, CASOpts, DB, Cache);
-  };
-  if (llvm::Error E = ScanAndUpdate().moveInto(RootID)) {
-    Diag.Report(diag::err_cas_depscan_failed) << std::move(E);
-    return 1;
-  }
-  return DiagnosticErrorOccurred;
+  if (auto DaemonPath = makeDepscanDaemonPath(Mode, Sharing))
+    return scanAndUpdateCC1UsingDaemon(Exec, OldArgs, WorkingDirectory, NewArgs,
+                                       *DaemonPath, Sharing, Diag, SaveArg,
+                                       CASOpts, RootID);
+
+  return scanAndUpdateCC1Inline(Exec, OldArgs, WorkingDirectory, NewArgs,
+                                SaveArg, CASOpts, Diag, RootID);
 }
 
 int cc1depscan_main(ArrayRef<const char *> Argv, const char *Argv0,
                     void *MainAddr) {
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
+  std::unique_ptr<DiagnosticOptions> DiagOpts;
   {
     auto FoundCC1Args =
         std::find_if(Argv.begin(), Argv.end(), [](const char *Arg) -> bool {
-          return StringRef(Arg).equals("-cc1-args");
+          return (StringRef(Arg) == "-cc1-args");
         });
     if (FoundCC1Args != Argv.end()) {
       SmallVector<const char *, 8> WarnOpts{Argv0};
       WarnOpts.append(FoundCC1Args + 1, Argv.end());
       DiagOpts = CreateAndPopulateDiagOpts(WarnOpts);
     } else {
-      DiagOpts = new DiagnosticOptions();
+      DiagOpts = std::make_unique<DiagnosticOptions>();
     }
   }
-  auto DiagsConsumer = std::make_unique<TextDiagnosticPrinter>(
-      llvm::errs(), DiagOpts.get(), false);
-  DiagnosticsEngine Diags(new DiagnosticIDs(), DiagOpts);
+  auto DiagsConsumer =
+      std::make_unique<TextDiagnosticPrinter>(llvm::errs(), *DiagOpts, false);
+  DiagnosticsEngine Diags(new DiagnosticIDs(), *DiagOpts);
   Diags.setClient(DiagsConsumer.get(), /*ShouldOwnClient=*/false);
-  ProcessWarningOptions(Diags, *DiagOpts);
+  auto VFS = llvm::vfs::getRealFileSystem();
+  ProcessWarningOptions(Diags, *DiagOpts, *VFS);
   if (Diags.hasErrorOccurred())
     return 1;
 
@@ -585,12 +805,12 @@ int cc1depscan_main(ArrayRef<const char *> Argv, const char *Argv0,
   CompilerInvocation::ParseCASArgs(CASOpts, ParsedCC1Args, Diags);
   CASOpts.ensurePersistentCAS();
 
-  auto [CAS, Cache] = CASOpts.getOrCreateDatabases(Diags);
-  if (!CAS || !Cache)
-    return 1;
+#if defined(_WIN32)
+  llvm::WSABalancer _;
+#endif
 
   if (int Ret = scanAndUpdateCC1(Argv0, CC1Args->getValues(), NewArgs, Diags,
-                                 Args, CASOpts, CAS, Cache, RootID))
+                                 Args, CASOpts, RootID))
     return Ret;
 
   // FIXME: Use OutputBackend to OnDisk only now.
@@ -625,169 +845,110 @@ int cc1depscan_main(ArrayRef<const char *> Argv, const char *Argv0,
   return 0;
 }
 
+//===----------------------------------------------------------------------===//
+// Server-Side Code
+//===----------------------------------------------------------------------===//
+
 namespace {
+llvm::ExitOnError ExitOnErr("clang -cc1depscand: ");
+
+void reportError(const llvm::Twine &Message) {
+  ExitOnErr(llvm::createStringError(llvm::inconvertibleErrorCode(), Message));
+}
+
 struct ScanServer {
   const char *Argv0 = nullptr;
   SmallString<128> BasePath;
-  /// List of cas options.
-  ArrayRef<const char *> CASArgs;
+  CASOptions CASOpts;
   int PidFD = -1;
-  int ListenSocket = -1;
   /// \p std::nullopt means it runs indefinitely.
   std::optional<unsigned> TimeoutSeconds;
+  std::unique_ptr<llvm::ListeningSocket> Listener;
   std::atomic<bool> ShutDown{false};
 
   ~ScanServer() { shutdown(); }
 
-  void start(bool Exclusive);
+  void start(bool Exclusive, ArrayRef<const char *> CASArgs);
   int listen();
 
   /// Tear down the socket and bind file immediately but wait till all existing
   /// jobs to finish.
   void shutdown() {
     ShutDown.store(true);
-    cc1depscand::unlinkBoundSocket(BasePath);
     // Clean up the pidfile when we're done.
-    if (PidFD != -1)
-      ::close(PidFD);
-    ::shutdown(ListenSocket, SHUT_RD);
-    ::close(ListenSocket);
+    if (PidFD != -1) {
+      // Unlock pidfile first so another daemon can spin up when it can't find
+      // the socket.
+      llvm::sys::fs::unlockFile(PidFD);
+      llvm::sys::Process::SafelyCloseFileDescriptor(PidFD);
+      PidFD = -1;  // Prevent double-close
+    }
+    if (Listener)
+      Listener->shutdown();
   }
 };
-} // anonymous namespace
 
-static llvm::ExitOnError ExitOnErr("clang -cc1depscand: ");
+std::optional<StringRef>
+findLLVMCasBinary(const char *Argv0, llvm::SmallVectorImpl<char> &Storage) {
+  using namespace llvm::sys;
 
-static void reportError(const llvm::Twine &Message) {
-  ExitOnErr(llvm::createStringError(llvm::inconvertibleErrorCode(), Message));
+  std::string Path = fs::getMainExecutable(Argv0, (void *)cc1depscan_main);
+  Storage.assign(Path.begin(), Path.end());
+  path::remove_filename(Storage);
+#if defined(_WIN32)
+  path::append(Storage, "llvm-cas.exe");
+#else
+  path::append(Storage, "llvm-cas");
+#endif
+
+  StringRef PathStr(Storage.data(), Storage.size());
+  if (fs::exists(PathStr))
+    return PathStr;
+
+#if LLVM_ON_UNIX
+  // Look for a corresponding usr/local/bin/llvm-cas
+  PathStr = path::parent_path(PathStr);
+  if (path::filename(PathStr) != "bin")
+    return std::nullopt;
+  PathStr = path::parent_path(PathStr);
+  Storage.truncate(PathStr.size());
+  path::append(Storage, "local", "bin", "llvm-cas");
+  PathStr = StringRef{Storage.data(), Storage.size()};
+  if (fs::exists(PathStr))
+    return PathStr;
+#endif
+
+  return std::nullopt;
 }
 
-/// Accepted options are:
-///
-/// * -run <path> [-long-running] [-cas-args ...]
-/// Runs the daemon until a timeout is reached without a new connection.
-/// "-long-running" increases the timeout. stdout/stderr are redirected to files
-/// relative to <path>. This is how the clang driver auto-spawns a new daemon.
-///
-/// * -serve <path> [-cas-args ...]
-/// Runs indefinitely (until ctrl+c or the process is killed). There's no
-/// stdout/stderr redirection. Useful for debugging and for starting a permanent
-/// daemon before directing clang invocations to connect to it.
-///
-/// * -execute <path> [-cas-args ...] -- <command ...>
-/// Sets up the socket path, sets \p CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH
-/// enviroment variable to the socket path, and executes the provided command.
-/// It exits with the same exit code as the command. Useful for lit testing.
-int cc1depscand_main(ArrayRef<const char *> Argv, const char *Argv0,
-                     void *MainAddr) {
-  ensureSufficientStack();
 
-  if (Argv.size() < 2)
-    reportError("missing command and base-path");
+void ScanServer::start(bool Exclusive, ArrayRef<const char *> CASArgs) {
+  // Parse CAS options and validate if needed.
+  DiagnosticOptions DiagOpts;
+  DiagnosticsEngine Diags(new DiagnosticIDs(), DiagOpts);
 
-  ScanServer Server;
-  Server.Argv0 = Argv0;
+  const OptTable &Opts = clang::driver::getDriverOptTable();
+  unsigned MissingArgIndex, MissingArgCount;
+  auto ParsedCASArgs = Opts.ParseArgs(CASArgs, MissingArgIndex, MissingArgCount);
+  CompilerInvocation::ParseCASArgs(CASOpts, ParsedCASArgs, Diags);
+  CASOpts.ensurePersistentCAS();
 
-  StringRef Command = Argv[0];
-  Server.BasePath = Argv[1];
-
-  ArrayRef<const char *> CommandArgsToExecute;
-  auto Sep = llvm::find_if(
-      Argv, [](const char *Arg) { return StringRef(Arg) == "--"; });
-  if (Sep != Argv.end()) {
-    CommandArgsToExecute = Argv.drop_front(Sep - Argv.begin() + 1);
-    Argv = Argv.slice(0, Sep - Argv.begin());
-  }
-
-  // Whether the daemon can safely stay alive a longer period of time.
-  // FIXME: Consider designing a mechanism to notify daemons, started for a
-  // particular "build session", to shutdown, then have it stay alive until the
-  // session is finished.
-  bool LongRunning = false;
-
-  for (const auto *A = Argv.begin() + 2; A != Argv.end(); ++A) {
-    StringRef Arg(*A);
-    if (Arg == "-long-running")
-      LongRunning = true;
-    else if (Arg == "-cas-args") {
-      Server.CASArgs = ArrayRef(A + 1, Argv.end());
-      break;
-    }
-  }
-
-  // Create the base directory if necessary.
-  StringRef BaseDir = llvm::sys::path::parent_path(Server.BasePath);
-  if (std::error_code EC = llvm::sys::fs::create_directories(BaseDir))
-    reportError(Twine("cannot create basedir: ") + EC.message());
-
-  if (Command == "-serve") {
-    Server.start(/*Exclusive*/ true);
-    return Server.listen();
-
-  } else if (Command == "-execute") {
-    SmallVector<StringRef, 32> RefArgs;
-    RefArgs.reserve(CommandArgsToExecute.size());
-    for (const char *Arg : CommandArgsToExecute) {
-      RefArgs.push_back(Arg);
-    }
-
-    // Make sure to start the server before executing the command.
-    Server.start(/*Exclusive*/ true);
-    std::thread ServerThread([&Server]() { Server.listen(); });
-
-    setenv("CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH", Server.BasePath.c_str(),
-           true);
-
-    std::string ErrMsg;
-    int Result = llvm::sys::ExecuteAndWait(
-        RefArgs.front(), RefArgs, /*Env*/ std::nullopt,
-        /*Redirects*/ {}, /*SecondsToWait*/ 0,
-        /*MemoryLimit*/ 0, &ErrMsg);
-
-    Server.shutdown();
-    ServerThread.join();
-
-    if (!ErrMsg.empty())
-      reportError("failed executing command: " + ErrMsg);
-    return Result;
-
-  } else if (Command != "-run") {
-    reportError("unknown command '" + Command + "'");
-  }
-
-  Server.TimeoutSeconds = LongRunning ? 45 : 15;
-
-  // Daemonize.
-  if (::signal(SIGHUP, SIG_IGN) == SIG_ERR)
-    reportError("failed to ignore SIGHUP");
-  if (::setsid() == -1)
-    reportError("setsid failed");
-
-  // Check the pidfile.
-  SmallString<128> LogOutPath, LogErrPath;
-  (Server.BasePath + ".out").toVector(LogOutPath);
-  (Server.BasePath + ".err").toVector(LogErrPath);
-
-  auto openAndReplaceFD = [&](int ReplacedFD, StringRef Path) {
-    int FD;
-    if (std::error_code EC = llvm::sys::fs::openFile(
-            Path, FD, llvm::sys::fs::CD_CreateAlways, llvm::sys::fs::FA_Write,
-            llvm::sys::fs::OF_None)) {
-      // Ignoring error?
-      ::close(ReplacedFD);
+  static std::once_flag ValidateOnce;
+  std::call_once(ValidateOnce, [&] {
+    if (getenv("LLVM_CAS_DISABLE_VALIDATION"))
       return;
-    }
-    ::dup2(FD, ReplacedFD);
-    ::close(FD);
-  };
-  openAndReplaceFD(1, LogOutPath);
-  openAndReplaceFD(2, LogErrPath);
+    if (CASOpts.CASPath.empty() || !CASOpts.PluginPath.empty())
+      return;
+    SmallString<64> LLVMCasStorage;
+    SmallString<64> CASPath;
+    CASOpts.getResolvedCASPath(CASPath);
+    ExitOnErr(llvm::cas::validateOnDiskUnifiedCASDatabasesIfNeeded(
+        CASPath, /*CheckHash=*/true,
+        /*AllowRecovery=*/true,
+        /*Force=*/getenv("LLVM_CAS_FORCE_VALIDATION"),
+        findLLVMCasBinary(Argv0, LLVMCasStorage)));
+  });
 
-  Server.start(/*Exclusive*/ false);
-  return Server.listen();
-}
-
-void ScanServer::start(bool Exclusive) {
   // Check the pidfile.
   SmallString<128> PidPath;
   (BasePath + ".pid").toVector(PidPath);
@@ -799,7 +960,8 @@ void ScanServer::start(bool Exclusive) {
       reportError("cannot open pidfile");
 
     // Try to lock; failure means there's another daemon running.
-    if (::flock(PidFD, LOCK_EX | LOCK_NB)) {
+    if (std::error_code EC = llvm::sys::fs::tryLockFile(
+            PidFD, std::chrono::milliseconds(0), /*Exclusive=*/true)) {
       if (Exclusive)
         reportError("another daemon using the base path");
       ::exit(0);
@@ -808,74 +970,83 @@ void ScanServer::start(bool Exclusive) {
     // FIXME: Should we actually write the pid here? Maybe we don't care.
   }();
 
-  // Open the socket and start listening.
-  ListenSocket = cc1depscand::createSocket();
-  if (ListenSocket == -1)
-    reportError("cannot open socket");
-
-  if (cc1depscand::bindToSocket(BasePath, ListenSocket))
-    reportError(StringRef() + "cannot bind to socket" + ": " + strerror(errno));
-
   unsigned MaxBacklog =
       llvm::hardware_concurrency().compute_thread_count() * 16;
-  if (::listen(ListenSocket, MaxBacklog))
-    reportError("cannot listen to socket");
+
+  SmallString<128> SocketPath = BasePath;
+  SocketPath.append(".sock");
+
+  // Open the socket and start listening.
+  llvm::Expected<llvm::ListeningSocket> Socket =
+      llvm::ListeningSocket::createUnix(SocketPath, MaxBacklog);
+  if (!Socket)
+    reportError("cannot create listener: " + llvm::toString(Socket.takeError()));
+  Listener = std::make_unique<llvm::ListeningSocket>(std::move(*Socket));
 }
 
 int ScanServer::listen() {
-  llvm::ThreadPool Pool;
+  llvm::DefaultThreadPool Pool;
 
-  DiagnosticsEngine Diags(new DiagnosticIDs(), new DiagnosticOptions());
-  CASOptions CASOpts;
-  const OptTable &Opts = clang::driver::getDriverOptTable();
-  unsigned MissingArgIndex, MissingArgCount;
-  auto ParsedCASArgs =
-      Opts.ParseArgs(CASArgs, MissingArgIndex, MissingArgCount);
-  CompilerInvocation::ParseCASArgs(CASOpts, ParsedCASArgs, Diags);
-  CASOpts.ensurePersistentCAS();
-  bool ProduceIncludeTree =
-      ParsedCASArgs.hasArg(driver::options::OPT_fdepscan_include_tree);
-
+  DiagnosticOptions DiagOpts;
+  DiagnosticsEngine Diags(new DiagnosticIDs(), DiagOpts);
   std::shared_ptr<llvm::cas::ObjectStore> CAS;
   std::shared_ptr<llvm::cas::ActionCache> Cache;
-  std::tie(CAS, Cache) = CASOpts.getOrCreateDatabases(Diags);
+  std::tie(CAS, Cache) = CASOpts.createDatabases(Diags);
   if (!CAS)
     reportError("cannot create CAS");
   if (!Cache)
     reportError("cannot create ActionCache");
 
-  IntrusiveRefCntPtr<llvm::cas::CachingOnDiskFileSystem> FS;
-  if (!ProduceIncludeTree)
-    FS = llvm::cantFail(llvm::cas::createCachingOnDiskFileSystem(*CAS));
   tooling::dependencies::DependencyScanningService Service(
       tooling::dependencies::ScanningMode::DependencyDirectivesScan,
-      ProduceIncludeTree
-          ? tooling::dependencies::ScanningOutputFormat::IncludeTree
-          : tooling::dependencies::ScanningOutputFormat::Tree,
-      CASOpts, CAS, Cache, FS);
+      tooling::dependencies::ScanningOutputFormat::IncludeTree, CASOpts, CAS,
+      Cache);
 
   std::atomic<int> NumRunning(0);
+  std::mutex AcceptLock;
 
   std::chrono::steady_clock::time_point Start =
       std::chrono::steady_clock::now();
-  std::atomic<uint64_t> SecondsSinceLastClose;
+  std::atomic<uint64_t> SecondsSinceLastClose(0);
 
   SharedStream SharedOS(llvm::errs());
 
   auto ServiceLoop = [this, &CAS, &Service, &NumRunning, &Start,
-                      &SecondsSinceLastClose, &SharedOS](unsigned I) {
+                      &SecondsSinceLastClose, &SharedOS,
+                      &AcceptLock](unsigned I) {
     std::optional<tooling::dependencies::DependencyScanningTool> Tool;
     SmallString<256> Message;
     while (true) {
       if (ShutDown.load())
         return;
 
-      int Data = cc1depscand::acceptSocket(ListenSocket);
-      if (Data == -1)
-        continue;
+      std::unique_ptr<llvm::raw_socket_stream> stream;
+      {
+        std::unique_lock<std::mutex> Guard(AcceptLock);
+        if (ShutDown.load())
+          return;
 
-      auto CloseData = llvm::make_scope_exit([&]() { ::close(Data); });
-      cc1depscand::CC1DepScanDProtocol Comms(Data);
+        llvm::Expected<std::unique_ptr<llvm::raw_socket_stream>> fd =
+            Listener->accept(std::chrono::milliseconds(1000));
+        if (!fd) {
+          // Timeout or error - continue waiting for next connection
+          llvm::consumeError(fd.takeError());
+          continue;
+        }
+        stream = std::move(*fd);
+      }
+
+      cc1depscand::CC1DepScanDProtocol Comms(*stream);
+
+      // Explicitly close the socket and clear any errors before the stream is
+      // destroyed to prevent fatal error in raw_ostream destructor. On Windows,
+      // socket close can trigger errors when the peer has already closed the
+      // connection. By calling close() first, we set FD = -1 and ShouldClose =
+      // false, so the base class destructor's close path is skipped entirely.
+      auto ClearStreamError = llvm::make_scope_exit([&]() {
+        stream->close();
+        stream->clear_error();
+      });
 
       auto StopRunning = llvm::make_scope_exit([&]() {
         SecondsSinceLastClose.store(
@@ -931,35 +1102,31 @@ int ScanServer::listen() {
         OS << "\n";
       };
 
-      bool ProduceIncludeTree =
-          Service.getFormat() ==
-          tooling::dependencies::ScanningOutputFormat::IncludeTree;
-
       // Is this safe to reuse? Or does DependendencyScanningWorkerFileSystem
       // make some bad assumptions about relative paths?
       if (!Tool) {
         llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> UnderlyingFS =
             llvm::vfs::createPhysicalFileSystem();
-        if (ProduceIncludeTree)
-          UnderlyingFS = llvm::cas::createCASProvidingFileSystem(
-              CAS, std::move(UnderlyingFS));
+        UnderlyingFS = llvm::cas::createCASProvidingFileSystem(
+            CAS, std::move(UnderlyingFS));
         Tool.emplace(Service, std::move(UnderlyingFS));
       }
 
-      IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts =
+      std::unique_ptr<DiagnosticOptions> DiagOpts =
           CreateAndPopulateDiagOpts(Args);
       SmallString<128> DiagsBuffer;
       llvm::raw_svector_ostream DiagsOS(DiagsBuffer);
       DiagsOS.enable_colors(true);
-      auto DiagsConsumer = std::make_unique<TextDiagnosticPrinter>(
-          DiagsOS, DiagOpts.get(), false);
+      auto DiagsConsumer =
+          std::make_unique<TextDiagnosticPrinter>(DiagsOS, *DiagOpts, false);
 
       SmallVector<const char *> NewArgs;
       auto RootID = scanAndUpdateCC1InlineWithTool(
           *Tool, *DiagsConsumer, &DiagsOS, Argv0, Args, WorkingDirectory,
           NewArgs, *CAS, [&](const Twine &T) { return Saver.save(T).data(); });
       if (!RootID) {
-        consumeError(Comms.putScanResultFailed(toString(RootID.takeError())));
+        consumeError(Comms.putScanResultFailed(toString(RootID.takeError()),
+                                               DiagsOS.str()));
         SharedOS.applyLocked([&](raw_ostream &OS) {
           printScannedCC1(OS);
           OS << I << ": failed to create compiler invocation\n";
@@ -995,7 +1162,7 @@ int ScanServer::listen() {
     }
   };
 
-  for (unsigned I = 0; I < Pool.getThreadCount(); ++I)
+  for (unsigned I = 0; I < Pool.getMaxConcurrency(); ++I)
     Pool.async(ServiceLoop, I);
 
   if (!TimeoutSeconds) {
@@ -1008,7 +1175,7 @@ int ScanServer::listen() {
   const uint64_t SecondsBeforeDestruction = *TimeoutSeconds;
   uint64_t SleepTime = SecondsBeforeDestruction;
   while (true) {
-    ::sleep(SleepTime);
+    std::this_thread::sleep_for(std::chrono::seconds(SleepTime));
     SleepTime = SecondsBetweenAttempts;
 
     if (NumRunning.load())
@@ -1034,65 +1201,156 @@ int ScanServer::listen() {
 
   return 0;
 }
+} // anonymous namespace
 
-static Expected<llvm::cas::CASID> scanAndUpdateCC1InlineWithTool(
-    tooling::dependencies::DependencyScanningTool &Tool,
-    DiagnosticConsumer &DiagsConsumer, raw_ostream *VerboseOS, const char *Exec,
-    ArrayRef<const char *> InputArgs, StringRef WorkingDirectory,
-    SmallVectorImpl<const char *> &OutputArgs, llvm::cas::ObjectStore &DB,
-    llvm::function_ref<const char *(const Twine &)> SaveArg) {
-  DiagnosticsEngine Diags(new DiagnosticIDs(), new DiagnosticOptions());
-  Diags.setClient(&DiagsConsumer, /*ShouldOwnClient=*/false);
-  auto Invocation = std::make_shared<CompilerInvocation>();
-  if (!CompilerInvocation::CreateFromArgs(*Invocation, InputArgs, Diags, Exec))
-    return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   "failed to create compiler invocation");
 
-  Expected<llvm::cas::CASID> Root = scanAndUpdateCC1InlineWithTool(
-      Tool, DiagsConsumer, VerboseOS, *Invocation, WorkingDirectory, DB);
-  if (!Root)
-    return Root;
 
-  OutputArgs.resize(1);
-  OutputArgs[0] = "-cc1";
-  Invocation->generateCC1CommandLine(OutputArgs, SaveArg);
-  return *Root;
+/// Accepted options are:
+///
+/// * -run <path> [-long-running] [-cas-args ...]
+/// Runs the daemon until a timeout is reached without a new connection.
+/// "-long-running" increases the timeout. stdout/stderr are redirected to files
+/// relative to <path>. This is how the clang driver auto-spawns a new daemon.
+///
+/// * -serve <path> [-cas-args ...]
+/// Runs indefinitely (until ctrl+c or the process is killed). There's no
+/// stdout/stderr redirection. Useful for debugging and for starting a permanent
+/// daemon before directing clang invocations to connect to it.
+///
+/// * -execute <path> [-cas-args ...] -- <command ...>
+/// Sets up the socket path, sets \p CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH
+/// enviroment variable to the socket path, and executes the provided command.
+/// It exits with the same exit code as the command. Useful for lit testing.
+int cc1depscand_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
+  if (Argv.size() < 2)
+    reportError("missing command and base-path");
+
+  ensureSufficientStack();
+
+#if defined(_WIN32)
+  llvm::WSABalancer _;
+#endif
+
+  StringRef Command = Argv[0];
+
+  ScanServer Server;
+  Server.Argv0 = Argv0;
+  Server.BasePath = Argv[1];
+
+  ArrayRef<const char *> CommandArgsToExecute;
+  auto Sep = llvm::find_if(Argv, [](const char *Arg) { return StringRef(Arg) == "--"; });
+  if (Sep != Argv.end()) {
+    CommandArgsToExecute = Argv.drop_front(Sep - Argv.begin() + 1);
+    Argv = Argv.slice(0, Sep - Argv.begin());
+  }
+
+  // Whether the daemon can safely stay alive a longer period of time.
+  // FIXME: Consider designing a mechanism to notify daemons, started for a
+  // particular "build session", to shutdown, then have it stay alive until the
+  // session is finished.
+  bool LongRunning = false;
+  ArrayRef<const char *> CASArgs;
+  for (auto [Index, Arg] : llvm::enumerate(Argv)) {
+    if (StringRef(Arg) == "-long-running") {
+      LongRunning = true;
+    } else if (StringRef(Arg) == "-cas-args") {
+      CASArgs = Argv.drop_front(Index + 1);
+      break;
+    }
+  }
+
+  // Create the base directory if necessary.
+  StringRef BaseDir = llvm::sys::path::parent_path(Server.BasePath);
+  if (std::error_code EC = llvm::sys::fs::create_directories(BaseDir))
+    reportError(Twine("cannot create basedir: ") + EC.message());
+
+  if (Command == "-serve") {
+    Server.start(/*Exclusive*/ true, CASArgs);
+    return Server.listen();
+  } else if (Command == "-execute") {
+    SmallVector<StringRef, 32> RefArgs;
+    RefArgs.reserve(CommandArgsToExecute.size());
+    for (const char *Arg : CommandArgsToExecute)
+      RefArgs.push_back(Arg);
+
+    // Make sure to start the server before executing the command.
+    Server.start(/*Exclusive*/ true, CASArgs);
+    std::thread ServerThread([&Server]() { Server.listen(); });
+
+#if defined(_WIN32)
+    static_cast<void>(::_putenv_s("CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH",
+                                  Server.BasePath.c_str()));
+#else
+    setenv("CLANG_CACHE_SCAN_DAEMON_SOCKET_PATH", Server.BasePath.c_str(), true);
+#endif
+
+    std::string ErrMsg;
+    int Result = llvm::sys::ExecuteAndWait(
+        RefArgs.front(), RefArgs, /*Env*/ std::nullopt,
+        /*Redirects*/ {}, /*SecondsToWait*/ 0,
+        /*MemoryLimit*/ 0, &ErrMsg);
+
+    Server.shutdown();
+    ServerThread.join();
+
+    if (!ErrMsg.empty())
+      reportError("failed executing command: " + ErrMsg);
+    return Result;
+  } else if (Command != "-run") {
+    reportError("unknown command '" + Command + "'");
+  }
+
+  Server.TimeoutSeconds = LongRunning ? 120 : 15;
+
+  // Setup signal handlers for graceful shutdown (cross-platform).
+  llvm::sys::AddSignalHandler(
+      [](void *Cookie) {
+        auto *Srv = static_cast<ScanServer *>(Cookie);
+        Srv->shutdown();
+      },
+      &Server);
+
+  llvm::sys::SetInterruptFunction([]() {
+    // Note: This handler is called on interrupt (Ctrl+C).
+    // Cannot call non-reentrant functions here, so just exit immediately.
+    std::_Exit(0);
+  });
+
+  // Redirect stdout/stderr to log files.
+  SmallString<128> LogOutPath, LogErrPath;
+  (Server.BasePath + ".out").toVector(LogOutPath);
+  (Server.BasePath + ".err").toVector(LogErrPath);
+
+#ifdef _WIN32
+  // On Windows, redirect stdout/stderr using freopen.
+  // We don't call FreeConsole() to avoid invalidating these handles.
+  if (std::freopen(LogOutPath.c_str(), "w", stdout) == nullptr)
+    reportError("failed to redirect stdout");
+  if (std::freopen(LogErrPath.c_str(), "w", stderr) == nullptr)
+    reportError("failed to redirect stderr");
+#else
+  // On Unix, create a new session and redirect stdio.
+  if (::signal(SIGHUP, SIG_IGN) == SIG_ERR)
+    reportError("failed to ignore SIGHUP");
+  if (::setsid() == -1)
+    reportError("setsid failed");
+
+  // Redirect stdout and stderr using dup2.
+  auto openAndReplaceFD = [&](int ReplacedFD, StringRef Path) {
+    int FD;
+    if (std::error_code EC = llvm::sys::fs::openFile(
+            Path, FD, llvm::sys::fs::CD_CreateAlways, llvm::sys::fs::FA_Write,
+            llvm::sys::fs::OF_None)) {
+      llvm::sys::Process::SafelyCloseFileDescriptor(ReplacedFD);
+      return;
+    }
+    ::dup2(FD, ReplacedFD);
+    llvm::sys::Process::SafelyCloseFileDescriptor(FD);
+  };
+  openAndReplaceFD(1, LogOutPath);
+  openAndReplaceFD(2, LogErrPath);
+#endif
+
+  Server.start(/*Exclusive*/ false, CASArgs);
+  return Server.listen();
 }
-
-static Expected<llvm::cas::CASID> scanAndUpdateCC1Inline(
-    const char *Exec, ArrayRef<const char *> InputArgs,
-    StringRef WorkingDirectory, SmallVectorImpl<const char *> &OutputArgs,
-    bool ProduceIncludeTree, bool &DiagnosticErrorOccurred,
-    llvm::function_ref<const char *(const Twine &)> SaveArg,
-    const CASOptions &CASOpts, std::shared_ptr<llvm::cas::ObjectStore> DB,
-    std::shared_ptr<llvm::cas::ActionCache> Cache) {
-  IntrusiveRefCntPtr<llvm::cas::CachingOnDiskFileSystem> FS;
-  if (!ProduceIncludeTree)
-    FS = llvm::cantFail(llvm::cas::createCachingOnDiskFileSystem(*DB));
-
-  tooling::dependencies::DependencyScanningService Service(
-      tooling::dependencies::ScanningMode::DependencyDirectivesScan,
-      ProduceIncludeTree
-          ? tooling::dependencies::ScanningOutputFormat::IncludeTree
-          : tooling::dependencies::ScanningOutputFormat::Tree,
-      CASOpts, DB, Cache, FS);
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> UnderlyingFS =
-      llvm::vfs::createPhysicalFileSystem();
-  if (ProduceIncludeTree)
-    UnderlyingFS =
-        llvm::cas::createCASProvidingFileSystem(DB, std::move(UnderlyingFS));
-  tooling::dependencies::DependencyScanningTool Tool(Service,
-                                                     std::move(UnderlyingFS));
-
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts =
-      CreateAndPopulateDiagOpts(InputArgs);
-  auto DiagsConsumer = std::make_unique<TextDiagnosticPrinter>(
-      llvm::errs(), DiagOpts.get(), false);
-
-  auto Result = scanAndUpdateCC1InlineWithTool(
-      Tool, *DiagsConsumer, /*VerboseOS*/ nullptr, Exec, InputArgs,
-      WorkingDirectory, OutputArgs, *DB, SaveArg);
-  DiagnosticErrorOccurred = DiagsConsumer->getNumErrors() != 0;
-  return Result;
-}
-#endif /* LLVM_ON_UNIX */

@@ -47,7 +47,7 @@ public:
 
   /// Try to analyze \p V as an authenticated global reference, and return its
   /// information if successful.
-  static std::optional<GlobalPtrAuthInfo> analyze(const Value *V);
+  LLVM_ABI static std::optional<GlobalPtrAuthInfo> analyze(const Value *V);
 
   /// Try to analyze \p V as an authenticated global reference, and return its
   /// information if successful, or an error explaining the failure if not.
@@ -108,9 +108,10 @@ public:
 
   /// Produce a "llvm.ptrauth" global that signs a value using the given
   /// schema.  The result will be casted to have the same type as the value.
-  static llvm::Constant *create(Module &M, Constant *Pointer, ConstantInt *Key,
-                                Constant *AddrDiscriminator,
-                                ConstantInt *Discriminator);
+  LLVM_ABI static llvm::Constant *create(Module &M, Constant *Pointer,
+                                         ConstantInt *Key,
+                                         Constant *AddrDiscriminator,
+                                         ConstantInt *Discriminator);
 
   /// Produce a new "llvm.ptrauth" global for signing the given value using
   /// the same schema as is stored in this info.

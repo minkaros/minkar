@@ -11,6 +11,7 @@ func f() -> some P {
   return p
 }
 
+let v = f()
 let s = S(t: f())
 print(s) // break here
 

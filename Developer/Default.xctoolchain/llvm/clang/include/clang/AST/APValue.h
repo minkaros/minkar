@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_AST_APVALUE_H
 #define LLVM_CLANG_AST_APVALUE_H
 
+#include "clang/AST/CharUnits.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/APFixedPoint.h"
 #include "llvm/ADT/APFloat.h"
@@ -29,7 +30,6 @@ template <typename T> class BasicReaderBase;
 
   class AddrLabelExpr;
   class ASTContext;
-  class CharUnits;
   class CXXRecordDecl;
   class Decl;
   class DiagnosticBuilder;
@@ -88,6 +88,60 @@ public:
 
   static constexpr int NumLowBitsAvailable = 3;
 };
+
+/* TO_UPSTREAM(BoundsSafety) ON*/
+/// Symbolic representation of a size forged pointer
+class ForgedPtrLValue {
+  const ValueDecl *Base;
+
+public:
+  ForgedPtrLValue() : Base(nullptr) {}
+  explicit ForgedPtrLValue(const ValueDecl *Base) : Base(Base) {}
+  explicit operator bool() const { return Base; }
+
+  const ValueDecl *getBaseValueDecl() const { return Base; }
+
+  void *getOpaqueValue() { return const_cast<ValueDecl *>(Base); }
+  static ForgedPtrLValue getFromOpaqueValue(void *Value) {
+    ForgedPtrLValue V;
+    V.Base = reinterpret_cast<ValueDecl *>(Value);
+    return V;
+  }
+};
+
+/// This represents a pointer union that is either DynamicAllocLValue or
+/// ForgedPtrLValue.
+///
+/// This is a hack to be able to add ForgedPtrLValue as another pointer member
+/// to the pointer union of APValue::LValueBase because it already has the
+/// maximum number of members for the available low bits, i.e., 2.
+/// DynamicAllocLValue and ValueDecl* have 3 low bits available and thus we can
+/// use this one more remaining bit to encode ForgedPtrLValue.
+class DynamicAllocOrForgedPtrLValue
+    : public llvm::PointerUnion<DynamicAllocLValue, ForgedPtrLValue> {
+
+public:
+  using BaseTy = llvm::PointerUnion<DynamicAllocLValue, ForgedPtrLValue>;
+
+  DynamicAllocOrForgedPtrLValue() = default;
+  DynamicAllocOrForgedPtrLValue(DynamicAllocLValue LV) : BaseTy(LV) {}
+  DynamicAllocOrForgedPtrLValue(ForgedPtrLValue LV) : BaseTy(LV) {}
+
+  explicit operator bool() const {
+    PointerUnion pu = *this;
+    if (isa<DynamicAllocLValue>(pu)) {
+      return static_cast<bool>(cast<DynamicAllocLValue>(pu));
+    }
+    return static_cast<bool>(cast<ForgedPtrLValue>(pu));
+  }
+
+  static DynamicAllocOrForgedPtrLValue getFromOpaqueValue(void *Value) {
+    DynamicAllocOrForgedPtrLValue V;
+    V.Val.setFromOpaqueValue(Value);
+    return V;
+  }
+};
+/* TO_UPSTREAM(BoundsSafety) OFF*/
 }
 
 namespace llvm {
@@ -113,6 +167,28 @@ template<> struct PointerLikeTypeTraits<clang::DynamicAllocLValue> {
   static constexpr int NumLowBitsAvailable =
       clang::DynamicAllocLValue::NumLowBitsAvailable;
 };
+
+/* TO_UPSTREAM(BoundsSafety) ON*/
+template <> struct PointerLikeTypeTraits<clang::ForgedPtrLValue> {
+  static void *getAsVoidPointer(clang::ForgedPtrLValue V) {
+    return V.getOpaqueValue();
+  }
+  static clang::ForgedPtrLValue getFromVoidPointer(void *P) {
+    return clang::ForgedPtrLValue::getFromOpaqueValue(P);
+  }
+  static constexpr int NumLowBitsAvailable = 3;
+};
+
+template <> struct PointerLikeTypeTraits<clang::DynamicAllocOrForgedPtrLValue> {
+  static void *getAsVoidPointer(clang::DynamicAllocOrForgedPtrLValue V) {
+    return V.getOpaqueValue();
+  }
+  static clang::DynamicAllocOrForgedPtrLValue getFromVoidPointer(void *P) {
+    return clang::DynamicAllocOrForgedPtrLValue::getFromOpaqueValue(P);
+  }
+  static constexpr int NumLowBitsAvailable = 2;
+};
+/* TO_UPSTREAM(BoundsSafety) OFF*/
 }
 
 namespace clang {
@@ -143,10 +219,23 @@ public:
     AddrLabelDiff
   };
 
-  class LValueBase {
+  class alignas(uint64_t) LValueBase {
     typedef llvm::PointerUnion<const ValueDecl *, const Expr *, TypeInfoLValue,
-                               DynamicAllocLValue>
+                               DynamicAllocOrForgedPtrLValue>
         PtrTy;
+
+    template <class T>
+    static constexpr bool IsDAOrForgedV =
+        std::is_same<T, DynamicAllocLValue>::value ||
+        std::is_same<T, ForgedPtrLValue>::value;
+
+    template <class T, class U = T>
+    using EnableIfDAOrForged =
+        typename std::enable_if<IsDAOrForgedV<T>, U>::type;
+
+    template <class T, class U = T>
+    using EnableIfNotDANorForged =
+        typename std::enable_if<!IsDAOrForgedV<T>, U>::type;
 
   public:
     LValueBase() : Local{} {}
@@ -154,19 +243,31 @@ public:
     LValueBase(const Expr *P, unsigned I = 0, unsigned V = 0);
     static LValueBase getDynamicAlloc(DynamicAllocLValue LV, QualType Type);
     static LValueBase getTypeInfo(TypeInfoLValue LV, QualType TypeInfo);
+    static LValueBase getForgedPtr(ForgedPtrLValue LV, QualType Type);
 
     void Profile(llvm::FoldingSetNodeID &ID) const;
 
-    template <class T>
-    bool is() const { return Ptr.is<T>(); }
+    template <class T> EnableIfNotDANorForged<T, bool> is() const {
+      return isa<T>(Ptr);
+    }
 
-    template <class T>
-    T get() const { return Ptr.get<T>(); }
+    template <class T> EnableIfDAOrForged<T, bool> is() const;
 
-    template <class T>
-    T dyn_cast() const { return Ptr.dyn_cast<T>(); }
+    template <class T> EnableIfNotDANorForged<T> get() const {
+      return cast<T>(Ptr);
+    }
+
+    template <class T> EnableIfDAOrForged<T> get() const;
+
+    template <class T> EnableIfNotDANorForged<T> dyn_cast() const {
+      return dyn_cast_if_present<T>(Ptr);
+    }
+
+    template <class T> EnableIfDAOrForged<T> dyn_cast() const;
 
     void *getOpaqueValue() const;
+    // TO_UPSTREAM(BoundsSafety)
+    const ValueDecl *getValueDecl() const;
 
     bool isNull() const;
 
@@ -176,6 +277,7 @@ public:
     unsigned getVersion() const;
     QualType getTypeInfoType() const;
     QualType getDynamicAllocType() const;
+    QualType getForgedPtrAsArrayType() const;
 
     QualType getType() const;
 
@@ -197,6 +299,8 @@ public:
       void *TypeInfoType;
       /// The QualType, if this is a DynamicAllocLValue.
       void *DynamicAllocType;
+      /// The QualType, if this is a ForgedPtrLValue.
+      void *ForgedPtrAsArrayType;
     };
   };
 
@@ -249,6 +353,7 @@ public:
   struct NoLValuePath {};
   struct UninitArray {};
   struct UninitStruct {};
+  struct ConstexprUnknown {};
 
   template <typename Impl> friend class clang::serialization::BasicReaderBase;
   friend class ASTImporter;
@@ -256,6 +361,7 @@ public:
 
 private:
   ValueKind Kind;
+  bool AllowConstexprUnknown : 1;
 
   struct ComplexAPSInt {
     APSInt Real, Imag;
@@ -270,12 +376,16 @@ private:
     APValue *Elts = nullptr;
     unsigned NumElts = 0;
     Vec() = default;
+    Vec(const Vec &) = delete;
+    Vec &operator=(const Vec &) = delete;
     ~Vec() { delete[] Elts; }
   };
   struct Arr {
     APValue *Elts;
     unsigned NumElts, ArrSize;
     Arr(unsigned NumElts, unsigned ArrSize);
+    Arr(const Arr &) = delete;
+    Arr &operator=(const Arr &) = delete;
     ~Arr();
   };
   struct StructData {
@@ -283,12 +393,16 @@ private:
     unsigned NumBases;
     unsigned NumFields;
     StructData(unsigned NumBases, unsigned NumFields);
+    StructData(const StructData &) = delete;
+    StructData &operator=(const StructData &) = delete;
     ~StructData();
   };
   struct UnionData {
     const FieldDecl *Field;
     APValue *Value;
     UnionData();
+    UnionData(const UnionData &) = delete;
+    UnionData &operator=(const UnionData &) = delete;
     ~UnionData();
   };
   struct AddrLabelDiffData {
@@ -297,62 +411,162 @@ private:
   };
   struct MemberPointerData;
 
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  struct LVBase {
+    APValue::LValueBase Base;
+    CharUnits Offset;
+    // BoundsSafety : While the base also holds a corresponding constant array type
+    // for forged pointer, we still keep track of forged size because the array
+    // size will be different from the actual forged size if it is not a multiple
+    // of element type size after a bitcast. The codegen doesn't round up/down
+    // the bounds to be a type-size multiple, we should keep it the same for
+    // constant emission. Once __builtin_forge_* has a type as an argument, we
+    // may consider round down the size with the element type size.
+    CharUnits ForgedSize;
+    // While 'Offset' is the offset within the LValue, 'ForgedOffset' is the
+    // offset of the base pointer of __builtin_unsafe_forge*. For example, in
+    // the following,
+    // '__bidi_indexable_unsafe_forge_bidi_indexable(base + N) + M'
+    // 'N' should be 'ForgedOffset' and 'M' should be 'Offset'. This way, the
+    // forged pointer itself becomes an LValue starting at base + 'ForgedOffset'.
+    CharUnits ForgedOffset;
+    unsigned PathLength;
+    bool IsNullPtr : 1;
+    bool IsOnePastTheEnd : 1;
+    bool IsForgeBidi : 1;
+    bool IsForgeSingle : 1;
+    bool IsForgeTerminatedBy : 1;
+  };
+
+  struct LVPlaceHolder {
+    LVBase Base;
+    LValuePathEntry Path[1];
+  };
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
   // We ensure elsewhere that Data is big enough for LV and MemberPointerData.
   typedef llvm::AlignedCharArrayUnion<void *, APSInt, APFloat, ComplexAPSInt,
                                       ComplexAPFloat, Vec, Arr, StructData,
-                                      UnionData, AddrLabelDiffData> DataType;
+                                      UnionData, AddrLabelDiffData,
+                                      // TO_UPSTREAM(BoundsSafety)
+                                      LVPlaceHolder> DataType;
   static const size_t DataSize = sizeof(DataType);
 
   DataType Data;
 
 public:
-  APValue() : Kind(None) {}
-  explicit APValue(APSInt I) : Kind(None) {
+  bool allowConstexprUnknown() const { return AllowConstexprUnknown; }
+
+  void setConstexprUnknown(bool IsConstexprUnknown = true) {
+    AllowConstexprUnknown = IsConstexprUnknown;
+  }
+
+  /// Creates an empty APValue of type None.
+  APValue() : Kind(None), AllowConstexprUnknown(false) {}
+  /// Creates an integer APValue holding the given value.
+  explicit APValue(APSInt I) : Kind(None), AllowConstexprUnknown(false) {
     MakeInt(); setInt(std::move(I));
   }
-  explicit APValue(APFloat F) : Kind(None) {
+  /// Creates a float APValue holding the given value.
+  explicit APValue(APFloat F) : Kind(None), AllowConstexprUnknown(false) {
     MakeFloat(); setFloat(std::move(F));
   }
-  explicit APValue(APFixedPoint FX) : Kind(None) {
+  /// Creates a fixed-point APValue holding the given value.
+  explicit APValue(APFixedPoint FX) : Kind(None), AllowConstexprUnknown(false) {
     MakeFixedPoint(std::move(FX));
   }
-  explicit APValue(const APValue *E, unsigned N) : Kind(None) {
+  /// Creates a vector APValue with \p N elements. The elements
+  /// are read from \p E.
+  explicit APValue(const APValue *E, unsigned N)
+      : Kind(None), AllowConstexprUnknown(false) {
     MakeVector(); setVector(E, N);
   }
-  APValue(APSInt R, APSInt I) : Kind(None) {
+  /// Creates an integer complex APValue with the given real and imaginary
+  /// values.
+  APValue(APSInt R, APSInt I) : Kind(None), AllowConstexprUnknown(false) {
     MakeComplexInt(); setComplexInt(std::move(R), std::move(I));
   }
-  APValue(APFloat R, APFloat I) : Kind(None) {
+  /// Creates a float complex APValue with the given real and imaginary values.
+  APValue(APFloat R, APFloat I) : Kind(None), AllowConstexprUnknown(false) {
     MakeComplexFloat(); setComplexFloat(std::move(R), std::move(I));
   }
   APValue(const APValue &RHS);
   APValue(APValue &&RHS);
-  APValue(LValueBase B, const CharUnits &O, NoLValuePath N,
+  /// Creates an lvalue APValue without an lvalue path.
+  /// \param Base The base of the lvalue.
+  /// \param Offset The offset of the lvalue.
+  /// \param IsNullPtr Whether this lvalue is a null pointer.
+  APValue(LValueBase Base, const CharUnits &Offset, NoLValuePath,
           bool IsNullPtr = false)
-      : Kind(None) {
-    MakeLValue(); setLValue(B, O, N, IsNullPtr);
+      : Kind(None), AllowConstexprUnknown(false) {
+    MakeLValue();
+    setLValue(Base, Offset, NoLValuePath{}, IsNullPtr);
   }
-  APValue(LValueBase B, const CharUnits &O, ArrayRef<LValuePathEntry> Path,
-          bool OnePastTheEnd, bool IsNullPtr = false)
-      : Kind(None) {
-    MakeLValue(); setLValue(B, O, Path, OnePastTheEnd, IsNullPtr);
+  /// Creates an lvalue APValue with an lvalue path.
+  /// \param Base The base of the lvalue.
+  /// \param Offset The offset of the lvalue.
+  /// \param Path The lvalue path.
+  /// \param OnePastTheEnd Whether this lvalue is one-past-the-end of the
+  /// subobject it points to.
+  /// \param IsNullPtr Whether this lvalue is a null pointer.
+  APValue(LValueBase Base, const CharUnits &Offset,
+          ArrayRef<LValuePathEntry> Path, bool OnePastTheEnd,
+          bool IsNullPtr = false)
+      : Kind(None), AllowConstexprUnknown(false) {
+    MakeLValue();
+    setLValue(Base, Offset, Path, OnePastTheEnd, IsNullPtr);
   }
-  APValue(UninitArray, unsigned InitElts, unsigned Size) : Kind(None) {
+  /// Creates a constexpr unknown lvalue APValue.
+  /// \param Base The base of the lvalue.
+  /// \param Offset The offset of the lvalue.
+  /// \param IsNullPtr Whether this lvalue is a null pointer.
+  APValue(LValueBase Base, const CharUnits &Offset, ConstexprUnknown,
+          bool IsNullPtr = false)
+      : Kind(None), AllowConstexprUnknown(true) {
+    MakeLValue();
+    setLValue(Base, Offset, NoLValuePath{}, IsNullPtr);
+  }
+
+  /// Creates a new array APValue.
+  /// \param UninitArray Marker. Pass an empty UninitArray.
+  /// \param InitElts Number of elements you're going to initialize in the
+  /// array.
+  /// \param Size Full size of the array.
+  APValue(UninitArray, unsigned InitElts, unsigned Size)
+      : Kind(None), AllowConstexprUnknown(false) {
     MakeArray(InitElts, Size);
   }
-  APValue(UninitStruct, unsigned B, unsigned M) : Kind(None) {
-    MakeStruct(B, M);
+  /// Creates a new struct APValue.
+  /// \param UninitStruct Marker. Pass an empty UninitStruct.
+  /// \param NumBases Number of bases.
+  /// \param NumMembers Number of members.
+  APValue(UninitStruct, unsigned NumBases, unsigned NumMembers)
+      : Kind(None), AllowConstexprUnknown(false) {
+    MakeStruct(NumBases, NumMembers);
   }
-  explicit APValue(const FieldDecl *D, const APValue &V = APValue())
-      : Kind(None) {
-    MakeUnion(); setUnion(D, V);
+  /// Creates a new union APValue.
+  /// \param ActiveDecl The FieldDecl of the active union member.
+  /// \param ActiveValue The value of the active union member.
+  explicit APValue(const FieldDecl *ActiveDecl,
+                   const APValue &ActiveValue = APValue())
+      : Kind(None), AllowConstexprUnknown(false) {
+    MakeUnion();
+    setUnion(ActiveDecl, ActiveValue);
   }
+  /// Creates a new member pointer APValue.
+  /// \param Member Declaration of the member
+  /// \param IsDerivedMember Whether member is a derived one.
+  /// \param Path The path of the member.
   APValue(const ValueDecl *Member, bool IsDerivedMember,
-          ArrayRef<const CXXRecordDecl*> Path) : Kind(None) {
+          ArrayRef<const CXXRecordDecl *> Path)
+      : Kind(None), AllowConstexprUnknown(false) {
     MakeMemberPointer(Member, IsDerivedMember, Path);
   }
-  APValue(const AddrLabelExpr* LHSExpr, const AddrLabelExpr* RHSExpr)
-      : Kind(None) {
+  /// Creates a new address label diff APValue.
+  /// \param LHSExpr The left-hand side of the difference.
+  /// \param RHSExpr The right-hand side of the difference.
+  APValue(const AddrLabelExpr *LHSExpr, const AddrLabelExpr *RHSExpr)
+      : Kind(None), AllowConstexprUnknown(false) {
     MakeAddrLabelDiff(); setAddrLabelDiff(LHSExpr, RHSExpr);
   }
   static APValue IndeterminateValue() {
@@ -479,12 +693,33 @@ public:
   const CharUnits &getLValueOffset() const {
     return const_cast<APValue*>(this)->getLValueOffset();
   }
+
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  CharUnits &getLValueForgedSize();
+  const CharUnits &getLValueForgedSize() const {
+    return const_cast<APValue *>(this)->getLValueForgedSize();
+  }
+
+  CharUnits &getLValueForgedOffset();
+  const CharUnits &getLValueForgedOffset() const {
+    return const_cast<APValue *>(this)->getLValueForgedOffset();
+  }
+
+  CharUnits getUnwrappedLValueOffset() const;
+  /* TO_UPSTREAM(BoundsSafety) OFF */
+
   bool isLValueOnePastTheEnd() const;
   bool hasLValuePath() const;
   ArrayRef<LValuePathEntry> getLValuePath() const;
   unsigned getLValueCallIndex() const;
   unsigned getLValueVersion() const;
   bool isNullPointer() const;
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  bool isLValueForgeBidi() const;
+  bool isLValueForgeSingle() const;
+  bool isLValueForgeTerminatedBy() const;
+  bool isLValueForge() const;
+  /* TO_UPSTREAM(BoundsSafety) OFF */
 
   APValue &getVectorElt(unsigned I) {
     assert(isVector() && "Invalid accessor");
@@ -619,6 +854,12 @@ public:
     ((AddrLabelDiffData *)(char *)&Data)->LHSExpr = LHSExpr;
     ((AddrLabelDiffData *)(char *)&Data)->RHSExpr = RHSExpr;
   }
+
+  /* TO_UPSTREAM(BoundsSafety) ON */
+  void setLValueForgedBidi(const CharUnits &Size, const CharUnits &Offset);
+  void setLValueForgedSingle(const CharUnits &Offset);
+  void setLValueForgedTerminatedBy(const CharUnits &Offset);
+  /* TO_UPSTREAM(BoundsSafety) OFF */
 
 private:
   void DestroyDataAndMakeUninit();

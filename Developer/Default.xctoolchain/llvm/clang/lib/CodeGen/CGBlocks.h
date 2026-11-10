@@ -145,8 +145,8 @@ public:
 /// entity that's captured by a block.
 enum class BlockCaptureEntityKind {
   None,
-  AddressDiscriminatedPointerAuth,
   CXXRecord, // Copy or destroy
+  AddressDiscriminatedPointerAuth,
   ARCWeak,
   ARCStrong,
   NonTrivialCStruct,
@@ -272,7 +272,8 @@ public:
   /// The block's captures. Non-constant captures are sorted by their offsets.
   llvm::SmallVector<Capture, 4> SortedCaptures;
 
-  Address LocalAddress;
+  // Currently we assume that block-pointer types are never signed.
+  RawAddress LocalAddress;
   llvm::StructType *StructureType;
   const BlockDecl *Block;
   const BlockExpr *BlockExpression;

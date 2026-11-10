@@ -6,6 +6,7 @@ Test lldb data formatter subsystem.
 import lldb
 from lldbsuite.test.lldbtest import *
 import lldbsuite.test.lldbutil as lldbutil
+import re
 
 
 class AdvDataFormatterTestCase(TestBase):
@@ -38,7 +39,7 @@ class AdvDataFormatterTestCase(TestBase):
         def cleanup():
             self.runCmd("type format clear", check=False)
             self.runCmd("type summary clear", check=False)
-            self.runCmd("settings set target.max-children-count 256", check=False)
+            self.runCmd("settings set target.max-children-count 24", check=False)
             self.runCmd("settings clear target.max-children-depth", check=False)
 
         # Execute the cleanup function during test case tear down.
@@ -104,7 +105,9 @@ class AdvDataFormatterTestCase(TestBase):
 
         self.runCmd("type summary clear")
 
-        self.runCmd('type summary add --summary-string "${var[0-1]}" -x "int\[[0-9]\]"')
+        self.runCmd(
+            r'type summary add --summary-string "${var[0-1]}" -x "int\[[0-9]\]"'
+        )
 
         self.expect("frame variable int_array", substrs=["1,2"])
 
@@ -119,7 +122,7 @@ class AdvDataFormatterTestCase(TestBase):
 
         self.runCmd("type summary clear")
 
-        self.runCmd('type summary add -c -x "i_am_cool\[[0-9]\]"')
+        self.runCmd(r'type summary add -c -x "i_am_cool\[[0-9]\]"')
         self.runCmd("type summary add -c i_am_cool")
 
         self.expect(
@@ -172,7 +175,7 @@ class AdvDataFormatterTestCase(TestBase):
         self.runCmd("type summary clear")
 
         self.runCmd(
-            'type summary add --summary-string "${*var[].x[0-3]%hex} is a bitfield on a set of integers" -x "SimpleWithPointers\[[0-9]\]"'
+            r'type summary add --summary-string "${*var[].x[0-3]%hex} is a bitfield on a set of integers" -x "SimpleWithPointers\[[0-9]\]"'
         )
 
         self.expect(
@@ -296,6 +299,27 @@ class AdvDataFormatterTestCase(TestBase):
             substrs=["e_2", "n_2", "r_2", "i_2", "k_2", "o_2"],
         )
 
+        self.runCmd("settings set target.max-string-summary-length 5")
+        some_string = self.frame().FindVariable("some_string")
+        some_string_summary = some_string.GetSummary()
+        if re.match(r"^std::__\w+::", some_string.GetTypeName()):
+            self.assertEqual(some_string_summary, '"01234"...')
+        else:
+            # libstdc++ string formatter suffers from the same problem as some_cstring below
+            pass
+
+        some_carr = self.frame().FindVariable("some_carr")
+        some_carr_summary = some_carr.GetSummary()
+        self.assertEqual(some_carr_summary, '"01234"...')
+
+        # FIXME: c-strings should honor the target.max-string-summary-length
+        # setting. Currently a C-string will be truncated at 64 (an internal
+        # implementation detail) instead of the value specified in the setting.
+        some_cstring = self.frame().FindVariable("some_cstring")
+        some_cstring_summary = some_cstring.GetSummary()
+        self.assertEqual(len(some_cstring_summary), 66)  # 64 + 2 (for quotation marks)
+        self.assertFalse(some_cstring_summary.endswith("..."))
+
         # override the cap
         self.expect(
             "frame variable a_long_guy --show-all-children",
@@ -335,13 +359,13 @@ class AdvDataFormatterTestCase(TestBase):
         self.runCmd("type format delete int")
 
         # First, check the following:
-        #   1. Verify the default max-children-depth (6) is applied
+        #   1. Verify the default max-children-depth (5) is applied
         #   2. Ensure the one-time warning is printed
         warning = "*** Some of the displayed variables have a greater depth"
         self.expect(
             "frame variable quite_nested",
             matching=True,
-            substrs=["six ={...}", warning],
+            substrs=["five = {...}", warning],
         )
         self.expect(
             "frame variable quite_nested",

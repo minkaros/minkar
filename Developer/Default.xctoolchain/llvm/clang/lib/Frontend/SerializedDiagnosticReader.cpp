@@ -11,8 +11,6 @@
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Frontend/SerializedDiagnostics.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Bitstream/BitCodes.h"
 #include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -266,13 +264,28 @@ SerializedDiagnosticReader::readDiagnosticBlock(llvm::BitstreamCursor &Stream) {
       continue;
 
     switch ((RecordIDs)RecID) {
-    case RECORD_CATEGORY:
+    case RECORD_CATEGORY: {
       // A category has ID and name size.
       if (Record.size() != 2)
         return SDError::MalformedDiagnosticRecord;
-      if ((EC = visitCategoryRecord(Record[0], Blob)))
+
+      // Make sure the name size makes sense.
+      unsigned NameLen = Record[1];
+      if (NameLen > Blob.size())
+        return SDError::MalformedDiagnosticRecord;
+
+      StringRef Name = Blob.substr(0, NameLen);
+      StringRef URL;
+
+      // If the name didn't take up the full blob, and the character that
+      // follows it is an '@', the rest is the category URL.
+      if (NameLen < Blob.size() && Blob[NameLen] == '@')
+        URL = Blob.substr(NameLen + 1);
+
+      if ((EC = visitCategoryRecord(Record[0], Name, URL)))
         return EC;
       continue;
+    }
     case RECORD_DIAG:
       // A diagnostic has severity, location (4), category, flag, and message
       // size.

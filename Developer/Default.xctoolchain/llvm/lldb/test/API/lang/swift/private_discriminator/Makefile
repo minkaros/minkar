@@ -7,7 +7,7 @@ all: libBuilder.dylib $(EXE)
 include Makefile.rules
 
 libGeneric.dylib: $(SRCDIR)/Generic.swift
-	$(MAKE) -f $(MAKEFILE_RULES) \
+	"$(MAKE)" -f $(MAKEFILE_RULES) \
 		DYLIB_ONLY=YES \
 		DYLIB_NAME=Generic \
 		DYLIB_SWIFT_SOURCES=Generic.swift \
@@ -15,7 +15,7 @@ libGeneric.dylib: $(SRCDIR)/Generic.swift
 		SWIFTFLAGS_EXTRAS=-enable-library-evolution
 
 libBuilder.dylib: $(SRCDIR)/Builder.swift libGeneric.dylib
-	$(MAKE) -f $(MAKEFILE_RULES) \
+	"$(MAKE)" -f $(MAKEFILE_RULES) \
 		DYLIB_ONLY=YES \
 		DYLIB_NAME=Builder \
 		DYLIB_SWIFT_SOURCES=Builder.swift \
@@ -24,4 +24,4 @@ libBuilder.dylib: $(SRCDIR)/Builder.swift libGeneric.dylib
 		SWIFTFLAGS_EXTRAS="-I$(BUILDDIR)" \
 		LD_EXTRAS="-L$(BUILDDIR) -lGeneric" \
 		MAKE_DSYM=NO
-	rm -f $(BUILDDIR)/Builder.swiftmodule
+	$(call RM_F,$(BUILDDIR)/Builder.swiftmodule)

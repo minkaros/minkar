@@ -19,11 +19,11 @@ import lldbsuite.test.lldbutil as lldbutil
 import os
 import os.path
 import shutil
-import unittest2
 
 
 class TestSwiftDebugPrefixMap(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_debug_prefix_map(self):
         self.do_test()
 

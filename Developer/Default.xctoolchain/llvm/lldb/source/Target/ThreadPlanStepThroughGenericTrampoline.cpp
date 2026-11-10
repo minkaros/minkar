@@ -35,7 +35,8 @@ ThreadPlanStepThroughGenericTrampoline::ThreadPlanStepThroughGenericTrampoline(
 
   if (!sc.function)
     return;
-  AddRange(sc.function->GetAddressRange());
+  for (AddressRange range : sc.function->GetAddressRanges())
+    AddRange(range);
 }
 
 ThreadPlanStepThroughGenericTrampoline::
@@ -68,8 +69,7 @@ void ThreadPlanStepThroughGenericTrampoline::GetDescription(
     return;
   }
 
-  s->Printf("Stepping through generic trampoline %s",
-            sc.function->GetName().AsCString());
+  s->Format("Stepping through generic trampoline {0}", sc.function->GetName());
 
   lldb::StackFrameSP curr_frame = GetThread().GetStackFrameAtIndex(0);
   if (!curr_frame)
@@ -97,6 +97,8 @@ bool ThreadPlanStepThroughGenericTrampoline::ShouldStop(Event *event_ptr) {
     LLDB_LOGF(log, "ThreadPlanStepThroughGenericTrampoline reached %s.",
               s.GetData());
   }
+
+  ClearNextBranchBreakpointExplainedStop();
 
   if (IsPlanComplete())
     return true;

@@ -5,7 +5,6 @@ if (NOT LLDB_ENABLE_SWIFT_SUPPORT)
 endif()
 
 set (FILES
-  AlarmTest.cpp
   ConnectionFileDescriptorTest.cpp
   FileActionTest.cpp
   FileSystemTest.cpp
@@ -13,6 +12,7 @@ set (FILES
   HostInfoTest.cpp
   HostTest.cpp
   MainLoopTest.cpp
+  JSONTransportTest.cpp
   NativeProcessProtocolTest.cpp
   PipeTest.cpp
   ProcessLaunchInfoTest.cpp
@@ -23,10 +23,10 @@ set (FILES
   ${SWIFT_SOURCES}
 )
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
+if (UNIX)
   list(APPEND FILES
-    linux/HostTest.cpp
-    linux/SupportTest.cpp
+    posix/HostTest.cpp
+    posix/SupportTest.cpp
   )
 endif()
 
@@ -44,7 +44,9 @@ add_lldb_unittest(HostTests
     lldbUtilityHelpers
     lldbHostHelpers
     LLVMTestingSupport
-    LLVMTargetParser
+
+  LINK_COMPONENTS
+    TargetParser
   )
 
 add_subdirectory(common)

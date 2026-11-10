@@ -2,12 +2,12 @@ import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbtest as lldbtest
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 class TestSwiftReflectionLoading(lldbtest.TestBase):
     mydir = lldbtest.TestBase.compute_mydir(__file__)
 
     @swiftTest
+    @expectedFailureWindows
     def test(self):
         """Test that no SwiftASTContext is initialized just to stop at a breakpoint"""
         self.build()

@@ -2,25 +2,26 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
-
 
 class TestSwiftEmbeddedFrameVariable(TestBase):
-    @skipUnlessDarwin
-    @swiftTest
-    def test(self):
-        self.build()
-        self.implementation()
 
     @skipUnlessDarwin
     @swiftTest
+    @skipUnlessEmbeddedSwift
+    def test(self):
+        self.build()
+        self.implementation(True)
+
+    @skipUnlessDarwin
+    @swiftTest
+    @skipUnlessEmbeddedSwift
     def test_without_ast(self):
         """Run the test turning off instantion of  Swift AST contexts in order to ensure that all type information comes from DWARF"""
         self.build()
         self.runCmd("setting set symbols.swift-enable-ast-context false")
-        self.implementation()
+        self.implementation(False)
 
-    def implementation(self):
+    def implementation(self, ast):
         self.runCmd("setting set symbols.swift-enable-full-dwarf-debugging true")
 
         target, process, thread, _ = lldbutil.run_to_source_breakpoint(
@@ -28,6 +29,48 @@ class TestSwiftEmbeddedFrameVariable(TestBase):
         )
         frame = thread.frames[0]
         self.assertTrue(frame, "Frame 0 is valid.")
+
+        if self.TraceOn():
+            self.expect("log enable lldb types")
+            self.expect("frame variable")
+
+        alias1 = frame.FindVariable("alias1")
+        field = alias1.GetChildMemberWithName("t")
+        lldbutil.check_variable(self, field, False, value='1')
+
+        alias2 = frame.FindVariable("alias2")
+        a3 = alias2.GetChildMemberWithName("a3")
+        lldbutil.check_variable(self, a3.GetChildAtIndex(0), False, value='3')
+        a4 = alias2.GetChildMemberWithName("a4")
+        lldbutil.check_variable(self, a4.GetChildAtIndex(0), False, value='4')
+        a5 = alias2.GetChildMemberWithName("a5")
+        a5t = a5.GetChildAtIndex(0)
+        lldbutil.check_variable(self, a5t.GetChildAtIndex(0), False, value='5')
+        lldbutil.check_variable(self, a5t.GetChildAtIndex(1), False, value='6')
+
+        alias3 = frame.FindVariable("alias3")
+        r = alias3.GetChildMemberWithName("r")
+        a3 = r.GetChildMemberWithName("a3")
+        lldbutil.check_variable(self, a3.GetChildAtIndex(0), False, value='3')
+        a4 = r.GetChildMemberWithName("a4")
+        lldbutil.check_variable(self, a4.GetChildAtIndex(0), False, value='4')
+        a5 = r.GetChildMemberWithName("a5")
+        a5t = a5.GetChildAtIndex(0)
+        lldbutil.check_variable(self, a5t.GetChildAtIndex(0), False, value='5')
+        lldbutil.check_variable(self, a5t.GetChildAtIndex(1), False, value='6')
+        q1 = alias3.GetChildMemberWithName("q1")
+        lldbutil.check_variable(self, q1.GetChildAtIndex(0), False, value='11')
+        q2 = alias3.GetChildMemberWithName("q2")
+        q2t = q2.GetChildAtIndex(0)
+        lldbutil.check_variable(self, q2t.GetChildAtIndex(0), False, value='12')
+        lldbutil.check_variable(self, q2t.GetChildAtIndex(1), False, value='13')
+
+
+        array = frame.FindVariable("array")
+        lldbutil.check_variable(self, array, False, num_children=4)
+        for i in range(4):
+            lldbutil.check_variable(self, array.GetChildAtIndex(i),
+                                    False, value=str(i+1))
 
         varB = frame.FindVariable("varB")
         field = varB.GetChildMemberWithName("a").GetChildMemberWithName("field")
@@ -75,6 +118,7 @@ class TestSwiftEmbeddedFrameVariable(TestBase):
         first = one.GetChildAtIndex(0).GetChildMemberWithName("supField")
         second = one.GetChildAtIndex(1).GetChildMemberWithName("supField")
         third = one.GetChildAtIndex(2).GetChildMemberWithName("supField")
+
         lldbutil.check_variable(self, first, False, value="42")
         lldbutil.check_variable(self, second, False, value="43")
         lldbutil.check_variable(self, third, False, value="44")
@@ -209,3 +253,15 @@ class TestSwiftEmbeddedFrameVariable(TestBase):
         innerFunctionType = frame.FindVariable("innerFunctionType")
         innerFuncField = innerFunctionType.GetChildMemberWithName("innerFuncField")
         lldbutil.check_variable(self, innerFuncField, False, value='8479')
+
+        inlineArray = frame.FindVariable("inlineArray")
+        lldbutil.check_variable(self, inlineArray, False, num_children=4)
+        for i in range(4):
+            lldbutil.check_variable(self, inlineArray.GetChildAtIndex(i),
+                                    False, value=str(i+1))
+
+        string = frame.FindVariable("string")
+        lldbutil.check_variable(self, string, False, summary='"Hello"')
+
+        dictionary = frame.FindVariable("dict")
+        lldbutil.check_variable(self, dictionary, False, summary='4 key/value pairs')

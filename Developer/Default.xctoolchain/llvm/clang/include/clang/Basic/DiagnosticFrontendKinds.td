@@ -72,15 +72,16 @@ def remark_fe_backend_optimization_remark_analysis : Remark<"%0">, BackendInfo,
     InGroup<BackendOptimizationRemarkAnalysis>;
 def remark_fe_backend_optimization_remark_analysis_fpcommute : Remark<"%0; "
     "allow reordering by specifying '#pragma clang loop vectorize(enable)' "
-    "before the loop or by providing the compiler option '-ffast-math'.">,
+    "before the loop or by providing the compiler option '-ffast-math'">,
     BackendInfo, InGroup<BackendOptimizationRemarkAnalysis>;
 def remark_fe_backend_optimization_remark_analysis_aliasing : Remark<"%0; "
     "allow reordering by specifying '#pragma clang loop vectorize(enable)' "
-    "before the loop. If the arrays will always be independent specify "
+    "before the loop; if the arrays will always be independent, specify "
     "'#pragma clang loop vectorize(assume_safety)' before the loop or provide "
-    "the '__restrict__' qualifier with the independent array arguments. "
-    "Erroneous results will occur if these options are incorrectly applied!">,
+    "the '__restrict__' qualifier with the independent array arguments -- "
+    "erroneous results will occur if these options are incorrectly applied">,
     BackendInfo, InGroup<BackendOptimizationRemarkAnalysis>;
+
 def warn_fe_backend_optimization_failure : Warning<"%0">, BackendInfo,
     InGroup<BackendOptimizationFailure>, DefaultWarn;
 def note_fe_backend_invalid_loc : Note<"could "
@@ -94,6 +95,8 @@ def err_fe_backend_error_attr :
 def warn_fe_backend_warning_attr :
   Warning<"call to '%0' declared with 'warning' attribute: %1">, BackendInfo,
   InGroup<BackendWarningAttributes>;
+def warn_toc_unsupported_type : Warning<"-mtocdata option is ignored "
+  "for %0 because %1">, InGroup<BackendWarningAttributes>;
 
 def err_fe_invalid_code_complete_file : Error<
     "cannot locate code-completion file %0">, DefaultFatal;
@@ -107,10 +110,7 @@ def err_fe_expected_clang_command : Error<
     "expected a clang compiler command">;
 def err_fe_remap_missing_to_file : Error<
     "could not remap file '%0' to the contents of file '%1'">, DefaultFatal;
-def err_fe_remap_missing_from_file : Error<
-    "could not remap from missing file '%0'">, DefaultFatal;
-def err_fe_unable_to_load_pch : Error<
-    "unable to load PCH file">;
+def err_fe_unable_to_load_ast_file : Error<"unable to load precompiled file">;
 def err_fe_unable_to_load_plugin : Error<
     "unable to load plugin '%0': '%1'">;
 def err_fe_unable_to_create_target : Error<
@@ -132,6 +132,8 @@ def err_fe_no_pch_in_dir : Error<
     "no suitable precompiled header file found in directory '%0'">;
 def err_fe_action_not_available : Error<
     "action %0 not compiled in">;
+def err_fe_invalid_multiple_actions : Error<
+    "'%0' action ignored; '%1' action specified previously">;
 def err_fe_invalid_alignment : Error<
     "invalid value '%1' in '%0'; alignment must be a power of 2">;
 def err_fe_invalid_exception_model
@@ -139,12 +141,21 @@ def err_fe_invalid_exception_model
 def err_fe_invalid_source_date_epoch : Error<
     "environment variable 'SOURCE_DATE_EPOCH' ('%0') must be a non-negative decimal integer <= %1">;
 
+def err_feature_availability_flag_invalid_value : Error<
+  "invalid value '%0' passed to '-ffeature-availability='; expected <feature>:<on|off>">;
+
 def err_fe_incompatible_option_with_remote_cache : Error<
   "'%0' is incompatible with remote caching backend">;
+def err_fe_mccas_incompatible_target : Error<
+  "-fcas-backend is incompatible with target '%0'; requires mach-o object format">;
+def err_fe_incompatible_option_with_write_xattr : Error<
+  "'%0' is incompatible with '-fwrite-output-hash-xattr'">;
 def err_fe_unable_to_load_include_tree : Error<
   "unable to load the CAS include-tree '%0': '%1'">;
 def err_unable_to_load_include_tree_node : Error<
   "unable to load a node from the CAS include-tree: '%0'">;
+def err_fe_unable_to_load_input_cache_key : Error<
+  "unable to load the input CAS cache key '%0': '%1'">;
 
 def err_fe_unable_to_load_basic_block_sections_file : Error<
     "unable to load basic block sections function list: '%0'">;
@@ -155,8 +166,8 @@ def warn_fe_serialized_diag_merge_failure : Warning<
 def warn_fe_serialized_diag_failure : Warning<
     "unable to open file %0 for serializing diagnostics (%1)">,
     InGroup<SerializedDiagnostics>;
-def warn_fe_serialized_diag_failure_during_finalisation : Warning<
-    "Received warning after diagnostic serialization teardown was underway: %0">,
+def warn_fe_serialized_diag_failure_during_finalization : Warning<
+    "received warning after diagnostic serialization teardown was underway: %0">,
     InGroup<SerializedDiagnostics>;
 
 def err_verify_missing_line : Error<
@@ -174,19 +185,19 @@ def err_verify_no_such_marker : Error<
 def err_verify_missing_start : Error<
     "cannot find start ('{{') of expected %0">;
 def err_verify_missing_end : Error<
-    "cannot find end ('}}') of expected %0">;
+    "cannot find end ('%1') of expected %0">;
 def err_verify_invalid_content : Error<
     "invalid expected %0: %1">;
 def err_verify_missing_regex : Error<
     "cannot find start of regex ('{{') in %0">;
 def err_verify_inconsistent_diags : Error<
-    "'%0' diagnostics %select{expected|seen}1 but not %select{seen|expected}1: "
-    "%2">;
+    "%select{|'%1-%2' }0diagnostics %select{with '%2' severity |}0"
+    "%select{expected|seen}3 but not %select{seen|expected}3: "
+    "%4">;
 def err_verify_invalid_no_diags : Error<
-    "%select{expected|'expected-no-diagnostics'}0 directive cannot follow "
-    "%select{'expected-no-diagnostics' directive|other expected directives}0">;
+    "'%0' directive cannot follow %select{'%2' directive|other expected directives}1">;
 def err_verify_no_directives : Error<
-    "no expected directives found: consider use of 'expected-no-diagnostics'">;
+    "no expected directives found: consider use of '%0-no-diagnostics'">;
 def err_verify_nonconst_addrspace : Error<
   "qualifier 'const' is needed for variables in address space '%0'">;
 
@@ -219,16 +230,14 @@ def note_incompatible_analyzer_plugin_api : Note<
 
 def err_module_build_requires_fmodules : Error<
   "module compilation requires '-fmodules'">;
-def err_module_interface_requires_cpp_modules : Error<
-  "module interface compilation requires '-std=c++20'">;
-def warn_module_config_mismatch : Warning<
-  "module file %0 cannot be loaded due to a configuration mismatch with the current "
-  "compilation">, InGroup<DiagGroup<"module-file-config-mismatch">>, DefaultError;
+def err_module_interface_requires_cpp_modules
+    : Error<"module interface compilation requires '-std=c++20'">;
 def err_module_map_not_found : Error<"module map file '%0' not found">,
   DefaultFatal;
 def err_missing_module_name : Error<
   "no module name provided; specify one with -fmodule-name=">,
   DefaultFatal;
+def err_file_is_not_module : Error<"file '%0' is not a module file">, DefaultFatal;
 def err_missing_module : Error<
   "no module named '%0' declared in module map file '%1'">, DefaultFatal;
 def err_missing_module_include_tree : Error<
@@ -266,6 +275,10 @@ def err_modules_embed_file_not_found :
   DefaultFatal;
 def err_module_header_file_not_found :
   Error<"module header file '%0' not found">, DefaultFatal;
+def err_frontend_action_unsupported_input_format
+    : Error<"%0 does not support input file format of file '%1': "
+            "'%select{Source|ModuleMap|Precompiled|Unknown}2'">,
+      DefaultFatal;
 
 def remark_index_producing_module_file_data : Remark<"producing index data for "
   "module file '%0'">,
@@ -274,6 +287,11 @@ def remark_index_producing_module_file_data : Remark<"producing index data for "
 def err_test_module_file_extension_version : Error<
   "test module file extension '%0' has different version (%1.%2) than expected "
   "(%3.%4)">;
+
+def warn_eagerly_load_for_standard_cplusplus_modules : Warning<
+  "the form '-fmodule-file=<BMI-path>' is deprecated for standard C++ named modules; "
+  "consider to use '-fmodule-file=<module-name>=<BMI-path>' instead">,
+  InGroup<DiagGroup<"eager-load-cxx-named-modules">>;
 
 def err_missing_vfs_overlay_file : Error<
   "virtual filesystem overlay file '%0' not found">, DefaultFatal;
@@ -288,15 +306,35 @@ def err_function_needs_feature : Error<
   "always_inline function %1 requires target feature '%2', but would "
   "be inlined into function %0 that is compiled without support for '%2'">;
 
+let CategoryName = "Codegen ABI Check" in {
+def err_function_always_inline_attribute_mismatch : Error<
+  "always_inline function %1 and its caller %0 have mismatching %2 attributes">;
+def warn_function_always_inline_attribute_mismatch : Warning<
+  "always_inline function %1 and its caller %0 have mismatching %2 attributes, "
+  "inlining may change runtime behaviour">, InGroup<AArch64SMEAttributes>;
+def err_function_always_inline_new_za : Error<
+  "always_inline function %0 has new za state">;
+def err_function_always_inline_new_zt0
+    : Error<"always_inline function %0 has new zt0 state">;
+
 def warn_avx_calling_convention
     : Warning<"AVX vector %select{return|argument}0 of type %1 without '%2' "
               "enabled changes the ABI">,
       InGroup<DiagGroup<"psabi">>;
 def err_avx_calling_convention : Error<warn_avx_calling_convention.Summary>;
 
+def err_target_unsupported_type_for_abi
+    : Error<"%0 requires %1 type support, but ABI '%2' does not support it">;
+}
+
+def err_omp_host_ir_file_not_found : Error<
+  "provided host compiler IR file '%0' is required to generate code for OpenMP "
+  "target regions but cannot be found">;
 def err_alias_to_undefined : Error<
   "%select{alias|ifunc}0 must point to a defined "
   "%select{variable or |}1function">;
+def err_alias_to_common : Error<
+  "alias to a variable in a common section is not allowed">;
 def note_alias_requires_mangled_name : Note<
   "the %select{function or variable|function}0 specified in an %select{alias|ifunc}1 must refer to its mangled name">;
 def note_alias_mangled_name_alternative: Note<
@@ -325,17 +363,79 @@ def warn_atomic_op_misaligned : Warning<
 def warn_atomic_op_oversized : Warning<
   "large atomic operation may incur "
   "significant performance penalty"
-  "; the access size (%0 bytes) exceeds the max lock-free size (%1  bytes)">,
+  "; the access size (%0 bytes) exceeds the max lock-free size (%1 bytes)">,
 InGroup<AtomicAlignment>;
 
 def warn_sync_op_misaligned : Warning<
-  "__sync builtin operation MUST have natural alignment (consider using __atomic).">,
+  "__sync builtin operation must have natural alignment (consider using __atomic)">,
   InGroup<SyncAlignment>;
 
 def warn_alias_with_section : Warning<
   "%select{alias|ifunc}1 will not be in section '%0' but in the same section "
   "as the %select{aliasee|resolver}2">,
   InGroup<IgnoredAttributes>;
+
+// TO_UPSTREAM(BoundsSafety) ON
+def error_bounds_safety_lang_not_supported : Error<
+  "-fbounds-safety is supported only for C language">;
+
+def err_bounds_safety_attributes_cannot_be_disabled : Error<
+  "-fexperimental-bounds-safety-attributes cannot be disabled when "
+  "-fbounds-safety is enabled">;
+
+def err_bounds_safety_initializer_out_of_range : Error<
+  "initializing value is out of valid range">;
+
+def warn_bounds_safety_cxx_experimental_ignored : Warning<
+  "-fexperimental-bounds-safety-cxx without -fbounds-safety is "
+  "ignored">,
+  InGroup<BoundsSafetyCXXExperimentalIgnored>;
+
+def warn_bounds_safety_objc_experimental_ignored : Warning<
+  "-fexperimental-bounds-safety-objc without -fbounds-safety is "
+  "ignored">,
+  InGroup<BoundsSafetyObjCExperimentalIgnored>;
+
+def warn_bounds_safety_relaxed_system_headers_ignored : Warning<
+  "-fno-bounds-safety-relaxed-system-headers without -fbounds-safety is "
+  "ignored">,
+  InGroup<BoundsSafetyRelaxedSystemHeadersIgnored>;
+
+def warn_bounds_safety_adoption_mode_ignored : Warning<
+  "-fbounds-safety-adoption-mode without -fbounds-safety is "
+  "ignored">,
+  InGroup<BoundsSafetyAdoptionModeIgnored>;
+
+def warn_bounds_safety_new_checks_none : Warning<
+  "compiling with legacy -fbounds-safety bounds checks is deprecated;"
+  " compile with -fbounds-safety-bringup-missing-checks=%0 to use the "
+  "new bound checks">,
+  InGroup<BoundsSafetyLegacyChecksEnabled>;
+def warn_bounds_safety_new_checks_mixed : Warning<
+  "compiling with \"%select{"
+    "access_size|" // BS_CHK_AccessSize
+    "indirect_count_update|" // BS_CHK_IndirectCountUpdate
+    "return_size|" // BS_CHK_ReturnSize
+    "ended_by_lower_bound|" // BS_CHK_EndedByLowerBound
+    "compound_literal_init|" // BS_CHK_CompoundLiteralInit
+    "libc_attributes|" // BS_CHK_LibCAttributes
+    "array_subscript_agg" // BS_CHK_ArraySubscriptAgg
+  "}0\" bounds check disabled is deprecated;"
+  " %select{"
+    "compile with -fbounds-safety-bringup-missing-checks=%2|"
+    "remove -fno-bounds-safety-bringup-missing-checks=%select{"
+      "access_size|" // BS_CHK_AccessSize
+      "indirect_count_update|" // BS_CHK_IndirectCountUpdate
+      "return_size|" // BS_CHK_ReturnSize
+      "ended_by_lower_bound|" // BS_CHK_EndedByLowerBound
+      "compound_literal_init|" // BS_CHK_CompoundLiteralInit
+      "libc_attributes|" // BS_CHK_LibCAttributes
+      "array_subscript_agg" // BS_CHK_ArraySubscriptAgg
+      "}0"
+    "|}1"
+  " to enable the new bound checks">,
+  InGroup<BoundsSafetyLegacyChecksEnabled>;
+// TO_UPSTREAM(BoundsSafety) OFF
 
 let CategoryName = "Instrumentation Issue" in {
 def warn_profile_data_out_of_date : Warning<
@@ -351,17 +451,37 @@ def warn_profile_data_unprofiled : Warning<
   "no profile data available for file \"%0\"">,
   InGroup<ProfileInstrUnprofiled>;
 def warn_profile_data_misexpect : Warning<
-  "Potential performance regression from use of __builtin_expect(): "
-  "Annotation was correct on %0 of profiled executions.">,
-  BackendInfo,
-  InGroup<MisExpect>;
+  "potential performance regression from use of __builtin_expect(): "
+  "annotation was correct on %0 of profiled executions">,
+  BackendInfo, InGroup<MisExpect>;
 } // end of instrumentation issue category
 
 def err_extract_api_ignores_file_not_found :
   Error<"file '%0' specified by '--extract-api-ignores=' not found">, DefaultFatal;
 
 def warn_missing_symbol_graph_dir : Warning<
-  "Missing symbol graph output directory, defaulting to working directory">,
+  "missing symbol graph output directory, defaulting to working directory">,
   InGroup<ExtractAPIMisuse>;
 
+def err_ast_action_on_llvm_ir : Error<
+  "cannot apply AST actions to LLVM IR file '%0'">,
+  DefaultFatal;
+
+def err_invalid_llvm_ir : Error<"invalid LLVM IR input: %0">;
+
+def err_os_unsupport_riscv_fmv : Error<
+  "function multiversioning is currently only supported on Linux">;
+
+def warn_hlsl_langstd_minimal :
+  Warning<"support for HLSL language version %0 is incomplete, "
+          "recommend using %1 instead">,
+  InGroup<HLSLDXCCompat>;
+
+// ClangIR frontend errors
+def err_cir_to_cir_transform_failed : Error<
+    "CIR-to-CIR transformation failed">, DefaultFatal;
+
+def err_cir_verification_failed_pre_passes : Error<
+    "CIR module verification error before running CIR-to-CIR passes">,
+    DefaultFatal;
 }

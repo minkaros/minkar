@@ -1,7 +1,8 @@
 add_lldb_library(lldbPluginTypeSystemClang PLUGIN
-  ImporterBackedASTSource.cpp
   TypeSystemClang.cpp
 
+  LINK_COMPONENTS
+    Support
   LINK_LIBS
     lldbCore
     lldbSymbol
@@ -16,18 +17,4 @@ add_lldb_library(lldbPluginTypeSystemClang PLUGIN
     clangBasic
     clangFrontend
     clangSema
-  LINK_COMPONENTS
-    Support
 )
-
-lldb_tablegen(TypeSystemClangProperties.inc -gen-lldb-property-defs
-  SOURCE TypeSystemClangProperties.td
-  TARGET LLDBPluginTypeSystemClangPropertiesGen)
-
-lldb_tablegen(TypeSystemClangPropertiesEnum.inc -gen-lldb-property-enum-defs
-  SOURCE TypeSystemClangProperties.td
-  TARGET LLDBPluginTypeSystemClangPropertiesEnumGen)
-
-add_dependencies(lldbPluginTypeSystemClang
-  LLDBPluginTypeSystemClangPropertiesGen
-  LLDBPluginTypeSystemClangPropertiesEnumGen)

@@ -36,10 +36,7 @@ using namespace lldb;
 using namespace lldb_private;
 
 Symtab::Symtab(ObjectFile *objfile)
-    : m_objfile(objfile), m_symbols(), m_file_addr_to_index(*this),
-      m_name_to_symbol_indices(), m_mutex(),
-      m_file_addr_to_index_computed(false), m_name_indexes_computed(false),
-      m_loaded_from_cache(false), m_saved_to_cache(false) {
+    : m_objfile(objfile), m_file_addr_to_index(*this) {
   m_name_to_symbol_indices.emplace(std::make_pair(
       lldb::eFunctionNameTypeNone, UniqueCStringMap<uint32_t>()));
   m_name_to_symbol_indices.emplace(std::make_pair(
@@ -249,7 +246,7 @@ static bool lldb_skip_name(llvm::StringRef mangled,
                            Mangled::ManglingScheme scheme) {
   switch (scheme) {
   case Mangled::eManglingSchemeItanium: {
-    if (mangled.size() < 3 || !mangled.startswith("_Z"))
+    if (mangled.size() < 3 || !mangled.starts_with("_Z"))
       return true;
 
     // Avoid the following types of symbols in the index.
@@ -272,12 +269,9 @@ static bool lldb_skip_name(llvm::StringRef mangled,
   case Mangled::eManglingSchemeMSVC:
   case Mangled::eManglingSchemeRustV0:
   case Mangled::eManglingSchemeD:
+  case Mangled::eManglingSchemeSwift:
     return false;
 
-#ifdef LLDB_ENABLE_SWIFT
-  case Mangled::eManglingSchemeSwift:
-    // This is handled separately.
-#endif // LLDB_ENABLE_SWIFT
   // Don't try and demangle things we can't categorize.
   case Mangled::eManglingSchemeNone:
     return true;
@@ -670,11 +664,11 @@ void Symtab::SortSymbolIndexesByValue(std::vector<uint32_t> &indexes,
   std::vector<lldb::addr_t> addr_cache(m_symbols.size(), LLDB_INVALID_ADDRESS);
 
   SymbolIndexComparator comparator(m_symbols, addr_cache);
-  std::stable_sort(indexes.begin(), indexes.end(), comparator);
+  llvm::stable_sort(indexes, comparator);
 
   // Remove any duplicates if requested
   if (remove_duplicates) {
-    auto last = std::unique(indexes.begin(), indexes.end());
+    auto last = llvm::unique(indexes);
     indexes.erase(last, indexes.end());
   }
 }
@@ -686,8 +680,8 @@ uint32_t Symtab::GetNameIndexes(ConstString symbol_name,
   if (count)
     return count;
   // Synthetic symbol names are not added to the name indexes, but they start
-  // with a prefix and end with a the symbol UserID. This allows users to find
-  // these symbols without having to add them to the name indexes. These
+  // with a prefix and end with the symbol file address. This allows users to
+  // find these symbols without having to add them to the name indexes. These
   // queries will not happen very often since the names don't mean anything, so
   // performance is not paramount in this case.
   llvm::StringRef name = symbol_name.GetStringRef();
@@ -695,11 +689,12 @@ uint32_t Symtab::GetNameIndexes(ConstString symbol_name,
   if (!name.consume_front(Symbol::GetSyntheticSymbolPrefix()))
     return 0; // Not a synthetic symbol name
 
-  // Extract the user ID from the symbol name
-  unsigned long long uid = 0;
-  if (getAsUnsignedInteger(name, /*Radix=*/10, uid))
+  // Extract the file address from the symbol name
+  unsigned long long file_address = 0;
+  if (getAsUnsignedInteger(name, /*Radix=*/16, file_address))
     return 0; // Failed to extract the user ID as an integer
-  Symbol *symbol = FindSymbolByID(uid);
+
+  Symbol *symbol = FindSymbolAtFileAddress(static_cast<addr_t>(file_address));
   if (symbol == nullptr)
     return 0;
   const uint32_t symbol_idx = GetIndexForSymbol(symbol);
@@ -714,8 +709,7 @@ uint32_t Symtab::AppendSymbolIndexesWithName(ConstString symbol_name,
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
 
   if (symbol_name) {
-    if (!m_name_indexes_computed)
-      InitNameIndexes();
+    InitNameIndexes();
 
     return GetNameIndexes(symbol_name, indexes);
   }
@@ -731,8 +725,7 @@ uint32_t Symtab::AppendSymbolIndexesWithName(ConstString symbol_name,
   LLDB_SCOPED_TIMER();
   if (symbol_name) {
     const size_t old_size = indexes.size();
-    if (!m_name_indexes_computed)
-      InitNameIndexes();
+    InitNameIndexes();
 
     std::vector<uint32_t> all_name_indexes;
     const size_t name_match_count =
@@ -798,7 +791,7 @@ uint32_t Symtab::AppendSymbolIndexesMatchingRegExAndType(
     if (symbol_type == eSymbolTypeAny ||
         m_symbols[i].GetType() == symbol_type) {
       const char *name =
-          m_symbols[i].GetMangled().GetName(name_preference).AsCString();
+          m_symbols[i].GetMangled().GetName(name_preference).AsCString(nullptr);
       if (name) {
         if (regexp.Execute(name))
           indexes.push_back(i);
@@ -824,7 +817,7 @@ uint32_t Symtab::AppendSymbolIndexesMatchingRegExAndType(
         continue;
 
       const char *name =
-          m_symbols[i].GetMangled().GetName(name_preference).AsCString();
+          m_symbols[i].GetMangled().GetName(name_preference).AsCString(nullptr);
       if (name) {
         if (regexp.Execute(name))
           indexes.push_back(i);
@@ -861,8 +854,7 @@ Symtab::FindAllSymbolsWithNameAndType(ConstString name,
 
   // Initialize all of the lookup by name indexes before converting NAME to a
   // uniqued string NAME_STR below.
-  if (!m_name_indexes_computed)
-    InitNameIndexes();
+  InitNameIndexes();
 
   if (name) {
     // The string table did have a string that matched, but we need to check
@@ -879,8 +871,7 @@ void Symtab::FindAllSymbolsWithNameAndType(
   LLDB_SCOPED_TIMER();
   // Initialize all of the lookup by name indexes before converting NAME to a
   // uniqued string NAME_STR below.
-  if (!m_name_indexes_computed)
-    InitNameIndexes();
+  InitNameIndexes();
 
   if (name) {
     // The string table did have a string that matched, but we need to check
@@ -908,8 +899,7 @@ Symbol *Symtab::FindFirstSymbolWithNameAndType(ConstString name,
                                                Visibility symbol_visibility) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
   LLDB_SCOPED_TIMER();
-  if (!m_name_indexes_computed)
-    InitNameIndexes();
+  InitNameIndexes();
 
   if (name) {
     std::vector<uint32_t> matching_indexes;
@@ -1054,10 +1044,7 @@ void Symtab::Finalize() {
   // Calculate the size of symbols inside InitAddressIndexes.
   InitAddressIndexes();
   // Shrink to fit the symbols so we don't waste memory
-  if (m_symbols.capacity() > m_symbols.size()) {
-    collection new_symbols(m_symbols.begin(), m_symbols.end());
-    m_symbols.swap(new_symbols);
-  }
+  m_symbols.shrink_to_fit();
   SaveToCache();
 }
 
@@ -1167,8 +1154,8 @@ void Symtab::FindFunctionSymbols(ConstString name, uint32_t name_type_mask,
     }
   }
 
-  if (!m_name_indexes_computed)
-    InitNameIndexes();
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  InitNameIndexes();
 
   for (lldb::FunctionNameType type :
        {lldb::eFunctionNameTypeBase, lldb::eFunctionNameTypeMethod,
@@ -1186,9 +1173,7 @@ void Symtab::FindFunctionSymbols(ConstString name, uint32_t name_type_mask,
 
   if (!symbol_indexes.empty()) {
     llvm::sort(symbol_indexes);
-    symbol_indexes.erase(
-        std::unique(symbol_indexes.begin(), symbol_indexes.end()),
-        symbol_indexes.end());
+    symbol_indexes.erase(llvm::unique(symbol_indexes), symbol_indexes.end());
     SymbolIndicesToSymbolContextList(symbol_indexes, sc_list);
   }
 }
@@ -1214,14 +1199,16 @@ std::string Symtab::GetCacheKey() {
   // another object file in a separate symbol file.
   strm << m_objfile->GetModule()->GetCacheKey() << "-symtab-"
       << llvm::format_hex(m_objfile->GetCacheHash(), 10);
-  return strm.str();
+  return key;
 }
 
 void Symtab::SaveToCache() {
   DataFileCache *cache = Module::GetIndexCache();
   if (!cache)
     return; // Caching is not enabled.
-  InitNameIndexes(); // Init the name indexes so we can cache them as well.
+
+  // Init the name indexes so we can cache them as well.
+  InitNameIndexes();
   const auto byte_order = endian::InlHostByteOrder();
   DataEncoder file(byte_order, /*addr_size=*/8);
   // Encode will return false if the symbol table's object file doesn't have
@@ -1330,7 +1317,7 @@ bool Symtab::Encode(DataEncoder &encoder) const {
 
   // Now that all strings have been gathered, we will emit the string table.
   strtab.Encode(encoder);
-  // Followed the the symbol table data.
+  // Followed by the symbol table data.
   encoder.AppendData(symtab_encoder.GetData());
   return true;
 }

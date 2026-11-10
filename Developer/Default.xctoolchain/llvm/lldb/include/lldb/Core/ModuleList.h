@@ -12,15 +12,21 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/UserSettingsController.h"
+#include "lldb/Symbol/ImportedDeclaration.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Iterable.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-forward.h"
+#include "lldb/lldb-private-enumerations.h"
 #include "lldb/lldb-types.h"
 
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/RWMutex.h"
+
+// BEGIN CAS
+#include "llvm/CAS/CASConfiguration.h"
+// END CAS
 
 #include <functional>
 #include <list>
@@ -29,6 +35,14 @@
 
 #include <cstddef>
 #include <cstdint>
+
+namespace llvm {
+namespace cas {
+class CASConfiguration;
+class ObjectStore;
+class ActionCache;
+} // namespace cas
+} // namespace llvm
 
 namespace lldb_private {
 class ConstString;
@@ -67,6 +81,29 @@ static constexpr OptionEnumValueElement g_auto_download_enum_values[] = {
     },
 };
 
+static constexpr OptionEnumValueElement g_shared_cache_use_enum_values[] = {
+    {
+        lldb::eSymbolSharedCacheUseHostLLDBMemory,
+        "host-lldb-memory",
+        "Get binaries from the host lldb in-memory shared cache.",
+    },
+    {
+        lldb::eSymbolSharedCacheUseHostSharedCache,
+        "host-shared-cache",
+        "Get binaries from the host shared cache.",
+    },
+    {
+        lldb::eSymbolSharedCacheUseHostAndInferiorSharedCache,
+        "host-and-inferior-shared-cache",
+        "Get binaries from the host and inferior's shared caches.",
+    },
+    {
+        lldb::eSymbolSharedCacheUseInferiorSharedCacheOnly,
+        "inferior-shared-cache-only",
+        "Get binaries from inferior's shared cache only.",
+    },
+};
+
 class ModuleListProperties : public Properties {
   mutable llvm::sys::RWMutex m_symlink_paths_mutex;
   PathMappingList m_symlink_paths;
@@ -80,13 +117,15 @@ public:
   bool GetUseSwiftClangImporter() const;
   bool GetUseSwiftDWARFImporter() const;
   bool SetUseSwiftDWARFImporter(bool new_value);
-  bool GetUseSwiftTypeRefTypeSystem() const;
-  bool SetUseSwiftTypeRefTypeSystem(bool new_value);
+  bool GetUseSwiftExplicitModuleLoader() const;
+  bool SetUseSwiftExplicitModuleLoader(bool new_value);
   bool GetSwiftValidateTypeSystem() const;
+  bool GetSwiftTypeSystemFallback() const;
+  bool GetSwiftLoadConformances() const;
   SwiftModuleLoadingMode GetSwiftModuleLoadingMode() const;
   bool SetSwiftModuleLoadingMode(SwiftModuleLoadingMode);
+  bool GetSwiftPreferSerializedBridgingHeader() const;
 
-  bool GetUseSwiftPreciseCompilerInvocation() const;
   bool GetEnableSwiftMetadataCache() const;
   uint64_t GetSwiftMetadataCacheMaxByteSize();
   uint64_t GetSwiftMetadataCacheExpirationDays();
@@ -98,10 +137,23 @@ public:
   bool GetSwiftEnableASTContext() const;
   // END SWIFT
 
+  // START CAS
+  /// Get CASPath set via properties.
+  FileSpec GetCASOnDiskPath() const;
+  bool SetCASOnDiskPath(const FileSpec &);
+
+  /// Get CASPluginPath set via properties.
+  FileSpec GetCASPluginPath() const;
+
+  /// Get CASPluginOptions set via properties.
+  std::vector<std::pair<std::string, std::string>> GetCASPluginOptions() const;
+  // END CAS
+
   FileSpec GetClangModulesCachePath() const;
   bool SetClangModulesCachePath(const FileSpec &path);
   bool GetEnableExternalLookup() const;
   bool SetEnableExternalLookup(bool new_value);
+  lldb::SymbolSharedCacheUse GetSharedCacheBinaryLoading() const;
   bool GetEnableLLDBIndexCache() const;
   bool SetEnableLLDBIndexCache(bool new_value);
   uint64_t GetLLDBIndexCacheMaxByteSize();
@@ -109,11 +161,8 @@ public:
   uint64_t GetLLDBIndexCacheExpirationDays();
   FileSpec GetLLDBIndexCachePath() const;
   bool SetLLDBIndexCachePath(const FileSpec &path);
-
-  bool GetLoadSymbolOnDemand();
-
+  bool GetLoadSymbolOnDemand() const;
   lldb::SymbolDownload GetSymbolAutoDownload() const;
-
   PathMappingList GetSymlinkMappings() const;
 };
 
@@ -348,11 +397,11 @@ public:
   void FindGlobalVariables(const RegularExpression &regex, size_t max_matches,
                            VariableList &variable_list) const;
 
-  /// Finds the first module whose file specification matches \a file_spec.
+  /// Finds modules whose file specification matches \a module_spec.
   ///
   /// \param[in] module_spec
   ///     A file specification object to match against the Module's
-  ///     file specifications. If \a file_spec does not have
+  ///     file specifications. If \a module_spec does not have
   ///     directory information, matches will occur by matching only
   ///     the basename of any modules in this list. If this value is
   ///     NULL, then file specifications won't be compared when
@@ -373,6 +422,15 @@ public:
   // UUID values is very efficient and accurate.
   lldb::ModuleSP FindModule(const UUID &uuid) const;
 
+  /// Find a module by LLDB-specific unique identifier.
+  ///
+  /// \param[in] uid The UID of the module assigned to it on construction.
+  ///
+  /// \returns ModuleSP of module with \c uid. Returns nullptr if no such
+  /// module could be found.
+  lldb::ModuleSP FindModule(lldb::user_id_t uid) const;
+
+  /// Finds the first module whose file specification matches \a module_spec.
   lldb::ModuleSP FindFirstModule(const ModuleSpec &module_spec) const;
 
   void FindSymbolsWithNameAndType(ConstString name,
@@ -399,6 +457,25 @@ public:
   ///     TypeMap::InsertUnique(...).
   void FindTypes(Module *search_first, const TypeQuery &query,
                  lldb_private::TypeResults &results) const;
+
+  /// Finds imported declarations whose name match \p name.
+  ///
+  /// \param[in] search_first
+  ///     If non-null, this module will be searched before any other
+  ///     modules.
+  ///
+  /// \param[in] name
+  ///     The name to search the imported declaration by.
+  ///
+  /// \param[in] results
+  ///     Any matching types will be populated into the \a results object.
+  ///
+  /// \param[in] find_one
+  ///     If set to true, the search will stop after the first imported
+  ///     declaration is found.
+  void FindImportedDeclarations(Module *search_first, ConstString name,
+                                std::vector<ImportedDeclaration> &results,
+                                bool find_one) const;
 
   bool FindSourceFile(const FileSpec &orig_spec, FileSpec &new_spec) const;
 
@@ -447,7 +524,7 @@ public:
 
   size_t Remove(ModuleList &module_list);
 
-  bool RemoveIfOrphaned(const Module *module_ptr);
+  bool RemoveIfOrphaned(const lldb::ModuleWP module_ptr);
 
   size_t RemoveOrphans(bool mandatory);
 
@@ -479,7 +556,6 @@ public:
   bool IsEmpty() const { return !GetSize(); }
 
   bool LoadScriptingResourcesInTarget(Target *target, std::list<Status> &errors,
-                                      Stream &feedback_stream,
                                       bool continue_on_error = true);
 
   static ModuleListProperties &GetGlobalModuleListProperties();
@@ -492,6 +568,42 @@ public:
                   llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
                   bool *did_create_ptr, bool always_create = false);
 
+  // BEGIN CAS
+  struct CAS {
+    llvm::cas::CASConfiguration configuration;
+    std::shared_ptr<llvm::cas::ObjectStore> object_store;
+    std::shared_ptr<llvm::cas::ActionCache> action_cache;
+  };
+  /// Find an initialize every CAS associated with \c module_sp.
+  static void ConfigureCASStorage(const lldb::ModuleSP &module_sp);
+
+  /// Return a list of all CAS associated with \c module_sp.
+  static llvm::ArrayRef<CAS> GetCASStorage(const lldb::ModuleSP &module_sp);
+
+  /// Return the first CAS associated with \c module_sp whose
+  /// ObjectStore resolves \c cas_id. Returns an error if no CAS
+  /// resolves the id.
+  static llvm::Expected<CAS> GetCASForID(const lldb::ModuleSP &module_sp,
+                                         llvm::StringRef cas_id);
+
+  /// Check if a \c id is a CASID for any of the CAS associated with
+  /// \c module_id.
+  static bool IsCASID(const lldb::ModuleSP &module_sp, llvm::StringRef id);
+
+  /// Gets the shared module from CAS. It works the same as `GetSharedModule`
+  /// but the lookup is done inside the CAS.
+  ///
+  /// \return
+  ///    true if module is successfully loaded, false if module is not found
+  ///    in the CAS, error if there are any errors happened during the loading
+  ///    process.
+  static llvm::Expected<bool>
+  GetSharedModuleFromCAS(llvm::StringRef cas_id,
+                         llvm::StringRef name_for_diagnostics,
+                         const lldb::ModuleSP &nearby, ModuleSpec &module_spec,
+                         lldb::ModuleSP &module_sp);
+  // END CAS
+
   static bool RemoveSharedModule(lldb::ModuleSP &module_sp);
 
   static void FindSharedModules(const ModuleSpec &module_spec,
@@ -501,7 +613,7 @@ public:
 
   static size_t RemoveOrphanSharedModules(bool mandatory);
 
-  static bool RemoveSharedModuleIfOrphaned(const Module *module_ptr);
+  static bool RemoveSharedModuleIfOrphaned(const lldb::ModuleWP module_ptr);
 
   /// Applies 'callback' to each module in this ModuleList.
   /// If 'callback' returns false, iteration terminates.
@@ -509,8 +621,9 @@ public:
   /// be non-null.
   ///
   /// This function is thread-safe.
-  void ForEach(std::function<bool(const lldb::ModuleSP &module_sp)> const
-                   &callback) const;
+  void
+  ForEach(std::function<IterationAction(const lldb::ModuleSP &module_sp)> const
+              &callback) const;
 
   void ClearModuleDependentCaches();
 
@@ -523,6 +636,12 @@ public:
 
   /// Atomically swaps the contents of this module list with \a other.
   void Swap(ModuleList &other);
+
+  /// For each module in this ModuleList, preload its symbols.
+  ///
+  /// \param[in] parallelize
+  ///     If true, all modules will be preloaded in parallel.
+  void PreloadSymbols(bool parallelize) const;
 
 protected:
   // Class typedefs.
@@ -544,15 +663,31 @@ protected:
 
   Notifier *m_notifier = nullptr;
 
+  /// An orphaned module that lives only in the ModuleList has a count of 1.
+  static constexpr long kUseCountModuleListOrphaned = 1;
+
+private:
+  static bool LoadScriptingResourceInTargetForModule(Module &module,
+                                                     Target &target,
+                                                     Status &error);
+
+  /// Try to load the module referenced by \c cas_id from one of the
+  /// CAS instances near \c nearby. Returns an empty ModuleSpec if no
+  /// CAS could resolve the id.
+  // BEGIN CAS
+  static llvm::Expected<ModuleSpec> LoadModuleFromCAS(
+      llvm::StringRef cas_id, llvm::StringRef name_for_diagnostics,
+      const lldb::ModuleSP &nearby, const UUID &uuid, const ArchSpec &arch);
+  // END CAS
+
 public:
-  typedef LockingAdaptedIterable<collection, lldb::ModuleSP, vector_adapter,
-                                 std::recursive_mutex>
+  typedef LockingAdaptedIterable<std::recursive_mutex, collection>
       ModuleIterable;
   ModuleIterable Modules() const {
     return ModuleIterable(m_modules, GetMutex());
   }
 
-  typedef AdaptedIterable<collection, lldb::ModuleSP, vector_adapter>
+  typedef llvm::iterator_range<collection::const_iterator>
       ModuleIterableNoLocking;
   ModuleIterableNoLocking ModulesNoLocking() const {
     return ModuleIterableNoLocking(m_modules);

@@ -27,6 +27,7 @@ static const u64 kAllocaRedzoneMask = 31UL;
 
 // For small size classes inline PoisonShadow for better performance.
 ALWAYS_INLINE void SetShadow(uptr ptr, uptr size, uptr class_id, u64 magic) {
+  CHECK(AddrIsAlignedByGranularity(ptr + size));
   u64 *shadow = reinterpret_cast<u64*>(MemToShadow(ptr));
   if (ASAN_SHADOW_SCALE == 3 && class_id <= 6) {
     // This code expects ASAN_SHADOW_SCALE=3.
@@ -38,6 +39,11 @@ ALWAYS_INLINE void SetShadow(uptr ptr, uptr size, uptr class_id, u64 magic) {
   } else {
     // The size class is too big, it's cheaper to poison only size bytes.
     PoisonShadow(ptr, size, static_cast<u8>(magic));
+  }
+
+  if (magic == 0) {
+    uptr redzone_size = FakeStack::BytesInSizeClass(class_id) - size;
+    PoisonShadow(ptr + size, redzone_size, kAsanStackRightRedzoneMagic);
   }
 }
 
@@ -68,8 +74,8 @@ void FakeStack::Destroy(int tid) {
   if (Verbosity() >= 2) {
     InternalScopedString str;
     for (uptr class_id = 0; class_id < kNumberOfSizeClasses; class_id++)
-      str.append("%zd: %zd/%zd; ", class_id, hint_position_[class_id],
-                 NumberOfFrames(stack_size_log(), class_id));
+      str.AppendF("%zd: %zd/%zd; ", class_id, hint_position_[class_id],
+                  NumberOfFrames(stack_size_log(), class_id));
     Report("T%d: FakeStack destroyed: %s\n", tid, str.data());
   }
   uptr size = RequiredSize(stack_size_log_);
@@ -151,7 +157,7 @@ NOINLINE void FakeStack::GC(uptr real_stack) {
     return;  // Try again when we have a thread.
   auto top = curr_thread->stack_top();
   auto bottom = curr_thread->stack_bottom();
-  if (real_stack < top || real_stack > bottom)
+  if (real_stack < bottom || real_stack > top)
     return;  // Not the default stack.
 
   for (uptr class_id = 0; class_id < kNumberOfSizeClasses; class_id++) {
@@ -162,7 +168,7 @@ NOINLINE void FakeStack::GC(uptr real_stack) {
       FakeFrame *ff = reinterpret_cast<FakeFrame *>(
           GetFrame(stack_size_log(), class_id, i));
       // GC only on the default stack.
-      if (ff->real_stack < real_stack && ff->real_stack >= top) {
+      if (bottom < ff->real_stack && ff->real_stack < real_stack) {
         flags[i] = 0;
         // Poison the frame, so the any access will be reported as UAR.
         SetShadow(reinterpret_cast<uptr>(ff), BytesInSizeClass(class_id),
@@ -223,11 +229,12 @@ static FakeStack *GetFakeStackFastAlways() {
 
 static ALWAYS_INLINE uptr OnMalloc(uptr class_id, uptr size) {
   FakeStack *fs = GetFakeStackFast();
-  if (!fs) return 0;
-  uptr local_stack;
-  uptr real_stack = reinterpret_cast<uptr>(&local_stack);
-  FakeFrame *ff = fs->Allocate(fs->stack_size_log(), class_id, real_stack);
-  if (!ff) return 0;  // Out of fake stack.
+  if (!fs)
+    return 0;
+  FakeFrame *ff =
+      fs->Allocate(fs->stack_size_log(), class_id, GET_CURRENT_FRAME());
+  if (!ff)
+    return 0;  // Out of fake stack.
   uptr ptr = reinterpret_cast<uptr>(ff);
   SetShadow(ptr, size, class_id, 0);
   return ptr;
@@ -237,9 +244,8 @@ static ALWAYS_INLINE uptr OnMallocAlways(uptr class_id, uptr size) {
   FakeStack *fs = GetFakeStackFastAlways();
   if (!fs)
     return 0;
-  uptr local_stack;
-  uptr real_stack = reinterpret_cast<uptr>(&local_stack);
-  FakeFrame *ff = fs->Allocate(fs->stack_size_log(), class_id, real_stack);
+  FakeFrame *ff =
+      fs->Allocate(fs->stack_size_log(), class_id, GET_CURRENT_FRAME());
   if (!ff)
     return 0;  // Out of fake stack.
   uptr ptr = reinterpret_cast<uptr>(ff);

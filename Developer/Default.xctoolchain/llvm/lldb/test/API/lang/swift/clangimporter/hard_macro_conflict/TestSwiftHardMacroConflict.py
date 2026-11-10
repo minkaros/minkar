@@ -3,16 +3,15 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
 import os
-import unittest2
 import shutil
 
 class TestSwiftHardMacroConflict(TestBase):
 
     NO_DEBUG_INFO_TESTCASE = True
 
+    @skipEmbeddedSwift
     # Don't run ClangImporter tests if Clangimporter is disabled.
     @skipIf(setting=('symbols.use-swift-clangimporter', 'false'))
-    @skipIf(setting=('symbols.swift-precise-compiler-invocation', 'true'))
     @skipUnlessDarwin
     @swiftTest
     def test(self):
@@ -20,7 +19,7 @@ class TestSwiftHardMacroConflict(TestBase):
         self.build()
         target, process, thread, bkpt = lldbutil.run_to_source_breakpoint(
             self, 'break here', lldb.SBFileSpec('main.swift'),
-            extra_images=['Framework.framework'])
+            extra_images=['Framework'])
         b_breakpoint = target.BreakpointCreateBySourceRegex(
             'break here', lldb.SBFileSpec('Framework.swift'))
         log = self.getBuildArtifact("types.log")
@@ -34,12 +33,3 @@ class TestSwiftHardMacroConflict(TestBase):
         threads = lldbutil.get_threads_stopped_at_breakpoint(
             process, b_breakpoint)
         self.expect("expression foo", error=True)
-
-        per_module_fallback = 0
-        import io
-        with open(log, "r", encoding='utf-8') as logfile:
-            for line in logfile:
-                if 'SwiftASTContextForExpressions("Framework")' in line:
-                    per_module_fallback += 1
-        self.assertGreater(per_module_fallback, 0,
-                           "failed to create per-module scratch context")

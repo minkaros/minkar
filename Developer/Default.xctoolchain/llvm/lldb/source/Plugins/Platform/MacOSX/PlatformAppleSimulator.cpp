@@ -15,6 +15,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Core/Progress.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/PseudoTerminal.h"
 #include "lldb/Target/Process.h"
@@ -79,7 +80,7 @@ lldb_private::Status PlatformAppleSimulator::LaunchProcess(
     return spawned.GetError();
 #else
   Status err;
-  err.SetErrorString(UNSUPPORTED_ERROR);
+  err = Status::FromErrorString(UNSUPPORTED_ERROR);
   return err;
 #endif
 }
@@ -90,7 +91,7 @@ void PlatformAppleSimulator::GetStatus(Stream &strm) {
   if (!sdk.empty())
     strm << "  SDK Path: \"" << sdk << "\"\n";
   else
-    strm << "  SDK Path: error: unable to locate SDK\n";
+    strm << "  SDK Path: <unable to locate SDK>\n";
 
 #if defined(__APPLE__)
   // This will get called by subclasses, so just output status on the current
@@ -157,17 +158,18 @@ Status PlatformAppleSimulator::ConnectRemote(Args &args) {
             }
           });
       if (!m_device)
-        error.SetErrorStringWithFormat(
+        error = Status::FromErrorStringWithFormat(
             "no device with UDID or name '%s' was found", arg_cstr);
     }
   } else {
-    error.SetErrorString("this command take a single UDID argument of the "
-                         "device you want to connect to.");
+    error = Status::FromErrorString(
+        "this command take a single UDID argument of the "
+        "device you want to connect to.");
   }
   return error;
 #else
   Status err;
-  err.SetErrorString(UNSUPPORTED_ERROR);
+  err = Status::FromErrorString(UNSUPPORTED_ERROR);
   return err;
 #endif
 }
@@ -178,7 +180,7 @@ Status PlatformAppleSimulator::DisconnectRemote() {
   return Status();
 #else
   Status err;
-  err.SetErrorString(UNSUPPORTED_ERROR);
+  err = Status::FromErrorString(UNSUPPORTED_ERROR);
   return err;
 #endif
 }
@@ -284,6 +286,7 @@ static llvm::StringRef GetXcodeSDKDir(std::string preferred,
                                       std::string secondary) {
   llvm::StringRef sdk;
   auto get_sdk = [&](std::string sdk) -> llvm::StringRef {
+    Progress progress("Looking for Xcode SDK", sdk);
     auto sdk_path_or_err =
         HostInfo::GetSDKRoot(HostInfo::SDKOptions{XcodeSDK(std::move(sdk))});
     if (!sdk_path_or_err) {
@@ -335,8 +338,7 @@ PlatformSP PlatformAppleSimulator::CreateInstance(
 
   bool create = force;
   if (!create && arch && arch->IsValid()) {
-    if (std::count(supported_arch.begin(), supported_arch.end(),
-                   arch->GetMachine())) {
+    if (llvm::is_contained(supported_arch, arch->GetMachine())) {
       const llvm::Triple &triple = arch->GetTriple();
       switch (triple.getVendor()) {
       case llvm::Triple::Apple:
@@ -384,81 +386,6 @@ PlatformSP PlatformAppleSimulator::CreateInstance(
   return PlatformSP();
 }
 
-Status PlatformAppleSimulator::ResolveExecutable(
-    const ModuleSpec &module_spec, lldb::ModuleSP &exe_module_sp,
-    const FileSpecList *module_search_paths_ptr) {
-  Status error;
-  // Nothing special to do here, just use the actual file and architecture
-
-  ModuleSpec resolved_module_spec(module_spec);
-
-  // If we have "ls" as the exe_file, resolve the executable loation based on
-  // the current path variables
-  // TODO: resolve bare executables in the Platform SDK
-  //    if (!resolved_exe_file.Exists())
-  //        resolved_exe_file.ResolveExecutableLocation ();
-
-  // Resolve any executable within a bundle on MacOSX
-  // TODO: verify that this handles shallow bundles, if not then implement one
-  // ourselves
-  Host::ResolveExecutableInBundle(resolved_module_spec.GetFileSpec());
-
-  if (FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec())) {
-    if (resolved_module_spec.GetArchitecture().IsValid()) {
-      error = ModuleList::GetSharedModule(resolved_module_spec, exe_module_sp,
-                                          NULL, NULL, NULL);
-
-      if (exe_module_sp && exe_module_sp->GetObjectFile())
-        return error;
-      exe_module_sp.reset();
-    }
-    // No valid architecture was specified or the exact ARM slice wasn't found
-    // so ask the platform for the architectures that we should be using (in
-    // the correct order) and see if we can find a match that way
-    StreamString arch_names;
-    llvm::ListSeparator LS;
-    ArchSpec platform_arch;
-    for (const ArchSpec &arch : GetSupportedArchitectures({})) {
-      resolved_module_spec.GetArchitecture() = arch;
-
-      // Only match x86 with x86 and x86_64 with x86_64...
-      if (!module_spec.GetArchitecture().IsValid() ||
-          module_spec.GetArchitecture().GetCore() ==
-              resolved_module_spec.GetArchitecture().GetCore()) {
-        error = ModuleList::GetSharedModule(resolved_module_spec, exe_module_sp,
-                                            NULL, NULL, NULL);
-        // Did we find an executable using one of the
-        if (error.Success()) {
-          if (exe_module_sp && exe_module_sp->GetObjectFile())
-            break;
-          else
-            error.SetErrorToGenericError();
-        }
-
-        arch_names << LS << platform_arch.GetArchitectureName();
-      }
-    }
-
-    if (error.Fail() || !exe_module_sp) {
-      if (FileSystem::Instance().Readable(resolved_module_spec.GetFileSpec())) {
-        error.SetErrorStringWithFormatv(
-            "'{0}' doesn't contain any '{1}' platform architectures: {2}",
-            resolved_module_spec.GetFileSpec(), GetPluginName(),
-            arch_names.GetString());
-      } else {
-        error.SetErrorStringWithFormat(
-            "'%s' is not readable",
-            resolved_module_spec.GetFileSpec().GetPath().c_str());
-      }
-    }
-  } else {
-    error.SetErrorStringWithFormat("'%s' does not exist",
-                                   module_spec.GetFileSpec().GetPath().c_str());
-  }
-
-  return error;
-}
-
 Status PlatformAppleSimulator::GetSymbolFile(const FileSpec &platform_file,
                                              const UUID *uuid_ptr,
                                              FileSpec &local_file) {
@@ -484,11 +411,11 @@ Status PlatformAppleSimulator::GetSymbolFile(const FileSpec &platform_file,
       if (FileSystem::Instance().Exists(local_file))
         return error;
     }
-    error.SetErrorStringWithFormatv(
+    error = Status::FromErrorStringWithFormatv(
         "unable to locate a platform file for '{0}' in platform '{1}'",
         platform_file_path, GetPluginName());
   } else {
-    error.SetErrorString("invalid platform file argument");
+    error = Status::FromErrorString("invalid platform file argument");
   }
   return error;
 }
@@ -497,11 +424,18 @@ Status PlatformAppleSimulator::GetSharedModule(
     const ModuleSpec &module_spec, Process *process, ModuleSP &module_sp,
     const FileSpecList *module_search_paths_ptr,
     llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules, bool *did_create_ptr) {
+
+  Status error;
+  error = GetModuleFromSharedCaches(module_spec, process, module_sp,
+                                    module_search_paths_ptr, old_modules,
+                                    did_create_ptr);
+  if (module_sp)
+    return error;
+
   // For iOS/tvOS/watchOS, the SDK files are all cached locally on the
   // host system. So first we ask for the file in the cached SDK, then
   // we attempt to get a shared module for the right architecture with
   // the right UUID.
-  Status error;
   ModuleSpec platform_module_spec(module_spec);
   const FileSpec &platform_file = module_spec.GetFileSpec();
   error = GetSymbolFile(platform_file, module_spec.GetUUIDPtr(),
@@ -545,7 +479,7 @@ static bool shouldSkipSimulatorPlatform(bool force, const ArchSpec *arch) {
   // If the arch is known not to specify a simulator environment, skip creating
   // the simulator platform (we can create it later if there's a matching arch).
   // This avoids very slow xcrun queries for non-simulator archs (the slowness
-  // is due to xcrun not caching negative queries (rdar://74882205)).
+  // is due to xcrun not caching negative queries.
   return !force && arch && arch->IsValid() &&
          !arch->TripleEnvironmentWasSpecified();
 }

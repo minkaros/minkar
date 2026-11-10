@@ -17,7 +17,11 @@ set(LLVM_LINK_COMPONENTS
 
 add_llvm_unittest(CASTests
   ActionCacheTest.cpp
+  BuiltinObjectHasherTest.cpp
+  BuiltinUnifiedCASDatabasesTest.cpp
+  CASConfigurationTest.cpp
   CASFileSystemTest.cpp
+  CASFSBuilderTest.cpp
   CASTestConfig.cpp
   CASOutputBackendTest.cpp
   CASProvidingFileSystemTest.cpp
@@ -26,6 +30,8 @@ add_llvm_unittest(CASTests
   HierarchicalTreeBuilderTest.cpp
   MockGRPCServer.cpp
   ObjectStoreTest.cpp
+  OnDiskCASLoggerTest.cpp
+  OnDiskCommonUtils.cpp
   OnDiskGraphDBTest.cpp
   OnDiskHashMappedTrieTest.cpp
   OnDiskKeyValueDBTest.cpp

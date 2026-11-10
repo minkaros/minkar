@@ -5,6 +5,7 @@ import lldbsuite.test.lldbutil as lldbutil
 
 
 class TestCase(lldbtest.TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     @skipUnlessFoundation
     def test(self):
@@ -18,6 +19,6 @@ class TestCase(lldbtest.TestBase):
         lldbutil.run_to_name_breakpoint(self, "main", bkpt_module="a.out")
         self.expect("expression 1")
 
-        self.filecheck(f"platform shell cat {log}", __file__)
+        self.filecheck_log(log, __file__)
         # CHECK: CCC_OVERRIDE_OPTIONS: x-DDELETEME=1
         # CHECK: Deleting argument -DDELETEME=1

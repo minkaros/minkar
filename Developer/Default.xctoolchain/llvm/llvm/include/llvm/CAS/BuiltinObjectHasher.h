@@ -40,6 +40,8 @@ public:
     return H.finish();
   }
 
+  static Expected<HashT> hashFile(StringRef FilePath);
+
 private:
   HashT finish() { return Hasher.final(); }
 
@@ -68,7 +70,7 @@ private:
   }
 
   void updateSize(uint64_t Size) {
-    Size = support::endian::byte_swap(Size, support::endianness::little);
+    Size = support::endian::byte_swap(Size, endianness::little);
     Hasher.update(ArrayRef(reinterpret_cast<const uint8_t *>(&Size),
                                 sizeof(Size)));
   }

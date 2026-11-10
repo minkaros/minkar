@@ -10,10 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SwiftLanguageRuntimeImpl.h"
+#include "Plugins/TypeSystem/Swift/SwiftASTContext.h"
+#include "Plugins/TypeSystem/Swift/SwiftDemangle.h"
 #include "SwiftLanguageRuntime.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
+#include "lldb/Core/DemangledNameInfo.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/VariableList.h"
@@ -25,9 +27,12 @@
 #include "lldb/Utility/Log.h"
 #include "swift/ABI/Task.h"
 #include "swift/Demangling/Demangle.h"
+#include "swift/Demangling/Demangler.h"
 
+#include "Plugins/Language/Swift/SwiftMangled.h"
 #include "Plugins/Process/Utility/RegisterContext_x86.h"
 #include "Utility/ARM64_DWARF_Registers.h"
+#include "swift/Demangling/ManglingFlavor.h"
 #include "llvm/ADT/SmallSet.h"
 
 using namespace lldb;
@@ -44,17 +49,18 @@ enum class ThunkKind {
   AllocatingInit,
   PartialApply,
   ObjCAttribute,
+  NonObjCAttributeOnCtor,
   Reabstraction,
   ProtocolConformance,
-  AsyncFunction,
 };
 
 enum class ThunkAction {
   Unknown = 0,
   GetThunkTarget,
   StepIntoConformance,
+  StepIntoAllocatingInit,
   StepThrough,
-  AsyncStepIn,
+  RunToObjcCInteropCtor,
 };
 
 } // namespace
@@ -84,26 +90,171 @@ static bool IsSwiftAsyncFunctionSymbol(swift::Demangle::NodePointer node) {
   if (hasChild(node, Node::Kind::AsyncSuspendResumePartialFunction))
     return false;
 
-  // Peel off layers over top of Function nodes.
-  switch (node->getFirstChild()->getKind()) {
-  case Node::Kind::Static:
-  case Node::Kind::ExplicitClosure:
-    node = node->getFirstChild();
-    break;
-  default:
-    break;
-  }
+  // Peel off a ProtocolWitness node. If it exists, there will be a single
+  // instance, before Static nodes.
+  if (NodePointer witness = childAtPath(node, Node::Kind::ProtocolWitness))
+    node = witness;
 
-  return childAtPath(node,
-                     {Node::Kind::Function, Node::Kind::Type,
-                      Node::Kind::FunctionType, Node::Kind::AsyncAnnotation}) ||
-         childAtPath(node,
-                     {Node::Kind::Function, Node::Kind::Type,
-                      Node::Kind::DependentGenericType, Node::Kind::Type,
-                      Node::Kind::FunctionType, Node::Kind::AsyncAnnotation});
+  // Peel off a Static node. If it exists, there will be a single instance.
+  if (NodePointer static_node = childAtPath(node, Node::Kind::Static))
+    node = static_node;
+
+  // Get the {Implicit, Explicit} Closure or Function node.
+  // For nested closures in Swift, the demangle tree is inverted: the
+  // inner-most closure is the top-most closure node.
+  NodePointer func_node = [&] {
+    if (NodePointer func = childAtPath(node, Node::Kind::Function))
+      return func;
+    if (NodePointer implicit = childAtPath(node, Node::Kind::ImplicitClosure))
+      return implicit;
+    return childAtPath(node, Node::Kind::ExplicitClosure);
+  }();
+
+  using Kind = Node::Kind;
+  static const llvm::SmallVector<llvm::SmallVector<Kind>>
+      async_annotation_paths = {
+          {Kind::Type, Kind::FunctionType, Kind::AsyncAnnotation},
+          {Kind::Type, Kind::NoEscapeFunctionType, Kind::AsyncAnnotation},
+          {Kind::Type, Kind::DependentGenericType, Kind::Type,
+           Kind::FunctionType, Kind::AsyncAnnotation},
+      };
+  return llvm::any_of(async_annotation_paths,
+                      [func_node](llvm::ArrayRef<Kind> path) {
+                        return childAtPath(func_node, path);
+                      });
 }
 
-bool SwiftLanguageRuntime::IsSwiftAsyncFunctionSymbol(StringRef name) {
+/// Returns true if closure1 and closure2 have the same number, type, and
+/// parent closures / function.
+static bool
+AreFuncletsOfSameAsyncClosure(swift::Demangle::NodePointer closure1,
+                              swift::Demangle::NodePointer closure2) {
+  using namespace swift::Demangle;
+  NodePointer closure1_number = childAtPath(closure1, Node::Kind::Number);
+  NodePointer closure2_number = childAtPath(closure2, Node::Kind::Number);
+  if (!Node::deepEquals(closure1_number, closure2_number))
+    return false;
+
+  NodePointer closure1_type = childAtPath(closure1, Node::Kind::Type);
+  NodePointer closure2_type = childAtPath(closure2, Node::Kind::Type);
+  if (!Node::deepEquals(closure1_type, closure2_type))
+    return false;
+
+  // Because the tree is inverted, a parent closure (in swift code) is a child
+  // *node* (in the demangle tree). Check that any such parents are identical.
+  NodePointer explicit_closure1_parent =
+      childAtPath(closure1, Node::Kind::ExplicitClosure);
+  NodePointer explicit_closure2_parent =
+      childAtPath(closure2, Node::Kind::ExplicitClosure);
+  NodePointer implicit_closure1_parent =
+      childAtPath(closure1, Node::Kind::ImplicitClosure);
+  NodePointer implicit_closure2_parent =
+      childAtPath(closure2, Node::Kind::ImplicitClosure);
+  if (!Node::deepEquals(explicit_closure1_parent, explicit_closure2_parent) ||
+      !Node::deepEquals(implicit_closure1_parent, implicit_closure2_parent))
+    return false;
+
+  // If there are no ExplicitClosure as parents, there may still be a
+  // Function. Also check that they are identical.
+  NodePointer closure1_function = childAtPath(closure1, Node::Kind::Function);
+  NodePointer closure2_function = childAtPath(closure2, Node::Kind::Function);
+  return Node::deepEquals(closure1_function, closure2_function);
+}
+
+std::optional<uint64_t>
+SwiftLanguageRuntime::GetFuncletNumber(swift::Demangle::NodePointer node) {
+  if (!node)
+    return {};
+  NodePointer node_id =
+      childAtPath(node, {Node::Kind::AsyncSuspendResumePartialFunction,
+                         Node::Kind::Number});
+  if (!node_id)
+    node_id = childAtPath(node, {Node::Kind::AsyncAwaitResumePartialFunction,
+                                 Node::Kind::Number});
+  if (node_id) {
+    if (node_id->hasIndex())
+      return node_id->getIndex();
+
+    // This should never happen, log it if it does:
+    std::string node_dump = getNodeTreeAsString(node);
+    LLDB_LOGF(GetLog(LLDBLog::Demangle),
+              "%s::Found a number node without a number:\n%s", __FUNCTION__,
+              node_dump.c_str());
+    return {};
+  }
+
+  // If this is an async function and there was no number, then this is an entry
+  // funclet. Assign it number 0.
+  if (SwiftLanguageRuntime::IsAnySwiftAsyncFunctionSymbol(node))
+    return 0;
+  return {};
+}
+
+std::optional<uint64_t>
+SwiftLanguageRuntime::GetFuncletNumber(llvm::StringRef name) {
+  using namespace swift::Demangle;
+  Context ctx;
+  NodePointer node = SwiftLanguageRuntime::DemangleSymbolAsNode(name, ctx);
+  return GetFuncletNumber(node);
+}
+
+SwiftLanguageRuntime::FuncletComparisonResult
+SwiftLanguageRuntime::AreFuncletsOfSameAsyncFunction(llvm::StringRef name1,
+                                                     llvm::StringRef name2) {
+  using namespace swift::Demangle;
+  Context ctx;
+  NodePointer node1 = DemangleSymbolAsNode(name1, ctx);
+  NodePointer node2 = DemangleSymbolAsNode(name2, ctx);
+  return AreFuncletsOfSameAsyncFunction(node1, node2);
+}
+
+SwiftLanguageRuntime::FuncletComparisonResult
+SwiftLanguageRuntime::AreFuncletsOfSameAsyncFunction(
+    swift::Demangle::NodePointer node1, swift::Demangle::NodePointer node2) {
+  if (!IsAnySwiftAsyncFunctionSymbol(node1) ||
+      !IsAnySwiftAsyncFunctionSymbol(node2))
+    return FuncletComparisonResult::NotBothFunclets;
+
+  // Peel off ProtocolWitnes/Static nodes, in this order.
+  for (auto wrapper : {Node::Kind::ProtocolWitness, Node::Kind::Static}) {
+    NodePointer wrapper1 = childAtPath(node1, wrapper);
+    NodePointer wrapper2 = childAtPath(node2, wrapper);
+    if (wrapper1 || wrapper2) {
+      if (!wrapper1 | !wrapper2)
+        return FuncletComparisonResult::DifferentAsyncFunctions;
+      node1 = wrapper1;
+      node2 = wrapper2;
+    }
+  }
+
+  // If there are closures involved, do the closure-specific comparison.
+  for (auto closure_kind :
+       {Node::Kind::ImplicitClosure, Node::Kind::ExplicitClosure}) {
+    NodePointer closure1 = childAtPath(node1, closure_kind);
+    NodePointer closure2 = childAtPath(node2, closure_kind);
+    if (closure1 || closure2) {
+      if (!closure1 || !closure2)
+        return FuncletComparisonResult::DifferentAsyncFunctions;
+      return AreFuncletsOfSameAsyncClosure(closure1, closure2)
+                 ? FuncletComparisonResult::SameAsyncFunction
+                 : FuncletComparisonResult::DifferentAsyncFunctions;
+    }
+  }
+
+  // Otherwise, find the corresponding function and compare the two.
+  NodePointer function1 = childAtPath(node1, Node::Kind::Function);
+  NodePointer function2 = childAtPath(node2, Node::Kind::Function);
+
+  // If we fail to find a function node, conservatively fail.
+  if (!function1 || !function2)
+    return FuncletComparisonResult::NotBothFunclets;
+
+  return Node::deepEquals(function1, function2)
+             ? FuncletComparisonResult::SameAsyncFunction
+             : FuncletComparisonResult::DifferentAsyncFunctions;
+}
+
+bool SwiftLanguageRuntime::IsSwiftAsyncFunctionSymbol(llvm::StringRef name) {
   if (!IsSwiftMangledName(name))
     return false;
   using namespace swift::Demangle;
@@ -113,7 +264,7 @@ bool SwiftLanguageRuntime::IsSwiftAsyncFunctionSymbol(StringRef name) {
 }
 
 bool SwiftLanguageRuntime::IsSwiftAsyncAwaitResumePartialFunctionSymbol(
-    StringRef name) {
+    llvm::StringRef name) {
   if (!IsSwiftMangledName(name))
     return false;
   using namespace swift::Demangle;
@@ -122,12 +273,18 @@ bool SwiftLanguageRuntime::IsSwiftAsyncAwaitResumePartialFunctionSymbol(
   return hasChild(node, Node::Kind::AsyncAwaitResumePartialFunction);
 }
 
-bool SwiftLanguageRuntime::IsAnySwiftAsyncFunctionSymbol(StringRef name) {
+bool SwiftLanguageRuntime::IsAnySwiftAsyncFunctionSymbol(llvm::StringRef name) {
   if (!IsSwiftMangledName(name))
     return false;
   using namespace swift::Demangle;
   Context ctx;
   NodePointer node = SwiftLanguageRuntime::DemangleSymbolAsNode(name, ctx);
+  return IsAnySwiftAsyncFunctionSymbol(node);
+}
+
+bool SwiftLanguageRuntime::IsAnySwiftAsyncFunctionSymbol(
+    swift::Demangle::NodePointer node) {
+  using namespace swift::Demangle;
   if (!node || node->getKind() != Node::Kind::Global || !node->getNumChildren())
     return false;
   auto marker = node->getFirstChild()->getKind();
@@ -155,17 +312,17 @@ static ThunkKind GetThunkKind(Symbol *symbol) {
   if (nodes->getNumChildren() == 0)
     return ThunkKind::Unknown;
 
-  if (!demangle_ctx.isThunkSymbol(symbol_name)) {
-    if (IsSwiftAsyncFunctionSymbol(nodes)) {
-      return ThunkKind::AsyncFunction;
-    }
+  if (!demangle_ctx.isThunkSymbol(symbol_name))
     return ThunkKind::Unknown;
-  }
 
   NodePointer main_node = nodes->getFirstChild();
   switch (main_node->getKind()) {
   case Node::Kind::ObjCAttribute:
     return ThunkKind::ObjCAttribute;
+  case Node::Kind::NonObjCAttribute:
+    if (hasChild(nodes, Node::Kind::Constructor))
+      return ThunkKind::NonObjCAttributeOnCtor;
+    break;
   case Node::Kind::ProtocolWitness:
     if (hasChild(main_node, Node::Kind::ProtocolConformance))
       return ThunkKind::ProtocolConformance;
@@ -190,17 +347,17 @@ static const char *GetThunkKindName(ThunkKind kind) {
   case ThunkKind::Unknown:
     return "Unknown";
   case ThunkKind::AllocatingInit:
-    return "StepThrough";
+    return "StepIntoAllocatingInit";
   case ThunkKind::PartialApply:
     return "GetThunkTarget";
   case ThunkKind::ObjCAttribute:
     return "GetThunkTarget";
+  case ThunkKind::NonObjCAttributeOnCtor:
+    return "RunToObjcCInteropCtor";
   case ThunkKind::Reabstraction:
     return "GetThunkTarget";
   case ThunkKind::ProtocolConformance:
     return "StepIntoConformance";
-  case ThunkKind::AsyncFunction:
-    return "AsyncStepIn";
   }
 }
 
@@ -209,7 +366,7 @@ static ThunkAction GetThunkAction(ThunkKind kind) {
   case ThunkKind::Unknown:
     return ThunkAction::Unknown;
   case ThunkKind::AllocatingInit:
-    return ThunkAction::StepThrough;
+    return ThunkAction::StepIntoAllocatingInit;
   case ThunkKind::PartialApply:
     return ThunkAction::GetThunkTarget;
   case ThunkKind::ObjCAttribute:
@@ -218,219 +375,135 @@ static ThunkAction GetThunkAction(ThunkKind kind) {
     return ThunkAction::StepThrough;
   case ThunkKind::ProtocolConformance:
     return ThunkAction::StepIntoConformance;
-  case ThunkKind::AsyncFunction:
-    return ThunkAction::AsyncStepIn;
+  case ThunkKind::NonObjCAttributeOnCtor:
+    return ThunkAction::RunToObjcCInteropCtor;
   }
 }
 
-class ThreadPlanStepInAsync : public ThreadPlan {
-public:
-  static bool NeedsStep(SymbolContext &sc) {
-    if (sc.line_entry.IsValid() && sc.line_entry.line == 0)
-      // Compiler generated function, need to step in.
-      return true;
+/// Given a thread that is stopped at the start of swift_task_switch, create a
+/// thread plan that runs to the address of the resume function.
+static ThreadPlanSP
+CreateRunThroughTaskSwitchThreadPlan(Thread &thread,
+                                     unsigned resume_fn_generic_regnum) {
+  RegisterContextSP reg_ctx =
+      thread.GetStackFrameAtIndex(0)->GetRegisterContext();
+  unsigned resume_fn_reg = reg_ctx->ConvertRegisterKindToRegisterNumber(
+      RegisterKind::eRegisterKindGeneric, resume_fn_generic_regnum);
+  uint64_t resume_fn_ptr = reg_ctx->ReadRegisterAsUnsigned(resume_fn_reg, 0);
+  if (!resume_fn_ptr)
+    return {};
 
-    // TEMPORARY HACK WORKAROUND
-    if (!sc.symbol || !sc.comp_unit)
-      return false;
-    auto fn_start = sc.symbol->GetFileAddress();
-    auto fn_end = sc.symbol->GetFileAddress() + sc.symbol->GetByteSize();
-    llvm::SmallSet<uint32_t, 2> unique_debug_lines;
-    if (auto *line_table = sc.comp_unit->GetLineTable()) {
-      for (uint32_t i = 0; i < line_table->GetSize(); ++i) {
-        LineEntry line_entry;
-        if (line_table->GetLineEntryAtIndex(i, line_entry)) {
-          if (!line_entry.IsValid() || line_entry.line == 0)
-            continue;
+  resume_fn_ptr = thread.GetProcess()->FixCodeAddress(resume_fn_ptr);
 
-          auto line_start = line_entry.range.GetBaseAddress().GetFileAddress();
-          if (fn_start <= line_start && line_start < fn_end) {
-            unique_debug_lines.insert(line_entry.line);
-            // This logic is to distinguish between async functions that only
-            // call `swift_task_switch` (which, from the perspective of the
-            // user, has no meaningful function body), vs async functions that
-            // do have a function body. In the first case, lldb should step
-            // further to find the function body, in the second case lldb has
-            // found a body and should stop.
-            //
-            // Currently, async functions that go through `swift_task_switch`
-            // are generated with a reference to a single line. If this function
-            // has more than one unique debug line, then it is a function that
-            // has a body, and execution can stop here.
-            if (unique_debug_lines.size() >= 2)
-              // No step into `swift_task_switch` required.
-              return false;
-          }
-        }
-      }
-    }
+  llvm::Expected<uint64_t> maybe_prologue_size =
+      FindPrologueSize(*thread.GetProcess(), resume_fn_ptr);
 
-    return true;
+  uint64_t dest_address =
+      resume_fn_ptr + (maybe_prologue_size ? *maybe_prologue_size : 0);
+
+  if (!maybe_prologue_size)
+    LLDB_LOG_ERROR(GetLog(LLDBLog::Step), maybe_prologue_size.takeError(),
+                   "{1}::{0}", __FUNCTION__);
+
+  return std::make_shared<ThreadPlanRunToAddress>(thread, dest_address,
+                                                  /*stop_others*/ false);
+}
+
+/// Creates a thread plan to step over swift runtime functions that can trigger
+/// a task switch, like `async_task_switch` or `swift_asyncLet_get`.
+static ThreadPlanSP
+CreateRunThroughTaskSwitchingTrampolines(Thread &thread,
+                                         llvm::StringRef trampoline_name) {
+  // The signature for `swift_task_switch` is as follows:
+  //   SWIFT_CC(swiftasync)
+  //   void swift_task_switch(
+  //     SWIFT_ASYNC_CONTEXT AsyncContext *resumeContext,
+  //     TaskContinuationFunction *resumeFunction,
+  //     ExecutorRef newExecutor);
+  //
+  // The async context given as the first argument is not passed using the
+  // calling convention's first register, it's passed in the platform's async
+  // context register. This means the `resumeFunction` parameter uses the
+  // first ABI register (ex: x86-64: rdi, arm64: x0).
+  if (trampoline_name == "swift_task_switch")
+    return CreateRunThroughTaskSwitchThreadPlan(thread,
+                                                LLDB_REGNUM_GENERIC_ARG1);
+  // The signature for `swift_asyncLet_get` and `swift_asyncLet_finish` are the
+  // same. Like `task_switch`, the async context (first argument) uses the async
+  // context register, and not the arg1 register; as such, the continuation
+  // funclet can be found in arg3.
+  //
+  // swift_asyncLet_get(SWIFT_ASYNC_CONTEXT AsyncContext *,
+  //                         AsyncLet *,
+  //                         void *,
+  //                         TaskContinuationFunction *,
+  if (trampoline_name == "swift_asyncLet_get" ||
+      trampoline_name == "swift_asyncLet_get_throwing" ||
+      trampoline_name == "swift_asyncLet_finish")
+    return CreateRunThroughTaskSwitchThreadPlan(thread,
+                                                LLDB_REGNUM_GENERIC_ARG3);
+  return nullptr;
+}
+
+/// Demangle `symbol_name` and extracts the text at the node described by
+/// `node_path`, if it exists; otherwise, returns an empty string.
+static std::string FindClassName(StringRef symbol_name,
+                                 llvm::ArrayRef<Node::Kind> node_path) {
+  swift::Demangle::Context ctx;
+  NodePointer demangled_node =
+      SwiftLanguageRuntime::DemangleSymbolAsNode(symbol_name, ctx);
+
+  if (!demangled_node) {
+    std::string symbol_name_str = symbol_name.str();
+    LLDB_LOGF(GetLog(LLDBLog::Step),
+              "SwiftLanguageRuntime: failed to demangle %s.",
+              symbol_name_str.c_str());
+    return "";
+  }
+  NodePointer class_node = childAtPath(demangled_node, node_path);
+  if (!class_node || !class_node->hasText()) {
+    std::string node_str = getNodeTreeAsString(demangled_node);
+    LLDB_LOGF(GetLog(LLDBLog::Step),
+              "SwiftLanguageRuntime: failed to extract name from "
+              "demangle node: %s",
+              node_str.c_str());
+    return "";
+  }
+  return class_node->getText().str();
+}
+
+/// If sc_list is non-empty, returns a plan that runs to any of its addresses.
+/// Otherwise, returns nullptr.
+static ThreadPlanSP
+CreateThreadPlanRunToSCInList(Thread &thread, const SymbolContextList &sc_list,
+                              bool stop_others) {
+  std::vector<addr_t> load_addresses;
+  Target &target = thread.GetProcess()->GetTarget();
+  for (const SymbolContext &sc : sc_list) {
+    const Symbol *ctor_symbol = sc.symbol;
+    if (ctor_symbol)
+      load_addresses.push_back(ctor_symbol->GetLoadAddress(&target));
   }
 
-  ThreadPlanStepInAsync(Thread &thread, SymbolContext &sc)
-      : ThreadPlan(eKindGeneric, "step-in-async", thread, eVoteNoOpinion,
-                   eVoteNoOpinion) {
-    assert(sc.function);
-    if (!sc.function)
-      return;
-
-    m_step_in_plan_sp = std::make_shared<ThreadPlanStepInRange>(
-        thread, sc.function->GetAddressRange(), sc, "swift_task_switch",
-        RunMode::eAllThreads, eLazyBoolNo, eLazyBoolNo);
+  if (load_addresses.empty()) {
+    LLDB_LOG(GetLog(LLDBLog::Step),
+             "SwiftLanguageRuntime: empty sc_list found.");
+    return {};
   }
+  return std::make_shared<ThreadPlanRunToAddress>(thread, load_addresses,
+                                                  stop_others);
+}
 
-  void DidPush() override {
-    if (m_step_in_plan_sp)
-      PushPlan(m_step_in_plan_sp);
-  }
-
-  bool ValidatePlan(Stream *error) override { return (bool)m_step_in_plan_sp; }
-
-  void GetDescription(Stream *s, lldb::DescriptionLevel level) override {
-    // TODO: Implement completely.
-    s->PutCString("ThreadPlanStepInAsync");
-  }
-
-  bool DoPlanExplainsStop(Event *event) override {
-    if (!HasTID())
-      return false;
-
-    if (!m_async_breakpoint_sp)
-      return false;
-
-    return GetBreakpointAsyncContext() == m_initial_async_ctx;
-  }
-
-  bool ShouldStop(Event *event) override {
-    if (!m_async_breakpoint_sp)
-      return false;
-
-    if (GetBreakpointAsyncContext() != m_initial_async_ctx)
-      return false;
-
-    SetPlanComplete();
-    return true;
-  }
-
-  bool MischiefManaged() override {
-    if (IsPlanComplete())
-      return true;
-
-    if (!m_step_in_plan_sp->IsPlanComplete())
-      return false;
-
-    if (!m_step_in_plan_sp->PlanSucceeded()) {
-      // If the step in fails, then this plan fails.
-      SetPlanComplete(false);
-      return true;
-    }
-
-    if (!m_async_breakpoint_sp) {
-      auto &thread = GetThread();
-      m_async_breakpoint_sp = CreateAsyncBreakpoint(thread);
-      m_initial_async_ctx = GetAsyncContext(thread.GetStackFrameAtIndex(1));
-      ClearTID();
-    }
-
-    return false;
-  }
-
-  bool WillStop() override { return false; }
-
-  lldb::StateType GetPlanRunState() override { return eStateRunning; }
-
-  bool StopOthers() override { return false; }
-
-  void DidPop() override {
-    if (m_async_breakpoint_sp)
-      m_async_breakpoint_sp->GetTarget().RemoveBreakpointByID(
-          m_async_breakpoint_sp->GetID());
-  }
-
-private:
-  bool IsAtAsyncBreakpoint() {
-    auto stop_info_sp = GetPrivateStopInfo();
-    if (!stop_info_sp)
-      return false;
-
-    if (stop_info_sp->GetStopReason() != eStopReasonBreakpoint)
-      return false;
-
-    auto &site_list = m_process.GetBreakpointSiteList();
-    auto site_sp = site_list.FindByID(stop_info_sp->GetValue());
-    if (!site_sp)
-      return false;
-
-   return site_sp->IsBreakpointAtThisSite(m_async_breakpoint_sp->GetID());
-  }
-
-  std::optional<lldb::addr_t> GetBreakpointAsyncContext() {
-    if (m_breakpoint_async_ctx)
-      return m_breakpoint_async_ctx;
-
-    if (!IsAtAsyncBreakpoint())
-      return {};
-
-    auto frame_sp = GetThread().GetStackFrameAtIndex(0);
-    auto async_ctx = GetAsyncContext(frame_sp);
-
-    if (!IsIndirectContext(frame_sp)) {
-      m_breakpoint_async_ctx = async_ctx;
-      return m_breakpoint_async_ctx;
-    }
-
-    // Dereference the indirect async context.
-    auto process_sp = GetThread().GetProcess();
-    Status error;
-    m_breakpoint_async_ctx =
-        process_sp->ReadPointerFromMemory(async_ctx, error);
-    return m_breakpoint_async_ctx;
-  }
-
-  bool IsIndirectContext(lldb::StackFrameSP frame_sp) {
-    auto sc = frame_sp->GetSymbolContext(eSymbolContextSymbol);
-    auto mangled_name = sc.symbol->GetMangled().GetMangledName().GetStringRef();
-    return SwiftLanguageRuntime::IsSwiftAsyncAwaitResumePartialFunctionSymbol(
-        mangled_name);
-  }
-
-  BreakpointSP CreateAsyncBreakpoint(Thread &thread) {
-    // The signature for `swift_task_switch` is as follows:
-    //   SWIFT_CC(swiftasync)
-    //   void swift_task_switch(
-    //     SWIFT_ASYNC_CONTEXT AsyncContext *resumeContext,
-    //     TaskContinuationFunction *resumeFunction,
-    //     ExecutorRef newExecutor);
-    //
-    // The async context given as the first argument is not passed using the
-    // calling convention's first register, it's passed in the platform's async
-    // context register. This means the `resumeFunction` parameter uses the
-    // first ABI register (ex: x86-64: rdi, arm64: x0).
-    auto reg_ctx = thread.GetStackFrameAtIndex(0)->GetRegisterContext();
-    constexpr auto resume_fn_regnum = LLDB_REGNUM_GENERIC_ARG1;
-    auto resume_fn_reg = reg_ctx->ConvertRegisterKindToRegisterNumber(
-        RegisterKind::eRegisterKindGeneric, resume_fn_regnum);
-    auto resume_fn_ptr = reg_ctx->ReadRegisterAsUnsigned(resume_fn_reg, 0);
-    if (!resume_fn_ptr)
-      return {};
-
-    auto &target = thread.GetProcess()->GetTarget();
-    auto breakpoint_sp = target.CreateBreakpoint(resume_fn_ptr, true, false);
-    breakpoint_sp->SetBreakpointKind("async-step");
-    return breakpoint_sp;
-  }
-
-  static lldb::addr_t GetAsyncContext(lldb::StackFrameSP frame_sp) {
-    auto reg_ctx_sp = frame_sp->GetRegisterContext();
-    return SwiftLanguageRuntime::GetAsyncContext(reg_ctx_sp.get());
-  }
-
-  ThreadPlanSP m_step_in_plan_sp;
-  BreakpointSP m_async_breakpoint_sp;
-  std::optional<lldb::addr_t> m_initial_async_ctx;
-  std::optional<lldb::addr_t> m_breakpoint_async_ctx;
-};
+/// Search all modules for `target_func` and creates a RunToAddress plan
+/// targeting all symbols found.
+static ThreadPlanSP CreateRunToAddressPlan(StringRef target_func,
+                                           Thread &thread, bool stop_others) {
+  ModuleList modules = thread.GetProcess()->GetTarget().GetImages();
+  SymbolContextList sc_list;
+  modules.FindFunctionSymbols(ConstString(target_func), eFunctionNameTypeFull,
+                              sc_list);
+  return CreateThreadPlanRunToSCInList(thread, sc_list, stop_others);
+}
 
 static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
                                                        bool stop_others) {
@@ -442,18 +515,16 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
   // 3) Thunks that retain captured objects in closure invocations.
   // 4) Task switches for async functions.
 
-  ThreadPlanSP new_thread_plan_sp;
-
   Log *log(GetLog(LLDBLog::Step));
   StackFrameSP stack_sp = thread.GetStackFrameAtIndex(0);
   if (!stack_sp)
-    return new_thread_plan_sp;
+    return nullptr;
 
   SymbolContext sc = stack_sp->GetSymbolContext(eSymbolContextEverything);
   Symbol *symbol = sc.symbol;
 
   if (!symbol)
-    return new_thread_plan_sp;
+    return nullptr;
 
   // Only do this if you are at the beginning of the thunk function:
   lldb::addr_t cur_addr = thread.GetRegisterContext()->GetPC();
@@ -461,23 +532,22 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
       symbol->GetAddress().GetLoadAddress(&thread.GetProcess()->GetTarget());
 
   if (symbol_addr != cur_addr)
-    return new_thread_plan_sp;
+    return nullptr;
 
-  Address target_address;
-  const char *symbol_name = symbol->GetMangled().GetMangledName().AsCString();
+  Mangled &mangled_symbol_name = symbol->GetMangled();
+  const char *symbol_name =
+      mangled_symbol_name.GetMangledName().AsCString(nullptr);
+
+  if (ThreadPlanSP thread_plan = CreateRunThroughTaskSwitchingTrampolines(
+          thread, mangled_symbol_name.GetDemangledName()))
+    return thread_plan;
 
   ThunkKind thunk_kind = GetThunkKind(symbol);
   ThunkAction thunk_action = GetThunkAction(thunk_kind);
 
   switch (thunk_action) {
   case ThunkAction::Unknown:
-    return new_thread_plan_sp;
-  case ThunkAction::AsyncStepIn: {
-    if (ThreadPlanStepInAsync::NeedsStep(sc)) {
-      new_thread_plan_sp.reset(new ThreadPlanStepInAsync(thread, sc));
-    }
-    return new_thread_plan_sp;
-  }
+    return nullptr;
   case ThunkAction::GetThunkTarget: {
     swift::Demangle::Context demangle_ctx;
     std::string thunk_target = demangle_ctx.getThunkTarget(symbol_name);
@@ -486,25 +556,39 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
         log->Printf("Stepped to thunk \"%s\" (kind: %s) but could not "
                     "find the thunk target. ",
                     symbol_name, GetThunkKindName(thunk_kind));
-      return new_thread_plan_sp;
+      return nullptr;
     }
     if (log)
       log->Printf(
           "Stepped to thunk \"%s\" (kind: %s) stepping to target: \"%s\".",
           symbol_name, GetThunkKindName(thunk_kind), thunk_target.c_str());
-
-    ModuleList modules = thread.GetProcess()->GetTarget().GetImages();
-    SymbolContextList sc_list;
-    modules.FindFunctionSymbols(ConstString(thunk_target),
-                                eFunctionNameTypeFull, sc_list);
-    if (sc_list.GetSize() == 1) {
-      SymbolContext sc;
-      sc_list.GetContextAtIndex(0, sc);
-
-      if (sc.symbol)
-        target_address = sc.symbol->GetAddress();
+    return CreateRunToAddressPlan(thunk_target, thread, stop_others);
+  }
+  case ThunkAction::RunToObjcCInteropCtor: {
+    static constexpr auto class_path = {
+        Node::Kind::Constructor, Node::Kind::Class, Node::Kind::Identifier};
+    std::string class_name = FindClassName(symbol_name, class_path);
+    if (class_name.empty()) {
+      LLDB_LOGF(log,
+                "SwiftLanguageRuntime: could not derive class name from symbol "
+                "\"%s\".",
+                symbol_name);
+      return nullptr;
     }
-  } break;
+    std::string ctor_name = llvm::formatv("{0} init", class_name);
+    LLDB_LOGF(log,
+              "SwiftLanguageRuntime: running to objective C constructor \"%s\" "
+              "from swift.",
+              ctor_name.c_str());
+
+    SymbolContextList sc_list;
+    ModuleFunctionSearchOptions options{/*include_symbols*/ true,
+                                        /*include_inlines*/ true};
+    ModuleList modules = thread.GetProcess()->GetTarget().GetImages();
+    modules.FindFunctions(RegularExpression(ctor_name), options, sc_list);
+
+    return CreateThreadPlanRunToSCInList(thread, sc_list, stop_others);
+  }
   case ThunkAction::StepIntoConformance: {
     // The TTW symbols encode the protocol conformance requirements
     // and it is possible to go to the AST and get it to replay the
@@ -516,7 +600,7 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
     // of the function this protocol thunk is preparing to call, then
     // step into through the thunk, stopping if I end up in a frame
     // with that function name.
-    Context ctx;
+    swift::Demangle::Context ctx;
     auto *demangled_nodes =
         SwiftLanguageRuntime::DemangleSymbolAsNode(symbol_name, ctx);
 
@@ -538,7 +622,7 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
                     "find the ProtocolWitness node in the demangled "
                     "nodes.",
                     symbol_name);
-      return new_thread_plan_sp;
+      return nullptr;
     }
 
     size_t num_children = witness_node->getNumChildren();
@@ -547,7 +631,7 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
         log->Printf("Stepped into witness thunk \"%s\" but the "
                     "ProtocolWitness node doesn't have enough nodes.",
                     symbol_name);
-      return new_thread_plan_sp;
+      return nullptr;
     }
 
     swift::Demangle::NodePointer function_node = witness_node->getChild(1);
@@ -557,7 +641,7 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
         log->Printf("Stepped into witness thunk \"%s\" but could not "
                     "find the function in the ProtocolWitness node.",
                     symbol_name);
-      return new_thread_plan_sp;
+      return nullptr;
     }
 
     // Okay, now find the name of this function.
@@ -576,7 +660,7 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
         log->Printf("Stepped into witness thunk \"%s\" but could not "
                     "find the Function name in the function node.",
                     symbol_name);
-      return new_thread_plan_sp;
+      return nullptr;
     }
 
     std::string function_name(name_node->getText());
@@ -585,38 +669,47 @@ static lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
         log->Printf("Stepped into witness thunk \"%s\" but the Function "
                     "name was empty.",
                     symbol_name);
-      return new_thread_plan_sp;
+      return nullptr;
     }
 
     // We have to get the address range of the thunk symbol, and make a
     // "step through range stepping in"
     AddressRange sym_addr_range(sc.symbol->GetAddress(),
                                 sc.symbol->GetByteSize());
-    new_thread_plan_sp.reset(new ThreadPlanStepInRange(
+    return std::make_shared<ThreadPlanStepInRange>(
         thread, sym_addr_range, sc, function_name.c_str(), eOnlyDuringStepping,
-        eLazyBoolNo, eLazyBoolNo));
-    return new_thread_plan_sp;
+        eLazyBoolNo, eLazyBoolNo);
+  }
+  case ThunkAction::StepIntoAllocatingInit: {
+    LLDB_LOGF(log, "Stepping into allocating init: \"%s\"", symbol_name);
+    using Kind = Node::Kind;
+    static constexpr auto class_path = {Kind::Allocator, Kind::Class,
+                                        Kind::Identifier};
+    std::string class_name = FindClassName(symbol_name, class_path);
+    if (class_name.empty())
+      return nullptr;
 
-  } break;
+    ModuleFunctionSearchOptions options{/*include_symbols*/ true,
+                                        /*include_inlines*/ true};
+    std::string ctor_name = llvm::formatv("{0}.init", class_name);
+    SymbolContextList sc_list;
+    sc.module_sp->FindFunctions(RegularExpression(ctor_name), options, sc_list);
+    return CreateThreadPlanRunToSCInList(thread, sc_list, stop_others);
+  }
   case ThunkAction::StepThrough: {
     if (log)
       log->Printf("Stepping through thunk: %s kind: %s", symbol_name,
                   GetThunkKindName(thunk_kind));
     AddressRange sym_addr_range(sc.symbol->GetAddress(),
                                 sc.symbol->GetByteSize());
-    new_thread_plan_sp.reset(new ThreadPlanStepInRange(
+    ThreadPlanSP new_plan_sp = std::make_shared<ThreadPlanStepInRange>(
         thread, sym_addr_range, sc, nullptr, eOnlyDuringStepping, eLazyBoolNo,
-        eLazyBoolNo));
-    return new_thread_plan_sp;
-  } break;
+        eLazyBoolNo);
+    return new_plan_sp;
+  }
   }
 
-  if (target_address.IsValid()) {
-    new_thread_plan_sp.reset(
-        new ThreadPlanRunToAddress(thread, target_address, stop_others));
-  }
-
-  return new_thread_plan_sp;
+  return nullptr;
 }
 
 bool SwiftLanguageRuntime::IsSymbolARuntimeThunk(const Symbol &symbol) {
@@ -625,7 +718,15 @@ bool SwiftLanguageRuntime::IsSymbolARuntimeThunk(const Symbol &symbol) {
   if (symbol_name.empty())
     return false;
   swift::Demangle::Context demangle_ctx;
-  return demangle_ctx.isThunkSymbol(symbol_name);
+  if (demangle_ctx.isThunkSymbol(symbol_name))
+    return true;
+
+  // These are not Thunks in the sense that they don't jump to *user* code.
+  // But they are language symbols that should be identified as something to act
+  // on; here, the default action of stepping out is appropriate.
+  Node *node = demangle_ctx.demangleSymbolAsNode(symbol_name);
+  return node && node->getKind() == Node::Kind::Global &&
+         hasChild(node, Node::Kind::TypeMetadataAccessFunction);
 }
 
 bool SwiftLanguageRuntime::IsSwiftMangledName(llvm::StringRef name) {
@@ -635,15 +736,17 @@ bool SwiftLanguageRuntime::IsSwiftMangledName(llvm::StringRef name) {
   // ObjC classes and protocols. Classes are prefixed with either "_TtC" or
   // "_TtGC" (generic classes). Protocols are prefixed with "_TtP". Other "_T"
   // prefixed symbols are not considered to be Swift symbols.
-  if (name.startswith("_T"))
-    return name.startswith("_TtC") || name.startswith("_TtGC") ||
-           name.startswith("_TtP");
+  if (name.starts_with("_T"))
+    return name.starts_with("_TtC") || name.starts_with("_TtGC") ||
+           name.starts_with("_TtP");
   return swift::Demangle::isSwiftSymbol(name);
 }
 
 void SwiftLanguageRuntime::GetGenericParameterNamesForFunction(
     const SymbolContext &const_sc, const ExecutionContext *exe_ctx,
-    llvm::DenseMap<SwiftLanguageRuntime::ArchetypePath, StringRef> &dict) {
+    swift::Mangle::ManglingFlavor flavor,
+    llvm::DenseMap<SwiftLanguageRuntime::ArchetypePath, llvm::StringRef>
+        &dict) {
   // This terrifying cast avoids having too many differences with llvm.org.
   SymbolContext &sc = const_cast<SymbolContext &>(const_sc);
 
@@ -664,7 +767,7 @@ void SwiftLanguageRuntime::GetGenericParameterNamesForFunction(
 
   for (unsigned i = 0; i < var_list->GetSize(); ++i) {
     VariableSP var_sp = var_list->GetVariableAtIndex(i);
-    StringRef name = var_sp->GetName().GetStringRef();
+    llvm::StringRef name = var_sp->GetName().GetStringRef();
     if (!name.consume_front(g_dollar_tau_underscore))
       continue;
 
@@ -702,10 +805,17 @@ void SwiftLanguageRuntime::GetGenericParameterNamesForFunction(
           llvm::dyn_cast_or_null<TypeSystemSwift>(type_system_or_err->get());
       if (!ts)
         break;
-      CompilerType generic_type = ts->CreateGenericTypeParamType(depth, index);
-      CompilerType bound_type =
+      CompilerType generic_type =
+          ts->CreateGenericTypeParamType(depth, index, flavor);
+      llvm::Expected<CompilerType> bound_type_or_err =
           runtime->BindGenericTypeParameters(*frame, generic_type);
-      type_name = bound_type.GetDisplayTypeName();
+      if (!bound_type_or_err) {
+        LLDB_LOG_ERROR(GetLog(LLDBLog::Expressions | LLDBLog::Types),
+                       bound_type_or_err.takeError(), "{0}");
+        break;
+      }
+
+      type_name = bound_type_or_err->GetDisplayTypeName();
       break;
     }
 
@@ -720,11 +830,13 @@ void SwiftLanguageRuntime::GetGenericParameterNamesForFunction(
   }
 }
 
-std::string SwiftLanguageRuntime::DemangleSymbolAsString(
-    StringRef symbol, DemangleMode mode, const SymbolContext *sc,
-    const ExecutionContext *exe_ctx) {
+std::pair<std::string, std::optional<DemangledNameInfo>>
+SwiftLanguageRuntime::DemangleSymbolAsString(llvm::StringRef symbol,
+                                             DemangleMode mode, bool tracking,
+                                             const SymbolContext *sc,
+                                             const ExecutionContext *exe_ctx) {
   bool did_init = false;
-  llvm::DenseMap<ArchetypePath, StringRef> dict;
+  llvm::DenseMap<ArchetypePath, llvm::StringRef> dict;
   swift::Demangle::DemangleOptions options;
   switch (mode) {
   case eSimplified:
@@ -756,7 +868,9 @@ std::string SwiftLanguageRuntime::DemangleSymbolAsString(
     // Resolve generic parameters in the current function.
     options.GenericParameterName = [&](uint64_t depth, uint64_t index) {
       if (!did_init) {
-        GetGenericParameterNamesForFunction(*sc, exe_ctx, dict);
+        GetGenericParameterNamesForFunction(
+            *sc, exe_ctx, SwiftLanguageRuntime::GetManglingFlavor(symbol),
+            dict);
         did_init = true;
       }
       auto it = dict.find({depth, index});
@@ -765,7 +879,7 @@ std::string SwiftLanguageRuntime::DemangleSymbolAsString(
       return swift::Demangle::genericParameterName(depth, index);
     };
   } else {
-    // Print generic generic parameter names.
+    // Print generic parameter names.
     options.GenericParameterName = [&](uint64_t depth, uint64_t index) {
       std::string name;
       {
@@ -775,7 +889,29 @@ std::string SwiftLanguageRuntime::DemangleSymbolAsString(
       return name;
     };
   }
-  return swift::Demangle::demangleSymbolAsString(symbol, options);
+  if (tracking) {
+    TrackingNodePrinter printer = TrackingNodePrinter(options);
+    swift::Demangle::demangleSymbolAsString(symbol, printer);
+    return std::pair<std::string, std::optional<DemangledNameInfo>>(
+        printer.takeString(), printer.takeInfo());
+  }
+  return std::pair<std::string, std::optional<DemangledNameInfo>>(
+      swift::Demangle::demangleSymbolAsString(symbol, options), std::nullopt);
+}
+
+std::string SwiftLanguageRuntime::DemangleSymbolAsString(
+    llvm::StringRef symbol, DemangleMode mode, const SymbolContext *sc,
+    const ExecutionContext *exe_ctx) {
+  return DemangleSymbolAsString(symbol, mode, false, sc, exe_ctx).first;
+}
+
+std::pair<std::string, DemangledNameInfo>
+SwiftLanguageRuntime::TrackedDemangleSymbolAsString(
+    llvm::StringRef symbol, DemangleMode mode, const SymbolContext *sc,
+    const ExecutionContext *exe_ctx) {
+  auto demangledData = DemangleSymbolAsString(symbol, mode, true, sc, exe_ctx);
+  return std::pair<std::string, DemangledNameInfo>(demangledData.first,
+                                                   *demangledData.second);
 }
 
 swift::Demangle::NodePointer
@@ -933,6 +1069,11 @@ static bool ParseGlobal(const swift::Demangle::NodePointer &node,
   for (swift::Demangle::Node::iterator pos = node->begin(); pos != end; ++pos) {
     swift::Demangle::NodePointer child = *pos;
     if (child) {
+      // Peel off static node.
+      if (child->getKind() == swift::Demangle::Node::Kind::Static &&
+          child->hasChildren())
+        child = child->getFirstChild();
+
       kind = child->getKind();
       switch (child->getKind()) {
       case swift::Demangle::Node::Kind::Allocator:
@@ -990,7 +1131,7 @@ bool SwiftLanguageRuntime::MethodName::ExtractFunctionBasenameFromMangled(
       // have to demangle the whole name to figure this out anyway.
       // I'm leaving the test here in case we actually need to do this
       // only to functions.
-      Context ctx;
+      swift::Demangle::Context ctx;
       auto *node = SwiftLanguageRuntime::DemangleSymbolAsNode(mangled_ref, ctx);
       StreamString identifier;
       if (node) {
@@ -1079,13 +1220,13 @@ void SwiftLanguageRuntime::MethodName::Parse() {
       if (was_operator)
         m_type = eTypeOperator;
       // check for obvious constructor/destructor cases
-      else if (m_basename.equals("__deallocating_destructor"))
+      else if (m_basename == "__deallocating_destructor")
         m_type = eTypeDeallocator;
-      else if (m_basename.equals("__allocating_constructor"))
+      else if (m_basename == "__allocating_constructor")
         m_type = eTypeAllocator;
-      else if (m_basename.equals("init"))
+      else if (m_basename == "init")
         m_type = eTypeConstructor;
-      else if (m_basename.equals("destructor"))
+      else if (m_basename == "destructor")
         m_type = eTypeDestructor;
       else
         m_type = eTypeUnknownMethod;
@@ -1221,13 +1362,14 @@ SwiftLanguageRuntime::GetStepThroughTrampolinePlan(Thread &thread,
 }
 
 std::optional<SwiftLanguageRuntime::GenericSignature>
-SwiftLanguageRuntime::GetGenericSignature(StringRef function_name,
+SwiftLanguageRuntime::GetGenericSignature(llvm::StringRef function_name,
                                           TypeSystemSwiftTypeRef &ts) {
   GenericSignature signature;
   unsigned num_generic_params = 0;
 
+  auto flavor = SwiftLanguageRuntime::GetManglingFlavor(function_name);
   // Walk to the function type.
-  Context ctx;
+  swift::Demangle::Context ctx;
   auto *node = SwiftLanguageRuntime::DemangleSymbolAsNode(function_name, ctx);
   if (!node)
     return {};
@@ -1306,7 +1448,7 @@ SwiftLanguageRuntime::GetGenericSignature(StringRef function_name,
   bool error = false;
   // For each pack_expansion...
   swift::Demangle::NodePointer type_node = nullptr;
-  TypeSystemSwiftTypeRef::PreOrderTraversal(
+  llvm::cantFail(TypeSystemSwiftTypeRef::PreOrderTraversal(
       node, [&](swift::Demangle::NodePointer node) {
         if (node->getKind() == swift::Demangle::Node::Kind::PackExpansion) {
           if (node->getNumChildren() != 2) {
@@ -1334,17 +1476,17 @@ SwiftLanguageRuntime::GetGenericSignature(StringRef function_name,
 
           // Store the various type packs.
           swift::Demangle::Demangler dem;
-          auto mangling = swift::Demangle::mangleNode(type_node);
+          auto mangling = swift::Demangle::mangleNode(type_node, flavor);
           if (mangling.isSuccess())
             signature.pack_expansions.back().mangled_type =
-                ts.RemangleAsType(dem, type_node).GetMangledTypeName();
+                ts.RemangleAsType(dem, type_node, flavor).GetMangledTypeName();
 
           // Assuming that there are no nested pack_expansions.
           return false;
         }
         type_node = node;
         return true;
-      });
+      }));
 
   if (error)
     return {};
@@ -1400,4 +1542,102 @@ SwiftLanguageRuntime::GetGenericSignature(StringRef function_name,
   return signature;
 }
 
+/// Returns true if a function called `symbol_name` exists in `module`.
+static bool SymbolExists(StringRef symbol_name, Module &module) {
+  SymbolContextList sc_list;
+  auto lookup_infos = Module::LookupInfo::MakeLookupInfos(
+      ConstString(symbol_name), lldb::FunctionNameType::eFunctionNameTypeFull,
+      lldb::eLanguageTypeSwift);
+  module.FindFunctions(lookup_infos, CompilerDeclContext(),
+                       ModuleFunctionSearchOptions(), sc_list);
+  return !sc_list.IsEmpty();
+}
+
+/// There are two possible variants of constructors: allocating
+/// (Kind::Allocator) and initializing (Kind::Constructor). When mangling a
+/// closure, the "context" is arbitrarily chosen to be the Kind::Constructor
+/// variant. This function checks for the existence of the Kind::Constructor,
+/// given by the symbol `ctor_kind_mangled_name` in the module. If it exists,
+/// `ctor_kind_mangled_name` is returned. Otherwise, creates and returns the
+/// symbol name for the `Kind::Allocating` variant.
+static std::string
+HandleCtorAndAllocatorVariants(StringRef ctor_kind_mangled_name, Module &module,
+                               Node &top_level_node, Node &ctor_node) {
+  if (SymbolExists(ctor_kind_mangled_name, module))
+    return ctor_kind_mangled_name.str();
+
+  using Kind = Node::Kind;
+  NodeFactory factory;
+
+  // Create a kind::Allocator node with all the children of the
+  // kind::Constructor node.
+  Node *allocating_ctor = factory.createNode(Kind::Allocator);
+  if (!allocating_ctor)
+    return "";
+  for (auto *child : ctor_node)
+    allocating_ctor->addChild(child, factory);
+  swift_demangle::ReplaceChildWith(top_level_node, ctor_node, *allocating_ctor);
+
+  if (auto mangled = swift::Demangle::mangleNode(&top_level_node);
+      mangled.isSuccess())
+    return std::move(mangled.result());
+  return "";
+}
+
+std::string SwiftLanguageRuntime::GetParentNameIfClosure(Function &func) {
+  using Kind = Node::Kind;
+  swift::Demangle::Context ctx;
+  ConstString name = func.GetMangled().GetMangledName();
+  auto *node = SwiftLanguageRuntime::DemangleSymbolAsNode(name, ctx);
+  if (!node || node->getKind() != Node::Kind::Global)
+    return "";
+
+  // Replace the top level closure node with the child function-like node, and
+  // attempt to remangle. If successful, this produces the parent function-like
+  // entity.
+  static const auto closure_kinds = {Kind::ImplicitClosure,
+                                     Kind::ExplicitClosure};
+  static const auto function_kinds = {
+      Kind::ImplicitClosure, Kind::ExplicitClosure, Kind::Function,
+      Kind::Constructor,     Kind::Static,          Kind::Getter,
+      Kind::Setter,          Kind::DidSet};
+  auto *closure_node = swift_demangle::GetFirstChildOfKind(node, closure_kinds);
+  auto *parent_func_node =
+      swift_demangle::GetFirstChildOfKind(closure_node, function_kinds);
+  if (!parent_func_node)
+    return "";
+
+  NodeFactory factory;
+  Node *new_global = factory.createNode(Kind::Global);
+  if (!new_global)
+    return "";
+  // For a given function-like node, async information is a sibling - not a
+  // child - of the node in the demangling tree. Bring that over as well.
+  // Don't bring all children, however, as the closure number of `closure_node`
+  // is also a child of `closure_node`, i.e., it is not related to
+  // `parent_func_node`.
+  //
+  // node (Global)
+  // |
+  // |- closure_node
+  //    |- parent_func_node (any function_kind)
+  //    |- async info for parent_func_node
+  //    |- closure number for closure_node
+  for (auto *child : *closure_node)
+    if (child->getKind() == Kind::AsyncAwaitResumePartialFunction ||
+        child->getKind() == Kind::AsyncSuspendResumePartialFunction)
+      new_global->addChild(child, factory);
+  new_global->addChild(parent_func_node, factory);
+
+  ManglingErrorOr<std::string> mangled =
+      swift::Demangle::mangleNode(new_global);
+  if (!mangled.isSuccess())
+    return "";
+
+  if (parent_func_node->getKind() == Kind::Constructor)
+    if (Module *module = func.CalculateSymbolContextModule().get())
+      return HandleCtorAndAllocatorVariants(mangled.result(), *module,
+                                            *new_global, *parent_func_node);
+  return mangled.result();
+}
 } // namespace lldb_private

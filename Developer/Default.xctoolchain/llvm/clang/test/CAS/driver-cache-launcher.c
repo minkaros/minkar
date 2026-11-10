@@ -24,10 +24,6 @@
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=INCLUDE-TREE -DPREFIX=%t
 // INCLUDE-TREE: "-cc1depscan" "-fdepscan=auto"
-// INCLUDE-TREE: "-fdepscan-include-tree"
-
-// RUN: env LLVM_CACHE_CAS_PATH=%t/cas CLANG_CACHE_USE_CASFS_DEPSCAN=1 %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=CASFS-SCAN -DPREFIX=%t
-// CASFS-SCAN-NOT: "-fdepscan-include-tree"
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas cache-build-session %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=SESSION -DPREFIX=%t
 // SESSION: "-cc1depscan" "-fdepscan=daemon" "-fdepscan-share-identifier"
@@ -38,39 +34,53 @@
 // SPECIFIC-DAEMON-NOT: "-fdepscan-share-identifier"
 // SPECIFIC-DAEMON: "-cc1depscan" "-fdepscan=daemon" "-fdepscan-daemon=[[PREFIX]]/scand"
 
-// RUN: env LLVM_CACHE_CAS_PATH=%t/cas LLVM_CACHE_PLUGIN_PATH=%t/plugin LLVM_CACHE_PLUGIN_OPTIONS=some-opt=value:opt2=val2 \
+// RUN: env LLVM_CACHE_CAS_PATH=%t/cas LLVM_CACHE_PLUGIN_PATH=%t/plugin LLVM_CACHE_PLUGIN_OPTIONS=some-opt=value:opt2=val2 LLVM_CACHE_REMOTE_SERVICE_SOCKET_PATH=%t/ccremote \
 // RUN:   %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=PLUGIN -DPREFIX=%t
 // PLUGIN: "-fcas-path" "[[PREFIX]]/cas"
 // PLUGIN: "-fcas-plugin-path" "[[PREFIX]]/plugin"
 // PLUGIN: "-fcas-plugin-option" "some-opt=value"
 // PLUGIN: "-fcas-plugin-option" "opt2=val2"
+// PLUGIN: "-fcas-plugin-option" "remote-service-path=[[PREFIX]]/ccremote"
+// PLUGIN-NOT: "-fcompilation-caching-service-path"
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=ENABLE-MCCAS -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=ENABLE-MCCAS -DPREFIX=%t
 // ENABLE-MCCAS: "-fcas-path" "[[PREFIX]]/cas"
 // ENABLE-MCCAS: "-fcas-backend"
 // ENABLE-MCCAS: "-mllvm"
 // ENABLE-MCCAS: "-cas-friendly-debug-info"
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas CLANG_CACHE_VERIFY_MCCAS=1 \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=ENABLE-MCCAS-VERIFY -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=ENABLE-MCCAS-VERIFY -DPREFIX=%t
 // ENABLE-MCCAS-VERIFY: "-fcas-path" "[[PREFIX]]/cas"
 // ENABLE-MCCAS-VERIFY: "-fcas-backend"
 // ENABLE-MCCAS-VERIFY: "-fcas-backend-mode=verify"
 // ENABLE-MCCAS-VERIFY: "-mllvm"
 // ENABLE-MCCAS-VERIFY: "-cas-friendly-debug-info"
 
+// ELF/COFF platforms do not support mccas.
+// RUN: env LLVM_CACHE_CAS_PATH=%t/cas \
+// RUN: %clang-cache %clang -target x86_64-unknown-linux-gnu -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+
+// RUN: env LLVM_CACHE_CAS_PATH=%t/cas \
+// RUN: %clang-cache %clang -target x86_64-unknown-windows-msvc -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+
+// Forcing mccas gives an error on ELF/COFF.
+// RUN: env LLVM_CACHE_CAS_PATH=%t/cas \
+// RUN: not %clang -target x86_64-unknown-linux-gnu -Xclang -fcas-backend -c %s -o %t.o 2>&1 | FileCheck %s -check-prefix=MCCAS_NOT_ALLOWED
+// MCCAS_NOT_ALLOWED: error: -fcas-backend is incompatible with target 'x86_64-unknown-linux-gnu'; requires mach-o object format
+
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas CLANG_CACHE_DISABLE_MCCAS=1 \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas LLVM_CACHE_REMOTE_SERVICE_SOCKET_PATH=%t/ccremote \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas LLVM_CACHE_REMOTE_SERVICE_SOCKET_PATH=%t/ccremote CLANG_CACHE_DISABLE_MCCAS=1 \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
 
 // RUN: env LLVM_CACHE_CAS_PATH=%t/cas LLVM_CACHE_REMOTE_SERVICE_SOCKET_PATH=%t/ccremote CLANG_CACHE_DISABLE_MCCAS=1 CLANG_CACHE_VERIFY_MCCAS=1 \
-// RUN: %clang-cache %clang -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
+// RUN: %clang-cache %clang -target x86_64-apple-darwin10 -c %s -o %t.o -### 2>&1 | FileCheck %s -check-prefix=DISABLE-MCCAS -DPREFIX=%t
 
 // DISABLE-MCCAS-NOT: "-fcas-backend"
 // DISABLE-MCCAS-NOT: "-fcas-backend-mode=verify"
@@ -98,15 +108,15 @@
 // SESSION-CMAKE-PREFIX: note: setting LLVM_CACHE_BUILD_SESSION_ID=
 
 // CLANG-CMAKE-PREFIX: "-cc1depscan" "-fdepscan=daemon" "-fdepscan-share-identifier"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=[[INPUTS]]/SDK=/^sdk"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=[[INPUTS]]/toolchain_dir=/^toolchain"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/build=/^build"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/llvm=/^src"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/clang=/^src-clang"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/clang-tools-extra=/^src-clang-tools-extra"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/third-party/benchmark=/^src-benchmark"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/other/benchmark=/^src-benchmark-1"
-// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map=/llvm/llvm-project/another/benchmark=/^src-benchmark-2"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "[[INPUTS]]/SDK" "/^sdk"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "[[INPUTS]]/toolchain_dir" "/^toolchain"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/build" "/^build"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/llvm" "/^src"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/clang" "/^src-clang"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/clang-tools-extra" "/^src-clang-tools-extra"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/third-party/benchmark" "/^src-benchmark"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/other/benchmark" "/^src-benchmark-1"
+// CLANG-CMAKE-PREFIX: "-fdepscan-prefix-map" "/llvm/llvm-project/another/benchmark" "/^src-benchmark-2"
 
 // Make sure `cache-build-session` can invoke an executable script.
 // RUN: cache-build-session %t/clang -c %s -o %t.o 2>&1 | FileCheck %s -check-prefix=SESSION-SCRIPT -DSRC=%s -DPREFIX=%t

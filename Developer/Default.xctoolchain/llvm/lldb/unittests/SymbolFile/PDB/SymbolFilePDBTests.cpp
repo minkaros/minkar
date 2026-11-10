@@ -102,7 +102,7 @@ protected:
     EXPECT_EQ(line, entry.line);
     EXPECT_EQ(address, entry.range.GetBaseAddress());
 
-    EXPECT_TRUE(FileSpecMatchesAsBaseOrFull(spec, entry.file));
+    EXPECT_TRUE(FileSpecMatchesAsBaseOrFull(spec, entry.GetFile()));
   }
 
   bool ContainsCompileUnit(const SymbolContextList &sc_list,
@@ -371,7 +371,7 @@ TEST_F(SymbolFilePDBTests, TestSimpleClassTypes) {
   CompilerType compiler_type = udt_type->GetForwardCompilerType();
   EXPECT_TRUE(TypeSystemClang::IsClassType(compiler_type.GetOpaqueQualType()));
   EXPECT_EQ(GetGlobalConstantInteger(session, "sizeof_Class"),
-            udt_type->GetByteSize(nullptr));
+            llvm::expectedToOptional(udt_type->GetByteSize(nullptr)));
 }
 
 TEST_F(SymbolFilePDBTests, TestNestedClassTypes) {
@@ -382,7 +382,6 @@ TEST_F(SymbolFilePDBTests, TestNestedClassTypes) {
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(module->GetSymbolFile());
   llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
-  TypeMap results;
 
   auto clang_ast_ctx_or_err =
       symfile->GetTypeSystemForLanguage(lldb::eLanguageTypeC_plus_plus);
@@ -428,7 +427,7 @@ TEST_F(SymbolFilePDBTests, TestNestedClassTypes) {
   EXPECT_TRUE(TypeSystemClang::IsClassType(compiler_type.GetOpaqueQualType()));
 
   EXPECT_EQ(GetGlobalConstantInteger(session, "sizeof_NestedClass"),
-            udt_type->GetByteSize(nullptr));
+            llvm::expectedToOptional(udt_type->GetByteSize(nullptr)));
 }
 
 TEST_F(SymbolFilePDBTests, TestClassInNamespace) {
@@ -472,7 +471,7 @@ TEST_F(SymbolFilePDBTests, TestClassInNamespace) {
   EXPECT_TRUE(TypeSystemClang::IsClassType(compiler_type.GetOpaqueQualType()));
 
   EXPECT_EQ(GetGlobalConstantInteger(session, "sizeof_NSClass"),
-            udt_type->GetByteSize(nullptr));
+            llvm::expectedToOptional(udt_type->GetByteSize(nullptr)));
 }
 
 TEST_F(SymbolFilePDBTests, TestEnumTypes) {
@@ -502,7 +501,7 @@ TEST_F(SymbolFilePDBTests, TestEnumTypes) {
     std::string sizeof_var = "sizeof_";
     sizeof_var.append(Enum);
     EXPECT_EQ(GetGlobalConstantInteger(session, sizeof_var),
-              enum_type->GetByteSize(nullptr));
+              llvm::expectedToOptional(enum_type->GetByteSize(nullptr)));
   }
 }
 
@@ -528,7 +527,6 @@ TEST_F(SymbolFilePDBTests, TestTypedefs) {
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(module->GetSymbolFile());
   llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
-  TypeMap results;
 
   const char *TypedefsToCheck[] = {"ClassTypedef", "NSClassTypedef",
                                    "FuncPointerTypedef",
@@ -549,7 +547,7 @@ TEST_F(SymbolFilePDBTests, TestTypedefs) {
     std::string sizeof_var = "sizeof_";
     sizeof_var.append(Typedef);
     EXPECT_EQ(GetGlobalConstantInteger(session, sizeof_var),
-              typedef_type->GetByteSize(nullptr));
+              llvm::expectedToOptional(typedef_type->GetByteSize(nullptr)));
   }
 }
 
@@ -580,15 +578,15 @@ TEST_F(SymbolFilePDBTests, TestMaxMatches) {
       static_cast<SymbolFilePDB *>(module->GetSymbolFile());
 
   // Make a type query object we can use for all types and for one type
-  TypeQuery query("ClassTypedef");
+  TypeQuery query("NestedClass");
   {
     // Find all types that match
     TypeResults query_results;
     symfile->FindTypes(query, query_results);
     TypeMap &results = query_results.GetTypeMap();
-    EXPECT_GT(results.GetSize(), 1u);
+    // We expect to find Class::NestedClass and ClassTypedef::NestedClass.
+    EXPECT_EQ(results.GetSize(), 2u);
   }
-
   {
     // Find a single type that matches
     query.SetFindOne(true);
@@ -625,6 +623,7 @@ TEST_F(SymbolFilePDBTests, TestFindSymbolsWithNameAndType) {
 
   SymbolContext sc;
   EXPECT_TRUE(sc_list.GetContextAtIndex(0, sc));
-  EXPECT_STREQ("int foo(int)",
-               sc.GetFunctionName(Mangled::ePreferDemangled).AsCString());
+  EXPECT_STREQ(
+      "int foo(int)",
+      sc.GetFunctionName(Mangled::ePreferDemangled).AsCString(nullptr));
 }

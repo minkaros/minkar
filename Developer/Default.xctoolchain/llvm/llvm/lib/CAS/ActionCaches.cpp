@@ -10,6 +10,7 @@
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/HashMappedTrie.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/CAS/OnDiskCASLogger.h"
 #include "llvm/CAS/OnDiskGraphDB.h"
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
 #include "llvm/CAS/OnDiskKeyValueDB.h"
@@ -17,6 +18,7 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/BLAKE3.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Path.h"
 
 #define DEBUG_TYPE "action-caches"
@@ -50,6 +52,10 @@ public:
   Expected<std::optional<CASID>> getImpl(ArrayRef<uint8_t> ActionKey,
                                          bool Globally) const final;
 
+  Error validate() const final {
+    return createStringError("InMemoryActionCache doesn't support validate()");
+  }
+
 private:
   using DataT = CacheEntry<sizeof(HashType)>;
   using InMemoryCacheT = ThreadSafeHashMappedTrie<DataT, sizeof(HashType)>;
@@ -65,6 +71,8 @@ public:
                                          bool Globally) const final;
 
   static Expected<std::unique_ptr<OnDiskActionCache>> create(StringRef Path);
+
+  Error validate() const final;
 
 private:
   static StringRef getHashName() { return "BLAKE3"; }
@@ -83,6 +91,8 @@ public:
                                          bool Globally) const final;
 
   UnifiedOnDiskActionCache(std::shared_ptr<ondisk::UnifiedOnDiskCache> UniDB);
+
+  Error validate() const final;
 
 private:
   std::shared_ptr<ondisk::UnifiedOnDiskCache> UniDB;
@@ -156,10 +166,14 @@ OnDiskActionCache::OnDiskActionCache(
 
 Expected<std::unique_ptr<OnDiskActionCache>>
 OnDiskActionCache::create(StringRef AbsPath) {
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger;
+  if (Error E =
+          ondisk::OnDiskCASLogger::openIfEnabled(AbsPath).moveInto(Logger))
+    return std::move(E);
   std::unique_ptr<ondisk::OnDiskKeyValueDB> DB;
   if (Error E = ondisk::OnDiskKeyValueDB::open(AbsPath, getHashName(),
                                                sizeof(HashType), getHashName(),
-                                               sizeof(DataT))
+                                               sizeof(DataT), std::move(Logger))
                     .moveInto(DB))
     return std::move(E);
   return std::unique_ptr<OnDiskActionCache>(
@@ -192,6 +206,12 @@ Error OnDiskActionCache::putImpl(ArrayRef<uint8_t> Key, const CASID &Result,
       ArrayRef((const uint8_t *)Observed.data(), Observed.size()));
 }
 
+Error OnDiskActionCache::validate() const {
+  // FIXME: without the matching CAS there is nothing we can check about the
+  // cached values. The hash size is already validated by the DB validator.
+  return DB->validate(nullptr);
+}
+
 UnifiedOnDiskActionCache::UnifiedOnDiskActionCache(
     std::shared_ptr<ondisk::UnifiedOnDiskCache> UniDB)
     : ActionCache(builtin::BuiltinCASContext::getDefaultContext()),
@@ -212,18 +232,23 @@ UnifiedOnDiskActionCache::getImpl(ArrayRef<uint8_t> Key,
 Error UnifiedOnDiskActionCache::putImpl(ArrayRef<uint8_t> Key,
                                         const CASID &Result,
                                         bool /*Globally*/) {
-  ondisk::ObjectID Expected =
-      UniDB->getGraphDB().getReference(Result.getHash());
+  auto Expected = UniDB->getGraphDB().getReference(Result.getHash());
+  if (LLVM_UNLIKELY(!Expected))
+    return Expected.takeError();
   std::optional<ondisk::ObjectID> Observed;
-  if (Error E = UniDB->KVPut(Key, Expected).moveInto(Observed))
+  if (Error E = UniDB->KVPut(Key, *Expected).moveInto(Observed))
     return E;
 
-  if (Expected == Observed)
+  if (*Expected == Observed)
     return Error::success();
 
   return createResultCachePoisonedError(
       hashToString(Key), getContext(), Result,
       UniDB->getGraphDB().getDigest(*Observed));
+}
+
+Error UnifiedOnDiskActionCache::validate() const {
+  return UniDB->validateActionCache();
 }
 
 Expected<std::unique_ptr<ActionCache>>

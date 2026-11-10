@@ -26,8 +26,7 @@ namespace parallel {
 class DWARFLinkerImpl : public DWARFLinker {
 public:
   DWARFLinkerImpl(MessageHandlerTy ErrorHandler,
-                  MessageHandlerTy WarningHandler,
-                  TranslatorFuncTy StringsTranslator);
+                  MessageHandlerTy WarningHandler);
 
   /// Add object file to be linked. Pre-load compile unit die. Call
   /// \p OnCUDieLoaded for each compile unit die. If specified \p File
@@ -38,7 +37,8 @@ public:
   void addObjectFile(
       DWARFFile &File, ObjFileLoaderTy Loader = nullptr,
 
-      CompileUnitHandlerTy OnCUDieLoaded = [](const DWARFUnit &) {}) override;
+      CompileUnitHandlerTy OnCUDieLoaded = [](const DWARFUnit &) {},
+      CASLoaderTy CASLoader = nullptr) override;
 
   /// Link debug info for added files.
   Error link() override;
@@ -222,7 +222,7 @@ protected:
     /// hash.
     bool registerModuleReference(const DWARFDie &CUDie, ObjFileLoaderTy Loader,
                                  CompileUnitHandlerTy OnCUDieLoaded,
-                                 unsigned Indent = 0);
+                                 CASLoaderTy CASLoader, unsigned Indent = 0);
 
     /// Recursively add the debug info in this clang module .pcm
     /// file (and all the modules imported by it in a bottom-up fashion)
@@ -230,7 +230,7 @@ protected:
     Error loadClangModule(ObjFileLoaderTy Loader, const DWARFDie &CUDie,
                           const std::string &PCMFile,
                           CompileUnitHandlerTy OnCUDieLoaded,
-                          unsigned Indent = 0);
+                          CASLoaderTy CASLoader, unsigned Indent = 0);
 
     /// Add Compile Unit corresponding to the module.
     void addModulesCompileUnit(RefModuleUnit &&Unit);
@@ -351,6 +351,9 @@ protected:
   /// \defgroup Data members accessed sequentially.
   ///
   /// @{
+  /// Data global for the whole linking process.
+  LinkingGlobalData GlobalData;
+
   /// DwarfStringPoolEntries for .debug_str section.
   StringEntryToDwarfStringPoolEntryMap DebugStrStrings;
 
@@ -368,9 +371,6 @@ protected:
 
   /// Overall compile units number.
   uint64_t OverallNumberOfCU = 0;
-
-  /// Data global for the whole linking process.
-  LinkingGlobalData GlobalData;
   /// @}
 };
 

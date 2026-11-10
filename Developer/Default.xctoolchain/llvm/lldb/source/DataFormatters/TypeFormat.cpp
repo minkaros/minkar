@@ -67,9 +67,13 @@ bool TypeFormatImpl_Format::FormatObject(ValueObject *valobj,
       if (compiler_type) {
         ExecutionContextScope *exe_scope =
             exe_ctx.GetBestExecutionContextScope();
-        auto size = compiler_type.GetByteSize(exe_scope);
-        if (!size)
+        auto size_or_err = compiler_type.GetByteSize(exe_scope);
+        if (!size_or_err) {
+          LLDB_LOG_ERROR(GetLog(LLDBLog::DataFormatters),
+                         size_or_err.takeError(), "{0}");
           return false;
+        }
+        size_t size = *size_or_err;
         // put custom bytes to display in the DataExtractor to override the
         // default value logic
         if (GetFormat() == eFormatCString) {
@@ -85,27 +89,34 @@ bool TypeFormatImpl_Format::FormatObject(ValueObject *valobj,
               Status error;
               WritableDataBufferSP buffer_sp(
                   new DataBufferHeap(max_len + 1, 0));
-              Address address(valobj->GetPointerValue());
-              if (target_sp->ReadCStringFromMemory(
-                      address, (char *)buffer_sp->GetBytes(), max_len, error) &&
-                  error.Success())
+              Address address(valobj->GetPointerValue().address);
+              target_sp->ReadCStringFromMemory(
+                  address, (char *)buffer_sp->GetBytes(), max_len, error);
+              if (error.Success())
                 data.SetData(buffer_sp);
             }
           }
-        } else if (!size || *size > 0) {
+        } else if (size > 0) {
           Status error;
           valobj->GetData(data, error);
           if (error.Fail())
             return false;
         }
 
+        size_or_err = compiler_type.GetByteSize(exe_scope);
+        if (!size_or_err) {
+          LLDB_LOG_ERRORV(
+              GetLog(LLDBLog::Types), size_or_err.takeError(),
+              "Cannot get size of type while formatting object: {0}");
+          return false;
+        }
         StreamString sstr;
         compiler_type.DumpTypeValue(
             &sstr,                          // The stream to use for display
             GetFormat(),                    // Format to display this type with
             data,                           // Data to extract from
             0,                              // Byte offset into "m_data"
-            *size,                          // Byte size of item in "m_data"
+            *size_or_err,                   // Byte size of item in "m_data"
             valobj->GetBitfieldBitSize(),   // Bitfield bit size
             valobj->GetBitfieldBitOffset(), // Bitfield bit offset
             exe_scope,

@@ -7,8 +7,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "BuiltinCAS.h"
+#include "OnDiskCommon.h"
+#include "llvm/ADT/ScopeExit.h"
+#include "llvm/CAS/BuiltinCASContext.h"
+#include "llvm/CAS/BuiltinObjectHasher.h"
+#include "llvm/CAS/OnDiskCASLogger.h"
 #include "llvm/CAS/OnDiskGraphDB.h"
 #include "llvm/CAS/UnifiedOnDiskCache.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
 
 using namespace llvm;
@@ -33,7 +40,12 @@ public:
 
   ArrayRef<char> getDataConst(ObjectHandle Node) const final;
 
+  Expected<ObjectRef> storeFromFile(StringRef Path) final;
+
+  Error exportDataToFile(ObjectHandle Node, StringRef Path) const final;
+
   void print(raw_ostream &OS) const final;
+  Error validate(bool CheckHash) const final;
 
   static Expected<std::unique_ptr<OnDiskCAS>> open(StringRef Path);
 
@@ -83,6 +95,15 @@ private:
 } // end anonymous namespace
 
 void OnDiskCAS::print(raw_ostream &OS) const { DB->print(OS); }
+Error OnDiskCAS::validate(bool CheckHash) const {
+  if (auto E = DB->validate(CheckHash, builtin::hashingFunc))
+    return E;
+  if (UniDB && UniDB->getUpstreamGraphDB())
+    return UniDB->getUpstreamGraphDB()->validate(CheckHash,
+                                                 builtin::hashingFunc);
+
+  return Error::success();
+}
 
 CASID OnDiskCAS::getID(ObjectRef Ref) const {
   ArrayRef<uint8_t> Hash = DB->getDigest(convertRef(Ref));
@@ -98,7 +119,7 @@ std::optional<ObjectRef> OnDiskCAS::getReference(const CASID &ID) const {
 }
 
 Expected<bool> OnDiskCAS::isMaterialized(ObjectRef ExternalRef) const {
-  return DB->containsObject(convertRef(ExternalRef));
+  return DB->isMaterialized(convertRef(ExternalRef));
 }
 
 ArrayRef<char> OnDiskCAS::getDataConst(ObjectHandle Node) const {
@@ -125,10 +146,59 @@ Expected<ObjectRef> OnDiskCAS::storeImpl(ArrayRef<uint8_t> ComputedHash,
     IDs.push_back(convertRef(Ref));
   }
 
-  ondisk::ObjectID StoredID = DB->getReference(ComputedHash);
-  if (Error E = DB->store(StoredID, IDs, Data))
+  auto StoredID = DB->getReference(ComputedHash);
+  if (LLVM_UNLIKELY(!StoredID))
+    return StoredID.takeError();
+  if (Error E = DB->store(*StoredID, IDs, Data))
     return std::move(E);
-  return convertRef(StoredID);
+  return convertRef(*StoredID);
+}
+
+Expected<ObjectRef> OnDiskCAS::storeFromFile(StringRef Path) {
+  auto Hash = BuiltinObjectHasher<HasherT>::hashFile(Path);
+  if (LLVM_UNLIKELY(!Hash))
+    return Hash.takeError();
+  auto StoredID = DB->getReference(*Hash);
+  if (LLVM_UNLIKELY(!StoredID))
+    return StoredID.takeError();
+  if (Error E = DB->storeFile(*StoredID, Path))
+    return E;
+  return convertRef(*StoredID);
+}
+
+Error OnDiskCAS::exportDataToFile(ObjectHandle Node, StringRef Path) const {
+  auto FBData = DB->getInternalFileBackedObjectData(convertHandle(Node));
+  if (!FBData.FileInfo.has_value())
+    return BuiltinCAS::exportDataToFile(Node, Path);
+
+  // Optimized version using the underlying database file.
+  assert(FBData.FileInfo.has_value());
+
+  ondisk::UniqueTempFile UniqueTmp;
+  auto ExpectedPath = UniqueTmp.createAndCopyFrom(sys::path::parent_path(Path),
+                                                  FBData.FileInfo->FilePath);
+  if (!ExpectedPath)
+    return ExpectedPath.takeError();
+  StringRef TmpPath = *ExpectedPath;
+
+  if (FBData.FileInfo->IsFileNulTerminated) {
+    // Remove the nul terminator.
+    int FD;
+    if (std::error_code EC =
+            sys::fs::openFileForWrite(TmpPath, FD, sys::fs::CD_OpenExisting))
+      return createFileError(TmpPath, EC);
+    auto CloseFile = scope_exit([&FD] {
+      sys::fs::file_t File = sys::fs::convertFDToNativeFile(FD);
+      sys::fs::closeFile(File);
+    });
+    if (std::error_code EC = sys::fs::resize_file(FD, FBData.Data.size()))
+      return createFileError(TmpPath, EC);
+  }
+
+  if (Error E = UniqueTmp.renameTo(Path))
+    return E;
+
+  return Error::success();
 }
 
 Error OnDiskCAS::forEachRef(ObjectHandle Node,
@@ -153,9 +223,15 @@ Expected<std::optional<uint64_t>> OnDiskCAS::getStorageSize() const {
 Error OnDiskCAS::pruneStorageData() { return UniDB->collectGarbage(); }
 
 Expected<std::unique_ptr<OnDiskCAS>> OnDiskCAS::open(StringRef AbsPath) {
+  std::shared_ptr<ondisk::OnDiskCASLogger> Logger;
+  if (Error E =
+          ondisk::OnDiskCASLogger::openIfEnabled(AbsPath).moveInto(Logger))
+    return std::move(E);
+
   Expected<std::unique_ptr<ondisk::OnDiskGraphDB>> DB =
       ondisk::OnDiskGraphDB::open(AbsPath, BuiltinCASContext::getHashName(),
-                                  sizeof(HashType));
+                                  sizeof(HashType), /*UpstreamDB=*/nullptr,
+                                  std::move(Logger));
   if (!DB)
     return DB.takeError();
   return std::unique_ptr<OnDiskCAS>(new OnDiskCAS(std::move(*DB)));

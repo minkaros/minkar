@@ -2,10 +2,10 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
 
 
 class TestSwiftWeakGenericSelf(TestBase):
+    @skipEmbeddedSwift
     @swiftTest
     def test(self):
         """Confirms that expression evaluation works with a generic class

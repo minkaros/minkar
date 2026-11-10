@@ -78,34 +78,34 @@ public:
     InternalRef operator*() const {
       if (auto *Ref = dyn_cast<const InternalRef *>(I))
         return *Ref;
-      return InternalRef(*I.get<const InternalRef4B *>());
+      return InternalRef(*cast<const InternalRef4B *>(I));
     }
     bool operator<(const iterator &RHS) const {
-      assert(I.is<const InternalRef *>() == RHS.I.is<const InternalRef *>());
+      assert(isa<const InternalRef *>(I) == isa<const InternalRef *>(RHS.I));
       if (auto *Ref = dyn_cast<const InternalRef *>(I))
-        return Ref < RHS.I.get<const InternalRef *>();
-      return I.get<const InternalRef4B *>() -
-             RHS.I.get<const InternalRef4B *>();
+        return Ref < cast<const InternalRef *>(RHS.I);
+      return cast<const InternalRef4B *>(I) -
+             cast<const InternalRef4B *>(RHS.I);
     }
     ptrdiff_t operator-(const iterator &RHS) const {
-      assert(I.is<const InternalRef *>() == RHS.I.is<const InternalRef *>());
+      assert(isa<const InternalRef *>(I) == isa<const InternalRef *>(RHS.I));
       if (auto *Ref = dyn_cast<const InternalRef *>(I))
-        return Ref - RHS.I.get<const InternalRef *>();
-      return I.get<const InternalRef4B *>() -
-             RHS.I.get<const InternalRef4B *>();
+        return Ref - cast<const InternalRef *>(RHS.I);
+      return cast<const InternalRef4B *>(I) -
+             cast<const InternalRef4B *>(RHS.I);
     }
     iterator &operator+=(ptrdiff_t N) {
       if (auto *Ref = dyn_cast<const InternalRef *>(I))
         I = Ref + N;
       else
-        I = I.get<const InternalRef4B *>() + N;
+        I = cast<const InternalRef4B *>(I) + N;
       return *this;
     }
     iterator &operator-=(ptrdiff_t N) {
       if (auto *Ref = dyn_cast<const InternalRef *>(I))
         I = Ref - N;
       else
-        I = I.get<const InternalRef4B *>() - N;
+        I = cast<const InternalRef4B *>(I) - N;
       return *this;
     }
     InternalRef operator[](ptrdiff_t N) const { return *(this->operator+(N)); }
@@ -139,15 +139,15 @@ public:
   /// Array accessor.
   InternalRef operator[](ptrdiff_t N) const { return begin()[N]; }
 
-  bool is4B() const { return Begin.is<const InternalRef4B *>(); }
-  bool is8B() const { return Begin.is<const InternalRef *>(); }
+  bool is4B() const { return isa<const InternalRef4B *>(Begin); }
+  bool is8B() const { return isa<const InternalRef *>(Begin); }
 
   ArrayRef<uint8_t> getBuffer() const {
     if (is4B()) {
-      auto *B = Begin.get<const InternalRef4B *>();
+      auto *B = cast<const InternalRef4B *>(Begin);
       return ArrayRef((const uint8_t *)B, sizeof(InternalRef4B) * Size);
     } else {
-      auto *B = Begin.get<const InternalRef *>();
+      auto *B = cast<const InternalRef *>(Begin);
       return ArrayRef((const uint8_t *)B, sizeof(InternalRef) * Size);
     }
   }
@@ -259,10 +259,24 @@ public:
   /// already a record for this object the operation is a no-op. \param ID the
   /// object ID to associate the data & references with. \param Refs references
   /// \param Data data buffer.
-  Error store(ObjectID ID, ArrayRef<ObjectID> Refs, ArrayRef<char> Data);
+  LLVM_ABI_FOR_TEST Error store(ObjectID ID, ArrayRef<ObjectID> Refs,
+                                ArrayRef<char> Data);
+
+  /// Associates the data of a file with a particular object ID. If there is
+  /// already a record for this object the operation is a no-op.
+  ///
+  /// This is more than a convenience variant of \c store(), \c storeFile() can
+  /// perform optimizations that reduce I/O and disk space consumption.
+  ///
+  /// If there are any concurrent modifications to the file, the contents in the
+  /// CAS may be corrupt.
+  ///
+  /// \param ID the object ID to associate the data with.
+  /// \param FilePath the path of the file data.
+  LLVM_ABI_FOR_TEST Error storeFile(ObjectID ID, StringRef FilePath);
 
   /// \returns \p nullopt if the object associated with \p Ref does not exist.
-  Expected<std::optional<ObjectHandle>> load(ObjectID Ref);
+  LLVM_ABI_FOR_TEST Expected<std::optional<ObjectHandle>> load(ObjectID Ref);
 
   /// \returns the hash bytes digest for the object reference.
   ArrayRef<uint8_t> getDigest(ObjectID Ref) const {
@@ -271,33 +285,85 @@ public:
 
   /// Form a reference for the provided hash. The reference can be used as part
   /// of a CAS object even if it's not associated with an object yet.
-  ObjectID getReference(ArrayRef<uint8_t> Hash);
+  LLVM_ABI_FOR_TEST Expected<ObjectID> getReference(ArrayRef<uint8_t> Hash);
 
   /// Get an existing reference to the object \p Digest.
   ///
   /// Returns \p nullopt if the object is not stored in this CAS.
-  std::optional<ObjectID> getExistingReference(ArrayRef<uint8_t> Digest);
+  LLVM_ABI_FOR_TEST std::optional<ObjectID>
+  getExistingReference(ArrayRef<uint8_t> Digest, bool CheckUpstream = true);
 
-  /// \returns true if the object associated with \p Ref is stored in the CAS.
-  bool containsObject(ObjectID Ref) const {
-    return containsObject(Ref, /*CheckUpstream=*/true);
+  /// Check whether the object associated with \p Ref is stored in the CAS.
+  /// Note that this function will fault-in according to the policy.
+  Expected<bool> isMaterialized(ObjectID Ref);
+
+  /// Check whether the object associated with \p Ref is stored in the CAS.
+  /// Note that this function does not fault-in.
+  bool containsObject(ObjectID Ref, bool CheckUpstream = true) const {
+    switch (getObjectPresence(Ref, CheckUpstream)) {
+    case ObjectPresence::Missing:
+      return false;
+    case ObjectPresence::InPrimaryDB:
+      return true;
+    case ObjectPresence::OnlyInUpstreamDB:
+      return true;
+    }
   }
 
   /// \returns the data part of the provided object handle.
-  ArrayRef<char> getObjectData(ObjectHandle Node) const;
+  LLVM_ABI_FOR_TEST ArrayRef<char> getObjectData(ObjectHandle Node) const;
 
   object_refs_range getObjectRefs(ObjectHandle Node) const {
     InternalRefArrayRef Refs = getInternalRefs(Node);
     return make_range(Refs.begin(), Refs.end());
   }
 
+  /// Encapsulates file info for an underlying object node.
+  struct FileBackedData {
+    /// The data of the object node.
+    ArrayRef<char> Data;
+
+    struct FileInfoTy {
+      /// The file path of the object node.
+      std::string FilePath;
+      /// Whether the file of the object leaf node has an extra nul appended at
+      /// the end. If the file is copied the extra nul needs to be removed.
+      bool IsFileNulTerminated;
+    };
+    /// File information for the object, if available.
+    std::optional<FileInfoTy> FileInfo;
+  };
+
+  /// Provides access to the underlying file path, that represents an object
+  /// leaf node, when available.
+  ///
+  /// This enables reducing I/O and disk space consumption, i.e. instead of
+  /// loading the data in memory and then writing it to a file, the client could
+  /// clone the underlying file directly. The client *must not* write to or
+  /// delete the underlying file, the path is provided only for reading/copying.
+  FileBackedData getInternalFileBackedObjectData(ObjectHandle Node) const;
+
   /// \returns Total size of stored objects.
   ///
   /// NOTE: There's a possibility that the returned size is not including a
   /// large object if the process crashed right at the point of inserting it.
-  size_t getStorageSize() const;
+  LLVM_ABI_FOR_TEST size_t getStorageSize() const;
+
+  /// \returns The precentage of space utilization of hard space limits.
+  ///
+  /// Return value is an integer between 0 and 100 for percentage.
+  unsigned getHardStorageLimitUtilization() const;
 
   void print(raw_ostream &OS) const;
+
+  /// Hashing function type for validation.
+  using HashingFuncT = function_ref<void(
+      ArrayRef<ArrayRef<uint8_t>>, ArrayRef<char>, SmallVectorImpl<uint8_t> &)>;
+  Error validate(bool Deep, HashingFuncT Hasher) const;
+
+  /// Checks that \p ID exists in the index. It is allowed to not have data
+  /// associated with it.
+  LLVM_ABI_FOR_TEST Error validateObjectID(ObjectID ID) const;
 
   /// How to fault-in nodes if an upstream database is used.
   enum class FaultInPolicy {
@@ -320,33 +386,51 @@ public:
   /// \param Policy If \p UpstreamDB is provided, controls how nodes are copied
   /// to primary store. This is recorded at creation time and subsequent opens
   /// need to pass the same policy otherwise the \p open will fail.
-  static Expected<std::unique_ptr<OnDiskGraphDB>>
+  LLVM_ABI_FOR_TEST static Expected<std::unique_ptr<OnDiskGraphDB>>
   open(StringRef Path, StringRef HashName, unsigned HashByteSize,
        std::unique_ptr<OnDiskGraphDB> UpstreamDB = nullptr,
+       std::shared_ptr<OnDiskCASLogger> Logger = nullptr,
        FaultInPolicy Policy = FaultInPolicy::FullTree);
 
-  ~OnDiskGraphDB();
+  LLVM_ABI_FOR_TEST ~OnDiskGraphDB();
 
 private:
   struct IndexProxy;
   class TempFile;
   class MappedTempFile;
 
-  bool containsObject(ObjectID Ref, bool CheckUpstream) const;
+  enum class ObjectPresence {
+    Missing,
+    InPrimaryDB,
+    OnlyInUpstreamDB,
+  };
+
+  /// Check if object exists and if it is on upstream only.
+  LLVM_ABI_FOR_TEST ObjectPresence
+  getObjectPresence(ObjectID Ref, bool CheckUpstream) const;
 
   /// When \p load is called for a node that doesn't exist, this function tries
   /// to load it from the upstream store and copy it to the primary one.
   Expected<std::optional<ObjectHandle>> faultInFromUpstream(ObjectID PrimaryID);
   Error importFullTree(ObjectID PrimaryID, ObjectHandle UpstreamNode);
   Error importSingleNode(ObjectID PrimaryID, ObjectHandle UpstreamNode);
+  Error importUpstreamData(ObjectID PrimaryID, ArrayRef<ObjectID> PrimaryRefs,
+                           ObjectHandle UpstreamNode);
 
-  IndexProxy indexHash(ArrayRef<uint8_t> Hash);
+  enum class InternalUpstreamImportKind { Leaf, Leaf0 };
+  /// Private \c storeFile than optimizes internal upstream database imports.
+  Error storeFile(ObjectID ID, StringRef FilePath,
+                  std::optional<InternalUpstreamImportKind> ImportKind);
 
+  Expected<IndexProxy> indexHash(ArrayRef<uint8_t> Hash);
+
+  /// Get path for creating standalone data file.
+  void getStandalonePath(StringRef FileSuffix, FileOffset IndexOffset,
+                         SmallVectorImpl<char> &Path) const;
+  /// Create a standalone leaf file.
   Error createStandaloneLeaf(IndexProxy &I, ArrayRef<char> Data);
 
   Expected<MappedTempFile> createTempFile(StringRef FinalPath, uint64_t Size);
-
-  OnDiskContent getContentFromHandle(ObjectHandle H) const;
 
   static InternalRef getInternalRef(ObjectID Ref) {
     return InternalRef::getFromRawData(Ref.getOpaqueData());
@@ -357,20 +441,24 @@ private:
 
   static ObjectID getExternalReference(const IndexProxy &I);
 
-  void getStandalonePath(StringRef FileSuffix, const IndexProxy &I,
-                         SmallVectorImpl<char> &Path) const;
+  LLVM_ABI_FOR_TEST ArrayRef<uint8_t>
+  getDigest(InternalRef Ref) const;
 
-  ArrayRef<uint8_t> getDigest(InternalRef Ref) const;
   ArrayRef<uint8_t> getDigest(const IndexProxy &I) const;
 
   IndexProxy getIndexProxyFromRef(InternalRef Ref) const;
+
+  // FIXME: on newer branches we have refactored getIndexProxyFromRef to return
+  // Expected<IndexProxy>. As a stop gap, provide a checked API.
+  Expected<IndexProxy> getIndexProxyFromRefChecked(InternalRef Ref) const;
 
   static InternalRef makeInternalRef(FileOffset IndexOffset);
 
   IndexProxy
   getIndexProxyFromPointer(OnDiskHashMappedTrie::const_pointer P) const;
 
-  InternalRefArrayRef getInternalRefs(ObjectHandle Node) const;
+  LLVM_ABI_FOR_TEST InternalRefArrayRef
+  getInternalRefs(ObjectHandle Node) const;
 
   void recordStandaloneSizeIncrease(size_t SizeIncrease);
 
@@ -379,8 +467,8 @@ private:
 
   OnDiskGraphDB(StringRef RootPath, OnDiskHashMappedTrie Index,
                 OnDiskDataAllocator DataPool,
-                std::unique_ptr<OnDiskGraphDB> UpstreamDB,
-                FaultInPolicy Policy);
+                std::unique_ptr<OnDiskGraphDB> UpstreamDB, FaultInPolicy Policy,
+                std::shared_ptr<OnDiskCASLogger> Logger);
 
   /// Mapping from hash to object reference.
   ///
@@ -399,6 +487,8 @@ private:
   /// Optional on-disk store to be used for faulting-in nodes.
   std::unique_ptr<OnDiskGraphDB> UpstreamDB;
   FaultInPolicy FIPolicy;
+
+  std::shared_ptr<OnDiskCASLogger> Logger;
 };
 
 } // namespace llvm::cas::ondisk

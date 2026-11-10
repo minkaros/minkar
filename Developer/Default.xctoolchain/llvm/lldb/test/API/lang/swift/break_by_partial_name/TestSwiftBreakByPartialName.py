@@ -17,11 +17,10 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import unittest2
-
 
 class SwiftPartialBreakTest(TestBase):
     @swiftTest
+    @skipEmbeddedSwiftOnWindows
     def test_swift_partial_break(self):
         """Tests that we can break on a partial name of a Swift function"""
         self.build()

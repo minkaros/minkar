@@ -15,9 +15,9 @@
 #include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Tooling/DependencyScanning/DependencyScanningService.h"
 #include "clang/Tooling/DependencyScanning/ModuleDepCollector.h"
-#include "llvm/CAS/CachingOnDiskFileSystem.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBufferRef.h"
 #include <optional>
 #include <string>
 
@@ -27,11 +27,8 @@ class DependencyOutputOptions;
 
 namespace tooling {
 namespace dependencies {
-
-using CachingOnDiskFileSystemPtr =
-    llvm::IntrusiveRefCntPtr<llvm::cas::CachingOnDiskFileSystem>;
-
 class DependencyScanningWorkerFilesystem;
+class CompilerInstanceWithContext;
 
 /// A command-line tool invocation that is part of building a TU.
 ///
@@ -65,9 +62,9 @@ public:
 
   virtual void handleDirectModuleDependency(ModuleID MD) = 0;
 
-  virtual void handleContextHash(std::string Hash) = 0;
+  virtual void handleVisibleModule(std::string ModuleName) = 0;
 
-  virtual void handleCASFileSystemRootID(std::string ID) {}
+  virtual void handleContextHash(std::string Hash) = 0;
 
   virtual void handleIncludeTreeID(std::string ID) {}
 };
@@ -78,7 +75,7 @@ class DependencyActionController {
 public:
   virtual ~DependencyActionController();
 
-  virtual std::string lookupModuleOutput(const ModuleID &ID,
+  virtual std::string lookupModuleOutput(const ModuleDeps &MD,
                                          ModuleOutputKind Kind) = 0;
 
   virtual llvm::Error initialize(CompilerInstance &ScanInstance,
@@ -89,6 +86,11 @@ public:
   virtual llvm::Error finalize(CompilerInstance &ScanInstance,
                                CompilerInvocation &NewInvocation) {
     return llvm::Error::success();
+  }
+
+  virtual std::optional<std::string>
+  getCacheKey(const CompilerInvocation &NewInvocation) {
+    return std::nullopt;
   }
 
   virtual llvm::Error
@@ -115,28 +117,79 @@ public:
 /// using the regular processing run.
 class DependencyScanningWorker {
 public:
+  /// Construct a dependency scanning worker.
+  ///
+  /// @param Service The parent service. Must outlive the worker.
+  /// @param FS The filesystem for the worker to use.
   DependencyScanningWorker(DependencyScanningService &Service,
                            llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS);
 
+  ~DependencyScanningWorker();
+
   /// Run the dependency scanning tool for a given clang driver command-line,
-  /// and report the discovered dependencies to the provided consumer. If \p
-  /// ModuleName isn't empty, this function reports the dependencies of module
-  /// \p ModuleName.
+  /// and report the discovered dependencies to the provided consumer. If
+  /// TUBuffer is not nullopt, it is used as TU input for the dependency
+  /// scanning. Otherwise, the input should be included as part of the
+  /// command-line.
   ///
   /// \returns false if clang errors occurred (with diagnostics reported to
   /// \c DiagConsumer), true otherwise.
-  bool computeDependencies(StringRef WorkingDirectory,
-                           const std::vector<std::string> &CommandLine,
-                           DependencyConsumer &DepConsumer,
-                           DependencyActionController &Controller,
-                           DiagnosticConsumer &DiagConsumer,
-                           std::optional<StringRef> ModuleName = std::nullopt);
+  bool computeDependencies(
+      StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
+      DependencyConsumer &DepConsumer, DependencyActionController &Controller,
+      DiagnosticConsumer &DiagConsumer,
+      std::optional<llvm::MemoryBufferRef> TUBuffer = std::nullopt);
+
+  /// Run the dependency scanning tool for a given clang driver command-line
+  /// for a specific translation unit via file system or memory buffer.
+  ///
   /// \returns A \c StringError with the diagnostic output if clang errors
   /// occurred, success otherwise.
   llvm::Error computeDependencies(
       StringRef WorkingDirectory, const std::vector<std::string> &CommandLine,
       DependencyConsumer &Consumer, DependencyActionController &Controller,
-      std::optional<StringRef> ModuleName = std::nullopt);
+      std::optional<llvm::MemoryBufferRef> TUBuffer = std::nullopt);
+
+  /// The three method below implements a new interface for by name
+  /// dependency scanning. They together enable the dependency scanning worker
+  /// to more effectively perform scanning for a sequence of modules
+  /// by name when the CWD and CommandLine do not change across the queries.
+
+  /// @brief Initializing the context and the compiler instance.
+  /// @param CWD The current working directory used during the scan.
+  /// @param CommandLine The commandline used for the scan.
+  /// @return Error if the initializaiton fails.
+  llvm::Error initializeCompilerInstanceWithContextOrError(
+      StringRef CWD, const std::vector<std::string> &CommandLine);
+
+  /// @brief Performaces dependency scanning for the module whose name is
+  ///        specified.
+  /// @param ModuleName  The name of the module whose dependency will be
+  ///                    scanned.
+  /// @param Consumer The dependency consumer that stores the results.
+  /// @param Controller The controller for the dependency scanning action.
+  /// @return Error if the scanner incurs errors.
+  llvm::Error computeDependenciesByNameWithContextOrError(
+      StringRef ModuleName, DependencyConsumer &Consumer,
+      DependencyActionController &Controller);
+
+  /// @brief Finalizes the diagnostics engine and deletes the compiler instance.
+  /// @return Error if errors occur during finalization.
+  llvm::Error finalizeCompilerInstanceWithContextOrError();
+
+  /// The three methods below provides the same functionality as the
+  /// three methods above. Instead of returning `llvm::Error`s, these
+  /// three methods return a flag to indicate if the call is successful.
+  /// The initialization function asks the client for a DiagnosticsConsumer
+  /// that it direct the diagnostics to.
+  bool initializeCompilerInstanceWithContext(
+      StringRef CWD, const std::vector<std::string> &CommandLine,
+      DiagnosticConsumer *DC = nullptr);
+  bool
+  computeDependenciesByNameWithContext(StringRef ModuleName,
+                                       DependencyConsumer &Consumer,
+                                       DependencyActionController &Controller);
+  bool finalizeCompilerInstance();
 
   /// Scan from a compiler invocation.
   /// If \p DiagGenerationAsCompilation is true it will generate error
@@ -149,20 +202,15 @@ public:
       DependencyActionController &Controller, DiagnosticConsumer &DiagsConsumer,
       raw_ostream *VerboseOS, bool DiagGenerationAsCompilation);
 
-  ScanningOutputFormat getScanningFormat() const { return Format; }
+  DependencyScanningService &getService() const { return Service; }
 
-  CachingOnDiskFileSystemPtr getCASFS() { return CacheFS; }
-  const CASOptions &getCASOpts() const { return CASOpts; }
-  std::shared_ptr<cas::ObjectStore> getCAS() const { return CAS; }
+  ScanningOutputFormat getScanningFormat() const { return Service.getFormat(); }
 
-  /// If \p DependencyScanningService enabled sharing of \p FileManager this
-  /// will return the same instance, otherwise it will create a new one for
-  /// each invocation.
-  llvm::IntrusiveRefCntPtr<FileManager> getOrCreateFileManager() const;
-
-  bool shouldEagerLoadModules() const { return EagerLoadModules; }
+  llvm::vfs::FileSystem &getVFS() const { return *BaseFS; }
 
 private:
+  /// The parent dependency scanning service.
+  DependencyScanningService &Service;
   std::shared_ptr<PCHContainerOperations> PCHContainerOps;
   /// The file system to be used during the scan.
   /// This is either \c FS passed in the constructor (when performing canonical
@@ -172,18 +220,20 @@ private:
   /// dependency-directives-extracting) filesystem overlaid on top of \c FS
   /// (passed in the constructor).
   llvm::IntrusiveRefCntPtr<DependencyScanningWorkerFilesystem> DepFS;
-  ScanningOutputFormat Format;
-  /// Whether to optimize the modules' command-line arguments.
-  ScanningOptimizations OptimizeArgs;
-  /// Whether to set up command-lines to load PCM files eagerly.
-  bool EagerLoadModules;
 
-  /// The caching file system.
-  CachingOnDiskFileSystemPtr CacheFS;
-  /// The CAS Dependency Filesytem. This is not set at the sametime as DepFS;
-  llvm::IntrusiveRefCntPtr<DependencyScanningCASFilesystem> DepCASFS;
   CASOptions CASOpts;
   std::shared_ptr<cas::ObjectStore> CAS;
+
+  friend CompilerInstanceWithContext;
+  std::unique_ptr<CompilerInstanceWithContext> CIWithContext;
+
+  /// Private helper functions.
+  bool scanDependencies(StringRef WorkingDirectory,
+                        const std::vector<std::string> &CommandLine,
+                        DependencyConsumer &Consumer,
+                        DependencyActionController &Controller,
+                        DiagnosticConsumer &DC,
+                        llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS);
 };
 
 } // end namespace dependencies

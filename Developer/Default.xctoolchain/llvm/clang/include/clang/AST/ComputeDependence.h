@@ -15,7 +15,7 @@
 
 #include "clang/AST/DependenceFlags.h"
 #include "clang/Basic/ExceptionSpecificationType.h"
-#include "llvm/ADT/ArrayRef.h"
+#include "clang/Basic/LLVM.h"
 
 namespace clang {
 
@@ -63,6 +63,7 @@ class ArrayTypeTraitExpr;
 class ExpressionTraitExpr;
 class CXXNoexceptExpr;
 class PackExpansionExpr;
+class PackIndexingExpr;
 class SubstNonTypeTemplateParmExpr;
 class CoroutineSuspendExpr;
 class DependentCoawaitExpr;
@@ -78,6 +79,15 @@ class LambdaExpr;
 class CXXUnresolvedConstructExpr;
 class CXXDependentScopeMemberExpr;
 class MaterializeTemporaryExpr;
+/* TO_UPSTREAM(BoundsSafety) ON */
+class MaterializeSequenceExpr;
+class PredefinedBoundsCheckExpr;
+class BoundsCheckExpr;
+class AssumptionExpr;
+class BoundsSafetyPointerPromotionExpr;
+class GetBoundExpr;
+class ForgePtrExpr;
+/* TO_UPSTREAM(BoundsSafety) OFF */
 class CXXFoldExpr;
 class CXXParenListInitExpr;
 class TypeTraitExpr;
@@ -93,7 +103,7 @@ class DesignatedInitExpr;
 class ParenListExpr;
 class PseudoObjectExpr;
 class AtomicExpr;
-class OMPArraySectionExpr;
+class ArraySectionExpr;
 class OMPArrayShapingExpr;
 class OMPIteratorExpr;
 class ObjCArrayLiteral;
@@ -106,6 +116,7 @@ class ObjCSubscriptRefExpr;
 class ObjCIsaExpr;
 class ObjCIndirectCopyRestoreExpr;
 class ObjCMessageExpr;
+class OpenACCAsteriskSizeExpr;
 
 // The following functions are called from constructors of `Expr`, so they
 // should not access anything beyond basic
@@ -131,7 +142,8 @@ ExprDependence computeDependence(ArrayInitLoopExpr *E);
 ExprDependence computeDependence(ImplicitValueInitExpr *E);
 ExprDependence computeDependence(InitListExpr *E);
 ExprDependence computeDependence(ExtVectorElementExpr *E);
-ExprDependence computeDependence(BlockExpr *E);
+ExprDependence computeDependence(BlockExpr *E,
+                                 bool ContainsUnexpandedParameterPack);
 ExprDependence computeDependence(AsTypeExpr *E);
 ExprDependence computeDependence(DeclRefExpr *E, const ASTContext &Ctx);
 ExprDependence computeDependence(RecoveryExpr *E);
@@ -150,6 +162,7 @@ ExprDependence computeDependence(ArrayTypeTraitExpr *E);
 ExprDependence computeDependence(ExpressionTraitExpr *E);
 ExprDependence computeDependence(CXXNoexceptExpr *E, CanThrowResult CT);
 ExprDependence computeDependence(PackExpansionExpr *E);
+ExprDependence computeDependence(PackIndexingExpr *E);
 ExprDependence computeDependence(SubstNonTypeTemplateParmExpr *E);
 ExprDependence computeDependence(CoroutineSuspendExpr *E);
 ExprDependence computeDependence(DependentCoawaitExpr *E);
@@ -174,9 +187,19 @@ ExprDependence computeDependence(TypeTraitExpr *E);
 ExprDependence computeDependence(ConceptSpecializationExpr *E,
                                  bool ValueDependent);
 
+/* TO_UPSTREAM(BoundsSafety) ON */
+ExprDependence computeDependence(MaterializeSequenceExpr *E);
+ExprDependence computeDependence(PredefinedBoundsCheckExpr *E);
+ExprDependence computeDependence(BoundsCheckExpr *E);
+ExprDependence computeDependence(AssumptionExpr *E);
+ExprDependence computeDependence(BoundsSafetyPointerPromotionExpr *E);
+ExprDependence computeDependence(GetBoundExpr *E);
+ExprDependence computeDependence(ForgePtrExpr *E);
+/* TO_UPSTREAM(BoundsSafety) OFF */
+
 ExprDependence computeDependence(SYCLUniqueStableNameExpr *E);
 ExprDependence computeDependence(PredefinedExpr *E);
-ExprDependence computeDependence(CallExpr *E, llvm::ArrayRef<Expr *> PreArgs);
+ExprDependence computeDependence(CallExpr *E, ArrayRef<Expr *> PreArgs);
 ExprDependence computeDependence(OffsetOfExpr *E);
 ExprDependence computeDependence(MemberExpr *E);
 ExprDependence computeDependence(ShuffleVectorExpr *E);
@@ -187,7 +210,7 @@ ExprDependence computeDependence(ParenListExpr *E);
 ExprDependence computeDependence(PseudoObjectExpr *E);
 ExprDependence computeDependence(AtomicExpr *E);
 
-ExprDependence computeDependence(OMPArraySectionExpr *E);
+ExprDependence computeDependence(ArraySectionExpr *E);
 ExprDependence computeDependence(OMPArrayShapingExpr *E);
 ExprDependence computeDependence(OMPIteratorExpr *E);
 
@@ -201,6 +224,7 @@ ExprDependence computeDependence(ObjCSubscriptRefExpr *E);
 ExprDependence computeDependence(ObjCIsaExpr *E);
 ExprDependence computeDependence(ObjCIndirectCopyRestoreExpr *E);
 ExprDependence computeDependence(ObjCMessageExpr *E);
+ExprDependence computeDependence(OpenACCAsteriskSizeExpr *E);
 
 } // namespace clang
 #endif

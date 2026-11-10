@@ -11,28 +11,37 @@ let Component = "CAS" in {
 def err_cas_cannot_be_initialized : Error<
   "CAS cannot be initialized from the specified '-fcas-*' options: %0">,
   DefaultFatal;
-def err_cas_cannot_parse_root_id : Error<
-  "CAS cannot parse root-id '%0' specified by -fcas-fs">, DefaultFatal;
+def err_cas_cannot_parse_root_id
+    : Error<"CAS cannot parse root-id '%0' specified by '-fcas-*' options">,
+      DefaultFatal;
 def err_cas_filesystem_cannot_be_initialized : Error<
   "CAS filesystem cannot be initialized from root-id '%0': %1">, DefaultFatal;
 def err_cas_filesystem_cannot_set_working_directory : Error<
   "CAS filesystem cannot set working directory to '%0' specified by"
   " -fcas-fs-working-directory">, DefaultFatal;
 def err_cas_depscan_daemon_connection: Error<
-  "Failed to establish connection with depscan daemon: %0">, DefaultFatal;
+  "failed to establish connection with depscan daemon: %0">, DefaultFatal;
 def err_cas_depscan_failed: Error<
   "CAS-based dependency scan failed: %0">, DefaultFatal;
 def err_cas_store: Error<"failed to store to CAS: %0">, DefaultFatal;
-def err_cas_cannot_get_module_cache_key : Error<
-  "CAS cannot load module with key '%0' from %1: %2">, DefaultFatal;
+def err_cas_unloadable_module
+    : Error<"module file '%0' not found: unloadable %select{casid|module cache "
+            "key}1 %2: %3">,
+      DefaultFatal;
+def err_cas_missing_module : Error<
+  "module file '%0' not found: missing module cache key %1: %2">, DefaultFatal;
 def err_cas_missing_root_id : Error<
   "CAS missing expected root-id '%0'">, DefaultFatal;
-def err_cas_cannot_parse_root_id_for_module : Error<
-  "CAS cannot parse root-id '%0' for module '%1'">, DefaultFatal;
 def err_cas_cannot_parse_include_tree_id : Error<
   "CAS cannot parse include-tree-id '%0'">, DefaultFatal;
 def err_cas_missing_include_tree_id : Error<
   "CAS missing expected include-tree '%0'">, DefaultFatal;
+def err_cas_cannot_parse_input_cache_key : Error<
+  "CAS cannot parse input cache key '%0'">, DefaultFatal;
+def err_cas_cannot_lookup_input_cache_key : Error<
+  "CAS cannot lookup input cache key '%0'">, DefaultFatal;
+def err_cas_missing_input_cache_entry : Error<
+  "CAS missing expected input cache key '%0'">, DefaultFatal;
 def err_cas_cannot_load_api_notes_include_tree : Error<
   "cannot load APINotes from include-tree-id '%0'">, DefaultFatal;
 

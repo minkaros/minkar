@@ -15,6 +15,8 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/CAS/CASConfiguration.h"
+#include "llvm/CAS/ObjectStore.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Error.h"
 #include "llvm/Object/MachOUniversal.h"
@@ -38,8 +40,15 @@ class BinaryHolder {
 public:
   using TimestampTy = sys::TimePoint<std::chrono::seconds>;
 
-  BinaryHolder(IntrusiveRefCntPtr<vfs::FileSystem> VFS, bool Verbose = false)
-      : VFS(VFS), Verbose(Verbose) {}
+  struct Options {
+    Options(bool Verbose = false, bool Warn = true)
+        : Verbose(Verbose), Warn(Warn) {}
+    bool Verbose;
+    bool Warn;
+  };
+
+  BinaryHolder(IntrusiveRefCntPtr<vfs::FileSystem> VFS,
+               BinaryHolder::Options Opts = {});
 
   // Forward declarations for friend declaration.
   class ObjectEntry;
@@ -58,7 +67,10 @@ public:
   public:
     /// Load the given object binary in memory.
     Error load(IntrusiveRefCntPtr<vfs::FileSystem> VFS, StringRef Filename,
-               TimestampTy Timestamp, bool Verbose = false);
+               TimestampTy Timestamp, BinaryHolder::Options = {});
+
+    bool load(cas::ObjectStore *CAS, StringRef Filename,
+              BinaryHolder::Options = {});
 
     /// Access all owned ObjectFiles.
     std::vector<const object::ObjectFile *> getObjects() const;
@@ -110,11 +122,11 @@ public:
 
     /// Load the given object binary in memory.
     Error load(IntrusiveRefCntPtr<vfs::FileSystem> VFS, StringRef Filename,
-               TimestampTy Timestamp, bool Verbose = false);
+               TimestampTy Timestamp, BinaryHolder::Options = {});
 
     Expected<const ObjectEntry &> getObjectEntry(StringRef Filename,
                                                  TimestampTy Timestamp,
-                                                 bool Verbose = false);
+                                                 BinaryHolder::Options = {});
 
   private:
     std::vector<std::unique_ptr<object::Archive>> Archives;
@@ -124,6 +136,23 @@ public:
 
   Expected<const ObjectEntry &>
   getObjectEntry(StringRef Filename, TimestampTy Timestamp = TimestampTy());
+
+  /// Load ObjectEntry from CAS using a potential CASID string.
+  /// \param MaybeCASID Possible CASID to be lookup
+  /// \param Filename   The ondisk file where the CASID lookup initialiated.
+  ///
+  /// \returns
+  ///   ObjectEntry if loaded successfully, nullptr if input is not CASID or
+  ///   CASID is not in the CAS, error if CAS lookup failed due to CAS issues.
+  Expected<const ObjectEntry *> getObjectEntryFromCAS(StringRef MaybeCASID,
+                                                      StringRef Filename);
+
+  /// Set GlobalCAS Configuration.
+  Error setGlobalCASConfiguration(cas::CASConfiguration Config);
+  /// Update GlobalCAS with path, return true if a global CAS is set.
+  bool updateGlobalCASFromPath(StringRef Path);
+  /// Search and create CAS.
+  Expected<cas::ObjectStore *> searchAndCreateCAS(StringRef Path);
 
   void clear();
   void eraseObjectEntry(StringRef Filename);
@@ -143,7 +172,15 @@ private:
   /// Virtual File System instance.
   IntrusiveRefCntPtr<vfs::FileSystem> VFS;
 
-  bool Verbose;
+  /// A map for all opened local CAS configurations from directory search.
+  DenseMap<cas::CASConfiguration, std::shared_ptr<cas::ObjectStore>> OpenedCAS;
+  /// A cache to lookup CAS instance from directory path.
+  StringMap<cas::ObjectStore *> CASLookupCache;
+  /// Global CAS used fallback when local CAS are not available.
+  cas::ObjectStore *GlobalCAS;
+  std::mutex CASMutex;
+
+  Options Opts;
 };
 
 } // namespace dsymutil

@@ -71,7 +71,7 @@ Expected<ObjectRef> BuiltinCAS::store(ArrayRef<ObjectRef> Refs,
                    Refs, Data);
 }
 
-Error BuiltinCAS::validate(const CASID &ID) {
+Error BuiltinCAS::validateObject(const CASID &ID) {
   auto Ref = getReference(ID);
   if (!Ref)
     return createUnknownObjectError(ID);
@@ -105,4 +105,12 @@ cas::builtin::createBuiltinUnifiedOnDiskCache(StringRef Path) {
 #else
   return createStringError(inconvertibleErrorCode(), "OnDiskCache is disabled");
 #endif
+}
+
+void cas::builtin::hashingFunc(ArrayRef<ArrayRef<uint8_t>> Refs,
+                               ArrayRef<char> Data,
+                               SmallVectorImpl<uint8_t> &Result) {
+  auto Hash =
+      BuiltinObjectHasher<llvm::cas::builtin::HasherT>::hashObject(Refs, Data);
+  Result.assign(Hash.begin(), Hash.end());
 }
