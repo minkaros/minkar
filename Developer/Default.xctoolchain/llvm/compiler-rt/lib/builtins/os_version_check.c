@@ -113,6 +113,28 @@ static void _initializeAvailabilityCheck(bool LoadPlist) {
   // Still load the PLIST to ensure that the existing calls to
   // __isOSVersionAtLeast still work even with new compiler-rt and old OSes.
 
+#if defined(__MINKAR__)
+  // Minkar: the version is read from SystemVersion.plist without
+  // CoreFoundation. This runs from library initializers (Swift's runtime
+  // asks while dyld initializes it), when CoreFoundation may be loaded but
+  // not yet initialized; CF used then crashes.
+  {
+    FILE *Plist = fopen("/System/Library/CoreServices/SystemVersion.plist", "r");
+    if (!Plist)
+      return;
+    char Buf[4096];
+    size_t Len = fread(Buf, 1, sizeof(Buf) - 1, Plist);
+    fclose(Plist);
+    Buf[Len] = '\0';
+    const char *Key = strstr(Buf, "<key>ProductVersion</key>");
+    const char *Str = Key ? strstr(Key, "<string>") : NULL;
+    if (Str)
+      sscanf(Str + strlen("<string>"), "%d.%d.%d", &GlobalMajor, &GlobalMinor,
+             &GlobalSubminor);
+    return;
+  }
+#endif
+
   // Load CoreFoundation dynamically
   const void *NullAllocator = dlsym(RTLD_DEFAULT, "kCFAllocatorNull");
   if (!NullAllocator)

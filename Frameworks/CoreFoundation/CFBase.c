@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  *
@@ -403,6 +404,18 @@ CF_PRIVATE void __CFAllocatorDeallocate(CFTypeRef cf) {
 
 static CFTypeID __kCFAllocatorTypeID = _kCFRuntimeNotATypeID;
 
+/* Minkar: whether an allocator is really a malloc zone. CF tells them apart
+ * by the allocator's class, which __CFInitialize sets; a library initializer
+ * that runs before CF's (Swift 6.4's Concurrency reads the system version
+ * through CF while dyld initializes it) would take CF's own allocators for
+ * zones, and their zone functions call back into CF: an endless recursion. */
+static Boolean __CFAllocatorIsMallocZone(CFAllocatorRef allocator) {
+    if (allocator->_base._cfisa == __CFISAForTypeID(__kCFAllocatorTypeID)) return false;
+    if (allocator == &__kCFAllocatorMalloc || allocator == &__kCFAllocatorMallocZone ||
+        allocator == &__kCFAllocatorSystemDefault || allocator == &__kCFAllocatorNull) return false;
+    return true;
+}
+
 static const CFRuntimeClass __CFAllocatorClass = {
     0,
     "CFAllocator",
@@ -456,7 +469,7 @@ void CFAllocatorSetDefault(CFAllocatorRef allocator) {
 	__CFGenericValidateType(allocator, __kCFAllocatorTypeID);
     }
 #endif
-    if (allocator && allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (allocator && __CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return;		// require allocator to this function to be an allocator
     }
     if (NULL != allocator && allocator != current) {
@@ -474,7 +487,7 @@ static CFAllocatorRef __CFAllocatorCreate(CFAllocatorRef allocator, CFAllocatorC
     CFAllocatorRetainCallBack retainFunc;
     CFAllocatorAllocateCallBack allocateFunc;
     void *retainedInfo;
-    if (allocator && kCFAllocatorUseContext != allocator && allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (allocator && kCFAllocatorUseContext != allocator && __CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return NULL;	// require allocator to this function to be an allocator
     }
     retainFunc = context->retain;
@@ -565,7 +578,7 @@ void *CFAllocatorAllocate(CFAllocatorRef allocator, CFIndex size, CFOptionFlags 
     __CFGenericValidateType(allocator, __kCFAllocatorTypeID);
 #endif
     if (0 == size) return NULL;
-    if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return malloc_zone_malloc((malloc_zone_t *)allocator, size);
     }
     if (CF_IS_COLLECTABLE_ALLOCATOR(allocator)) {
@@ -602,7 +615,7 @@ void *CFAllocatorReallocate(CFAllocatorRef allocator, void *ptr, CFIndex newsize
     __CFGenericValidateType(allocator, __kCFAllocatorTypeID);
 #endif
     if (NULL == ptr && 0 < newsize) {
-	if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+	if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	    return malloc_zone_malloc((malloc_zone_t *)allocator, newsize);
 	}
 	newptr = NULL;
@@ -613,7 +626,7 @@ void *CFAllocatorReallocate(CFAllocatorRef allocator, void *ptr, CFIndex newsize
 	return newptr;
     }
     if (NULL != ptr && 0 == newsize) {
-	if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+	if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 #if defined(DEBUG)
 	    size_t size = malloc_size(ptr);
 	    if (size) memset(ptr, 0xCC, size);
@@ -628,7 +641,7 @@ void *CFAllocatorReallocate(CFAllocatorRef allocator, void *ptr, CFIndex newsize
 	return NULL;
     }
     if (NULL == ptr && 0 == newsize) return NULL;
-    if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return malloc_zone_realloc((malloc_zone_t *)allocator, ptr, newsize);
     }
     reallocateFunc = __CFAllocatorGetReallocateFunction(&allocator->_context);
@@ -656,7 +669,7 @@ void CFAllocatorDeallocate(CFAllocatorRef allocator, void *ptr) {
 #else
     __CFGenericValidateType(allocator, __kCFAllocatorTypeID);
 #endif
-    if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 #if defined(DEBUG)
 	size_t size = malloc_size(ptr);
 	if (size) memset(ptr, 0xCC, size);
@@ -688,7 +701,7 @@ CFIndex CFAllocatorGetPreferredSizeForSize(CFAllocatorRef allocator, CFIndex siz
 #else
     __CFGenericValidateType(allocator, __kCFAllocatorTypeID);
 #endif
-    if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return malloc_good_size(size);
     }
     prefFunc = __CFAllocatorGetPreferredSizeFunction(&allocator->_context);
@@ -716,7 +729,7 @@ void CFAllocatorGetContext(CFAllocatorRef allocator, CFAllocatorContext *context
     __CFGenericValidateType(allocator, __kCFAllocatorTypeID);
 #endif
     CFAssert1(0 == context->version, __kCFLogAssertion, "%s(): context version not initialized to 0", __PRETTY_FUNCTION__);
-    if (allocator->_base._cfisa != __CFISAForTypeID(__kCFAllocatorTypeID)) {	// malloc_zone_t *
+    if (__CFAllocatorIsMallocZone(allocator)) {	// malloc_zone_t *
 	return;
     }
     context->version = 0;
