@@ -12,19 +12,15 @@
 // sources the main thread added meanwhile are seen: GLib does not wake its
 // own thread for those.
 //
-// Foundation's NSRunLoop (what AppKit runs) is not built on CFRunLoop
-// here: it gets an input source on a pipe the poll thread writes to when
-// it is done, asked for its events before each wait (the "about to sleep"
-// step). CFRunLoop gets a source and an observer, for
-// programs that run it.
+// The run loop's part is a CFRunLoop source the poll thread signals and an
+// observer of its "about to sleep" step, in its common modes (NSRunLoop is
+// CFRunLoop, so AppKit runs them too).
 //
 // GLib is not run by the run loop while one of its callbacks is running (a
 // modal loop started from one does not dispatch GLib's sources); the API's
 // synchronous calls made from one run it nested (_WebGLibRunLoopWait).
 
 #import "WebGLibRunLoop.h"
-#import <Foundation/NSSelectInputSource.h>
-#import <Foundation/NSSocket.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -49,8 +45,6 @@ static PollState pollState = PollIdle;
 static struct pollfd *pfds;      /* GLib's descriptors, then the wake pipe */
 static gint pollTimeout;
 static int wakePipe[2];
-/* Written by the poll thread when it is done (NSRunLoop's input source). */
-static int donePipe[2];
 
 /* The main thread's: the iteration being run. */
 static GPollFD *fds;
@@ -80,8 +74,6 @@ static void *pollThread(void *unused)
         pthread_mutex_lock(&lock);
         pollState = PollDone;
         pthread_cond_broadcast(&changed);
-        char byte = 0;
-        (void)!write(donePipe[1], &byte, 1);
         CFRunLoopSourceSignal(pollDoneSource);
         CFRunLoopWakeUp(mainRunLoop);
     }
@@ -176,24 +168,6 @@ static void beforeWaiting(CFRunLoopObserverRef observer, CFRunLoopActivity activ
     aboutToWait();
 }
 
-/* NSRunLoop's part: its waits watch donePipe, and before each one it asks
-   its select sources for their events (none, if theirs is not ready):
-   that is the "about to sleep" step. */
-@interface _WebGLibInputSource : NSSelectInputSource
-@end
-
-@implementation _WebGLibInputSource
-- (NSUInteger)processImmediateEvents:(NSUInteger)selectEvent {
-    NSUInteger handled = 0;
-    if (selectEvent & NSSelectReadEvent) {
-        char drain[64];
-        while (read(donePipe[0], drain, sizeof(drain)) > 0) { }
-        handled = NSSelectReadEvent;
-    }
-    aboutToWait();
-    return handled;
-}
-@end
 
 
 void _WebGLibRunLoopStart(void)
@@ -205,14 +179,11 @@ void _WebGLibRunLoopStart(void)
             NSLog(@"WebKit: GLib's main context is owned by another thread");
         mainRunLoop = CFRunLoopGetMain();
 
-        if (pipe(wakePipe) != 0 || pipe(donePipe) != 0)
+        if (pipe(wakePipe) != 0)
             abort();
         for (int i = 0; i < 2; i++) {
-            int both[2] = { wakePipe[i], donePipe[i] };
-            for (int j = 0; j < 2; j++) {
-                fcntl(both[j], F_SETFL, fcntl(both[j], F_GETFL) | O_NONBLOCK);
-                fcntl(both[j], F_SETFD, FD_CLOEXEC);
-            }
+            fcntl(wakePipe[i], F_SETFL, fcntl(wakePipe[i], F_GETFL) | O_NONBLOCK);
+            fcntl(wakePipe[i], F_SETFD, FD_CLOEXEC);
         }
 
         CFRunLoopSourceContext sourceContext = { .perform = pollDonePerform };
@@ -222,12 +193,6 @@ void _WebGLibRunLoopStart(void)
                                                                 beforeWaiting, NULL);
         CFRunLoopAddObserver(mainRunLoop, observer, kCFRunLoopCommonModes);
 
-        NSSocket *socket = [[NSSocket alloc] initWithFileDescriptor:donePipe[0]];
-        _WebGLibInputSource *input = [[_WebGLibInputSource alloc] initWithSocket:socket];
-        [input setSelectEventMask:NSSelectReadEvent];
-        NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
-        for (NSString *mode in @[ NSDefaultRunLoopMode, @"NSModalPanelRunLoopMode", @"NSEventTrackingRunLoopMode" ])
-            [runLoop addInputSource:input forMode:mode];
 
         pthread_t thread;
         pthread_attr_t attributes;
