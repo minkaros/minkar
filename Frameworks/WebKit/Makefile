@@ -11,8 +11,8 @@ MK_WERROR = no
 FRAMEWORK = WebKit
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = WKWebView.m WebView.m WebGLibRunLoop.m WebWPEPlatform.m WebWPEEvents.m
-HEADERS = WebKit.h WKWebView.h WebView.h
+SRCS = WKWebView.m WebView.m DOM.m WebScriptBridge.m WebGLibRunLoop.m WebWPEPlatform.m WebWPEEvents.m
+HEADERS = WebKit.h WKWebView.h WebView.h DOM.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
@@ -31,7 +31,21 @@ WPE_LIBS !=	${WPE_PKG_ENV} pkg-config --libs ${WPE_MODULES} || echo WPE-WEBKIT-M
 CFLAGS += -I${.CURDIR:H} -I${.CURDIR} -F${FMWKS} -fobjc-arc ${WPE_CFLAGS}
 LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Foundation -lobjc ${WPE_LIBS}
 
-fmwk-install-hook:
+# The web process extension (WebScriptingExtension.c): a module WebKit's
+# web processes load, in the framework (WebScriptBridge.m tells WebKit
+# where).
+EXTENSION_DIR = ${.OBJDIR}/${FRAMEWORK}.framework/Versions/A/WebProcessExtensions
+EXTENSION = ${EXTENSION_DIR}/libMinkarWebScripting.so
+.if make(all) || make(install) || empty(.TARGETS)
+EXTENSION_FLAGS != ${WPE_PKG_ENV} pkg-config --cflags --libs wpe-web-process-extension-2.0 || echo WPE-WEBKIT-MISSING
+.endif
+
+${EXTENSION}: ${.CURDIR}/WebScriptingExtension.c
+	mkdir -p ${.TARGET:H}
+	${CC} -bundle -O2 -Wall -Wno-nullability-completeness -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    --sysroot=${MINKAR_SDKROOT} ${LDFLAGS:M--ld-path=*} -o ${.TARGET} ${.ALLSRC} ${EXTENSION_FLAGS}
+
+fmwk-install-hook: ${EXTENSION}
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
 	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks

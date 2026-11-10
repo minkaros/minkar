@@ -19,7 +19,11 @@ typedef NS_ENUM(NSInteger, WKErrorCode) {
     WKErrorWebContentProcessTerminated,
     WKErrorWebViewInvalidated,
     WKErrorJavaScriptExceptionOccurred,
-    WKErrorJavaScriptResultTypeIsUnsupported
+    WKErrorJavaScriptResultTypeIsUnsupported,
+    WKErrorContentRuleListStoreCompileFailed,
+    WKErrorContentRuleListStoreLookUpFailed,
+    WKErrorContentRuleListStoreRemoveFailed,
+    WKErrorContentRuleListStoreVersionMismatch
 };
 
 typedef NS_ENUM(NSInteger, WKUserScriptInjectionTime) {
@@ -63,6 +67,24 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 @property (readonly, copy) NSString *name;
 @end
 
+/* Content rules (WebKit's content blocker format, JSON), compiled. */
+@interface WKContentRuleList : NSObject
+@property (readonly, copy) NSString *identifier;
+@end
+
+/* Compiled content rules, kept on disk by identifier: the default store
+   in ~/Library/WebKit/<the app's identifier>/ContentRuleLists. */
+@interface WKContentRuleListStore : NSObject
++ (instancetype)defaultStore;
++ (instancetype)storeWithURL:(NSURL *)url;
+- (void)compileContentRuleListForIdentifier:(NSString *)identifier encodedContentRuleList:(NSString *)encodedContentRuleList
+                          completionHandler:(void (^)(WKContentRuleList *_Nullable, NSError *_Nullable))completionHandler;
+- (void)lookUpContentRuleListForIdentifier:(NSString *)identifier
+                         completionHandler:(void (^)(WKContentRuleList *_Nullable, NSError *_Nullable))completionHandler;
+- (void)removeContentRuleListForIdentifier:(NSString *)identifier completionHandler:(void (^)(NSError *_Nullable))completionHandler;
+- (void)getAvailableContentRuleListIdentifiers:(void (^)(NSArray<NSString *> *_Nullable))completionHandler;
+@end
+
 @protocol WKScriptMessageHandler <NSObject>
 - (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message;
 @end
@@ -73,6 +95,9 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 - (void)removeAllUserScripts;
 - (void)addScriptMessageHandler:(id<WKScriptMessageHandler>)scriptMessageHandler name:(NSString *)name;
 - (void)removeScriptMessageHandlerForName:(NSString *)name;
+- (void)addContentRuleList:(WKContentRuleList *)contentRuleList;
+- (void)removeContentRuleList:(WKContentRuleList *)contentRuleList;
+- (void)removeAllContentRuleLists;
 @end
 
 @interface WKProcessPool : NSObject <NSSecureCoding>

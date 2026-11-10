@@ -7,3 +7,4 @@
 
 #import <WebKit/WKWebView.h>
 #import <WebKit/WebView.h>
+#import <WebKit/DOM.h>

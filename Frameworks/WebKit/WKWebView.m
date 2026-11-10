@@ -13,6 +13,7 @@
 
 #include <wpe/webkit.h>
 #include "WebGLibRunLoop.h"
+#import "WebScriptBridge.h"
 #include "WebWPEPlatform.h"
 #import "WebWPEEvents.h"
 
@@ -32,6 +33,12 @@ static NSURL *URLOrNil(const char *s)
 {
     return s && *s ? [NSURL URLWithString:[NSString stringWithUTF8String:s]] : nil;
 }
+
+/* A compiled rule list: its WebKit filter. */
+@interface WKContentRuleList ()
+@property (readwrite, copy) NSString *identifier;
+@property (assign) WebKitUserContentFilter *filter;
+@end
 
 #pragma mark - JavaScript values
 
@@ -250,6 +257,20 @@ static void scriptMessageReceived(WebKitUserContentManager *manager, JSCValue *v
     if (_manager)
         [self _registerHandlerNamed:name];
 }
+- (void)addContentRuleList:(WKContentRuleList *)contentRuleList {
+    if (contentRuleList.filter)
+        webkit_user_content_manager_add_filter([self _manager], contentRuleList.filter);
+}
+
+- (void)removeContentRuleList:(WKContentRuleList *)contentRuleList {
+    if (contentRuleList.filter)
+        webkit_user_content_manager_remove_filter([self _manager], contentRuleList.filter);
+}
+
+- (void)removeAllContentRuleLists {
+    webkit_user_content_manager_remove_all_filters([self _manager]);
+}
+
 - (void)removeScriptMessageHandlerForName:(NSString *)name {
     if (_handlers[name] == nil)
         return;
@@ -258,6 +279,147 @@ static void scriptMessageReceived(WebKitUserContentManager *manager, JSCValue *v
         webkit_user_content_manager_unregister_script_message_handler(_manager, name.UTF8String, NULL);
     }
 }
+@end
+
+#pragma mark - Content rules
+
+@implementation WKContentRuleList
+- (void)dealloc {
+    if (_filter)
+        webkit_user_content_filter_unref(_filter);
+}
+@end
+
+static WKContentRuleList *ruleListFrom(WebKitUserContentFilter *filter)
+{
+    WKContentRuleList *list = [WKContentRuleList new];
+    list.identifier = stringOrNil(webkit_user_content_filter_get_identifier(filter)) ?: @"";
+    list.filter = filter;           /* the reference the caller had */
+    return list;
+}
+
+static NSError *ruleListError(WKErrorCode code, GError *error)
+{
+    return [NSError errorWithDomain:WKErrorDomain code:code
+        userInfo:@{ NSLocalizedDescriptionKey: (error ? stringOrNil(error->message) : nil) ?: @"The content rule list store failed." }];
+}
+
+/* A WebKit filter store's asynchronous calls and the block each one ends
+   with: the block, held until the call ends. */
+static void ruleListSaved(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^done)(WKContentRuleList *, NSError *) = (__bridge_transfer void (^)(WKContentRuleList *, NSError *))data;
+    GError *error = NULL;
+    WebKitUserContentFilter *filter = webkit_user_content_filter_store_save_finish(WEBKIT_USER_CONTENT_FILTER_STORE(object), result, &error);
+    if (filter)
+        done(ruleListFrom(filter), nil);
+    else
+        done(nil, ruleListError(WKErrorContentRuleListStoreCompileFailed, error));
+    g_clear_error(&error);
+}
+
+static void ruleListLoaded(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^done)(WKContentRuleList *, NSError *) = (__bridge_transfer void (^)(WKContentRuleList *, NSError *))data;
+    GError *error = NULL;
+    WebKitUserContentFilter *filter = webkit_user_content_filter_store_load_finish(WEBKIT_USER_CONTENT_FILTER_STORE(object), result, &error);
+    if (filter)
+        done(ruleListFrom(filter), nil);
+    else
+        done(nil, ruleListError(WKErrorContentRuleListStoreLookUpFailed, error));
+    g_clear_error(&error);
+}
+
+static void ruleListRemoved(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^done)(NSError *) = (__bridge_transfer void (^)(NSError *))data;
+    GError *error = NULL;
+    BOOL removed = webkit_user_content_filter_store_remove_finish(WEBKIT_USER_CONTENT_FILTER_STORE(object), result, &error);
+    done(removed ? nil : ruleListError(WKErrorContentRuleListStoreRemoveFailed, error));
+    g_clear_error(&error);
+}
+
+static void ruleListIdentifiers(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^done)(NSArray *) = (__bridge_transfer void (^)(NSArray *))data;
+    gchar **identifiers = webkit_user_content_filter_store_fetch_identifiers_finish(WEBKIT_USER_CONTENT_FILTER_STORE(object), result);
+    NSMutableArray *names = [NSMutableArray array];
+    for (gchar **i = identifiers; i && *i; i++)
+        [names addObject:@(*i)];
+    g_strfreev(identifiers);
+    done(names);
+}
+
+@implementation WKContentRuleListStore {
+    WebKitUserContentFilterStore *_store;
+}
+
++ (instancetype)defaultStore {
+    static WKContentRuleListStore *store;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSString *identifier = NSBundle.mainBundle.bundleIdentifier ?: NSProcessInfo.processInfo.processName;
+        NSString *path = [[[NSHomeDirectory() stringByAppendingPathComponent:@"Library/WebKit"]
+            stringByAppendingPathComponent:identifier] stringByAppendingPathComponent:@"ContentRuleLists"];
+        store = [self storeWithURL:[NSURL fileURLWithPath:path isDirectory:YES]];
+    });
+    return store;
+}
+
++ (instancetype)storeWithURL:(NSURL *)url {
+    WKContentRuleListStore *store = [self new];
+    _WebGLibRunLoopStart();
+    store->_store = webkit_user_content_filter_store_new(url.fileSystemRepresentation);
+    return store;
+}
+
+- (void)dealloc {
+    if (_store)
+        g_object_unref(_store);
+}
+
+/* Each completion handler on the main queue, as the reference platform
+   calls them. */
+- (void)compileContentRuleListForIdentifier:(NSString *)identifier encodedContentRuleList:(NSString *)encoded
+                          completionHandler:(void (^)(WKContentRuleList *, NSError *))completionHandler {
+    void (^handler)(WKContentRuleList *, NSError *) = [completionHandler copy];
+    void (^done)(WKContentRuleList *, NSError *) = ^(WKContentRuleList *list, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (handler) handler(list, error); });
+    };
+    NSData *json = [encoded dataUsingEncoding:NSUTF8StringEncoding] ?: [NSData data];
+    GBytes *bytes = g_bytes_new(json.bytes, json.length);
+    webkit_user_content_filter_store_save(_store, identifier.UTF8String ?: "", bytes, NULL, ruleListSaved,
+                                          (__bridge_retained void *)[done copy]);
+    g_bytes_unref(bytes);
+}
+
+- (void)lookUpContentRuleListForIdentifier:(NSString *)identifier
+                         completionHandler:(void (^)(WKContentRuleList *, NSError *))completionHandler {
+    void (^handler)(WKContentRuleList *, NSError *) = [completionHandler copy];
+    void (^done)(WKContentRuleList *, NSError *) = ^(WKContentRuleList *list, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (handler) handler(list, error); });
+    };
+    webkit_user_content_filter_store_load(_store, identifier.UTF8String ?: "", NULL, ruleListLoaded,
+                                          (__bridge_retained void *)[done copy]);
+}
+
+- (void)removeContentRuleListForIdentifier:(NSString *)identifier completionHandler:(void (^)(NSError *))completionHandler {
+    void (^handler)(NSError *) = [completionHandler copy];
+    void (^done)(NSError *) = ^(NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (handler) handler(error); });
+    };
+    webkit_user_content_filter_store_remove(_store, identifier.UTF8String ?: "", NULL, ruleListRemoved,
+                                            (__bridge_retained void *)[done copy]);
+}
+
+- (void)getAvailableContentRuleListIdentifiers:(void (^)(NSArray<NSString *> *))completionHandler {
+    void (^handler)(NSArray *) = [completionHandler copy];
+    void (^done)(NSArray *) = ^(NSArray *names) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (handler) handler(names); });
+    };
+    webkit_user_content_filter_store_fetch_identifiers(_store, NULL, ruleListIdentifiers, (__bridge_retained void *)[done copy]);
+}
+
 @end
 
 @implementation WKProcessPool
@@ -517,12 +679,15 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 - (instancetype)initWithFrame:(NSRect)frame configuration:(WKWebViewConfiguration *)configuration {
     if ((self = [super initWithFrame:frame])) {
         _WebGLibRunLoopStart();
+        _WebScriptBridgeStart();
         _configuration = [configuration copy] ?: [WKWebViewConfiguration new];
         _magnification = 1;
 
         WKPreferences *preferences = _configuration.preferences;
         WebKitSettings *settings = webkit_settings_new();
-        webkit_settings_set_enable_javascript(settings, preferences.javaScriptEnabled);
+        /* As on the reference platform, the page's own scripts: user scripts
+           and evaluateJavaScript: run either way. */
+        webkit_settings_set_enable_javascript_markup(settings, preferences.javaScriptEnabled);
         webkit_settings_set_javascript_can_open_windows_automatically(settings,
             preferences.javaScriptCanOpenWindowsAutomatically);
         webkit_settings_set_minimum_font_size(settings, (guint32)preferences.minimumFontSize);

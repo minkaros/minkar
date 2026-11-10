@@ -13,6 +13,9 @@
 #import <objc/message.h>
 #import "WKWebViewInternal.h"
 #import "WebGLibRunLoop.h"
+#import "WebScriptObjectInternal.h"
+#import "WebScriptBridge.h"
+#import <WebKit/DOM.h>
 
 NSString *const WebViewProgressStartedNotification = @"WebProgressStartedNotification";
 NSString *const WebViewProgressEstimateChangedNotification = @"WebProgressEstimateChangedNotification";
@@ -48,22 +51,21 @@ static const NSTimeInterval SyncTimeout = 15;
 - (id)copyWithZone:(NSZone *)zone { return self; }
 @end
 
-@interface WebScriptObject ()
-@property (weak) WebView *webView;
-/* The JavaScript expression naming the object (window, or its entry in
-   the page's table). */
-@property (copy) NSString *expression;
-@end
-
-static NSString *literal(NSString *string)
+NSString *_WebScriptLiteral(NSString *string)
 {
     NSData *json = [NSJSONSerialization dataWithJSONObject:@[ string ?: @"" ] options:0 error:nil];
     NSString *array = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
     return [array substringWithRange:NSMakeRange(1, array.length - 2)];
 }
 
-/* A Foundation value as a JavaScript expression (nil if it has none). */
-static NSString *scriptValue(id value)
+static NSString *literal(NSString *string)
+{
+    return _WebScriptLiteral(string);
+}
+
+/* A Foundation value as a JavaScript expression: another object as its
+   proxy in webView's page (the WebScripting protocol's). */
+static NSString *scriptValue(id value, WebView *webView)
 {
     if (value == nil || value == [NSNull null])
         return @"null";
@@ -83,10 +85,32 @@ static NSString *scriptValue(id value)
         NSData *json = [NSJSONSerialization dataWithJSONObject:value options:0 error:nil];
         return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
     }
-    return nil;
+    return webView ? _WebScriptBridgeExpressionFor(webView, value) : nil;
 }
 
-@implementation WebScriptObject
+/* The class of an object the page handed out: its DOM class (by node type,
+   or Range and NodeIterator), or WebScriptObject. */
+static Class scriptObjectClass(NSString *kind)
+{
+    if ([kind isEqualToString:@"n9"]) return [DOMDocument class];
+    if ([kind isEqualToString:@"n11"]) return [DOMDocumentFragment class];
+    if ([kind isEqualToString:@"n1"]) return [DOMElement class];
+    if ([kind isEqualToString:@"n3"]) return [DOMText class];
+    if ([kind hasPrefix:@"n"]) return [DOMNode class];
+    if ([kind isEqualToString:@"r"]) return [DOMRange class];
+    if ([kind isEqualToString:@"i"]) return [DOMNodeIterator class];
+    return [WebScriptObject class];
+}
+
+@implementation WebScriptObject {
+    __weak WebView *_webView;
+    NSString *_expression;
+}
+
+- (WebView *)webView { return _webView; }
+- (void)setWebView:(WebView *)webView { _webView = webView; }
+- (NSString *)expression { return _expression; }
+- (void)setExpression:(NSString *)expression { _expression = [expression copy]; }
 
 /* Runs body (statements, ending in "return r;" for a value) and gives the
    value back as WebScriptObject's rules say; nil on an exception. */
@@ -98,16 +122,28 @@ static NSString *scriptValue(id value)
         @"(function () { var r; try { r = (function () { %@ })(); } catch (e) { return { t: 'x' }; }"
          " if (r === undefined) return { t: 'u' }; if (r === null) return { t: 'n' };"
          " var k = typeof r; if (k === 'string' || k === 'number' || k === 'boolean') return { t: k, v: r };"
+         " var c = (typeof Node !== 'undefined' && r instanceof Node) ? 'n' + r.nodeType :"
+         " (typeof Range !== 'undefined' && r instanceof Range) ? 'r' :"
+         " (typeof NodeIterator !== 'undefined' && r instanceof NodeIterator) ? 'i' : 'o';"
          " var table = window.__webScriptObjects || (window.__webScriptObjects = []);"
-         " table.push(r); return { t: 'o', i: table.length - 1 }; })()", body];
+         " var at = table.indexOf(r); if (at < 0) { table.push(r); at = table.length - 1; }"
+         " return { t: 'o', i: at, c: c }; })()", body];
     __block NSDictionary *result = nil;
-    __block BOOL done = NO;
-    [webView._engine evaluateJavaScript:script completionHandler:^(id value, NSError *error) {
-        (void)error;
+    NSString *json = nil;
+    if (_WebScriptBridgeEvaluate(webView, script, &json)) {
+        /* The page waits for this process: the script runs there now. */
+        id value = json ? [NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding]
+                                                          options:NSJSONReadingFragmentsAllowed error:nil] : nil;
         result = [value isKindOfClass:[NSDictionary class]] ? value : nil;
-        done = YES;
-    }];
-    _WebGLibRunLoopWait(^{ return done; }, SyncTimeout);
+    } else {
+        __block BOOL done = NO;
+        [webView._engine evaluateJavaScript:script completionHandler:^(id value, NSError *error) {
+            (void)error;
+            result = [value isKindOfClass:[NSDictionary class]] ? value : nil;
+            done = YES;
+        }];
+        _WebGLibRunLoopWait(^{ return done; }, SyncTimeout);
+    }
     NSString *type = result[@"t"];
     if (type == nil || [type isEqualToString:@"x"])
         return nil;
@@ -116,7 +152,7 @@ static NSString *scriptValue(id value)
     if ([type isEqualToString:@"n"])
         return [NSNull null];
     if ([type isEqualToString:@"o"]) {
-        WebScriptObject *object = [WebScriptObject new];
+        WebScriptObject *object = [scriptObjectClass(result[@"c"]) new];
         object.webView = webView;
         object.expression = [NSString stringWithFormat:@"window.__webScriptObjects[%@]", result[@"i"]];
         return object;
@@ -133,7 +169,7 @@ static NSString *scriptValue(id value)
 - (id)callWebScriptMethod:(NSString *)name withArguments:(NSArray *)arguments {
     NSMutableArray *values = [NSMutableArray array];
     for (id argument in arguments) {
-        NSString *value = scriptValue(argument);
+        NSString *value = scriptValue(argument, self.webView);
         if (value == nil)
             return nil;
         [values addObject:value];
@@ -147,7 +183,7 @@ static NSString *scriptValue(id value)
 }
 
 - (void)setValue:(id)value forKey:(NSString *)key {
-    NSString *script = scriptValue(value);
+    NSString *script = scriptValue(value, self.webView);
     if (script != nil)
         [self _run:[NSString stringWithFormat:@"(%@)[%@] = %@;", self.expression, literal(key), script]];
 }
@@ -161,7 +197,7 @@ static NSString *scriptValue(id value)
 }
 
 - (void)setWebScriptValueAtIndex:(unsigned)index value:(id)value {
-    NSString *script = scriptValue(value);
+    NSString *script = scriptValue(value, self.webView);
     if (script != nil)
         [self _run:[NSString stringWithFormat:@"(%@)[%u] = %@;", self.expression, index, script]];
 }
@@ -294,7 +330,10 @@ static void gotData(GObject *object, GAsyncResult *result, gpointer block)
 - (id)webView { return self.owner; }
 - (WebFrame *)parentFrame { return nil; }
 - (NSArray *)childFrames { return @[]; }
-- (DOMDocument *)DOMDocument { return nil; }
+- (DOMDocument *)DOMDocument {
+    id document = [self.windowObject _run:@"return document;"];
+    return [document isKindOfClass:[DOMDocument class]] ? document : nil;
+}
 - (WebFrameView *)frameView { return nil; }
 - (WebScriptObject *)windowObject {
     if (_windowObject == nil) {
@@ -433,6 +472,7 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
     [_engine addObserver:self forKeyPath:@"title" options:0 context:NULL];
     [_engine addObserver:self forKeyPath:@"estimatedProgress" options:0 context:NULL];
     [self addSubview:_engine];
+    _WebScriptBridgeRegister(self, webkit_web_view_get_page_id(_engine._webKitView));
     [_preferences _applyTo:_engine._webKitView];
     [_engine _setDrawsBackground:_drawsBackground];
     if (_customUserAgent.length)
@@ -491,7 +531,12 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
     [_engine _setDrawsBackground:draws];
 }
 - (void)_setDrawsBackground:(BOOL)draws { self.drawsBackground = draws; }
-- (DOMRange *)selectedDOMRange { return nil; }
+/* The selection's first range, if there is a selection. */
+- (DOMRange *)selectedDOMRange {
+    id range = [self.windowScriptObject _run:@"var s = window.getSelection();"
+                                              " return s && s.rangeCount ? s.getRangeAt(0) : null;"];
+    return [range isKindOfClass:[DOMRange class]] ? range : nil;
+}
 - (WebScriptObject *)windowScriptObject { return _mainFrame.windowObject; }
 - (BOOL)canGoBack { return _engine.canGoBack; }
 - (BOOL)canGoForward { return _engine.canGoForward; }
@@ -584,7 +629,11 @@ static void failedToFindText(WebKitFindController *controller, gpointer data)
     _mainFrame.dataSource = [self _dataSourceFor:[self _currentRequest] loading:YES];
     _mainFrame.provisionalDataSource = nil;
     [self _tellFrameLoadDelegate:@selector(webView:didCommitLoadForFrame:) with:nil];
-    /* A new page, a new window object: scripts may set things on it. */
+}
+
+/* A new page's window object, before its scripts run (the scripting
+   bridge says when): the delegate may set things on it. */
+- (void)_windowObjectCleared {
     [self _tellFrameLoadDelegate:@selector(webView:didClearWindowObject:forFrame:) with:_mainFrame.windowObject];
 }
 
