@@ -138,6 +138,19 @@ static NSMapTable *pathToObject=NULL;
         name = [name substringToIndex:version.location];
     }
 
+    // Minkar: a framework's executable, X.framework/Versions/<version>/X
+    // or X.framework/X: the bundle is the framework, as on the reference
+    // platform (it was the executable's directory, Versions/<version>).
+    NSString *frameworkName = [name stringByAppendingPathExtension:@"framework"];
+    NSString *versions = [directory stringByDeletingLastPathComponent];
+    if ([[versions lastPathComponent] isEqualToString:@"Versions"] &&
+        [[[versions stringByDeletingLastPathComponent] lastPathComponent] isEqualToString:frameworkName]) {
+        return [versions stringByDeletingLastPathComponent];
+    }
+    if ([[directory lastPathComponent] isEqualToString:frameworkName]) {
+        return directory;
+    }
+
     if (![extension isEqualToString:NSPlatformLoadableObjectFileExtension]) {
         // Support for MyProgram.app/MyProgram[.exe]
         if ([[directory lastPathComponent] isEqualToString:[NSString stringWithFormat:@"%@.app", name]] == YES) {
@@ -246,6 +259,10 @@ static NSMapTable *pathToObject=NULL;
         nameToBundle = NSCreateMapTable(NSObjectMapKeyCallBacks, NSObjectMapValueCallBacks, 0);
 
         mainBundle = [NSBundle bundleWithModulePath:path];
+        // Minkar: the main bundle's executable is the process's (a tool's
+        // bundle is its directory, whose name is not the executable's).
+        if (mainBundle->_executablePath == nil)
+            mainBundle->_executablePath = [[path stringByStandardizingPath] retain];
 
         [self registerFrameworks];
     }
@@ -296,9 +313,20 @@ static NSMapTable *pathToObject=NULL;
 }
 
 
+/* Minkar: among the bundles loaded (the main one, the frameworks and the
+   bundles loaded since), the one with that identifier. */
 +(NSBundle *)bundleWithIdentifier:(NSString *)identifier {
-   NSUnimplementedMethod();
-   return 0;
+   if(identifier==nil)
+    return nil;
+   if([[[self mainBundle] bundleIdentifier] isEqualToString:identifier])
+    return [self mainBundle];
+   for(NSBundle *bundle in _allFrameworks)
+    if([[bundle bundleIdentifier] isEqualToString:identifier])
+     return bundle;
+   for(NSBundle *bundle in _allBundles)
+    if([[bundle bundleIdentifier] isEqualToString:identifier])
+     return bundle;
+   return nil;
 }
 
 
@@ -433,8 +461,10 @@ static NSString *baseLanguage(NSString *name) {
     if(![[NSFileManager defaultManager] fileExistsAtPath:path])
      path=nil;
 
+    // Minkar: a framework's is in its Resources (it was looked for in
+    // Resources/Resources).
     if(path==nil)
-     path=[self pathForResource:@"Info" ofType:@"plist" inDirectory:@"Resources"];
+     path=[_resourcePath stringByAppendingPathComponent:@"Info.plist"];
        
     if(![[NSFileManager defaultManager] fileExistsAtPath:path])
         path=[[_path stringByAppendingPathComponent:@"Info"] stringByAppendingPathExtension:@"plist"];
@@ -605,8 +635,21 @@ static NSString *baseLanguage(NSString *name) {
    if(name==nil)
     name=[[_path lastPathComponent] stringByDeletingPathExtension];
 
+   // Minkar: a framework's executable is in its current version,
+   // X.framework/Versions/<version>/X, as the reference platform gives it.
+   if([type isEqualToString:@"framework"]){
+    NSString *current=[[[_path stringByAppendingPathComponent:@"Versions"] stringByAppendingPathComponent:@"Current"] stringByResolvingSymlinksInPath];
+    NSString *executable=[current stringByAppendingPathComponent:name];
+
+    if([[NSFileManager defaultManager] fileExistsAtPath:executable])
+     return executable;
+    executable=[_path stringByAppendingPathComponent:name];
+    if([[NSFileManager defaultManager] fileExistsAtPath:executable])
+     return [executable stringByResolvingSymlinksInPath];
+   }
+
    if([type isEqualToString:@"framework"])
-    checkDir=[[[_path stringByDeletingLastPathComponent] stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Versions"];
+    checkDir=[[_path stringByAppendingPathComponent:@"Versions"] stringByAppendingPathComponent:@"Current"];
    else
     checkDir=[[_path stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:NSPlatformExecutableDirectory];
 
