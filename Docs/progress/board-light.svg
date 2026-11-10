@@ -1,59 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="942" viewBox="0 0 1120 942" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-10">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="963" viewBox="0 0 1120 963" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-10">
 <title>Minkar work board, 2026-11-10</title>
-<rect width="1120" height="942" fill="#ffffff"/>
+<rect width="1120" height="963" fill="#ffffff"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-10 · devel 31b0c7800c</text>
-<rect x="16" y="70" width="261.5" height="864" rx="10" fill="#f6f8fa"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-10 · devel e5e516dade</text>
+<rect x="16" y="70" width="261.5" height="885" rx="10" fill="#f6f8fa"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#0969da"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">W2: WebKit draws a page</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WPE WebKit on Minkar, IPC</text>
-<text x="42" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">over framed stream sockets; 0</text>
-<text x="42" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">pixels off the reference · 10</text>
-<text x="42" y="216" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="249" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="249" width="5" height="125" rx="2" fill="#57606a"/>
-<text x="42" y="273" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Toolchain on LLVM 21</text>
-<text x="42" y="294" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swift-6.4.2-RELEASE: clang</text>
-<text x="42" y="313" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">21, Swift 6.4 runtime; full</text>
-<text x="42" y="332" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">suite and M2, M3 pass · 10</text>
-<text x="42" y="351" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="384" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="384" width="5" height="106" rx="2" fill="#9a6700"/>
-<text x="42" y="408" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Cocoa coverage met</text>
-<text x="42" y="429" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">imported symbols 99.9 %,</text>
-<text x="42" y="448" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">selectors 97.6 %; nine</text>
-<text x="42" y="467" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">frameworks at 100 % · 9 nov</text>
-<rect x="26" y="500" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="500" width="5" height="146" rx="2" fill="#9a6700"/>
-<text x="42" y="524" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Security, WebKit&#x27;s API,</text>
-<text x="42" y="545" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">eight frameworks</text>
-<text x="42" y="566" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Security&#x27;s subset, WKWebView</text>
-<text x="42" y="585" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and WebView (text pages),</text>
-<text x="42" y="604" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">UTType, AE, Quick Look · 9</text>
-<text x="42" y="623" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="656" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="656" width="5" height="125" rx="2" fill="#1a7f37"/>
-<text x="42" y="680" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">A1: Terminal</text>
-<text x="42" y="701" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">libvterm in Agave, tabs,</text>
-<text x="42" y="720" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">scrollback, colors;</text>
-<text x="42" y="739" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Preferences with Light and</text>
-<text x="42" y="758" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Dark schemes · 8 nov</text>
-<rect x="26" y="791" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="791" width="5" height="125" rx="2" fill="#1a7f37"/>
-<text x="42" y="815" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">A4: Logs</text>
-<text x="42" y="836" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">os_log&#x27;s messages live,</text>
-<text x="42" y="855" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">filtered by level, process</text>
-<text x="42" y="874" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and subsystem; crash reports</text>
-<text x="42" y="893" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and log files · 8 nov</text>
-<rect x="291.5" y="70" width="261.5" height="864" rx="10" fill="#f6f8fa"/>
+<rect x="26" y="114" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="146" rx="2" fill="#0969da"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">W3: WKWebView on WPE</text>
+<text x="42" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WebKit</text>
+<text x="42" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">pages drawn in AppKit views,</text>
+<text x="42" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">JavaScript, mouse, keys, copy</text>
+<text x="42" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and paste, the UI delegate ·</text>
+<text x="42" y="237" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">10 nov</text>
+<rect x="26" y="270" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="270" width="5" height="125" rx="2" fill="#0969da"/>
+<text x="42" y="294" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">W2: WebKit draws a page</text>
+<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WPE WebKit on Minkar, IPC</text>
+<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">over framed stream sockets; 0</text>
+<text x="42" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">pixels off the reference · 10</text>
+<text x="42" y="372" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="26" y="405" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="405" width="5" height="125" rx="2" fill="#57606a"/>
+<text x="42" y="429" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Toolchain on LLVM 21</text>
+<text x="42" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swift-6.4.2-RELEASE: clang</text>
+<text x="42" y="469" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">21, Swift 6.4 runtime; full</text>
+<text x="42" y="488" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">suite and M2, M3 pass · 10</text>
+<text x="42" y="507" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="26" y="540" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="540" width="5" height="106" rx="2" fill="#9a6700"/>
+<text x="42" y="564" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Cocoa coverage met</text>
+<text x="42" y="585" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">imported symbols 99.9 %,</text>
+<text x="42" y="604" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">selectors 97.6 %; nine</text>
+<text x="42" y="623" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">frameworks at 100 % · 9 nov</text>
+<rect x="26" y="656" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="656" width="5" height="146" rx="2" fill="#9a6700"/>
+<text x="42" y="680" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Security, WebKit&#x27;s API,</text>
+<text x="42" y="701" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">eight frameworks</text>
+<text x="42" y="722" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Security&#x27;s subset, WKWebView</text>
+<text x="42" y="741" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and WebView (text pages),</text>
+<text x="42" y="760" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">UTType, AE, Quick Look · 9</text>
+<text x="42" y="779" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="26" y="812" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="812" width="5" height="125" rx="2" fill="#1a7f37"/>
+<text x="42" y="836" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">A1: Terminal</text>
+<text x="42" y="857" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">libvterm in Agave, tabs,</text>
+<text x="42" y="876" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">scrollback, colors;</text>
+<text x="42" y="895" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Preferences with Light and</text>
+<text x="42" y="914" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Dark schemes · 8 nov</text>
+<rect x="291.5" y="70" width="261.5" height="885" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="106" rx="2" fill="#0969da"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WebKit: WPE as the engine</text>
-<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WebCore draws pages (W2);</text>
-<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WKWebView and WebView on WPE</text>
-<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">next (W3, W4)</text>
+<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WKWebView on WPE (W3); the</text>
+<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">older WebView next (W4), then</text>
+<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the reference apps (W5)</text>
 <rect x="301.5" y="230" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="230" width="5" height="106" rx="2" fill="#cf222e"/>
 <text x="317.5" y="254" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU: clocks, then G5</text>
 <text x="317.5" y="275" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G4 measured on PC 2; its</text>
 <text x="317.5" y="294" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">clocks, then the 3D path, for</text>
 <text x="317.5" y="313" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">21.0&#x27;s performance gate</text>
-<rect x="567" y="70" width="261.5" height="864" rx="10" fill="#f6f8fa"/>
+<rect x="567" y="70" width="261.5" height="885" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#bf3989"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Desktop design and icons</text>
@@ -70,7 +71,7 @@
 <text x="593" y="393" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Navi 23&#x27;s display at its</text>
 <text x="593" y="412" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">native mode, as G1 did for</text>
 <text x="593" y="431" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the FirePro</text>
-<rect x="842.5" y="70" width="261.5" height="864" rx="10" fill="#f6f8fa"/>
+<rect x="842.5" y="70" width="261.5" height="885" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">Minkar 19.6.0</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#1a7f37"/>
