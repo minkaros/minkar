@@ -4,7 +4,7 @@ FRAMEWORK = CoreFoundation
 FMWK_VERSION = A
 INFO_PLIST = Info.plist
 
-HEADERS = CFArray.h CFAttributedString.h CFBag.h CFBase.h CFBinaryHeap.h CFBitVector.h CFBundle.h \
+HEADERS = CFArray.h CFAttributedString.h CFBag.h CFFileDescriptor.h CFBase.h CFBinaryHeap.h CFBitVector.h CFBundle.h \
 	CFByteOrder.h CFCalendar.h CFCharacterSet.h CFData.h CFDate.h \
 	CFDateFormatter.h CFDictionary.h CFError.h CFLocale.h CFMessagePort.h \
 	CFMachPort.h CFNumber.h CFNumberFormatter.h CFPlugIn.h CFPlugInCOM.h \
@@ -95,6 +95,7 @@ SRCS = CFApplicationPreferences.c \
 	CFURLResources.c \
 	CFStringTransform.c \
 	CFAttributedString.c \
+	CFFileDescriptor.c \
 	CFUUID.c \
 	CFUniChar.c \
 	CFUnicodeDecomposition.c \
