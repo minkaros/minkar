@@ -9,18 +9,18 @@
       {
         "text": {
           "global": [
-            "_removefile_state_get",
-            "_removefile_state_free",
-            "___removefile_random_char",
-            "_removefile_cancel",
             "___removefile_init_random",
-            "_removefile_state_set",
+            "___removefile_random_char",
             "___removefile_randomize_buffer",
-            "___removefile_tree_walker",
-            "_removefile_state_alloc",
-            "_removefile",
+            "___removefile_rename_unlink",
             "___removefile_sunlink",
-            "___removefile_rename_unlink"
+            "___removefile_tree_walker",
+            "_removefile",
+            "_removefile_cancel",
+            "_removefile_state_alloc",
+            "_removefile_state_free",
+            "_removefile_state_get",
+            "_removefile_state_set"
           ]
         }
       }

@@ -57,7 +57,7 @@ COMMONFLAGS = --target=${CpuArch}-apple-darwin \
 		-Wno-nullability-completeness -Wno-incompatible-sysroot \
 		-Wno-availability -fno-stack-check \
 		-isystem${MINKAR_SDKROOT}/usr/include/c++/v1 \
-		-isystem${TOOLS}/../lib/clang/17 \
+		-isystem${TOOLS}/../lib/clang/${LLVM_VERSION_MAJOR} \
 		-I${.OBJDIR}/.. \
 		-I${ROOT_BINARY_DIR}/${CpuArch} \
 		-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \

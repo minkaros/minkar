@@ -18,14 +18,15 @@ SRC=$(cd "$HERE/../.." && pwd)
 BUILD=${1:-$SRC/../build}
 DEV=$BUILD/Developer/Platforms/Minkar.platform/Developer
 SDK=$DEV/SDKs/Minkar.sdk
-TAPI=$DEV/Toolchains/Default.xctoolchain/usr/bin/tapi
+# LLVM's llvm-readtapi writes them (the toolchain no longer has tapi).
+TAPI=$DEV/Toolchains/Default.xctoolchain/usr/bin/llvm-readtapi
 
-[ -x "$TAPI" ] || { echo "no tapi in $TAPI" >&2; exit 1; }
+[ -x "$TAPI" ] || { echo "no llvm-readtapi in $TAPI" >&2; exit 1; }
 
 # stub path (relative to the SDK)   built library
 stub() {
 	mkdir -p "$HERE/stubs/$(dirname "$1")"
-	"$TAPI" stubify "$SDK/$2" -o "$HERE/stubs/$1"
+	"$TAPI" -stubify --filetype=tbd-v5 "$SDK/$2" -o "$HERE/stubs/$1"
 }
 
 for f in "$SDK"/usr/lib/system/*.dylib; do

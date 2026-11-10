@@ -9,30 +9,30 @@
       {
         "data": {
           "global": [
-            "__NSConcreteWeakBlockVariable",
             "__NSConcreteAutoBlock",
             "__NSConcreteFinalizingBlock",
-            "__NSConcreteStackBlock",
             "__NSConcreteGlobalBlock",
-            "__NSConcreteMallocBlock"
+            "__NSConcreteMallocBlock",
+            "__NSConcreteStackBlock",
+            "__NSConcreteWeakBlockVariable"
           ]
         },
         "text": {
           "global": [
-            "__Block_use_stret",
-            "__Block_use_RR2",
-            "__Block_signature",
-            "__Block_object_dispose",
-            "__Block_copy",
-            "__Block_extended_layout",
             "_Block_size",
+            "__Block_copy",
             "__Block_copy_collectable",
+            "__Block_extended_layout",
             "__Block_has_signature",
-            "__Block_release",
-            "__Block_layout",
-            "__Block_tryRetain",
             "__Block_isDeallocating",
-            "__Block_object_assign"
+            "__Block_layout",
+            "__Block_object_assign",
+            "__Block_object_dispose",
+            "__Block_release",
+            "__Block_signature",
+            "__Block_tryRetain",
+            "__Block_use_RR2",
+            "__Block_use_stret"
           ]
         }
       }

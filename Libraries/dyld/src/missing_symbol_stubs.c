@@ -39,6 +39,40 @@ int fflush(FILE *stream)
         return 0;
 }
 
+/* libc++abi's abort message (since LLVM 21 it reaches dyld) writes to
+ * stderr with these; dyld's libc has no stdio, so they go to fd 2 through
+ * the _simple routines. */
+int vfprintf(FILE *stream, const char *format, va_list ap)
+{
+    (void)stream;
+    _simple_vdprintf(STDERR_FILENO, format, ap);
+    return 0;
+}
+
+int fputc(int c, FILE *stream)
+{
+    unsigned char ch = (unsigned char)c;
+    (void)stream;
+    return write(STDERR_FILENO, &ch, 1) == 1 ? c : EOF;
+}
+
+int vasprintf(char **ret, const char *format, va_list ap)
+{
+    _SIMPLE_STRING b = _simple_salloc();
+    if (b == NULL) {
+        *ret = NULL;
+        return -1;
+    }
+    _simple_vsprintf(b, format, ap);
+    const char *str = _simple_string(b);
+    size_t len = strlen(str);
+    *ret = malloc(len + 1);
+    if (*ret != NULL)
+        (memcpy)(*ret, str, len + 1); /* not the fortified macro */
+    _simple_sfree(b);
+    return *ret != NULL ? (int)len : -1;
+}
+
 #undef snprintf
 int snprintf(char* str, size_t size, const char* format, ...)
 {

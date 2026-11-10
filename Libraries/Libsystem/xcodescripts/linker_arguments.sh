@@ -56,7 +56,9 @@ for arch in ${ARCHS}; do
 		if [ "${l: -6}" == ".dylib" ]; then
 			xcrun -sdk "${SDKROOT}" lipo "${LSYS}/${l}" -verify_arch "${arch}" #2>/dev/null
 		else
-			xcrun -sdk "${SDKROOT}" tapi archive "${LSYS}/${l}" --verify-arch "${arch}" 2>/dev/null
+			# Minkar: the toolchain has LLVM's llvm-readtapi, not tapi; extracting
+			# the architecture fails when the stub does not have it.
+			xcrun -sdk "${SDKROOT}" llvm-readtapi -extract -arch "${arch}" "${LSYS}/${l}" -o "${OBJROOT:-/tmp}/verify-arch.$$.tbd" 2>/dev/null
 		fi
 		if [ $? -eq 0 ]; then
 			  echo "${l}"

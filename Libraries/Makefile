@@ -73,6 +73,7 @@ runtime: bootstrap_stubs
 	-DCOMPILER_RT_BUILD_PROFILE=ON -DCOMPILER_RT_BUILD_XRAY=OFF \
 	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF \
 	-DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_EXTERNALIZE_DEBUGINFO=OFF \
+	-DCOMPILER_RT_BUILD_CTX_PROFILE=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
 	-DCOMPILER_RT_HAS_ATOMIC_KEYWORD=ON -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=OFF 
 	env MAKEFLAGS="" .MAKEFLAGS="" \
 		${GMAKE} -C${.OBJDIR}/llvm_target/compiler-rt -j${.MAKE.JOBS}
@@ -134,8 +135,8 @@ libunwind: runtime
 # ------------------------------------------------------------------------
 
 LIBCXX_FLAGS = --target=${CpuArch}-apple-darwin \
-    -Wno-macro-redefined -isystem${MINKAR_SDKROOT}/usr/include/c++/v1 \
-    -isystem${TOOLCHAIN}/usr/lib/clang/17/include -std=c++20 \
+    -Wno-macro-redefined \
+    -isystem${TOOLCHAIN}/usr/lib/clang/${LLVM_VERSION_MAJOR}/include -std=c++20 \
     -I${MINKAR_SDKROOT}/usr/local/include -I${MINKAR_SDKROOT}/usr/include \
     -DCRT_HAS_128BIT -fuse-ld=${LD} -Wno-unused-command-line-argument \
     -Wno-incompatible-sysroot -Wno-user-defined-literals \
@@ -180,7 +181,7 @@ libcxx: libunwind
 		${MINKAR_SDKROOT}/usr/lib/
 
 RTOBJ = ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a
-CLANG_RT_DIR = ${TOOLCHAIN}/usr/lib/clang/17/lib/darwin
+CLANG_RT_DIR = ${TOOLCHAIN}/usr/lib/clang/${LLVM_VERSION_MAJOR}/lib/darwin
 compiler_rt: runtime libunwind libcxx
 	@echo compiler_rt dependencies built
 	mkdir -p ${RTLIB:H} ${RTOBJ:H} ${RTLIB2:H}

@@ -9,12 +9,12 @@
       {
         "text": {
           "global": [
-            "__Z20CRSetCrashLogMessagePKc",
-            "__Z21CRSetCrashLogMessage2PKc",
-            "__Z20CRGetCrashLogMessagev",
             "_CRGetCrashLogMessage",
+            "_CRSetCrashLogMessage",
             "_CRSetCrashLogMessage2",
-            "_CRSetCrashLogMessage"
+            "__Z20CRGetCrashLogMessagev",
+            "__Z20CRSetCrashLogMessagePKc",
+            "__Z21CRSetCrashLogMessage2PKc"
           ]
         }
       }

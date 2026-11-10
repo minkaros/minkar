@@ -85,9 +85,9 @@ DEVEL = ${ROOT_SOURCE_DIR}/Developer
 
 DARWIN_VERSION != head -1 ${ROOT_SOURCE_DIR}/Kernel/xnu/config/MasterVersion
 
-LLVM_VERSION_MAJOR != grep 'set.LLVM_VERSION_MAJOR' Developer/Default.xctoolchain/llvm/llvm/CMakeLists.txt | sed -E 's/^.* ([0-9]+).*$$/\1/'
-LLVM_VERSION_MINOR != grep 'set.LLVM_VERSION_MINOR' Developer/Default.xctoolchain/llvm/llvm/CMakeLists.txt | sed -E 's/^.* ([0-9]+).*$$/\1/'
-LLVM_VERSION_PATCH != grep 'set.LLVM_VERSION_PATCH' Developer/Default.xctoolchain/llvm/llvm/CMakeLists.txt | sed -E 's/^.* ([0-9]+).*$$/\1/'
+LLVM_VERSION_MAJOR != grep 'set.LLVM_VERSION_MAJOR' Developer/Default.xctoolchain/llvm/cmake/Modules/LLVMVersion.cmake | sed -E 's/^.* ([0-9]+).*$$/\1/'
+LLVM_VERSION_MINOR != grep 'set.LLVM_VERSION_MINOR' Developer/Default.xctoolchain/llvm/cmake/Modules/LLVMVersion.cmake | sed -E 's/^.* ([0-9]+).*$$/\1/'
+LLVM_VERSION_PATCH != grep 'set.LLVM_VERSION_PATCH' Developer/Default.xctoolchain/llvm/cmake/Modules/LLVMVersion.cmake | sed -E 's/^.* ([0-9]+).*$$/\1/'
 
 LLVM_VERSION = ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}
 LLVM_MAJOR = ${LLVM_VERSION_MAJOR}

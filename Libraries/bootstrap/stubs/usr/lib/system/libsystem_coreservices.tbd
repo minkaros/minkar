@@ -9,9 +9,9 @@
       {
         "text": {
           "global": [
-            "_sysdir_get_next_search_path_enumeration",
             "_NSGetNextSearchPathEnumeration",
             "_NSStartSearchPathEnumeration",
+            "_sysdir_get_next_search_path_enumeration",
             "_sysdir_start_search_path_enumeration"
           ]
         }
