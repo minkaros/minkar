@@ -233,6 +233,7 @@ ${CMAKE_TC}: ${MK_DIR}/minkar.extlib.mk
 	  echo 'set(CMAKE_CXX_FLAGS_INIT "${TARGET_FLAGS} ${WARN_FLAGS}")'; \
 	  echo 'set(CMAKE_SHARED_LINKER_FLAGS_INIT "${TARGET_FLAGS} -fuse-ld=${TC}/ld64")'; \
 	  echo 'set(CMAKE_EXE_LINKER_FLAGS_INIT "${TARGET_FLAGS} -fuse-ld=${TC}/ld64")'; \
+	  echo 'set(CMAKE_MODULE_LINKER_FLAGS_INIT "${TARGET_FLAGS} -fuse-ld=${TC}/ld64")'; \
 	  echo 'set(CMAKE_FIND_ROOT_PATH ${SDK})'; \
 	  echo 'set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)'; \
 	  echo 'set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)'; \
