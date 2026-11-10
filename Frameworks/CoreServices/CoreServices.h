@@ -20,4 +20,5 @@
 #include <CoreServices/Gestalt.h>
 #include <CoreServices/IconsCore.h>
 #include <CoreServices/LSItemInfo.h>
+#include <CoreServices/UnicodeUtilities.h>
 #include <CoreServices/Metadata.h>
