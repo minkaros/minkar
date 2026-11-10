@@ -287,4 +287,17 @@ w1-check: .PHONY
 	    ${W1_OUT} ${W1_SUITES:U}
 .endif
 
+# Gate W2: WPE WebKit draws Tests/W2/page.html on a machine running Minkar
+# and the image matches the page's reference (Tests/W2/check-host.sh):
+# W2_HOST=user@address[:port], W2_SSH_KEY the key to log in with. The
+# rendering, the reference and their difference go to W2_OUT.
+W2_OUT ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/w2-results
+w2-check: .PHONY
+.if !defined(W2_HOST)
+	@echo "w2-check: W2_HOST=user@address[:port] (a machine running Minkar) is required" >&2; false
+.else
+	sh ${.CURDIR}/Tests/W2/check-host.sh ${TOOLCHAIN}/usr/bin ${MINKAR_SDKROOT} ${W2_HOST} \
+	    "${W2_SSH_KEY:U}" ${W2_OUT}
+.endif
+
 .include "./BSD/share/mk/bsd.subdir.mk"

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--
+  SPDX-License-Identifier: BSD-2-Clause
+  Copyright (c) 2026 The Minkar contributors
+  Part of Minkar.
+
+  Gate W2's page, drawn at 800x600. Every box has whole-pixel edges and a
+  plain color, so compare.py knows each pixel it should have (its
+  reference); only the text's pixels depend on the font, and are checked
+  for ink only. Keep compare.py's REGIONS in step with this page.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>W2</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  body { width: 800px; height: 600px; overflow: hidden; position: relative; }
+  /* Block layout: the header. */
+  #header { height: 60px; background: #2c5f7a; }
+  /* Alpha blending: half-transparent blue over the header. */
+  #glass { position: absolute; left: 600px; top: 0; width: 200px; height: 60px;
+           background: rgba(0, 0, 255, 0.5); }
+  /* Flexbox: three boxes spread across the row. */
+  #row { position: absolute; left: 0; top: 80px; width: 800px; box-sizing: border-box;
+         padding: 0 40px; display: flex; justify-content: space-between; }
+  #row div { width: 200px; height: 120px; }
+  /* Grid: two by two, with gaps. */
+  #grid { position: absolute; left: 40px; top: 240px; display: grid;
+          grid-template-columns: 180px 180px; grid-template-rows: 80px 80px; gap: 20px; }
+  /* Borders. */
+  #framed { position: absolute; left: 480px; top: 240px; width: 240px; height: 160px;
+            border: 10px solid #000000; background: #8e44ad; }
+  /* Text, through the font stack (HarfBuzz, FreeType, fontconfig). */
+  #text { position: absolute; left: 40px; top: 460px; width: 720px; height: 100px;
+          font: 24px sans-serif; color: #000000; }
+</style>
+</head>
+<body>
+<div id="header"></div>
+<div id="glass"></div>
+<div id="row">
+  <div style="background: #e74c3c"></div>
+  <div style="background: #27ae60"></div>
+  <div style="background: #f1c40f"></div>
+</div>
+<div id="grid">
+  <div style="background: #3498db"></div>
+  <div style="background: #e67e22"></div>
+  <div style="background: #1abc9c"></div>
+  <div style="background: #95a5a6"></div>
+</div>
+<div id="framed"></div>
+<div id="text">Minkar renders this page with WebKit: layout, color and text.</div>
+<script>
+  /* JavaScript runs: it fills the last grid cell's corner. */
+  const mark = document.createElement('div');
+  mark.style.cssText = 'position:absolute;left:240px;top:340px;width:40px;height:40px;background:#c0392b';
+  document.body.appendChild(mark);
+</script>
+</body>
+</html>
