@@ -2,17 +2,29 @@
 - CMake build scripts
 - libkmod (SPDX:APSL-2.0)
 
-* Imported from GitHub: apple-oss-distributions/distribution-macOS.git
-* Branch: rel/macOS-12
-- xnu (SPDX:APSL-2.0)
+* Imported from GitHub: apple-oss-distributions (each project's own
+  repository, at the tag the distribution-macOS repository lists for
+  Darwin 19.6.0, tag macos-10156). The versions were found on 2026-11-10
+  by comparing these trees file by file with that tag and with Darwin
+  21's (macos-125); this list said branch rel/macOS-12 before, but no
+  component comes from it.
+- xnu-6153.141.1, Darwin 19.6.0 (SPDX:APSL-2.0)
+- Extensions/IOATAFamily: IOATAFamily-256 (SPDX:APSL-2.0)
+- Extensions/IOStorageFamily: IOStorageFamily-238.120.1 (SPDX:APSL-2.0)
+- Extensions/IOGraphics: IOGraphics-576.1 (SPDX:APSL-2.0)
+- Extensions/IOPCIFamily: IOPCIFamily-370.141.1 (SPDX:APSL-1.1,SPDX:APSL-2.0)
+- Extensions/pthread: libpthread-416.100.3 (SPDX:APSL-2.0)
+- Extensions/IOHIDFamily: IOHIDFamily-1446.140.2 (SPDX:APSL-2.0)
+- Extensions/msdosfs: msdosfs-411.100.3 (SPDX:APSL-2.0)
+- Extensions/AppleFileSystemDriver: AppleFileSystemDriver-23 (SPDX:APSL-2.0)
+- Extensions/hfs: hfs-556.60.1, Darwin 20's, adapted to Darwin 19's xnu
+  (zinit zones, journal accounting, no AppleKeyStore, no compression)
+  (SPDX:APSL-2.0)
+- kext_tools: kext_tools-623.120.1 (SPDX:APSL-2.0)
+Older open-source releases, not in Darwin 19's distribution (the lines
+below, with their licenses as listed before):
 - Extensions/AppleAPIC (SPDX:APSL-2.0)
 - Extensions/AppleI386GenericPlatform (SPDX:APSL-1.1)
 - Extensions/AppleIntelPIIXATA (SPDX:APSL-1.1)
 - Extensions/ApplePS2Controller (SPDX:APSL-1.1)
 - Extensions/AppleIOACPIFamily (SPDX:APSL-1.1)
-- Extensions/IOATAFamily (SPDX:APSL-2.0)
-- Extensions/IOStorageFamily (SPDX:APSL-2.0)
-- Extensions/IOGraphics (SPDX:APSL-2.0)
-- Extensions/IOPCIFamily (SPDX:APSL-1.1,SPDX:APSL-2.0)
-- Extensions/pthread (SPDX:APSL-2.0)
-- kext_tools (SPDX:APSL-2.0)
