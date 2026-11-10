@@ -107,7 +107,7 @@ bool SDKDB::areCompatibleTargets(const Triple &lhs, const Triple &rhs) {
     return false;
 
   // x86_64 and x86_64h are two different slices.
-  if (lhs.getArchName().startswith("x86_64") &&
+  if (lhs.getArchName().starts_with("x86_64") &&
       lhs.getArchName() != rhs.getArchName())
     return false;
 
@@ -1486,7 +1486,7 @@ void SDKDB::diagnoseDifferences(const SDKDB &baseline) const {
     // movement information that could be used to produce better diagnostics
     // for the moved APIs, but there's no need to report changes of the linker
     // directives themselves.
-    if (name.startswith("$ld$"))
+    if (name.starts_with("$ld$"))
       continue;
 
     // FIXME: This is only a temporary workaround to further rinsing the
@@ -1494,7 +1494,7 @@ void SDKDB::diagnoseDifferences(const SDKDB &baseline) const {
     // priority. This hides real issues for Swift symbols but we also currently
     // allowlist all Swift symbols in SDKDB.
     // Remove this filter with rdar://109905325
-    if (name.startswith("_$s"))
+    if (name.starts_with("_$s"))
       continue;
 
     // If the global symbol is accounted for in a different classification (e.g.

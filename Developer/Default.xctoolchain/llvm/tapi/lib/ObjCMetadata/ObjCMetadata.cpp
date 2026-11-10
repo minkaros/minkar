@@ -153,7 +153,7 @@ Expected<std::string> ObjCProperty::getGetter() const {
   SmallVector<StringRef, 4> Attrs;
   Attr->split(Attrs, ',');
   for (auto a : Attrs) {
-    if (a.startswith("G"))
+    if (a.starts_with("G"))
       return a.drop_front(1).str();
   }
   // Otherwise returns property name.
@@ -173,9 +173,9 @@ Expected<std::string> ObjCProperty::getSetter() const {
   SmallVector<StringRef, 4> Attrs;
   Attr->split(Attrs, ',');
   for (auto a : Attrs) {
-    if (a.startswith("S"))
+    if (a.starts_with("S"))
       return a.drop_front(1).str();
-    else if (a.startswith("R"))
+    else if (a.starts_with("R"))
       return std::string(); // Read-only property
   }
   // Otherwise returns property name.
@@ -257,7 +257,7 @@ ObjCMetaDataReader::ObjCMetaDataReader(object::MachOObjectFile *Binary,
     Info.Size = Section.getSize();
     StringRef SegmentName =
         Binary->getSectionFinalSegmentName(Section.getRawDataRefImpl());
-    if (!SegmentName.equals(CurSegName)) {
+    if (SegmentName != CurSegName) {
       ++CurSegIndex;
       CurSegName = SegmentName;
       CurSegAddress = Info.Address;
@@ -454,9 +454,9 @@ StringRef ObjCMetaDataReader::getSymbolNameFromRef(ObjCRef Ref) const {
 }
 
 StringRef ObjCMetaDataReader::guessClassNameBasedOnSymbol(StringRef Sym) const {
-  if (Sym.startswith("_OBJC_CLASS_$_"))
+  if (Sym.starts_with("_OBJC_CLASS_$_"))
     return Sym.drop_front(strlen("_OBJC_CLASS_$_"));
-  else if (Sym.startswith(".objc_class_name_"))
+  else if (Sym.starts_with(".objc_class_name_"))
     return Sym.drop_front(strlen(".objc_class_name_"));
   else
     return Sym;

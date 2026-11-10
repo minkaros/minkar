@@ -108,8 +108,8 @@ def err_architecture_mismatch : Error<"architectures do not match: '%0' (provide
 def err_install_name_mismatch : Error<"install_name does not match: '%0' (provided) vs '%1' (found)">;
 def err_current_version_mismatch : Error<"current_version does not match: '%0' (provided) vs '%1' (found)">;
 def err_compatibility_version_mismatch : Error<"compatibility_version does not match: '%0' (provided) vs '%1' (found)">;
-def err_appextension_safe_mismatch : Error<"ApplicationExtensionSafe flag does not match: '%0' (provided) vs '%1' (found)">;
-def err_shared_cache_eligiblity_mismatch : Error<"NotForDyldSharedCache flag does not match: '%0' (provided) vs '%1' (found)">;
+def err_appextension_safe_mismatch : Error<"the ApplicationExtensionSafe flag does not match: '%0' (provided) vs '%1' (found)">;
+def err_shared_cache_eligiblity_mismatch : Error<"the NotForDyldSharedCache flag does not match: '%0' (provided) vs '%1' (found)">;
 def err_reexported_libraries_missing : Error<"re-exported library missing from %0: '%1'">;
 def err_reexported_libraries_mismatch : Error<"re-exported libraries do not match: '%0' (provided) vs '%1' (found)">;
 def err_allowable_clients_missing : Error<"allowable client missing from %0: '%1'">;
@@ -175,13 +175,13 @@ def warn_no_such_pre_header_file : Warning<"no such %select{public|private}0 pre
 def warn_no_such_excluded_header_file : Warning<"no such excluded %select{public|private}0 header file: '%1'">;
 def warn_no_such_umbrella_header_file : Warning<"no such %select{public|private}0 umbrella header file: '%1'">;
 def warn_empty_versions_directory : Warning<"ignoring the Versions directory within framework because it contains no parsable files: '%0'">;
-def warn_generate_path_32bit: Warning<"could not generate information about '%0' for 32bit injection.">;
-def warn_auto_zippered : Warning<"Auto zippering was requested, output will be zippered">;
+def warn_generate_path_32bit: Warning<"could not generate information about '%0' for 32bit injection">;
+def warn_auto_zippered : Warning<"auto zippering was requested, output will be zippered">;
 def warn_reexport_install_name : Warning<"reexport_install_name is deprecated, use reexport_framework reexport_l or reexport_library">;
-def warn_platform_specific_deployment_target : Warning<"platform specific option for deployment target '%0' is deprecated, use -mtargetos.">;
-def warn_installapi_flag : Warning<"set-installapi-flag is deprecated and will be ignored.">;
-def warn_no_uuids: Warning<"no-uuids is deprecated and will be ignored.">;
-def warn_snapshot : Warning<"snapshot options are deprecated and will be ignored.">;
+def warn_platform_specific_deployment_target : Warning<"platform specific option for deployment target '%0' is deprecated, use -mtargetos">;
+def warn_installapi_flag : Warning<"set-installapi-flag is deprecated and will be ignored">;
+def warn_no_uuids: Warning<"no-uuids is deprecated and will be ignored">;
+def warn_snapshot : Warning<"snapshot options are deprecated and will be ignored">;
 def warn_target: Warning<"violations found for %0">;
 def warn_header_availability_mismatch : Warning<"declaration '%0' is marked %select{available|unavailable}1,"
   " but symbol is %select{not |}2exported in dynamic library">;

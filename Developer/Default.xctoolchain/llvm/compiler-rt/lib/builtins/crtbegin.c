@@ -3,8 +3,12 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
+
+// Minkar: Mach-O runs its constructors from dyld; this is ELF's.
+#ifndef __MINKAR__
 
 #include <stddef.h>
 
@@ -191,3 +195,5 @@ __asm__(".pushsection .fini,\"ax\",@progbits\n\t"
 #else
 #error "crtbegin without .init_fini array unimplemented for this architecture"
 #endif  // CRT_HAS_INIT_FINI_ARRAY
+
+#endif // __MINKAR__

@@ -307,7 +307,7 @@ bool DirectoryScanner::scanHeaders(Framework &framework, StringRef path,
 
     // Ignore tmp files from unifdef.
     auto filename = sys::path::filename(headerPath);
-    if (filename.startswith("."))
+    if (filename.starts_with("."))
       continue;
 
     if (_fm.isSymlink(headerPath))
@@ -367,12 +367,12 @@ bool DirectoryScanner::scanModules(Framework &framework,
     if (fs.status(path) == std::errc::no_such_file_or_directory)
       continue;
 
-    if (path.endswith(".swiftinterface")) {
+    if (path.ends_with(".swiftinterface")) {
       framework._swiftModules.emplace_back(path);
       framework._swiftModules.back().addSwiftInterface(path);
-    } else if (path.endswith(".swiftmodule"))
+    } else if (path.ends_with(".swiftmodule"))
       scanSwiftModules(framework, path);
-    else if (path.endswith(".modulemap"))
+    else if (path.ends_with(".modulemap"))
       framework.addModuleMap(path);
   }
 
@@ -405,7 +405,7 @@ bool DirectoryScanner::scanSwiftModules(Framework &framework,
     if (fs.status(f) == std::errc::no_such_file_or_directory)
       continue;
 
-    if (f.endswith(".swiftinterface") || f.endswith(".swiftmodule"))
+    if (f.ends_with(".swiftinterface") || f.ends_with(".swiftmodule"))
       module.addSwiftInterface(f);
   }
   return true;
@@ -503,7 +503,7 @@ Expected<bool> DirectoryScanner::isDynamicLibrary(StringRef path) const {
 
   // Metal Libraries pretend to be MachOs, but they do not contain any
   // framework code that developers can use, so we will just skip them.
-  if (path.endswith(".metallib"))
+  if (path.ends_with(".metallib"))
     return false;
 
   auto fileType = _registry.getFileType(*bufferOrErr.get());
@@ -610,7 +610,7 @@ bool DirectoryScanner::scanSDKContent(StringRef directory) {
     }
 
     // Skip framework directories that is handled above.
-    if (path.endswith("Frameworks") || path.endswith("PrivateFrameworks"))
+    if (path.ends_with("Frameworks") || path.ends_with("PrivateFrameworks"))
       continue;
 
     // Skip all that is not a directory.

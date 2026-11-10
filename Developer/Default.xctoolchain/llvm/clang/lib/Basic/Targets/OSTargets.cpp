@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,6 +25,7 @@ void getAppleMachODefines(MacroBuilder &Builder, const LangOptions &Opts,
                           const llvm::Triple &Triple) {
   Builder.defineMacro("__APPLE_CC__", "6000");
   Builder.defineMacro("__APPLE__");
+  Builder.defineMacro("__MINKAR__");
 
   // AddressSanitizer doesn't play well with source fortification, which is on
   // by default on Apple platforms.

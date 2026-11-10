@@ -87,8 +87,8 @@ static void addHeaderInclude(HeaderFile header, const FrontendJob &job,
 
   StringRef headerName = header.fullPath;
   // If the header is quoted already, use as it is.
-  if ((headerName.startswith("\"") && headerName.endswith("\"")) ||
-      (headerName.startswith("<") && headerName.endswith(">"))) {
+  if ((headerName.starts_with("\"") && headerName.ends_with("\"")) ||
+      (headerName.starts_with("<") && headerName.ends_with(">"))) {
     os << headerName << "\n";
     return;
   }

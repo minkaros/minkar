@@ -54,7 +54,7 @@ std::string getAnnotatedName(const APIRecord *record, EncodeKind kind,
   }
 
   if (validSourceLoc) {
-    if ((kind == EncodeKind::GlobalSymbol) && symbolName.startswith("_"))
+    if ((kind == EncodeKind::GlobalSymbol) && symbolName.starts_with("_"))
       return name + symbolName.drop_front(1).str();
     return name + symbolName.str();
   }
@@ -103,7 +103,7 @@ APIRecord *findRecordFromAPI(const API *api, StringRef name, EncodeKind kind) {
 // We do not warn about weak-defined RTTI, because this doesn't affect
 // linking and can be ignored.
 bool shouldIgnoreCXX(StringRef name, bool isWeakDef) {
-  return (isWeakDef && (name.startswith("__ZTI") || name.startswith("__ZTS")));
+  return (isWeakDef && (name.starts_with("__ZTI") || name.starts_with("__ZTS")));
 }
 
 // __private_extern__ is a deprecated specifier that clang does not
@@ -185,7 +185,7 @@ private:
       updateState(SymbolVerifier::Result::Valid);
       return;
     }
-    bool isLinkerSymbol = record.name.startswith("$ld$");
+    bool isLinkerSymbol = record.name.starts_with("$ld$");
     // Handle zippered symbols with mismatching availability
     // between macOS and macCatalyst, if there exists an available
     // declaration, allow it.

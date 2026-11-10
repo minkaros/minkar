@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,6 +39,11 @@ static std::string getOSVersion() {
 
 static std::string updateTripleOSVersion(std::string TargetTripleString) {
   // On darwin, we want to update the version to match that of the target.
+  // Minkar: only when the host is Darwin. On a Linux build host uname gives
+  // Linux's version (x86_64-apple-darwin6.8.0-149-generic); left without a
+  // version, the triple means 10.15 (Triple::getMacOSXVersion).
+  if (!Triple(LLVM_HOST_TRIPLE).isOSDarwin())
+    return TargetTripleString;
   std::string::size_type DarwinDashIdx = TargetTripleString.find("-darwin");
   if (DarwinDashIdx != std::string::npos) {
     TargetTripleString.resize(DarwinDashIdx + strlen("-darwin"));

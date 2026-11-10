@@ -32,7 +32,7 @@ void replace_extension(SmallVectorImpl<char> &path, const Twine &extension) {
   auto parentPath = sys::path::parent_path(p);
   auto filename = sys::path::filename(p);
 
-  if (!parentPath.endswith(filename.str() + ".framework")) {
+  if (!parentPath.ends_with(filename.str() + ".framework")) {
     sys::path::replace_extension(path, extension);
     return;
   }

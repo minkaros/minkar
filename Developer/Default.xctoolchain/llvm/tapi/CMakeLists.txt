@@ -61,12 +61,13 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/include/tapi/Version.inc)
 
 # Check if the linker support -no_inits.
-llvm_check_linker_flag(CXX "-Wl,-no_inits" LINKER_SUPPORTS_NO_INITS)
+include(CheckLinkerFlag)
+check_linker_flag(CXX "-Wl,-no_inits" LINKER_SUPPORTS_NO_INITS)
 
 # MARZIPAN RENAME: We might need to update this. This will also require an
 # update of the linker on the CI bots.
 # Check if the linker has iosmac support.
-llvm_check_linker_flag(CXX "-Wl,-iosmac_version_min,13.0" LINKER_SUPPORTS_IOSMAC)
+check_linker_flag(CXX "-Wl,-iosmac_version_min,13.0" LINKER_SUPPORTS_IOSMAC)
 # MARZIPAN RENAME
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
@@ -194,6 +195,8 @@ option(TAPI_INCLUDE_TESTS "Generate build targets for the TAPI unit tests."
        ${LLVM_INCLUDE_TESTS})
 option(TAPI_INCLUDE_DOCS "Generate build targets for the TAPI docs."
       ${LLVM_INCLUDE_DOCS})
+# Minkar: build libtapi alone (what ld64 links), not the tapi tool.
+option(TAPI_MINKAR_LIBRARY_ONLY "Build only libtapi and the libraries it needs." OFF)
 
 # Include must go first.
 add_subdirectory(include)

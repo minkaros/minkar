@@ -174,7 +174,7 @@ bool PathMaskingOverlayFileSystem::pathMasked(const Twine &path) const {
   SmallString<PATH_MAX> realPath;
   auto p = path.toStringRef(realPath);
   for (auto &mask : extraMaskingPath) {
-    if (p.startswith(mask))
+    if (p.starts_with(mask))
       return true;
   }
   return false;

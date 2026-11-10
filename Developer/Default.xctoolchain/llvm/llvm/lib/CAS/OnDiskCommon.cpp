@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 
@@ -148,7 +149,11 @@ Expected<size_t> cas::ondisk::preallocateFileTail(int FD, size_t CurrentSize, si
   return NewSize;
 #elif defined(__APPLE__)
   fstore_t FAlloc;
-  FAlloc.fst_flags = F_ALLOCATEALL | F_ALLOCATEPERSIST;
+  FAlloc.fst_flags = F_ALLOCATEALL;
+#ifdef F_ALLOCATEPERSIST
+  // Minkar: Darwin 19's fcntl has no F_ALLOCATEPERSIST.
+  FAlloc.fst_flags |= F_ALLOCATEPERSIST;
+#endif
   FAlloc.fst_posmode = F_PEOFPOSMODE;
   FAlloc.fst_offset = 0;
   FAlloc.fst_length = NewSize - CurrentSize;

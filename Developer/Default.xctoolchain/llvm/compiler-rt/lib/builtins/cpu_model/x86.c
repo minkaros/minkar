@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 //
@@ -1124,6 +1125,14 @@ static void getAvailableFeatures(unsigned ECX, unsigned EDX, unsigned MaxLeaf,
 #undef hasFeature
 #undef setFeature
 }
+
+// Minkar: libSystem runs no static constructors of its own (it is
+// initialized from dyld), so this is not one; __builtin_cpu_init() runs it,
+// and running it again does nothing.
+#if defined(__MINKAR__)
+#undef CONSTRUCTOR_ATTRIBUTE
+#define CONSTRUCTOR_ATTRIBUTE
+#endif
 
 #ifndef _WIN32
 __attribute__((visibility("hidden")))

@@ -65,7 +65,7 @@ IRObjectFile::create(MemoryBufferRef Object, LLVMContext &Context) {
 }
 
 Expected<std::unique_ptr<TapiUniversal>>
-TapiUniversal::create(MemoryBufferRef Source) {
+TapiUniversal::create(MemoryBufferRef Source, bool SkipUnknownTriples) {
   llvm_unreachable("not supported");
 }
 

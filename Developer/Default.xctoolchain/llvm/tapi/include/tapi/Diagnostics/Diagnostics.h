@@ -9,6 +9,7 @@
 #ifndef TAPI_CORE_DIAGNOSTIC_H
 #define TAPI_CORE_DIAGNOSTIC_H
 
+#include <memory>
 #include "tapi/Core/APICommon.h"
 #include "tapi/Core/LLVM.h"
 #include "tapi/Defines.h"
@@ -98,7 +99,8 @@ public:
   clang::DiagnosticIDs::Level getDiagnosticLevel(unsigned diagID);
 
 private:
-  IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts;
+  // Not reference counted since LLVM 21: owned here, outliving diag.
+  std::unique_ptr<clang::DiagnosticOptions> diagOpts;
   IntrusiveRefCntPtr<clang::DiagnosticsEngine> diag;
   clang::LangOptions langOpts;
   bool warningsAsErrors = false;

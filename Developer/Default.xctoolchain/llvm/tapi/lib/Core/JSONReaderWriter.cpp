@@ -25,7 +25,7 @@ TAPI_NAMESPACE_INTERNAL_BEGIN
 
 bool JSONReader::canRead(file_magic magic, MemoryBufferRef memBufferRef,
                          FileType types) const {
-  if (!memBufferRef.getBufferIdentifier().endswith(".tbd"))
+  if (!memBufferRef.getBufferIdentifier().ends_with(".tbd"))
     return false;
   auto result = TextAPIReader::canRead(memBufferRef);
   if (!result) {

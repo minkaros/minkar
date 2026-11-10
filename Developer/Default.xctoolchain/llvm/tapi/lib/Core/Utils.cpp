@@ -80,7 +80,7 @@ bool isPublicDylib(StringRef installName) {
     // ==> false
     // /System/Library/Frameworks/Foo.framework/Frameworks/XFoo.framework/XFoo
     // ==> false
-    if (rest.startswith("framework/") && (sys::path::filename(rest) == name))
+    if (rest.starts_with("framework/") && (sys::path::filename(rest) == name))
       return true;
 
     return false;
@@ -92,8 +92,8 @@ bool isPublicDylib(StringRef installName) {
 bool isWithinPublicLocation(StringRef path) {
   path = consumeSDKPrefixes(path);
 
-  if (path.startswith("/usr/local/") || 
-      path.startswith("/System/Library/PrivateFrameworks/"))
+  if (path.starts_with("/usr/local/") || 
+      path.starts_with("/System/Library/PrivateFrameworks/"))
     return false;
 
   if (path.consume_front("/System/Library/Frameworks/")) {
@@ -121,7 +121,7 @@ std::string findLibrary(StringRef installName, FileManager &fm,
                         ArrayRef<std::string> searchPaths) {
   auto filename = sys::path::filename(installName);
   bool isFramework = sys::path::parent_path(installName)
-                         .endswith((filename + ".framework").str());
+                         .ends_with((filename + ".framework").str());
 
   if (isFramework) {
     for (const auto &path : frameworkSearchPaths) {

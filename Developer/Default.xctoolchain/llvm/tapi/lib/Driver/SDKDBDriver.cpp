@@ -174,7 +174,7 @@ public:
     if (sdkInfo)
       return true;
     const auto sysRoot = config.getSysRoot();
-    if (!StringRef(sysRoot).endswith(".sdk"))
+    if (!StringRef(sysRoot).ends_with(".sdk"))
       return false;
     auto sdkInfoOrErr = parseDarwinSDKInfo(
         getFileManager().getVirtualFileSystem(), std::move(sysRoot));
@@ -310,7 +310,7 @@ public:
 private:
   void updateAPILoc(APIRecord &record) {
     auto path = record.loc.getFilename();
-    if (path.startswith(root)) {
+    if (path.starts_with(root)) {
       SmallString<PATH_MAX> newPath(path);
       sys::path::replace_path_prefix(newPath, root, "");
       auto filename = api.copyString(newPath);
@@ -424,7 +424,7 @@ static void inferTriplesFromEnvironment(sdkdb::Context &context,
     } else if (isDriverKit)
       triples.emplace_back(getArchitectureName(arch), "apple",
                            getOSAndEnvironmentName(PLATFORM_DRIVERKIT, "19.0"));
-    else if (getPlatformName(context.platform).endswith("Simulator"))
+    else if (getPlatformName(context.platform).ends_with("Simulator"))
       triples.emplace_back(
           getArchitectureName(arch), "apple",
           getOSAndEnvironmentName(context.platform, context.version),
@@ -1171,7 +1171,7 @@ static bool readPartialSDKDBInputs(sdkdb::Context &context, Options &opts) {
       continue;
 
     // Skip comments
-    if (l.startswith("#"))
+    if (l.starts_with("#"))
       continue;
 
     if (!readPartialSDKDBFile(context, l))
@@ -1206,7 +1206,7 @@ static Error readExistingPartialSDKDBFromDirectory(sdkdb::Context &context) {
     }
 
     auto path = i->path();
-    if (!path.endswith(".sdkdb"))
+    if (!path.ends_with(".sdkdb"))
       continue;
    
     // This is the output name, skip that.

@@ -15,6 +15,8 @@ mark_as_advanced(LLVM_NO_INSTALL_NAME_DIR_FOR_BUILD_TREE)
 if(NOT LLVM_NO_INSTALL_NAME_DIR_FOR_BUILD_TREE)
   set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 endif()
+# Minkar: the toolchain is built without warnings.
+add_compile_options(-w -Wno-error=global-constructors)
 
 include(${LLVM_COMMON_CMAKE_UTILS}/Modules/LLVMVersion.cmake)
 
@@ -1558,3 +1560,6 @@ if (XCODE)
     set_target_properties(${target} PROPERTIES XCODE_GENERATE_SCHEME ON)
   endforeach()
 endif()
+
+# Minkar: the toolchain's own headers (Developer/Default.xctoolchain/include).
+include_directories(${CMAKE_SOURCE_DIR}/Developer/Default.xctoolchain/include)

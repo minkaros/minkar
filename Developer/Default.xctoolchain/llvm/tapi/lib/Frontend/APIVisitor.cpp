@@ -363,7 +363,7 @@ bool APIVisitor::isAvailabilitySPI(SourceLocation loc) const {
   auto &sm = context.getSourceManager();
   auto spellingLoc = sm.getSpellingLoc(loc);
   auto *file = sm.getFileEntryForID(sm.getFileID(spellingLoc));
-  if (file && file->getName().endswith("AvailabilityInternalPrivate.h")) 
+  if (file && file->getName().ends_with("AvailabilityInternalPrivate.h")) 
     return true;
   // If not, search up the macro expansion see if the previous expansion
   // satisfy the requirement.

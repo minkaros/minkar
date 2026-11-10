@@ -32,7 +32,7 @@ public:
 
   /// \brief Check if a particular path is a directory.
   bool isDirectory(StringRef path, bool CacheFailure = true) {
-    return (bool)getDirectory(path, CacheFailure);
+    return (bool)getOptionalDirectoryRef(path, CacheFailure);
   }
 
   /// \brief Check if a particular path is a symlink using directory_iterator.

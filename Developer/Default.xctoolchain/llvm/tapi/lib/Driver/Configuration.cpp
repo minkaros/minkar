@@ -136,8 +136,8 @@ void Configuration::setConfiguration(ConfigurationFile &&configFile,
 
   StringRef projName(projectName);
   // If the project name ends with _iosmac, set the default to iosmac.
-  isiOSMac = projName.endswith("_iosmac");
-  isDriverKit |= projName.endswith("_driverkit");
+  isiOSMac = projName.ends_with("_iosmac");
+  isDriverKit |= projName.ends_with("_driverkit");
 
   // Find the project setting from configuration file.
   // If there is setting for the project, update them as commandline options.
@@ -157,7 +157,7 @@ void Configuration::setConfiguration(ConfigurationFile &&configFile,
   // For projects end with "_Sim", try search without suffix.
   if (!projectConfig && projName.consume_back("_Sim")) {
     for (auto &conf : file.projectConfigurations) {
-      if (projName.endswith(conf.name)) {
+      if (projName.ends_with(conf.name)) {
         projectConfig.reset(new configuration::v1::ProjectConfiguration(conf));
         break;
       }

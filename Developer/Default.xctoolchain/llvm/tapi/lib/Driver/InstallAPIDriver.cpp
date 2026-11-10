@@ -238,7 +238,7 @@ static bool verifyBinaryInfo(bool &autoZippered,
 
     // Ignore rpath differences if building asan variant, since the compiler
     // injects additional paths.
-    if (!apiInfo.installName.endswith("_asan")) {
+    if (!apiInfo.installName.ends_with("_asan")) {
       if (!compareLibraries(apiRPaths, dylibRPaths, diag::warn_rpaths_missing,
                             diag::warn_rpaths_mismatch))
         return true;
@@ -395,7 +395,7 @@ parseAliasList(FileManager &fm, StringRef path,
       continue;
 
     // Skip comments
-    if (l.startswith("#"))
+    if (l.starts_with("#"))
       continue;
 
     StringRef symbol, remain, alias;

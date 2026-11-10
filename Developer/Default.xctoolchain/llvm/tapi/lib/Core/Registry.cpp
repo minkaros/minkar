@@ -51,7 +51,7 @@ public:
 bool DiagnosticReader::canRead(file_magic fileType, MemoryBufferRef bufferRef,
                                FileType types) const {
   auto str = bufferRef.getBuffer().trim();
-  if (!str.startswith("--- !tapi") || !str.endswith("..."))
+  if (!str.starts_with("--- !tapi") || !str.ends_with("..."))
     return false;
 
   return true;

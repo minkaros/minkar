@@ -344,7 +344,7 @@ static Error readSymbols(MachOObjectFile *object, API &api,
     exports.insert({symbol.name().str(), {flags, linkage}});
     // FIXME Workaround for: rdar://105047425
     // Add swift symbols from export trie.
-    if (symbol.name().startswith("_$s") || symbol.name().startswith("_$S"))
+    if (symbol.name().starts_with("_$s") || symbol.name().starts_with("_$S"))
       api.addGlobalFromBinary(symbol.name().str(), flags, APILoc(),
                               GVKind::Unknown, linkage);
   }

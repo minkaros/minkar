@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 
@@ -81,9 +82,16 @@ union ResourceInitHelper {
   ~ResourceInitHelper() {}
 };
 
+#if defined(__MINKAR__)
+// Minkar: libc++ is part of libSystem, which has no static initializers
+// (libSystem_initializer calls __libcxx_init instead). The resources are
+// constant-initialized and never destroyed, so none is needed.
+[[clang::no_destroy]] static constinit ResourceInitHelper res_init;
+#else
 // Pretend we're inside a system header so the compiler doesn't flag the use of the init_priority
 // attribute with a value that's reserved for the implementation (we're the implementation).
 #include "memory_resource_init_helper.h"
+#endif
 
 } // namespace
 

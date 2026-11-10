@@ -1057,3 +1057,8 @@ if (COMPILER_RT_BUILD_CRT)
 
   add_dependencies(compiler-rt crt)
 endif()
+
+# Minkar: built on a Linux host, the builtins find Darwin's headers here.
+if(CMAKE_HOST_SYSTEM_NAME MATCHES "Linux")
+  include_directories(../../../../include/runtime)
+endif()

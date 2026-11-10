@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 
@@ -719,6 +720,8 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("emscripten", Triple::Emscripten)
     .StartsWith("shadermodel", Triple::ShaderModel)
     .StartsWith("liteos", Triple::LiteOS)
+    // Minkar: x86_64-apple-minkar10.15 is a macOS triple.
+    .StartsWith("minkar", Triple::MacOSX)
     .StartsWith("serenity", Triple::Serenity)
     .StartsWith("vulkan", Triple::Vulkan)
     .StartsWith("firmware", Triple::Firmware)
@@ -1434,8 +1437,10 @@ VersionTuple Triple::getOSVersion() const {
   StringRef OSTypeName = getOSTypeName(getOS());
   if (OSName.starts_with(OSTypeName))
     OSName = OSName.substr(OSTypeName.size());
-  else if (getOS() == MacOSX)
+  else if (getOS() == MacOSX) {
     OSName.consume_front("macos");
+    OSName.consume_front("minkar");
+  }
   else if (OSName.starts_with("visionos"))
     OSName.consume_front("visionos");
 
@@ -1448,9 +1453,9 @@ bool Triple::getMacOSXVersion(VersionTuple &Version) const {
   switch (getOS()) {
   default: llvm_unreachable("unexpected OS for Darwin triple");
   case Darwin:
-    // Default to darwin8, i.e., MacOSX 10.4.
+    // Minkar: default to darwin19, i.e. 10.15 (API 19).
     if (Version.getMajor() == 0)
-      Version = VersionTuple(8);
+      Version = VersionTuple(19);
     // Darwin version numbers are skewed from OS X versions.
     if (Version.getMajor() < 4) {
       return false;
@@ -1469,9 +1474,9 @@ bool Triple::getMacOSXVersion(VersionTuple &Version) const {
     }
     break;
   case MacOSX:
-    // Default to 10.4.
+    // Minkar: default to 10.15 (API 19).
     if (Version.getMajor() == 0) {
-      Version = VersionTuple(10, 4);
+      Version = VersionTuple(10, 15);
     } else if (Version.getMajor() < 10) {
       return false;
     }

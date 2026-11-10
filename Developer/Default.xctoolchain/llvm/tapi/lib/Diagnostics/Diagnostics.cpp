@@ -75,19 +75,19 @@ static clang::DiagnosticOptions *createDiagnosticsEngineOpts() {
 }
 
 DiagnosticsEngine::DiagnosticsEngine(raw_ostream &errorStream) {
-  diagOpts = createDiagnosticsEngineOpts();
+  diagOpts.reset(createDiagnosticsEngineOpts());
   diag = new clang::DiagnosticsEngine(
-      new clang::DiagnosticIDs(), diagOpts.get(),
-      new clang::TextDiagnosticPrinter(errorStream, diagOpts.get()));
+      new clang::DiagnosticIDs(), *diagOpts,
+      new clang::TextDiagnosticPrinter(errorStream, *diagOpts));
   assert(std::is_sorted(std::begin(diagInfo), std::end(diagInfo)) &&
          "diagnostic array should be sorted");
   diag->getClient()->BeginSourceFile(langOpts);
 }
 
 DiagnosticsEngine::DiagnosticsEngine(clang::DiagnosticConsumer *client) {
-  diagOpts = createDiagnosticsEngineOpts();
+  diagOpts.reset(createDiagnosticsEngineOpts());
   diag = new clang::DiagnosticsEngine(new clang::DiagnosticIDs(),
-                                      diagOpts.get(), client);
+                                      *diagOpts, client);
   assert(std::is_sorted(std::begin(diagInfo), std::end(diagInfo)) &&
          "diagnostic array should be sorted");
   diag->getClient()->BeginSourceFile(langOpts);
@@ -163,7 +163,7 @@ clang::DiagnosticBuilder DiagnosticsEngine::report(unsigned diagID,
 // that needs to be wrapped into a valid plist file.
 class TapiLogDiagnosticPrinter : public clang::LogDiagnosticPrinter {
 public:
-  TapiLogDiagnosticPrinter(raw_ostream &os, clang::DiagnosticOptions *diags,
+  TapiLogDiagnosticPrinter(raw_ostream &os, clang::DiagnosticOptions &diags,
                            std::unique_ptr<raw_ostream> streamOwner)
       : clang::LogDiagnosticPrinter(os, diags, std::move(streamOwner)), os(os) {
     // Write header for plist file.
@@ -187,7 +187,7 @@ private:
 void DiagnosticsEngine::setupLogDiagnostics(
     raw_ostream &os, std::unique_ptr<raw_ostream> streamOwner) {
   auto logger = std::make_unique<TapiLogDiagnosticPrinter>(
-      os, diagOpts.get(), std::move(streamOwner));
+      os, *diagOpts, std::move(streamOwner));
   assert(diag->ownsClient());
   diag->setClient(new clang::ChainedDiagnosticConsumer(diag->takeClient(),
                                                        std::move(logger)));
@@ -196,7 +196,7 @@ void DiagnosticsEngine::setupLogDiagnostics(
 void DiagnosticsEngine::setupSerializedDiagnostics(
     StringRef output, std::unique_ptr<raw_ostream> streamOwner) {
   auto SerializedConsumer = clang::serialized_diags::create(
-      output, diagOpts.get(), /*MergeChildRecords=*/false,
+      output, *diagOpts, /*MergeChildRecords=*/false,
       std::move(streamOwner));
   SerializedConsumer->BeginSourceFile(langOpts);
   assert(diag->ownsClient());

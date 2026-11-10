@@ -34,9 +34,10 @@ InterfaceFileManager::InterfaceFileManager(FileManager &fm,
 
 Expected<APIs &> InterfaceFileManager::readFile(const std::string &path,
                                                 const ReadFlags flags) {
-  auto file = _fm.getFile(path);
+  auto file = _fm.getOptionalFileRef(path);
   if (!file)
-    return errorCodeToError(file.getError());
+    return errorCodeToError(
+        std::make_error_code(std::errc::no_such_file_or_directory));
 
   auto bufferOrErr = _fm.getBufferForFile(*file,
                                           /*RequiresNullTerminator=*/true,
@@ -67,8 +68,8 @@ InterfaceFileManager::WriteAction
 InterfaceFileManager::shouldWrite(const std::string &path,
                                   const InterfaceFile *file,
                                   FileType fileType) const {
-  auto existingFile = _fm.getFile(path);
-  if (auto err = existingFile.getError())
+  auto existingFile = _fm.getOptionalFileRef(path);
+  if (!existingFile)
     return WriteAction::NewFile;
 
   auto bufferOrErr = _fm.getBufferForFile(*existingFile,

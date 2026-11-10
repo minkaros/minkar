@@ -1,5 +1,6 @@
 # Get sources
 set(LIBCXX_SOURCES
+  init.cpp
   algorithm.cpp
   any.cpp
   bind.cpp

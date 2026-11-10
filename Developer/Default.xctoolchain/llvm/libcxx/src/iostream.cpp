@@ -3,6 +3,7 @@
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Modifications Copyright (c) 2026 The Minkar contributors
 //
 //===----------------------------------------------------------------------===//
 
@@ -67,9 +68,11 @@ _LIBCPP_EXPORTED_FROM_ABI STREAM(basic_ostream, __stdoutbuf, wchar_t, wcerr);
 _LIBCPP_EXPORTED_FROM_ABI STREAM(basic_ostream, __stdoutbuf, wchar_t, wclog);
 #endif // _LIBCPP_HAS_WIDE_CHARACTERS
 
+#if !defined(__MINKAR__)
 // Pretend we're inside a system header so the compiler doesn't flag the use of the init_priority
 // attribute with a value that's reserved for the implementation (we're the implementation).
 #include "iostream_init.h"
+#endif
 
 // On Windows the TLS storage for locales needs to be initialized before we create
 // the standard streams, otherwise it may not be alive during program termination
@@ -134,5 +137,11 @@ ios_base::Init::Init() {
 }
 
 ios_base::Init::~Init() {}
+
+#if defined(__MINKAR__)
+// Minkar: libSystem has no static initializers; it sets up the standard
+// streams through __libcxx_init (init.cpp).
+extern "C" void __libcxx_ios_init() noexcept { ios_base::Init init_the_streams; }
+#endif
 
 _LIBCPP_END_NAMESPACE_STD
