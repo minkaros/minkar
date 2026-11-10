@@ -294,6 +294,7 @@ SRCS = 	NSFormatter.m \
 	NSAttributedString/NSMutableString_proxyToMutableAttributedString.m \
 	NSAttributedString/NSMutableAttributedString.m \
 	NSObject/NSObject.m \
+	NSObject/NSObject+SwiftBridging.m \
 	NSObject/objc_size_alignment.m \
 	NSObject/NSZombieObject.m \
 	NSDistributedLock.m \
