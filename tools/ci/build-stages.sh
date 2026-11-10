@@ -29,7 +29,7 @@ fi
 LOGDIR=${LOGDIR:-$SRC/../build/logs}
 JOBS=${JOBS:-$(nproc)}
 STAGES=${STAGES:-"BSD/hier Developer Kernel Libraries/libfirehose_kernel \
-Libraries Frameworks Kernel/Extensions CoreServices BSD SystemLibrary"}
+Libraries Frameworks Kernel/Extensions CoreServices BSD Frameworks/WebKit SystemLibrary"}
 TAIL_LINES=${TAIL_LINES:-60}
 
 mkdir -p "$LOGDIR"

@@ -53,8 +53,8 @@ SUBDIR += AudioToolbox
 SUBDIR += OSAKit
 SUBDIR += Carbon
 SUBDIR += Quartz
-# WebKit: the web view classes (WPE WebKit is to be their engine).
-SUBDIR += WebKit
+# WebKit.framework is a stage of its own, after BSD (WPE WebKit): the
+# top Makefile.
 # Uniform types as objects (API 20).
 SUBDIR += UniformTypeIdentifiers
 # The umbrella apps import and link.
@@ -105,7 +105,6 @@ AudioToolbox: CoreFoundation
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 Quartz: AppKit
-WebKit: AppKit
 UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics

@@ -2,11 +2,9 @@
 // Copyright (c) 2026 The Minkar contributors
 // Part of Minkar.
 //
-// Web views with the API's classes. SHORTCUT(19.6.0): until WPE WebKit is
-// the engine (see Docs/ROADMAP.md), a page is shown as its text through
-// AppKit's HTML reader: headings, paragraphs, emphasis, links, lists and
-// the title; no CSS, images in pages or JavaScript. Plain text and images
-// are shown as they are.
+// Web views with the API's classes, on WPE WebKit: WebKit's own processes
+// load and draw pages, JavaScript runs. Frames reach the view through
+// shared memory (IOSurfaces later).
 
 #import <AppKit/AppKit.h>
 
@@ -123,11 +121,31 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 - (void)webView:(WKWebView *)webView didFailNavigation:(null_unspecified WKNavigation *)navigation withError:(NSError *)error;
 @end
 
+/* What a page asked of a window it opens; nil where it said nothing. */
+@interface WKWindowFeatures : NSObject
+@property (nullable, readonly) NSNumber *menuBarVisibility;
+@property (nullable, readonly) NSNumber *statusBarVisibility;
+@property (nullable, readonly) NSNumber *toolbarsVisibility;
+@property (nullable, readonly) NSNumber *allowsResizing;
+@property (nullable, readonly) NSNumber *x;
+@property (nullable, readonly) NSNumber *y;
+@property (nullable, readonly) NSNumber *width;
+@property (nullable, readonly) NSNumber *height;
+@end
+
 @protocol WKUIDelegate <NSObject>
 @optional
+/* The web view must be made with the configuration given. */
 - (nullable WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration
-            forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(id)windowFeatures;
+            forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures;
 - (void)webViewDidClose:(WKWebView *)webView;
+- (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message
+    initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler;
+- (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message
+    initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(BOOL result))completionHandler;
+- (void)webView:(WKWebView *)webView runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt
+    defaultText:(nullable NSString *)defaultText initiatedByFrame:(WKFrameInfo *)frame
+    completionHandler:(void (^)(NSString *_Nullable result))completionHandler;
 @end
 
 @interface WKBackForwardListItem : NSObject
@@ -170,15 +188,15 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 - (nullable WKNavigation *)goForward;
 - (nullable WKNavigation *)reload;
 - (void)stopLoading;
-/* There is no JavaScript engine yet: the handler gets a WKErrorDomain
-   error. */
 - (void)evaluateJavaScript:(NSString *)javaScriptString completionHandler:(void (^_Nullable)(_Nullable id, NSError *_Nullable error))completionHandler;
 - (IBAction)goBack:(nullable id)sender;
 - (IBAction)goForward:(nullable id)sender;
 - (IBAction)reload:(nullable id)sender;
 - (IBAction)stopLoading:(nullable id)sender;
-/* The text shown (for searches and tests). */
+/* The page's text, waiting for it (for searches and tests). */
 - (NSString *)_text;
+/* The last frame drawn, nil before the first (for tests and snapshots). */
+- (nullable NSBitmapImageRep *)_lastFrame;
 @end
 
 NS_ASSUME_NONNULL_END

@@ -130,8 +130,9 @@ TARGET_TRIPLE = ${CpuArch}-apple-darwin${DARWIN_MAJOR}
 # Kernel/Extensions needs headers from Libraries (dispatch) and Frameworks
 # (CoreFoundation), so it is built after them rather than inside Kernel.
 # CoreServices (WindowServer) links against the Frameworks.
+# Frameworks/WebKit links WPE WebKit, an external library of BSD/lib.
 SUBDIR ?= BSD/hier .WAIT Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
-	CoreServices BSD SystemLibrary
+	CoreServices BSD Frameworks/WebKit SystemLibrary
 
 # 'bmake ONLY_STAGE=Frameworks Frameworks' builds that stage alone, without
 # walking (and re-checking) the stages before it first.
@@ -182,7 +183,8 @@ efiloader image boottest boottest-key: .PHONY
 #   frameworks  Frameworks                   what the frameworks load is
 #                                            there; their plists parse
 #   userland    BSD                          what the commands load is there
-#   sysapps     CoreServices SystemLibrary   what CoreServices loads is
+#   sysapps     CoreServices                 what CoreServices loads is
+#               Frameworks/WebKit SystemLibrary
 #                                            there; the system's plists parse
 LAYERS =		toolchain kernel libsystem frameworks userland sysapps
 LAYER_toolchain =	BSD/hier Developer
@@ -190,7 +192,7 @@ LAYER_kernel =		Kernel Kernel/Extensions
 LAYER_libsystem =	Libraries
 LAYER_frameworks =	Frameworks
 LAYER_userland =	BSD
-LAYER_sysapps =		CoreServices SystemLibrary
+LAYER_sysapps =		CoreServices Frameworks/WebKit SystemLibrary
 SYSROOT_CHECK =		python3 -B ${ROOT_SOURCE_DIR}/tools/check/sysroot-check.py \
 			--sysroot ${SYSROOT_DIR} --tools ${TOOLS}
 
