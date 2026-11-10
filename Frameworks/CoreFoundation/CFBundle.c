@@ -853,7 +853,7 @@ CFBundleRef CFBundleGetMainBundle(void) {
     return mainBundle;
 }
 
-CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
+static CFBundleRef _CFBundleGetBundleWithIdentifierFrom(CFStringRef bundleID, void *p) {
     CFBundleRef result = NULL;
     if (bundleID) {
         pthread_mutex_lock(&CFBundleGlobalDataLock);
@@ -861,7 +861,6 @@ CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
         result = _CFBundlePrimitiveGetBundleWithIdentifierAlreadyLocked(bundleID);
         if (!result) {
             // Try to create the bundle for the caller and try again
-            void *p = __builtin_return_address(0);
             if (p) {
                 CFStringRef imagePath = _CFBundleCopyLoadedImagePathForPointer(p);
                 if (imagePath) {
@@ -882,6 +881,47 @@ CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
             result = _CFBundlePrimitiveGetBundleWithIdentifierAlreadyLocked(bundleID);
         }
         pthread_mutex_unlock(&CFBundleGlobalDataLock);
+    }
+    return result;
+}
+
+/* Minkar: the reference platform's identifier of one of the API's
+   frameworks, as the identifier the framework has here (NULL if it is not
+   one): its exceptions first, then com.apple.<Name> as org.minkar.<Name>.
+   Programs written for the reference platform find their frameworks by
+   these identifiers; they are only matched, never shown. */
+static const struct { const char *reference, *minkar; } _CFBundleIdentifierAliases[] = {
+    { "com.apple.framework.IOKit", "org.minkar.IOKit" },
+    { "com.apple.security", "org.minkar.Security" },
+    { "com.apple.audio.toolbox.AudioToolbox", "org.minkar.AudioToolbox" },
+    { "com.apple.opengl", "org.minkar.OpenGL" },
+    { "com.apple.AddressBook.framework", "org.minkar.AddressBook" },
+    { "com.apple.frameworks.preferencepanes", "org.minkar.PreferencePanes" },
+    { "com.apple.xpc.ServiceManagement", "org.minkar.ServiceManagement" },
+};
+
+CF_PRIVATE CFStringRef _CFBundleCopyMinkarIdentifierForReferenceIdentifier(CFStringRef bundleID) {
+    char identifier[256];
+    if (!bundleID || !CFStringGetCString(bundleID, identifier, sizeof(identifier), kCFStringEncodingUTF8))
+        return NULL;
+    for (size_t i = 0; i < sizeof(_CFBundleIdentifierAliases) / sizeof(*_CFBundleIdentifierAliases); i++)
+        if (strcasecmp(identifier, _CFBundleIdentifierAliases[i].reference) == 0)
+            return CFStringCreateWithCString(kCFAllocatorSystemDefault, _CFBundleIdentifierAliases[i].minkar, kCFStringEncodingUTF8);
+    static const char prefix[] = "com.apple.";
+    if (strncmp(identifier, prefix, sizeof(prefix) - 1) != 0 || strchr(identifier + sizeof(prefix) - 1, '.') != NULL)
+        return NULL;
+    return CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL, CFSTR("org.minkar.%s"), identifier + sizeof(prefix) - 1);
+}
+
+CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
+    void *p = __builtin_return_address(0);
+    CFBundleRef result = _CFBundleGetBundleWithIdentifierFrom(bundleID, p);
+    if (!result) {
+        CFStringRef alias = _CFBundleCopyMinkarIdentifierForReferenceIdentifier(bundleID);
+        if (alias) {
+            result = _CFBundleGetBundleWithIdentifierFrom(alias, p);
+            CFRelease(alias);
+        }
     }
     return result;
 }

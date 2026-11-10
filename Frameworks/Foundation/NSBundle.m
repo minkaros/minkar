@@ -8,6 +8,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSBundle.h>
+#import <Foundation/NSURL.h>
+#import <CoreFoundation/CFBundle.h>
 #import <Foundation/NSPropertyList.h>
 #import <mach-o/getsect.h>
 #import <mach-o/dyld.h>
@@ -314,7 +316,7 @@ static NSMapTable *pathToObject=NULL;
 
 
 /* Minkar: among the bundles loaded (the main one, the frameworks and the
-   bundles loaded since), the one with that identifier. */
+   bundles loaded since), the one with that identifier; else CFBundle's. */
 +(NSBundle *)bundleWithIdentifier:(NSString *)identifier {
    if(identifier==nil)
     return nil;
@@ -326,7 +328,19 @@ static NSMapTable *pathToObject=NULL;
    for(NSBundle *bundle in _allBundles)
     if([[bundle bundleIdentifier] isEqualToString:identifier])
      return bundle;
-   return nil;
+   // CFBundle knows the others, and the reference platform's identifiers
+   // of the API's frameworks (com.apple.AppKit is AppKit here).
+   {
+    CFBundleRef cfBundle=CFBundleGetBundleWithIdentifier((CFStringRef)identifier);
+    CFURLRef    url=cfBundle ? CFBundleCopyBundleURL(cfBundle) : NULL;
+    NSBundle   *bundle=nil;
+
+    if(url!=NULL){
+     bundle=[NSBundle bundleWithPath:[(NSURL *)url path]];
+     CFRelease(url);
+    }
+    return bundle;
+   }
 }
 
 
