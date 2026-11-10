@@ -432,6 +432,8 @@ Objetivo: instalar software arrastrando la app desde una imagen de disco a `/App
 1. `DiskImages.framework` propio (MIT/BSD): lectura del formato UDIF con sus compresiones habituales, luego escritura.
 2. Montaje vía DiskArbitration en `/Volumes/<etiqueta>`, usando el driver HFS+ de la Fase 1.
 3. `hdiutil` mínimo (`attach`, `detach`, `create`) encima del framework, y doble clic en Files.
+4. Compresión HFS+ (decmpfs) en el kext de hfs: la plataforma de referencia guarda comprimidos muchos archivos de las apps y del sistema, y el hfs de Minkar (el hfs-556.60.1 de Darwin 20, adaptado al xnu de Darwin 19) se compila sin ella, así que esos archivos se leen vacíos. Criterio: una app copiada desde un DMG de la plataforma de referencia se ejecuta.
+5. El resto de la adaptación de hfs (encontrado el 10 nov 2026, ver `Kernel/_PROVENANCE`): encontrar y corregir el bucle del que `hfs_vfsutils.c` sale detectando duplicados (un apaño, según su propio comentario), y que `panic_on_assert` vuelva a salir de la configuración del kernel en vez de estar siempre activo.
 
 **Aplicaciones**
 
