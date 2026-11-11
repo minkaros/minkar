@@ -16,8 +16,13 @@ const CGFloat NSStackViewSpacingUseDefault=FLT_MAX;
 
 @implementation NSStackView
 
+/* Minkar: as on the reference platform, a stack view made this way is
+   placed by constraints (TextMate pins its file browser rows' stacks to
+   their cells: translating its mask, a stack was 0 by 0). */
 +(instancetype)stackViewWithViews:(NSArray *)views {
    NSStackView *result=[[[self alloc] initWithFrame:NSZeroRect] autorelease];
+
+   [result setTranslatesAutoresizingMaskIntoConstraints:NO];
 
    for(NSView *view in views)
     [result addArrangedSubview:view];

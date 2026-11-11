@@ -560,13 +560,32 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return NO;
 }
 
+/* Minkar: a view's opacity (it was unimplemented: it read 0 and kept
+   nothing). Applied when drawing as the view's and its superviews'
+   opacities together; a view that is not opaque at all is not drawn,
+   nor are its subviews. */
+static char alphaValueKey;
+
 -(CGFloat)alphaValue {
-   NSUnimplementedMethod();
-   return 0.;
+   NSNumber *value=objc_getAssociatedObject(self,&alphaValueKey);
+
+   return (value!=nil)?[value doubleValue]:1.0;
 }
 
 -(void)setAlphaValue:(CGFloat)alpha {
-   NSUnimplementedMethod();
+   alpha=MAX(0,MIN(1,alpha));
+   if(alpha==[self alphaValue])
+    return;
+   objc_setAssociatedObject(self,&alphaValueKey,(alpha==1.0)?nil:[NSNumber numberWithDouble:alpha],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   [self setNeedsDisplay:YES];
+}
+
+static CGFloat effectiveAlpha(NSView *view) {
+   CGFloat alpha=1.0;
+
+   for(;view!=nil && alpha>0;view=[view superview])
+    alpha*=[view alphaValue];
+   return alpha;
 }
 
 -(NSInteger)gState {
@@ -2282,6 +2301,15 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 
        CGContextClipToRect(graphicsPort,rect);
 
+       CGFloat alpha=effectiveAlpha(self);
+
+       if(alpha<=0){
+        [self unlockFocus];
+        goto drawn;
+       }
+       if(alpha<1)
+        CGContextSetAlpha(graphicsPort,alpha);
+
        const NSRect *rects;
        NSUInteger rectsCount;
        [self getRectsBeingDrawn:&rects count:&rectsCount];
@@ -2311,6 +2339,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
                [child displayRectIgnoringOpacity:check];
        }
    }
+drawn:
 
    [_layerContext render];
 
