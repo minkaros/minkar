@@ -224,6 +224,28 @@ def add_test_user(root_dir, name, password, uid=501, gid=20):
     home_dir = os.path.join(root_dir, home.lstrip('/'))
     os.makedirs(home_dir, mode=0o755, exist_ok=True)
     os.chown(home_dir, uid, gid)
+    populate_home(root_dir, home_dir, uid, gid)
+
+
+USER_TEMPLATE = 'System/Library/User Template/Non_localized'
+
+
+def populate_home(root_dir, home_dir, uid, gid):
+    """Give a home the folders of the user template (Library/Logs,
+    Documents...) that it lacks, with the template's modes, owned by the
+    account; what is there already stays as it is."""
+    template = os.path.join(root_dir, USER_TEMPLATE)
+    if not os.path.isdir(template):
+        return
+    for parent, dirs, _ in os.walk(template):
+        for d in sorted(dirs):
+            src = os.path.join(parent, d)
+            dst = os.path.join(home_dir, os.path.relpath(src, template))
+            if os.path.lexists(dst):
+                continue
+            os.mkdir(dst)
+            os.chmod(dst, os.stat(src).st_mode & 0o7777)
+            os.chown(dst, uid, gid)
 
 
 def permit_root_ssh(root_dir):
@@ -335,6 +357,7 @@ def build(args):
                 os.makedirs(path, mode=0o555)
         if args.init:
             install_init(root_dir, args.init)
+        populate_home(root_dir, os.path.join(root_dir, 'private/var/root'), 0, 0)
         if args.root_password:
             set_root_password(root_dir, args.root_password)
         if args.root_authorized_keys:
