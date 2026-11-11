@@ -201,14 +201,24 @@ static void sendLayout(NSView *view) {
    NSView *root=layoutRoot(self);
    NSViewLayoutState *state=NSViewLayoutStateIfAny(root);
 
+   int                passes;
+
    if(state==nil || !state->needsLayout)
     return;
-   state->needsLayout=NO;
-   [root updateConstraintsForSubtreeIfNeeded];
-   NSLayoutEngineLayout(root);
-   sendLayout(root);
-   if([root window]!=nil)
-    objc_setAssociatedObject([root window],&windowNeedsLayoutKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   /* Minkar: the window's mark is cleared first, and the pass run again
+      while a view asks for one during it (a frame change it answers by
+      changing an intrinsic size, as TextMate's gutter does): cleared at
+      the end, a request made during the pass was lost and the view kept
+      its old size. A few passes at most, as the reference does, so views
+      that keep asking cannot hold the window. */
+   for(passes=0;passes<8 && state->needsLayout;passes++){
+    state->needsLayout=NO;
+    if([root window]!=nil)
+     objc_setAssociatedObject([root window],&windowNeedsLayoutKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [root updateConstraintsForSubtreeIfNeeded];
+    NSLayoutEngineLayout(root);
+    sendLayout(root);
+   }
 }
 
 @end
