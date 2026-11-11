@@ -11,9 +11,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSPortNameServer
 
+// Minkar: the Mach bootstrap server, as on the reference platform.
 +(NSPortNameServer *)systemDefaultPortNameServer {
-   NSUnimplementedMethod();
-   return 0;
+   return [NSMachBootstrapServer sharedInstance];
 }
 
 -(NSPort *)portForName:(NSString *)name host:(NSString *)host {

@@ -164,6 +164,7 @@
 #import <Foundation/NSScriptCommand.h>
 #import <Foundation/NSPipe.h>
 #import <Foundation/NSPort.h>
+#import <Foundation/NSMachPort.h>
 #import <Foundation/NSPortCoder.h>
 #import <Foundation/NSPortMessage.h>
 #import <Foundation/NSPortNameServer.h>

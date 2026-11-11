@@ -180,6 +180,7 @@ SRCS = 	NSFormatter.m \
 	NSConnection/NSPortMessage.m \
 	NSConnection/NSMessagePort.m \
 	NSConnection/NSPort.m \
+	NSConnection/NSMachPort.m \
 	NSNull.m \
 	NSHTTPCookie/NSHTTPCookieStorage.m \
 	NSHTTPCookie/NSHTTPCookie.m \
@@ -247,6 +248,7 @@ SRCS = 	NSFormatter.m \
 	NSValue/NSValue_pointer.m \
 	NSPortNameServer/NSMessagePortNameServer.m \
 	NSPortNameServer/NSPortNameServer.m \
+	NSPortNameServer/NSMachBootstrapServer.m \
 	NSPortNameServer/NSSocketPortNameServer.m \
 	NSDecimal/NSDecimal.m \
 	NSDecimal/NSDecimalNumber.m \
@@ -405,6 +407,11 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSMachPort.m = -fobjc-arc
+CFLAGS.NSMachBootstrapServer.m = -fobjc-arc
+CFLAGS.NSPortCoder.m = -fobjc-arc
+CFLAGS.NSDistantObject.m = -fobjc-arc
+CFLAGS.NSConnection.m = -fobjc-arc
 CFLAGS.NSSubscripting.m = -fobjc-arc
 CFLAGS.NSCollectionBlocks.m = -fobjc-arc
 CFLAGS.NSUserNotification.m = -fobjc-arc

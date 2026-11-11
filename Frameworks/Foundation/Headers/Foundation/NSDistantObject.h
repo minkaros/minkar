@@ -14,6 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSConnection *_connection;
     Protocol *_protocol;
     id _localOrRemote;
+    uint32_t _wireID;
+    BOOL _isLocal;
 }
 
 - initWithLocal:local connection:(NSConnection *)connection;

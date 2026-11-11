@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSPort.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/NSMachPort.h>
 
 NSString * const NSPortDidBecomeInvalidNotification=@"NSPortDidBecomeInvalidNotification";
 
@@ -15,7 +16,7 @@ NSString * const NSPortDidBecomeInvalidNotification=@"NSPortDidBecomeInvalidNoti
 
 +allocWithZone:(NSZone *)zone {
    if(self==[NSPort class])
-    return NSAllocateObject([NSPort class],0,zone); // replace with NSMachPort
+    return NSAllocateObject([NSMachPort class],0,zone); // Minkar: ports are Mach ports
    else
     return NSAllocateObject(self,0,zone);
 }

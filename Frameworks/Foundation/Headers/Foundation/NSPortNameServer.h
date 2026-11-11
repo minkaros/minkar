@@ -22,3 +22,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)removePortForName:(NSString *)name;
 
 @end
+
+/* The Mach bootstrap server (launchd's): the system's default name server. */
+@interface NSMachBootstrapServer : NSPortNameServer
++ (id)sharedInstance;
+- (NSPort *)portForName:(NSString *)portName;
+- (NSPort *)portForName:(NSString *)portName host:(NSString *)portHost;
+- (BOOL)registerPort:(NSPort *)port name:(NSString *)portName;
+- (NSPort *)servicePortWithName:(NSString *)name;
+@end

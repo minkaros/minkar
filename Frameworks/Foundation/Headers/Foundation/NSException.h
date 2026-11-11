@@ -16,6 +16,11 @@ typedef NSString *NSExceptionName NS_TYPED_EXTENSIBLE_ENUM;
 
 FOUNDATION_EXPORT NSString *const NSGenericException;
 FOUNDATION_EXPORT NSString *const NSInvalidArgumentException;
+FOUNDATION_EXPORT NSString *const NSPortTimeoutException;
+FOUNDATION_EXPORT NSString *const NSInvalidSendPortException;
+FOUNDATION_EXPORT NSString *const NSInvalidReceivePortException;
+FOUNDATION_EXPORT NSString *const NSPortSendException;
+FOUNDATION_EXPORT NSString *const NSPortReceiveException;
 FOUNDATION_EXPORT NSString *const NSRangeException;
 
 FOUNDATION_EXPORT NSString *const NSInternalInconsistencyException;

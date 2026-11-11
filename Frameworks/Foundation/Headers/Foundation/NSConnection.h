@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @class NSPortNameServer, NSPort, NSRunLoop, NSDistantObject, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSConnectionReplyMode;
+FOUNDATION_EXPORT NSString *const NSConnectionDidDieNotification;
+FOUNDATION_EXPORT NSString *const NSConnectionDidInitializeNotification;
+FOUNDATION_EXPORT NSString *const NSFailedAuthenticationException;
 
 @interface NSConnection : NSObject {
     NSPort *_receivePort;

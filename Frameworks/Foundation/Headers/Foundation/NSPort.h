@@ -36,6 +36,11 @@ FOUNDATION_EXPORT NSString *const NSPortDidBecomeInvalidNotification;
 
 @end
 
+@protocol NSPortDelegate <NSObject>
+@optional
+- (void)handlePortMessage:(NSPortMessage *)portMessage;
+@end
+
 @interface NSObject (NSPortDelegate)
 - (void)handlePortMessage:(NSPortMessage *)portMessage;
 @end

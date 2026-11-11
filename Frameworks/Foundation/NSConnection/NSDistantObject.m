@@ -1,37 +1,55 @@
-/* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * NSDistantObject: an object of another process (a remote proxy, by the
+ * id its owner keeps for it) or, for the moment it is encoded, one of
+ * ours sent by reference (a local proxy). A remote proxy forwards every
+ * message to its connection, which sends it and waits for the reply; the
+ * method's signature comes from the protocol set for the proxy, else from
+ * the other process.
+ */
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-
+#import <Foundation/NSValue.h>
 #import <Foundation/NSDistantObject.h>
 #import <Foundation/NSConnection.h>
-#import <Foundation/NSRaise.h>
+#import <Foundation/NSInvocation.h>
+#import <Foundation/NSMethodSignature.h>
+#import <Foundation/NSString.h>
+#import <Foundation/NSException.h>
+#import "NSConnectionInternal.h"
+#include <objc/runtime.h>
 
 @implementation NSDistantObject
 
 -initWithLocal:local connection:(NSConnection *)connection {
-   _connection=[connection retain];
-   _protocol=nil;
+   _connection=connection;
    _localOrRemote=local;
+   _isLocal=YES;
    return self;
 }
 
+// A proxy for what another proxy stands for, on this connection.
 -initWithTarget:remote connection:(NSConnection *)connection {
-   _connection=[connection retain];
-   _protocol=nil;
-   _localOrRemote=remote;
+   uint32_t wireID=[remote respondsToSelector:@selector(unsignedIntValue)]?[remote unsignedIntValue]:0;
+
+   return [self initWithWireID:wireID connection:connection];
+}
+
+-initWithWireID:(uint32_t)wireID connection:(NSConnection *)connection {
+   _connection=connection;
+   _wireID=wireID;
+   _isLocal=NO;
    return self;
 }
 
 +(NSDistantObject *)proxyWithLocal:local connection:(NSConnection *)connection {
-   return [[[self alloc] initWithLocal:local connection:connection] autorelease];
+   return [[self alloc] initWithLocal:local connection:connection];
 }
 
 +(NSDistantObject *)proxyWithTarget:remote connection:(NSConnection *)connection {
-   return [[[self alloc] initWithTarget:remote connection:connection] autorelease];
+   return [[self alloc] initWithTarget:remote connection:connection];
 }
 
 -(NSConnection *)connectionForProxy {
@@ -39,9 +57,55 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)setProtocolForProxy:(Protocol *)protocol {
-   protocol=[protocol retain];
-   [_protocol release];
    _protocol=protocol;
+}
+
+-(uint32_t)_wireID {
+   return _wireID;
+}
+
+-(id)_localObject {
+   return _localOrRemote;
+}
+
+-(BOOL)_isLocal {
+   return _isLocal;
+}
+
+-(Protocol *)_protocol {
+   return _protocol;
+}
+
+-(NSMethodSignature *)methodSignatureForSelector:(SEL)selector {
+   if(_isLocal)
+    return [_localOrRemote methodSignatureForSelector:selector];
+   return [_connection _methodSignatureForSelector:selector proxy:self];
+}
+
+-(void)forwardInvocation:(NSInvocation *)invocation {
+   if(_isLocal){
+    [invocation invokeWithTarget:_localOrRemote];
+    return;
+   }
+   [_connection _forwardInvocation:invocation forProxy:self];
+}
+
+-(Class)classForCoder {
+   return [NSDistantObject class];
+}
+
+-(Class)classForPortCoder {
+   return [NSDistantObject class];
+}
+
+-replacementObjectForPortCoder:(NSPortCoder *)coder {
+   return self;
+}
+
+-(NSString *)description {
+   if(_isLocal)
+    return [NSString stringWithFormat:@"<%s %p local %@>",class_getName(object_getClass(self)),self,_localOrRemote];
+   return [NSString stringWithFormat:@"<%s %p id %u connection %p>",class_getName(object_getClass(self)),self,_wireID,_connection];
 }
 
 @end
