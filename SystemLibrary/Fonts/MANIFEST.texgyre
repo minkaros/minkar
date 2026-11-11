@@ -1,0 +1,7 @@
+# TeX Gyre 2.501 (GUST Font License), from Debian's source tarball of the
+# 2018-06-21 release: Pagella, metric-compatible with Palatino; installed
+# unchanged, with its license.
+url http://deb.debian.org/debian/pool/main/t/tex-gyre/tex-gyre_20180621.orig.tar.gz
+file tex-gyre_20180621.orig.tar.gz
+sha256 fe6b0f8ca6890d4a369f36c3b45bc30470069701a2f59042178ad5933fc9cdb8
+version 20180621

@@ -11,6 +11,14 @@
 # is Agave (OFL 1.1, chosen 2026-11-05), fetched at the version
 # MANIFEST.agave pins and installed unchanged, with its license as
 # Agave-LICENSE.txt.
+#
+# Free faces for the fonts applications ask for by name and the system
+# does not have (approved 2026-11-11), each fetched at the version its
+# MANIFEST pins and installed unchanged with its license: Liberation Sans,
+# Serif and Mono (OFL 1.1), DejaVu Sans and Sans Mono (Bitstream Vera),
+# Gelasio (OFL 1.1) and TeX Gyre Pagella (GUST). The names asked for lead
+# to them through the table in AppKit's O2Font_FT.m; users never see the
+# names asked for.
 
 SUBDIR =
 
@@ -26,6 +34,16 @@ DIR =		${SYSROOT_DIR}/System/Library/Fonts
 FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
 CACHE ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
 AGAVE =		Agave-Regular.ttf Agave-Bold.ttf
+LIBERATION =	LiberationSans-Regular.ttf LiberationSans-Bold.ttf LiberationSans-Italic.ttf \
+		LiberationSans-BoldItalic.ttf LiberationSerif-Regular.ttf LiberationSerif-Bold.ttf \
+		LiberationSerif-Italic.ttf LiberationSerif-BoldItalic.ttf LiberationMono-Regular.ttf \
+		LiberationMono-Bold.ttf LiberationMono-Italic.ttf LiberationMono-BoldItalic.ttf
+DEJAVU =	DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSans-Oblique.ttf DejaVuSans-BoldOblique.ttf \
+		DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf DejaVuSansMono-Oblique.ttf \
+		DejaVuSansMono-BoldOblique.ttf
+GELASIO =	'Gelasio[wght].ttf' 'Gelasio-Italic[wght].ttf'
+PAGELLA =	texgyrepagella-regular.otf texgyrepagella-bold.otf texgyrepagella-italic.otf \
+		texgyrepagella-bolditalic.otf
 
 all: install-fonts
 
@@ -39,5 +57,25 @@ install-fonts: .PHONY
 		install -o 0 -g 0 -m 0644 $$src/dist/$$f ${DIR}/ || exit 1; \
 	done && \
 	install -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Agave-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.liberation ${CACHE}) && \
+	for f in ${LIBERATION}; do \
+		install -C -o 0 -g 0 -m 0644 $$src/$$f ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Liberation-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.dejavu ${CACHE}) && \
+	for f in ${DEJAVU}; do \
+		install -C -o 0 -g 0 -m 0644 $$src/ttf/$$f ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/DejaVu-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.gelasio ${CACHE})/ofl/gelasio && \
+	for f in ${GELASIO}; do \
+		install -C -o 0 -g 0 -m 0644 "$$src/$$f" ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/Gelasio-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.texgyre ${CACHE}) && \
+	for f in ${PAGELLA}; do \
+		install -C -o 0 -g 0 -m 0644 $$src/fonts/opentype/public/tex-gyre/$$f ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/doc/fonts/tex-gyre/GUST-FONT-LICENSE.txt ${DIR}/TeXGyre-LICENSE.txt
 
 .include <bsd.prog.mk>

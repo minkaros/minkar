@@ -1,0 +1,8 @@
+# DejaVu Fonts 2.37 (Bitstream Vera and Arev licenses, LICENSE): Sans and
+# Sans Mono, the faces closest to those asked for as Lucida Grande, Geneva
+# and Verdana, and as Menlo and Monaco (which descend from Bitstream
+# Vera); installed unchanged, with their license.
+url https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2
+file dejavu-fonts-ttf-2.37.tar.bz2
+sha256 fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7
+version 2.37

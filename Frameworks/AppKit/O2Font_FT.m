@@ -105,13 +105,91 @@ static NSString *filenameForPostScriptName(NSString *name) {
    return ret;
 }
 
+/* Minkar: the fonts applications ask for by name that the system does not
+ * have, led to free faces that take the same room (installed by
+ * SystemLibrary/Fonts): a name is a family and a style, each face of a
+ * family the style it is asked for in. A family not in the table goes by
+ * its kind: fixed-pitch to Agave, serif to Liberation Serif, the rest to
+ * the system font. A font that is installed is never replaced. */
+typedef struct {
+   const char *regular,*bold,*italic,*boldItalic;
+} substituteFaces;
+
+static const substituteFaces liberationSans={ "LiberationSans","LiberationSans-Bold","LiberationSans-Italic","LiberationSans-BoldItalic" };
+static const substituteFaces liberationSerif={ "LiberationSerif","LiberationSerif-Bold","LiberationSerif-Italic","LiberationSerif-BoldItalic" };
+static const substituteFaces liberationMono={ "LiberationMono","LiberationMono-Bold","LiberationMono-Italic","LiberationMono-BoldItalic" };
+static const substituteFaces dejaVuSans={ "DejaVuSans","DejaVuSans-Bold","DejaVuSans-Oblique","DejaVuSans-BoldOblique" };
+static const substituteFaces dejaVuSansMono={ "DejaVuSansMono","DejaVuSansMono-Bold","DejaVuSansMono-Oblique","DejaVuSansMono-BoldOblique" };
+static const substituteFaces gelasio={ "Gelasio-Regular","Gelasio_700wght","Gelasio-Italic","GelasioItalic_700wght" };
+static const substituteFaces pagella={ "TeXGyrePagella-Regular","TeXGyrePagella-Bold","TeXGyrePagella-Italic","TeXGyrePagella-BoldItalic" };
+static const substituteFaces inter={ "Inter-Regular","Inter-Bold","Inter-Italic","Inter-BoldItalic" };
+static const substituteFaces agave={ "Agave-Regular","Agave-Bold","Agave-Regular","Agave-Bold" };
+
+static const struct { const char *family; const substituteFaces *faces; } substituteFamilies[]={
+   { "helvetica",&liberationSans }, { "helveticaneue",&liberationSans }, { "arial",&liberationSans },
+   { "times",&liberationSerif }, { "timesnewroman",&liberationSerif },
+   { "courier",&liberationMono }, { "couriernew",&liberationMono },
+   { "menlo",&dejaVuSansMono }, { "monaco",&dejaVuSansMono }, { "sfmono",&dejaVuSansMono },
+   { ".sfnsmono",&dejaVuSansMono }, { "andalemono",&dejaVuSansMono },
+   { "lucidagrande",&dejaVuSans }, { "geneva",&dejaVuSans }, { "verdana",&dejaVuSans },
+   { "georgia",&gelasio },
+   { "palatino",&pagella }, { "palatinolinotype",&pagella },
+   { ".applesystemuifont",&inter }, { ".sfnstext",&inter }, { ".sfnsdisplay",&inter },
+   { ".sfns",&inter }, { "sfprotext",&inter }, { "sfprodisplay",&inter }, { "sfpro",&inter },
+   { "sanfrancisco",&inter },
+};
+
+static NSString *stripSuffix(NSString *string,NSArray *suffixes) {
+   for(NSString *suffix in suffixes)
+    if([string length]>[suffix length] && [string hasSuffix:suffix])
+     return [string substringToIndex:[string length]-[suffix length]];
+   return string;
+}
+
+static NSString *substituteFontName(NSString *name) {
+   NSString *lower=[[name lowercaseString] stringByReplacingOccurrencesOfString:@" " withString:@""];
+   NSRange   hyphen=[lower rangeOfString:@"-"];
+   NSString *family=(hyphen.location==NSNotFound)?lower:[lower substringToIndex:hyphen.location];
+   NSString *style=(hyphen.location==NSNotFound)?@"":[lower substringFromIndex:NSMaxRange(hyphen)];
+   NSArray  *vendor=[NSArray arrayWithObjects:@"psmt",@"mt",@"ps",nil];
+   const substituteFaces *faces=NULL;
+   size_t    i;
+
+   family=stripSuffix(family,vendor);
+   style=stripSuffix(style,vendor);
+   for(i=0;i<sizeof(substituteFamilies)/sizeof(substituteFamilies[0]);i++)
+    if([family isEqualToString:[NSString stringWithUTF8String:substituteFamilies[i].family]])
+     faces=substituteFamilies[i].faces;
+   if(faces==NULL){
+    if([family rangeOfString:@"mono"].location!=NSNotFound || [family rangeOfString:@"courier"].location!=NSNotFound ||
+       [family rangeOfString:@"code"].location!=NSNotFound || [family rangeOfString:@"console"].location!=NSNotFound ||
+       [family rangeOfString:@"typewriter"].location!=NSNotFound)
+     faces=&agave;
+    else if([family rangeOfString:@"serif"].location!=NSNotFound && [family rangeOfString:@"sans"].location==NSNotFound)
+     faces=&liberationSerif;
+    else if([family rangeOfString:@"times"].location!=NSNotFound || [family rangeOfString:@"garamond"].location!=NSNotFound ||
+            [family rangeOfString:@"baskerville"].location!=NSNotFound || [family rangeOfString:@"roman"].location!=NSNotFound)
+     faces=&liberationSerif;
+    else
+     faces=&inter;
+   }
+
+   BOOL bold=[style rangeOfString:@"bold"].location!=NSNotFound || [style rangeOfString:@"black"].location!=NSNotFound ||
+             [style rangeOfString:@"heavy"].location!=NSNotFound;
+   BOOL italic=[style rangeOfString:@"italic"].location!=NSNotFound || [style rangeOfString:@"oblique"].location!=NSNotFound;
+
+   return [NSString stringWithUTF8String:bold?(italic?faces->boldItalic:faces->bold):(italic?faces->italic:faces->regular)];
+}
+
 -initWithFontName:(NSString *)name {
    self = [super initWithFontName:name];
 
    NSString *filename=[[self class] filenameForPattern:name];
-   /* Minkar: a font that is not installed is drawn in the system font,
-    * not in whichever font fontconfig lists first (Agave, once it was
-    * installed). */
+   /* Minkar: a font that is not installed is drawn in the free face that
+    * stands for it (substituteFontName), else in the system font, not in
+    * whichever font fontconfig lists first. */
+   if(filename==nil && [name length]>0)
+    filename=filenameForPostScriptName(substituteFontName(name));
    if(filename==nil)
     filename=filenameForPostScriptName(@"Inter-Regular");
    if(filename==nil) {
@@ -253,7 +331,31 @@ static NSString *filenameForPostScriptName(NSString *name) {
 
 + (NSString *)postscriptNameForFontName:(NSString *)name
 {
-   return name;
+   // The name of the face drawn: the font's own when it is installed, else
+   // that of the face that stands for it (NSFont's fontName is that face's).
+   static NSMutableDictionary *names;
+   NSString *result;
+
+   if([name length]==0)
+    return name;
+   @synchronized(self){
+    if(names==nil)
+     names=[[NSMutableDictionary alloc] init];
+    result=[names objectForKey:name];
+   }
+   if(result!=nil)
+    return result;
+   if([O2Font_FT filenameForPattern:name]!=nil)
+    result=name;
+   else {
+    NSString *substitute=substituteFontName(name);
+
+    result=(filenameForPostScriptName(substitute)!=nil)?substitute:name;
+   }
+   @synchronized(self){
+    [names setObject:result forKey:name];
+   }
+   return result;
 }
 
 @end

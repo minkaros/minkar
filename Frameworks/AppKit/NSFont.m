@@ -717,23 +717,22 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
 }
 
 -(BOOL)isFixedPitch {
-   CGSize  current;
-   int     glyph,glyphCount=CTFontGetGlyphCount(_ctFont);
-   CGGlyph glyphs[glyphCount];
-   CGSize  advances[glyphCount];
+   /* Minkar: the advances of characters as narrow and as wide as text has
+      (every glyph's made the system's fixed-pitch font, Agave, not one:
+      its missing glyph and its combining marks have other widths). */
+   static const UniChar probe[]={ 'i','W','m','.','0',' ','_' };
+   enum { count=sizeof(probe)/sizeof(probe[0]) };
+   CGGlyph glyphs[count];
+   CGSize  advances[count];
+   int     i;
 
-   for(glyph=0;glyph<glyphCount;glyph++)
-    glyphs[glyph]=glyph;
-
-   CTFontGetAdvancesForGlyphs(_ctFont,0,glyphs,advances,glyphCount);
-   current=advances[0];
-
-   for(glyph=1;glyph<glyphCount;glyph++){
-    if(advances[glyph].width!=current.width || advances[glyph].height!=current.height)
+   if(!CTFontGetGlyphsForCharacters(_ctFont,probe,glyphs,count))
+    return NO;
+   CTFontGetAdvancesForGlyphs(_ctFont,0,glyphs,advances,count);
+   for(i=1;i<count;i++)
+    if(advances[i].width!=advances[0].width)
      return NO;
-   }
-
-   return YES;
+   return advances[0].width>0;
 }
 
 -(CGFloat)italicAngle {
