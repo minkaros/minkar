@@ -44,7 +44,7 @@ bin ps bsd
 bin pwd bsd
 bin rm bsd
 bin rmdir bsd
-bin sh bsd
+bin sh platform
 bin sleep bsd
 bin stty bsd
 bin sync bsd
@@ -106,6 +106,8 @@ usr/bin basename bsd
 usr/bin batch bsd
 usr/bin bc bsd
 usr/bin bsdtar bsd
+usr/bin bundle bsd
+usr/bin bundler bsd
 usr/bin bunzip2 bsd
 usr/bin bzcat bsd
 usr/bin bzip2 bsd
@@ -144,6 +146,7 @@ usr/bin ditto platform
 usr/bin du bsd
 usr/bin egrep bsd
 usr/bin env bsd
+usr/bin erb bsd
 usr/bin ex bsd
 usr/bin expand bsd
 usr/bin false bsd
@@ -157,6 +160,7 @@ usr/bin fmt bsd
 usr/bin fold bsd
 usr/bin fs_usage platform
 usr/bin ftp bsd
+usr/bin gem bsd
 usr/bin gencat bsd
 usr/bin getconf bsd
 usr/bin getopt bsd
@@ -176,6 +180,7 @@ usr/bin indent bsd
 usr/bin install bsd
 usr/bin ipcrm bsd
 usr/bin ipcs bsd
+usr/bin irb bsd
 usr/bin jobs builtin
 usr/bin join bsd
 usr/bin jot bsd
@@ -237,12 +242,16 @@ usr/bin pr bsd
 usr/bin printenv bsd
 usr/bin printf bsd
 usr/bin quota bsd
+usr/bin rake bsd
+usr/bin rdoc bsd
 usr/bin renice bsd
 usr/bin reset bsd
 usr/bin rev bsd
+usr/bin ri bsd
 usr/bin rlogin bsd
 usr/bin rs bsd
 usr/bin rsync licence
+usr/bin ruby bsd
 usr/bin say platform
 usr/bin scp bsd
 usr/bin screencapture platform
