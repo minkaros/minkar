@@ -103,6 +103,18 @@ class CodesignTests(unittest.TestCase):
         ident_off = struct.unpack_from('>I', cd, 20)[0]
         self.assertEqual(cd[ident_off:cd.index(b'\0', ident_off)], b'tool')
 
+    def test_options_and_timestamp(self):
+        # As applications' builds sign: --force --options runtime --timestamp.
+        self.assertEqual(codesign.main(['--sign', '-', '--force', '--options', 'runtime,library',
+                                        '--timestamp', self.path]), 0)
+        cd = self.blobs()[codesign.CSSLOT_CODEDIRECTORY]
+        flags = struct.unpack_from('>I', cd, 12)[0]
+        self.assertEqual(flags, codesign.CS_ADHOC | 0x10000 | 0x2000)
+        self.assertEqual(codesign.main(['-s', '-', '-f', '--options=runtime', '--timestamp=none', self.path]), 0)
+        self.assertEqual(struct.unpack_from('>I', self.blobs()[codesign.CSSLOT_CODEDIRECTORY], 12)[0],
+                         codesign.CS_ADHOC | 0x10000)
+        codesign.verify(self.path)
+
     def test_signature_layout(self):
         codesign.sign(self.path, identifier='org.example.tool')
         with open(self.path, 'rb') as f:

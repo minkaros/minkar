@@ -29,7 +29,8 @@
 
 A subset of macOS codesign(1) for the build host:
 
-    codesign -s - [-f] [-i identifier] [--entitlements file.plist] file...
+    codesign -s - [-f] [-i identifier] [--entitlements file.plist]
+             [--options runtime,library,kill,hard,restrict] [--timestamp[=none]] file...
     codesign --verify [-v] file...
     codesign -d --entitlements - file
 
@@ -62,6 +63,8 @@ CSSLOT_ENTITLEMENTS = 5
 SPECIAL_SLOTS = 5               # slots 1 (Info.plist) to 5 (entitlements)
 
 CS_ADHOC = 0x2
+# --options: what the signed code asks of the kernel.
+CS_OPTIONS = {'hard': 0x100, 'kill': 0x200, 'restrict': 0x800, 'library': 0x2000, 'runtime': 0x10000}
 CS_SUPPORTSEXECSEG = 0x20400
 CS_HASHTYPE_SHA256 = 2
 CS_EXECSEG_MAIN_BINARY = 0x1
@@ -139,7 +142,7 @@ def entitlements_blob(xml):
     return blob(CSMAGIC_EMBEDDED_ENTITLEMENTS, xml)
 
 
-def code_directory(identifier, code, special, exec_seg, main_binary):
+def code_directory(identifier, code, special, exec_seg, main_binary, flags=0):
     """special maps slot number -> blob whose hash goes in that slot."""
     ident = identifier.encode() + b'\0'
     ncode = (len(code) + PAGE_SIZE - 1) // PAGE_SIZE
@@ -147,7 +150,7 @@ def code_directory(identifier, code, special, exec_seg, main_binary):
     length = hash_offset + ncode * HASH_SIZE
 
     header = struct.pack('>IIIIIIIIIBBBBI', CSMAGIC_CODEDIRECTORY, length,
-                         CS_SUPPORTSEXECSEG, CS_ADHOC, hash_offset,
+                         CS_SUPPORTSEXECSEG, CS_ADHOC | flags, hash_offset,
                          CD_HEADER_SIZE, SPECIAL_SLOTS, ncode, len(code),
                          HASH_SIZE, CS_HASHTYPE_SHA256, 0, PAGE_SHIFT, 0)
     header += struct.pack('>IIIQQQQ', 0, 0, 0, 0, exec_seg[0], exec_seg[1],
@@ -181,7 +184,7 @@ def superblob(entries):
                        header_size + len(body), len(entries)) + index + body
 
 
-def sign(path, identifier=None, entitlements=None, force=False):
+def sign(path, identifier=None, entitlements=None, force=False, flags=0):
     with open(path, 'rb') as f:
         data = bytearray(f.read())
     macho = MachO(data)
@@ -244,7 +247,7 @@ def sign(path, identifier=None, entitlements=None, force=False):
 
     text = macho.segments.get('__TEXT', (0, 0, 0))
     cd = code_directory(identifier, bytes(data[:code_limit]), special,
-                        (text[1], text[2]), macho.filetype == MH_EXECUTE)
+                        (text[1], text[2]), macho.filetype == MH_EXECUTE, flags)
     signature = superblob([(CSSLOT_CODEDIRECTORY, cd)] + entries)
     assert len(signature) <= sig_size
     data += signature + b'\0' * (sig_size - len(signature))
@@ -369,7 +372,7 @@ def main_executable(path):
 
 
 def usage():
-    print('usage: codesign -s - [-f] [-i identifier] [--entitlements file] file|bundle...\n'
+    print('usage: codesign -s - [-f] [-i identifier] [--entitlements file] [--options list] [--timestamp] file|bundle...\n'
           '       codesign --verify [-v] file...\n'
           '       codesign -d --entitlements - file', file=sys.stderr)
     sys.exit(2)
@@ -377,6 +380,7 @@ def usage():
 
 def main(argv):
     identity = identifier = entitlements = None
+    flags = 0
     force = verify_mode = display = verbose = False
     files = []
     i = 0
@@ -393,6 +397,18 @@ def main(argv):
             entitlements = argv[i] if i < len(argv) else usage()
         elif arg in ('-f', '--force'):
             force = True
+        elif arg == '--options' or arg.startswith('--options='):
+            if '=' in arg:
+                value = arg.split('=', 1)[1]
+            else:
+                i += 1
+                value = argv[i] if i < len(argv) else usage()
+            for name in value.split(','):
+                if name.strip() not in CS_OPTIONS:
+                    raise SystemExit('codesign: unknown option %s' % name)
+                flags |= CS_OPTIONS[name.strip()]
+        elif arg == '--timestamp' or arg.startswith('--timestamp='):
+            pass    # an ad-hoc signature has no time stamp authority to ask
         elif arg in ('-v', '--verbose'):
             verbose = True
         elif arg == '--verify':
@@ -422,7 +438,7 @@ def main(argv):
                 with open(entitlements, 'rb') as f:
                     ents = f.read()
             for f in files:
-                sign(main_executable(f), identifier, ents, force)
+                sign(main_executable(f), identifier, ents, force, flags)
                 if verbose:
                     print('%s: signed Mach-O thin (x86_64)' % f, file=sys.stderr)
         else:
