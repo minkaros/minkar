@@ -41,7 +41,7 @@ ${HOST_RUBY}/bin/ruby: ${.CURDIR}/MANIFEST
 	    $$src/configure --prefix=${HOST_RUBY} --disable-install-doc \
 	    --disable-install-rdoc --without-gmp > configure.log 2>&1 && \
 	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake ${JOBS} && \
-	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake install > install.log 2>&1
+	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake install > install.log 2>&1 || exit 1
 
 # libyaml for psych, static: psych's own way of building it from source
 # gives libyaml's configure the compiler without the SDK.
@@ -55,7 +55,7 @@ ${LIBYAML}/lib/libyaml.a: ${.CURDIR}/MANIFEST.libyaml ${.CURDIR}/Makefile
 	$$yaml/configure --prefix=${LIBYAML} \
 	    --build=x86_64-pc-linux-gnu --host=${CpuArch}-apple-darwin19 \
 	    --disable-shared --enable-static > configure.log 2>&1 && \
-	${GMAKE} ${JOBS} && ${GMAKE} install > install.log 2>&1
+	${GMAKE} ${JOBS} && ${GMAKE} install > install.log 2>&1 || exit 1
 
 ${.OBJDIR}/stage/usr/bin/ruby: ${HOST_RUBY}/bin/ruby ${LIBYAML}/lib/libyaml.a ${.CURDIR}/Makefile
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
@@ -73,7 +73,7 @@ ${.OBJDIR}/stage/usr/bin/ruby: ${HOST_RUBY}/bin/ruby ${LIBYAML}/lib/libyaml.a ${
 	    --with-libyaml-dir=${LIBYAML} \
 	    --with-out-ext=win32,win32ole,dbm,gdbm > configure.log 2>&1 && \
 	${GMAKE} ${JOBS} && \
-	${GMAKE} install DESTDIR=${.OBJDIR}/stage > install.log 2>&1
+	${GMAKE} install DESTDIR=${.OBJDIR}/stage > install.log 2>&1 || exit 1
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/stage/usr/bin/ruby
 	rsync -rlc ${.OBJDIR}/stage/usr/bin/ ${SYSROOT_DIR}/usr/bin/

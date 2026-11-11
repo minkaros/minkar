@@ -48,7 +48,7 @@ ${HOST_PYTHON}/bin/python3: ${.CURDIR}/MANIFEST
 	    $$src/configure --prefix=${HOST_PYTHON} --without-ensurepip \
 	    > configure.log 2>&1 && \
 	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake ${JOBS} > build.log 2>&1 && \
-	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake install > install.log 2>&1
+	env -i PATH=/usr/bin:/bin HOME=${.OBJDIR}/host ${TOOLS}/gmake install > install.log 2>&1 || exit 1
 
 ${.OBJDIR}/stage/usr/bin/python3: ${HOST_PYTHON}/bin/python3 ${.CURDIR}/Makefile \
     ${.CURDIR}/patches/0001-darwin-cross-build.patch
@@ -77,7 +77,7 @@ ${.OBJDIR}/stage/usr/bin/python3: ${HOST_PYTHON}/bin/python3 ${.CURDIR}/Makefile
 	    --with-system-libmpdec=no --disable-test-modules \
 	    > configure.log 2>&1 && \
 	${GMAKE} ${JOBS} > build.log 2>&1 && \
-	${GMAKE} install DESTDIR=${.OBJDIR}/stage > install.log 2>&1
+	${GMAKE} install DESTDIR=${.OBJDIR}/stage > install.log 2>&1 || exit 1
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/stage/usr/bin/python3
 	rsync -rlc --exclude 'idle*' --exclude '*-config' ${.OBJDIR}/stage/usr/bin/ ${SYSROOT_DIR}/usr/bin/
