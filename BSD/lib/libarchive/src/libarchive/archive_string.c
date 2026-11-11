@@ -448,6 +448,20 @@ default_iconv_charset(const char *charset) {
 #if HAVE_LOCALE_CHARSET && !defined(__APPLE__)
 	/* locale_charset() is broken on Mac OS */
 	return locale_charset();
+#elif HAVE_NL_LANGINFO && defined(__APPLE__)
+	{
+		/* Minkar: file names are UTF-8 on its file systems, so the
+		 * C locale's ASCII is taken as UTF-8 (it refused every name
+		 * with another character, where the reference platform's tar
+		 * extracts them). */
+		const char *codeset = nl_langinfo(CODESET);
+		if (codeset == NULL || codeset[0] == '\0' ||
+		    strcmp(codeset, "US-ASCII") == 0 ||
+		    strcmp(codeset, "ANSI_X3.4-1968") == 0 ||
+		    strcmp(codeset, "646") == 0)
+			return "UTF-8";
+		return codeset;
+	}
 #elif HAVE_NL_LANGINFO
 	return nl_langinfo(CODESET);
 #else
