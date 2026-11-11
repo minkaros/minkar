@@ -166,58 +166,38 @@ extern id _objc_rootAutorelease(id object);
 }
 
 
--(BOOL)isKindOfClass:(Class)class {
-   NSMethodSignature *signature=[self methodSignatureForSelector:_cmd];
-   NSInvocation      *invocation=[NSInvocation
-     invocationWithMethodSignature:signature];
-   BOOL               returnValue;
+/* Minkar: the question forwarded as a message with its selector, target
+ * and argument (the invocation had none: the forwarding target saw a
+ * null selector and no argument). */
+static BOOL forwardQuestion(NSProxy *self,SEL selector,const void *argument) {
+   NSMethodSignature *signature=[self methodSignatureForSelector:selector];
+   NSInvocation      *invocation=[NSInvocation invocationWithMethodSignature:signature];
+   BOOL               returnValue=NO;
 
+   [invocation setTarget:self];
+   [invocation setSelector:selector];
+   [invocation setArgument:(void *)argument atIndex:2];
    [self forwardInvocation:invocation];
-
    [invocation getReturnValue:&returnValue];
-
    return returnValue;
+}
+
+-(BOOL)isKindOfClass:(Class)class {
+   return forwardQuestion(self,_cmd,&class);
 }
 
 
 -(BOOL)isMemberOfClass:(Class)class {
-   NSMethodSignature *signature=[self methodSignatureForSelector:_cmd];
-   NSInvocation      *invocation=[NSInvocation
-     invocationWithMethodSignature:signature];
-   BOOL               returnValue;
-
-   [self forwardInvocation:invocation];
-
-   [invocation getReturnValue:&returnValue];
-
-   return returnValue;
+   return forwardQuestion(self,_cmd,&class);
 }
 
 
 -(BOOL)conformsToProtocol:(Protocol *)protocol {
-   NSMethodSignature *signature=[self methodSignatureForSelector:_cmd];
-   NSInvocation      *invocation=[NSInvocation
-     invocationWithMethodSignature:signature];
-   BOOL               returnValue;
-
-   [self forwardInvocation:invocation];
-
-   [invocation getReturnValue:&returnValue];
-
-   return returnValue;
+   return forwardQuestion(self,_cmd,&protocol);
 }
 
 -(BOOL)respondsToSelector:(SEL)selector {
-   NSMethodSignature *signature=[self methodSignatureForSelector:_cmd];
-   NSInvocation      *invocation=[NSInvocation
-     invocationWithMethodSignature:signature];
-   BOOL               returnValue;
-
-   [self forwardInvocation:invocation];
-
-   [invocation getReturnValue:&returnValue];
-
-   return returnValue;
+   return forwardQuestion(self,_cmd,&selector);
 }
 
 -autorelease {

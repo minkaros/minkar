@@ -23,6 +23,7 @@ static void OBJCRaiseException(const char *name,const char *format,...) {
 }
 
 
+#include <objc/runtime.h>
 #if !FOUNDATION_DISALLOW_FORWARDING
 @interface NSObject(fastforwarding)
 -forwardingTargetForSelector:(SEL)selector;
@@ -35,7 +36,10 @@ static void OBJCRaiseException(const char *name,const char *format,...) {
 id NSObjCGetFastForwardTarget(id object,SEL selector){
    id check=nil;
 
-   if([object respondsToSelector:@selector(forwardingTargetForSelector:)])
+   /* Minkar: asked of the class, as the runtime does: a proxy answered
+      respondsToSelector: by forwarding it, and the question came back
+      here without end (Distributed Objects' proxies). */
+   if(class_respondsToSelector(object_getClass(object),@selector(forwardingTargetForSelector:)))
     if((check=[object forwardingTargetForSelector:selector])==object)
      check=nil;
 
