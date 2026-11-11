@@ -768,7 +768,8 @@ static inline NSNumber *_numberForKey(NSKeyedUnarchiver *self,NSString *key){
         }
 
         NSMapInsert(_uidToObject, (void *)uid, replacement);
-        NSMapInsert(_uidToObject, replacement, (void *)uid);
+        // Minkar: the reverse map is the object's (it went to the uid map).
+        NSMapInsert(_objectToUid, replacement, (void *)uid);
     }
 }
 
