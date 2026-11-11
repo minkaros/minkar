@@ -766,6 +766,18 @@ static Class _rulerViewClass = nil;
    [_horizontalScroller setFrame:frame];
     
     frame = [self clipViewFrame];
+   /* Minkar: the content insets keep the document clear of what lies over
+      the scroll view's edges (TextMate's file browser header lay over its
+      first row). The reference lets the content scroll under them; here the
+      clip view is inset. */
+   {
+    NSEdgeInsets insets=[self contentInsets];
+
+    frame.origin.x+=insets.left;
+    frame.origin.y+=insets.top;
+    frame.size.width=MAX(0,frame.size.width-insets.left-insets.right);
+    frame.size.height=MAX(0,frame.size.height-insets.top-insets.bottom);
+   }
    [_clipView setFrame:frame];
 
    frame=[self horizontalRulerFrame];
@@ -967,8 +979,8 @@ static Class _rulerViewClass = nil;
 }
 
 
-/* Kept: the clip view is not inset yet, and there is no elastic
-   scrolling. */
+/* Kept and applied by tile (insetting the clip view); there is no
+   elastic scrolling. */
 static char contentInsetsKey;
 -(NSEdgeInsets)contentInsets {
    NSValue *value=objc_getAssociatedObject(self,&contentInsetsKey);
@@ -979,6 +991,7 @@ static char contentInsetsKey;
 }
 -(void)setContentInsets:(NSEdgeInsets)insets {
    objc_setAssociatedObject(self,&contentInsetsKey,[NSValue valueWithBytes:&insets objCType:@encode(NSEdgeInsets)],OBJC_ASSOCIATION_RETAIN);
+   [self tile];
 }
 -(NSEdgeInsets)scrollerInsets {
    return NSEdgeInsetsMake(0,0,0,0);

@@ -387,6 +387,14 @@ static id resourceValue(NSURL *url __attribute__((unused)), NSString *path, cons
         return [[[name pathExtension] lowercaseString] isEqualToString:@"app"] ? [name stringByDeletingPathExtension] : name;
     }
     if ([key isEqualToString:NSURLPathKey]) return path;
+    /* Minkar: the file's icon is AppKit's (NSWorkspace's), asked for at run
+       time when AppKit is loaded: TextMate's file browser shows it. */
+    if ([key isEqualToString:NSURLEffectiveIconKey]) {
+        Class workspace = NSClassFromString(@"NSWorkspace");
+        id shared = [workspace performSelector:@selector(sharedWorkspace)];
+
+        return [shared respondsToSelector:@selector(iconForFile:)] ? [shared performSelector:@selector(iconForFile:) withObject:path] : nil;
+    }
     if ([key isEqualToString:NSURLCanonicalPathKey]) {
         char resolved[PATH_MAX];
         return realpath(fs, resolved) ? [NSString stringWithUTF8String:resolved] : path;
