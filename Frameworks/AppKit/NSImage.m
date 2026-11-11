@@ -107,6 +107,12 @@ NSImage *_NSStandardImageNamed(NSString *name);
    return result;
 }
 
+/* An image whose resource name ends in "Template" is a template image. */
+static void setTemplateFromName(NSImage *image,NSString *name) {
+   if(image!=nil && [[name stringByDeletingPathExtension] hasSuffix:@"Template"])
+    [image setTemplate:YES];
+}
+
 +imageNamed:(NSString *)name {
    NSImage *image=[[self allImages] objectForKey:name];
    if(image==nil){
@@ -120,6 +126,7 @@ NSImage *_NSStandardImageNamed(NSString *name);
      if(path!=nil){
          image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
          [image setName:name];
+         setTemplateFromName(image,name);
          if (image) {
              break;
          }
@@ -1057,6 +1064,7 @@ static char accessibilityDescriptionKey;
     return nil;
    NSImage *image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
    [image setName:nil];
+   setTemplateFromName(image,name);
    return image;
 }
 

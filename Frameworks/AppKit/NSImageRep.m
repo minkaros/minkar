@@ -21,11 +21,8 @@ static NSMutableArray *_registeredClasses=nil;
    if(self==[NSImageRep class]){
     _registeredClasses=[NSMutableArray new];
     [_registeredClasses addObject:[NSBitmapImageRep class]];
-/*
- * // PDF is not ready for primetime
- * [_registeredClasses addObject:[NSPDFImageRep class]];
- */
-	   
+    /* PDF images: icons and template images ship as PDF. */
+    [_registeredClasses addObject:[NSPDFImageRep class]];
    }
 }
 

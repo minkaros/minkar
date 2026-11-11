@@ -1136,7 +1136,10 @@ static void _addPathToContext(NSBezierPath *self,CGContextRef context) {
    if(CGContextIsPathEmpty(context))
     CGContextBeginPath(context);
    _addPathToContext(self,context);
-   CGContextClip(context);
+   if(_windingRule==NSWindingRuleEvenOdd)
+    CGContextEOClip(context);
+   else
+    CGContextClip(context);
 }
 
 -(void)setClip {
@@ -1144,7 +1147,10 @@ static void _addPathToContext(NSBezierPath *self,CGContextRef context) {
 
    CGContextBeginPath(context);
    _addPathToContext(self,context);
-   CGContextClip(context);
+   if(_windingRule==NSWindingRuleEvenOdd)
+    CGContextEOClip(context);
+   else
+    CGContextClip(context);
 }
 
 - (NSString*)description

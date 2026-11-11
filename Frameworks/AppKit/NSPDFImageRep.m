@@ -32,11 +32,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -initWithData:(NSData *)data {
+   if((self=[super init])==nil)
+    return nil;
+   if(data==nil){
+    [self release];
+    return nil;
+   }
    _pdf=[data retain];
    _currentPage=0;
    CGDataProviderRef provider=CGDataProviderCreateWithCFData((CFDataRef)_pdf);
    _document=CGPDFDocumentCreateWithProvider(provider);
    CGDataProviderRelease(provider);
+   /* Data that is not a PDF with a page makes no image. */
+   if(_document==NULL || CGPDFDocumentGetNumberOfPages(_document)==0){
+    [self release];
+    return nil;
+   }
+   [self setSize:[self _mediaBoxSize]];
    return self;
 }
 
@@ -82,9 +94,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setCurrentPage:(NSInteger)page {
    _currentPage=page;
+   [self setSize:[self _mediaBoxSize]];
 }
 
--(NSSize)size {
+/* The current page's media box: the rep's size until it is set. */
+-(NSSize)_mediaBoxSize {
    CGPDFPageRef page=CGPDFDocumentGetPage(_document,_currentPage+1);
    NSRect       mediaBox=CGPDFPageGetBoxRect(page,kCGPDFMediaBox);
       

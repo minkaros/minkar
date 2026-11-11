@@ -10,29 +10,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSAffineTransform;
 
-typedef enum {
-    NSMoveToBezierPathElement,
-    NSLineToBezierPathElement,
-    NSCurveToBezierPathElement,
-    NSClosePathBezierPathElement,
-} NSBezierPathElement;
+/* As on the reference platform: NSUInteger enumerations, with the names
+ * API 19 gave them and the older names alongside. */
+typedef NS_ENUM(NSUInteger, NSBezierPathElement) {
+    NSBezierPathElementMoveTo,
+    NSBezierPathElementLineTo,
+    NSBezierPathElementCurveTo,
+    NSBezierPathElementClosePath,
+    NSMoveToBezierPathElement = NSBezierPathElementMoveTo,
+    NSLineToBezierPathElement = NSBezierPathElementLineTo,
+    NSCurveToBezierPathElement = NSBezierPathElementCurveTo,
+    NSClosePathBezierPathElement = NSBezierPathElementClosePath,
+};
 
-typedef enum {
-    NSMiterLineJoinStyle,
-    NSRoundLineJoinStyle,
-    NSBevelLineJoinStyle,
-} NSLineJoinStyle;
+typedef NS_ENUM(NSUInteger, NSLineJoinStyle) {
+    NSLineJoinStyleMiter,
+    NSLineJoinStyleRound,
+    NSLineJoinStyleBevel,
+    NSMiterLineJoinStyle = NSLineJoinStyleMiter,
+    NSRoundLineJoinStyle = NSLineJoinStyleRound,
+    NSBevelLineJoinStyle = NSLineJoinStyleBevel,
+};
 
-typedef enum {
-    NSButtLineCapStyle,
-    NSRoundLineCapStyle,
-    NSSquareLineCapStyle,
-} NSLineCapStyle;
+typedef NS_ENUM(NSUInteger, NSLineCapStyle) {
+    NSLineCapStyleButt,
+    NSLineCapStyleRound,
+    NSLineCapStyleSquare,
+    NSButtLineCapStyle = NSLineCapStyleButt,
+    NSRoundLineCapStyle = NSLineCapStyleRound,
+    NSSquareLineCapStyle = NSLineCapStyleSquare,
+};
 
-typedef enum {
-    NSNonZeroWindingRule,
-    NSEvenOddWindingRule,
-} NSWindingRule;
+typedef NS_ENUM(NSUInteger, NSWindingRule) {
+    NSWindingRuleNonZero,
+    NSWindingRuleEvenOdd,
+    NSNonZeroWindingRule = NSWindingRuleNonZero,
+    NSEvenOddWindingRule = NSWindingRuleEvenOdd,
+};
 
 @interface NSBezierPath : NSObject <NSCopying> {
     NSUInteger _capacityOfElements;
