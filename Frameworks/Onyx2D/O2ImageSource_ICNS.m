@@ -1,4 +1,5 @@
 /* Copyright (c) 2010 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,6 +11,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2DataProvider.h>
 #import <Onyx2D/O2ColorSpace.h>
 #import <Onyx2D/O2Image.h>
+#import <Onyx2D/O2ImageSource_PNG.h>
+#include <string.h>
 
 typedef struct O2ICNSNode {
    struct O2ICNSNode *next;
@@ -121,12 +124,14 @@ static uint8_t eightBitCLUT[256][3]={
    _length=[_data length];
    _position=0;
    _images=[NSMutableArray new];
+   _pngImages=[NSMutableArray new];
    return self;
 }
 
 -(void)dealloc {
    [_data release];
    [_images release];
+   [_pngImages release];
    [super dealloc];
 }
 
@@ -196,6 +201,26 @@ static uint32_t nextUnsigned32(O2ImageSource_ICNS *self) {
    bool     maskFollows=FALSE;
    
    //NSLog(@" .icns icon type=%c %c %c %c",type>>24,type>>16,type>>8,type);
+
+   // Minkar: icons since API 10.7 hold their larger sizes (ic07 to ic14,
+   // icp4 to icp6) as PNG: decoded as PNG, whatever the type.
+   static const uint8_t pngSignature[8]={ 0x89,'P','N','G','\r','\n',0x1A,'\n' };
+   if(length>=8 && _position+length<=_length && memcmp(_bytes+_position,pngSignature,8)==0){
+    NSData         *png=[[NSData alloc] initWithBytes:_bytes+_position length:length];
+    O2DataProvider *pngProvider=O2DataProviderCreateWithCFData((CFDataRef)png);
+    O2ImageSource_PNG *source=[[O2ImageSource_PNG alloc] initWithDataProvider:pngProvider options:nil];
+    O2Image        *image=[source createImageAtIndex:0 options:nil];
+
+    if(image!=nil){
+     [_pngImages addObject:image];
+     O2ImageRelease(image);
+    }
+    [source release];
+    O2DataProviderRelease(pngProvider);
+    [png release];
+    _position+=length;
+    return;
+   }
 
    switch(type){
    
@@ -584,6 +609,13 @@ static uint32_t nextUnsigned32(O2ImageSource_ICNS *self) {
     free(iconNode);
    }
    _maskNodes=NULL;  
+
+   // The PNG sizes after the others, largest last.
+   [_pngImages sortUsingComparator:^NSComparisonResult(id a,id b){
+      size_t wa=O2ImageGetWidth((O2Image *)a),wb=O2ImageGetWidth((O2Image *)b);
+      return (wa<wb)?NSOrderedAscending:(wa>wb)?NSOrderedDescending:NSOrderedSame;
+   }];
+   [_images addObjectsFromArray:_pngImages];
 }
 
 -(void)parseIfNeeded {

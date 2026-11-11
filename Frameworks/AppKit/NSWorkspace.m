@@ -257,7 +257,9 @@ static NSImage *bundleIcon(NSString *path) {
    if([name length]==0)
       return nil;
    NSString *resources=[bundle resourcePath];
+   // Minkar: the name is often given without its .icns.
    NSArray *candidates=[NSArray arrayWithObjects:name,
+      [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"icns"],
       [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"png"],
       [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"tiff"],nil];
 

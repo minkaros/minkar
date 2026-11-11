@@ -885,7 +885,9 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     NSString* iconName = [[[NSBundle mainBundle] infoDictionary]
                           objectForKey:@"CFBundleIconFile"];
     if (iconName) {
-        iconName = [iconName stringByAppendingPathExtension: @"icns"];
+        // Minkar: the name may already have its .icns.
+        if ([[iconName pathExtension] length] == 0)
+            iconName = [iconName stringByAppendingPathExtension: @"icns"];
         NSImage* image = [NSImage imageNamed: iconName];
         [self setApplicationIconImage: image];
     }
