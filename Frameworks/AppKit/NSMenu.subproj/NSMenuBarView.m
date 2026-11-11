@@ -75,6 +75,12 @@ SOFTWARE. */
    [self sizeToFit];
 }
 
+/* The bar's spacing, as on the reference platform: every item (the
+   system menu's logo too) padded alike, so the gaps between titles are
+   equal, and the first title well in from the bar's left edge. */
+static const CGFloat itemPadding=10;
+static const CGFloat firstTitleInset=20;
+
 -(NSRect)titleRectForItem:(NSMenuItem *)item previousBorderRect:(NSRect)previousBorderRect
 {
     NSRect result;
@@ -89,18 +95,16 @@ SOFTWARE. */
         titleSize.height = MAX(titleSize.height, kNSMenuItemHeight);
     }
 
-    result.origin = NSMakePoint(NSMaxX(previousBorderRect)+6,floor(([self bounds].size.height-titleSize.height)/2));
-    /* The app's name stands apart from the system menu's logo, as on the
-       reference platform. */
-    if([[_menu itemArray] indexOfObjectIdenticalTo:item]==1)
-        result.origin.x+=10;
+    CGFloat x = (NSMaxX(previousBorderRect)==0)?firstTitleInset:NSMaxX(previousBorderRect)+itemPadding;
+
+    result.origin = NSMakePoint(x,floor(([self bounds].size.height-titleSize.height)/2));
     result.size = titleSize;
 
     return result;
 }
 
 -(NSRect)borderRectFromTitleRect:(NSRect)titleRect {
-    NSRect result=NSInsetRect(titleRect,-6,0);
+    NSRect result=NSInsetRect(titleRect,-itemPadding,0);
 
     result.size.height=[self bounds].size.height;
     result.origin.y=0;
