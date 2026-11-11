@@ -43,6 +43,7 @@ typedef struct {
    NSMutableArray *views;
    NSView         *root;
    BOOL            fitting;
+   NSMutableArray *required;   // what each required constraint was, and its variables
 }
 @end
 
@@ -52,6 +53,7 @@ typedef struct {
    solver=NSLayoutSolverCreate();
    items=NSCreateMapTable(NSNonOwnedPointerMapKeyCallBacks,NSObjectMapValueCallBacks,0);
    views=[[NSMutableArray alloc] init];
+   required=[[NSMutableArray alloc] init];
    return self;
 }
 
@@ -59,6 +61,7 @@ typedef struct {
    NSLayoutSolverFree(solver);
    NSFreeMapTable(items);
    [views release];
+   [required release];
    [super dealloc];
 }
 
@@ -82,11 +85,40 @@ static int add(NSLayoutPass *pass,expression e,int op,double strength) {
    return NSLayoutSolverAdd(pass->solver,e.count,e.variables,e.coefficients,e.constant,op,strength);
 }
 
+static NSIndexSet *variablesOf(expression e) {
+   NSMutableIndexSet *result=[NSMutableIndexSet indexSet];
+   int i;
+
+   for(i=0;i<e.count;i++)
+    [result addIndex:e.variables[i]];
+   return result;
+}
+
+/* A required constraint that can't be met: logged with the required
+ * constraints already in the pass that share a variable with it (the ones
+ * it most likely fights), as the reference lists them. */
 static void addRequired(NSLayoutPass *pass,expression e,int op,id what) {
+   NSIndexSet *variables=variablesOf(e);
+
    if(add(pass,e,op,NSLayoutSolverRequired())==NSLayoutSolverUnsatisfiable){
-    NSLog(@"Unable to simultaneously satisfy constraints. Will attempt to recover by breaking %@",what);
+    NSMutableString *list=[NSMutableString string];
+
+    for(NSArray *entry in pass->required){
+     NSIndexSet *other=[entry objectAtIndex:1];
+     __block BOOL shared=NO;
+
+     [variables enumerateIndexesUsingBlock:^(NSUInteger index,BOOL *stop){
+      if([other containsIndex:index]){ shared=YES; *stop=YES; }
+     }];
+     if(shared)
+      [list appendFormat:@"    \"%@\",\n",[entry objectAtIndex:0]];
+    }
+    [list appendFormat:@"    \"%@\"\n",what];
+    NSLog(@"Unable to simultaneously satisfy constraints.\n\tProbably at least one of the constraints in the following list is one you don't want.\n(\n%@)\n\nWill attempt to recover by breaking\n%@",list,what);
     add(pass,e,op,NSLayoutSolverStrength(999.999));
    }
+   else if(what!=nil)
+    [pass->required addObject:[NSArray arrayWithObjects:what,variables,nil]];
 }
 
 // variable == value (op 0) at a strength.
@@ -286,8 +318,8 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
    int v=firstVariable(pass,view);
 
    if(view==pass->root){
-    fix(pass,v+LEFT,0,NSLayoutSolverRequired(),@"the root's x");
-    fix(pass,v+TOP,0,NSLayoutSolverRequired(),@"the root's y");
+    fix(pass,v+LEFT,0,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's x (%@)",view]);
+    fix(pass,v+TOP,0,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's y (%@)",view]);
     if(pass->fitting){
      double fit=NSLayoutSolverStrength(NSLayoutPriorityFittingSizeCompression);
 
@@ -295,15 +327,15 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
      fix(pass,v+HEIGHT,0,fit,nil);
     }
     else {
-     fix(pass,v+WIDTH,[view frame].size.width,NSLayoutSolverRequired(),@"the root's width");
-     fix(pass,v+HEIGHT,[view frame].size.height,NSLayoutSolverRequired(),@"the root's height");
+     fix(pass,v+WIDTH,[view frame].size.width,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's width %g (%@)",[view frame].size.width,view]);
+     fix(pass,v+HEIGHT,[view frame].size.height,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's height %g (%@)",[view frame].size.height,view]);
     }
    }
    else if([view translatesAutoresizingMaskIntoConstraints]){
     NSRect      frame=rootFrame(view,pass->root);
     NSView     *superview=[view superview];
     int         s=(superview!=nil)?firstVariable(pass,superview):-1;
-    id          what=[NSString stringWithFormat:@"the autoresizing mask of %@",view];
+    id          what=[NSString stringWithFormat:@"the autoresizing mask %#lx of %@, frame %@",(unsigned long)[view autoresizingMask],view,NSStringFromRect([view frame])];
 
     if(s<0){
      fix(pass,v+LEFT,frame.origin.x,NSLayoutSolverRequired(),what);
