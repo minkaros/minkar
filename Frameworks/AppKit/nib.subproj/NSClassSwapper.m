@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17,10 +18,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 +allocWithKeyedUnarchiver:(NSKeyedUnarchiver *)keyed {
    NSString *className=[keyed decodeObjectForKey:@"NSClassName"];
    Class     class=NSClassFromString(className);
-   
-   if(class==Nil)
-    [NSException raise:NSInvalidArgumentException format:@"Unable to find class %@",className];
-    
+
+   // Minkar: a class the program does not have is replaced by the one IB
+   // based it on, as on the reference platform (it raised).
+   if(class==Nil){
+    NSString *original=[keyed decodeObjectForKey:@"NSOriginalClassName"];
+
+    class=NSClassFromString(original);
+    if(class==Nil)
+     [NSException raise:NSInvalidArgumentException format:@"Unable to find class %@",className];
+    NSLog(@"Unknown class %@ in Interface Builder file, using %@ instead.",className,original);
+   }
+
    return [class alloc];
 }
 

@@ -282,10 +282,12 @@ SRCS = \
     nib.subproj/NSCustomView.m \
     nib.subproj/NSIBObjectData.m \
     nib.subproj/NSNib.m \
+    nib.subproj/NSNibArchiveUnarchiver.m \
     nib.subproj/NSNibAXRelationshipConnector.m \
     nib.subproj/NSNibBindingConnector.m \
     nib.subproj/NSNibConnector.m \
     nib.subproj/NSNibControlConnector.m \
+    nib.subproj/NSIBUserDefinedRuntimeAttributesConnector.m \
     nib.subproj/NSNibHelpConnector.m \
     nib.subproj/NSNibLoading.m \
     nib.subproj/NSNibOutletConnector.m \

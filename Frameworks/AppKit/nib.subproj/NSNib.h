@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -18,10 +19,14 @@ APPKIT_EXPORT NSString *const NSNibTopLevelObjects;
     NSData *_data;
     NSMutableArray *_allObjects;
     NSDictionary *_nameTable;
+    NSBundle *_bundle;
 }
 
 - initWithContentsOfURL:(NSURL *)url;
 - initWithNibNamed:(NSString *)name bundle:(NSBundle *)bundle;
+/* A nib's contents (a keyed archive or a binary nib), its resources in
+   bundle (the main bundle when nil). API 10.8. */
+- (instancetype)initWithNibData:(NSData *)nibData bundle:(NSBundle *)bundle;
 
 - (BOOL)instantiateNibWithExternalNameTable:(NSDictionary *)nameTable;
 - (BOOL)instantiateNibWithOwner:owner topLevelObjects:(NSArray **)objects;

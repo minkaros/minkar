@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
  
  Permission is hereby granted, free of charge, to any person obtaining
  a copy of this software and associated documentation files (the
@@ -94,7 +95,7 @@
 		
 		_fileOwner=[[keyed decodeObjectForKey:@"NSRoot"] retain];
 		if([_fileOwner isKindOfClass:[NSCustomObject class]]) {
-			if (_fileOwner != owner) {
+			if (owner != nil && _fileOwner != owner) {
 				id formerFileOwner = [_fileOwner autorelease];
 				_fileOwner = [owner retain];
 				[keyed replaceObject:formerFileOwner withObject:_fileOwner];
@@ -120,7 +121,7 @@
 		// Replace any custom object with the real thing - and update anything tracking them
 		for(int i = [_objectsValues count] - 1; i >= 0; i--) {
 			id  aValue = [_objectsValues objectAtIndex:i];
-			if (aValue == owner) {
+			if (aValue == _fileOwner) {
 				id  aKey = [_objectsKeys objectAtIndex:i];
 				if([aKey isKindOfClass:[NSCustomObject class]]) {
 					id replacement = [aKey createCustomInstance];
@@ -204,7 +205,11 @@
 
 -(void)buildConnectionsWithNameTable:(NSDictionary *)nameTable {
 	id owner=[nameTable objectForKey:NSNibOwner];
-	if (_fileOwner != owner) {
+	// Minkar: without an owner, connections to it are not made, and its
+	// placeholder still tells the top-level objects (they were none).
+	if (owner == nil)
+		[self replaceObject:_fileOwner withObject:nil];
+	else if (_fileOwner != owner) {
 		[self replaceObject:_fileOwner withObject:owner];
 		id formerOwner = [_fileOwner autorelease];
 		_fileOwner=[owner retain];

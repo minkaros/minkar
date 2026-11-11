@@ -182,6 +182,17 @@ static BOOL NSViewLayersEnabled=NO;
     [_subviews makeObjectsPerformSelector:@selector(_setSuperview:) withObject:self];
     [_subviews makeObjectsPerformSelector:@selector(viewDidMoveToSuperview)];
 
+    // Minkar: Auto Layout from a nib: the view's own constraints (its
+    // subviews are in it now) and whether its autoresizing mask is one.
+    if([keyed decodeBoolForKey:@"NSDoNotTranslateAutoresizingMask"])
+     [self setTranslatesAutoresizingMaskIntoConstraints:NO];
+    {
+     NSArray *constraints=[keyed decodeObjectForKey:@"NSViewConstraints"];
+
+     if([constraints count]>0)
+      [self addConstraints:constraints];
+    }
+
     _needsDisplay=YES;
     _invalidRectCount=0;
     _invalidRects=NULL;

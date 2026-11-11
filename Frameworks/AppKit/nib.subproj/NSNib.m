@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -7,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSNib.h>
+#import "NSNibArchiveUnarchiver.h"
 #import <Foundation/NSURL.h>
 #import <AppKit/NSRaise.h>
 #import <Foundation/NSKeyedArchiver.h>
@@ -30,8 +32,19 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
    NSString *keyedobjects=path;
    BOOL      isDirectory=NO;
 
-	if([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory)
+	if([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory){
     keyedobjects=[[path stringByAppendingPathComponent:@"keyedobjects"] stringByAppendingPathExtension:@"nib"];
+    // Minkar: a nib bundle of today's Interface Builder has its objects
+    // as keyedobjects-<version>.nib (binary nibs) beside, or instead of,
+    // keyedobjects.nib: the latest version's is taken.
+    if(![[NSFileManager defaultManager] fileExistsAtPath:keyedobjects]){
+     NSArray *names=[[[NSFileManager defaultManager] contentsOfDirectoryAtPath:path error:NULL] sortedArrayUsingSelector:@selector(compare:)];
+
+     for(NSString *name in names)
+      if([name hasPrefix:@"keyedobjects"] && [[name pathExtension] isEqualToString:@"nib"])
+       keyedobjects=[path stringByAppendingPathComponent:name];
+    }
+   }
    
    if(!keyedobjects && !isDirectory)
       keyedobjects=path; // assume new-style compiled xib
@@ -76,7 +89,19 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
    return [self initWithContentsOfFile:path];
 }
 
+-(instancetype)initWithNibData:(NSData *)nibData bundle:(NSBundle *)bundle {
+   if(nibData==nil){
+    [self release];
+    return nil;
+   }
+   _data=[nibData copy];
+   _bundle=[bundle retain];
+   _allObjects=[NSMutableArray new];
+   return self;
+}
+
 -(void)dealloc {
+   [_bundle release];
    [_data release];
    [_allObjects release];
    [super dealloc];
@@ -105,7 +130,16 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
     
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    _nameTable=[nameTable retain];
-    NSKeyedUnarchiver *unarchiver=[[[NSKeyedUnarchiver alloc] initForReadingWithData:_data] autorelease];
+    // Minkar: a binary nib (NIBArchive) or a keyed archive.
+    NSKeyedUnarchiver *unarchiver=[NSNibArchiveUnarchiver isNibArchive:_data] ?
+        [[[NSNibArchiveUnarchiver alloc] initForReadingWithData:_data] autorelease] :
+        [[[NSKeyedUnarchiver alloc] initForReadingWithData:_data] autorelease];
+
+    if(unarchiver==nil){
+     NSLog(@"NSNib: the nib's data cannot be read");
+     [pool release];
+     return NO;
+    }
     NSIBObjectData    *objectData;
     int                i,count;
     NSMenu            *menu;

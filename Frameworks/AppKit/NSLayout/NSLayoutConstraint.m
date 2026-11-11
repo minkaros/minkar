@@ -99,6 +99,30 @@ static NSView *commonAncestor(id first,id second) {
    [super dealloc];
 }
 
+/* From a nib: its items, attributes (V2 if there are both), relation,
+   multiplier, constant (V2, or the standard space when it is symbolic) and
+   priority, with a constraint's defaults where a key is absent. */
+-initWithCoder:(NSCoder *)coder {
+   [self init];
+   _firstItem=[coder decodeObjectForKey:@"NSFirstItem"];
+   _firstAttribute=[coder decodeIntegerForKey:[coder containsValueForKey:@"NSFirstAttributeV2"]?@"NSFirstAttributeV2":@"NSFirstAttribute"];
+   _secondItem=[coder decodeObjectForKey:@"NSSecondItem"];
+   _secondAttribute=NSLayoutAttributeNotAnAttribute;
+   if(_secondItem!=nil)
+    _secondAttribute=[coder decodeIntegerForKey:[coder containsValueForKey:@"NSSecondAttributeV2"]?@"NSSecondAttributeV2":@"NSSecondAttribute"];
+   _relation=[coder decodeIntegerForKey:@"NSRelation"];
+   _multiplier=(_secondItem==nil)?0:([coder containsValueForKey:@"NSMultiplier"]?[coder decodeDoubleForKey:@"NSMultiplier"]:1);
+   if([coder containsValueForKey:@"NSSymbolicConstant"])
+    _constant=8;
+   else
+    _constant=[coder decodeDoubleForKey:[coder containsValueForKey:@"NSConstantV2"]?@"NSConstantV2":@"NSConstant"];
+   if([coder containsValueForKey:@"NSPriority"])
+    _priority=[coder decodeFloatForKey:@"NSPriority"];
+   _shouldBeArchived=[coder decodeBoolForKey:@"NSShouldBeArchived"];
+   _identifier=[[coder decodeObjectForKey:@"NSLayoutIdentifier"] copy];
+   return self;
+}
+
 -(BOOL)isActive {
    return _active;
 }

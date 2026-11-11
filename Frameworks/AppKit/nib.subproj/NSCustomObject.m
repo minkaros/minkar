@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -37,8 +38,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    Class class=NSClassFromString(_className);
    id ret=nil;
 
-   if(class==Nil)
-    NSLog(@"NSCustomObject unknown class %@",_className);
+   // Minkar: an object of a class the program does not have is an NSObject,
+   // as on the reference platform (it was nil, which nibs cannot hold).
+   if(class==Nil){
+    NSLog(@"Unknown class %@ in Interface Builder file.",_className);
+    class=[NSObject class];
+   }
 
    if([_className isEqualToString:@"NSApplication"]) {
       ret=[[NSApplication sharedApplication] retain];
