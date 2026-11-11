@@ -1705,8 +1705,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(BOOL)canBecomeKeyWindow {
-    // The NSWindow implementation returns YES if the window has a title bar or a resize bar, or NO otherwise
-    return (_styleMask & (NSTitledWindowMask|NSResizableWindowMask)) != 0;
+    // The NSWindow implementation returns YES if the window has a title bar or a resize bar, or NO otherwise;
+    // a sheet (no title bar of its own) takes the keys too.
+    return (_styleMask & (NSTitledWindowMask|NSResizableWindowMask|NSDocModalWindowMask)) != 0;
 }
 
 -(BOOL)canBecomeMainWindow {
@@ -3035,7 +3036,8 @@ static NSMutableSet *hiddenByHide;
    [sheet orderWindow:NSWindowAbove relativeTo:_number];
    SLSSetWindowParent(slsWindowFor([sheet windowNumber]), slsWindowFor(_number),
        kSLSOrderAbove);
-   [self makeKeyWindow];
+   /* The sheet takes the keys: Return presses its default button. */
+   [sheet makeKeyWindow];
    return;
 }
 
@@ -3054,8 +3056,13 @@ static NSMutableSet *hiddenByHide;
     NSWindow *sheet = [_sheetContext sheet];
     NSRect sheetFrame = [sheet frame];
 
+    BOOL      wasKey = [sheet isKeyWindow];
+
     SLSSetWindowParent(slsWindowFor([sheet windowNumber]), 0, 0);
     [sheet orderWindow:NSWindowOut relativeTo:0];
+    /* The keys go back to the window the sheet was on. */
+    if(wasKey && [self isVisible])
+     [self makeKeyWindow];
     [_sheetContext release];
     _sheetContext=nil;
     return;
