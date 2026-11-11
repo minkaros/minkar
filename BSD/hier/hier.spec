@@ -27,6 +27,9 @@ d 0755 private/var/log
 d 0755 private/var/log/com.apple.launchd
 d 0750 private/var/root
 d 0755 private/var/run
+# The shell /bin/sh runs (see BSD/bin/shlauncher): bash, as POSIX sh.
+d 0755 private/var/select
+l /bin/bash private/var/select/sh
 d 1777 private/var/tmp
 d 0755 private/var/vm
 

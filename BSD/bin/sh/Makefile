@@ -49,9 +49,12 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 all: mksyntax mknodes .WAIT syntax.h nodes.h token.h builtins.h to-sysroot
 
+# /bin/sh is bash, as on the reference system (BSD/bin/shlauncher); this
+# shell stays out of the PATH as /usr/libexec/bsdsh until the review of
+# the commands the reference system does not have.
 to-sysroot: ${PROG}
-	mkdir -p ${SYSROOT_DIR}/bin
-	cp -f ${PROG} ${SYSROOT_DIR}/bin/
+	mkdir -p ${SYSROOT_DIR}/usr/libexec
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/libexec/bsdsh
 
 
 builtins.c builtins.h: ${.CURDIR}/mkbuiltins ${SRCS:N*builtins.*}

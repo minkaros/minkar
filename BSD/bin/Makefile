@@ -9,6 +9,6 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 SUBDIR_PARALLEL =
 SUBDIR = cat chmod cp csh dash df echo wait4path hostname launchctl ln ls mkdir mv ps pwd realpath \
 	stty date dd ed expr kill pax pkill \
-	rm rmdir sleep sh test sync
+	rm rmdir sleep sh shlauncher test sync
 
 .include <bsd.subdir.mk>
