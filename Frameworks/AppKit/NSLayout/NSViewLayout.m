@@ -2,6 +2,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  */
+#include <stdlib.h>
 #import "NSLayoutInternal.h"
 #import <AppKit/NSControl.h>
 #import <AppKit/NSCell.h>
@@ -78,10 +79,27 @@ void NSLayoutSetNeedsLayout(id item) {
    }
 }
 
-// Only when its hierarchy uses constraints (its root has a layout state).
+// Whether a view or one under it is laid out by constraints or has some.
+static BOOL usesConstraints(NSView *view) {
+   NSViewLayoutState *state=NSViewLayoutStateIfAny(view);
+
+   if(state!=nil && (!state->translatesAutoresizingMask || [state->constraints count]>0))
+    return YES;
+   for(NSView *subview in [view subviews])
+    if(usesConstraints(subview))
+     return YES;
+   return NO;
+}
+
+/* Only when its hierarchy uses constraints (its root has a layout state),
+   and the view or one under it does: a view placed by its frame alone (a
+   table's row) changes nothing the solver sees. */
 void NSLayoutViewDidResize(NSView *view) {
-   if(NSViewLayoutStateIfAny(layoutRoot(view))!=nil)
-    NSLayoutSetNeedsLayout(view);
+   if(NSViewLayoutStateIfAny(layoutRoot(view))==nil)
+    return;
+   if([view superview]!=nil && !usesConstraints(view))
+    return;
+   NSLayoutSetNeedsLayout(view);
 }
 
 void NSLayoutViewDidChangeVisibility(NSView *view) {
@@ -211,13 +229,22 @@ static void sendLayout(NSView *view) {
       the end, a request made during the pass was lost and the view kept
       its old size. A few passes at most, as the reference does, so views
       that keep asking cannot hold the window. */
+   static int debug=-1;
+
+   if(debug<0)
+    debug=(getenv("NSLayoutDebug")!=NULL);
    for(passes=0;passes<8 && state->needsLayout;passes++){
+    NSTimeInterval start=debug?[NSDate timeIntervalSinceReferenceDate]:0;
+
     state->needsLayout=NO;
     if([root window]!=nil)
      objc_setAssociatedObject([root window],&windowNeedsLayoutKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [root updateConstraintsForSubtreeIfNeeded];
     NSLayoutEngineLayout(root);
     sendLayout(root);
+    // NSLayoutDebug=1 in the environment logs each pass and what it cost.
+    if(debug)
+     NSLog(@"layout pass %d of %@ in %@: %.1f ms%@",passes+1,root,[[root window] title],([NSDate timeIntervalSinceReferenceDate]-start)*1000,state->needsLayout?@", asked again":@"");
    }
 }
 

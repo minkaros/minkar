@@ -48,6 +48,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // NSOutlineView needs to programmatically instantiated as IB/WOF4 doesn't have an editor for it..
 // also theoretically -dealloc could've crashed as the cell prototypes weren't initialized at all...
+/* Minkar: a column made with init has the defaults initWithIdentifier:
+   gives (it had a width and a maximum width of 0: a table sized it to
+   nothing, as TextMate's file browser). */
+-init {
+   return [self initWithIdentifier:@""];
+}
+
 -initWithIdentifier:identifier {
    _identifier=[identifier retain];
    _width=100.0;

@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <AppKit/NSTableRowView.h>
 #import <sys/param.h>
 #import <AppKit/NSOutlineView.h>
 #import <AppKit/NSInterfaceStyle.h>
@@ -49,6 +50,16 @@ NSString * const NSOutlineViewSelectionIsChangingNotification=@"NSOutlineViewSel
 
 -(void)drawHighlightedSelectionForColumn:(NSInteger)column row:(NSInteger)row inRect:(NSRect)rect;
 
+@end
+
+@interface NSTableView (NSViewBasedHooks)
+-(BOOL)_isViewBased;
+-(NSView *)_delegateViewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+-(NSTableRowView *)_delegateRowViewForRow:(NSInteger)row;
+-(BOOL)_delegateIsGroupRow:(NSInteger)row;
+-(BOOL)_dataSourceHasObjectValues;
+-(void)_delegateDidAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
+-(void)_delegateDidRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
 @end
 
 @implementation NSOutlineView
@@ -442,14 +453,17 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
         @selector(outlineView:child:ofItem:),
         @selector(outlineView:isItemExpandable:),
         @selector(outlineView:numberOfChildrenOfItem:),
-        @selector(outlineView:objectValueForTableColumn:byItem:),
         NULL};
     int i;
 
+    /* Minkar: as on the reference platform, a data source that lacks these
+       is logged, not refused, and the object values are not among them (a
+       view-based outline takes its cells from its delegate). */
     for (i = 0; requiredSelectors[i] != NULL; ++i)
-        if (dataSource!=nil && ![dataSource respondsToSelector:requiredSelectors[i]])
-            [NSException raise:NSInternalInconsistencyException
-                        format:@"NSOutlineView dataSource does not respond to %@", NSStringFromSelector(requiredSelectors[i])];
+        if (dataSource!=nil && ![dataSource respondsToSelector:requiredSelectors[i]]) {
+            NSLog(@"Illegal NSOutlineView data source (%@). Must implement %@", dataSource, NSStringFromSelector(requiredSelectors[i]));
+            break;
+        }
 
     _dataSource=dataSource;
 }
@@ -700,6 +714,9 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
         [NSException raise:NSInvalidArgumentException format:@"invalid row in drawRow:clipRect:"];
 
    for(;drawThisColumn < NSMaxRange(visibleColumns);drawThisColumn++) {
+    // Minkar: a view-based outline's cells are views; only its
+    // disclosure triangles are drawn here.
+    if(![self _isViewBased]){
 
     if(row == _editedRow && drawThisColumn == _editedColumn && _editingCell!=nil){
      [_backgroundColor setFill];
@@ -714,6 +731,7 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
     else {
      NSCell *dataCell=[self preparedCellAtColumn:drawThisColumn row:row];
      [dataCell drawWithFrame:[self frameOfCellAtColumn:drawThisColumn row:row] inView:self];
+    }
     }
 
 // Marker cell is drawn after data cell so it is on top
@@ -748,6 +766,44 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
 
 // intercept mouse clicks destined for the "dead space" in the indented area or the triangle.
 // proper adjustment of the highlighted area in the outline column is performed elsewhere.
+/* A view-based outline: the table's delegate calls, asked of the outline's
+   delegate and data source by item. */
+-(BOOL)_isViewBased {
+   return [_delegate respondsToSelector:@selector(outlineView:viewForTableColumn:item:)] || [super _isViewBased];
+}
+
+-(NSView *)_delegateViewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(outlineView:viewForTableColumn:item:)])
+    return [_delegate outlineView:self viewForTableColumn:tableColumn item:[self itemAtRow:row]];
+   return [super _delegateViewForTableColumn:tableColumn row:row];
+}
+
+-(NSTableRowView *)_delegateRowViewForRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(outlineView:rowViewForItem:)])
+    return [_delegate outlineView:self rowViewForItem:[self itemAtRow:row]];
+   return [super _delegateRowViewForRow:row];
+}
+
+-(BOOL)_delegateIsGroupRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(outlineView:isGroupItem:)])
+    return [_delegate outlineView:self isGroupItem:[self itemAtRow:row]];
+   return [super _delegateIsGroupRow:row];
+}
+
+-(BOOL)_dataSourceHasObjectValues {
+   return [_dataSource respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)];
+}
+
+-(void)_delegateDidAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(outlineView:didAddRowView:forRow:)])
+    [_delegate outlineView:self didAddRowView:rowView forRow:row];
+}
+
+-(void)_delegateDidRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(outlineView:didRemoveRowView:forRow:)])
+    [_delegate outlineView:self didRemoveRowView:rowView forRow:row];
+}
+
 -(void)mouseDown:(NSEvent *)event {
     NSPoint location = [self convertPoint:[event locationInWindow] fromView:nil];
 

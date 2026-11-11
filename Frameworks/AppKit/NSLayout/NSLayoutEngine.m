@@ -7,6 +7,7 @@
 #import "NSLayoutSolver.h"
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 /* A layout pass: every view of the subtree (and every layout guide) gets
  * four variables, its left, top, width and height in the root's top-down
@@ -44,7 +45,11 @@ typedef struct {
    NSMutableArray *views;
    NSView         *root;
    BOOL            fitting;
-   NSMutableArray *required;   // what each required constraint was, and its variables
+   /* What each required constraint was and its variables, for the log of
+      one that can't be met: kept as plain C, as most passes never need it. */
+   struct requiredEntry { id what; int count; int variables[8]; } *required;
+   NSUInteger      requiredCount,requiredCapacity;
+   NSHashTable    *needed;     // the views the solver needs (see findNeeded)
 }
 @end
 
@@ -54,7 +59,6 @@ typedef struct {
    solver=NSLayoutSolverCreate();
    items=NSCreateMapTable(NSNonOwnedPointerMapKeyCallBacks,NSObjectMapValueCallBacks,0);
    views=[[NSMutableArray alloc] init];
-   required=[[NSMutableArray alloc] init];
    return self;
 }
 
@@ -62,7 +66,9 @@ typedef struct {
    NSLayoutSolverFree(solver);
    NSFreeMapTable(items);
    [views release];
-   [required release];
+   free(required);
+   if(needed!=NULL)
+    NSFreeHashTable(needed);
    [super dealloc];
 }
 
@@ -83,43 +89,69 @@ static void term(expression *e,int variable,double coefficient) {
 }
 
 static int add(NSLayoutPass *pass,expression e,int op,double strength) {
+   static int debug=-1;
+
+   if(debug<0)
+    debug=(getenv("NSLayoutDebug")!=NULL);
+   if(debug){
+    int i;
+    BOOL odd=!isfinite(e.constant) || fabs(e.constant)>1e6;
+
+    for(i=0;i<e.count;i++)
+     if(!isfinite(e.coefficients[i]) || fabs(e.coefficients[i])>1e6)
+      odd=YES;
+    if(odd)
+     NSLog(@"layout: an out of range term: constant %g, strength %g, first coefficient %g",e.constant,strength,e.count>0?e.coefficients[0]:0);
+   }
    return NSLayoutSolverAdd(pass->solver,e.count,e.variables,e.coefficients,e.constant,op,strength);
 }
 
-static NSIndexSet *variablesOf(expression e) {
-   NSMutableIndexSet *result=[NSMutableIndexSet indexSet];
-   int i;
+/* What a required constraint is, as the log says it: a constraint, or a
+   view (its autoresizing mask), or the text given. Made only for a log. */
+static NSString *describeReason(id what) {
+   if([what isKindOfClass:[NSView class]]){
+    NSView *view=what;
 
-   for(i=0;i<e.count;i++)
-    [result addIndex:e.variables[i]];
-   return result;
+    return [NSString stringWithFormat:@"the autoresizing mask %#lx of %@, frame %@",(unsigned long)[view autoresizingMask],view,NSStringFromRect([view frame])];
+   }
+   return [what description];
 }
 
 /* A required constraint that can't be met: logged with the required
  * constraints already in the pass that share a variable with it (the ones
  * it most likely fights), as the reference lists them. */
 static void addRequired(NSLayoutPass *pass,expression e,int op,id what) {
-   NSIndexSet *variables=variablesOf(e);
-
    if(add(pass,e,op,NSLayoutSolverRequired())==NSLayoutSolverUnsatisfiable){
     NSMutableString *list=[NSMutableString string];
+    NSUInteger       n;
+    int              i,j;
 
-    for(NSArray *entry in pass->required){
-     NSIndexSet *other=[entry objectAtIndex:1];
-     __block BOOL shared=NO;
+    for(n=0;n<pass->requiredCount;n++){
+     struct requiredEntry *entry=&pass->required[n];
+     BOOL                  shared=NO;
 
-     [variables enumerateIndexesUsingBlock:^(NSUInteger index,BOOL *stop){
-      if([other containsIndex:index]){ shared=YES; *stop=YES; }
-     }];
+     for(i=0;i<e.count && !shared;i++)
+      for(j=0;j<entry->count && !shared;j++)
+       shared=(entry->variables[j]==e.variables[i]);
      if(shared)
-      [list appendFormat:@"    \"%@\",\n",[entry objectAtIndex:0]];
+      [list appendFormat:@"    \"%@\",\n",describeReason(entry->what)];
     }
-    [list appendFormat:@"    \"%@\"\n",what];
-    NSLog(@"Unable to simultaneously satisfy constraints.\n\tProbably at least one of the constraints in the following list is one you don't want.\n(\n%@)\n\nWill attempt to recover by breaking\n%@",list,what);
+    [list appendFormat:@"    \"%@\"\n",describeReason(what)];
+    NSLog(@"Unable to simultaneously satisfy constraints.\n\tProbably at least one of the constraints in the following list is one you don't want.\n(\n%@)\n\nWill attempt to recover by breaking\n%@",list,describeReason(what));
     add(pass,e,op,NSLayoutSolverStrength(999.999));
    }
-   else if(what!=nil)
-    [pass->required addObject:[NSArray arrayWithObjects:what,variables,nil]];
+   else if(what!=nil){
+    struct requiredEntry *entry;
+
+    if(pass->requiredCount==pass->requiredCapacity){
+     pass->requiredCapacity=(pass->requiredCapacity==0)?64:pass->requiredCapacity*2;
+     pass->required=realloc(pass->required,sizeof(struct requiredEntry)*pass->requiredCapacity);
+    }
+    entry=&pass->required[pass->requiredCount++];
+    entry->what=what;
+    entry->count=e.count;
+    memcpy(entry->variables,e.variables,sizeof(int)*e.count);
+   }
 }
 
 // variable == value (op 0) at a strength.
@@ -158,6 +190,12 @@ static void addItem(NSLayoutPass *pass,id item,NSRect frame) {
    NSLayoutSolverNewVariable(pass->solver);
    NSMapInsert(pass->items,item,[NSNumber numberWithInt:first]);
 
+   /* A view that translates its autoresizing mask is placed by it, all
+      required (the root by its own frame): staying put and a size of at
+      least zero would only add rows to the solver, most of a window's. */
+   if(item!=pass->root && [item isKindOfClass:[NSView class]] && [(NSView *)item translatesAutoresizingMaskIntoConstraints])
+    return;
+
    term(&e,first+WIDTH,1);
    add(pass,e,NSLayoutSolverGreaterOrEqual,NSLayoutSolverRequired());
    e.variables[0]=first+HEIGHT;
@@ -169,8 +207,41 @@ static void addItem(NSLayoutPass *pass,id item,NSRect frame) {
    fix(pass,first+HEIGHT,frame.size.height,stayStrength,nil);
 }
 
+/* Which views the solver needs: those laid out by constraints or with
+   constraints or guides of their own, those a constraint names, and their
+   superviews up to the root. A subtree of views placed by their frames
+   alone keeps its autoresizing and stays out: a table's hundreds of rows
+   made every pass cost seconds, the solver taking them in one by one. */
+static BOOL findNeeded(NSView *view,NSHashTable *needed,NSHashTable *named) {
+   BOOL uses=![view translatesAutoresizingMaskIntoConstraints] || [[view constraints] count]>0 || [[view layoutGuides] count]>0;
+
+   for(NSLayoutConstraint *constraint in [view constraints]){
+    id items[2]={ [constraint firstItem],[constraint secondItem] };
+    int i;
+
+    for(i=0;i<2;i++){
+     id item=items[i];
+
+     if([item isKindOfClass:[NSLayoutGuide class]])
+      item=[(NSLayoutGuide *)item owningView];
+     if([item isKindOfClass:[NSView class]])
+      NSHashInsert(named,item);
+    }
+   }
+   for(NSView *subview in [view subviews])
+    if(findNeeded(subview,needed,named))
+     uses=YES;
+   if(uses)
+    NSHashInsert(needed,view);
+   return uses;
+}
+
 static void collect(NSLayoutPass *pass,NSView *view) {
-   NSRect frame=rootFrame(view,pass->root);
+   NSRect frame;
+
+   if(view!=pass->root && pass->needed!=NULL && NSHashGet(pass->needed,view)==NULL)
+    return;
+   frame=rootFrame(view,pass->root);
 
    [pass->views addObject:view];
    addItem(pass,view,frame);
@@ -352,7 +423,7 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
     NSRect      frame=rootFrame(view,pass->root);
     NSView     *superview=[view superview];
     int         s=(superview!=nil)?firstVariable(pass,superview):-1;
-    id          what=[NSString stringWithFormat:@"the autoresizing mask %#lx of %@, frame %@",(unsigned long)[view autoresizingMask],view,NSStringFromRect([view frame])];
+    id          what=view;   // described only if a log needs it
 
     if(s<0){
      fix(pass,v+LEFT,frame.origin.x,NSLayoutSolverRequired(),what);
@@ -398,6 +469,20 @@ static NSLayoutPass *solve(NSView *root,BOOL fitting) {
 
    pass->root=root;
    pass->fitting=fitting;
+   {
+    NSHashTable *named=NSCreateHashTable(NSNonOwnedPointerHashCallBacks,0);
+    NSHashEnumerator state;
+    NSView *view;
+
+    pass->needed=NSCreateHashTable(NSNonOwnedPointerHashCallBacks,0);
+    findNeeded(root,pass->needed,named);
+    state=NSEnumerateHashTable(named);
+    while((view=NSNextHashEnumeratorItem(&state))!=nil)
+     for(;view!=nil && view!=root;view=[view superview])
+      NSHashInsert(pass->needed,view);
+    NSEndHashTableEnumeration(&state);
+    NSFreeHashTable(named);
+   }
    collect(pass,root);
    for(NSView *view in pass->views)
     addImplicit(pass,view);
@@ -414,7 +499,11 @@ static CGFloat value(NSLayoutPass *pass,id item,int which) {
 
 void NSLayoutEngineLayout(NSView *root) {
    @autoreleasepool {
+    NSTimeInterval start=[NSDate timeIntervalSinceReferenceDate];
     NSLayoutPass *pass=solve(root,NO);
+
+    if(getenv("NSLayoutDebug")!=NULL)
+     NSLog(@"layout solve: %lu views, %lu required constraints, %.1f ms",(unsigned long)[pass->views count],(unsigned long)pass->requiredCount,([NSDate timeIntervalSinceReferenceDate]-start)*1000);
 
     // The window to the size its content asked for, its top left kept.
     if(isWindowFrameView(root)){

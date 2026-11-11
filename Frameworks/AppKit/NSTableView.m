@@ -1238,8 +1238,15 @@ _dataSource);
    int      colorCount  = [rowColors count];
 
    if (colorCount == 0 || !_alternatingRowBackground) {
-      [_backgroundColor setFill];
-      NSRectFill(clipRect);
+      /* Minkar: a clear background lets what is behind show (TextMate's
+         file browser draws over its sidebar); copying it into the window
+         left a hole there. A translucent one is laid over. */
+      CGFloat alpha = [_backgroundColor alphaComponent];
+
+      if (_backgroundColor != nil && alpha > 0) {
+         [_backgroundColor setFill];
+         NSRectFillUsingOperation(clipRect, alpha < 1 ? NSCompositeSourceOver : NSCompositeCopy);
+      }
    }
    else if (colorCount == 1) {
       [(NSColor *)[rowColors objectAtIndex:0] setFill];
@@ -1918,6 +1925,35 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
    return [_delegate respondsToSelector:@selector(tableView:viewForTableColumn:row:)];
 }
 
+/* The delegate's part in a view-based table, which NSOutlineView answers
+   with its delegate's outline methods, by item. */
+-(NSView *)_delegateViewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+   return [_delegate tableView:self viewForTableColumn:tableColumn row:row];
+}
+
+-(NSTableRowView *)_delegateRowViewForRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(tableView:rowViewForRow:)])
+    return [_delegate tableView:self rowViewForRow:row];
+   return nil;
+}
+
+-(BOOL)_delegateIsGroupRow:(NSInteger)row {
+   return [_delegate respondsToSelector:@selector(tableView:isGroupRow:)] && [_delegate tableView:self isGroupRow:row];
+}
+
+-(BOOL)_dataSourceHasObjectValues {
+   return [_dataSource respondsToSelector:@selector(tableView:objectValueForTableColumn:row:)];
+}
+
+-(void)_delegateDidAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+   if([_delegate respondsToSelector:@selector(tableView:didAddRowView:forRow:)])
+    [_delegate tableView:self didAddRowView:rowView forRow:row];
+}
+
+-(void)_delegateDidRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+   [self _delegateDidRemoveRowView:rowView forRow:row];
+}
+
 /* A cell view for a column's identifier from the reusable ones, or a nib
    registered for it, or nil. */
 -(id)makeViewWithIdentifier:(NSString *)identifier owner:(id)owner {
@@ -2010,10 +2046,9 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
 -(NSTableRowView *)_makeRowViewForRow:(NSInteger)row {
    NSTableRowView *rowView=nil;
    NSInteger       column,count=[_tableColumns count];
-   BOOL            group=[_delegate respondsToSelector:@selector(tableView:isGroupRow:)] && [_delegate tableView:self isGroupRow:row];
+   BOOL            group=[self _delegateIsGroupRow:row];
 
-   if([_delegate respondsToSelector:@selector(tableView:rowViewForRow:)])
-    rowView=[_delegate tableView:self rowViewForRow:row];
+   rowView=[self _delegateRowViewForRow:row];
    if(rowView==nil)
     rowView=[[[NSTableRowView alloc] initWithFrame:NSZeroRect] autorelease];
    [rowView setFrame:[self rectOfRow:row]];
@@ -2026,11 +2061,11 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
 
     if([tableColumn isHidden])
      continue;
-    view=[_delegate tableView:self viewForTableColumn:(group?nil:tableColumn) row:row];
+    view=[self _delegateViewForTableColumn:(group?nil:tableColumn) row:row];
     if(view==nil)
      continue;
-    if([view respondsToSelector:@selector(setObjectValue:)] && [_dataSource respondsToSelector:@selector(tableView:objectValueForTableColumn:row:)])
-     [(id)view setObjectValue:[_dataSource tableView:self objectValueForTableColumn:tableColumn row:row]];
+    if([view respondsToSelector:@selector(setObjectValue:)] && [self _dataSourceHasObjectValues])
+     [(id)view setObjectValue:[self dataSourceObjectValueForTableColumn:tableColumn row:row]];
     [view setFrame:group?[rowView bounds]:[self _frameOfCellViewAtColumn:column row:row]];
     [view setAutoresizingMask:NSViewHeightSizable|(group?NSViewWidthSizable:0)];
     [rowView addSubview:view];
@@ -2072,8 +2107,7 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
      rowView=[self _makeRowViewForRow:row];
      [_rowViews setObject:rowView forKey:key];
      [self addSubview:rowView];
-     if([_delegate respondsToSelector:@selector(tableView:didAddRowView:forRow:)])
-      [_delegate tableView:self didAddRowView:rowView forRow:row];
+     [self _delegateDidAddRowView:rowView forRow:row];
     }
     else {
      NSInteger column,count=[_tableColumns count],index=0;

@@ -636,6 +636,12 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks \
 	-I${KIWI_DIR}
 
+# The constraint solver (kiwi) optimised: AppKit is built without, and the
+# solver's C++ was a hundred times slower so (TextMate's file browser took
+# a second a layout pass).
+CFLAGS.NSLayoutSolver.mm = -O2
+CXXFLAGS.NSLayoutSolver.mm = -O2
+
 LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
