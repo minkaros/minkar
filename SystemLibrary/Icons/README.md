@@ -34,3 +34,8 @@ Installed in `/System/Library/Icons/<group>/<name>.png`:
 | `menubar`       | monochrome status icons: battery, network, volume, Bluetooth |
 | `actions`       | toolbar and menu actions |
 | `apps`          | the apps' icons (their bundles hold 512 px copies) |
+
+AppKit's built-in images `NSAlertPanelExclamation.tiff` (from
+`status/dialog-warning`, 64 px) and `NSApplicationIcon.tiff` (from
+`mimetypes/application-x-executable`, 128 px), in `Frameworks/AppKit`,
+are rendered from these sources too and are GPL-3 data files as well.
