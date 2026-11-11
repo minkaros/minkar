@@ -49,7 +49,7 @@ lib${LIB}.dylib: lib${LIB}.a
 
 install-headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/include
-	install -m 0444 ${.CURDIR}/dist/sqlite3.h ${.CURDIR}/dist/sqlite3ext.h \
+	install -C -m 0444 ${.CURDIR}/dist/sqlite3.h ${.CURDIR}/dist/sqlite3ext.h \
 	  ${MINKAR_SDKROOT}/usr/include/
 
 # The shell's object is shell.o: sqlite3.o is the library's (sqlite3.c),

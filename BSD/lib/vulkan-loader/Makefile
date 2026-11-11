@@ -57,13 +57,13 @@ install-loader: .PHONY build-loader
 	    ${MINKAR_SDKROOT}/usr/lib
 	cp -f ${LOADER} ${.OBJDIR}/libvulkan.1.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan.1.dylib ${.OBJDIR}/libvulkan.1.dylib
-	install -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${SYSROOT_DIR}/usr/lib/libvulkan.1.dylib
-	install -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${MINKAR_SDKROOT}/usr/lib/libvulkan.1.dylib
+	install -C -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${SYSROOT_DIR}/usr/lib/libvulkan.1.dylib
+	install -C -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${MINKAR_SDKROOT}/usr/lib/libvulkan.1.dylib
 .for d in ${SYSROOT_DIR} ${MINKAR_SDKROOT}
 	ln -sf libvulkan.1.dylib ${d}/usr/lib/libvulkan.dylib
 .endfor
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${FW_CACHE}) && \
-	    install -m 0444 $$src/LICENSE.txt ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.loader.txt
+	    install -C -m 0444 $$src/LICENSE.txt ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.loader.txt
 
 clean: .PHONY
 	rm -rf ${BUILD} ${HEADERS} ${.OBJDIR}/headers-build ${TOOLFILE} ${.OBJDIR}/cmake-setup.log

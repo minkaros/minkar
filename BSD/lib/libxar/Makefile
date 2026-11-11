@@ -45,6 +45,6 @@ lib${LIB}.dylib: lib${LIB}.a
 
 install-headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/xar
-	install -m 0444 ${.CURDIR}/xar.h ${MINKAR_SDKROOT}/usr/include/xar/
+	install -C -m 0444 ${.CURDIR}/xar.h ${MINKAR_SDKROOT}/usr/include/xar/
 
 .include <bsd.lib.mk>

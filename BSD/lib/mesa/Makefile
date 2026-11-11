@@ -123,9 +123,9 @@ install-radv: .PHONY build-radv
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d
 	cp -f ${RADV} ${.OBJDIR}/libvulkan_radeon.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan_radeon.dylib ${.OBJDIR}/libvulkan_radeon.dylib
-	install -m 0755 ${.OBJDIR}/libvulkan_radeon.dylib ${SYSROOT_DIR}/usr/lib/
-	install -m 0444 ${BUILD}/src/amd/vulkan/radeon_icd.x86_64.json ${SYSROOT_DIR}/usr/share/vulkan/icd.d/
-	install -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
+	install -C -m 0755 ${.OBJDIR}/libvulkan_radeon.dylib ${SYSROOT_DIR}/usr/lib/
+	install -C -m 0444 ${BUILD}/src/amd/vulkan/radeon_icd.x86_64.json ${SYSROOT_DIR}/usr/share/vulkan/icd.d/
+	install -C -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
 
 ${BUILD_GL}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${VENV}/.minkar-requirements \
     ${HOST}/bin/glslangValidator ${.CURDIR}/Makefile
@@ -148,18 +148,23 @@ install-gl: .PHONY build-gl
 .endfor
 .for dir in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${dir}/usr/lib
-	for lib in ${GL_LIBS:T}; do install -m 0755 ${.OBJDIR}/$$lib ${dir}/usr/lib/; done
+	for lib in ${GL_LIBS:T}; do install -C -m 0755 ${.OBJDIR}/$$lib ${dir}/usr/lib/; done
 	ln -sf libEGL.1.dylib ${dir}/usr/lib/libEGL.dylib
 	ln -sf libGLESv2.2.dylib ${dir}/usr/lib/libGLESv2.dylib
 .endfor
 	mkdir -p ${MINKAR_SDKROOT}/usr/include ${MINKAR_SDKROOT}/usr/lib/pkgconfig
-	cp -R ${SRC}/include/EGL ${SRC}/include/GLES2 ${SRC}/include/GLES3 ${SRC}/include/KHR \
+	# Copied with rsync -c: an unchanged header keeps its date, and WebKit
+	# is not compiled again.
+	rsync -rlc ${SRC}/include/EGL ${SRC}/include/GLES2 ${SRC}/include/GLES3 ${SRC}/include/KHR \
 	    ${MINKAR_SDKROOT}/usr/include/
 	for pc in egl glesv2; do \
 	    sed -e 's|^prefix=.*|prefix=${MINKAR_SDKROOT}/usr|' ${BUILD_GL}/meson-private/$$pc.pc \
-	        > ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc; \
+	        > ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc.new; \
+	    cmp -s ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc.new ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc && \
+	        rm -f ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc.new || \
+	        mv -f ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc.new ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc; \
 	done
-	install -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
+	install -C -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
 
 clean: .PHONY
 	rm -rf ${SRC} ${BUILD} ${BUILD_GL} ${VENV} ${HOST} ${.OBJDIR}/glslang-build ${CROSS} ${LDWRAP} \

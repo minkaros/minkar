@@ -334,7 +334,7 @@ build-extlib: .PHONY ${BUILD}/.minkar-setup
 .if defined(EXTLIB_TEST) && ${EXTLIB_TEST} == "yes"
 EXTLIB_TEST_PATH ?= /usr/local/tests/w0/${EXTLIB}
 TEST_DIR =	${SYSROOT_DIR}${EXTLIB_TEST_PATH}
-install-extlib: .PHONY build-extlib
+_install-extlib: .PHONY
 	rm -rf ${STAGE} ${TEST_DIR}
 	${TOOLENV} sh -c '${STAGE_CMD}' > ${.OBJDIR}/stage.log 2>&1 || \
 	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
@@ -383,7 +383,7 @@ install-extlib: .PHONY build-extlib
 	# What is left out, and why (if anything is).
 	if [ -f ${.CURDIR}/skip.txt ]; then install -m 0644 ${.CURDIR}/skip.txt ${TEST_DIR}/; fi
 .elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
-install-extlib: .PHONY build-extlib
+_install-extlib: .PHONY
 	mkdir -p ${HOST_PREFIX}
 	${TOOLENV} ninja -C ${BUILD} install > ${.OBJDIR}/stage.log 2>&1 || \
 	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
@@ -401,7 +401,7 @@ PC_FIX =	-e 's|^prefix=.*|prefix=${DEV_DEST}|' -e 's|^libdir=.*|libdir=${LIB_DES
 PC_FIX +=	-e '/^Cflags:/{/-I/!s|^Cflags:|Cflags: -I$${includedir}|;}' \
 		-e '/^Libs:/{/-L/!s|^Libs:|Libs: -L$${libdir}|;}'
 .endif
-install-extlib: .PHONY build-extlib
+_install-extlib: .PHONY
 	rm -rf ${STAGE}
 	${TOOLENV} sh -c '${STAGE_CMD}' > ${.OBJDIR}/stage.log 2>&1 || \
 	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
@@ -482,7 +482,37 @@ install-extlib: .PHONY build-extlib
 .endif
 .endif
 
+# Installed again only when it can have changed: the build made a file
+# newer than the last installation (ninja's own logs aside), the recipe or
+# this file changed, or what it installs is not there (a new sysroot). An
+# unchanged library otherwise goes through its whole staging install, its
+# install names and a checksum of every file, in every pass of the stage.
+_INSTALLED =	${.OBJDIR}/.minkar-installed
+.if defined(EXTLIB_TEST) && ${EXTLIB_TEST} == "yes"
+_INSTALLS =	${TEST_DIR}
+.elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
+_INSTALLS =	${HOST_PREFIX}
+.else
+_INSTALLS =	${EXTLIB_LIBS:@l@${SYSROOT_DIR}${LIB_DEST}/${l}@} \
+		${EXTLIB_FRAMEWORKS:@f@${SYSROOT_DIR}${LIB_DEST}/${f}.framework@} \
+		${EXTLIB_DATA:@d@${SYSROOT_DIR}/${d}@} \
+		${EXTLIB_MODULES:@m@${SYSROOT_DIR}/usr/${m}@}
+.endif
+install-extlib: .PHONY build-extlib
+	@uptodate=yes; \
+	for f in ${.CURDIR}/Makefile ${MK_DIR}/minkar.extlib.mk; do \
+		[ ${_INSTALLED} -nt $$f ] || uptodate=no; \
+	done; \
+	for f in ${_INSTALLS}; do [ -e $$f ] || uptodate=no; done; \
+	if [ $$uptodate = yes ] && [ -z "$$(find ${BUILD} -newer ${_INSTALLED} \
+	    ! -name .ninja_log ! -name .ninja_deps -print -quit)" ]; then \
+		echo "${EXTLIB}: installed, unchanged"; \
+	else \
+		rm -f ${_INSTALLED} && cd ${.CURDIR} && ${MAKE} _install-extlib && \
+		touch ${_INSTALLED}; \
+	fi
+
 clean: .PHONY
-	rm -rf ${SRC} ${BUILD} ${STAGE} ${CROSS} ${LDWRAP} ${CMAKE_TC} ${.OBJDIR}/setup.log ${.OBJDIR}/stage.log
+	rm -rf ${_INSTALLED} ${SRC} ${BUILD} ${STAGE} ${CROSS} ${LDWRAP} ${CMAKE_TC} ${.OBJDIR}/setup.log ${.OBJDIR}/stage.log
 
 .include <bsd.prog.mk>
