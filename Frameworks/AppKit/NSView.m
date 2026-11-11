@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSBitmapImageRep.h>
 #import <AppKit/NSViewController.h>
 #import <objc/runtime.h>
+#include <math.h>
 #import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSEvent.h>
@@ -292,8 +293,12 @@ static CGAffineTransform concatViewTransform(CGAffineTransform result,NSView *vi
    if(doFrame)
    result=CGAffineTransformTranslate(result,frame.origin.x,frame.origin.y);
 
-    // Apply bounds scaling to fit in the frame
-    CGAffineTransform scale = CGAffineTransformMakeScale(NSWidth(frame)/NSWidth(bounds), NSHeight(frame)/NSHeight(bounds));
+    // Apply bounds scaling to fit in the frame. Minkar: an empty frame or
+    // bounds has no scale (1): 0/0 made the transform NaN, and a view that
+    // was ever empty kept NaN bounds and frame from then on.
+    CGFloat sx=(NSWidth(frame)!=0 && NSWidth(bounds)!=0)?NSWidth(frame)/NSWidth(bounds):1;
+    CGFloat sy=(NSHeight(frame)!=0 && NSHeight(bounds)!=0)?NSHeight(frame)/NSHeight(bounds):1;
+    CGAffineTransform scale = CGAffineTransformMakeScale(sx,sy);
     result=CGAffineTransformConcat(scale,result);
 
    if(flip){
@@ -881,6 +886,12 @@ static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform 
    return NSMakeRect(minx,miny,maxx-minx,maxy-miny);
 }
 
+static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
+   CGFloat result=(bounds!=0 && oldFrame!=0)?newFrame*bounds/oldFrame:newFrame;
+
+   return isfinite(result)?result:newFrame;
+}
+
 -(void)setFrame:(NSRect)frame {
   // Cocoa does not post the notification if the frames are equal
    // Possible that resizeSubviewsWithOldSize is not called if the sizes are equal
@@ -889,17 +900,12 @@ static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform 
 
    NSSize oldSize=_bounds.size;
 
-    if (_bounds.size.width == 0 || _bounds.size.height == 0) {
-        // No valid current bounds value - just update it to use the frame size
-        _bounds.size=frame.size;
-    } else {
-        // Get the bounds->frame transform
-        CGAffineTransform transform=concatViewTransform(CGAffineTransformIdentity,self,nil,YES,NO);
-        // ... and invert it so we can get the new bounds size from the new frame size
-        transform = CGAffineTransformInvert(transform);
-
-        _bounds.size=CGSizeApplyAffineTransform(frame.size, transform);
-    }
+    // The bounds keep their scale to the frame, axis by axis; with no scale
+    // to keep (an empty frame or bounds), or one that is not a number, they
+    // follow the frame. Minkar: inverting the transform of an empty frame
+    // made the bounds NaN.
+    _bounds.size.width=boundsLength(_bounds.size.width,_frame.size.width,frame.size.width);
+    _bounds.size.height=boundsLength(_bounds.size.height,_frame.size.height,frame.size.height);
     _frame=frame;
 
     [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
