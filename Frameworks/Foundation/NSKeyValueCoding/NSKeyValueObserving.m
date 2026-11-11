@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSLock.h>
 #import <Foundation/NSValue.h>
+#import <Foundation/NSDate.h>
+#import <Foundation/NSData.h>
+#import <Foundation/NSString.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSKeyValueCoding.h>
@@ -944,6 +947,14 @@ CHANGE_DECLARATION(SEL)
 	NSString* className=[self className];
 	if([className hasPrefix:@"KVONotifying_"])
 		return; // this class is already swizzled
+	/* Minkar: not CoreFoundation's bridged objects, whose retain and release
+	   are CF's (a string observed on a key path's way, as a binding to
+	   "findString.length", was released once too often), nor immutable
+	   values: nothing about them changes, so there is nothing to notify. */
+	if([className hasPrefix:@"NSCF"] || [className hasPrefix:@"__NSCF"] ||
+	   [self isKindOfClass:[NSString class]] || [self isKindOfClass:[NSValue class]] ||
+	   [self isKindOfClass:[NSDate class]] || [self isKindOfClass:[NSData class]])
+		return;
     pthread_mutex_lock(&kvoLock);
 	object_setClass(self, [self _KVO_swizzledClass]);
     pthread_mutex_unlock(&kvoLock);

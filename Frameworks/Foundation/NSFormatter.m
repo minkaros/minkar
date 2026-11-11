@@ -13,10 +13,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSFormatter
 
+/* Minkar: only stringForObjectValue: and getObjectValue:forString:... are
+   for subclasses to define, as on the reference platform; the rest have
+   these defaults (a formatter with only those two raised as soon as a
+   field began editing). */
 -(BOOL)isPartialStringValid:(NSString *)partial
    newEditingString:(NSString **)editing errorDescription:(NSString **)error {
-   NSInvalidAbstractInvocation();
-   return NO;
+   return YES;
 }
 
 -(BOOL)getObjectValue:(id *)object
@@ -31,19 +34,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSString *)editingStringForObjectValue:(id)object {
-   NSInvalidAbstractInvocation();
-   return nil;
+   return [self stringForObjectValue:object];
 }
 
 -(NSAttributedString *)attributedStringForObjectValue:(id)object
    withDefaultAttributes:(NSDictionary *)attributes {
-   NSInvalidAbstractInvocation();
    return nil;
 }
 
 -(BOOL)isPartialStringValid:(NSString **)partialStringp proposedSelectedRange:(NSRange *)proposedRangep originalString:(NSString *)originalString originalSelectedRange:(NSRange)originalRange errorDescription:(NSString **)errorStringp {
-   NSInvalidAbstractInvocation();
-   return NO;
+   NSString *edited=nil;
+   BOOL      valid=[self isPartialStringValid:*partialStringp newEditingString:&edited errorDescription:errorStringp];
+
+   if(!valid && edited!=nil){
+    *partialStringp=edited;
+    if(proposedRangep!=NULL)
+     *proposedRangep=NSMakeRange([edited length],0);
+   }
+   return valid;
 }
 
 -initWithCoder:(NSCoder*)coder {
