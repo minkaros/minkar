@@ -35,4 +35,14 @@ id O2ClipPhaseObject(O2ClipPhase *self) {
    return self->_object;
 }
 
+/* A mask phase's rectangle, in the user space of its transform. */
+O2Rect O2ClipPhaseRect(O2ClipPhase *self) {
+   return self->_rect;
+}
+
+/* A mask phase's user space to surface transform. */
+O2AffineTransform O2ClipPhaseTransform(O2ClipPhase *self) {
+   return self->_transform;
+}
+
 @end

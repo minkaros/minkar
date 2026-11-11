@@ -179,6 +179,42 @@ static void O2SurfaceWrite_argb32f_to_GA88(O2Surface *self,int x,int y,O2argb32f
    }
 }
 
+/* 8-bit spans into gray, gray and alpha, and alpha-only surfaces: the
+ * luminance of the (premultiplied) color, and its alpha. */
+static void O2SurfaceWrite_argb8u_to_G8(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=(uint8_t *)self->_pixelBytes+y*self->_bytesPerRow+x;
+   int      i;
+
+   for(i=0;i<length;i++,span++)
+    *scanline++=(uint8_t)((span->r*77+span->g*150+span->b*29)>>8);
+}
+
+static void O2SurfaceWrite_argb8u_to_GA88(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=(uint8_t *)self->_pixelBytes+y*self->_bytesPerRow+x*2;
+   int      i;
+
+   for(i=0;i<length;i++,span++){
+    *scanline++=(uint8_t)((span->r*77+span->g*150+span->b*29)>>8);
+    *scanline++=span->a;
+   }
+}
+
+static void O2SurfaceWrite_argb8u_to_A8(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=(uint8_t *)self->_pixelBytes+y*self->_bytesPerRow+x;
+   int      i;
+
+   for(i=0;i<length;i++,span++)
+    *scanline++=span->a;
+}
+
+static void O2SurfaceWrite_argb32f_to_A8(O2Surface *self,int x,int y,O2argb32f *span,int length){
+   uint8_t *scanline=(uint8_t *)self->_pixelBytes+y*self->_bytesPerRow+x;
+   int      i;
+
+   for(i=0;i<length;i++,span++)
+    *scanline++=O2ByteFromFloat(span->a);
+}
+
 static void O2SurfaceWrite_argb32f_to_G8(O2Surface *self,int x,int y,O2argb32f *span,int length){
    uint8_t* scanline = self->_pixelBytes + y * self->_bytesPerRow;
    int i;
@@ -405,10 +441,18 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
      switch(bitsPerPixel){
      
       case 8:
-       self->_writeargb32f=O2SurfaceWrite_argb32f_to_G8;
+       if((bitmapInfo&kO2BitmapAlphaInfoMask)==kO2ImageAlphaOnly){
+        self->_writeargb8u=O2SurfaceWrite_argb8u_to_A8;
+        self->_writeargb32f=O2SurfaceWrite_argb32f_to_A8;
+       }
+       else {
+        self->_writeargb8u=O2SurfaceWrite_argb8u_to_G8;
+        self->_writeargb32f=O2SurfaceWrite_argb32f_to_G8;
+       }
        return YES;
 
       case 16:
+       self->_writeargb8u=O2SurfaceWrite_argb8u_to_GA88;
        self->_writeargb32f=O2SurfaceWrite_argb32f_to_GA88;
        return YES;
 
@@ -547,9 +591,21 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
    return NO;   
 }
 
+/* The components of a pixel are the color space's and the alpha (or
+ * skipped) byte: 8 bits for gray or alpha only, 32 for RGB with alpha. */
+static size_t O2SurfaceBitsPerPixel(size_t bitsPerComponent,O2ColorSpaceRef colorSpace,O2BitmapInfo bitmapInfo) {
+   size_t components=(colorSpace!=NULL)?O2ColorSpaceGetNumberOfComponents(colorSpace):0;
+
+   if((bitmapInfo&kO2BitmapAlphaInfoMask)!=kO2ImageAlphaNone)
+    components++;
+   if(components==0)
+    components=4;
+   return bitsPerComponent*components;
+}
+
 -initWithBytes:(void *)bytes width:(size_t)width height:(size_t)height bitsPerComponent:(size_t)bitsPerComponent bytesPerRow:(size_t)bytesPerRow colorSpace:(O2ColorSpaceRef)colorSpace bitmapInfo:(O2BitmapInfo)bitmapInfo {
    O2DataProvider *provider;
-   int bitsPerPixel=32;
+   int bitsPerPixel=O2SurfaceBitsPerPixel(bitsPerComponent,colorSpace,bitmapInfo);
    
    if(bytes!=NULL){
     provider=[[[O2DataProvider alloc] initWithBytes:bytes length:bytesPerRow*height] autorelease];

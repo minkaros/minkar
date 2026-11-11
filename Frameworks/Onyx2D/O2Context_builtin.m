@@ -222,34 +222,171 @@ void O2ContextDeviceClipToEvenOddPath_builtin(O2Context_builtin *self,O2Path *pa
    O2ContextClipViewportToPath(self,path);
 }
 
+/* A path in surface coordinates drawn opaque into a new surface the size
+ * of this one, through the mask before it: the coverage mask of a clip
+ * (+1). Each path of a clip is drawn through the ones before it, so the
+ * last mask is their intersection. */
+ONYX2D_STATIC O2Context_builtin *O2ContextCreateClipMask_builtin(O2Context_builtin *self,O2Path *path,BOOL evenOdd,O2Context_builtin *previous){
+   size_t             width=O2ImageGetWidth(self->_surface),height=O2ImageGetHeight(self->_surface);
+   O2Surface         *surface=[self createSurfaceWithWidth:width height:height];
+   O2Context_builtin *mask;
+   O2Paint           *paint;
+   VGPath            *vgPath;
+
+   if(surface==nil)
+    return nil;
+   mask=[[O2Context_builtin alloc] initWithSurface:surface flipped:NO];
+   [surface release];
+   O2ContextClearRect(mask,O2RectMake(0,0,width,height));
+   mask->_clipContext=[previous retain];
+
+   paint=[[O2Paint_color alloc] initWithGray:1 alpha:1 surfaceToPaintTransform:O2AffineTransformIdentity];
+   O2ContextSetupPaintAndBlendMode(mask,paint,kO2BlendModeNormal);
+   O2PaintRelease(paint);
+   O2RasterizerSetShouldAntialias(mask,YES,O2ContextCurrentGState(self)->_antialiasingQuality);
+
+   vgPath=[[VGPath alloc] initWithKGPath:path];
+   VGPathFill(vgPath,O2AffineTransformIdentity,mask);
+   O2DContextClipAndFillEdges(mask,evenOdd?VG_EVEN_ODD:VG_NON_ZERO);
+   O2RasterizerClear(mask);
+   [vgPath release];
+
+   [mask->_clipContext release];
+   mask->_clipContext=nil;
+   O2ContextSetPaint(mask,nil);
+   return mask;
+}
+
+/* A clip to an image (O2ContextClipToMask) as a coverage mask (+1): the
+ * image drawn in its rectangle through the mask before it. An image with
+ * alpha gives its alpha; an image mask, where it paints; a gray image
+ * without alpha, its gray. */
+ONYX2D_STATIC O2Context_builtin *O2ContextCreateClipMaskFromImage_builtin(O2Context_builtin *self,O2ClipPhase *phase,O2Context_builtin *previous){
+   O2Image           *image=O2ClipPhaseObject(phase);
+   size_t             width=O2ImageGetWidth(self->_surface),height=O2ImageGetHeight(self->_surface);
+   O2Surface         *surface=[self createSurfaceWithWidth:width height:height];
+   O2Context_builtin *mask;
+   O2GState          *gState;
+   O2ImageAlphaInfo   alphaInfo=O2ImageGetAlphaInfo(image);
+   BOOL               grayAsAlpha=!O2ImageIsMask(image) &&
+                         (alphaInfo==kO2ImageAlphaNone || alphaInfo==kO2ImageAlphaNoneSkipLast || alphaInfo==kO2ImageAlphaNoneSkipFirst);
+
+   if(surface==nil)
+    return nil;
+   mask=[[O2Context_builtin alloc] initWithSurface:surface flipped:NO];
+   [surface release];
+   O2ContextClearRect(mask,O2RectMake(0,0,width,height));
+   mask->_clipContext=[previous retain];
+
+   gState=O2ContextCurrentGState(mask);
+   O2GStateSetDeviceSpaceCTM(gState,O2ClipPhaseTransform(phase));
+   O2GStateSetUserSpaceCTM(gState,O2AffineTransformIdentity);
+   O2ContextSetGrayFillColor(mask,1,1);
+   O2ContextDrawImage(mask,O2ClipPhaseRect(phase),image);
+
+   if(grayAsAlpha){
+    O2argb8u *span=NSZoneMalloc(NULL,width*sizeof(O2argb8u));
+    size_t    x,y;
+
+    for(y=0;y<height;y++){
+     O2argb8u *row=mask->_surface->_read_argb8u(mask->_surface,0,y,span,width);
+
+     if(row==NULL)
+      row=span;
+     for(x=0;x<width;x++)
+      row[x].a=row[x].r;
+     O2SurfaceWriteSpan_argb8u_PRE(mask->_surface,0,y,row,width);
+    }
+    NSZoneFree(NULL,span);
+   }
+
+   [mask->_clipContext release];
+   mask->_clipContext=nil;
+   return mask;
+}
+
+/* The bounding box of a rectangle through a transform. */
+ONYX2D_STATIC O2Rect O2RectTransformedBounds(O2Rect rect,O2AffineTransform xform){
+   O2Point corners[4]={
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMinX(rect),O2RectGetMinY(rect)),xform),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMaxX(rect),O2RectGetMinY(rect)),xform),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMinX(rect),O2RectGetMaxY(rect)),xform),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMaxX(rect),O2RectGetMaxY(rect)),xform)};
+   O2Float minX=corners[0].x,maxX=corners[0].x,minY=corners[0].y,maxY=corners[0].y;
+   int     i;
+
+   for(i=1;i<4;i++){
+    minX=MIN(minX,corners[i].x);
+    maxX=MAX(maxX,corners[i].x);
+    minY=MIN(minY,corners[i].y);
+    maxY=MAX(maxY,corners[i].y);
+   }
+   return O2RectMake(minX,minY,maxX-minX,maxY-minY);
+}
+
+/* A rectangle on whole pixels clips by the viewport alone. */
+ONYX2D_STATIC BOOL O2PathIsPixelRect(O2Path *path){
+   O2Rect rect;
+
+   if(!O2PathIsRect(path,&rect))
+    return NO;
+   return rect.origin.x==floor(rect.origin.x) && rect.origin.y==floor(rect.origin.y) &&
+          rect.size.width==floor(rect.size.width) && rect.size.height==floor(rect.size.height);
+}
+
+/* The viewport is the clip's bounding box (the rasterizer skips what is
+ * outside); a clip that is not a rectangle on whole pixels also gets a
+ * coverage mask, which every span writer applies. */
 -(void)clipToState:(O2ClipState *)clipState {
-   O2GState *gState=O2ContextCurrentGState(self);
-   NSArray *phases=[O2GStateClipState(gState) clipPhases];
-   int      i,count=[phases count];
-   
+   O2GState          *gState=O2ContextCurrentGState(self);
+   NSArray           *phases=[O2GStateClipState(gState) clipPhases];
+   int                i,count=[phases count];
+   O2Context_builtin *mask=nil;
+
    O2ContextDeviceClipReset_builtin(self);
-   
+
    for(i=0;i<count;i++){
     O2ClipPhase *phase=[phases objectAtIndex:i];
     O2Path       *path;
-    
+    BOOL          evenOdd=NO;
+
     switch(O2ClipPhasePhaseType(phase)){
-    
-     case O2ClipPhaseNonZeroPath:;
+
+     case O2ClipPhaseEOPath:
+      evenOdd=YES;
+      /* fall through */
+     case O2ClipPhaseNonZeroPath:
       path=O2ClipPhaseObject(phase);
-   O2ContextDeviceClipToNonZeroPath_builtin(self,path);
+      if(evenOdd)
+       O2ContextDeviceClipToEvenOddPath_builtin(self,path);
+      else
+       O2ContextDeviceClipToNonZeroPath_builtin(self,path);
+      if(!O2PathIsPixelRect(path)){
+       O2Context_builtin *next=O2ContextCreateClipMask_builtin(self,path,evenOdd,mask);
+
+       [mask release];
+       mask=next;
+      }
       break;
 
-     case O2ClipPhaseEOPath:;
-      path=O2ClipPhaseObject(phase);
-   O2ContextDeviceClipToEvenOddPath_builtin(self,path);
-      break;
-      
-     case O2ClipPhaseMask:
-      break;
-}
+     case O2ClipPhaseMask:;
+      O2Rect             bounds=O2RectTransformedBounds(O2ClipPhaseRect(phase),O2ClipPhaseTransform(phase));
+      O2Rect             viewport=O2RectIntersection(O2RectMake(_vpx,_vpy,_vpwidth,_vpheight),O2RectIntegral(bounds));
+      O2Context_builtin *next=O2ContextCreateClipMaskFromImage_builtin(self,phase,mask);
 
-}
+      _vpx=viewport.origin.x;
+      _vpy=viewport.origin.y;
+      _vpwidth=viewport.size.width;
+      _vpheight=viewport.size.height;
+
+      [mask release];
+      mask=next;
+      break;
+    }
+   }
+
+   [_clipContext release];
+   _clipContext=mask;
 }
 
 ONYX2D_STATIC O2Paint *paintFromColor(O2Context_builtin *self,O2ColorRef color,O2AffineTransform surfaceToPaintMatrix){
@@ -624,8 +761,20 @@ ONYX2D_STATIC_INLINE void O2RasterizeWriteCoverageSpan8888_Normal(O2Surface *sur
      if(chunk<0) // skip
       chunk=-chunk;
      else {
-      O2argb8u_sover_by_coverage(src,dst,coverage,chunk);
-     // FIXME: doesnt handle mask if present
+      if(mask==NULL)
+       O2argb8u_sover_by_coverage(src,dst,coverage,chunk);
+      else {
+       uint8_t maskSpan[chunk];
+       int     i;
+
+       O2Image_read_a8u(mask,x,y,maskSpan,chunk);
+       for(i=0;i<chunk;i++){
+        unsigned cov=O2Image_16u_mul_8u_div_255(coverage,maskSpan[i]);
+
+        if(cov!=0)
+         O2argb8u_sover_by_coverage(src+i,dst+i,cov,1);
+       }
+      }
 
       if(direct==NULL){
    	 //write result to the destination surface
@@ -658,8 +807,20 @@ ONYX2D_STATIC_INLINE void O2RasterizeWriteCoverageSpan8888_Copy(O2Surface *surfa
     if(chunk<0) // skip
      chunk=-chunk;
     else {
-     O2argb8u_copy_by_coverage(src,dst,coverage,chunk);
-     // FIXME: doesnt handle mask if present
+     if(mask==NULL)
+      O2argb8u_copy_by_coverage(src,dst,coverage,chunk);
+     else {
+      uint8_t maskSpan[chunk];
+      int     i;
+
+      O2Image_read_a8u(mask,x,y,maskSpan,chunk);
+      for(i=0;i<chunk;i++){
+       unsigned cov=O2Image_16u_mul_8u_div_255(coverage,maskSpan[i]);
+
+       if(cov!=0)
+        O2argb8u_copy_by_coverage(src+i,dst+i,cov,1);
+      }
+     }
 
      if(direct==NULL){
      //write result to the destination surface

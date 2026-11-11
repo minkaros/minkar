@@ -23,7 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _data=[data retain];
    _previous=nil;
    _numberToEntries=NSCreateMapTable(NSIntegerMapKeyCallBacks,NSNonRetainedObjectMapValueCallBacks,0);
-   _entryToObject=NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSNonRetainedObjectMapValueCallBacks,0);
+   _entryToObject=NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0);
    _entriesInOrder=[NSMutableArray new];
    _trailer=nil;   
    return self;
