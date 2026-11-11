@@ -140,21 +140,31 @@ void NSLayoutViewDidMove(NSView *view) {
 @implementation NSView (NSConstraintBasedLayoutCoreMethods)
 
 -(void)updateConstraints {
-   NSViewLayoutStateFor(self)->needsUpdateConstraints=NO;
+   NSViewLayoutState *state=NSViewLayoutStateFor(self);
+
+   state->needsUpdateConstraints=NO;
+   state->constraintsUpdated=YES;
 }
 
 // Subviews first, as constraints of a superview may depend on its subviews'.
 -(void)updateConstraintsForSubtreeIfNeeded {
    for(NSView *subview in [self subviews])
     [subview updateConstraintsForSubtreeIfNeeded];
-   if([self needsUpdateConstraints])
+   if([self needsUpdateConstraints]){
     [self updateConstraints];
+    // Done, even when an override did not call super.
+    NSViewLayoutState *state=NSViewLayoutStateFor(self);
+    state->needsUpdateConstraints=NO;
+    state->constraintsUpdated=YES;
+   }
 }
 
 -(BOOL)needsUpdateConstraints {
    NSViewLayoutState *state=NSViewLayoutStateIfAny(self);
 
-   return state!=nil && state->needsUpdateConstraints;
+   // Minkar: a view needs its constraints updated until its first update,
+   // as on the reference platform (views make theirs in updateConstraints).
+   return state==nil || !state->constraintsUpdated || state->needsUpdateConstraints;
 }
 
 -(void)setNeedsUpdateConstraints:(BOOL)flag {

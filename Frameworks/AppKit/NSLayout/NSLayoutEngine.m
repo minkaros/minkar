@@ -5,14 +5,17 @@
 #import "NSLayoutInternal.h"
 #import "NSLayoutSolver.h"
 #include <math.h>
+#include <string.h>
 
 /* A layout pass: every view of the subtree (and every layout guide) gets
  * four variables, its left, top, width and height in the root's top-down
  * coordinates; the other attributes are expressions of them. The solver
  * gets:
  *   - the active constraints installed on the subtree's views;
- *   - for a view that translates its autoresizing mask: its frame, required
- *     (autoresizing has already moved it when its superview resized);
+ *   - for a view that translates its autoresizing mask: its mask as
+ *     constraints on its superview's variables, required (fixed margins
+ *     and sizes stay, flexible ones share what the superview gains or
+ *     loses, as autoresizing does);
  *   - for a view with an intrinsic size: that size, with its hugging and
  *     compression resistance priorities;
  *   - the root's frame, required (or, for fittingSize, a size as small as
@@ -220,6 +223,65 @@ static void addConstraint(NSLayoutPass *pass,NSLayoutConstraint *constraint) {
     add(pass,e,op,strength);
 }
 
+/* One axis of an autoresizing mask as constraints: the view's position and
+ * size (variables pos and size) from its superview's (spos, ssize), given
+ * the current offset and length in the superview, the superview's length
+ * and which of the leading margin, the size and the trailing margin are
+ * flexible. */
+static void translateAxis(NSLayoutPass *pass,int pos,int size,int spos,int ssize,double offset,double length,
+                          double superLength,BOOL leadingFlexible,BOOL sizeFlexible,BOOL trailingFlexible,id what) {
+   double     trailing=superLength-offset-length;
+   expression e;
+
+   if(!leadingFlexible && !sizeFlexible && !trailingFlexible)
+    trailingFlexible=YES;   // a fixed frame keeps its leading margin
+
+   if(!sizeFlexible){
+    memset(&e,0,sizeof(e)); term(&e,size,1); e.constant=-length;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    memset(&e,0,sizeof(e)); term(&e,pos,1); term(&e,spos,-1);
+    if(!leadingFlexible)
+     e.constant=-offset;
+    else if(!trailingFlexible){
+     term(&e,ssize,-1); e.constant=trailing+length;
+    }
+    else {
+     double share=(superLength-length!=0)?offset/(superLength-length):0.5;
+     term(&e,ssize,-share); e.constant=share*length;
+    }
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    return;
+   }
+
+   if(!leadingFlexible && !trailingFlexible){
+    memset(&e,0,sizeof(e)); term(&e,pos,1); term(&e,spos,-1); e.constant=-offset;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    memset(&e,0,sizeof(e)); term(&e,size,1); term(&e,ssize,-1); e.constant=offset+trailing;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+   }
+   else if(!leadingFlexible){
+    double share=(length+trailing!=0)?length/(length+trailing):1;
+    memset(&e,0,sizeof(e)); term(&e,pos,1); term(&e,spos,-1); e.constant=-offset;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    memset(&e,0,sizeof(e)); term(&e,size,1); term(&e,ssize,-share); e.constant=share*offset;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+   }
+   else if(!trailingFlexible){
+    double share=(offset+length!=0)?length/(offset+length):1;
+    memset(&e,0,sizeof(e)); term(&e,size,1); term(&e,ssize,-share); e.constant=share*trailing;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    memset(&e,0,sizeof(e)); term(&e,pos,1); term(&e,size,1); term(&e,spos,-1); term(&e,ssize,-1); e.constant=trailing;
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+   }
+   else {
+    double sizeShare=(superLength!=0)?length/superLength:1,offsetShare=(superLength!=0)?offset/superLength:0;
+    memset(&e,0,sizeof(e)); term(&e,size,1); term(&e,ssize,-sizeShare);
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+    memset(&e,0,sizeof(e)); term(&e,pos,1); term(&e,spos,-1); term(&e,ssize,-offsetShare);
+    addRequired(pass,e,NSLayoutSolverEqual,what);
+   }
+}
+
 static void addImplicit(NSLayoutPass *pass,NSView *view) {
    int v=firstVariable(pass,view);
 
@@ -238,13 +300,31 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
     }
    }
    else if([view translatesAutoresizingMaskIntoConstraints]){
-    NSRect frame=rootFrame(view,pass->root);
-    id     what=[NSString stringWithFormat:@"the autoresizing mask of %@",view];
+    NSRect      frame=rootFrame(view,pass->root);
+    NSView     *superview=[view superview];
+    int         s=(superview!=nil)?firstVariable(pass,superview):-1;
+    id          what=[NSString stringWithFormat:@"the autoresizing mask of %@",view];
 
-    fix(pass,v+LEFT,frame.origin.x,NSLayoutSolverRequired(),what);
-    fix(pass,v+TOP,frame.origin.y,NSLayoutSolverRequired(),what);
-    fix(pass,v+WIDTH,frame.size.width,NSLayoutSolverRequired(),what);
-    fix(pass,v+HEIGHT,frame.size.height,NSLayoutSolverRequired(),what);
+    if(s<0){
+     fix(pass,v+LEFT,frame.origin.x,NSLayoutSolverRequired(),what);
+     fix(pass,v+TOP,frame.origin.y,NSLayoutSolverRequired(),what);
+     fix(pass,v+WIDTH,frame.size.width,NSLayoutSolverRequired(),what);
+     fix(pass,v+HEIGHT,frame.size.height,NSLayoutSolverRequired(),what);
+     return;
+    }
+    // Minkar: the mask relative to the superview, as the reference
+    // translates it (the frame was fixed: a superview sized by
+    // constraints could not resize its translating subviews).
+    NSRect             parent=rootFrame(superview,pass->root);
+    NSAutoresizingMaskOptions mask=[view autoresizingMask];
+    BOOL               flipped=[superview isFlipped];
+    BOOL               top=flipped?(mask&NSViewMinYMargin)!=0:(mask&NSViewMaxYMargin)!=0;
+    BOOL               bottom=flipped?(mask&NSViewMaxYMargin)!=0:(mask&NSViewMinYMargin)!=0;
+
+    translateAxis(pass,v+LEFT,v+WIDTH,s+LEFT,s+WIDTH,frame.origin.x-parent.origin.x,frame.size.width,
+                  parent.size.width,(mask&NSViewMinXMargin)!=0,(mask&NSViewWidthSizable)!=0,(mask&NSViewMaxXMargin)!=0,what);
+    translateAxis(pass,v+TOP,v+HEIGHT,s+TOP,s+HEIGHT,frame.origin.y-parent.origin.y,frame.size.height,
+                  parent.size.height,top,(mask&NSViewHeightSizable)!=0,bottom,what);
     return;
    }
 

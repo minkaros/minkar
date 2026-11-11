@@ -19,6 +19,7 @@
     BOOL translatesAutoresizingMask;
     BOOL needsLayout;
     BOOL needsUpdateConstraints;
+    BOOL constraintsUpdated;      // updateConstraints ran once
     NSLayoutPriority hugging[2];
     NSLayoutPriority compressionResistance[2];
 }
