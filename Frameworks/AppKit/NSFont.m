@@ -443,6 +443,11 @@ static NSString *interFaceForWeight(NSFontWeight weight){
         // Name can be PS name or a display name - internally we want a PS name - that's what Cocoa is doing
         name = [O2Font postscriptNameForFontName:name];
 
+   // Minkar: 0 (or less) is the default size, 12, as on the reference
+   // platform; it made a font of size 0, and text of no height.
+   if(size<=0)
+    size=12;
+
    result=[self cachedFontWithName:name size:size];
 
     if(result==nil) {
@@ -457,6 +462,10 @@ static NSString *interFaceForWeight(NSFontWeight weight){
 }
 
 +(NSFont *)fontWithDescriptor:(NSFontDescriptor *)descriptor size:(CGFloat)size {
+        // Minkar: 0 is the descriptor's own size, as on the reference
+        // platform (TextMate's status bar asks for its font this way).
+        if(size<=0)
+                size=[descriptor pointSize];
 
         NSDictionary* attributes = [descriptor fontAttributes];
         NSString* fontName = [attributes objectForKey: NSFontNameAttribute];
