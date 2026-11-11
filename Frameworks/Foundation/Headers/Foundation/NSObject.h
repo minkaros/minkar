@@ -102,8 +102,8 @@ typedef NS_OPTIONS(NSUInteger, NSSortOptions) {
 - (BOOL)isContentDiscarded;
 @end
 
-void NSLog(NSString *format,...);
-void NSLogv(NSString *format,va_list arguments);
+FOUNDATION_EXPORT void NSLog(NSString *format,...);
+FOUNDATION_EXPORT void NSLogv(NSString *format,va_list arguments);
 
 #define NS_RETURNS_INNER_POINTER __attribute__((objc_returns_inner_pointer))
 #endif

@@ -288,6 +288,10 @@ static NSMapTable *pathToObject=NULL;
 
 + (NSBundle *)bundleForClass:(Class)class
 {
+    // Minkar: an object given for its class is taken as its class, as the
+    // reference platform takes it (programs pass self).
+    if (class != Nil && !object_isClass((id)class))
+        class = object_getClass((id)class);
     NSBundle *bundle = NSMapGet(nameToBundle, NSStringFromClass(class));
 
     if (bundle == nil) {

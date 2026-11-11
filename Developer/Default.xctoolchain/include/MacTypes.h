@@ -87,7 +87,13 @@ extern "C" {
 #define NULL    __DARWIN_NULL
 #endif /* ! NULL */
 #ifndef nil
-    #define nil NULL
+    /* Minkar: as objc.h defines it, so that C++ sees a pointer
+       (nullptr), not an integer. */
+    #if defined(__has_feature) && __has_feature(cxx_nullptr)
+        #define nil nullptr
+    #else
+        #define nil NULL
+    #endif
 #endif /* ! nil */
 /********************************************************************************
 

@@ -53,7 +53,7 @@
 /* Minkar: as CF's, so that Swift sees enums as enums and options as
  * OptionSets; and the annotations that name the API for Swift. */
 #ifndef NS_ENUM
-#define NS_ENUM(_type, _name) CF_ENUM(_type, _name)
+#define NS_ENUM(...) CF_ENUM(__VA_ARGS__)
 #endif
 #ifndef NS_OPTIONS
 #define NS_OPTIONS(_type, _name) CF_OPTIONS(_type, _name)
@@ -156,10 +156,10 @@ typedef NS_ENUM(NSInteger, NSQualityOfService) {
 
 #if __OBJC__
 @class NSString;
-const char *NSGetSizeAndAlignment(const char *type, NSUInteger *size, NSUInteger *alignment);
-SEL NSSelectorFromString(NSString *selectorName);
-Class NSClassFromString(NSString *className);
-NSString *NSStringFromSelector(SEL selector);
-NSString *NSStringFromClass(Class _class);
+FOUNDATION_EXPORT const char *NSGetSizeAndAlignment(const char *type, NSUInteger *size, NSUInteger *alignment);
+FOUNDATION_EXPORT SEL NSSelectorFromString(NSString *selectorName);
+FOUNDATION_EXPORT Class NSClassFromString(NSString *className);
+FOUNDATION_EXPORT NSString *NSStringFromSelector(SEL selector);
+FOUNDATION_EXPORT NSString *NSStringFromClass(Class _class);
 #endif /* __OBJC__ */
 #endif /* _FOUNDATION_OBJCRUNTIME_H */

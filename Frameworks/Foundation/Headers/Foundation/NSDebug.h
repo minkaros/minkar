@@ -12,8 +12,8 @@ FOUNDATION_EXPORT BOOL NSZombieEnabled;
 FOUNDATION_EXPORT BOOL NSDebugEnabled;
 FOUNDATION_EXPORT BOOL NSCooperativeThreadsEnabled;
 
-void NSCooperativeThreadBlocking();
-void NSCooperativeThreadWaiting();
+FOUNDATION_EXPORT void NSCooperativeThreadBlocking();
+FOUNDATION_EXPORT void NSCooperativeThreadWaiting();
 
 FOUNDATION_EXPORT void *NSFrameAddress(NSUInteger level);
 FOUNDATION_EXPORT unsigned NSCountFrames(void);

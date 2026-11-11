@@ -234,16 +234,22 @@
 #define __CF_ENUM_ATTRIBUTES __attribute__((enum_extensibility(open)))
 #define __CF_CLOSED_ENUM_ATTRIBUTES __attribute__((enum_extensibility(closed)))
 #define __CF_OPTIONS_ATTRIBUTES __attribute__((flag_enum, enum_extensibility(open)))
-#define CF_ENUM(_type, _name) enum __CF_ENUM_ATTRIBUTES _name : _type _name; enum _name : _type
+#define __CF_NAMED_ENUM(_type, _name) enum __CF_ENUM_ATTRIBUTES _name : _type _name; enum _name : _type
+#define __CF_ANON_ENUM(_type) enum __CF_ENUM_ATTRIBUTES : _type
 #if (__cplusplus)
 #define CF_OPTIONS(_type, _name) _type _name; enum __CF_OPTIONS_ATTRIBUTES : _type
 #else
 #define CF_OPTIONS(_type, _name) enum __CF_OPTIONS_ATTRIBUTES _name : _type _name; enum _name : _type
 #endif
 #else
-#define CF_ENUM(_type, _name) _type _name; enum
+#define __CF_NAMED_ENUM(_type, _name) _type _name; enum
+#define __CF_ANON_ENUM(_type) enum
 #define CF_OPTIONS(_type, _name) _type _name; enum
 #endif
+/* Minkar: CF_ENUM(type, name) or, for an enum without a name,
+ * CF_ENUM(type), as the reference SDK takes it. */
+#define __CF_ENUM_GET_MACRO(_1, _2, NAME, ...) NAME
+#define CF_ENUM(...) __CF_ENUM_GET_MACRO(__VA_ARGS__, __CF_NAMED_ENUM, __CF_ANON_ENUM, )(__VA_ARGS__)
 
 // Extension availability macros
 #define CF_EXTENSION_UNAVAILABLE(_msg)      __OS_EXTENSION_UNAVAILABLE(_msg)

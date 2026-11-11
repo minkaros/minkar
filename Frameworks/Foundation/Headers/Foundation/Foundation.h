@@ -165,6 +165,11 @@
 #import <Foundation/NSPipe.h>
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
+#import <Foundation/NSPortMessage.h>
+#import <Foundation/NSPortNameServer.h>
+#import <Foundation/NSConnection.h>
+#import <Foundation/NSDistantObject.h>
+#import <Foundation/NSProtocolChecker.h>
 #import <Foundation/NSPredicate.h>
 #import <Foundation/NSComparisonPredicate.h>
 #import <Foundation/NSCompoundPredicate.h>
