@@ -446,7 +446,7 @@ Commands that come with this phase (moved from Phase 2):
 - [ ] `osascript`, with an Open Scripting Architecture for the apps.
 - [ ] `opendiff`, with a file comparison app.
 - [ ] `tmutil`, with backups.
-- [ ] git's Perl, Python and Tcl commands (`git send-email`, `gitk`…), with those languages (moved from Phase 2 on 2026-10-31).
+- [ ] git's Perl, Python and Tcl commands (`git send-email`, `gitk`…), with those languages (moved from Phase 2 on 2026-10-31). *Partial (11 Nov 2026):* the languages are in the image, as the reference system ships them (the maintainer's choice, with Ruby): Ruby 3.3.9 (`9931a36e28`), Python 3.13.18 (`e6f45dd6a6`) and Perl 5.40.5 (`392f302d94`), each fetched pinned and cross-built for Minkar with no compiler in the image. Local tests `bsd-ruby` 14/0, `bsd-python` 12/0, `bsd-perl` 14/0. Remaining: Tcl/Tk, then git's commands that use them.
 
 Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
 
