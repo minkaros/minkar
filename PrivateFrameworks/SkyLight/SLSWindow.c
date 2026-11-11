@@ -295,3 +295,18 @@ SLSGetKeyboardSettings(SLSKeyboardSettings *settings)
 		return kSLSErrorFailure;
 	return kSLSErrorSuccess;
 }
+
+int
+SLSKeyboardTranslate(uint16_t keyCode, uint32_t modifierFlags, SLSKeyCharacters *characters)
+{
+	mach_port_t server = SLSServerPort();
+	int32_t result = kSLSErrorFailure;
+
+	if (characters == NULL)
+		return kSLSErrorIllegalArgument;
+	memset(characters, 0, sizeof(*characters));
+	if (server == MACH_PORT_NULL ||
+	    ws_keyboard_translate(server, keyCode, modifierFlags, characters, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

@@ -70,6 +70,8 @@ type ws_keyboard_settings_t = struct[18] of uint32_t
 	ctype: SLSKeyboardSettings;
 type ws_display_stream_options_t = struct[10] of uint32_t
 	ctype: SLSDisplayStreamOptions;
+type ws_key_characters_t = struct[4] of uint32_t
+	ctype: SLSKeyCharacters;
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
@@ -641,3 +643,12 @@ routine keyboard_settings_set(
 routine keyboard_settings_get(
 	server			: mach_port_t;
 	out settings		: ws_keyboard_settings_t);
+
+/* A key's characters with modifiers, in the layout in use (interface
+ * version 19): for clients that make keyboard events themselves. */
+routine keyboard_translate(
+	server			: mach_port_t;
+	key_code		: uint32_t;
+	modifier_flags		: uint32_t;
+	out characters		: ws_key_characters_t;
+	out result		: int32_t);

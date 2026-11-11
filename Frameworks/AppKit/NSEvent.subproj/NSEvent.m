@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <SkyLight/SkyLight.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSEvent_mouse.h>
 #import <AppKit/NSEvent_keyboard.h>
@@ -190,11 +191,25 @@ NSEvent *NSEventRunLocalMonitors(NSEvent *event) {
      UniCharCount length=0;
      NSString    *characters;
 
+     NSString    *ignoring;
+
      CGEventKeyboardGetUnicodeString(cgEvent,16,&length,buffer);
-     characters=[NSString stringWithCharacters:buffer length:length];
+     characters=ignoring=[NSString stringWithCharacters:buffer length:length];
+     /* Minkar: a key event made by the app (CGEventCreateKeyboardEvent) has
+        no characters yet: the window server's keyboard layout gives them,
+        with the event's modifiers, as on the reference platform (TextMate
+        names its shortcuts so). */
+     if(length==0 && type!=kCGEventFlagsChanged){
+      SLSKeyCharacters key;
+
+      if(SLSKeyboardTranslate((uint16_t)CGEventGetIntegerValueField(cgEvent,kCGKeyboardEventKeycode),(uint32_t)CGEventGetFlags(cgEvent),&key)==kSLSErrorSuccess){
+       characters=[NSString stringWithUTF8String:key.characters];
+       ignoring=[NSString stringWithUTF8String:key.charactersIgnoringModifiers];
+      }
+     }
      return [self keyEventWithType:(NSEventType)type location:location modifierFlags:flags
         timestamp:[NSDate timeIntervalSinceReferenceDate] windowNumber:[window windowNumber] context:nil
-        characters:characters charactersIgnoringModifiers:characters
+        characters:characters charactersIgnoringModifiers:ignoring
         isARepeat:CGEventGetIntegerValueField(cgEvent,kCGKeyboardEventAutorepeat)!=0
         keyCode:(unsigned short)CGEventGetIntegerValueField(cgEvent,kCGKeyboardEventKeycode)];
     }

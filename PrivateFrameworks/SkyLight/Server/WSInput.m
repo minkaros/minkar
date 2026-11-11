@@ -138,6 +138,11 @@ WSInputLoadKeyboard(void)
 }
 
 /* A new keymap, on the input queue: the old one goes. */
+- (WSKeymap *)keymap
+{
+	return _keymap;
+}
+
 - (void)replaceKeymap:(WSKeymap *)keymap
 {
 	WSKeymap *old = _keymap;
@@ -393,6 +398,26 @@ wss_keyboard_settings_set(mach_port_t server, audit_token_t token, SLSKeyboardSe
 	    settings.layout, settings.variant[0] ? " " : "", settings.variant,
 	    settings.initialRepeat, settings.repeatInterval);
 	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* A key's characters with modifiers, in the layout in use: from a state of
+   their own, on the input queue, where the keymap lives. */
+kern_return_t
+wss_keyboard_translate(mach_port_t server, uint32_t keyCode, uint32_t modifierFlags,
+    SLSKeyCharacters *characters, int32_t *result)
+{
+	(void)server;
+	memset(characters, 0, sizeof(*characters));
+	*result = kSLSErrorFailure;
+	dispatch_sync(WSInputQueue, ^{
+		WSKeymap *km = [theInput keymap];
+
+		if (km != NULL && keyCode < 0x10000 &&
+		    WSKeymapCharactersFor(km, (uint16_t)keyCode, modifierFlags,
+		    characters->characters, characters->charactersIgnoringModifiers))
+			*result = kSLSErrorSuccess;
+	});
 	return KERN_SUCCESS;
 }
 

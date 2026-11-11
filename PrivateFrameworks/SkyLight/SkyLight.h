@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	18
+#define kSLSInterfaceVersion	19
 
 typedef int32_t SLSConnectionID;
 
@@ -836,6 +836,15 @@ typedef struct {
 
 int SLSSetKeyboardSettings(const SLSKeyboardSettings *settings);
 int SLSGetKeyboardSettings(SLSKeyboardSettings *settings);
+
+/* A key's characters with modifiers (CGEventFlags' bits), UTF-8, as the
+ * keyboard layout in use gives them (interface version 19). */
+typedef struct {
+	char characters[8];
+	char charactersIgnoringModifiers[8];
+} SLSKeyCharacters;
+
+int SLSKeyboardTranslate(uint16_t keyCode, uint32_t modifierFlags, SLSKeyCharacters *characters);
 
 #ifdef __cplusplus
 }

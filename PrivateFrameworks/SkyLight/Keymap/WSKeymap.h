@@ -88,6 +88,11 @@ WSKeymap *WSKeymapCreate(const char *include_path, const char *rules,
                          const char *variant, const char *options);
 void WSKeymapDestroy(WSKeymap *keymap);
 
+/* A key's characters with these modifiers (WSModifier*), as UTF-8, from a
+ * state of their own; false for a modifier key or a code with no key. */
+bool WSKeymapCharactersFor(WSKeymap *keymap, uint16_t keyCode, uint32_t modifierFlags,
+                           char characters[8], char charactersIgnoringModifiers[8]);
+
 /* Feed one key transition and describe it. Returns false if ignored. */
 bool WSKeymapTranslate(WSKeymap *keymap, uint16_t keyCode, bool down,
                        WSKeyEvent *event);

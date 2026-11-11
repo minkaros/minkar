@@ -333,3 +333,43 @@ bool WSKeymapTranslate(WSKeymap *km, uint16_t keyCode, bool down, WSKeyEvent *ev
         ev->modifierFlags |= WSModifierFunction;
     return true;
 }
+
+/* The characters a key gives with these modifiers, from a state of its own
+ * (the keymap's own state, the keys held now, is left alone): for clients
+ * that turn a key code into characters (a keyboard CGEvent they make). */
+bool WSKeymapCharactersFor(WSKeymap *km, uint16_t keyCode, uint32_t modifierFlags,
+                           char characters[8], char charactersIgnoringModifiers[8]) {
+    static const struct { const char *name; uint32_t flag; bool locked; } mods[] = {
+        { XKB_MOD_NAME_SHIFT, WSModifierShift, false },
+        { XKB_MOD_NAME_CTRL, WSModifierControl, false },
+        { XKB_MOD_NAME_ALT, WSModifierOption, false },
+        { XKB_MOD_NAME_LOGO, WSModifierCommand, false },
+        { XKB_MOD_NAME_CAPS, WSModifierCapsLock, true },
+    };
+    xkb_mod_mask_t depressed = 0, locked = km->numLockMask;
+    uint16_t evdev = WSKeymapEvdevCode(keyCode);
+    struct xkb_state *state;
+
+    memset(characters, 0, 8);
+    memset(charactersIgnoringModifiers, 0, 8);
+    if (evdev == 0 || isModifierKey(keyCode))
+        return false;
+    if ((state = xkb_state_new(km->keymap)) == NULL)
+        return false;
+    for (size_t i = 0; i < sizeof(mods) / sizeof(mods[0]); i++) {
+        xkb_mod_index_t index = xkb_keymap_mod_get_index(km->keymap, mods[i].name);
+
+        if (index == XKB_MOD_INVALID || !(modifierFlags & mods[i].flag))
+            continue;
+        if (mods[i].locked)
+            locked |= 1u << index;
+        else
+            depressed |= 1u << index;
+    }
+    xkb_state_update_mask(state, depressed, 0, locked, 0, 0, 0);
+    charactersForKey(state, evdev + 8, characters);
+    xkb_state_update_mask(state, depressed & km->shiftMask, 0, km->numLockMask, 0, 0, 0);
+    charactersForKey(state, evdev + 8, charactersIgnoringModifiers);
+    xkb_state_unref(state);
+    return true;
+}

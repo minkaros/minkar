@@ -111,6 +111,13 @@ static NSTextInputContext *sActive;
     return YES;
    }
 
+   // A key held with Command is no text: the client is told "noop:", as
+   // the reference platform's context does (Command-R typed an r).
+   if([event modifierFlags]&NSEventModifierFlagCommand){
+    [_client doCommandBySelector:@selector(noop:)];
+    return YES;
+   }
+
    NSString       *characters=[event characters];
    NSUInteger      i,length=[characters length];
    NSMutableString *text=[NSMutableString string];
