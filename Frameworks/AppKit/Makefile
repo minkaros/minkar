@@ -624,7 +624,8 @@ RESOURCES_FILES = Info.plist \
 	NSSwitch.tiff \
 	NSKeyboardBinding/StandardKeyBindings.keyBindings
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+# Optimised (approved 2026-11-11): AppKit was built without any -O.
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
     -F${.OBJDIR} -I${.CURDIR:H} -I${.CURDIR}/Headers -I${.CURDIR:H}/Foundation/Headers \
     -I${.CURDIR:H}/Foundation/platform_posix \
     -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/Pasteboard -I${ROOT_SOURCE_DIR}/CoreServices \
@@ -635,12 +636,6 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks \
 	-I${KIWI_DIR}
-
-# The constraint solver (kiwi) optimised: AppKit is built without, and the
-# solver's C++ was a hundred times slower so (TextMate's file browser took
-# a second a layout pass).
-CFLAGS.NSLayoutSolver.mm = -O2
-CXXFLAGS.NSLayoutSolver.mm = -O2
 
 LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
