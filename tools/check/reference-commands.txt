@@ -234,6 +234,7 @@ usr/bin paste bsd
 usr/bin patch bsd
 usr/bin pbcopy platform
 usr/bin pbpaste platform
+usr/bin perl bsd
 usr/bin pgrep bsd
 usr/bin pkill bsd
 usr/bin plutil platform

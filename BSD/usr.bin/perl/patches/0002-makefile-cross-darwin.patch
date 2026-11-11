@@ -1,0 +1,15 @@
+Cross-compiling for Darwin, the Darwin rule for miniperl built and ran
+the target's miniperl on the build host; with a host perl the generic
+rule applies, which links the host's miniperl.
+
+--- a/Makefile.SH	2026-03-29 09:32:43.000000000 -0500
++++ b/Makefile.SH	2026-11-11 17:28:24.818669500 -0500
+@@ -982,7 +982,7 @@
+ 
+ !NO!SUBS!
+ 
+-	case "${osname}${osvers}" in
++	case "${hostperl:+cross-}${osname}${osvers}" in
+ 	amigaos*)
+ 		$spitshell >>$Makefile <<'!NO!SUBS!'
+ lib/buildcustomize.pl: $& $(miniperl_objs) write_buildcustomize.pl

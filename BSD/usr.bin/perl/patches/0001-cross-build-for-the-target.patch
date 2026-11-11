@@ -1,0 +1,39 @@
+Cross-compiling to another system with Perl's own support:
+- two checks of Configure ran their test program on the build host, not
+  through $run, so the C99 check and the lchown check failed;
+- installperl and installman chose the layout by the system they run on
+  ($^O), not the one the install is for: on Darwin the core pod files
+  go to pods/, since pod/ and Pod/ cannot share a volume that ignores
+  case.
+
+--- a/Configure	2025-05-31 14:01:11.000000000 -0500
++++ b/Configure	2026-11-11 16:56:26.068337881 -0500
+@@ -4725,7 +4725,7 @@
+ EOCP
+ c99_for=no
+ for flag in '' '-std=gnu99' '-std=c99'; do
+-    if $cc -o try $flag $ccflags $ldflags try.c 2>/dev/null && ./try; then
++    if $cc -o try $flag $ccflags $ldflags try.c 2>/dev/null && $run ./try; then
+         c99_for="$flag"
+         break;
+     fi
+@@ -16133,7 +16133,7 @@
+ }
+ EOCP
+ set try
+-if eval $compile && ./try; then
++if eval $compile && $run ./try; then
+     $echo "lchown() found." >&4
+     val="$define"
+ else
+--- a/install_lib.pl	2024-08-26 10:16:21.000000000 -0500
++++ b/install_lib.pl	2026-11-11 18:04:52.242798044 -0500
+@@ -47,7 +47,7 @@
+ $Is_W32 = $^O eq 'MSWin32';
+ $Is_OS2 = $^O eq 'os2';
+ $Is_Cygwin = $^O eq 'cygwin';
+-$Is_Darwin = $^O eq 'darwin';
++$Is_Darwin = $^O eq 'darwin' || $Config::Config{osname} eq 'darwin';
+ $Is_AmigaOS = $^O eq 'amigaos';
+ 
+ sub unlink {
