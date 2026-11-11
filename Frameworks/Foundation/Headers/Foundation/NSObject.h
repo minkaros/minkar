@@ -63,6 +63,14 @@ typedef NS_OPTIONS(NSUInteger, NSSortOptions) {
 +(void)initialize;
 @end
 
+@class NSCoder;
+/* What archiving asks of every object (implemented in NSObject.m). */
+@interface NSObject (NSCoderMethods)
+@property (readonly) Class classForCoder;
+- (id)replacementObjectForCoder:(NSCoder *)coder;
+- (id)awakeAfterUsingCoder:(NSCoder *)coder;
+@end
+
 @protocol NSCopying
 - copyWithZone:(struct _NSZone *) __unused zone;
 @end

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -61,34 +62,22 @@ typedef struct NSExceptionFrame {
 FOUNDATION_EXPORT void __NSPushExceptionFrame(NSExceptionFrame *frame);
 FOUNDATION_EXPORT void __NSPopExceptionFrame(NSExceptionFrame *frame);
 
-#define NS_DURING                                  \
-    {                                              \
-        NSExceptionFrame __exceptionFrame;         \
-        __NSPushExceptionFrame(&__exceptionFrame); \
-        if(setjmp(__exceptionFrame.state) == 0) {
+/* Minkar: the handler macros are Objective-C's exception statements, as on
+   the reference platform, so they catch what objc_exception_throw raises
+   (the setjmp frames above, kept for binaries built against them, never
+   saw those exceptions). */
+#define NS_DURING @try {
 
-#define NS_HANDLER                                                             \
-    __NSPopExceptionFrame(&__exceptionFrame);                                  \
-    }                                                                          \
-    else {                                                                     \
-        NSException *localException = __exceptionFrame.exception;              \
-        if(localException) { /* caller does not have to read localException */ \
-        }
+#define NS_HANDLER \
+    }              \
+    @catch(NSException * localException) {
 
 #define NS_ENDHANDLER \
-    }                 \
+    localException = nil; /* unused */ \
     }
 
-#define NS_VALUERETURN(val, type)                 \
-    {                                             \
-        __NSPopExceptionFrame(&__exceptionFrame); \
-        return val;                               \
-    }
+#define NS_VALUERETURN(val, type) return (val)
 
-#define NS_VOIDRETURN                             \
-    {                                             \
-        __NSPopExceptionFrame(&__exceptionFrame); \
-        return;                                   \
-    }
+#define NS_VOIDRETURN return
 
 #import <Foundation/NSAssertionHandler.h>
