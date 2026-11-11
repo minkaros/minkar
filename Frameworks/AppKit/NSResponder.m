@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSRaise.h>
+#import <objc/message.h>
 
 @implementation NSResponder
 
@@ -144,56 +145,77 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	return error;
 }
 
--(BOOL)presentError:(NSError *)error {
-	BOOL result;
-	if (self == NSApp) {
-		result=NO;
+/* What NSApp shows: the error as its delegate changes it, without the
+ * recovery options nobody can act on. canRecover says whether the
+ * attempter can take the chosen option (with a sheet, its asynchronous
+ * method). */
+static NSError *presentableError(NSError *error, BOOL sheet, BOOL *canRecover) {
+	id delegate=[NSApp delegate];
+	SEL recovery=sheet ? @selector(attemptRecoveryFromError:optionIndex:delegate:didRecoverSelector:contextInfo:) : @selector(attemptRecoveryFromError:optionIndex:);
 
-		NSError *newError; //error after being modified by delegate
-		id delegate = [NSApp delegate];
-		if ([delegate respondsToSelector:@selector(application:willPresentError:)])
-			newError = [delegate application:NSApp willPresentError:error];
-		else
-			newError = error;
-		
-		NSError *strippedError; //newError stripped of its recovery options if necessary
-		BOOL needToRemoveOptions=NO;
-		BOOL validRecoveryAttempter=NO;
-		id recoveryAttempter = [newError recoveryAttempter];
-		NSArray *recoveryOptions = [newError localizedRecoveryOptions];
-		if ([recoveryOptions count]) {
-			if (!recoveryAttempter) {
-				NSLog(@"There are recovery options but no recovery attempter to interpret the user's choice of one of them. Ignoring the recovery options and suggestion.");
-				needToRemoveOptions=YES;
-			}
-			else if (![recoveryAttempter respondsToSelector:@selector(attemptRecoveryFromError:optionIndex:)]) {
-				NSLog(@"The recovery attempter %@ doesn't respond to -attemptRecoveryFromError:optionIndex:. Ignoring the recovery attempter, options, and suggestion.",
-					  recoveryAttempter);
-				needToRemoveOptions=YES;
-			}
-			else
-				validRecoveryAttempter=YES;
-		}
-		if (needToRemoveOptions) {
-			NSMutableDictionary *newUserInfo = [NSMutableDictionary dictionaryWithDictionary:[newError userInfo]];
-			[newUserInfo removeObjectForKey:NSLocalizedRecoveryOptionsErrorKey];
-			strippedError = [NSError errorWithDomain:[newError domain] code:[newError code] userInfo:newUserInfo];
-		}
-		else 
-			strippedError = newError;
-		NSInteger alertButton=[[NSAlert alertWithError:strippedError] runModal];
-		if (validRecoveryAttempter)
-			result = [recoveryAttempter attemptRecoveryFromError:strippedError optionIndex:alertButton];
+	*canRecover=NO;
+	if([delegate respondsToSelector:@selector(application:willPresentError:)])
+		error=[delegate application:NSApp willPresentError:error];
+	if([[error localizedRecoveryOptions] count]==0)
+		return error;
+
+	id attempter=[error recoveryAttempter];
+	if(attempter!=nil && [attempter respondsToSelector:recovery]) {
+		*canRecover=YES;
+		return error;
 	}
-	else {
-		//Forward message to nextResponder or to NSApp if there is no nextResponder
-		result = [_nextResponder ? _nextResponder : NSApp presentError:[self willPresentError:error]];
-	}
-	return result;
+	NSLog(@"The recovery options of %@ have no attempter that takes them; showing the error without them.",error);
+
+	NSMutableDictionary *info=[NSMutableDictionary dictionaryWithDictionary:[error userInfo]];
+	[info removeObjectForKey:NSLocalizedRecoveryOptionsErrorKey];
+	return [NSError errorWithDomain:[error domain] code:[error code] userInfo:info];
 }
 
+static NSUInteger optionIndexForResponse(NSModalResponse response) {
+	return response>=NSAlertFirstButtonReturn ? (NSUInteger)(response-NSAlertFirstButtonReturn) : 0;
+}
+
+/* The error goes up the responder chain (each responder may change it
+ * with willPresentError:) and NSApp shows it. */
+-(BOOL)presentError:(NSError *)error {
+	if(self!=NSApp)
+		return [(_nextResponder ? _nextResponder : NSApp) presentError:[self willPresentError:error]];
+
+	BOOL canRecover;
+	NSError *shown=presentableError(error,NO,&canRecover);
+	NSModalResponse response=[[NSAlert alertWithError:shown] runModal];
+
+	if(!canRecover)
+		return NO;
+	return [[shown recoveryAttempter] attemptRecoveryFromError:shown optionIndex:optionIndexForResponse(response)];
+}
+
+/* As presentError:, in a sheet on the window (an application-modal alert
+ * when there is none). When it ends, the attempter takes the chosen option
+ * and then the delegate gets
+ * -didPresentErrorWithRecovery:(BOOL)recovered contextInfo:(void *)info. */
 -(void)presentError:(NSError *)error modalForWindow:(NSWindow *)window delegate:delegate didPresentSelector:(SEL)selector contextInfo:(void *)info {
-	NSUnimplementedMethod();
+	if(self!=NSApp) {
+		[(_nextResponder ? _nextResponder : NSApp) presentError:[self willPresentError:error] modalForWindow:window delegate:delegate didPresentSelector:selector contextInfo:info];
+		return;
+	}
+
+	BOOL canRecover;
+	NSError *shown=presentableError(error,YES,&canRecover);
+	void (^finish)(NSModalResponse)=^(NSModalResponse response) {
+		if(canRecover) {
+			[[shown recoveryAttempter] attemptRecoveryFromError:shown optionIndex:optionIndexForResponse(response) delegate:delegate didRecoverSelector:selector contextInfo:info];
+			return;
+		}
+		if(delegate!=nil && selector!=NULL)
+			((void (*)(id,SEL,BOOL,void *))objc_msgSend)(delegate,selector,NO,info);
+	};
+
+	NSAlert *alert=[NSAlert alertWithError:shown];
+	if(window==nil)
+		finish([alert runModal]);
+	else
+		[alert beginSheetModalForWindow:window completionHandler:finish];
 }
 
 -(void)flagsChanged:(NSEvent *)event {

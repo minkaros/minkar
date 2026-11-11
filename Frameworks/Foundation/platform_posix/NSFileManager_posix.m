@@ -35,6 +35,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/FoundationErrors.h>
 #import <objc/runtime.h>
 #include <time.h>
+#include <math.h>
+#include <sys/attr.h>
+#include <sys/time.h>
 #include <dirent.h>
 #include <errno.h>
 
@@ -622,13 +625,104 @@ static char delegateKey;
     return (symlink([otherPath fileSystemRepresentation], [path fileSystemRepresentation]) == 0);
 }
 
--(BOOL)setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error
-{
-    if (error != NULL) {
-        //TODO set error
-    }
-    
-    return NO;
+static BOOL setFileTime(const char *path, NSDate *date, BOOL creation) {
+   NSTimeInterval seconds=[date timeIntervalSince1970];
+   struct timespec when;
+
+   when.tv_sec=(time_t)floor(seconds);
+   when.tv_nsec=(long)((seconds-floor(seconds))*1e9);
+   if(creation) {
+      struct attrlist list;
+
+      memset(&list,0,sizeof(list));
+      list.bitmapcount=ATTR_BIT_MAP_COUNT;
+      list.commonattr=ATTR_CMN_CRTIME;
+      return setattrlist(path,&list,&when,sizeof(when),0)==0;
+   }
+   else {
+      struct stat st;
+      struct timeval times[2];
+
+      if(stat(path,&st)!=0)
+         return NO;
+      times[0].tv_sec=st.st_atimespec.tv_sec;
+      times[0].tv_usec=(suseconds_t)(st.st_atimespec.tv_nsec/1000);
+      times[1].tv_sec=when.tv_sec;
+      times[1].tv_usec=(suseconds_t)(when.tv_nsec/1000);
+      return utimes(path,times)==0;
+   }
+}
+
+/* Owner first (it may clear the set-id bits), then the permissions and
+ * the dates. A lock being removed goes before them, one being added
+ * after, so a locked item can be changed and locked in one call. */
+-(BOOL)setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error {
+   const char *fs=[path fileSystemRepresentation];
+   NSNumber *immutable=[attributes objectForKey:NSFileImmutable];
+   NSNumber *appendOnly=[attributes objectForKey:NSFileAppendOnly];
+   id value;
+   struct stat st;
+   u_int clearFlags=0,setFlags=0;
+
+   if(path==nil || fs==NULL || stat(fs,&st)!=0) {
+      if(error!=NULL)
+         *error=fileError(path ? errno : ENOENT,path,YES);
+      return NO;
+   }
+
+   if(immutable!=nil)
+      *([immutable boolValue] ? &setFlags : &clearFlags)|=UF_IMMUTABLE;
+   if(appendOnly!=nil)
+      *([appendOnly boolValue] ? &setFlags : &clearFlags)|=UF_APPEND;
+   if((st.st_flags&clearFlags)!=0 && chflags(fs,st.st_flags&~clearFlags)!=0)
+      goto failed;
+
+   {
+      uid_t owner=(uid_t)-1;
+      gid_t group=(gid_t)-1;
+
+      if((value=[attributes objectForKey:NSFileOwnerAccountID])!=nil)
+         owner=(uid_t)[value unsignedLongValue];
+      else if((value=[attributes objectForKey:NSFileOwnerAccountName])!=nil) {
+         struct passwd *pw=getpwnam([value UTF8String]);
+         if(pw==NULL) {
+            errno=EINVAL;
+            goto failed;
+         }
+         owner=pw->pw_uid;
+      }
+      if((value=[attributes objectForKey:NSFileGroupOwnerAccountID])!=nil)
+         group=(gid_t)[value unsignedLongValue];
+      else if((value=[attributes objectForKey:NSFileGroupOwnerAccountName])!=nil) {
+         struct group *gr=getgrnam([value UTF8String]);
+         if(gr==NULL) {
+            errno=EINVAL;
+            goto failed;
+         }
+         group=gr->gr_gid;
+      }
+      if((owner!=(uid_t)-1 || group!=(gid_t)-1) && chown(fs,owner,group)!=0)
+         goto failed;
+   }
+
+   if((value=[attributes objectForKey:NSFilePosixPermissions])!=nil &&
+      chmod(fs,(mode_t)([value unsignedLongValue]&07777))!=0)
+      goto failed;
+   if((value=[attributes objectForKey:NSFileModificationDate])!=nil && !setFileTime(fs,value,NO))
+      goto failed;
+   if((value=[attributes objectForKey:NSFileCreationDate])!=nil && !setFileTime(fs,value,YES))
+      goto failed;
+
+   if(setFlags!=0) {
+      if(stat(fs,&st)!=0 || chflags(fs,st.st_flags|setFlags)!=0)
+         goto failed;
+   }
+   return YES;
+
+failed:
+   if(error!=NULL)
+      *error=fileError(errno,path,YES);
+   return NO;
 }
 
 -(const char *)fileSystemRepresentationWithPath:(NSString *)path {
