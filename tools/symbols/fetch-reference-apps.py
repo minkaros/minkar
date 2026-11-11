@@ -29,7 +29,8 @@
 
   fetch-reference-apps.py --dest DIR [--manifest reference-apps.tsv]
 
-Each app in the manifest is downloaded to DIR/downloads (kept, so a second
+Each app in the manifest (a zip, a tar or a disk image: disk images need
+7z for their HFS+ file system) is downloaded to DIR/downloads (kept, so a second
 run downloads nothing), checked against its sha256 and unpacked into
 DIR/apps/<name>/. A download whose checksum differs is deleted and the
 run fails. Archives are unpacked without trusting them: no absolute
@@ -40,16 +41,23 @@ Exit status: 0 when every app is in place, 1 otherwise.
 """
 
 import argparse
+import bz2
 import hashlib
+import lzma
 import os
+import plistlib
 import shutil
 import stat
+import struct
+import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.error
 import urllib.request
 import zipfile
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -141,13 +149,98 @@ def untar(archive, dest):
         t.extractall(dest, filter='data')
 
 
+def is_dmg(archive):
+    with open(archive, 'rb') as f:
+        f.seek(0, 2)
+        if f.tell() < 512:
+            return False
+        f.seek(-512, 2)
+        return f.read(4) == b'koly'
+
+
+def dmg_partitions(archive, workdir):
+    """A UDIF disk image's partitions, decompressed to files in workdir
+    (raw, zero, zlib, bzip2 and LZMA chunks), the largest first."""
+    images = []
+    with open(archive, 'rb') as f:
+        f.seek(-512, 2)
+        koly = f.read(512)
+        data_offset = struct.unpack('>Q', koly[0x18:0x20])[0]
+        xml_offset, xml_length = struct.unpack('>QQ', koly[0xd8:0xe8])
+        f.seek(xml_offset)
+        blocks = plistlib.loads(f.read(xml_length))['resource-fork']['blkx']
+        for n, block in enumerate(blocks):
+            mish = block['Data']
+            count = struct.unpack('>I', mish[0xc8:0xcc])[0]
+            path = os.path.join(workdir, '%d.img' % n)
+            with open(path, 'wb') as out:
+                for i in range(count):
+                    kind, _, _, sectors, offset, length = struct.unpack(
+                        '>IIQQQQ', mish[0xcc + 40 * i:0xcc + 40 * (i + 1)])
+                    if kind == 0xffffffff:
+                        break
+                    if kind == 0x7ffffffe:          # a comment
+                        continue
+                    size = sectors * 512
+                    if kind in (0, 2):              # zeros
+                        out.write(b'\0' * size)
+                        continue
+                    f.seek(data_offset + offset)
+                    raw = f.read(length)
+                    if kind == 1:
+                        data = raw
+                    elif kind == 0x80000005:
+                        data = zlib.decompress(raw)
+                    elif kind == 0x80000006:
+                        data = bz2.decompress(raw)
+                    elif kind == 0x80000008:
+                        data = lzma.decompress(raw)
+                    else:
+                        raise ValueError('disk image chunk type %#x not supported' % kind)
+                    out.write(data[:size].ljust(size, b'\0'))
+            images.append(path)
+    return sorted(images, key=os.path.getsize, reverse=True)
+
+
+def undmg(archive, dest):
+    """A disk image's file system, through 7z (HFS+), into dest; links that
+    leave dest (the usual one to /Applications) are dropped."""
+    with tempfile.TemporaryDirectory() as work:
+        for image in dmg_partitions(archive, work):
+            tree = os.path.join(work, 'tree')
+            # 7z warns (and exits 2) for parts of an HFS+ volume it skips,
+            # the volume's own metadata: what it unpacked is what counts.
+            subprocess.run(['7z', 'x', '-y', '-o' + tree, image],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if os.path.isdir(tree) and any(n.endswith('.app') for _, d, _ in os.walk(tree) for n in d):
+                break
+            shutil.rmtree(tree, ignore_errors=True)
+        else:
+            raise ValueError('no file system 7z can read in the disk image')
+        for root, dirs, files in os.walk(tree):
+            for name in dirs + files:
+                path = os.path.join(root, name)
+                # 7z writes extended attributes as files beside theirs.
+                if ':com.apple.' in name and not os.path.isdir(path):
+                    os.unlink(path)
+                    continue
+                if os.path.islink(path):
+                    link = os.readlink(path)
+                    if link.startswith('/') or not inside(tree, os.path.join(root, link)):
+                        os.unlink(path)
+        for name in os.listdir(tree):
+            shutil.move(os.path.join(tree, name), os.path.join(dest, name))
+
+
 def unpack(archive, dest):
     if zipfile.is_zipfile(archive):
         unzip(archive, dest)
     elif tarfile.is_tarfile(archive):
         untar(archive, dest)
+    elif is_dmg(archive):
+        undmg(archive, dest)
     else:
-        raise ValueError('not a zip or tar archive')
+        raise ValueError('not a zip or tar archive or a disk image')
 
 
 def fetch(app, dest, cache=None):
@@ -155,7 +248,8 @@ def fetch(app, dest, cache=None):
     os.makedirs(downloads, exist_ok=True)
     archive = os.path.join(downloads, '%s-%s%s' % (
         app['name'], app['version'],
-        '.zip' if app['url'].endswith('.zip') else '.tar'))
+        '.zip' if app['url'].endswith('.zip') else
+        '.dmg' if app['url'].endswith('.dmg') else '.tar'))
     cached = os.path.join(cache, os.path.basename(archive)) if cache else None
     if not os.path.exists(archive) or sha256(archive) != app['sha256']:
         if cached and os.path.exists(cached) and sha256(cached) == app['sha256']:

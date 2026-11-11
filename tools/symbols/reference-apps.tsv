@@ -1,5 +1,5 @@
-# Reference apps for the macOS 10.15 API stage (plan, principle 6): open
-# source Objective-C apps whose system imports drive the framework work.
+# Reference apps for the API 19 stage (plan, principle 6): open
+# source Cocoa apps whose system imports drive the framework work.
 # Only parsed by symbol-inventory.py, never run. A new version is a new
 # line here with its sha256 (sha256sum of the download).
 #
@@ -8,3 +8,8 @@ TextMate	2.0.23	10.12	https://github.com/textmate/textmate/releases/download/v2.
 Platypus	5.5.0	10.13	https://github.com/sveinbjornt/Platypus/releases/download/v5.5.0/platypus5.5.0.zip	2fad132e717e6543b41e5e7aeb357e8846baf8c9f3b3cb2919dc0f5eec3de415
 KeepingYouAwake	1.6.8	10.13	https://github.com/newmarcel/KeepingYouAwake/releases/download/1.6.8/KeepingYouAwake-1.6.8.zip	8001a149b4490c008fdac19898bce9902d516c4aa6412a7eb0f9a37443b15c6b
 Sloth	3.6	10.13	https://github.com/sveinbjornt/Sloth/releases/download/3.6/sloth-3.6.zip	d3997c364c0b5f58e8676d336b78943cfcbc54e6c78cab348bd1580c29332da6
+# Added 2026-11-11: native Cocoa apps that cover the system more widely;
+# Firefox is Minkar's browser and Thunderbird its mail client.
+Firefox	160.0	10.15	https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0/mac/en-US/Firefox%20160.0.dmg	b270ccc60eb899bd0277bd078d7bd8690f5c4fc3e44b4fa9ee78ed2a3e89f0ca
+Thunderbird	160.0	10.15	https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/160.0/mac/en-US/Thunderbird%20160.0.dmg	9741099ff0653382a3661bfb9fc9f588557e9a839dabda83b627a846fe85b215
+HexFiend	2.18.1	10.14.6	https://github.com/HexFiend/HexFiend/releases/download/v2.18.1/Hex_Fiend_2.18.1.dmg	837041623a21eaae59b9b6c0bb7f75533938ab96580861ee7e276bb926e0e076

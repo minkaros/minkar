@@ -729,8 +729,8 @@ Después de 19.6.0 (19.6.x):
 | Help (Ayuda) | Los libros de ayuda de las apps | el menú Ayuda (MB2) |
 | Characters (Caracteres) | Busca e inserta cualquier carácter | Datos de Unicode (ICU) |
 
-A largo plazo, fuera de la puerta de 19.6.0: un navegador web (Ladybird,
-BSD-2, ya con su propia interfaz en AppKit) y un IDE (CodeEdit depende de
+A largo plazo, fuera de la puerta de 19.6.0: un navegador web (Firefox,
+MPL-2.0, con interfaz AppKit nativa; Ladybird abandonó la suya) y un IDE (CodeEdit depende de
 SwiftUI, fuera de la API 19–21).
 
 ### 5.3 Hitos

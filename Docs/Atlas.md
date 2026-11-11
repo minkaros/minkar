@@ -691,8 +691,8 @@ After 19.6.0 (19.6.x):
 | Help (Ayuda) | Apps' help books | the Help menu (MB2) |
 | Characters (Caracteres) | Finds and inserts any character | Unicode data (ICU) |
 
-Long term, outside the 19.6.0 gate: a web browser (Ladybird, BSD-2,
-already with its own AppKit interface) and an IDE (CodeEdit depends on
+Long term, outside the 19.6.0 gate: a web browser (Firefox, MPL-2.0,
+whose interface is native AppKit; Ladybird dropped its own) and an IDE (CodeEdit depends on
 SwiftUI, outside API 19–21).
 
 ### 5.3 Milestones

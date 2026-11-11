@@ -161,7 +161,10 @@ jobs:
       - name: Symbol coverage of the reference apps
         # A report, not a gate: a download that fails does not fail the run.
         continue-on-error: true
-        run: tools/ci/symbol-report.sh
+        # 7z reads the HFS+ volume of the apps published as disk images.
+        run: |
+          command -v 7z > /dev/null || sudo apt-get install -y 7zip
+          tools/ci/symbol-report.sh
 
       - name: Upload the symbol coverage report
         if: always()
