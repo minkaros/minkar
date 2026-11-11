@@ -141,9 +141,13 @@ static CTFontSymbolicTraits traitsOfStyle(NSString *style) {
 }
 
 CTFontRef CTFontCreateWithName(CFStringRef name, CGFloat size, const CGAffineTransform *matrix) {
-   CGFontRef cgFont=CGFontCreateWithFontName((name!=NULL)?name:CFSTR("Helvetica"));
+   CGFontRef cgFont=(name!=NULL)?CGFontCreateWithFontName(name):NULL;
    CTFontRef font;
 
+   // A name the system lacks gives its default font, never NULL, as on the
+   // reference platform (Helvetica is not one of Minkar's fonts).
+   if(cgFont==NULL)
+    cgFont=CGFontCreateWithFontName(CFSTR("Inter-Regular"));
    if(cgFont==NULL)
     return NULL;
    font=(CTFontRef)[[KTFont alloc] initWithFont:cgFont size:(size>0)?size:12.0];
