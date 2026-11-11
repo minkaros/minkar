@@ -11,6 +11,9 @@
 #import <CoreText/CTLine.h>
 #import <CoreText/CTFont.h>
 #import <CoreText/CTStringAttributes.h>
+#import <CoreText/CTParagraphStyle.h>
+#include <math.h>
+#import <objc/runtime.h>
 #import "KTFont.h"
 #import "CTTypes.h"
 #import <Foundation/Foundation.h>
@@ -81,6 +84,43 @@ static KTFont *defaultFont(void) {
 
 @end
 
+/* Where a tab at x ends: the first of the paragraph style's tab stops past
+ * x, then the multiples of its default interval (28 points when it has
+ * none, as with no style). */
+static CGFloat tabStopAfter(NSDictionary *attributes, CGFloat x) {
+   id         style=[attributes objectForKey:(NSString *)kCTParagraphStyleAttributeName];
+   CFArrayRef stops=NULL;
+   CGFloat    interval=0;
+
+   // The key is AppKit's too: an NSParagraphStyle has its NSTextTabs.
+   if(style!=nil && [style respondsToSelector:@selector(tabStops)] && [style respondsToSelector:@selector(defaultTabInterval)]){
+    for(id tab in [style tabStops]){
+     CGFloat location=[[tab valueForKey:@"location"] doubleValue];
+
+     if(location>x)
+      return location;
+    }
+    interval=[[style valueForKey:@"defaultTabInterval"] doubleValue];
+   }
+   else if(style!=nil && [style isKindOfClass:objc_lookUpClass("CTParagraphStyle")]){
+    CTParagraphStyleGetValueForSpecifier((CTParagraphStyleRef)style,kCTParagraphStyleSpecifierTabStops,sizeof(stops),&stops);
+    CTParagraphStyleGetValueForSpecifier((CTParagraphStyleRef)style,kCTParagraphStyleSpecifierDefaultTabInterval,sizeof(interval),&interval);
+   }
+   if(stops!=NULL){
+    CFIndex i,count=CFArrayGetCount(stops);
+
+    for(i=0;i<count;i++){
+     CGFloat location=CTTextTabGetLocation((CTTextTabRef)CFArrayGetValueAtIndex(stops,i));
+
+     if(location>x)
+      return location;
+    }
+   }
+   if(interval<=0)
+    interval=28;
+   return (floor(x/interval)+1)*interval;
+}
+
 static CTRun *makeRun(NSString *string, NSRange range, NSDictionary *attributes, CGFloat x) {
    CTRun   *run=[[CTRun alloc] init];
    KTFont  *font=CTFontOfAttribute([attributes objectForKey:(NSString *)kCTFontAttributeName]);
@@ -101,7 +141,16 @@ static CTRun *makeRun(NSString *string, NSRange range, NSDictionary *attributes,
    [font getGlyphs:run->_glyphs forCharacters:characters length:(unsigned)range.length];
    [font getAdvancements:run->_advances forGlyphs:run->_glyphs count:(unsigned)range.length];
    for(NSUInteger i=0;i<range.length;i++){
-    run->_advances[i].width+=kern;
+    // A tab draws nothing (the space's glyph, not the font's missing
+    // glyph) and reaches the next tab stop.
+    if(characters[i]=='\t'){
+     unichar space=' ';
+
+     [font getGlyphs:&run->_glyphs[i] forCharacters:&space length:1];
+     run->_advances[i].width=tabStopAfter(attributes,x+run->_width)-(x+run->_width);
+    }
+    else
+     run->_advances[i].width+=kern;
     run->_positions[i]=CGPointMake(x+run->_width,0);
     run->_indices[i]=range.location+i;
     run->_width+=run->_advances[i].width;
