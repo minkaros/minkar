@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 // Original - Christopher Lloyd <cjwl@objc.net>
+#import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSComboBox.h>
 #import <AppKit/NSComboBoxCell.h>
 #import <AppKit/NSApplication.h>
@@ -18,6 +19,15 @@ NSString * const NSComboBoxWillDismissNotification=@"NSComboBoxWillDismissNotifi
 NSString * const NSComboBoxWillPopUpNotification=@"NSComboBoxWillPopUpNotification";
 
 @implementation NSComboBox
+
+/* Minkar: as an editable text field's, no width of its own and its
+   control's height; the cell's size was the frame's less its insets, so a
+   combo box with no frame yet asked for a negative size. */
+-(NSSize)intrinsicContentSize {
+   CGFloat height=[[self cell] respondsToSelector:@selector(controlSize)] && [(NSCell *)[self cell] controlSize]==NSControlSizeSmall?19:22;
+
+   return NSMakeSize(NSViewNoIntrinsicMetric,height);
+}
 
 /* Its own cell when made in code (a nib names it): not its superclass's. */
 +(Class)cellClass {

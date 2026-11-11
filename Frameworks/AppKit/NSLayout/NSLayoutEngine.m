@@ -3,6 +3,7 @@
  * Part of Minkar.
  */
 #import "NSLayoutInternal.h"
+#import <AppKit/NSWindow.h>
 #import "NSLayoutSolver.h"
 #include <math.h>
 #include <string.h>
@@ -314,6 +315,13 @@ static void translateAxis(NSLayoutPass *pass,int pos,int size,int spos,int ssize
    }
 }
 
+// The view at the top of a window: the frame view, the content view's superview.
+static BOOL isWindowFrameView(NSView *view) {
+   NSWindow *window=[view window];
+
+   return window!=nil && [view superview]==nil && [[window contentView] superview]==view;
+}
+
 static void addImplicit(NSLayoutPass *pass,NSView *view) {
    int v=firstVariable(pass,view);
 
@@ -325,6 +333,15 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
 
      fix(pass,v+WIDTH,0,fit,nil);
      fix(pass,v+HEIGHT,0,fit,nil);
+    }
+    else if(isWindowFrameView(view)){
+     // Minkar: a window's size stays put at NSLayoutPriorityWindowSizeStayPut,
+     // as on the reference platform: content that needs more room (TextMate's
+     // find panel) makes the window grow, instead of fighting a required size.
+     double stay=NSLayoutSolverStrength(NSLayoutPriorityWindowSizeStayPut);
+
+     fix(pass,v+WIDTH,[view frame].size.width,stay,nil);
+     fix(pass,v+HEIGHT,[view frame].size.height,stay,nil);
     }
     else {
      fix(pass,v+WIDTH,[view frame].size.width,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's width %g (%@)",[view frame].size.width,view]);
@@ -398,6 +415,20 @@ static CGFloat value(NSLayoutPass *pass,id item,int which) {
 void NSLayoutEngineLayout(NSView *root) {
    @autoreleasepool {
     NSLayoutPass *pass=solve(root,NO);
+
+    // The window to the size its content asked for, its top left kept.
+    if(isWindowFrameView(root)){
+     NSRect  frame=[[root window] frame];
+     CGFloat width=value(pass,root,WIDTH),height=value(pass,root,HEIGHT);
+     NSSize  size=[root frame].size;
+
+     if(fabs(width-size.width)>=1 || fabs(height-size.height)>=1){
+      frame.origin.y+=frame.size.height-(frame.size.height+height-size.height);
+      frame.size.width+=width-size.width;
+      frame.size.height+=height-size.height;
+      [[root window] setFrame:frame display:YES];
+     }
+    }
 
     // Top down: a superview has its frame before its subviews are placed in it.
     for(NSView *view in pass->views){

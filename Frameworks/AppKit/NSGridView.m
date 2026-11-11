@@ -52,6 +52,13 @@ static NSSize contentSizeOfView(NSView *view){
    return size;
 }
 
+/* A view with no width of its own and nothing inside to give it one (an
+   editable text field): it takes its cell's width, and its column the
+   grid's spare width. */
+static BOOL stretchesAcross(NSView *view){
+   return view!=nil && [view intrinsicContentSize].width==NSViewNoIntrinsicMetric && [[view constraints] count]==0;
+}
+
 @implementation NSGridRow
 
 -(void)_setGridView:(NSGridView *)view { _gridView=view; }
@@ -479,6 +486,42 @@ static CGFloat placed(CGFloat origin,CGFloat available,CGFloat size,NSGridCellPl
     return;
    _layingOut=YES;
    [self _computeWidths:widths heights:heights];
+   /* Minkar: the room the grid has beyond what its columns need goes to the
+      columns that can stretch, shared equally (the find panel's text fields
+      were as narrow as their frames). */
+   {
+    CGFloat   needed=0;
+    NSInteger stretching=0;
+    BOOL      stretches[columns>0?columns:1];
+
+    for(column=0;column<columns;column++){
+     NSGridColumn *c=[_columns objectAtIndex:column];
+
+     stretches[column]=NO;
+     if([c isHidden])
+      continue;
+     needed+=[c leadingPadding]+widths[column]+[c trailingPadding]+_columnSpacing;
+     if([c width]!=NSGridViewSizeForContent && [c width]>0)
+      continue;
+     for(row=0;row<rows;row++){
+      NSGridCell *cell=[_cells objectForKey:cellKey(column,row)];
+
+      if(cell!=nil && [cell _head]==nil && stretchesAcross([cell contentView]))
+       stretches[column]=YES;
+     }
+     if(stretches[column])
+      stretching++;
+    }
+    if(columns>0)
+     needed-=_columnSpacing;
+    if(stretching>0 && NSWidth([self bounds])>needed){
+     CGFloat share=floor((NSWidth([self bounds])-needed)/stretching);
+
+     for(column=0;column<columns;column++)
+      if(stretches[column])
+       widths[column]+=share;
+    }
+   }
    for(column=0;column<columns;column++){
     NSGridColumn *c=[_columns objectAtIndex:column];
 
@@ -530,6 +573,8 @@ static CGFloat placed(CGFloat origin,CGFloat available,CGFloat size,NSGridCellPl
     if(yPlacement==NSGridCellPlacementInherited)
      yPlacement=_yPlacement;
     size=contentSizeOfView(view);
+    if(stretchesAcross(view))
+     xPlacement=NSGridCellPlacementFill;
     CGFloat vx=placed(xs[c],width,MIN(size.width,width),xPlacement,&w);
     CGFloat vy=placed(ys[r],height,MIN(size.height,height),yPlacement,&h);
     [view setHidden:NO];

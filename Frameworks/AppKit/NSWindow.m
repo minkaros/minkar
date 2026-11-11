@@ -1271,6 +1271,10 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(void)setContentView:(NSView *)view {
    view=[view retain];
    [view setFrame:[_contentView frame]];
+   // Minkar: the content view follows the window's size, as on the
+   // reference platform (with constraints, a fixed one kept the window from
+   // growing to its content).
+   [view setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
 
    [_contentView removeFromSuperview];
    [_contentView release];
