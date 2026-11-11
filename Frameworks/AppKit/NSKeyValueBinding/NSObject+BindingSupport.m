@@ -302,6 +302,10 @@ void NSDetermineBindingDebugLoggingLevel(void)
 
 -(NSDictionary *)infoForBinding:(id)binding {
    _NSBinder    *binder=[self _binderForBinding:binding create:NO];
+
+   // Minkar: nil for a binding that is not bound, as on the reference platform.
+   if(binder==nil || [binder destination]==nil)
+    return nil;
    NSDictionary *result=[NSDictionary dictionaryWithObjectsAndKeys:
       [binder destination],NSObservedObjectKey,
       [binder keyPath],NSObservedKeyPathKey,

@@ -142,8 +142,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierFlags:(NSEventModifierFlags)flags {
     int i, count = [_keyBindings count];
 
+    // Minkar: only the modifiers a binding names; the function key flag
+    // the reference platform sets on arrow and function keys is not one,
+    // nor are the device-dependent bits.
+    flags&=NSEventModifierFlagDeviceIndependentFlagsMask;
     flags&=~ NSNumericPadKeyMask;
     flags&=~ NSAlphaShiftKeyMask;
+    flags&=~ NSEventModifierFlagFunction;
 
     for (i = 0; i < count; ++i) {
         NSKeyboardBinding *keyBinding = [_keyBindings objectAtIndex:i];

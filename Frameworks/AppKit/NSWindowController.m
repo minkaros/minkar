@@ -69,8 +69,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
+/* Minkar: loadWindow is called when there is a nib to load or a subclass
+   loads the window its own way (TextMate's find panel names a nib that
+   does not exist and makes its panel in loadWindow): only a nib that was
+   there was loaded, and such windows were never made. */
+static BOOL loadsItsOwnWindow(NSWindowController *self) {
+   return [self methodForSelector:@selector(loadWindow)]!=[NSWindowController instanceMethodForSelector:@selector(loadWindow)];
+}
+
 -(NSWindow *)window {
-   if(_window==nil && [self windowNibPath]!=nil){
+   if(_window==nil && ([self windowNibPath]!=nil || loadsItsOwnWindow(self))){
     [self windowWillLoad];
     [_document windowControllerWillLoadNib:self];
 

@@ -14,6 +14,9 @@ static NSString *const kKeyboardInputSource=@"org.minkar.keylayout.US";
 
 static NSTextInputContext *sActive;
 
+#import <AppKit/NSKeyboardBindingManager.h>
+#import <AppKit/NSKeyboardBinding.h>
+#import <AppKit/NSEvent.h>
 @implementation NSTextInputContext
 
 +(NSTextInputContext *)currentInputContext {
@@ -89,8 +92,39 @@ static NSTextInputContext *sActive;
 }
 
 /* No input method takes the event: the client handles its keys. */
+/* Minkar: a key goes to the client as the reference platform's context
+   sends it with no input method: what its key binding names as commands
+   (doCommandBySelector:), else its characters as text
+   (insertText:replacementRange:); function keys and control characters
+   that nothing binds are not text. It did nothing, so clients that read
+   their keys through the context (TextMate's text view) got none. */
 -(BOOL)handleEvent:(NSEvent *)event {
-   return NO;
+   if([event type]!=NSEventTypeKeyDown || _client==nil)
+    return NO;
+
+   NSKeyboardBinding *binding=[[NSKeyboardBindingManager defaultKeyBindingManager] keyBindingWithString:[event charactersIgnoringModifiers] modifierFlags:[event modifierFlags]];
+   NSArray           *selectorNames=[binding selectorNames];
+
+   if(selectorNames!=nil){
+    for(NSString *name in selectorNames)
+     [_client doCommandBySelector:NSSelectorFromString(name)];
+    return YES;
+   }
+
+   NSString       *characters=[event characters];
+   NSUInteger      i,length=[characters length];
+   NSMutableString *text=[NSMutableString string];
+
+   for(i=0;i<length;i++){
+    unichar c=[characters characterAtIndex:i];
+
+    if((c>=NSUpArrowFunctionKey && c<=NSModeSwitchFunctionKey) || c<' ' || c==0x7f)
+     continue;
+    [text appendString:[NSString stringWithCharacters:&c length:1]];
+   }
+   if([text length]>0)
+    [_client insertText:text replacementRange:NSMakeRange(NSNotFound,0)];
+   return YES;
 }
 
 -(void)discardMarkedText {

@@ -26,8 +26,10 @@ const CGFloat NSGridViewSizeForContent=FLT_MIN;
 -(NSGridCell *)_cellAtColumn:(NSInteger)column row:(NSInteger)row;
 @end
 
-/* A view's size in a cell: its intrinsic size where it has one, else its
-   frame's. */
+/* A view's size in a cell: its intrinsic size where it has one; else,
+   for a view laid out by constraints inside (a stack view), the size they
+   ask for; else its frame's. Minkar: a stack view had its 0 by 0 frame,
+   and its views no room. */
 static NSSize contentSizeOfView(NSView *view){
    NSSize size=[view frame].size;
    NSSize intrinsic;
@@ -35,6 +37,14 @@ static NSSize contentSizeOfView(NSView *view){
    if(view==nil)
     return NSZeroSize;
    intrinsic=[view intrinsicContentSize];
+   if((intrinsic.width==NSViewNoIntrinsicMetric || intrinsic.height==NSViewNoIntrinsicMetric) && [[view constraints] count]>0){
+    NSSize fitting=[view fittingSize];
+
+    if(intrinsic.width==NSViewNoIntrinsicMetric && fitting.width>0)
+     intrinsic.width=fitting.width;
+    if(intrinsic.height==NSViewNoIntrinsicMetric && fitting.height>0)
+     intrinsic.height=fitting.height;
+   }
    if(intrinsic.width!=NSViewNoIntrinsicMetric)
     size.width=intrinsic.width;
    if(intrinsic.height!=NSViewNoIntrinsicMetric)
@@ -526,7 +536,14 @@ static CGFloat placed(CGFloat origin,CGFloat available,CGFloat size,NSGridCellPl
     [view setFrame:NSMakeRect(vx,vy,w,h)];
    }
    _layingOut=NO;
-   [self invalidateIntrinsicContentSize];
+   // Only a size that changed: invalidating it each time asked for another
+   // layout, which laid the grid out again, without end.
+   NSSize fitting=[self fittingSize];
+
+   if(!NSEqualSizes(fitting,_lastFittingSize)){
+    _lastFittingSize=fitting;
+    [self invalidateIntrinsicContentSize];
+   }
 }
 
 -(void)resizeSubviewsWithOldSize:(NSSize)oldSize {
