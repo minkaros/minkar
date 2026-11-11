@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 CFTypeID SecCertificateGetTypeID(void);
 /* A DER-encoded X.509 certificate. */
 SecCertificateRef SecCertificateCreateWithData(CFAllocatorRef allocator, CFDataRef data);
@@ -28,6 +30,9 @@ enum { CSSM_CERT_X_509v3 = 3, CSSM_CERT_ENCODING_DER = 3 };
 /* The older form. */
 OSStatus SecCertificateCreateFromData(const CSSM_DATA *data, CSSM_CERT_TYPE type, CSSM_CERT_ENCODING encoding,
                                       SecCertificateRef *certificate);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

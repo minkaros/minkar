@@ -36,6 +36,13 @@ OSStatus AESendMessage(const AppleEvent *event, AppleEvent *reply, AESendMode se
 /* Hands an event to this process's handler for it. */
 OSErr AEDispatchAppleEvent(const AppleEvent *theAppleEvent, AppleEvent *reply);
 
+/* Keys of the editor suite's events (a document's position and the text
+   searched for in it). */
+enum {
+    keyAEPosition = 'kpos',
+    keyAESearchText = 'stxt',
+};
+
 #ifdef __cplusplus
 }
 #endif

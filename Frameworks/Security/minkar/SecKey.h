@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef CFStringRef SecKeyAlgorithm;
 
 CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSAEncryptionRaw;
@@ -44,6 +46,9 @@ CFDataRef SecKeyCreateEncryptedData(SecKeyRef key, SecKeyAlgorithm algorithm, CF
 CFDataRef SecKeyCreateDecryptedData(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef ciphertext, CFErrorRef *error);
 Boolean SecKeyVerifySignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef signedData, CFDataRef signature, CFErrorRef *error);
 Boolean SecKeyIsAlgorithmSupported(SecKeyRef key, int operation, SecKeyAlgorithm algorithm);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

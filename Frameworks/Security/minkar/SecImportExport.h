@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef uint32_t SecExternalFormat;
 enum {
     kSecFormatUnknown = 0,
@@ -61,6 +63,9 @@ typedef struct {
 OSStatus SecItemImport(CFDataRef importedData, CFStringRef fileNameOrExtension, SecExternalFormat *inputFormat,
                        SecExternalItemType *itemType, SecItemImportExportFlags flags,
                        const SecItemImportExportKeyParameters *keyParams, SecKeychainRef importKeychain, CFArrayRef *outItems);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

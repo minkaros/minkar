@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -23,7 +24,40 @@ typedef const struct __CTFont *CTFontRef;
 #define CT_FONT_ATTRIBUTES CFTypeRef
 #define CT_FONT_LANGUAGE CFStringRef
 
+/* Minkar: the UI font names of API 10.5 (kCTFontUIFont*) beside the older
+   kCT...FontType ones; the same values. */
 typedef enum {
+    kCTFontUIFontNone = (uint32_t)-1,
+    kCTFontUIFontUser = 0,
+    kCTFontUIFontUserFixedPitch = 1,
+    kCTFontUIFontSystem = 2,
+    kCTFontUIFontEmphasizedSystem = 3,
+    kCTFontUIFontSmallSystem = 4,
+    kCTFontUIFontSmallEmphasizedSystem = 5,
+    kCTFontUIFontMiniSystem = 6,
+    kCTFontUIFontMiniEmphasizedSystem = 7,
+    kCTFontUIFontViews = 8,
+    kCTFontUIFontApplication = 9,
+    kCTFontUIFontLabel = 10,
+    kCTFontUIFontMenuTitle = 11,
+    kCTFontUIFontMenuItem = 12,
+    kCTFontUIFontMenuItemMark = 13,
+    kCTFontUIFontMenuItemCmdKey = 14,
+    kCTFontUIFontWindowTitle = 15,
+    kCTFontUIFontPushButton = 16,
+    kCTFontUIFontUtilityWindowTitle = 17,
+    kCTFontUIFontAlertHeader = 18,
+    kCTFontUIFontSystemDetail = 19,
+    kCTFontUIFontEmphasizedSystemDetail = 20,
+    kCTFontUIFontToolbar = 21,
+    kCTFontUIFontSmallToolbar = 22,
+    kCTFontUIFontMessage = 23,
+    kCTFontUIFontPalette = 24,
+    kCTFontUIFontToolTip = 25,
+    kCTFontUIFontControlContent = 26,
+    kCTFontNoFontType = (uint32_t)-1,
+    kCTFontUserFontType = 0,
+    kCTFontUserFixedPitchFontType = 1,
     kCTFontSystemFontType = 2,
     kCTFontEmphasizedSystemFontType = 3,
     kCTFontSmallSystemFontType = 4,
@@ -51,6 +85,16 @@ typedef enum {
     kCTFontControlContentFontType = 26
 } CTFontUIFontType;
 
+/* How glyphs are laid out (API 10.5; the older names before 10.8). */
+typedef enum {
+    kCTFontOrientationDefault = 0,
+    kCTFontOrientationHorizontal = 1,
+    kCTFontOrientationVertical = 2,
+    kCTFontDefaultOrientation = kCTFontOrientationDefault,
+    kCTFontHorizontalOrientation = kCTFontOrientationHorizontal,
+    kCTFontVerticalOrientation = kCTFontOrientationVertical,
+} CTFontOrientation;
+
 CORETEXT_EXPORT CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgFont, CGFloat size, CGAffineTransform *xform, CT_FONT_ATTRIBUTES attributes);
 CORETEXT_EXPORT CTFontRef CTFontCreateUIFontForLanguage(CTFontUIFontType uiFontType, CGFloat size, CT_FONT_LANGUAGE language);
 CORETEXT_EXPORT CFStringRef CTFontCopyFullName(CTFontRef self);
@@ -58,7 +102,8 @@ CORETEXT_EXPORT CGFloat CTFontGetSize(CTFontRef self);
 CORETEXT_EXPORT size_t CTFontGetGlyphCount(CTFontRef self);
 CORETEXT_EXPORT bool CTFontGetGlyphsForCharacters(CTFontRef self, const UniChar *characters, CGGlyph *glyphs, size_t count);
 CORETEXT_EXPORT CGRect CTFontGetBoundingBox(CTFontRef self);
-CORETEXT_EXPORT void CTFontGetAdvancesForGlyphs(CTFontRef self, int orientation, const CGGlyph *glyphs, CGSize *advances, size_t count);
+/* The glyphs' advances (into advances, which may be NULL) and their sum. */
+CORETEXT_EXPORT double CTFontGetAdvancesForGlyphs(CTFontRef self, CTFontOrientation orientation, const CGGlyph *glyphs, CGSize *advances, size_t count);
 CORETEXT_EXPORT CGFloat CTFontGetUnderlinePosition(CTFontRef self);
 CORETEXT_EXPORT CGFloat CTFontGetUnderlineThickness(CTFontRef self);
 CORETEXT_EXPORT CGFloat CTFontGetAscent(CTFontRef self);

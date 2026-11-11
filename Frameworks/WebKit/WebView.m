@@ -278,6 +278,10 @@ static Class scriptObjectClass(NSString *kind)
 static void gotData(GObject *object, GAsyncResult *result, gpointer block);
 
 @implementation WebDataSource
+- (NSString *)textEncodingName {
+    return [self.response textEncodingName];
+}
+
 - (NSURLResponse *)response {
     WebKitWebResource *resource = webkit_web_view_get_main_resource(((WebView *)self.webFrame.webView)._engine._webKitView);
     WebKitURIResponse *response = resource ? webkit_web_resource_get_response(resource) : NULL;
@@ -370,6 +374,9 @@ static void gotData(GObject *object, GAsyncResult *result, gpointer block)
 @end
 
 @implementation WebFrameView
+- (NSView *)documentView {
+    return self.webFrame.webView;
+}
 @end
 
 #pragma mark - Policy decisions

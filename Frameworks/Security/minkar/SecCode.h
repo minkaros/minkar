@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef uint32_t SecCSFlags;
 enum {
     kSecCSDefaultFlags = 0,
@@ -72,6 +74,9 @@ OSStatus SecStaticCodeCheckValidityWithErrors(SecStaticCodeRef staticCode, SecCS
 OSStatus SecRequirementCreateWithString(CFStringRef text, SecCSFlags flags, SecRequirementRef *requirement);
 OSStatus SecRequirementCreateWithStringAndErrors(CFStringRef text, SecCSFlags flags, CFErrorRef *errors, SecRequirementRef *requirement);
 OSStatus SecRequirementCopyString(SecRequirementRef requirement, SecCSFlags flags, CFStringRef *text);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

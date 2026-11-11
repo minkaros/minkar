@@ -4,7 +4,7 @@ FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = CoreServices.c MacMemory.c Files.c Resources.c Gestalt.c IconsCore.c MDItem.c LSItemInfo.c \
 	UnicodeUtilities.c
-HEADERS = CoreServices.h Metadata.h MacErrors.h MacMemory.h Files.h Resources.h Gestalt.h IconsCore.h LSItemInfo.h \
+HEADERS = CoreServices.h Metadata.h MacErrors.h MacMemory.h Files.h Resources.h Gestalt.h IconsCore.h Finder.h LSItemInfo.h \
 	UnicodeUtilities.h
 
 RESOURCES=Info.plist English.lproj
@@ -16,7 +16,7 @@ SUBDIR =
 LS_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices
 FSE_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/FSEvents
 AE_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/AE.framework/Versions/A/AE
-LDFLAGS += -Wl,-reexport_library,${LS_DYLIB} -Wl,-reexport_library,${FSE_DYLIB} -Wl,-reexport_library,${AE_DYLIB}
+LDFLAGS += -F${MINKAR_SDKROOT}/System/Library/Frameworks -Wl,-reexport_framework,CFNetwork -Wl,-reexport_library,${LS_DYLIB} -Wl,-reexport_library,${FSE_DYLIB} -Wl,-reexport_library,${AE_DYLIB}
 LDFLAGS += -framework CoreFoundation
 # Unicode collation (UnicodeUtilities.c) on the system's ICU, whose names
 # carry no version suffix.

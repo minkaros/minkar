@@ -1,4 +1,5 @@
 /* Copyright (c) 2008 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreText/CTFont.h>
 #import "KTFont.h"
+#include <stdlib.h>
 
 CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgFont,CGFloat size,CGAffineTransform *xform,CFTypeRef attributes) {
    return (CTFontRef)[[KTFont alloc] initWithFont:cgFont size:size];
@@ -44,9 +46,24 @@ CGRect CTFontGetBoundingBox(CTFontRef font) {
    return [self boundingRect];
 }
 
-void CTFontGetAdvancesForGlyphs(CTFontRef font,int orientation,const CGGlyph *glyphs,CGSize *advances,size_t count) {
+// Minkar: the sum of the advances is returned, and advances may be NULL,
+// as on the reference platform (it returned nothing and needed advances).
+double CTFontGetAdvancesForGlyphs(CTFontRef font,CTFontOrientation orientation,const CGGlyph *glyphs,CGSize *advances,size_t count) {
    KTFont *self=(KTFont *)font;
-   [self getAdvancements:advances forGlyphs:glyphs count:count];
+   CGSize  buffer[64];
+   CGSize *sizes=advances;
+   double  total=0;
+
+   if(count==0)
+    return 0;
+   if(sizes==NULL)
+    sizes=(count<=64)?buffer:malloc(count*sizeof(CGSize));
+   [self getAdvancements:sizes forGlyphs:glyphs count:count];
+   for(size_t i=0;i<count;i++)
+    total+=(orientation==kCTFontOrientationVertical)?sizes[i].height:sizes[i].width;
+   if(sizes!=advances && sizes!=buffer)
+    free(sizes);
+   return total;
 }
 
 CGFloat CTFontGetUnderlinePosition(CTFontRef font) {

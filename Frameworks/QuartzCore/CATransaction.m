@@ -1,4 +1,5 @@
 #import <QuartzCore/CATransaction.h>
+#import <dispatch/dispatch.h>
 #import <QuartzCore/CALayerContext.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSNumber.h>
@@ -59,7 +60,25 @@ static CATransactionGroup *createImplicitTransactionGroupIfNeeded(){
    return [self valueForKey:kCATransactionAnimationTimingFunction];
 }
 
-//+(void (^)(void))completionBlock;
+/* Minkar: the completion block, kept with the transaction; changes take
+   effect at once in Minkar, so it runs when the transaction is
+   committed, or (without one begun) once the run loop turns. */
+static NSString *const completionBlockKey=@"completionBlock";
+
++(void (^)(void))completionBlock {
+   return [self valueForKey:completionBlockKey];
+}
+
++(void)setCompletionBlock:(void (^)(void))block {
+   void (^copy)(void)=[[block copy] autorelease];
+
+   if([transactionStack() count]==0){
+    if(copy)
+     dispatch_async(dispatch_get_main_queue(),copy);
+    return;
+   }
+   [self setValue:copy forKey:completionBlockKey];
+}
 
 +valueForKey:(NSString *)key {
    CATransactionGroup *group=createImplicitTransactionGroupIfNeeded();
@@ -72,10 +91,9 @@ static CATransactionGroup *createImplicitTransactionGroupIfNeeded(){
 }
 
 +(void)setAnimationTimingFunction:(CAMediaTimingFunction *)value {
-   [self setValue:value forKey:kCATransactionAnimationDuration];
+   [self setValue:value forKey:kCATransactionAnimationTimingFunction];
 }
 
-//+(void)setCompletionBlock:(void (^)(void))value;
 +(void)setDisableActions:(BOOL)value {
    [self setValue:[NSNumber numberWithBool:value] forKey:kCATransactionDisableActions];
 }
@@ -93,7 +111,13 @@ static CATransactionGroup *createImplicitTransactionGroupIfNeeded(){
 }
 
 +(void)commit {
+   CATransactionGroup *group=[[transactionStack() lastObject] retain];
+   void (^block)(void)=[group valueForKey:completionBlockKey];
+
    [transactionStack() removeLastObject];
+   if(block)
+    dispatch_async(dispatch_get_main_queue(),block);
+   [group release];
 }
 
 +(void)flush {

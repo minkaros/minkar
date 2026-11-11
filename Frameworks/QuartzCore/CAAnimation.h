@@ -3,7 +3,7 @@
 #import <QuartzCore/CAMediaTiming.h>
 #import <QuartzCore/CAAction.h>
 
-@class CAMediaTimingFunction;
+@class CAMediaTimingFunction, CAAnimation;
 
 CA_EXPORT NSString *const kCATransitionFade;
 CA_EXPORT NSString *const kCATransitionMoveIn;
@@ -14,6 +14,13 @@ CA_EXPORT NSString *const kCATransitionFromLeft;
 CA_EXPORT NSString *const kCATransitionFromRight;
 CA_EXPORT NSString *const kCATransitionFromTop;
 CA_EXPORT NSString *const kCATransitionFromBottom;
+
+/* Minkar: what an animation's delegate is told (API 10.12's protocol). */
+@protocol CAAnimationDelegate <NSObject>
+@optional
+- (void)animationDidStart:(CAAnimation *)animation;
+- (void)animationDidStop:(CAAnimation *)animation finished:(BOOL)finished;
+@end
 
 @interface CAAnimation : NSObject <NSCopying, CAMediaTiming, CAAction> {
     id _delegate;

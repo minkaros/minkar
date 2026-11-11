@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 CF_IMPLICIT_BRIDGING_ENABLED
 
 #ifdef __OBJC__
-@class O2Context, CGEvent;
+@class CGEvent;
 #endif
 
 typedef enum {

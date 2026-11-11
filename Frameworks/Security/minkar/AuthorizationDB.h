@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 #define kAuthorizationRuleClassAllow "allow"
 #define kAuthorizationRuleClassDeny "deny"
 #define kAuthorizationRightRule "rule"
@@ -28,6 +30,9 @@ OSStatus AuthorizationRightGet(const char *rightName, CFDictionaryRef *rightDefi
 OSStatus AuthorizationRightSet(AuthorizationRef authRef, const char *rightName, CFTypeRef rightDefinition,
                                CFStringRef descriptionKey, CFBundleRef bundle, CFStringRef localeTableName);
 OSStatus AuthorizationRightRemove(AuthorizationRef authRef, const char *rightName);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

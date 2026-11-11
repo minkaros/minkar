@@ -13,7 +13,9 @@ CA_EXPORT NSString *const kCATransactionCompletionBlock;
 + (BOOL)disableActions;
 + (CFTimeInterval)animationDuration;
 + (CAMediaTimingFunction *)animationTimingFunction;
-//+(void (^)(void))completionBlock;
+/* What runs once the transaction's changes are done (API 10.6). */
++ (void (^)(void))completionBlock;
++ (void)setCompletionBlock:(void (^)(void))block;
 + valueForKey:(NSString *)key;
 
 + (void)setAnimationDuration:(CFTimeInterval)value;

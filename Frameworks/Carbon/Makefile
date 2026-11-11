@@ -9,7 +9,7 @@ FRAMEWORK = Carbon
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = HIToolbox.c
-HEADERS = Carbon.h HIToolbox.h
+HEADERS = Carbon.h HIToolbox.h Events.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks

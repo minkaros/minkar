@@ -18,6 +18,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 enum {
     errAuthorizationSuccess = 0,
     errAuthorizationInvalidSet = -60001,
@@ -91,6 +93,9 @@ OSStatus AuthorizationFreeItemSet(AuthorizationItemSet *set);
    sudo without a password prompt (an administrator allowed to). */
 OSStatus AuthorizationExecuteWithPrivileges(AuthorizationRef authorization, const char *pathToTool, AuthorizationFlags options,
                                             char *const *arguments, FILE **communicationsPipe);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

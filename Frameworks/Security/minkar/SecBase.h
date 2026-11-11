@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct CF_BRIDGED_TYPE(id) __SecKeychain *SecKeychainRef;
 typedef struct CF_BRIDGED_TYPE(id) __SecKeychainItem *SecKeychainItemRef;
 typedef struct CF_BRIDGED_TYPE(id) __SecKeychainSearch *SecKeychainSearchRef;
@@ -85,6 +87,9 @@ enum {
 
 /* A sentence for the result code. */
 CFStringRef SecCopyErrorMessageString(OSStatus status, void *reserved);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }

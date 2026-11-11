@@ -94,6 +94,7 @@ typedef NS_ENUM(NSUInteger, WebCacheModel) {
 @property (readonly, getter=isLoading) BOOL loading;
 @property (readonly, strong) WebFrame *webFrame;
 @property (readonly, copy) NSData *data;
+@property (nullable, readonly, copy) NSString *textEncodingName;
 @end
 
 @interface WebFrame : NSObject
@@ -118,6 +119,8 @@ typedef NS_ENUM(NSUInteger, WebCacheModel) {
 @interface WebFrameView : NSView
 @property (readonly, weak) WebFrame *webFrame;
 @property BOOL allowsScrolling;
+/* The view showing the frame's document (the web view draws it). */
+@property (nullable, readonly, strong) NSView *documentView;
 @end
 
 @protocol WebPolicyDecisionListener <NSObject>
@@ -147,8 +150,31 @@ typedef NS_ENUM(NSUInteger, WebCacheModel) {
         request:(NSURLRequest *)request newFrameName:(NSString *)frameName decisionListener:(id<WebPolicyDecisionListener>)listener;
 @end
 
+/* What a file chooser of a page is answered. */
+@protocol WebOpenPanelResultListener <NSObject>
+- (void)chooseFilename:(NSString *)fileName;
+- (void)chooseFilenames:(NSArray<NSString *> *)fileNames;
+- (void)cancel;
+@end
+
+/* The loads of a page's resources (the delegate is told of each). */
+@protocol WebResourceLoadDelegate <NSObject>
+@optional
+- (id)webView:(WebView *)sender identifierForInitialRequest:(NSURLRequest *)request fromDataSource:(WebDataSource *)dataSource;
+- (NSURLRequest *)webView:(WebView *)sender resource:(id)identifier willSendRequest:(NSURLRequest *)request
+          redirectResponse:(nullable NSURLResponse *)redirectResponse fromDataSource:(WebDataSource *)dataSource;
+- (void)webView:(WebView *)sender resource:(id)identifier didReceiveResponse:(NSURLResponse *)response fromDataSource:(WebDataSource *)dataSource;
+- (void)webView:(WebView *)sender resource:(id)identifier didReceiveContentLength:(NSInteger)length fromDataSource:(WebDataSource *)dataSource;
+- (void)webView:(WebView *)sender resource:(id)identifier didFinishLoadingFromDataSource:(WebDataSource *)dataSource;
+- (void)webView:(WebView *)sender resource:(id)identifier didFailLoadingWithError:(NSError *)error fromDataSource:(WebDataSource *)dataSource;
+- (void)webView:(WebView *)sender plugInFailedWithError:(NSError *)error dataSource:(WebDataSource *)dataSource;
+@end
+
 @protocol WebUIDelegate <NSObject>
 @optional
+- (void)webView:(WebView *)sender runOpenPanelForFileButtonWithResultListener:(id<WebOpenPanelResultListener>)resultListener;
+- (void)webView:(WebView *)sender runOpenPanelForFileButtonWithResultListener:(id<WebOpenPanelResultListener>)resultListener
+        allowMultipleFiles:(BOOL)allowMultipleFiles;
 - (nullable WebView *)webView:(WebView *)sender createWebViewWithRequest:(nullable NSURLRequest *)request;
 - (void)webViewShow:(WebView *)sender;
 - (void)webViewClose:(WebView *)sender;

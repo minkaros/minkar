@@ -13,5 +13,6 @@
 #include <CoreServices/CoreServices.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/HIToolbox.h>
+#include <Carbon/Events.h>
 
 #endif

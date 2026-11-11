@@ -1,4 +1,5 @@
 /*
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * Quartz Event Services
  * Copyright (C) 2024-2026 Zoe Knox <zoe@ravynsoft.com>
  *
@@ -128,7 +129,10 @@ typedef enum CGEventFilterMask : uint32_t {
 #define NX_NONCOALSESCEDMASK    0x100  // Don't @ me. Apple spelled it this way.
 #define NX_NONCOALESCEDMASK NX_NONCOALSESCEDMASK
 
-typedef enum CGEventFlags : uint64_t {
+/* Minkar: an integer type with its flags, as CF_OPTIONS declares one, so
+   that C++ can assign it any mask (an enum type does not take them). */
+typedef uint64_t CGEventFlags;
+enum : uint64_t {
     kCGEventFlagMaskAlphaShift = NX_ALPHASHIFTMASK,
     kCGEventFlagMaskShift = NX_SHIFTMASK,
     kCGEventFlagMaskControl = NX_CONTROLMASK,
@@ -138,7 +142,7 @@ typedef enum CGEventFlags : uint64_t {
     kCGEventFlagMaskSecondaryFn = NX_SECONDARYFNMASK,
     kCGEventFlagMaskNumericPad = NX_NUMERICPADMASK,
     kCGEventFlagMaskNonCoalesced = NX_NONCOALSESCEDMASK
-} CGEventFlags;
+};
 
 typedef enum CGEventSourceStateID : int32_t {
     kCGEventSourceStatePrivate = -1,

@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef CFTypeRef SecTransformRef;
 typedef CFTypeRef SecGroupTransformRef;
 
@@ -81,6 +83,9 @@ CF_EXPORT const CFStringRef kSecInputIsPlainText;
 CF_EXPORT const CFStringRef kSecInputIsDigest;
 CF_EXPORT const CFStringRef kSecInputIsRaw;
 SecTransformRef SecVerifyTransformCreate(SecKeyRef key, CFDataRef signature, CFErrorRef *error);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED
 
 #ifdef __cplusplus
 }
