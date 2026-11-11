@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <stdlib.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSData.h>
@@ -88,31 +89,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -initWithObjectsAndKeys:first,... {
-   va_list  arguments;
-   NSUInteger i,count;
-   id      *objects,*keys;
+   va_list    arguments;
+   NSUInteger count=0,capacity=8;
+   id        *objects=malloc(sizeof(id)*capacity),*keys=malloc(sizeof(id)*capacity);
+   id         object=first,result;
 
+   /* Minkar: value and key pairs up to the first nil value (a nil first
+      value is an empty dictionary), as on the reference platform; the
+      count included a nil first value and read past the list's end. */
    va_start(arguments,first);
-   count=1;
-   while(va_arg(arguments,id)!=nil)
+   while(object!=nil){
+    id key=va_arg(arguments,id);
+
+    if(key==nil)
+     break;
+    if(count==capacity){
+     capacity*=2;
+     objects=realloc(objects,sizeof(id)*capacity);
+     keys=realloc(keys,sizeof(id)*capacity);
+    }
+    objects[count]=object;
+    keys[count]=key;
     count++;
-   va_end(arguments);
-
-   objects=__builtin_alloca(sizeof(id)*count/2);
-   keys=__builtin_alloca(sizeof(id)*count/2);
-
-   va_start(arguments,first);
-   objects[0]=first;
-   keys[0]=va_arg(arguments,id);
-
-   for(i=1;i<count/2;i++){
-    objects[i]=va_arg(arguments,id);
-    keys[i]=va_arg(arguments,id);
+    object=va_arg(arguments,id);
    }
-
    va_end(arguments);
 
-   return [self initWithObjects:objects forKeys:keys count:count/2];
+   result=[self initWithObjects:objects forKeys:keys count:count];
+   free(objects);
+   free(keys);
+   return result;
 }
 
 -initWithContentsOfFile:(NSString *)path {
@@ -164,32 +170,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +dictionaryWithObjectsAndKeys:first,... {
-   va_list  arguments;
-   NSUInteger i,count;
-   id      *objects,*keys;
+   va_list    arguments;
+   NSUInteger count=0,capacity=8;
+   id        *objects=malloc(sizeof(id)*capacity),*keys=malloc(sizeof(id)*capacity);
+   id         object=first,result;
 
+   /* Minkar: value and key pairs up to the first nil value (a nil first
+      value is an empty dictionary), as on the reference platform; the
+      count included a nil first value and read past the list's end. */
    va_start(arguments,first);
-   count=1;
-   while(va_arg(arguments,id)!=nil)
+   while(object!=nil){
+    id key=va_arg(arguments,id);
+
+    if(key==nil)
+     break;
+    if(count==capacity){
+     capacity*=2;
+     objects=realloc(objects,sizeof(id)*capacity);
+     keys=realloc(keys,sizeof(id)*capacity);
+    }
+    objects[count]=object;
+    keys[count]=key;
     count++;
-   va_end(arguments);
-
-   objects=__builtin_alloca(sizeof(id)*count/2);
-   keys=__builtin_alloca(sizeof(id)*count/2);
-
-   va_start(arguments,first);
-   objects[0]=first;
-   keys[0]=va_arg(arguments,id);
-
-   for(i=1;i<count/2;i++){
-    objects[i]=va_arg(arguments,id);
-    keys[i]=va_arg(arguments,id);
+    object=va_arg(arguments,id);
    }
-
    va_end(arguments);
 
-   return [[[self allocWithZone:NULL]
-     initWithObjects:objects forKeys:keys count:count/2] autorelease];
+   result=[[[self allocWithZone:NULL] initWithObjects:objects forKeys:keys count:count] autorelease];
+   free(objects);
+   free(keys);
+   return result;
 }
 
 +dictionaryWithObject:object forKey:key {
