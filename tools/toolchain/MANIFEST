@@ -31,5 +31,6 @@ plktool | plktool | Minkar | 76802f1b50ab912027048674e40cd344e191f0ee | -
 xcbuild | xcbuild | darlinghq xcbuild (main) | 9aa9e6a038a8b3209fbad37a3c4647cfaa6460e2 | -
 lzvndecode | lzvndecode | Minkar | 8f6f6c0248a3f1f127fafb47fa1fa6540c91e4df | -
 iig | iig | Minkar | e465e01363a6df55babb7a72afa9d3e51bc1bd5c | -
-codesign | codesign | Minkar | b56f378415178689289a126c6546cbf8760c93a1 | -
-include | include | Apple's open-source headers | 3d689da0efd973b548961f5dd8ca27c6915d8f13 | -
+codesign | codesign | Minkar | 6991a776d495a08b441b25987532d2d7eece5827 | -
+ibtool | ibtool | Minkar | 68c8e35068f827a2eac2619250796c745bcb3523 | -
+include | include | Apple's open-source headers | 7337bacc74dd1bf7812453c6e016069dde21dd6c | -
