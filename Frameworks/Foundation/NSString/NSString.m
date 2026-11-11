@@ -474,7 +474,7 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
 }
 
 +stringWithUTF8String:(const char *)utf8 {
-   return [[[NSString allocWithZone:NULL] initWithUTF8String:utf8] autorelease];
+   return [[[self allocWithZone:NULL] initWithUTF8String:utf8] autorelease]; // Minkar: self, so NSMutableString gives a mutable one;
 }
 
 +localizedStringWithFormat:(NSString *)format,... {

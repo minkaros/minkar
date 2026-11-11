@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Original - Christopher Lloyd <cjwl@objc.net>
 #include <sys/param.h>
+#import <objc/runtime.h>
 #import <Foundation/NSAttributedString.h>
 #import <Foundation/NSMutableAttributedString.h>
 #import <Foundation/NSString.h>
@@ -25,7 +26,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSAllocateObject(self,0,zone);
 }
 
+/* Minkar: an empty string, through initWithString: when the class has
+   one; a subclass with only the primitive methods (string and
+   attributesAtIndex:effectiveRange:, as TextMate's menu titles) is
+   initialised as an object, as on the reference platform, where calling
+   the abstract initWithString: raised. */
 -init {
+   if(class_getMethodImplementation(object_getClass(self),@selector(initWithString:))==
+      class_getMethodImplementation([NSAttributedString class],@selector(initWithString:)))
+    return [super init];
    return [self initWithString:@""];
 }
 
