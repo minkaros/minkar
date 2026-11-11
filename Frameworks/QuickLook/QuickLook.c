@@ -20,6 +20,9 @@ const CFStringRef kQLPreviewOptionCursorKey = CFSTR("Cursor");
 const CFStringRef kQLThumbnailOptionIconModeKey = CFSTR("IconMode");
 const CFStringRef kQLThumbnailOptionScaleFactorKey = CFSTR("QLThumbnailOptionScaleFactor");
 const CFStringRef kQLThumbnailPropertyExtensionKey = CFSTR("QLThumbnailPropertyExtensionKey");
+const CFStringRef kQLPreviewPropertyAttachmentDataKey = CFSTR("AttachmentData");
+const CFStringRef kQLPreviewContentIDScheme = CFSTR("cid");
+const CFStringRef kQLThumbnailPropertyIconFlavorKey = CFSTR("IconFlavor");
 
 /* Both requests: the item, its type, options, the generator, cancelled,
    and the answer (data or an image) with its type and properties. */
@@ -193,4 +196,14 @@ CFDataRef _QLPreviewRequestCopyData(QLPreviewRequestRef p, CFStringRef *contentT
 
 CGImageRef _QLThumbnailRequestCopyImage(QLThumbnailRequestRef t) {
     return CGImageRetain(R(t)->image);
+}
+
+/* Applications: a document's thumbnail. There is no Quick Look host to
+   ask a generator yet. */
+CGImageRef QLThumbnailImageCreate(CFAllocatorRef allocator, CFURLRef url, CGSize maxThumbnailSize, CFDictionaryRef options) {
+    (void)allocator;
+    (void)url;
+    (void)maxThumbnailSize;
+    (void)options;
+    return NULL;
 }

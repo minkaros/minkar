@@ -6,5 +6,7 @@
 
 #import <Quartz/QuickLook.h>
 #ifdef __OBJC__
+/* Quartz's frameworks import QuartzCore, so it comes with Quartz. */
+#import <QuartzCore/QuartzCore.h>
 #import <Quartz/QLPreviewPanel.h>
 #endif

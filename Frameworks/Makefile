@@ -5,7 +5,8 @@
 SUBDIR = CoreFoundation
 # IOKit.framework: it links CoreFoundation, and SystemConfiguration links it.
 SUBDIR += ../Kernel/IOKitUser
-#SUBDIR += CFNetwork
+# CFNetwork: Minkar's subset (the proxy API); the APSL sources wait.
+SUBDIR += CFNetwork/minkar
 SUBDIR += SystemConfiguration
 # DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
 SUBDIR += DiskArbitration
@@ -40,6 +41,8 @@ SUBDIR += ImageIO
 SUBDIR += CoreData
 # CoreVideo (CVDisplayLink, CVTimeStamp): QuartzCore's headers import it.
 SUBDIR += CoreVideo
+# Quick Look's generators (Quartz re-exports it).
+SUBDIR += QuickLook
 SUBDIR += QuartzCore
 SUBDIR += AppKit
 # Security: Minkar's own subset for now (the APSL sources beside it are
@@ -61,6 +64,8 @@ SUBDIR += UniformTypeIdentifiers
 SUBDIR += Cocoa
 # System Preferences' panes.
 SUBDIR += PreferencePanes
+# How a program logs and handles exceptions; Quick Look's generators.
+SUBDIR += ExceptionHandling
 # Swift's runtime (/usr/lib/swift) and its test program, from Libraries/swift:
 # built here because its Objective-C parts include Foundation's headers
 # (and through NSGeometry.h, CoreGraphics').
@@ -85,10 +90,11 @@ Foundation: CoreFoundation ../BSD/lib/libcompression CoreServices
 CoreText: CoreText/xz CoreGraphics Foundation Onyx2D
 IOSurface: CoreFoundation ../Kernel/IOKitUser
 ../Kernel/IOKitUser: CoreFoundation
+CFNetwork/minkar: CoreFoundation
 CoreServices/LaunchServices: CoreFoundation
 Onyx2D: CoreFoundation Foundation
 CoreGraphics: CoreFoundation IOSurface Onyx2D OpenGL ../PrivateFrameworks/SkyLight
-CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE
+CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE CFNetwork/minkar
 CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
@@ -104,12 +110,14 @@ AddressBook: Foundation
 AudioToolbox: CoreFoundation
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
-Quartz: AppKit
+Quartz: AppKit QuickLook
 UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
+ExceptionHandling: Foundation
+QuickLook: CoreGraphics CoreFoundation
 ../Libraries/swift: CoreFoundation CoreGraphics Foundation
 ../Libraries/swift/tests: ../Libraries/swift
 Combine: ../Libraries/swift
