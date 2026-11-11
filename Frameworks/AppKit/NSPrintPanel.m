@@ -47,3 +47,20 @@
 
 NSString *const NSPrintPanelAccessorySummaryItemNameKey = @"NSPrintPanelAccessorySummaryItemName";
 NSString *const NSPrintPanelAccessorySummaryItemDescriptionKey = @"NSPrintPanelAccessorySummaryItemDescription";
+
+#import <objc/runtime.h>
+static char accessoriesKey;
+
+@implementation NSPrintPanel (MinkarAccessories)
+-(NSMutableArray *)_accessories {
+   NSMutableArray *list=objc_getAssociatedObject(self,&accessoriesKey);
+   if(list==nil){
+    list=[NSMutableArray array];
+    objc_setAssociatedObject(self,&accessoriesKey,list,OBJC_ASSOCIATION_RETAIN);
+   }
+   return list;
+}
+-(void)addAccessoryController:(NSViewController *)controller { if(controller) [[self _accessories] addObject:controller]; }
+-(void)removeAccessoryController:(NSViewController *)controller { [[self _accessories] removeObjectIdenticalTo:controller]; }
+-(NSArray *)accessoryControllers { return [NSArray arrayWithArray:[self _accessories]]; }
+@end

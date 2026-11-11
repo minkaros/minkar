@@ -156,4 +156,4 @@ APPKIT_EXPORT const NSFontWeight NSFontWeightBlack;
 
 @end
 
-int NSConvertGlyphsToPackedGlyphs(NSGlyph *glyphs, int length, NSMultibyteGlyphPacking packing, char *output);
+APPKIT_EXPORT int NSConvertGlyphsToPackedGlyphs(NSGlyph *glyphs, int length, NSMultibyteGlyphPacking packing, char *output);

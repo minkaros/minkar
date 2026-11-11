@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSControl.h>
 
-@class NSMatrix, NSScroller;
+@class NSMatrix, NSScroller, NSViewController, NSIndexSet, NSNotification;
 
 @interface NSBrowser : NSControl {
     id _target;
@@ -125,6 +126,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @property CGFloat defaultColumnWidth;
 @property (copy) NSString *columnsAutosaveName;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isTitled) BOOL titled;
 @end
 
 @interface NSObject (NSBrowser_delegate)
@@ -143,4 +146,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void)browser:(NSBrowser *)browser willDisplayCell:cell atRow:(NSInteger)row column:(NSInteger)column;
 
+@end
+
+/* Minkar: the formal delegate protocol (API 10.6). */
+@protocol NSBrowserDelegate <NSObject>
+@optional
+- (NSInteger)browser:(NSBrowser *)sender numberOfRowsInColumn:(NSInteger)column;
+- (void)browser:(NSBrowser *)sender createRowsForColumn:(NSInteger)column inMatrix:(NSMatrix *)matrix;
+- (NSInteger)browser:(NSBrowser *)browser numberOfChildrenOfItem:(id)item;
+- (id)browser:(NSBrowser *)browser child:(NSInteger)index ofItem:(id)item;
+- (BOOL)browser:(NSBrowser *)browser isLeafItem:(id)item;
+- (id)browser:(NSBrowser *)browser objectValueForItem:(id)item;
+- (CGFloat)browser:(NSBrowser *)browser heightOfRow:(NSInteger)row inColumn:(NSInteger)columnIndex;
+- (id)rootItemForBrowser:(NSBrowser *)browser;
+- (void)browser:(NSBrowser *)sender willDisplayCell:(id)cell atRow:(NSInteger)row column:(NSInteger)column;
+- (NSString *)browser:(NSBrowser *)sender titleOfColumn:(NSInteger)column;
+- (BOOL)browser:(NSBrowser *)sender selectRow:(NSInteger)row inColumn:(NSInteger)column;
+- (BOOL)browser:(NSBrowser *)sender isColumnValid:(NSInteger)column;
+- (void)browserWillScroll:(NSBrowser *)sender;
+- (void)browserDidScroll:(NSBrowser *)sender;
+- (CGFloat)browser:(NSBrowser *)browser shouldSizeColumn:(NSInteger)columnIndex forUserResize:(BOOL)forUserResize toWidth:(CGFloat)suggestedWidth;
+- (CGFloat)browser:(NSBrowser *)browser sizeToFitWidthOfColumn:(NSInteger)columnIndex;
+- (void)browserColumnConfigurationDidChange:(NSNotification *)notification;
+- (NSViewController *)browser:(NSBrowser *)browser previewViewControllerForLeafItem:(id)item;
+- (NSViewController *)browser:(NSBrowser *)browser headerViewControllerForItem:(id)item;
+- (void)browser:(NSBrowser *)browser didChangeLastColumn:(NSInteger)oldLastColumn toColumn:(NSInteger)column;
+- (NSIndexSet *)browser:(NSBrowser *)browser selectionIndexesForProposedSelection:(NSIndexSet *)proposedSelectionIndexes inColumn:(NSInteger)column;
+@end
+
+/* Minkar: how the browser's columns resize, and whether its scroller
+   hides by itself (API 10.3). */
+typedef NS_ENUM(NSUInteger, NSBrowserColumnResizingType) {
+    NSBrowserNoColumnResizing = 0,
+    NSBrowserAutoColumnResizing = 1,
+    NSBrowserUserColumnResizing = 2,
+};
+
+@interface NSBrowser (MinkarBrowserExtras)
+@property NSBrowserColumnResizingType columnResizingType;
+@property BOOL autohidesScroller;
 @end

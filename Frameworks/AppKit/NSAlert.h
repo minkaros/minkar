@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -7,14 +8,19 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <AppKit/NSApplication.h>
 
 @class NSButton, NSImage, NSArray, NSWindow, NSError, NSView, NSMutableArray;
 
-typedef enum {
-    NSWarningAlertStyle,
-    NSInformationalAlertStyle,
-    NSCriticalAlertStyle,
-} NSAlertStyle;
+/* Minkar: the names of API 10.12 (NSAlertStyle*) beside the older ones. */
+typedef NS_ENUM(NSUInteger, NSAlertStyle) {
+    NSAlertStyleWarning = 0,
+    NSAlertStyleInformational = 1,
+    NSAlertStyleCritical = 2,
+    NSWarningAlertStyle = NSAlertStyleWarning,
+    NSInformationalAlertStyle = NSAlertStyleInformational,
+    NSCriticalAlertStyle = NSAlertStyleCritical,
+};
 
 enum {
     NSAlertFirstButtonReturn = 1000,
@@ -39,6 +45,7 @@ enum {
     BOOL _needsLayout;
     id _sheetDelegate;
     SEL _sheetDidEnd;
+    void (^_sheetHandler)(NSModalResponse);
 }
 
 + (NSAlert *)alertWithError:(NSError *)error;
@@ -72,6 +79,9 @@ enum {
 - (void)layout;
 
 - (void)beginSheetModalForWindow:(NSWindow *)window modalDelegate:delegate didEndSelector:(SEL)selector contextInfo:(void *)info;
+/* The alert as a sheet of window; handler gets the button's response
+   (API 10.9). */
+- (void)beginSheetModalForWindow:(NSWindow *)window completionHandler:(void (^)(NSModalResponse returnCode))handler;
 - (NSInteger)runModal;
 
 @end

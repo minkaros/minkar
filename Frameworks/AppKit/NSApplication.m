@@ -121,7 +121,7 @@ static NSAppearance *applicationAppearance;
    return (applicationAppearance!=nil)?applicationAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua];
 }
 
-id NSApp=nil;
+__kindof NSApplication *NSApp=nil;
 
 +(NSApplication *)sharedApplication {
 

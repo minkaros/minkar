@@ -441,6 +441,11 @@ static NSString *iconPath(NSString *name) {
        @"prefs/system-users.png",@"NSUserGuest",
        @"apps/ColorPicker.png",@"NSColorPanel",
        @"apps/Fonts.png",@"NSFontPanel",
+       /* The standard toolbar items' images (Atlas's icons). */
+       @"actions/document-print.png",@"NSToolbarPrintItem",
+       @"apps/ColorPicker.png",@"NSToolbarShowColorsItem",
+       @"apps/Fonts.png",@"NSToolbarShowFontsItem",
+       @"actions/document-properties.png",@"NSToolbarCustomizeToolbarItem",
        nil];
    NSString *relative=[paths objectForKey:name];
 
@@ -479,6 +484,9 @@ NSImage *_NSStandardImageNamed(NSString *name) {
 
     if(path!=nil && [[NSFileManager defaultManager] fileExistsAtPath:path])
      image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+    /* A toolbar item's image is of a toolbar's size. */
+    if(image!=nil && [name hasPrefix:@"NSToolbar"])
+     [image setSize:NSMakeSize(32,32)];
    }
 
    if(image!=nil)

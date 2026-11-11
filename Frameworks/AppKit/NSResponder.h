@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -58,6 +59,108 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)rightMouseDragged:(NSEvent *)event;
 
 @end
+
+/* Minkar: the responder actions key bindings send (API 10.11), as a
+   protocol; NSResponder implements the ones it handles. */
+@protocol NSStandardKeyBindingResponding <NSObject>
+@optional
+- (void)insertText:(id)insertString;
+- (void)doCommandBySelector:(SEL)selector;
+- (void)moveForward:(id)sender;
+- (void)moveRight:(id)sender;
+- (void)moveBackward:(id)sender;
+- (void)moveLeft:(id)sender;
+- (void)moveUp:(id)sender;
+- (void)moveDown:(id)sender;
+- (void)moveWordForward:(id)sender;
+- (void)moveWordBackward:(id)sender;
+- (void)moveToBeginningOfLine:(id)sender;
+- (void)moveToEndOfLine:(id)sender;
+- (void)moveToBeginningOfParagraph:(id)sender;
+- (void)moveToEndOfParagraph:(id)sender;
+- (void)moveToEndOfDocument:(id)sender;
+- (void)moveToBeginningOfDocument:(id)sender;
+- (void)pageDown:(id)sender;
+- (void)pageUp:(id)sender;
+- (void)centerSelectionInVisibleArea:(id)sender;
+- (void)moveBackwardAndModifySelection:(id)sender;
+- (void)moveForwardAndModifySelection:(id)sender;
+- (void)moveWordForwardAndModifySelection:(id)sender;
+- (void)moveWordBackwardAndModifySelection:(id)sender;
+- (void)moveUpAndModifySelection:(id)sender;
+- (void)moveDownAndModifySelection:(id)sender;
+- (void)moveToBeginningOfLineAndModifySelection:(id)sender;
+- (void)moveToEndOfLineAndModifySelection:(id)sender;
+- (void)moveToBeginningOfParagraphAndModifySelection:(id)sender;
+- (void)moveToEndOfParagraphAndModifySelection:(id)sender;
+- (void)moveToEndOfDocumentAndModifySelection:(id)sender;
+- (void)moveToBeginningOfDocumentAndModifySelection:(id)sender;
+- (void)pageDownAndModifySelection:(id)sender;
+- (void)pageUpAndModifySelection:(id)sender;
+- (void)moveParagraphForwardAndModifySelection:(id)sender;
+- (void)moveParagraphBackwardAndModifySelection:(id)sender;
+- (void)moveWordRight:(id)sender;
+- (void)moveWordLeft:(id)sender;
+- (void)moveRightAndModifySelection:(id)sender;
+- (void)moveLeftAndModifySelection:(id)sender;
+- (void)moveWordRightAndModifySelection:(id)sender;
+- (void)moveWordLeftAndModifySelection:(id)sender;
+- (void)moveToLeftEndOfLine:(id)sender;
+- (void)moveToRightEndOfLine:(id)sender;
+- (void)moveToLeftEndOfLineAndModifySelection:(id)sender;
+- (void)moveToRightEndOfLineAndModifySelection:(id)sender;
+- (void)scrollPageUp:(id)sender;
+- (void)scrollPageDown:(id)sender;
+- (void)scrollLineUp:(id)sender;
+- (void)scrollLineDown:(id)sender;
+- (void)scrollToBeginningOfDocument:(id)sender;
+- (void)scrollToEndOfDocument:(id)sender;
+- (void)transpose:(id)sender;
+- (void)transposeWords:(id)sender;
+- (void)selectAll:(id)sender;
+- (void)selectParagraph:(id)sender;
+- (void)selectLine:(id)sender;
+- (void)selectWord:(id)sender;
+- (void)indent:(id)sender;
+- (void)insertTab:(id)sender;
+- (void)insertBacktab:(id)sender;
+- (void)insertNewline:(id)sender;
+- (void)insertParagraphSeparator:(id)sender;
+- (void)insertNewlineIgnoringFieldEditor:(id)sender;
+- (void)insertTabIgnoringFieldEditor:(id)sender;
+- (void)insertLineBreak:(id)sender;
+- (void)insertContainerBreak:(id)sender;
+- (void)insertSingleQuoteIgnoringSubstitution:(id)sender;
+- (void)insertDoubleQuoteIgnoringSubstitution:(id)sender;
+- (void)changeCaseOfLetter:(id)sender;
+- (void)uppercaseWord:(id)sender;
+- (void)lowercaseWord:(id)sender;
+- (void)capitalizeWord:(id)sender;
+- (void)deleteForward:(id)sender;
+- (void)deleteBackward:(id)sender;
+- (void)deleteBackwardByDecomposingPreviousCharacter:(id)sender;
+- (void)deleteWordForward:(id)sender;
+- (void)deleteWordBackward:(id)sender;
+- (void)deleteToBeginningOfLine:(id)sender;
+- (void)deleteToEndOfLine:(id)sender;
+- (void)deleteToBeginningOfParagraph:(id)sender;
+- (void)deleteToEndOfParagraph:(id)sender;
+- (void)yank:(id)sender;
+- (void)complete:(id)sender;
+- (void)setMark:(id)sender;
+- (void)deleteToMark:(id)sender;
+- (void)selectToMark:(id)sender;
+- (void)swapWithMark:(id)sender;
+- (void)cancelOperation:(id)sender;
+- (void)makeBaseWritingDirectionNatural:(id)sender;
+- (void)makeBaseWritingDirectionLeftToRight:(id)sender;
+- (void)makeBaseWritingDirectionRightToLeft:(id)sender;
+- (void)makeTextWritingDirectionNatural:(id)sender;
+- (void)makeTextWritingDirectionLeftToRight:(id)sender;
+- (void)makeTextWritingDirectionRightToLeft:(id)sender;
+- (void)quickLookPreviewItems:(id)sender;
+@end
+
 
 @interface NSResponder (NSResponder_keyBindings)
 
@@ -154,4 +257,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)moveToEndOfDocumentAndModifySelection:sender; // n.b.:
 - (void)moveToBeginningOfDocumentAndModifySelection:sender; // these aren't in OSX (can't hurt)
 
+@end
+
+/* Minkar: state restoration's calls (API 10.7). Windows save their
+   responders' state; until Minkar restores it, these keep nothing. */
+@interface NSResponder (MinkarRestorableState)
+- (void)encodeRestorableStateWithCoder:(NSCoder *)coder;
+- (void)restoreStateWithCoder:(NSCoder *)coder;
+- (void)invalidateRestorableState;
++ (NSArray<NSString *> *)restorableStateKeyPaths;
 @end

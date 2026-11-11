@@ -3827,3 +3827,16 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
             *right=0;
     }
 }
+
+@implementation NSWindow (MinkarWindowExtras)
+-(instancetype)animator { return self; }
+-(NSDictionary *)animations { return [NSDictionary dictionary]; }
+-(void)setAnimations:(NSDictionary *)animations { }
+-animationForKey:(NSString *)key { return nil; }
++defaultAnimationForKey:(NSString *)key { return nil; }
+-(CGFloat)backingScaleFactor {
+   NSScreen *screen=[self screen]?[self screen]:[NSScreen mainScreen];
+   CGFloat scale=[screen backingScaleFactor];
+   return scale>0?scale:1;
+}
+@end

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -352,4 +353,15 @@ static NSPrintOperation *_currentOperation=nil;
    return YES;
 }
 
+@end
+
+@implementation NSPrintOperation (MinkarSheet)
+-(void)runOperationModalForWindow:(NSWindow *)docWindow delegate:(id)delegate didRunSelector:(SEL)didRunSelector contextInfo:(void *)contextInfo {
+   BOOL success=[self runOperation];
+   if(delegate && didRunSelector){
+    typedef void (*didRun)(id,SEL,NSPrintOperation *,BOOL,void *);
+    didRun function=(didRun)[delegate methodForSelector:didRunSelector];
+    function(delegate,didRunSelector,self,success,contextInfo);
+   }
+}
 @end

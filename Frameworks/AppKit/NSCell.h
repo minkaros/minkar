@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSParagraphStyle.h>
 
-@class NSFont, NSImage, NSView;
+@class NSFont, NSImage, NSView, NSMenu, NSEvent;
 
 typedef enum {
     NSNullCellType,
@@ -62,11 +63,16 @@ static const NSControlStateValue NSControlStateValueMixed = -1;
 static const NSControlStateValue NSControlStateValueOff = 0;
 static const NSControlStateValue NSControlStateValueOn = 1;
 
-typedef enum {
-    NSRegularControlSize,
-    NSSmallControlSize,
-    NSMiniControlSize
-} NSControlSize;
+/* Minkar: the names of API 10.12 (NSControlSize*) beside the older ones. */
+typedef NS_ENUM(NSUInteger, NSControlSize) {
+    NSControlSizeRegular = 0,
+    NSControlSizeSmall = 1,
+    NSControlSizeMini = 2,
+    NSControlSizeLarge = 3,
+    NSRegularControlSize = NSControlSizeRegular,
+    NSSmallControlSize = NSControlSizeSmall,
+    NSMiniControlSize = NSControlSizeMini,
+};
 
 typedef NSUInteger NSControlTint;
 
@@ -264,6 +270,23 @@ enum {
 - (void)setSendsActionOnEndEditing:(BOOL)flag;
 - (BOOL)sendsActionOnEndEditing;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isBezeled) BOOL bezeled;
+@property (getter=isBordered) BOOL bordered;
+@property (getter=isContinuous) BOOL continuous;
+@property (getter=isEditable) BOOL editable;
+@property (getter=isEnabled) BOOL enabled;
+@property (getter=isHighlighted) BOOL highlighted;
+@property (getter=isScrollable) BOOL scrollable;
+@property (getter=isSelectable) BOOL selectable;
 @end
 
-void NSDrawThreePartImage(NSRect frame, NSImage *startCap, NSImage *centerFill, NSImage *endCap, BOOL vertical, NSCompositingOperation operation, CGFloat alpha, BOOL flipped);
+/* Minkar: the events a cell sends its action on, and its contextual menu. */
+@interface NSCell (MinkarCellExtras)
+- (NSInteger)sendActionOn:(NSInteger)mask;
+@property (strong) NSMenu *menu;
+- (NSMenu *)menuForEvent:(NSEvent *)event inRect:(NSRect)cellFrame ofView:(NSView *)view;
+@property BOOL allowsExpansionToolTips;
+@end
+
+APPKIT_EXPORT void NSDrawThreePartImage(NSRect frame, NSImage *startCap, NSImage *centerFill, NSImage *endCap, BOOL vertical, NSCompositingOperation operation, CGFloat alpha, BOOL flipped);

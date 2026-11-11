@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
                  2009 Markus Hitter <mah@jump-ing.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -34,8 +35,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSControl.h>
 #import <AppKit/NSDragging.h>
+#import <AppKit/NSDraggingItem.h>
 
-@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib, NSImage;
+@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib, NSImage, NSSortDescriptor;
 
 APPKIT_EXPORT NSString *const NSTableViewSelectionIsChangingNotification;
 APPKIT_EXPORT NSString *const NSTableViewSelectionDidChangeNotification;
@@ -256,7 +258,7 @@ typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
 - (NSIndexSet *)selectedRowIndexes;
 - (void)selectRowIndexes:(NSIndexSet *)indexes byExtendingSelection:(BOOL)extend;
 
-- (NSArray *)sortDescriptors;
+- (NSArray<NSSortDescriptor *> *)sortDescriptors;
 - (void)setSortDescriptors:(NSArray *)value;
 
 /* View-based tables: the delegate gives a view for each cell
@@ -339,4 +341,24 @@ typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
 - (void)tableViewSelectionDidChange:(NSNotification *)note;
 - (void)tableViewColumnDidMove:(NSNotification *)note;
 - (void)tableViewColumnDidResize:(NSNotification *)note;
+@end
+
+/* Minkar: the table's style (API 11.0) and the dragging source's
+   operations (API 10.4, 10.7). */
+typedef NS_ENUM(NSInteger, NSTableViewStyle) {
+    NSTableViewStyleAutomatic = 0,
+    NSTableViewStyleFullWidth = 1,
+    NSTableViewStyleInset = 2,
+    NSTableViewStyleSourceList = 3,
+    NSTableViewStylePlain = 4,
+};
+
+@interface NSTableView (MinkarTableExtras)
+@property NSTableViewStyle style;
+@property (readonly) NSTableViewStyle effectiveStyle;
+- (void)setDraggingSourceOperationMask:(NSDragOperation)mask forLocal:(BOOL)isLocal;
+- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal;
+- (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context;
+- (void)draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint;
+- (void)draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation;
 @end

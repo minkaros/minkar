@@ -90,3 +90,14 @@ enum {
 @property BOOL showsHiddenFiles;
 
 @end
+
+/* Minkar: the formal delegate protocol (API 10.6). */
+@protocol NSOpenSavePanelDelegate <NSObject>
+@optional
+- (BOOL)panel:(id)sender shouldEnableURL:(NSURL *)url;
+- (BOOL)panel:(id)sender validateURL:(NSURL *)url error:(NSError **)outError;
+- (void)panel:(id)sender didChangeToDirectoryURL:(NSURL *)url;
+- (NSString *)panel:(id)sender userEnteredFilename:(NSString *)filename confirmed:(BOOL)okFlag;
+- (void)panel:(id)sender willExpand:(BOOL)expanding;
+- (void)panelSelectionDidChange:(id)sender;
+@end

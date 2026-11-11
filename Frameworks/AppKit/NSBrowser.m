@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -936,4 +937,21 @@ static char columnsAutosaveNameKey;
    objc_setAssociatedObject(self,&columnsAutosaveNameKey,value,OBJC_ASSOCIATION_RETAIN);
 }
 
+@end
+
+#import <objc/runtime.h>
+static char resizingKey, autohidesKey;
+
+@implementation NSBrowser (MinkarBrowserExtras)
+-(NSBrowserColumnResizingType)columnResizingType {
+   NSNumber *type=objc_getAssociatedObject(self,&resizingKey);
+   return type?[type unsignedIntegerValue]:NSBrowserAutoColumnResizing;
+}
+-(void)setColumnResizingType:(NSBrowserColumnResizingType)type {
+   objc_setAssociatedObject(self,&resizingKey,[NSNumber numberWithUnsignedInteger:type],OBJC_ASSOCIATION_RETAIN);
+}
+-(BOOL)autohidesScroller { return [objc_getAssociatedObject(self,&autohidesKey) boolValue]; }
+-(void)setAutohidesScroller:(BOOL)flag {
+   objc_setAssociatedObject(self,&autohidesKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
+}
 @end

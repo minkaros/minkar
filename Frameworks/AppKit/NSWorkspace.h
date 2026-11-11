@@ -202,3 +202,14 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (BOOL)isFileHiddenAtPath:(NSString *)path;
 
 @end
+
+/* Minkar: assistive technologies' state (API 10.13): Minkar has none
+   running yet. */
+@interface NSWorkspace (MinkarAccessibilityDisplay)
+@property (readonly, getter=isVoiceOverEnabled) BOOL voiceOverEnabled;
+@property (readonly, getter=isSwitchControlEnabled) BOOL switchControlEnabled;
+@property (readonly) BOOL accessibilityDisplayShouldIncreaseContrast;
+@property (readonly) BOOL accessibilityDisplayShouldReduceTransparency;
+@property (readonly) BOOL accessibilityDisplayShouldReduceMotion;
+@property (readonly) BOOL accessibilityDisplayShouldInvertColors;
+@end

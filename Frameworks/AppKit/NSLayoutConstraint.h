@@ -164,4 +164,9 @@ APPKIT_EXPORT const CGFloat NSViewNoIntrinsicMetric;
 - (void)layoutIfNeeded;
 @end
 
+/* Minkar: a constraint's animator; its constant changes at once. */
+@interface NSLayoutConstraint (MinkarAnimator) <NSAnimatablePropertyContainer>
+- (instancetype)animator;
+@end
+
 NS_ASSUME_NONNULL_END

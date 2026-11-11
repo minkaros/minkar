@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -23,6 +24,15 @@ APPKIT_EXPORT NSString *const NSMenuDidChangeItemNotification;
 APPKIT_EXPORT NSString *const NSMenuDidBeginTrackingNotification;
 APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 
+typedef NS_OPTIONS(NSUInteger, NSMenuProperties) {
+    NSMenuPropertyItemTitle = 1 << 0,
+    NSMenuPropertyItemAttributedTitle = 1 << 1,
+    NSMenuPropertyItemKeyEquivalent = 1 << 2,
+    NSMenuPropertyItemImage = 1 << 3,
+    NSMenuPropertyItemEnabled = 1 << 4,
+    NSMenuPropertyItemAccessibilityDescription = 1 << 5,
+};
+
 @interface NSMenu : NSObject <NSCopying> {
     NSMenu *_supermenu;
     NSString *_title;
@@ -44,7 +54,7 @@ APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 /* The menu bar's height for the application's main menu, else 0. */
 - (CGFloat)menuBarHeight;
 - (NSInteger)numberOfItems;
-- (NSArray *)itemArray;
+- (NSArray<NSMenuItem *> *)itemArray;
 - (BOOL)autoenablesItems;
 
 - (NSMenuItem *)itemAtIndex:(NSInteger)index;
@@ -88,6 +98,16 @@ APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 - (void)cancelTrackingWithoutAnimation;
 - (void)performActionForItemAtIndex:(NSInteger)index;
 - (void)submenuAction:(id)sender;
+
+/* Minkar: the menu's font, the item it highlights, the properties a
+   delegate's menuNeedsUpdate: should update (API 10.6), and the size it
+   would have. */
+@property (strong) NSFont *font;
+@property (readonly, assign) NSMenuItem *highlightedItem;
+@property (readonly) NSMenuProperties propertiesToUpdate;
+@property (readonly) NSSize size;
+@property CGFloat minimumWidth;
+@property BOOL showsStateColumn;
 
 @end
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -1033,3 +1034,22 @@ static NSString *NSStringFromCellType(NSCellType type) {
 void NSDrawThreePartImage(NSRect frame,NSImage *startCap,NSImage *centerFill,NSImage *endCap,BOOL vertical,NSCompositingOperation operation,CGFloat alpha,BOOL flipped) {
    NSUnimplementedFunction();
 }
+
+#import <objc/runtime.h>
+static char sendMaskKey, menuKey, expansionKey;
+
+@implementation NSCell (MinkarCellExtras)
+-(NSInteger)sendActionOn:(NSInteger)mask {
+   NSNumber *old=objc_getAssociatedObject(self,&sendMaskKey);
+   objc_setAssociatedObject(self,&sendMaskKey,[NSNumber numberWithInteger:mask],OBJC_ASSOCIATION_RETAIN);
+   [self setContinuous:(mask&NSPeriodicMask)?YES:[self isContinuous]];
+   return old?[old integerValue]:NSLeftMouseUpMask;
+}
+-(NSMenu *)menu { return objc_getAssociatedObject(self,&menuKey); }
+-(void)setMenu:(NSMenu *)menu { objc_setAssociatedObject(self,&menuKey,menu,OBJC_ASSOCIATION_RETAIN); }
+-(NSMenu *)menuForEvent:(NSEvent *)event inRect:(NSRect)cellFrame ofView:(NSView *)view { return [self menu]; }
+-(BOOL)allowsExpansionToolTips { return [objc_getAssociatedObject(self,&expansionKey) boolValue]; }
+-(void)setAllowsExpansionToolTips:(BOOL)flag {
+   objc_setAssociatedObject(self,&expansionKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
+}
+@end

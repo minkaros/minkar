@@ -559,3 +559,68 @@ AX_WEAK(accessibilityParent,setAccessibilityParent,@"parent")
 }
 
 @end
+
+/* Minkar: the older API, as the reference platform maps it onto the
+   properties (it was only declared). */
+@implementation NSObject (NSAccessibility)
+
+-(NSArray *)accessibilityAttributeNames {
+   return [NSArray arrayWithObjects:NSAccessibilityRoleAttribute,NSAccessibilityRoleDescriptionAttribute,
+      NSAccessibilitySubroleAttribute,NSAccessibilityTitleAttribute,NSAccessibilityValueAttribute,
+      NSAccessibilityHelpAttribute,NSAccessibilityParentAttribute,NSAccessibilityChildrenAttribute,
+      NSAccessibilityEnabledAttribute,NSAccessibilityFocusedAttribute,NSAccessibilityPositionAttribute,
+      NSAccessibilitySizeAttribute,nil];
+}
+
+-accessibilityAttributeValue:(NSString *)attribute {
+   if([attribute isEqualToString:NSAccessibilityRoleAttribute]) return [self accessibilityRole];
+   if([attribute isEqualToString:NSAccessibilityRoleDescriptionAttribute]) return [self accessibilityRoleDescription];
+   if([attribute isEqualToString:NSAccessibilitySubroleAttribute]) return [self accessibilitySubrole];
+   if([attribute isEqualToString:NSAccessibilityTitleAttribute]) return [self accessibilityTitle];
+   if([attribute isEqualToString:NSAccessibilityValueAttribute]) return [self accessibilityValue];
+   if([attribute isEqualToString:NSAccessibilityHelpAttribute]) return [self accessibilityHelp];
+   if([attribute isEqualToString:NSAccessibilityDescriptionAttribute]) return [self accessibilityLabel];
+   if([attribute isEqualToString:NSAccessibilityParentAttribute]) return [self accessibilityParent];
+   if([attribute isEqualToString:NSAccessibilityChildrenAttribute]) return [self accessibilityChildren];
+   if([attribute isEqualToString:NSAccessibilityEnabledAttribute]) return [NSNumber numberWithBool:[self isAccessibilityEnabled]];
+   if([attribute isEqualToString:NSAccessibilityFocusedAttribute]) return [NSNumber numberWithBool:[self isAccessibilityFocused]];
+   if([attribute isEqualToString:NSAccessibilityPositionAttribute]) return [NSValue valueWithPoint:[self accessibilityFrame].origin];
+   if([attribute isEqualToString:NSAccessibilitySizeAttribute]) return [NSValue valueWithSize:[self accessibilityFrame].size];
+   return nil;
+}
+
+-(BOOL)accessibilityIsAttributeSettable:(NSString *)attribute {
+   return [attribute isEqualToString:NSAccessibilityFocusedAttribute];
+}
+
+-(void)accessibilitySetValue:(id)value forAttribute:(NSString *)attribute {
+   if([attribute isEqualToString:NSAccessibilityFocusedAttribute])
+    [self setAccessibilityFocused:[value boolValue]];
+}
+
+-(NSArray *)accessibilityParameterizedAttributeNames { return [NSArray array]; }
+-accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter { return nil; }
+-(NSArray *)accessibilityActionNames { return [NSArray array]; }
+-(NSString *)accessibilityActionDescription:(NSString *)action { return nil; }
+-(void)accessibilityPerformAction:(NSString *)action { }
+-(BOOL)accessibilityIsIgnored { return NO; }
+-accessibilityHitTest:(NSPoint)point { return self; }
+-accessibilityFocusedUIElement { return self; }
+
+-(NSUInteger)accessibilityIndexOfChild:(id)child {
+   return [[self accessibilityChildren] indexOfObjectIdenticalTo:child];
+}
+
+-(NSUInteger)accessibilityArrayAttributeCount:(NSString *)attribute {
+   id value=[self accessibilityAttributeValue:attribute];
+   return [value isKindOfClass:[NSArray class]]?[value count]:0;
+}
+
+-(NSArray *)accessibilityArrayAttributeValues:(NSString *)attribute index:(NSUInteger)index maxCount:(NSUInteger)maxCount {
+   id value=[self accessibilityAttributeValue:attribute];
+   if(![value isKindOfClass:[NSArray class]] || index>=[value count])
+    return [NSArray array];
+   return [value subarrayWithRange:NSMakeRange(index,MIN(maxCount,[value count]-index))];
+}
+
+@end

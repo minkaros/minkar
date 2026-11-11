@@ -13,6 +13,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSScreen.h>
+#import <AppKit/NSFont.h>
+#import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSAttributedString.h>
 #import "NSMenuWindow.h"
 #import "NSMenuView.h"
 #import <CoreGraphics/CGDirectDisplay.h>
@@ -577,6 +580,63 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 
 /* The action of items with a submenu: opening it is the menu's. */
 -(void)submenuAction:(id)sender {
+}
+
+@end
+
+/* Minkar: font, highlighted item, properties to update, size (kept
+   beside the menu; the menu bar and menu windows draw with their own). */
+#import <objc/runtime.h>
+static char fontKey, minimumWidthKey, stateColumnKey;
+
+@implementation NSMenu (MinkarMenuExtras)
+
+-(NSFont *)font {
+   NSFont *font=objc_getAssociatedObject(self,&fontKey);
+   return font?font:[NSFont menuFontOfSize:0];
+}
+
+-(void)setFont:(NSFont *)font {
+   objc_setAssociatedObject(self,&fontKey,font,OBJC_ASSOCIATION_RETAIN);
+}
+
+-(NSMenuItem *)highlightedItem {
+   return nil;
+}
+
+-(NSMenuProperties)propertiesToUpdate {
+   return NSMenuPropertyItemTitle|NSMenuPropertyItemAttributedTitle|NSMenuPropertyItemKeyEquivalent|
+      NSMenuPropertyItemImage|NSMenuPropertyItemEnabled|NSMenuPropertyItemAccessibilityDescription;
+}
+
+-(NSSize)size {
+   NSFont  *font=[self font];
+   CGFloat  width=[self minimumWidth],height=0;
+
+   for(NSMenuItem *item in [self itemArray]){
+    if([item isHidden])
+     continue;
+    height+=[item isSeparatorItem]?12:[font defaultLineHeightForFont]+4;
+    width=MAX(width,[[item title] sizeWithAttributes:[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]].width+60);
+   }
+   return NSMakeSize(width,height+8);
+}
+
+-(CGFloat)minimumWidth {
+   return [objc_getAssociatedObject(self,&minimumWidthKey) doubleValue];
+}
+
+-(void)setMinimumWidth:(CGFloat)width {
+   objc_setAssociatedObject(self,&minimumWidthKey,[NSNumber numberWithDouble:width],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(BOOL)showsStateColumn {
+   NSNumber *value=objc_getAssociatedObject(self,&stateColumnKey);
+   return value?[value boolValue]:YES;
+}
+
+-(void)setShowsStateColumn:(BOOL)flag {
+   objc_setAssociatedObject(self,&stateColumnKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

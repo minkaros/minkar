@@ -15,6 +15,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 APPKIT_EXPORT NSString *const NSNibOwner;
 APPKIT_EXPORT NSString *const NSNibTopLevelObjects;
 
+/* A nib's name (API 10.13's type for it). */
+typedef NSString *NSNibName;
+
 @interface NSNib : NSObject {
     NSData *_data;
     NSMutableArray *_allObjects;

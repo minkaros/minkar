@@ -888,3 +888,11 @@ static NSDictionary *launchConfigurationOfConfiguration(NSWorkspaceOpenConfigura
 
 @end
 
+@implementation NSWorkspace (MinkarAccessibilityDisplay)
+-(BOOL)isVoiceOverEnabled { return NO; }
+-(BOOL)isSwitchControlEnabled { return NO; }
+-(BOOL)accessibilityDisplayShouldIncreaseContrast { return NO; }
+-(BOOL)accessibilityDisplayShouldReduceTransparency { return NO; }
+-(BOOL)accessibilityDisplayShouldReduceMotion { return NO; }
+-(BOOL)accessibilityDisplayShouldInvertColors { return NO; }
+@end

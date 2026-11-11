@@ -261,3 +261,11 @@ NSDictionary *_NSDictionaryOfVariableBindings(NSString *keys,id firstValue,...) 
    va_end(arguments);
    return result;
 }
+
+@implementation NSLayoutConstraint (MinkarAnimator)
+-(instancetype)animator { return self; }
+-(NSDictionary *)animations { return [NSDictionary dictionary]; }
+-(void)setAnimations:(NSDictionary *)animations { }
+-animationForKey:(NSString *)key { return nil; }
++defaultAnimationForKey:(NSString *)key { return nil; }
+@end

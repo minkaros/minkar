@@ -62,7 +62,9 @@ APPKIT_EXPORT NSString *const NSApplicationWillTerminateNotification;
 
 APPKIT_EXPORT NSString *const NSApplicationDidChangeScreenParametersNotification;
 
-APPKIT_EXPORT id NSApp;
+/* Minkar: typed as the reference platform types it (it was id). */
+@class NSApplication;
+APPKIT_EXPORT __kindof NSApplication *NSApp;
 
 typedef id NSModalSession;
 

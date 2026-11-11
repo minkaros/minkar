@@ -134,7 +134,7 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 - (NSColor *)insertionPointColor;
 - (NSDictionary *)typingAttributes;
 - (NSDictionary *)selectedTextAttributes;
-- (NSArray *)selectedRanges;
+- (NSArray<NSValue *> *)selectedRanges;
 - (NSParagraphStyle *)defaultParagraphStyle;
 
 - (void)setTextContainer:(NSTextContainer *)container;
@@ -226,6 +226,10 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 @property (getter=isAutomaticDataDetectionEnabled) BOOL automaticDataDetectionEnabled;
 @property (getter=isAutomaticTextCompletionEnabled) BOOL automaticTextCompletionEnabled;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isAutomaticSpellingCorrectionEnabled) BOOL automaticSpellingCorrectionEnabled;
+@property (getter=isContinuousSpellCheckingEnabled) BOOL continuousSpellCheckingEnabled;
+@property (getter=isRulerVisible) BOOL rulerVisible;
 @end
 
 @interface NSObject (NSTextView_undoManager)

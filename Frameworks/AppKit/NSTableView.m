@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
                  2009 Markus Hitter <mah@jump-ing.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -2339,5 +2340,36 @@ static char indicatorImagesKey;
 
 @implementation NSTableView (Bindings)
 
+
+@end
+
+/* Minkar: style and dragging source operations, kept beside the table. */
+#import <objc/runtime.h>
+static char styleKey, localMaskKey, remoteMaskKey;
+
+@implementation NSTableView (MinkarTableExtras)
+
+-(NSTableViewStyle)style { return [objc_getAssociatedObject(self,&styleKey) integerValue]; }
+-(void)setStyle:(NSTableViewStyle)style {
+   objc_setAssociatedObject(self,&styleKey,[NSNumber numberWithInteger:style],OBJC_ASSOCIATION_RETAIN);
+   [self setNeedsDisplay:YES];
+}
+-(NSTableViewStyle)effectiveStyle {
+   NSTableViewStyle style=[self style];
+   return (style==NSTableViewStyleAutomatic)?NSTableViewStyleFullWidth:style;
+}
+
+-(void)setDraggingSourceOperationMask:(NSDragOperation)mask forLocal:(BOOL)isLocal {
+   objc_setAssociatedObject(self,isLocal?&localMaskKey:&remoteMaskKey,[NSNumber numberWithUnsignedInteger:mask],OBJC_ASSOCIATION_RETAIN);
+}
+-(NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
+   NSNumber *mask=objc_getAssociatedObject(self,isLocal?&localMaskKey:&remoteMaskKey);
+   return mask?[mask unsignedIntegerValue]:(isLocal?NSDragOperationEvery:NSDragOperationNone);
+}
+-(NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context {
+   return [self draggingSourceOperationMaskForLocal:context==NSDraggingContextWithinApplication];
+}
+-(void)draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint { }
+-(void)draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation { }
 
 @end

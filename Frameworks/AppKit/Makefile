@@ -304,6 +304,7 @@ HEADERS = \
     CoreData_/_NSManagedProxy.h \
     ../CoreText/KTFont.h \
     NSAccessibility.h \
+    NSAccessibilityProtocols.h \
     NSActionCell.h \
     NSAffineTransform.h \
     NSAlert.h \
@@ -594,12 +595,6 @@ RESOURCES_FILES = Info.plist \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-White-36.png \
 	NSMenu.subproj/NSMenuViewDoubleRightArrow.tiff \
 	NSMenu.subproj/NSMenuViewDoubleRightArrowGray.tiff \
-	NSToolbar.subproj/NSToolbarPrintItem.tiff \
-	NSToolbar.subproj/NSToolbarOverflowArrow.tiff \
-	NSToolbar.subproj/NSToolbarShowFontsItem.tiff \
-	NSToolbar.subproj/NSToolbarShowColorsItem.tiff \
-	NSToolbar.subproj/NSToolbarCustomizeToolbarItem.tiff \
-	NSToolbar.subproj/NSToolbarMoreToolbarItems.tiff \
 	NSColorPicker.subproj/NSColorPickerColorList.tiff \
 	NSColorPicker.subproj/NSColorWheel.png \
 	NSColorPicker.subproj/NSColorPickerWheelIcon.png \

@@ -189,6 +189,14 @@ APPKIT_EXPORT NSString *const NSAccessibilityWarningValueAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityCriticalValueAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityPlaceholderValueAttribute;
 
+/* The types of the accessibility API's names (API 10.13). */
+typedef NSString *NSAccessibilityRole;
+typedef NSString *NSAccessibilitySubrole;
+typedef NSString *NSAccessibilityAttributeName;
+typedef NSString *NSAccessibilityParameterizedAttributeName;
+typedef NSString *NSAccessibilityActionName;
+typedef NSString *NSAccessibilityNotificationName;
+
 APPKIT_EXPORT NSString *const NSAccessibilityApplicationRole;
 APPKIT_EXPORT NSString *const NSAccessibilityBrowserRole;
 APPKIT_EXPORT NSString *const NSAccessibilityBusyIndicatorRole;
@@ -446,7 +454,24 @@ typedef NS_ENUM(NSInteger, NSAccessibilityCustomRotorType) {
 @property (getter=isAccessibilityFocused) BOOL accessibilityFocused;
 @end
 
+/* The older API (before 10.10): attributes by name, mapped onto the
+   properties above; parameterized attributes and actions have none. */
 @interface NSObject (NSAccessibility)
 - (NSArray *)accessibilityAttributeNames;
 - accessibilityAttributeValue:(NSString *)attribute;
+- (BOOL)accessibilityIsAttributeSettable:(NSString *)attribute;
+- (void)accessibilitySetValue:(id)value forAttribute:(NSString *)attribute;
+- (NSArray *)accessibilityParameterizedAttributeNames;
+- accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter;
+- (NSArray *)accessibilityActionNames;
+- (NSString *)accessibilityActionDescription:(NSString *)action;
+- (void)accessibilityPerformAction:(NSString *)action;
+- (BOOL)accessibilityIsIgnored;
+- accessibilityHitTest:(NSPoint)point;
+- accessibilityFocusedUIElement;
+- (NSUInteger)accessibilityIndexOfChild:(id)child;
+- (NSUInteger)accessibilityArrayAttributeCount:(NSString *)attribute;
+- (NSArray *)accessibilityArrayAttributeValues:(NSString *)attribute index:(NSUInteger)index maxCount:(NSUInteger)maxCount;
 @end
+
+#import <AppKit/NSAccessibilityProtocols.h>

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -399,6 +400,39 @@ static char keyWhenHiddenKey;
 /* There are no user key equivalents (set in preferences) yet. */
 -(NSString *)userKeyEquivalent {
    return @"";
+}
+
+@end
+
+/* Minkar: the tool tip and view of an item (API 10.5), kept beside it. */
+#import <objc/runtime.h>
+static char toolTipKey, viewKey;
+
+@implementation NSMenuItem (MinkarItemExtras)
+
+-(NSString *)toolTip {
+   return objc_getAssociatedObject(self,&toolTipKey);
+}
+
+-(void)setToolTip:(NSString *)toolTip {
+   objc_setAssociatedObject(self,&toolTipKey,toolTip,OBJC_ASSOCIATION_COPY);
+}
+
+-(NSView *)view {
+   return objc_getAssociatedObject(self,&viewKey);
+}
+
+-(void)setView:(NSView *)view {
+   objc_setAssociatedObject(self,&viewKey,view,OBJC_ASSOCIATION_RETAIN);
+}
+
+-(NSMenuItem *)parentItem {
+   NSMenu *supermenu=[[self menu] supermenu];
+
+   for(NSMenuItem *item in [supermenu itemArray])
+    if([item submenu]==[self menu])
+     return item;
+   return nil;
 }
 
 @end

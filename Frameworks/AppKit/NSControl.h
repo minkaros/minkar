@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -26,7 +27,7 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 + (Class)cellClass;
 + (void)setCellClass:(Class)aClass;
 
-- cell;
+- (__kindof NSCell *)cell;
 
 - target;
 - (SEL)action;
@@ -115,6 +116,14 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 @property BOOL allowsExpansionToolTips;
 - (void)setNeedsDisplay;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isBezeled) BOOL bezeled;
+@property (getter=isBordered) BOOL bordered;
+@property (getter=isContinuous) BOOL continuous;
+@property (getter=isEditable) BOOL editable;
+@property (getter=isEnabled) BOOL enabled;
+@property (getter=isScrollable) BOOL scrollable;
+@property (getter=isSelectable) BOOL selectable;
 @end
 
 @interface NSObject (NSControl_delegate)
@@ -131,4 +140,9 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 - (BOOL)control:(NSControl *)control didFailToFormatString:(NSString *)string errorDescription:(NSString *)error;
 - (void)control:(NSControl *)control didFailToValidatePartialString:(NSString *)string errorDescription:(NSString *)error;
 - (BOOL)control:(NSControl *)control isValidObject:(id)obj;
+@end
+
+/* Minkar: the events the control's cell sends its action on. */
+@interface NSControl (MinkarControlExtras)
+- (NSInteger)sendActionOn:(NSInteger)mask;
 @end

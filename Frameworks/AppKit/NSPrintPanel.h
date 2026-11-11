@@ -1,7 +1,10 @@
 #import <Foundation/NSObject.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSMutableDictionary;
+#import <Foundation/NSArray.h>
+#import <Foundation/NSDictionary.h>
+#import <Foundation/NSSet.h>
+@class NSMutableDictionary, NSViewController;
 
 enum {
 
@@ -36,3 +39,18 @@ typedef NSInteger NSPrintPanelOptions;
 
 APPKIT_EXPORT NSString *const NSPrintPanelAccessorySummaryItemNameKey;
 APPKIT_EXPORT NSString *const NSPrintPanelAccessorySummaryItemDescriptionKey;
+
+/* Minkar: what a print panel's accessory view controller provides
+   (API 10.5). */
+@protocol NSPrintPanelAccessorizing
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)localizedSummaryItems;
+@optional
+- (NSSet<NSString *> *)keyPathsForValuesAffectingPreview;
+@end
+
+/* Minkar: accessory controllers (API 10.5), shown with the panel. */
+@interface NSPrintPanel (MinkarAccessories)
+- (void)addAccessoryController:(NSViewController<NSPrintPanelAccessorizing> *)accessoryController;
+- (void)removeAccessoryController:(NSViewController<NSPrintPanelAccessorizing> *)accessoryController;
+@property (readonly, copy) NSArray *accessoryControllers;
+@end

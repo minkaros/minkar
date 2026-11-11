@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2009 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,6 +11,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/AppKitExport.h>
 
 @class NSString, NSMutableArray, NSArray, NSDictionary, NSNotification, NSMutableDictionary, NSWindow, NSView, NSToolbarItem, NSToolbarView, NSToolbarCustomizationPalette;
+
+/* A toolbar item's identifier (API 10.13's type for it). */
+typedef NSString *NSToolbarItemIdentifier;
 
 typedef enum {
     NSToolbarSizeModeDefault,
@@ -82,6 +86,8 @@ APPKIT_EXPORT NSString *const NSToolbarDidRemoveItemNotification;
 - (BOOL)customizationPaletteIsRunning;
 - (void)runCustomizationPalette:sender;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isVisible) BOOL visible;
 @end
 
 @interface NSToolbar (NSToolbarCustomization)

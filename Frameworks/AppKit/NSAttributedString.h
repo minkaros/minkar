@@ -157,8 +157,8 @@ enum {
 #pragma mark -
 #pragma mark Private
 
-NSFont *NSFontAttributeInDictionary(NSDictionary *dictionary);
-NSColor *NSForegroundColorAttributeInDictionary(NSDictionary *dictionary);
-NSParagraphStyle *NSParagraphStyleAttributeInDictionary(NSDictionary *dictionary);
+APPKIT_EXPORT NSFont *NSFontAttributeInDictionary(NSDictionary *dictionary);
+APPKIT_EXPORT NSColor *NSForegroundColorAttributeInDictionary(NSDictionary *dictionary);
+APPKIT_EXPORT NSParagraphStyle *NSParagraphStyleAttributeInDictionary(NSDictionary *dictionary);
 
 #import <AppKit/NSMutableAttributedString.h>

@@ -1,6 +1,7 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
                  2010 Markus Hitter <mah@jump-ing.de>
                  2024 Zoe Knox <zoe@ravynsoft.com>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -100,7 +101,12 @@ enum {
     NSWindowCollectionBehaviorTransient = 0x08,
     NSWindowCollectionBehaviorStationary = 0x10,
     NSWindowCollectionBehaviorParticipatesInCycle = 0x20,
-    NSWindowCollectionBehaviorIgnoresCycle = 0x40
+    NSWindowCollectionBehaviorIgnoresCycle = 0x40,
+    NSWindowCollectionBehaviorFullScreenPrimary = 0x80,
+    NSWindowCollectionBehaviorFullScreenAuxiliary = 0x100,
+    NSWindowCollectionBehaviorFullScreenNone = 0x200,
+    NSWindowCollectionBehaviorFullScreenAllowsTiling = 0x800,
+    NSWindowCollectionBehaviorFullScreenDisallowsTiling = 0x1000
 };
 typedef NSUInteger NSWindowCollectionBehavior;
 
@@ -142,7 +148,9 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
     //CGLContextObj _cglContext;
     //CAWindowOpenGLContext *_caContext;
     NSDisplay *_display;
-    O2Context *_context;
+    // Minkar: the window's O2Context, as id: O2Context is also the struct
+    // behind CGContextRef, an ambiguous name in Objective-C++.
+    id _context;
 
     NSMutableDictionary *_deviceDictionary;
     BOOL _isZoomed;
@@ -585,6 +593,15 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 @property NSWindowAnimationBehavior animationBehavior;
 - (void)invalidateRestorableState;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isAutodisplay) BOOL autodisplay;
+@property (getter=isDocumentEdited) BOOL documentEdited;
+@property (getter=isExcludedFromWindowsMenu) BOOL excludedFromWindowsMenu;
+@property (getter=isMovable) BOOL movable;
+@property (getter=isMovableByWindowBackground) BOOL movableByWindowBackground;
+@property (getter=isOneShot) BOOL oneShot;
+@property (getter=isOpaque) BOOL opaque;
+@property (getter=isReleasedWhenClosed) BOOL releasedWhenClosed;
 @end
 
 /* The window's delegate (API 19: a formal protocol, every method optional). */
@@ -659,4 +676,11 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 //private
 APPKIT_EXPORT NSString *const NSWindowWillAnimateNotification;
 APPKIT_EXPORT NSString *const NSWindowAnimatingNotification;
+/* Minkar: a window's animator (changes through it take effect at once,
+   as views' do) and its backing scale (API 10.7). */
+@interface NSWindow (MinkarWindowExtras) <NSAnimatablePropertyContainer>
+- (instancetype)animator;
+@property (readonly) CGFloat backingScaleFactor;
+@end
+
 APPKIT_EXPORT NSString *const NSWindowDidAnimateNotification;

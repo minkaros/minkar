@@ -142,6 +142,13 @@ APPKIT_EXPORT NSString *const NSTextDidChangeNotification;
 - (void)showGuessPanel:sender;
 - (void)checkSpelling:sender;
 
+/* Minkar: as properties too, for dot syntax. */
+@property (getter=isEditable) BOOL editable;
+@property (getter=isFieldEditor) BOOL fieldEditor;
+@property (getter=isHorizontallyResizable) BOOL horizontallyResizable;
+@property (getter=isRichText) BOOL richText;
+@property (getter=isSelectable) BOOL selectable;
+@property (getter=isVerticallyResizable) BOOL verticallyResizable;
 @end
 
 /* The delegate, as a protocol (API 19 declares it so). */
