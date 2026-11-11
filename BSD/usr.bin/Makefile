@@ -13,6 +13,7 @@ SUBDIR_DEPEND_bind =	openssl
 SUBDIR_DEPEND_git =	curl
 # Ruby's openssl extension links the OpenSSL installed in the SDK.
 SUBDIR_DEPEND_ruby =	openssl
+SUBDIR_DEPEND_python =	openssl
 SUBDIR = apply basename chroot cut dirname env false find getopt grep 
 SUBDIR += head killall login make patch pfetch printf sed sw_vers 
 SUBDIR += tail tee time touch true uname users whereis which xargs yes
@@ -31,6 +32,6 @@ SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintr
 	gencat cap_mkdb last indent ctags timeout passwd \
 	uuidgen asa c99 finger newgrp pagesize unzip zip at \
 	ipcs ipcrm htop builtin xxd nano bash rsync vim ksh llvm-tools chpass shlock mail lex telnet quota openssl bind \
-	ruby ftp rlogin arch vm_stat caffeinate open lsbom talk localedef heimdal csrutil hdiutil leaks fs_usage pmset
+	ruby python ftp rlogin arch vm_stat caffeinate open lsbom talk localedef heimdal csrutil hdiutil leaks fs_usage pmset
 
 .include <bsd.subdir.mk>

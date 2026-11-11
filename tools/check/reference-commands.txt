@@ -241,6 +241,8 @@ usr/bin pmset platform
 usr/bin pr bsd
 usr/bin printenv bsd
 usr/bin printf bsd
+usr/bin pydoc3 bsd
+usr/bin python3 bsd
 usr/bin quota bsd
 usr/bin rake bsd
 usr/bin rdoc bsd

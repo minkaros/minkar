@@ -1,0 +1,79 @@
+Cross-compiling for Darwin from another system: configure only knows
+the hosts CPython cross-builds for (Linux, Android, iOS, VxWorks, WASI...).
+Darwin is one of them here, named as a native build names it, with its
+release from the host triple (the Darwin cases of configure need it).
+
+diff -ru a/configure b/configure
+--- a/configure	2026-10-25 13:31:23.000000000 -0500
++++ b/configure	2026-11-11 15:50:50.693142649 -0500
+@@ -4058,6 +4058,9 @@
+ 	*-apple-ios*)
+ 		ac_sys_system=iOS
+ 		;;
++	*-apple-darwin*)
++		ac_sys_system=Darwin
++		;;
+ 	*-*-vxworks*)
+ 	    ac_sys_system=VxWorks
+ 	    ;;
+@@ -4073,6 +4076,13 @@
+ 		as_fn_error $? "cross build not supported for $host" "$LINENO" 5
+ 	esac
+ 	ac_sys_release=
++	# Darwin's release from the host triple (darwin19: 19.0), as uname -r
++	# gives it natively.
++	case "$host" in
++	*-apple-darwin*)
++		ac_sys_release=`echo $host_os | sed -e 's/^darwin//' -e 's/^\([0-9]*\)$/\1.0/'`
++		;;
++	esac
+     else
+ 	ac_sys_system=`uname -s`
+ 	if test "$ac_sys_system" = "AIX" \
+@@ -4525,6 +4535,9 @@
+ 				;;
+ 		esac
+ 		;;
++	*-apple-darwin*)
++		_host_ident=$host_cpu
++		;;
+ 	*-*-vxworks*)
+ 		_host_ident=$host_cpu
+ 		;;
+diff -ru a/configure.ac b/configure.ac
+--- a/configure.ac	2026-10-25 13:31:23.000000000 -0500
++++ b/configure.ac	2026-11-11 15:50:50.694142602 -0500
+@@ -330,6 +330,9 @@
+ 	*-apple-ios*)
+ 		ac_sys_system=iOS
+ 		;;
++	*-apple-darwin*)
++		ac_sys_system=Darwin
++		;;
+ 	*-*-vxworks*)
+ 	    ac_sys_system=VxWorks
+ 	    ;;
+@@ -345,6 +348,13 @@
+ 		AC_MSG_ERROR([cross build not supported for $host])
+ 	esac
+ 	ac_sys_release=
++	# Darwin's release from the host triple (darwin19: 19.0), as uname -r
++	# gives it natively.
++	case "$host" in
++	*-apple-darwin*)
++		ac_sys_release=`echo $host_os | sed -e 's/^darwin//' -e 's/^\([0-9]*\)$/\1.0/'`
++		;;
++	esac
+     else
+ 	ac_sys_system=`uname -s`
+ 	if test "$ac_sys_system" = "AIX" \
+@@ -771,6 +781,9 @@
+ 				;;
+ 		esac
+ 		;;
++	*-apple-darwin*)
++		_host_ident=$host_cpu
++		;;
+ 	*-*-vxworks*)
+ 		_host_ident=$host_cpu
+ 		;;
