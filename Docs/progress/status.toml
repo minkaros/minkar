@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-11"
-commit  = "e1d404ea77"
+commit  = "3bfb3d775f"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -213,7 +213,8 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # engine (webkit-legacy 7/0). W5: what the reference apps' code uses
 # (Sparkle's release notes, TextMate's HTML output) reproduced and
 # passing (webkit-reference-apps 5/0); binary nibs load (11 Nov,
-# appkit-nib-archive 12/0); the xib compiler and the apps still to run.
+# appkit-nib-archive 12/0); Minkar's ibtool compiles TextMate's xibs;
+# the apps still to build and run.
 stations = [
   ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "done"],
   ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "partial"],
