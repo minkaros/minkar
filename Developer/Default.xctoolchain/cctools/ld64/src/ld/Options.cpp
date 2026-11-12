@@ -5491,16 +5491,35 @@ void Options::reconfigureDefaults()
 		bool inferredFromSDKpath = false;
 		// if -sdk_version not on command line, infer from -syslibroot
 		if ( !fPlatfromVersionCmdFound && (fSDKPaths.size() > 0) ) {
+			// Minkar: only the SDK's own name (MacOSX10.15.sdk) gives a
+			// version; a name without one (Minkar.sdk) gives none, not
+			// the digits of a folder above it.
 			const char* sdkPath = fSDKPaths.front();
-			const char* end = &sdkPath[strlen(sdkPath)-1];
-			while ( !isdigit(*end) && (end > sdkPath) )
+			size_t pathLen = strlen(sdkPath);
+			while ( (pathLen > 1) && (sdkPath[pathLen-1] == '/') )
+				--pathLen;
+			const char* name = sdkPath;
+			for (size_t i = 0; i < pathLen; ++i) {
+				if ( sdkPath[i] == '/' )
+					name = &sdkPath[i+1];
+			}
+			const char* end = &sdkPath[pathLen-1];
+			while ( !isdigit(*end) && (end > name) )
 				--end;
 			const char* start = end-1;
-			while ( (isdigit(*start) || (*start == '.')) && (start > sdkPath))
+			while ( (start >= name) && (isdigit(*start) || (*start == '.')) )
 				--start;
 			char sdkVersionStr[32];
 			int len = end-start+1;
-			if ( len > 2 ) {
+			bool wellFormed = isdigit(*end) && (len > 2) && (len <= (int)sizeof(sdkVersionStr)) && isdigit(start[1]);
+			int dots = 0;
+			for (const char* c = start+1; wellFormed && (c <= end); ++c) {
+				if ( *c == '.' && (++dots > 2 || c[1] == '.') )
+					wellFormed = false;
+			}
+			if ( wellFormed && (dots == 0) && (end-start > 3) )
+				wellFormed = false;
+			if ( wellFormed ) {
 				strlcpy(sdkVersionStr, start+1, len);
 				__block ld::Platform currentPlatform;
 				fPlatforms.forEach(^(ld::Platform platform, uint32_t minVersion, uint32_t sdkVersion, bool &stop) {
