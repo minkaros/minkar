@@ -52,4 +52,8 @@ Boolean SMLoginItemSetEnabled(CFStringRef identifier, Boolean enabled);
 }
 #endif
 
+#ifdef __OBJC__
+#import <ServiceManagement/SMAppService.h>
+#endif
+
 #endif
