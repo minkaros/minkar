@@ -158,7 +158,7 @@ SUBDIR =
 
 ${.OBJDIR}/mach-o/arch.h:
 	mkdir -p ${.OBJDIR}/mach-o
-	cp -f ${DEVEL}/Default.xctoolchain/include/mach-o/arch.h ${.TARGET}
+	rsync -cL ${DEVEL}/Default.xctoolchain/include/mach-o/arch.h ${.TARGET}
 
 ${FRAMEWORK}: ${.OBJDIR}/mach-o/arch.h
 

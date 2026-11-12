@@ -86,8 +86,8 @@ all:	install-headers build
 install-headers: $(PUBLIC_HEADERS) $(PRIVATE_HEADERS) $(INTERNAL_HEADERS)
 	@install -d Security
 	@install -d security_asn1
-	@install -m 0444 $(PUBLIC_HEADERS) $(PRIVATE_HEADERS) Security
-	@install -m 0444 $(INTERNAL_HEADERS) security_asn1
+	@install -C -m 0444 $(PUBLIC_HEADERS) $(PRIVATE_HEADERS) Security
+	@install -C -m 0444 $(INTERNAL_HEADERS) security_asn1
 
 build: $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -dynamiclib -dynamic -compatibility_version 0 -current_version 0 -install_name libasn1.dylib -o libasn1.dylib $(OBJECTS)

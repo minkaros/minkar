@@ -21,12 +21,12 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/emond
-	install -m 0444 ${.CURDIR}/emond.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/emond
+	install -C -m 0444 ${.CURDIR}/emond.8 ${SYSROOT_DIR}/usr/share/man/man8/
 	mkdir -p ${SYSROOT_DIR}/System/Library/LaunchDaemons \
 	    ${SYSROOT_DIR}/private/etc/emond.d/rules \
 	    ${SYSROOT_DIR}/private/var/db/emondClients
-	install -m 0644 ${.CURDIR}/org.minkar.emond.plist \
+	install -C -m 0644 ${.CURDIR}/org.minkar.emond.plist \
 	    ${SYSROOT_DIR}/System/Library/LaunchDaemons/
 
 .include <bsd.prog.mk>

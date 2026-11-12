@@ -30,12 +30,12 @@ all: copyheaders
 
 copyheaders:
 	mkdir -p ${.OBJDIR}/IOKit/ata ${.OBJDIR}/IOKit/storage/ata
-	cp -f ${.CURDIR:H}/IOATAFamily/IOATATypes.h \
+	rsync -cL ${.CURDIR:H}/IOATAFamily/IOATATypes.h \
 	  ${.CURDIR:H}/IOATAFamily/IOATAController.h \
 	  ${.CURDIR:H}/IOATAFamily/ATADeviceNub.h \
 	  ${.CURDIR:H}/IOATAFamily/IOPCIATA.h \
 	  ${.OBJDIR}/IOKit/ata/
-	cp -f ${.CURDIR:H}/IOATAFamily/IOATAFamilyPriv.h \
+	rsync -cL ${.CURDIR:H}/IOATAFamily/IOATAFamilyPriv.h \
 	  ${.OBJDIR}/IOKit/storage/ata/
 
 .include <minkar.kext.mk>

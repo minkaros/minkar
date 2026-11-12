@@ -53,18 +53,18 @@ all: ${PROG} .WAIT bundle-layout .WAIT bundle-install-hook
 bundle-layout: .PHONY
 	@${ECHO} building ${BUNDLE_DIR:T}
 	mkdir -p ${BUNDLE_DIR}/Contents/MacOS ${BUNDLE_DIR}/Contents/Resources
-	cp -f ${.OBJDIR}/${PROG} ${BUNDLE_DIR}/Contents/MacOS/${BUNDLE}
+	rsync -cL ${.OBJDIR}/${PROG} ${BUNDLE_DIR}/Contents/MacOS/${BUNDLE}
 .if exists(${.CURDIR}/${INFO_PLIST})
-	cp -f ${.CURDIR}/${INFO_PLIST} ${BUNDLE_DIR}/Contents/Info.plist
+	rsync -cL ${.CURDIR}/${INFO_PLIST} ${BUNDLE_DIR}/Contents/Info.plist
 .endif
 .for rsc in ${RESOURCES}
-	cp -Rf ${rsc} ${BUNDLE_DIR}/Contents/Resources/
+	rsync -rlc ${rsc} ${BUNDLE_DIR}/Contents/Resources/
 .endfor
 	${CODESIGN} -f -s - ${BUNDLE_DIR}/Contents/MacOS/${BUNDLE}
 
 bundle-install-hook: .PHONY
 	mkdir -p ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}
-	rm -rf ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}/${BUNDLE_DIR:T}
-	cp -Rf ${BUNDLE_DIR} ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}/
+	# By content: unchanged files keep their dates, files it no longer has go.
+	rsync -rlc --delete ${BUNDLE_DIR}/ ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}/${BUNDLE_DIR:T}/
 
 .include <bsd.prog.mk>

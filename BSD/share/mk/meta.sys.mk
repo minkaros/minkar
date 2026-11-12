@@ -121,7 +121,7 @@ _metaError: .NOMETA .NOTMAIN
 	[ "${.ERROR_META_FILE}" ] && { \
 	grep -q 'failure has been detected in another branch' ${.ERROR_META_FILE} && exit 0; \
 	mkdir -p ${meta_error_log:H}; \
-	cp ${.ERROR_META_FILE} ${meta_error_log}; \
+	rsync -cL ${.ERROR_META_FILE} ${meta_error_log}; \
 	echo "ERROR: log ${meta_error_log}" >&2; }; :
 
 .endif

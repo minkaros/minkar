@@ -28,7 +28,7 @@ CmpCp= CmpCp() { \
 				rm -f $$target; \
 			fi; \
 		fi; \
-		cp $$src $$target; \
+		rsync -cL $$src $$target; \
 	fi; }
 
 # Replace the file if they are different and make a backup if desired
@@ -39,7 +39,7 @@ CmpReplace= CmpReplace() { \
 		if test -s $$target; then \
 			if test "x$$_bak" != x; then \
 				rm -f $$target$$_bak; \
-				cp -f $$target $$target$$_bak; \
+				rsync -cL $$target $$target$$_bak; \
 			fi; \
 		fi; \
 		mv -f $$src $$target; \

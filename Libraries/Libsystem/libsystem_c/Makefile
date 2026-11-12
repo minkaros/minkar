@@ -166,8 +166,8 @@ lib${LIB}.dylib: lib${LIB}.a ${CRYPT_OBJS}
 	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${.OBJDIR}/minkar_ccrng.o \
 	  ${CRYPT_OBJS} ${LDFLAGS} -Wl,-unexported_symbol,___crypt_des
 	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${MINKAR_SDKROOT}/usr/lib/system
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 
 SRCS+=	minkar_ccrng.c
 

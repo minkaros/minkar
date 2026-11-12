@@ -43,7 +43,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/bc
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/bc
 	ln -f ${SYSROOT_DIR}/usr/bin/bc ${SYSROOT_DIR}/usr/bin/dc
 
 .include <bsd.prog.mk>

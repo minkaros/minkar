@@ -40,9 +40,9 @@ ${OUT}/tag: ${SRC}/.minkar-patches
 
 install-pkg: .PHONY ${OUT}/tag
 	rm -rf ${DEST} && mkdir -p ${DEST}
-	install -m 0755 ${OUT}/tag ${DEST}/
-	install -m 0755 ${.CURDIR}/tagTests.sh ${DEST}/tagTests
-	cp ${SRC}/LICENSE ${DEST}/
+	install -C -m 0755 ${OUT}/tag ${DEST}/
+	install -C -m 0755 ${.CURDIR}/tagTests.sh ${DEST}/tagTests
+	rsync -cL ${SRC}/LICENSE ${DEST}/
 
 clean: .PHONY
 	rm -rf ${SRC} ${OUT}

@@ -225,7 +225,7 @@ install.emxdata :: $(TICDIR)
 	echo Building terminfo database, please wait...
 	set TERMINFO=$(TICDIR); ./progs/tic ./misc/emx.src
 	echo Installing the terminfo cleaner and the sources...
-	cp ./misc/emx.src ./misc/cleantic.cmd $(TICDIR)
+	rsync -cL ./misc/emx.src ./misc/cleantic.cmd $(TICDIR)
 	./misc/cleantic.cmd $(TICDIR)
 
 uninstall \

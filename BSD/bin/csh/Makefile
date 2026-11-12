@@ -36,11 +36,11 @@ ${.OBJDIR}/tcsh: ${.CURDIR}/Makefile
 ${.OBJDIR}/.installed: ${.OBJDIR}/tcsh ${.CURDIR}/csh.cshrc ${.CURDIR}/csh.login \
     ${.CURDIR}/csh.logout
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/etc ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/tcsh
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/csh
-	install -m 0444 ${.OBJDIR}/tcsh.man ${SYSROOT_DIR}/usr/share/man/man1/tcsh.1
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/tcsh
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/csh
+	install -C -m 0444 ${.OBJDIR}/tcsh.man ${SYSROOT_DIR}/usr/share/man/man1/tcsh.1
 	ln -sf tcsh.1 ${SYSROOT_DIR}/usr/share/man/man1/csh.1
 .for f in csh.cshrc csh.login csh.logout
-	install -m 0644 ${.CURDIR}/${f} ${SYSROOT_DIR}/etc/${f}
+	install -C -m 0644 ${.CURDIR}/${f} ${SYSROOT_DIR}/etc/${f}
 .endfor
 	touch ${.TARGET}

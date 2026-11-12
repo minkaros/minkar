@@ -29,8 +29,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/rtsol
-	install -m 0444 ${.CURDIR}/rtsold.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/rtsol
+	install -C -m 0444 ${.CURDIR}/rtsold.8 ${SYSROOT_DIR}/usr/share/man/man8/
 	ln -sf rtsold.8 ${SYSROOT_DIR}/usr/share/man/man8/rtsol.8
 
 .include <bsd.prog.mk>

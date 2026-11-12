@@ -24,10 +24,10 @@ MIGFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
 ${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_minkar.h
 	mkdir -p ${.TARGET:H}
-	cp -f ${.ALLSRC} ${.TARGET}
+	rsync -cL ${.ALLSRC} ${.TARGET}
 
 all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${BINDIR}
-	install -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/

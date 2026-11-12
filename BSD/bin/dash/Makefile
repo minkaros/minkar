@@ -26,7 +26,7 @@ ${.OBJDIR}/src/dash: ${.CURDIR}/Makefile ${.CURDIR}/signames.c
 	${.CURDIR}/dist/configure --prefix=/usr --bindir=/bin \
 	    --host=${CpuArch}-apple-darwin19 --with-libedit
 	mkdir -p ${.OBJDIR}/src
-	cp ${.CURDIR}/signames.c ${.OBJDIR}/src/signames.c
+	rsync -cL ${.CURDIR}/signames.c ${.OBJDIR}/src/signames.c
 	sed -i -e '/^signames.c: mksignames/,+1d' -e '/^[a-zA-Z_ ]*=/s/ mksignames\$$(EXEEXT)//g' \
 	    -e '/^[a-zA-Z_ ]*=/s/ mksignames\.c//g' -e '/^HELPERS =/s/ mksignames//' \
 	    ${.OBJDIR}/src/Makefile
@@ -34,6 +34,6 @@ ${.OBJDIR}/src/dash: ${.CURDIR}/Makefile ${.CURDIR}/signames.c
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/src/dash
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/src/dash ${SYSROOT_DIR}/bin/dash
-	install -m 0444 ${.CURDIR}/dist/src/dash.1 ${SYSROOT_DIR}/usr/share/man/man1/dash.1
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/src/dash ${SYSROOT_DIR}/bin/dash
+	install -C -m 0444 ${.CURDIR}/dist/src/dash.1 ${SYSROOT_DIR}/usr/share/man/man1/dash.1
 	touch ${.TARGET}

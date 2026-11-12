@@ -23,9 +23,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/calendar
-	install -m 0444 ${.CURDIR}/calendar.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/calendar
+	install -C -m 0444 ${.CURDIR}/calendar.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	mkdir -p ${SYSROOT_DIR}/usr/share/calendar
-	install -m 0444 ${.CURDIR}/calendars/calendar.freebsd ${SYSROOT_DIR}/usr/share/calendar/
+	install -C -m 0444 ${.CURDIR}/calendars/calendar.freebsd ${SYSROOT_DIR}/usr/share/calendar/
 
 .include <bsd.prog.mk>

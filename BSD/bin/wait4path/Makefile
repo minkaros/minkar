@@ -17,7 +17,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/bin/wait4path
-	install -m 0444 ${.CURDIR}/wait4path.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/bin/wait4path
+	install -C -m 0444 ${.CURDIR}/wait4path.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

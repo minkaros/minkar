@@ -50,7 +50,7 @@ libc.a: lib${LIB}.a
 	  ${.OBJDIR:H}/vDarwinExtsn/libvDarwinExtsn.a
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/system \
 		${MINKAR_SDKROOT}/usr/local/lib/loaderd
-	cp -f ${.OBJDIR}/libc.a ${MINKAR_SDKROOT}/usr/local/lib/system/
+	rsync -cL ${.OBJDIR}/libc.a ${MINKAR_SDKROOT}/usr/local/lib/system/
 	ln -sf ../system/libc.a ${MINKAR_SDKROOT}/usr/local/lib/loaderd/libc.a
 
 .include <bsd.lib.mk>

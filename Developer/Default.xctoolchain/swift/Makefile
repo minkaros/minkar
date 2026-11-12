@@ -111,23 +111,23 @@ install-swift: .PHONY
 
 install-swift-now: .PHONY build-swift
 	mkdir -p ${TOOLCHAIN}/usr/bin ${TOOLCHAIN}/usr/share/swift
-	install -m 0755 ${BUILD}/bin/swift-frontend ${TOOLCHAIN}/usr/bin/swift-frontend
+	install -C -m 0755 ${BUILD}/bin/swift-frontend ${TOOLCHAIN}/usr/bin/swift-frontend
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swiftc
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swift
 	# What the compiler loads: swift-syntax's libraries, and the Linux Swift
 	# runtime they and the compiler's Swift parts were built against.
 	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host/compiler ${TOOLCHAIN}/usr/lib/swift/linux
-	cp -f ${BUILD}/lib/swift/host/*.so ${TOOLCHAIN}/usr/lib/swift/host/
+	rsync -cL ${BUILD}/lib/swift/host/*.so ${TOOLCHAIN}/usr/lib/swift/host/
 	# Since 6.4 the compiler's own swift-syntax libraries are in host/compiler
 	# (its RUNPATH).
-	cp -f ${BUILD}/lib/swift/host/compiler/*.so ${TOOLCHAIN}/usr/lib/swift/host/compiler/
+	rsync -cL ${BUILD}/lib/swift/host/compiler/*.so ${TOOLCHAIN}/usr/lib/swift/host/compiler/
 	# The macro plugins (SwiftMacros: the standard library's @DebugDescription,
 	# ObservationMacros).
 	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host/plugins
-	cp -f ${BUILD}/lib/swift/host/plugins/*.so ${TOOLCHAIN}/usr/lib/swift/host/plugins/
+	rsync -cL ${BUILD}/lib/swift/host/plugins/*.so ${TOOLCHAIN}/usr/lib/swift/host/plugins/
 	hostswift=$$(${FETCH} ${.CURDIR}/MANIFEST.host-swift ${CACHE}) && \
-	cp -f $$hostswift/usr/lib/swift/linux/*.so ${TOOLCHAIN}/usr/lib/swift/linux/
-	install -m 0444 ${SRC}/LICENSE.txt ${TOOLCHAIN}/usr/share/swift/LICENSE.txt
+	rsync -cL $$hostswift/usr/lib/swift/linux/*.so ${TOOLCHAIN}/usr/lib/swift/linux/
+	install -C -m 0444 ${SRC}/LICENSE.txt ${TOOLCHAIN}/usr/share/swift/LICENSE.txt
 	${SUM_CMD} > ${STAMP}
 
 clean: .PHONY

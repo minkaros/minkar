@@ -8,6 +8,6 @@ all: install
 
 install:
 	mkdir -p ${BINDIR_SYSROOT}
-	install -m 0755 ${.CURDIR}/${SCRIPT}.sh ${BINDIR_SYSROOT}/${SCRIPT}
+	install -C -m 0755 ${.CURDIR}/${SCRIPT}.sh ${BINDIR_SYSROOT}/${SCRIPT}
 
 obj depend includes clean cleandir:

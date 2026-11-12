@@ -40,7 +40,7 @@ CFLAGS = -Wno-sign-conversion \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/libkmod/include
 
 ${.OBJDIR}/IOATARegI386.h: ${.CURDIR}/IOKit/ata/IOATARegI386.h
-	cp -f ${.ALLSRC} ${.TARGET}
+	rsync -cL ${.ALLSRC} ${.TARGET}
 
 all: ${.OBJDIR}/IOATARegI386.h
 

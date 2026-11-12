@@ -228,7 +228,7 @@ lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 
 copy_defs: ${MACH_DEFS}
 	mkdir -p ${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR}/mach
-	cp -f ${MACH_DEFS} ${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR}/mach/
+	rsync -cL ${MACH_DEFS} ${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR}/mach/
 
 # Generate syscall stubs - 24614EF311E7C98600E78584 libsyscalls.a
 ${.OBJDIR}/libsyscalls.a: ${XNU}/bsd/kern/syscalls.master copy_defs
@@ -309,19 +309,21 @@ ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/_libc_funcptr.o lib${LIB}.a
 	  -Wl,-current_version,6153.0.168 \
 	  -Wl,-compatibility_version,1.0.0 \
 	  -L${MINKAR_SDKROOT}/usr/lib/system -lsystem_c -ldyld
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	# Headers laid out as in the macOS SDK: public ones without their
 	# PRIVATE parts in /usr/include, private ones in /usr/local/include.
 	# unifdef exits 1 when it removed something.
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include
-	${TOOLS}/unifdef -UPRIVATE -o ${MINKAR_SDKROOT}/usr/include/libproc.h \
+	# Copied by content: unchanged headers keep their dates (what includes
+	# them, WebKit's precompiled headers, is not built again).
+	${TOOLS}/unifdef -UPRIVATE -o ${.OBJDIR}/libproc.h \
 	  ${XNU}/libsyscall/wrappers/libproc/libproc.h || test $$? -eq 1
-	cp -f ${XNU}/libsyscall/wrappers/spawn/spawn.h ${MINKAR_SDKROOT}/usr/include/
-	cp -f ${XNU}/libsyscall/wrappers/libproc/libproc_internal.h \
+	rsync -c ${.OBJDIR}/libproc.h ${XNU}/libsyscall/wrappers/spawn/spawn.h ${MINKAR_SDKROOT}/usr/include/
+	rsync -c ${XNU}/libsyscall/wrappers/libproc/libproc_internal.h \
 	  ${XNU}/libsyscall/wrappers/spawn/spawn_private.h \
 	  ${MINKAR_SDKROOT}/usr/local/include/
-	cp -f ${.OBJDIR}/libkernel.a \
+	rsync -cL ${.OBJDIR}/libkernel.a \
 	  ${MINKAR_SDKROOT}/usr/local/lib/kernel/libkernel.a
 
 .include <bsd.lib.mk>

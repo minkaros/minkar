@@ -55,14 +55,14 @@ CFLAGS.IOHIDDevice.o = -include${.CURDIR}/IOHIDFamily/IOHIDDevice.h
 all: copyheaders
 
 copyheaders:
-	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDInterface.h \
+	rsync -cL ${.CURDIR}/IOHIDFamily/IOHIDInterface.h \
 	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
 	mkdir -p ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/usb
 	touch ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/usb/IOUSBHostFamily.h
 	mkdir -p ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
-	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
+	rsync -cL ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
 	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
-	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
+	rsync -cL ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
 	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
 
 SUBDIR = IOHIDSystem

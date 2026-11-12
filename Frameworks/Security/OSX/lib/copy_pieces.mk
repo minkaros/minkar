@@ -46,6 +46,6 @@ $(EXPORTS_DIR) $(HEADERS_DIR) $(PRIVATEHEADERS_DIR) $(RESOURCES_DIR):
 		if [ ! -f "$${dest}/`basename $${file}`" ]; \
 		then \
 			echo "Copying $${file} to $${dest}"; \
-			cp "$${file}" "$${dest}" || exit 1; \
+			rsync -cL "$${file}" "$${dest}" || exit 1; \
 		fi; \
 	done )

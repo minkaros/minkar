@@ -40,10 +40,10 @@ ${.OBJDIR}/build/unzip: ${.CURDIR}/Makefile
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/build/unzip
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/unzip ${SYSROOT_DIR}/usr/bin/unzip
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/unzip ${SYSROOT_DIR}/usr/bin/unzip
 	ln -sf unzip ${SYSROOT_DIR}/usr/bin/zipinfo
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/unix/zipgrep ${SYSROOT_DIR}/usr/bin/zipgrep
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/unix/zipgrep ${SYSROOT_DIR}/usr/bin/zipgrep
 .for m in unzip zipinfo zipgrep
-	install -m 0444 ${.OBJDIR}/build/man/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
+	install -C -m 0444 ${.OBJDIR}/build/man/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
 .endfor
 	touch ${.TARGET}

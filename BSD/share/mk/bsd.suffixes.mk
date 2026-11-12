@@ -1,6 +1,6 @@
 
 .sh:
-	cp -f ${.IMPSRC} ${.TARGET}
+	rsync -cL ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
 .c:

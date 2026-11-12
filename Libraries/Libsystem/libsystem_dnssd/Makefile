@@ -37,10 +37,10 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	# The public API header, as in the macOS SDK.
-	cp -f ${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSShared/dns_sd.h \
+	rsync -cL ${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSShared/dns_sd.h \
 	  ${MINKAR_SDKROOT}/usr/include/
 
 #SUBDIR = libdns_services

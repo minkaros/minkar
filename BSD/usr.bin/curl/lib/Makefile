@@ -34,10 +34,10 @@ ${.OBJDIR}/libcurl.4.dylib: lib${LIB}.a
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib
-	cp -f ${.TARGET} ${d}/usr/lib/
+	rsync -cL ${.TARGET} ${d}/usr/lib/
 	ln -sf libcurl.4.dylib ${d}/usr/lib/libcurl.dylib
 .endfor
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/curl
-	cp -f ${.CURDIR}/../include/curl/*.h ${MINKAR_SDKROOT}/usr/include/curl/
+	rsync -cL ${.CURDIR}/../include/curl/*.h ${MINKAR_SDKROOT}/usr/include/curl/
 
 .include <bsd.lib.mk>

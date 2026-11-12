@@ -21,8 +21,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/compress
-	install -m 0444 ${.CURDIR}/compress.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/compress
+	install -C -m 0444 ${.CURDIR}/compress.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	ln -f ${SYSROOT_DIR}/usr/bin/compress ${SYSROOT_DIR}/usr/bin/uncompress
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/compress.1 ${SYSROOT_DIR}/usr/share/man/man1/uncompress.1
 

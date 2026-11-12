@@ -23,7 +23,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin
-	install -m 4555 ${PROG} ${SYSROOT_DIR}/sbin/
+	install -C -m 4555 ${PROG} ${SYSROOT_DIR}/sbin/
 	ln -f ${SYSROOT_DIR}/sbin/ping ${SYSROOT_DIR}/sbin/ping6
 
 .include <bsd.prog.mk>

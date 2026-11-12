@@ -29,13 +29,13 @@ to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/misc ${SYSROOT_DIR}/etc \
 	    ${SYSROOT_DIR}/private/var/mail
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/mail
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/mail
 	ln -sf mail ${SYSROOT_DIR}/usr/bin/mailx
-	install -m 0444 ${.CURDIR}/mail.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/mail.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	ln -sf mail.1 ${SYSROOT_DIR}/usr/share/man/man1/mailx.1
-	install -m 0444 ${.CURDIR}/misc/mail.help ${.CURDIR}/misc/mail.tildehelp \
+	install -C -m 0444 ${.CURDIR}/misc/mail.help ${.CURDIR}/misc/mail.tildehelp \
 	    ${SYSROOT_DIR}/usr/share/misc/
-	install -m 0644 ${.CURDIR}/misc/mail.rc ${SYSROOT_DIR}/etc/mail.rc
+	install -C -m 0644 ${.CURDIR}/misc/mail.rc ${SYSROOT_DIR}/etc/mail.rc
 	chown 0:6 ${SYSROOT_DIR}/private/var/mail
 	chmod 0775 ${SYSROOT_DIR}/private/var/mail
 

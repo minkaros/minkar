@@ -15,7 +15,7 @@ ${TOOLCHAIN}:
 	mkdir -p ${TOOLCHAIN}/usr/include
 	mkdir -p ${TOOLCHAIN}/usr/lib
 	mkdir -p ${TOOLCHAIN}/usr/bin
-	cp -f ${.CURDIR}/ToolchainInfo.plist ${TOOLCHAIN}/
+	rsync -cL ${.CURDIR}/ToolchainInfo.plist ${TOOLCHAIN}/
 
 ${.OBJDIR}/tapi/Version.inc: ${.CURDIR}/llvm/tapi/include/tapi/Version.inc.in
 	mkdir -p ${.OBJDIR}/tapi

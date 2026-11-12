@@ -6,7 +6,7 @@ LIB = system_platform
 all: libplatform.a
 libplatform.a: lib${LIB}.a
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/dyld
-	cp -f ${.OBJDIR}/lib${LIB}.a \
+	rsync -cL ${.OBJDIR}/lib${LIB}.a \
 	  ${MINKAR_SDKROOT}/usr/local/lib/dyld/${.TARGET}
 
 .include "../common.mk"

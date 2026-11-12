@@ -28,7 +28,7 @@ ${PROG} ${PROG}.full: all_subdir_BSD/sbin/fsck_hfs/dfalib
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin
-	cp -f ${PROG} ${SYSROOT_DIR}/sbin/
+	rsync -cL ${PROG} ${SYSROOT_DIR}/sbin/
 
 .include <bsd.subdir.mk>
 .include <bsd.prog.mk>

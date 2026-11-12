@@ -50,9 +50,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${BINDIR} ${SYSROOT_DIR}/etc
-	install -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
-	install -m 0644 ${.CURDIR}/asl.conf.osx ${SYSROOT_DIR}/etc/asl.conf
-	install -m 0644 ${.CURDIR}/syslog.conf ${SYSROOT_DIR}/etc/syslog.conf
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0644 ${.CURDIR}/asl.conf.osx ${SYSROOT_DIR}/etc/asl.conf
+	install -C -m 0644 ${.CURDIR}/syslog.conf ${SYSROOT_DIR}/etc/syslog.conf
 
 .include <bsd.prog.mk>
 

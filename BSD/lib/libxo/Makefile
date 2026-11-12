@@ -29,10 +29,10 @@ ${.OBJDIR}/libxo.0.dylib: lib${LIB}.a
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib ${d}/usr/include/libxo
-	cp -f ${.TARGET} ${d}/usr/lib/
+	rsync -cL ${.TARGET} ${d}/usr/lib/
 	ln -sf libxo.0.dylib ${d}/usr/lib/libxo.dylib
 .for h in ${INCS}
-	cp -f ${.CURDIR}/${h} ${d}/usr/include/libxo/
+	rsync -cL ${.CURDIR}/${h} ${d}/usr/include/libxo/
 .endfor
 .endfor
 

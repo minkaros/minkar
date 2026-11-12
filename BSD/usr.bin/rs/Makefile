@@ -10,6 +10,6 @@ all: to-sysroot
 
 to-sysroot: rs
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 rs ${SYSROOT_DIR}/usr/bin/rs
+	install -C -m 0555 rs ${SYSROOT_DIR}/usr/bin/rs
 
 .include <bsd.prog.mk>

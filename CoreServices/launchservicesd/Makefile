@@ -36,6 +36,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/System/Library/CoreServices
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/System/Library/CoreServices/${PROG}
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/System/Library/CoreServices/${PROG}
 
 .include <bsd.prog.mk>

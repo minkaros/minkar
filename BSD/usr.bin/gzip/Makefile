@@ -28,17 +28,17 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${BINDIR} ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
 .for l in gunzip gzcat zcat
 	ln -f ${SYSROOT_DIR}${BINDIR}/gzip ${SYSROOT_DIR}${BINDIR}/${l}
 .endfor
 .for s in ${SCRIPTS}
-	install -m 0555 ${.CURDIR}/${s} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0555 ${.CURDIR}/${s} ${SYSROOT_DIR}${BINDIR}/
 .endfor
 	ln -f ${SYSROOT_DIR}${BINDIR}/zdiff ${SYSROOT_DIR}${BINDIR}/zcmp
 	ln -f ${SYSROOT_DIR}${BINDIR}/zmore ${SYSROOT_DIR}${BINDIR}/zless
 .for m in gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
-	install -m 0444 ${.CURDIR}/${m} ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/${m} ${SYSROOT_DIR}/usr/share/man/man1/
 .endfor
 
 .include <bsd.prog.mk>

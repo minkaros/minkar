@@ -23,8 +23,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/newfs_hfs
-	install -m 0444 ${.CURDIR}/newfs_hfs.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/newfs_hfs
+	install -C -m 0444 ${.CURDIR}/newfs_hfs.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 
 .include <bsd.prog.mk>

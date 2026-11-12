@@ -36,8 +36,8 @@ build-sudo: config.status .PHONY
 
 install-sudo: build-sudo .PHONY
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/sbin
-	install -o 0 -g 0 -m 4111 src/sudo ${SYSROOT_DIR}/usr/bin/sudo
-	install -o 0 -g 0 -m 0555 plugins/sudoers/visudo ${SYSROOT_DIR}/usr/sbin/visudo
+	install -C -o 0 -g 0 -m 4111 src/sudo ${SYSROOT_DIR}/usr/bin/sudo
+	install -C -o 0 -g 0 -m 0555 plugins/sudoers/visudo ${SYSROOT_DIR}/usr/sbin/visudo
 
 clean:
 	-env MAKEFLAGS= ${GMAKE} distclean

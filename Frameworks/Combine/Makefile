@@ -39,7 +39,7 @@ ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST 
 	rm -rf ${SRC} ${SRC}.part && mkdir -p ${SRC}.part/Sources && \
 	cp -a $$pristine/Sources/OpenCombine $$pristine/Sources/COpenCombineHelpers \
 	    ${SRC}.part/Sources/ && \
-	cp $$pristine/LICENSE ${SRC}.part/ && \
+	rsync -cL $$pristine/LICENSE ${SRC}.part/ && \
 	for p in ${PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
 	done && \
@@ -55,7 +55,7 @@ ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST 
 # The helpers' header as a module, for building Combine only.
 ${HELPERS}/module.modulemap: ${SRC}/.minkar-patches
 	rm -rf ${HELPERS} && mkdir -p ${HELPERS}
-	cp ${SRC}/Sources/COpenCombineHelpers/include/COpenCombineHelpers.h ${HELPERS}/
+	rsync -cL ${SRC}/Sources/COpenCombineHelpers/include/COpenCombineHelpers.h ${HELPERS}/
 	printf 'module COpenCombineHelpers [system] {\n  header "COpenCombineHelpers.h"\n  export *\n}\n' > ${.TARGET}
 
 ${.OBJDIR}/Combine.o: ${HELPERS}/module.modulemap
@@ -82,8 +82,8 @@ ${VERS}/Combine: ${.OBJDIR}/Combine.o ${.OBJDIR}/helpers.o ${.CURDIR}/Info.plist
 	    -compatibility_version 1.0.0 -current_version 1.0.0 \
 	    ${.OBJDIR}/Combine.o ${.OBJDIR}/helpers.o \
 	    -L${MINKAR_SDKROOT}/usr/lib/swift -lc++ -o ${.TARGET}
-	cp ${.CURDIR}/Info.plist ${VERS}/Resources/Info.plist
-	cp ${SRC}/LICENSE ${VERS}/Resources/LICENSE.OpenCombine
+	rsync -cL ${.CURDIR}/Info.plist ${VERS}/Resources/Info.plist
+	rsync -cL ${SRC}/LICENSE ${VERS}/Resources/LICENSE.OpenCombine
 	ln -sfn A ${FMWK}/Versions/Current
 	ln -sfn Versions/Current/Combine ${FMWK}/Combine
 	ln -sfn Versions/Current/Modules ${FMWK}/Modules
@@ -93,7 +93,7 @@ install-combine: .PHONY ${VERS}/Combine
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/System/Library/Frameworks
 	rm -rf ${d}/System/Library/Frameworks/Combine.framework
-	cp -R ${FMWK} ${d}/System/Library/Frameworks/
+	rsync -rlc ${FMWK} ${d}/System/Library/Frameworks/
 .endfor
 
 clean: .PHONY

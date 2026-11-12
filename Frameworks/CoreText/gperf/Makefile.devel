@@ -32,7 +32,7 @@ src/config.h.in : src/configure.ac aclocal.m4
 	cd src && autoheader -I ..
 
 src/config.h_vms : src/config.h.in
-	cp src/config.h.in src/config.h_vms
+	rsync -cL src/config.h.in src/config.h_vms
 
 totally-clean : force
 	rm -f $(CONFIGURES)

@@ -45,9 +45,9 @@ btop: ${BTOP_OBJS}
 to-sysroot: btop
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/btop/themes
-	install -m 0555 btop ${SYSROOT_DIR}/usr/bin/
-	install -m 0444 ${.CURDIR}/btop.1 ${SYSROOT_DIR}/usr/share/man/man1/
-	install -m 0444 ${DIST}/themes/*.theme ${SYSROOT_DIR}/usr/share/btop/themes/
+	install -C -m 0555 btop ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0444 ${.CURDIR}/btop.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${DIST}/themes/*.theme ${SYSROOT_DIR}/usr/share/btop/themes/
 
 clean:
 	rm -f btop ${BTOP_OBJS} config.h

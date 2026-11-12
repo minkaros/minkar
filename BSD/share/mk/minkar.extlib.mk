@@ -343,7 +343,7 @@ _install-extlib: .PHONY
 		case $$f in build/*) src=${BUILD}/$${f#build/};; src/*) src=${SRC}/$${f#src/};; \
 		    *) src=${STAGE}/$$f;; esac; \
 		test -e $$src || { echo "minkar.extlib.mk: $$f not built" >&2; exit 1; }; \
-		cp -RL $$src ${TEST_DIR}/ || exit 1; \
+		rsync -rLc $$src ${TEST_DIR}/ || exit 1; \
 	done
 	# The system's libraries, not the test build's own: a library of the
 	# build (@rpath, or a path in the build) is /usr/lib's when the system
@@ -362,7 +362,7 @@ _install-extlib: .PHONY
 			else \
 				built=$$(find ${BUILD} -name $$name | head -1); \
 				[ -n "$$built" ] || { echo "minkar.extlib.mk: $$name not found" >&2; exit 1; }; \
-				cp -L $$built ${TEST_DIR}/ || exit 1; \
+				rsync -cL $$built ${TEST_DIR}/ || exit 1; \
 				new=${EXTLIB_TEST_PATH}/$$name; \
 			fi; \
 			${TC}/install_name_tool -change $$dep $$new "$$f" 2>/dev/null; \
@@ -379,9 +379,9 @@ _install-extlib: .PHONY
 			${TC}/install_name_tool -change $$dep $$n "$$f"; \
 		done; \
 	done; true
-	if [ -f ${.CURDIR}/run.sh ]; then install -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh; fi
+	if [ -f ${.CURDIR}/run.sh ]; then install -C -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh; fi
 	# What is left out, and why (if anything is).
-	if [ -f ${.CURDIR}/skip.txt ]; then install -m 0644 ${.CURDIR}/skip.txt ${TEST_DIR}/; fi
+	if [ -f ${.CURDIR}/skip.txt ]; then install -C -m 0644 ${.CURDIR}/skip.txt ${TEST_DIR}/; fi
 .elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 _install-extlib: .PHONY
 	mkdir -p ${HOST_PREFIX}
@@ -455,7 +455,7 @@ _install-extlib: .PHONY
 		test -f $$prog || { echo "minkar.extlib.mk: $${h%%:*} not built" >&2; exit 1; }; \
 		v=$$(readlink ${SYSROOT_DIR}${LIB_DEST}/$$fw.framework/Versions/Current); \
 		dir=${SYSROOT_DIR}${LIB_DEST}/$$fw.framework/Versions/$$v/Helpers; \
-		mkdir -p $$dir && cp -f $$prog $$dir/ || exit 1; \
+		mkdir -p $$dir && rsync -cL $$prog $$dir/ || exit 1; \
 		old=$$(${TC}/otool -L $$prog | awk -v f="/$$fw.framework/" 'NR > 1 && index($$1, f) { print $$1 }'); \
 		[ -z "$$old" ] || ${TC}/install_name_tool -change $$old \
 		    ${LIB_DEST}/$$fw.framework/Versions/$$v/$$fw $$dir/$${prog##*/} || exit 1; \
@@ -478,7 +478,7 @@ _install-extlib: .PHONY
 	done
 .if !empty(EXTLIB_LICENSES)
 	mkdir -p ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}
-	cd ${SRC} && install -m 0444 ${EXTLIB_LICENSES} ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}/
+	cd ${SRC} && install -C -m 0444 ${EXTLIB_LICENSES} ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}/
 .endif
 .endif
 

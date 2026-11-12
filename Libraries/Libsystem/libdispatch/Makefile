@@ -101,14 +101,14 @@ lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 
 BlocksRuntime:
 	mkdir -p ${.TARGET}
-	cp -f ${.CURDIR}/../libsystem_blocks/Block_private.h ${.TARGET}/
+	rsync -cL ${.CURDIR}/../libsystem_blocks/Block_private.h ${.TARGET}/
 
 migs: protocolServer.h firehoseServer.h firehose_replyServer.h
 
 ${.OBJDIR}/lib${LIB}.dylib: migs ${LOBJS} 
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} ${LOBJS} ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 # The sources include the MIG headers: generate them first, also with -j
 # (OBJS is only set by bsd.lib.mk).

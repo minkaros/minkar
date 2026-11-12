@@ -30,7 +30,7 @@ ${SRCS:NWindowServerUser.c:S/.c$/.o/}: WindowServer.h
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR} ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
 
 .include <minkar.framework.mk>

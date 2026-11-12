@@ -40,7 +40,7 @@ ${.OBJDIR}/Makefile: ${.CURDIR}/configure
 build: ${.OBJDIR}/Makefile
 	MAKEFLAGS="" ${GMAKE} ${NO_AUTOTOOLS} -C ${.OBJDIR}/src all
 	mkdir -p ${SYSROOT_DIR}/etc/fonts/conf.d
-	cp -f ${.CURDIR}/fonts.conf ${SYSROOT_DIR}/etc/fonts/
+	rsync -cL ${.CURDIR}/fonts.conf ${SYSROOT_DIR}/etc/fonts/
 
 clean:
 	rm -rf ${.OBJDIR}/*

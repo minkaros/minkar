@@ -14,6 +14,6 @@ SystemVersion.plist: ${.CURDIR}/SystemVersion.plist.in ${.CURDIR:H}/Makefile .EX
 	  -e 's/@PROD_COMPAT_VERSION@/${PROD_COMPAT_VERSION}/' \
 	  < ${.CURDIR}/SystemVersion.plist.in > ${.OBJDIR}/${.TARGET}
 	mkdir -p ${SYSROOT_DIR}/System/Library/CoreServices
-	cp -f ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/System/Library/CoreServices
+	rsync -cL ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/System/Library/CoreServices
 
 .include <bsd.subdir.mk>

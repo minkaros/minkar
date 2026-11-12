@@ -25,6 +25,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/local/bin
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/local/bin/wsctl
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/local/bin/wsctl
 
 .include <bsd.prog.mk>

@@ -10,7 +10,7 @@ all: to-sysroot
 # macOS has both in /usr/bin.
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/pkill
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/pkill
 	ln -f ${SYSROOT_DIR}/usr/bin/pkill ${SYSROOT_DIR}/usr/bin/pgrep
 
 .include <bsd.prog.mk>

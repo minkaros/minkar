@@ -37,6 +37,6 @@ ${.OBJDIR}/build/zip: ${.CURDIR}/Makefile
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/build/zip
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/zip ${SYSROOT_DIR}/usr/bin/zip
-	install -m 0444 ${.OBJDIR}/build/man/zip.1 ${SYSROOT_DIR}/usr/share/man/man1/zip.1
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/zip ${SYSROOT_DIR}/usr/bin/zip
+	install -C -m 0444 ${.OBJDIR}/build/man/zip.1 ${SYSROOT_DIR}/usr/share/man/man1/zip.1
 	touch ${.TARGET}

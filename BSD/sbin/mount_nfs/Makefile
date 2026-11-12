@@ -28,10 +28,10 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/etc ${SYSROOT_DIR}/usr/share/man/man5 \
 	    ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/mount_nfs
-	install -m 0644 ${.CURDIR}/dist/nfs.conf ${SYSROOT_DIR}/etc/nfs.conf
-	install -m 0444 ${.CURDIR}/dist/mount_nfs.8 ${SYSROOT_DIR}/usr/share/man/man8/
-	install -m 0444 ${.CURDIR}/dist/nfs.5 ${.CURDIR}/dist/nfs.conf.5 \
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/mount_nfs
+	install -C -m 0644 ${.CURDIR}/dist/nfs.conf ${SYSROOT_DIR}/etc/nfs.conf
+	install -C -m 0444 ${.CURDIR}/dist/mount_nfs.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0444 ${.CURDIR}/dist/nfs.5 ${.CURDIR}/dist/nfs.conf.5 \
 	    ${SYSROOT_DIR}/usr/share/man/man5/
 
 .include <bsd.prog.mk>

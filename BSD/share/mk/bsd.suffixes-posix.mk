@@ -13,7 +13,7 @@
 	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 .sh:
-	cp -f ${.IMPSRC} ${.TARGET}
+	rsync -cL ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
 # DOUBLE SUFFIX RULES

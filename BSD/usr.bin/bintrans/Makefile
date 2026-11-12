@@ -10,7 +10,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/bintrans
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/bintrans
 	ln -f ${SYSROOT_DIR}/usr/bin/bintrans ${SYSROOT_DIR}/usr/bin/uuencode
 	ln -f ${SYSROOT_DIR}/usr/bin/bintrans ${SYSROOT_DIR}/usr/bin/b64encode
 	ln -f ${SYSROOT_DIR}/usr/bin/bintrans ${SYSROOT_DIR}/usr/bin/uudecode

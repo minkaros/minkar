@@ -62,12 +62,12 @@ all: ${PROG} .WAIT app-bundle .WAIT app-install-hook
 app-bundle: .PHONY
 	@${ECHO} building ${APP_DIR:T} bundle
 	mkdir -p ${APP_DIR}/Contents/${APP_EXEC_DIR} ${APP_DIR}/Contents/Resources
-	cp -f ${.OBJDIR}/${PROG} ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
+	rsync -cL ${.OBJDIR}/${PROG} ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
 .if exists(${.CURDIR}/${INFO_PLIST})
-	cp -f ${.CURDIR}/${INFO_PLIST} ${APP_DIR}/Contents/Info.plist
+	rsync -cL ${.CURDIR}/${INFO_PLIST} ${APP_DIR}/Contents/Info.plist
 .endif
 .for rsc in ${RESOURCES}
-	cp -Rf ${rsc} ${APP_DIR}/Contents/Resources/
+	rsync -rlc ${rsc} ${APP_DIR}/Contents/Resources/
 .endfor
 	${CODESIGN} -f -s - ${_CODESIGN_FLAGS} \
 	    ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
@@ -75,7 +75,7 @@ app-bundle: .PHONY
 APP_INSTALL_NAME ?= ${APP}
 app-install-hook: .PHONY
 	mkdir -p ${SYSROOT_DIR}${APP_INSTALL_DIR}
-	rm -rf "${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP_INSTALL_NAME}.app"
-	cp -Rf ${APP_DIR} "${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP_INSTALL_NAME}.app"
+	# By content: unchanged files keep their dates, files it no longer has go.
+	rsync -rlc --delete ${APP_DIR}/ "${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP_INSTALL_NAME}.app/"
 
 .include <bsd.prog.mk>

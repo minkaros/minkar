@@ -48,10 +48,11 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	# Public headers, as on macOS (<xpc/xpc.h> includes <launch.h>).
-	cp -f ${.CURDIR}/launch.h ${.CURDIR}/vproc.h ${MINKAR_SDKROOT}/usr/include/
+	# By content: unchanged headers keep their dates.
+	rsync -c ${.CURDIR}/launch.h ${.CURDIR}/vproc.h ${MINKAR_SDKROOT}/usr/include/
 
 # The sources include the MIG headers: generate them first, also with -j
 # (OBJS is only set by bsd.lib.mk).

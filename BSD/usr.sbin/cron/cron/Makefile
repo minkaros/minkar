@@ -23,6 +23,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/cron
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/cron
 
 .include <bsd.prog.mk>

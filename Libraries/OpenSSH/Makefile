@@ -137,31 +137,31 @@ install-sysroot: ${PROGS}
 	    ${SYSROOT_DIR}/usr/libexec ${ETCSSH} ${SYSROOT_DIR}/private/var/empty
 	chmod 0555 ${SYSROOT_DIR}/private/var/empty
 .for p in ${BINPROGS}
-	install -m 0555 ${p} ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0555 ${p} ${SYSROOT_DIR}/usr/bin/
 .endfor
 .for p in ${SBINPROGS}
-	install -m 0555 ${p} ${SYSROOT_DIR}/usr/sbin/
+	install -C -m 0555 ${p} ${SYSROOT_DIR}/usr/sbin/
 .endfor
 .for p in ${LIBEXECPROGS}
-	install -m 0555 ${p} ${SYSROOT_DIR}/usr/libexec/
+	install -C -m 0555 ${p} ${SYSROOT_DIR}/usr/libexec/
 .endfor
-	install -m 0555 ${.CURDIR}/sshd-keygen-wrapper ${SYSROOT_DIR}/usr/libexec/
-	install -m 0644 ${.CURDIR}/sshd_config ${ETCSSH}/sshd_config
-	install -m 0644 ${OPENSSH}/ssh_config ${ETCSSH}/ssh_config
-	install -m 0644 ${OPENSSH}/moduli ${ETCSSH}/moduli
+	install -C -m 0555 ${.CURDIR}/sshd-keygen-wrapper ${SYSROOT_DIR}/usr/libexec/
+	install -C -m 0644 ${.CURDIR}/sshd_config ${ETCSSH}/sshd_config
+	install -C -m 0644 ${OPENSSH}/ssh_config ${ETCSSH}/ssh_config
+	install -C -m 0644 ${OPENSSH}/moduli ${ETCSSH}/moduli
 	mkdir -p ${SYSROOT_DIR}/private/etc/pam.d
-	install -m 0644 ${.CURDIR}/pam.d/sshd ${SYSROOT_DIR}/private/etc/pam.d/sshd
+	install -C -m 0644 ${.CURDIR}/pam.d/sshd ${SYSROOT_DIR}/private/etc/pam.d/sshd
 	# The manual: the programs' pages and those of their files.
 	mkdir -p ${SYSROOT_DIR}/usr/share/man/man1 ${SYSROOT_DIR}/usr/share/man/man5 \
 	    ${SYSROOT_DIR}/usr/share/man/man8
 .for p in ${BINPROGS}
-	install -m 0444 ${OPENSSH}/${p}.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${OPENSSH}/${p}.1 ${SYSROOT_DIR}/usr/share/man/man1/
 .endfor
 .for p in sshd sftp-server
-	install -m 0444 ${OPENSSH}/${p}.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0444 ${OPENSSH}/${p}.8 ${SYSROOT_DIR}/usr/share/man/man8/
 .endfor
 .for p in ssh_config sshd_config moduli
-	install -m 0444 ${OPENSSH}/${p}.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0444 ${OPENSSH}/${p}.5 ${SYSROOT_DIR}/usr/share/man/man5/
 .endfor
 
 .PHONY: install-sysroot

@@ -30,9 +30,9 @@ to-sysroot: ${PROG}
 	sed -e 's/[$$]HFS_VERSION/556.100.11/' \
 	    -e 's/[$$]HFS_COPYRIGHT_INFO_STRING/556.100.11, Copyright Apple Inc. 1999-2019/' \
 	    ${HFS}/fs/Info.plist > ${SYSROOT_DIR}${FSB}/Contents/Info.plist
-	cp -Rf ${HFS}/fs/en.lproj ${SYSROOT_DIR}${FSB}/Contents/Resources/
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
-	install -m 0444 ${HFS}/hfs_util/hfs.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	rsync -rlc ${HFS}/fs/en.lproj ${SYSROOT_DIR}${FSB}/Contents/Resources/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
+	install -C -m 0444 ${HFS}/hfs_util/hfs.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
 .for t in fsck_hfs mount_hfs newfs_hfs
 	ln -sfn ../../../../../../sbin/${t} ${SYSROOT_DIR}${FSB}/Contents/Resources/${t}
 .endfor

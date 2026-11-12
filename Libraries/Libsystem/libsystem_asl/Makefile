@@ -56,8 +56,8 @@ ${.OBJDIR}/lib${LIB}.dylib: asl_ipcUser.c lib${LIB}.a
 	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 # The sources include the MIG headers: generate them first, also with -j
 # (OBJS is only set by bsd.lib.mk).

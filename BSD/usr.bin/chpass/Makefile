@@ -25,11 +25,11 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/chpass
+	install -C -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/chpass
 .for l in chfn chsh
 	ln -sf chpass ${SYSROOT_DIR}/usr/bin/${l}
 	ln -sf chpass.1 ${SYSROOT_DIR}/usr/share/man/man1/${l}.1
 .endfor
-	install -m 0444 ${.CURDIR}/chpass.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/chpass.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

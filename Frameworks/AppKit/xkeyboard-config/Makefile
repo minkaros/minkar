@@ -50,14 +50,14 @@ install-data: generate
 	mkdir -p ${XKB_DEST}/rules
 .for d in ${KCGST_DIRS}
 	rm -rf ${XKB_DEST}/${d}
-	cp -R ${.CURDIR}/${d} ${XKB_DEST}/
+	rsync -rlc ${.CURDIR}/${d} ${XKB_DEST}/
 .endfor
-	cp -f ${RULES_SRC}/README ${RULES_SRC}/xkb.dtd ${RULES_SRC}/xfree98 \
+	rsync -cL ${RULES_SRC}/README ${RULES_SRC}/xkb.dtd ${RULES_SRC}/xfree98 \
 	    ${XKB_DEST}/rules/
 .for r in ${RULESETS}
-	cp -f ${.OBJDIR}/${r} ${.OBJDIR}/${r}.lst ${XKB_DEST}/rules/
-	cp -f ${RULES_SRC}/base.xml ${XKB_DEST}/rules/${r}.xml
-	cp -f ${RULES_SRC}/base.extras.xml ${XKB_DEST}/rules/${r}.extras.xml
+	rsync -cL ${.OBJDIR}/${r} ${.OBJDIR}/${r}.lst ${XKB_DEST}/rules/
+	rsync -cL ${RULES_SRC}/base.xml ${XKB_DEST}/rules/${r}.xml
+	rsync -cL ${RULES_SRC}/base.extras.xml ${XKB_DEST}/rules/${r}.extras.xml
 .endfor
 	# pkg-config data file, as meson.build generates it
 	mkdir -p ${MINKAR_SDKROOT}/usr/share/pkgconfig

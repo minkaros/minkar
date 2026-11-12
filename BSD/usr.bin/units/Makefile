@@ -23,9 +23,9 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/misc \
 	    ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/units
-	install -m 0444 ${.CURDIR}/definitions.units ${SYSROOT_DIR}/usr/share/misc/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/units
+	install -C -m 0444 ${.CURDIR}/definitions.units ${SYSROOT_DIR}/usr/share/misc/
 	ln -sf definitions.units ${SYSROOT_DIR}/usr/share/misc/units.lib
-	install -m 0444 ${.CURDIR}/units.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/units.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

@@ -30,11 +30,11 @@ at.1: ${.CURDIR}/at.man
 
 to-sysroot: ${PROG} at.1
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/at
+	install -C -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/at
 .for l in atq atrm batch
 	ln -f ${SYSROOT_DIR}/usr/bin/at ${SYSROOT_DIR}/usr/bin/${l}
 .endfor
-	install -m 0444 at.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 at.1 ${SYSROOT_DIR}/usr/share/man/man1/
 .for l in atq atrm batch
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/at.1 ${SYSROOT_DIR}/usr/share/man/man1/${l}.1
 .endfor
@@ -45,6 +45,6 @@ to-sysroot: ${PROG} at.1
 	touch ${SYSROOT_DIR}/private/var/at/jobs/.lockfile
 	chown 1:1 ${SYSROOT_DIR}/private/var/at/jobs/.lockfile
 	# an empty at.deny: every user may use at (perm.c; as FreeBSD installs it)
-	install -m 0600 -o 0 -g 0 /dev/null ${SYSROOT_DIR}/private/var/at/at.deny
+	install -C -m 0600 -o 0 -g 0 /dev/null ${SYSROOT_DIR}/private/var/at/at.deny
 
 .include <bsd.prog.mk>

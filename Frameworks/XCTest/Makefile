@@ -48,7 +48,7 @@ ${SRC}/.minkar-patches: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile \
 	for p in ${PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
 	done && \
-	cp ${.CURDIR}/Sources/XCTMetric.swift ${SRC}.part/Sources/XCTest/Public/ && \
+	rsync -cL ${.CURDIR}/Sources/XCTMetric.swift ${SRC}.part/Sources/XCTest/Public/ && \
 	find ${SRC}.part/Sources -name '*.swift' -exec sed -i -E \
 	    -e '/^ *@available\(macOS 12\.0, \*\) *$$/d' {} + && \
 	mv ${SRC}.part ${SRC}
@@ -77,8 +77,8 @@ ${VERS}/XCTest: ${.OBJDIR}/XCTest.o ${.CURDIR}/Info.plist
 	    -install_name @rpath/XCTest.framework/Versions/A/XCTest \
 	    -compatibility_version 1.0.0 -current_version 1.0.0 \
 	    ${.OBJDIR}/XCTest.o -L${MINKAR_SDKROOT}/usr/lib/swift -o ${.TARGET}
-	cp ${.CURDIR}/Info.plist ${VERS}/Resources/Info.plist
-	cp ${SRC}/LICENSE ${VERS}/Resources/LICENSE.XCTest
+	rsync -cL ${.CURDIR}/Info.plist ${VERS}/Resources/Info.plist
+	rsync -cL ${SRC}/LICENSE ${VERS}/Resources/LICENSE.XCTest
 	ln -sfn A ${FMWK}/Versions/Current
 	ln -sfn Versions/Current/XCTest ${FMWK}/XCTest
 	ln -sfn Versions/Current/Modules ${FMWK}/Modules
@@ -88,10 +88,10 @@ install-xctest: .PHONY ${VERS}/XCTest
 .for d in ${PLATFORM_FMWKS} ${IMAGE_FMWKS}
 	mkdir -p ${d}
 	rm -rf ${d}/XCTest.framework
-	cp -R ${FMWK} ${d}/
+	rsync -rlc ${FMWK} ${d}/
 .endfor
 	mkdir -p ${TC}
-	install -m 0755 ${.CURDIR}/xctest-discover.py ${TC}/xctest-discover
+	install -C -m 0755 ${.CURDIR}/xctest-discover.py ${TC}/xctest-discover
 
 clean: .PHONY
 	rm -rf ${SRC} ${FMWK} ${.OBJDIR}/*.o ${.OBJDIR}/module-cache

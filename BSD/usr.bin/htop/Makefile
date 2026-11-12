@@ -27,7 +27,7 @@ ${.OBJDIR}/htop: ${.CURDIR}/Makefile
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/htop
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/htop ${SYSROOT_DIR}/usr/bin/htop
-	install -m 0444 ${.OBJDIR}/htop.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/htop ${SYSROOT_DIR}/usr/bin/htop
+	install -C -m 0444 ${.OBJDIR}/htop.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	touch ${.TARGET}
 

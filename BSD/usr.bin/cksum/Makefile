@@ -10,7 +10,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/cksum
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/cksum
 	ln -f ${SYSROOT_DIR}/usr/bin/cksum ${SYSROOT_DIR}/usr/bin/sum
 
 .include <bsd.prog.mk>

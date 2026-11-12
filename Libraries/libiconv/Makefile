@@ -59,12 +59,12 @@ ${.OBJDIR}/libiconv.2.dylib: lib${LIB}.a ${.CURDIR}/libiconv.exports
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/include
-	cp -f ${.CURDIR}/include/iconv.h ${MINKAR_SDKROOT}/usr/include/
+	rsync -cL ${.CURDIR}/include/iconv.h ${MINKAR_SDKROOT}/usr/include/
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib ${d}/usr/share/man/man3
-	cp -f ${.TARGET} ${d}/usr/lib/
+	rsync -cL ${.TARGET} ${d}/usr/lib/
 	ln -sf libiconv.2.dylib ${d}/usr/lib/libiconv.dylib
-	cd ${.CURDIR}/citrus && cp -f ${MAN3} ${d}/usr/share/man/man3/
+	cd ${.CURDIR}/citrus && rsync -cL ${MAN3} ${d}/usr/share/man/man3/
 .for l in iconv_open iconv_open_into iconv_close __iconv
 	ln -f ${d}/usr/share/man/man3/iconv.3 ${d}/usr/share/man/man3/${l}.3
 .endfor

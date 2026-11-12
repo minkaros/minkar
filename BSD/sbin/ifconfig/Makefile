@@ -19,6 +19,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin
-	cp -f ${PROG} ${SYSROOT_DIR}/sbin/
+	rsync -cL ${PROG} ${SYSROOT_DIR}/sbin/
 
 .include <bsd.prog.mk>

@@ -50,13 +50,13 @@ all: install-fonts
 install-fonts: .PHONY
 	mkdir -p ${DIR}
 .for f in ${FONTS}
-	install -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${DIR}/
+	install -C -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${DIR}/
 .endfor
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.agave ${CACHE}) && \
 	for f in ${AGAVE}; do \
-		install -o 0 -g 0 -m 0644 $$src/dist/$$f ${DIR}/ || exit 1; \
+		install -C -o 0 -g 0 -m 0644 $$src/dist/$$f ${DIR}/ || exit 1; \
 	done && \
-	install -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Agave-LICENSE.txt
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Agave-LICENSE.txt
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.liberation ${CACHE}) && \
 	for f in ${LIBERATION}; do \
 		install -C -o 0 -g 0 -m 0644 $$src/$$f ${DIR}/ || exit 1; \

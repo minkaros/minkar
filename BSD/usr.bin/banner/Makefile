@@ -20,7 +20,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man6
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/banner
-	install -m 0444 ${.CURDIR}/banner.6 ${SYSROOT_DIR}/usr/share/man/man6/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/banner
+	install -C -m 0444 ${.CURDIR}/banner.6 ${SYSROOT_DIR}/usr/share/man/man6/
 
 .include <bsd.prog.mk>

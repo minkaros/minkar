@@ -152,7 +152,7 @@ ${FRAMEWORK}: copy_headers
 
 copy_headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/share/misc
-	cp -f --preserve=timestamps ${.CURDIR:H}/tools/hid.codes \
+	rsync -ctL ${.CURDIR:H}/tools/hid.codes \
 	  ${MINKAR_SDKROOT}/usr/local/share/misc/
 .for dir in ${HID_OBJC_DST} ${HID_KERNSYS_DST} ${HIDEVENT_KERN_DST} \
   ${HID_KERNPRIVSYS_DST} ${HID_IOKITPRIVSYS_DST} ${HID_IOKITSYS_DST} \
@@ -162,44 +162,44 @@ copy_headers: .PHONY
 .endfor
 	touch ${HID_IOKIT_DST}/IOHIDEventSystemClient.h
 .for file in ${HID_KERNSYS}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_KERNSYS_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_KERNSYS_DST}
 .endfor
 .for file in ${HIDEVENT_KERN}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HIDEVENT_KERN_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HIDEVENT_KERN_DST}
 .endfor
 .for file in ${HID_KERNPRIVSYS}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_KERNPRIVSYS_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_KERNPRIVSYS_DST}
 .endfor
 .for file in ${HID_IOKITPRIVSYS}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_IOKITPRIVSYS_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_IOKITPRIVSYS_DST}
 .endfor
 .for file in ${HID_IOKITSYS}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_IOKITSYS_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_IOKITSYS_DST}
 .endfor
 .for file in ${HID_IOKITPRIV}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_IOKITPRIV_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_IOKITPRIV_DST}
 .endfor
 .for file in ${HID_IOKIT}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_IOKIT_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_IOKIT_DST}
 .endfor
 .for file in ${HID_IOKIT2}
-	cp -f --preserve=timestamps ${ROOT_SOURCE_DIR}/Kernel/IOKitUser/hid.subproj/${file} \
+	rsync -ctL ${ROOT_SOURCE_DIR}/Kernel/IOKitUser/hid.subproj/${file} \
 	  ${HID_IOKIT_DST}
 .endfor
 .for file in ${HID_KERN}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_KERN_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_KERN_DST}
 .endfor
 .for file in ${HID_KERNPRIV}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_KERNPRIV_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_KERNPRIV_DST}
 .endfor
 .for file in ${HID_SYS}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_SYS_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_SYS_DST}
 .endfor
 .for file in ${HID_DK}
-	cp -f --preserve=timestamps ${.CURDIR:H}/${file} ${HID_DK_DST}
+	rsync -ctL ${.CURDIR:H}/${file} ${HID_DK_DST}
 .endfor
 .for file in ${HID_OBJC}
-	cp -f --preserve=timestamps ${ROOT_SOURCE_DIR}/Kernel/IOKitUser/hid.subproj/${file} \
+	rsync -ctL ${ROOT_SOURCE_DIR}/Kernel/IOKitUser/hid.subproj/${file} \
 	  ${HID_OBJC_DST}
 .endfor
 

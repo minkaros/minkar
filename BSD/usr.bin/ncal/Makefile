@@ -23,9 +23,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/ncal
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/ncal
 	ln -f ${SYSROOT_DIR}/usr/bin/ncal ${SYSROOT_DIR}/usr/bin/cal
-	install -m 0444 ${.CURDIR}/ncal.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/ncal.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/ncal.1 ${SYSROOT_DIR}/usr/share/man/man1/cal.1
 
 .include <bsd.prog.mk>

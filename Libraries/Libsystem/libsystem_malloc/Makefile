@@ -43,7 +43,7 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -o ${.TARGET} ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system \
 		${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

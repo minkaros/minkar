@@ -43,21 +43,21 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/build/apps/openssl
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/lib \
 	    ${SYSROOT_DIR}/usr/lib/ossl-modules ${SYSROOT_DIR}/private/etc/ssl \
 	    ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${STAGE}/usr/bin/openssl ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0555 -o 0 -g 0 ${STAGE}/usr/bin/openssl ${SYSROOT_DIR}/usr/bin/
 .for l in libcrypto libssl
-	install -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/${l}.3.dylib ${SYSROOT_DIR}/usr/lib/
+	install -C -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/${l}.3.dylib ${SYSROOT_DIR}/usr/lib/
 .endfor
-	install -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/ossl-modules/legacy.dylib \
+	install -C -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/ossl-modules/legacy.dylib \
 	    ${SYSROOT_DIR}/usr/lib/ossl-modules/
-	install -m 0644 ${STAGE}/private/etc/ssl/openssl.cnf ${SYSROOT_DIR}/private/etc/ssl/
+	install -C -m 0644 ${STAGE}/private/etc/ssl/openssl.cnf ${SYSROOT_DIR}/private/etc/ssl/
 	for m in ${STAGE}/usr/share/man/man1/openssl*.1ossl; do \
-	    b=$${m##*/}; install -m 0444 $$m ${SYSROOT_DIR}/usr/share/man/man1/$${b%ossl}; \
+	    b=$${m##*/}; install -C -m 0444 $$m ${SYSROOT_DIR}/usr/share/man/man1/$${b%ossl}; \
 	done
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
 	rm -rf ${MINKAR_SDKROOT}/usr/local/include/openssl
-	cp -R ${STAGE}/usr/include/openssl ${MINKAR_SDKROOT}/usr/local/include/
+	rsync -rlc ${STAGE}/usr/include/openssl ${MINKAR_SDKROOT}/usr/local/include/
 .for l in libcrypto libssl
-	cp -f ${STAGE}/usr/lib/${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/
+	rsync -cL ${STAGE}/usr/lib/${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/
 	ln -sf ${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/${l}.dylib
 .endfor
 	for p in openssl libssl libcrypto; do \

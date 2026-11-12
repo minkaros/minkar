@@ -36,7 +36,7 @@ ${HEADERS}/.minkar-installed: ${.CURDIR}/../vulkan-headers/MANIFEST ${TOOLFILE}
 	${TOOLENV} cmake -G Ninja -S $$src -B ${.OBJDIR}/headers-build \
 	    -DCMAKE_TOOLCHAIN_FILE=${TOOLFILE} -DCMAKE_INSTALL_PREFIX=${HEADERS} > /dev/null && \
 	${TOOLENV} cmake --install ${.OBJDIR}/headers-build > /dev/null && \
-	cp $$src/LICENSE.md ${HEADERS}/ && cp -R $$src/LICENSES ${HEADERS}/
+	rsync -cL $$src/LICENSE.md ${HEADERS}/ && rsync -rlc $$src/LICENSES ${HEADERS}/
 	touch ${.TARGET}
 
 ${BUILD}/.minkar-setup: ${.CURDIR}/MANIFEST ${HEADERS}/.minkar-installed ${.CURDIR}/Makefile
@@ -55,7 +55,7 @@ build-loader: .PHONY ${BUILD}/.minkar-setup
 install-loader: .PHONY build-loader
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d \
 	    ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${LOADER} ${.OBJDIR}/libvulkan.1.dylib
+	rsync -cL ${LOADER} ${.OBJDIR}/libvulkan.1.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan.1.dylib ${.OBJDIR}/libvulkan.1.dylib
 	install -C -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${SYSROOT_DIR}/usr/lib/libvulkan.1.dylib
 	install -C -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${MINKAR_SDKROOT}/usr/lib/libvulkan.1.dylib

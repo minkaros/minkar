@@ -24,7 +24,7 @@ install-daemons: .PHONY
 	mkdir -p ${DIR}
 .for d in ${SYSDAEMONS}
 	python3 -c 'import plistlib, sys; plistlib.load(open(sys.argv[1], "rb"))' ${.CURDIR}/${d}
-	install -o 0 -g 0 -m 0644 ${.CURDIR}/${d} ${DIR}/
+	install -C -o 0 -g 0 -m 0644 ${.CURDIR}/${d} ${DIR}/
 .endfor
 
 .include <bsd.prog.mk>

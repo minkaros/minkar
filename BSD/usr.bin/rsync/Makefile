@@ -37,7 +37,7 @@ ${.OBJDIR}/rsync: ${.CURDIR}/Makefile
 ${.OBJDIR}/.installed: ${.OBJDIR}/rsync
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/man/man5
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/rsync ${SYSROOT_DIR}/usr/bin/rsync
-	install -m 0444 ${.CURDIR}/dist/rsync.1 ${SYSROOT_DIR}/usr/share/man/man1/
-	install -m 0444 ${.CURDIR}/dist/rsyncd.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/rsync ${SYSROOT_DIR}/usr/bin/rsync
+	install -C -m 0444 ${.CURDIR}/dist/rsync.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/dist/rsyncd.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
 	touch ${.TARGET}

@@ -20,10 +20,10 @@ lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: dyld lib${LIB}.a
 	${CC} -fuse-ld=${LD} -o ${.TARGET} ${LDFLAGS} ${OBJS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/dyld
-	cp -f ${.OBJDIR}/dyld/libpthread.a ${MINKAR_SDKROOT}/usr/local/lib/dyld
+	rsync -cL ${.OBJDIR}/dyld/libpthread.a ${MINKAR_SDKROOT}/usr/local/lib/dyld
 
 
 .include <bsd.lib.mk>

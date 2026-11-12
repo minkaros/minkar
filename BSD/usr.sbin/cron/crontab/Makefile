@@ -23,7 +23,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 4555 ${PROG} ${SYSROOT_DIR}/usr/bin/crontab
+	install -C -m 4555 ${PROG} ${SYSROOT_DIR}/usr/bin/crontab
 	mkdir -p -m 0700 ${SYSROOT_DIR}/private/var/cron/tabs
 	chmod 0700 ${SYSROOT_DIR}/private/var/cron/tabs
 

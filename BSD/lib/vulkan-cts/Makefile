@@ -66,16 +66,16 @@ build-cts: .PHONY ${BUILD}/.minkar-setup
 
 package: .PHONY build-cts
 	rm -rf ${PKG} && mkdir -p ${PKG}
-	cp ${BUILD}/external/vulkancts/modules/vulkan/deqp-vk ${PKG}/
-	cp -R ${BUILD}/external/vulkancts/modules/vulkan/vulkan ${PKG}/
-	cp ${.CURDIR}/subset.txt ${.CURDIR}/run.sh ${PKG}/
+	rsync -cL ${BUILD}/external/vulkancts/modules/vulkan/deqp-vk ${PKG}/
+	rsync -rlc ${BUILD}/external/vulkancts/modules/vulkan/vulkan ${PKG}/
+	rsync -cL ${.CURDIR}/subset.txt ${.CURDIR}/run.sh ${PKG}/
 	# The subset's cases: Khronos's mustpass list under its prefixes.
 	grep -v '^#' ${.CURDIR}/subset.txt | sed 's/^/^/; s/\./\\./g' > ${.OBJDIR}/subset.re
 	cat ${SRC}/external/vulkancts/mustpass/main/vk-default/*.txt \
 	    ${SRC}/external/vulkancts/mustpass/main/vk-default/*/*.txt | \
 	    grep -E -f ${.OBJDIR}/subset.re > ${PKG}/caselist.txt
 	wc -l < ${PKG}/caselist.txt
-	cp ${SRC}/LICENSE ${PKG}/LICENSE.vk-gl-cts
+	rsync -cL ${SRC}/LICENSE ${PKG}/LICENSE.vk-gl-cts
 	tar -C ${.OBJDIR} -czf ${.OBJDIR}/vulkan-cts.tar.gz vulkan-cts
 
 clean: .PHONY

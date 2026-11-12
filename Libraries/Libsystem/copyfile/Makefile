@@ -23,8 +23,8 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -shared -Wl,-dylib -o ${.TARGET} ${OBJS} ${LDFLAGS}
 	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${MINKAR_SDKROOT}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	cd ${.CURDIR} && env PLATFORM=MacOSX DSTROOT=${MINKAR_SDKROOT} \
           bash ${.CURDIR}/xcodescripts/install_files.sh
 

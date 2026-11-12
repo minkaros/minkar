@@ -77,10 +77,10 @@ runtime: bootstrap_stubs
 	-DCOMPILER_RT_HAS_ATOMIC_KEYWORD=ON -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=OFF 
 	env MAKEFLAGS="" .MAKEFLAGS="" \
 		${GMAKE} -C${.OBJDIR}/llvm_target/compiler-rt -j${.MAKE.JOBS}
-	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a \
+	rsync -cL ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a \
 	  ${MINKAR_SDKROOT}/usr/lib/
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/kernel
-	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.cc_kext.a \
+	rsync -cL ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.cc_kext.a \
 	  ${MINKAR_SDKROOT}/usr/local/lib/kernel/libcc_kext.a
 
 
@@ -121,9 +121,9 @@ libunwind: runtime
 	-DLIBUNWIND_LIBCXX_PATH=${DEVEL}/Default.xctoolchain/llvm/libcxx
 	env MAKEFLAGS="" .MAKEFLAGS="" \
 		${GMAKE} -C${.OBJDIR}/llvm_target/libunwind -j${.MAKE.JOBS}
-	cp -f ${.OBJDIR}/llvm_target/libunwind/lib/libunwind.a \
+	rsync -cL ${.OBJDIR}/llvm_target/libunwind/lib/libunwind.a \
 		${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${DEVEL}/Default.xctoolchain/llvm/libunwind/include/unwind.h \
+	rsync -cL ${DEVEL}/Default.xctoolchain/llvm/libunwind/include/unwind.h \
 		${DEVEL}/Default.xctoolchain/llvm/libunwind/include/libunwind.h \
 		${DEVEL}/Default.xctoolchain/llvm/libunwind/include/unwind_itanium.h \
 		${DEVEL}/Default.xctoolchain/llvm/libunwind/include/__libunwind_config.h \
@@ -175,7 +175,7 @@ libcxx: libunwind
 	&& \
 	env MAKEFLAGS="" .MAKEFLAGS="" MACOSX_DEPLOYMENT_TARGET="" \
 		${GMAKE} -C${.OBJDIR}/llvm_target/libcxx -j${.MAKE.JOBS}
-	cp -fv ${.OBJDIR}/llvm_target/libcxx/lib/libc++.a \
+	rsync -cL ${.OBJDIR}/llvm_target/libcxx/lib/libc++.a \
 		${.OBJDIR}/llvm_target/libcxx/lib/libc++abi.a \
 		${.OBJDIR}/llvm_target/libcxx/lib/libc++experimental.a \
 		${MINKAR_SDKROOT}/usr/lib/
@@ -196,13 +196,13 @@ compiler_rt: runtime libunwind libcxx
 	  -lsystem_c -lsystem_malloc -lsystem_m -ldispatch -ldyld -lsystem_kernel \
 	  -lsystem_pthread -lunwind
 	@echo after making dylib, copying to SDK
-	cp -f ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB}
-	cp -f ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB2}
+	rsync -cL ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB}
+	rsync -cL ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB2}
 	# The builtins are hidden in the archive, so the dylib exports none.
 	# As on macOS, clang links the archive into every image instead: it
 	# does so whenever the file is in its resource directory.
 	mkdir -p ${CLANG_RT_DIR}
-	cp -f ${RTOBJ} ${CLANG_RT_DIR}/
+	rsync -cL ${RTOBJ} ${CLANG_RT_DIR}/
 
 # We want a combined libc++ and libc++abi as our dylib. It needs libSystem
 # for _dlopen and _dlsym. We do not link directly to libdyld.
@@ -220,11 +220,11 @@ libcxx_dylib: libcxx
 	  -Wl,-force_load,${.OBJDIR}/llvm_target/libcxx/lib/libc++abi.a \
 	  -Wl,-force_load,${.OBJDIR}/llvm_target/libcxx/lib/libc++experimental.a \
 	  ${RTOBJ} -L${MINKAR_SDKROOT}/usr/lib -lSystem #2>&1 | grep -v "addend too large"
-	cp -f ${.OBJDIR}/libc++.1.dylib ${CXXLIB}
+	rsync -cL ${.OBJDIR}/libc++.1.dylib ${CXXLIB}
 	ln -sf libc++.1.dylib ${MINKAR_SDKROOT}/usr/lib/libc++.dylib
 	# libSystem and libdyld link it: the root file system needs it too.
 	mkdir -p ${SYSROOT_DIR}/usr/lib
-	cp -f ${.OBJDIR}/libc++.1.dylib ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.OBJDIR}/libc++.1.dylib ${SYSROOT_DIR}/usr/lib/
 	ln -sf libc++.1.dylib ${SYSROOT_DIR}/usr/lib/libc++.dylib
 
 #add_dependencies(libdyld libsystem_malloc libsystem_c libsystem_pthread)

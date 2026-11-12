@@ -31,8 +31,8 @@ lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/libcompression.dylib \
 	  -L${SYSROOT_DIR}/usr/lib -lz -llzma
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/libcompression.dylib
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libcompression.dylib
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/libcompression.dylib
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libcompression.dylib
 
 install-headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/include

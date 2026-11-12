@@ -7,7 +7,7 @@ MAN =
 all: ${PROG}
 
 ${PROG}: ${.CURDIR}/${PROG}
-	cp -f ${.CURDIR}/${PROG} ${SYSROOT_DIR}/usr/bin/${PROG}
+	rsync -cL ${.CURDIR}/${PROG} ${SYSROOT_DIR}/usr/bin/${PROG}
 	chmod +x ${SYSROOT_DIR}/usr/bin/${PROG}
 
 

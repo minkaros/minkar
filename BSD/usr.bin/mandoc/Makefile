@@ -49,13 +49,13 @@ to-sysroot: ${PROG}
 .for d in 1 5 7 8
 	mkdir -p ${SYSROOT_DIR}/usr/share/man/man${d}
 .endfor
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/mandoc
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/mandoc
 	ln -f ${SYSROOT_DIR}/usr/bin/mandoc ${SYSROOT_DIR}/usr/bin/apropos
 	ln -f ${SYSROOT_DIR}/usr/bin/mandoc ${SYSROOT_DIR}/usr/bin/whatis
 	ln -f ${SYSROOT_DIR}/usr/bin/mandoc ${SYSROOT_DIR}/usr/libexec/makewhatis
 .for d in 1 5 7 8
 .for m in ${MAN${d}}
-	install -m 0444 ${.CURDIR}/${m} ${SYSROOT_DIR}/usr/share/man/man${d}/
+	install -C -m 0444 ${.CURDIR}/${m} ${SYSROOT_DIR}/usr/share/man/man${d}/
 .endfor
 .endfor
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/apropos.1 \

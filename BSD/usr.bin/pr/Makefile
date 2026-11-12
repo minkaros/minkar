@@ -21,7 +21,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/pr
-	install -m 0444 ${.CURDIR}/pr.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/pr
+	install -C -m 0444 ${.CURDIR}/pr.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

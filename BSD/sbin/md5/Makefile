@@ -20,7 +20,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
 .for l in sha1 sha224 sha256 sha384 sha512 sha512t224 sha512t256
 	ln -f ${SYSROOT_DIR}/sbin/md5 ${SYSROOT_DIR}/sbin/${l}
 .endfor

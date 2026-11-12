@@ -63,9 +63,9 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/.built
 	# git-cvsserver is Perl: without Perl it is only a stub.
 	rm -f ${SYSROOT_DIR}/usr/bin/git-cvsserver
 	mkdir -p ${SYSROOT_DIR}/usr/share/man ${SYSROOT_DIR}/usr/share/git-core/contrib
-	cp -R ${.CURDIR}/man/man1 ${.CURDIR}/man/man5 ${.CURDIR}/man/man7 \
+	rsync -rlc ${.CURDIR}/man/man1 ${.CURDIR}/man/man5 ${.CURDIR}/man/man7 \
 	    ${SYSROOT_DIR}/usr/share/man/
-	cp -R ${.CURDIR}/dist/contrib/completion \
+	rsync -rlc ${.CURDIR}/dist/contrib/completion \
 	    ${SYSROOT_DIR}/usr/share/git-core/contrib/
 	touch ${.TARGET}
 

@@ -16,7 +16,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
 	ln -f ${SYSROOT_DIR}/sbin/reboot ${SYSROOT_DIR}/sbin/halt
 	ln -f ${SYSROOT_DIR}/sbin/reboot ${SYSROOT_DIR}/sbin/poweroff
 	ln -f ${SYSROOT_DIR}/sbin/reboot ${SYSROOT_DIR}/sbin/fastboot

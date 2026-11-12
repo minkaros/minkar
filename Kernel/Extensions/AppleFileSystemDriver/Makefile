@@ -25,7 +25,7 @@ all: copyheaders
 
 copyheaders:
 	mkdir -p ${.OBJDIR}/hfs
-	cp -f ${.CURDIR:H}/hfs/core/hfs_format.h \
+	rsync -cL ${.CURDIR:H}/hfs/core/hfs_format.h \
 	  ${.CURDIR:H}/hfs/core/hfs_unistr.h ${.OBJDIR}/hfs/
 
 .include <minkar.kext.mk>

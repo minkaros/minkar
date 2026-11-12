@@ -20,6 +20,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -o 0 -g 0 -m 4555 ${PROG} ${SYSROOT_DIR}/usr/bin/
+	install -C -o 0 -g 0 -m 4555 ${PROG} ${SYSROOT_DIR}/usr/bin/
 
 .include <bsd.prog.mk>

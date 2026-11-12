@@ -121,7 +121,7 @@ build-radv: .PHONY ${BUILD}/.minkar-setup
 
 install-radv: .PHONY build-radv
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d
-	cp -f ${RADV} ${.OBJDIR}/libvulkan_radeon.dylib
+	rsync -cL ${RADV} ${.OBJDIR}/libvulkan_radeon.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan_radeon.dylib ${.OBJDIR}/libvulkan_radeon.dylib
 	install -C -m 0755 ${.OBJDIR}/libvulkan_radeon.dylib ${SYSROOT_DIR}/usr/lib/
 	install -C -m 0444 ${BUILD}/src/amd/vulkan/radeon_icd.x86_64.json ${SYSROOT_DIR}/usr/share/vulkan/icd.d/
@@ -142,7 +142,7 @@ build-gl: .PHONY ${BUILD_GL}/.minkar-setup
 # files too, for WebKit's dependencies) and the system.
 install-gl: .PHONY build-gl
 .for lib in ${GL_LIBS}
-	cp -f ${BUILD_GL}/${lib} ${.OBJDIR}/${lib:T}
+	rsync -cL ${BUILD_GL}/${lib} ${.OBJDIR}/${lib:T}
 	${TC}/install_name_tool -id /usr/lib/${lib:T} ${.OBJDIR}/${lib:T}
 	${TC}/install_name_tool -change @rpath/${GALLIUM} /usr/lib/${GALLIUM} ${.OBJDIR}/${lib:T}
 .endfor

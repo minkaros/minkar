@@ -48,8 +48,8 @@ ${.OBJDIR}/tcpdump/tcpdump: ${.CURDIR}/Makefile
 ${.OBJDIR}/.installed: ${.OBJDIR}/tcpdump/tcpdump
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/man/man7
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/tcpdump/tcpdump ${SYSROOT_DIR}/usr/sbin/tcpdump
-	install -m 0444 ${.OBJDIR}/tcpdump/tcpdump.1 ${SYSROOT_DIR}/usr/share/man/man1/
-	install -m 0444 ${.OBJDIR}/libpcap/pcap-filter.manmisc \
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/tcpdump/tcpdump ${SYSROOT_DIR}/usr/sbin/tcpdump
+	install -C -m 0444 ${.OBJDIR}/tcpdump/tcpdump.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.OBJDIR}/libpcap/pcap-filter.manmisc \
 	    ${SYSROOT_DIR}/usr/share/man/man7/pcap-filter.7
 	touch ${.TARGET}

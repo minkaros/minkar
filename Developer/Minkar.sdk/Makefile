@@ -17,11 +17,11 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/os
 .for h in object.h object_private.h voucher_private.h voucher_activity_private.h \
 	firehose_buffer_private.h firehose_server_private.h generic_unix_base.h
-	cp -f ${.CURDIR}/usr/local/include/kernel/os/${h} ${MINKAR_SDKROOT}/usr/include/os/
+	rsync -cL ${.CURDIR}/usr/local/include/kernel/os/${h} ${MINKAR_SDKROOT}/usr/include/os/
 .endfor
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib
 	mkdir -p ${MINKAR_SDKROOT}/usr/bin
-	cp -f ${.CURDIR}/SDKSettings.plist ${.CURDIR}/SDKSettings.json \
+	rsync -cL ${.CURDIR}/SDKSettings.plist ${.CURDIR}/SDKSettings.json \
 		${.CURDIR}/Entitlements.plist ${MINKAR_SDKROOT}/
 	ln -sf Versions/Current/PrivateHeaders ${MINKAR_SDKROOT}${FPATH}/PrivateHeaders
 	ln -sf Versions/Current/Resources ${MINKAR_SDKROOT}${FPATH}/Resources
@@ -41,8 +41,8 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	# Compatibility symlinks
 	ln -sfn Minkar.platform ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform
 	ln -sfn Minkar.sdk ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-	cp -Rf ${.CURDIR}/usr ${.CURDIR}/System ${MINKAR_SDKROOT}/
-	cp -f ${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/pthread/tsd_private.h \
+	rsync -rlc ${.CURDIR}/usr ${.CURDIR}/System ${MINKAR_SDKROOT}/
+	rsync -cL ${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/pthread/tsd_private.h \
 		${MINKAR_SDKROOT}/usr/local/include/pthread/
 	${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/make_symbol_aliasing.sh \
 		${MINKAR_SDKROOT} ${MINKAR_SDKROOT}/usr/include/sys/_symbol_aliasing.h
@@ -53,7 +53,7 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 		env DSTROOT=${MINKAR_SDKROOT} SDK_INSTALL_HEADERS_ROOT=. \
 		sh xcodescripts/install-sys-headers.sh
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/objc
-	cp -fR ${objc_path}/runtime/runtime.h ${objc_path}/runtime/objc.h \
+	rsync -cL ${objc_path}/runtime/runtime.h ${objc_path}/runtime/objc.h \
 		${objc_path}/runtime/objc-sync.h ${objc_path}/runtime/objc-exception.h \
 		${objc_path}/runtime/objc-auto.h ${objc_path}/runtime/objc-api.h \
 		${objc_path}/runtime/message.h ${objc_path}/runtime/NSObject.h \
@@ -62,7 +62,7 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 		${objc_path}/runtime/Module \
 		${MINKAR_SDKROOT}/usr/include/objc/
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/objc
-	cp -f ${objc_path}/runtime/maptable.h ${objc_path}/runtime/NSObject-internal.h \
+	rsync -cL ${objc_path}/runtime/maptable.h ${objc_path}/runtime/NSObject-internal.h \
 		${objc_path}/runtime/objc-abi.h ${objc_path}/runtime/objc-block-trampolines.h \
 		${objc_path}/runtime/objc-gdb.h ${objc_path}/runtime/objc-internal.h \
 		${objc_path}/runtime/objc-ptrauth.h ${objc_path}/runtime/hashtable.h \
@@ -71,20 +71,20 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	# Clang modules, for Swift's imports: the C library (Darwin, ours),
 	# ObjectiveC (objc4's, as objc4's own build makes it), Dispatch
 	# (libdispatch's for Darwin) and os.
-	cp -f ${.CURDIR}/modules/Darwin.modulemap ${MINKAR_SDKROOT}/usr/include/module.modulemap
+	rsync -cL ${.CURDIR}/modules/Darwin.modulemap ${MINKAR_SDKROOT}/usr/include/module.modulemap
 	# (objc4 here has no List.h: its List submodule is left out.)
 	${TOOLS}/unifdef -DBUILD_FOR_OSX ${objc_path}/runtime/Module/module.modulemap | \
 		awk '/^  module List \{/ { skip = 1 } !skip { print } skip && /^  \}/ { skip = 0 }' \
 		> ${MINKAR_SDKROOT}/usr/include/objc/module.modulemap
-	cp -f ${objc_path}/runtime/Module/ObjectiveC.apinotes ${MINKAR_SDKROOT}/usr/include/objc/
+	rsync -cL ${objc_path}/runtime/Module/ObjectiveC.apinotes ${MINKAR_SDKROOT}/usr/include/objc/
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/dispatch ${MINKAR_SDKROOT}/usr/include/os
-	cp -f ${.CURDIR}/usr/include/dispatch/darwin/module.modulemap \
+	rsync -cL ${.CURDIR}/usr/include/dispatch/darwin/module.modulemap \
 		${MINKAR_SDKROOT}/usr/include/dispatch/module.modulemap
-	cp -f ${.CURDIR}/modules/os.modulemap ${MINKAR_SDKROOT}/usr/include/os/module.modulemap
+	rsync -cL ${.CURDIR}/modules/os.modulemap ${MINKAR_SDKROOT}/usr/include/os/module.modulemap
 	# XPC's API notes for Swift (the frameworks install their own:
 	# apinotes/README.md).
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/xpc
-	cp -f ${.CURDIR}/apinotes/XPC.apinotes ${MINKAR_SDKROOT}/usr/include/xpc/
+	rsync -cL ${.CURDIR}/apinotes/XPC.apinotes ${MINKAR_SDKROOT}/usr/include/xpc/
 
 SUBDIR = rpcsvc
 

@@ -13,7 +13,7 @@ ${.OBJDIR}/lib${LIB}.a: ${OBJS}
 	rm -f ${.TARGET}
 	mkdir -p ${.TARGET:H} ${MINKAR_SDKROOT}/usr/lib
 	${AR} rcs ${.TARGET} CRClientCPP.o CRClient.o
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 
 ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.a
 	${CC} -o ${.TARGET} -shared -dylib -umbrella System -nostdlib \
@@ -22,8 +22,8 @@ ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.a
           -lsystem_c -lsystem_platform -ldyld \
 	  -mmacos-version-min=${MACOS_VERSION_MIN} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	mkdir -p ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

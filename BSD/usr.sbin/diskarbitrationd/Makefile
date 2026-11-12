@@ -57,13 +57,13 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${SYSROOT_DIR}/usr/share/man/man8 \
 	    ${SYSROOT_DIR}/System/Library/LaunchDaemons
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
-	install -m 0444 ${DA}/diskarbitrationd/diskarbitrationd.8 \
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
+	install -C -m 0444 ${DA}/diskarbitrationd/diskarbitrationd.8 \
 	    ${SYSROOT_DIR}/usr/share/man/man8/
-	install -m 0644 ${.CURDIR}/org.minkar.diskarbitrationd.plist \
+	install -C -m 0644 ${.CURDIR}/org.minkar.diskarbitrationd.plist \
 	    ${SYSROOT_DIR}/System/Library/LaunchDaemons/
 	mkdir -p ${SYSROOT_DIR}/Library/Preferences/SystemConfiguration
-	install -m 0644 ${.CURDIR}/autodiskmount.plist \
+	install -C -m 0644 ${.CURDIR}/autodiskmount.plist \
 	    ${SYSROOT_DIR}/Library/Preferences/SystemConfiguration/
 
 .include <bsd.prog.mk>

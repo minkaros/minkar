@@ -9,6 +9,6 @@ all: install-runner
 
 install-runner: .PHONY
 	mkdir -p ${SYSROOT_DIR}/usr/local/tests/w0
-	install -m 0755 ${.CURDIR}/run-w0.sh ${SYSROOT_DIR}/usr/local/tests/w0/run.sh
+	install -C -m 0755 ${.CURDIR}/run-w0.sh ${SYSROOT_DIR}/usr/local/tests/w0/run.sh
 
 .include <bsd.prog.mk>

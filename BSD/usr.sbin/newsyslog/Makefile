@@ -26,10 +26,10 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/share/man/man8 \
 	    ${SYSROOT_DIR}/usr/share/man/man5 ${SYSROOT_DIR}/private/etc/newsyslog.d
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/sbin/newsyslog
-	install -m 0644 -o 0 -g 0 ${.CURDIR}/newsyslog.conf.minkar \
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/sbin/newsyslog
+	install -C -m 0644 -o 0 -g 0 ${.CURDIR}/newsyslog.conf.minkar \
 	    ${SYSROOT_DIR}/private/etc/newsyslog.conf
-	install -m 0444 ${.CURDIR}/newsyslog.8 ${SYSROOT_DIR}/usr/share/man/man8/
-	install -m 0444 ${.CURDIR}/newsyslog.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0444 ${.CURDIR}/newsyslog.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0444 ${.CURDIR}/newsyslog.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
 
 .include <bsd.prog.mk>

@@ -16,4 +16,4 @@ ${PLATFORM_DIR}:
 	mkdir -p ${PLATFORM_DIR}
 
 Info.plist: ${PLATFORM_DIR} ${.CURDIR}/Info.plist
-	cp -f ${.CURDIR}/Info.plist ${PLATFORM_DIR}/
+	rsync -cL ${.CURDIR}/Info.plist ${PLATFORM_DIR}/

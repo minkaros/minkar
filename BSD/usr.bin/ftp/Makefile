@@ -28,7 +28,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/ftp
-	install -m 0444 ${.CURDIR}/tnftp/ftp.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/ftp
+	install -C -m 0444 ${.CURDIR}/tnftp/ftp.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

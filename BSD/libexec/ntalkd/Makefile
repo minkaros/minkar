@@ -30,8 +30,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/ntalkd
-	install -m 0444 ${.CURDIR}/talkd.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/ntalkd
+	install -C -m 0444 ${.CURDIR}/talkd.8 ${SYSROOT_DIR}/usr/share/man/man8/
 	ln -sf talkd.8 ${SYSROOT_DIR}/usr/share/man/man8/ntalkd.8
 
 .include <bsd.prog.mk>

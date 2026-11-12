@@ -59,26 +59,26 @@ ${OUT}/mogenerator: ${SRC}/.minkar-patches ${OUT}/Info.plist
 # test/Rakefile's Objective-C program, on the expected classes.
 ${OUT}/testbin: ${SRC}/.minkar-patches ${.CURDIR}/expected/objc/_HumanMO.m
 	rm -rf ${OUT}/objc && mkdir -p ${OUT}/objc/MOs ${OUT}/objc/objc
-	cp ${.CURDIR}/expected/objc/* ${SRC}/test/objc/Gender.* ${SRC}/test/objc/MyBaseClass.* ${OUT}/objc/MOs/
+	rsync -cL ${.CURDIR}/expected/objc/* ${SRC}/test/objc/Gender.* ${SRC}/test/objc/MyBaseClass.* ${OUT}/objc/MOs/
 	cp -R ${SRC}/test/JREnum ${OUT}/objc/
-	cp ${SRC}/test/objc/test.m ${OUT}/objc/objc/
+	rsync -cL ${SRC}/test/objc/test.m ${OUT}/objc/objc/
 	${LINK} -fobjc-arc -I${OUT}/objc ${OUT}/objc/objc/test.m ${OUT}/objc/MOs/*.m \
 	    -framework Foundation -framework AppKit -framework CoreData -o ${.TARGET}
 
 # And its Swift program.
 ${OUT}/swifttest: ${SRC}/.minkar-patches ${.CURDIR}/expected/swift/_HumanMO.swift
 	rm -rf ${OUT}/swift && mkdir -p ${OUT}/swift
-	cp ${.CURDIR}/expected/swift/* ${SRC}/test/swift/*.swift ${OUT}/swift/
+	rsync -cL ${.CURDIR}/expected/swift/* ${SRC}/test/swift/*.swift ${OUT}/swift/
 	${SWIFTC} -module-name MogenSwiftTest ${OUT}/swift/*.swift -o ${.TARGET}.o
 	${LINK} ${.TARGET}.o -L${MINKAR_SDKROOT}/usr/lib/swift -Wl,-rpath,/usr/lib/swift \
 	    -framework Foundation -framework CoreData -o ${.TARGET}
 
 install-pkg: .PHONY ${OUT}/mogenerator ${OUT}/testbin ${OUT}/swifttest
 	rm -rf ${DEST} && mkdir -p ${DEST}
-	install -m 0755 ${OUT}/mogenerator ${OUT}/testbin ${OUT}/swifttest ${DEST}/
-	install -m 0755 ${.CURDIR}/mogeneratorTests.sh ${DEST}/mogeneratorTests
+	install -C -m 0755 ${OUT}/mogenerator ${OUT}/testbin ${OUT}/swifttest ${DEST}/
+	install -C -m 0755 ${.CURDIR}/mogeneratorTests.sh ${DEST}/mogeneratorTests
 	cp -R ${SRC}/test/test.xcdatamodel ${.CURDIR}/expected ${DEST}/
-	cp ${SRC}/LICENSE ${DEST}/
+	rsync -cL ${SRC}/LICENSE ${DEST}/
 
 clean: .PHONY
 	rm -rf ${SRC} ${OUT} ${.OBJDIR}/module-cache

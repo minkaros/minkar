@@ -51,9 +51,9 @@ ${TOOLS}/clang ${TOOLS}/clang++: ${TOOLCHAIN}/usr/libexec/migcom ${.CURDIR}/Make
 	CC=${HOST_CC} CXX=${HOST_CXX} ${MAKE} -C${.OBJDIR}/../llvm_host all \
 	   llvm-ar llvm-nm llvm-ranlib llvm-strip dsymutil llvm-lipo \
 	   llvm-libtool-darwin llvm-objdump llvm-otool llvm-readtapi
-	cp -Rf ${.OBJDIR}/../llvm_host/bin ${TOOLCHAIN}/usr/
-	cp -Rf ${.OBJDIR}/../llvm_host/lib/clang ${TOOLCHAIN}/usr/lib/
-	cp -Rf ${.OBJDIR}/../llvm_host/lib/lib* ${TOOLCHAIN}/usr/lib/
+	rsync -rlc ${.OBJDIR}/../llvm_host/bin ${TOOLCHAIN}/usr/
+	rsync -rlc ${.OBJDIR}/../llvm_host/lib/clang ${TOOLCHAIN}/usr/lib/
+	rsync -rlc ${.OBJDIR}/../llvm_host/lib/lib* ${TOOLCHAIN}/usr/lib/
 .for tool in ar nm ranlib objdump libtool-darwin otool
 	ln -sf llvm-${tool} ${TOOLCHAIN}/usr/bin/${tool}
 .endfor

@@ -12,7 +12,7 @@ all: install-colors
 install-colors: .PHONY
 	mkdir -p ${DIR}
 .for f in ${LISTS}
-	install -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${DIR}/
+	install -C -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${DIR}/
 .endfor
 
 .include <bsd.prog.mk>

@@ -30,7 +30,7 @@ atrun.8: ${.CURDIR}/atrun.man
 
 to-sysroot: ${PROG} atrun.8
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/atrun
-	install -m 0444 atrun.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/atrun
+	install -C -m 0444 atrun.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 .include <bsd.prog.mk>

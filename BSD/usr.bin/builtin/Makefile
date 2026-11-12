@@ -14,11 +14,11 @@ all: to-sysroot
 
 to-sysroot: .PHONY
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.CURDIR}/generic.sh ${SYSROOT_DIR}/usr/bin/alias
+	install -C -m 0555 -o 0 -g 0 ${.CURDIR}/generic.sh ${SYSROOT_DIR}/usr/bin/alias
 .for n in ${NAMES:Nalias}
 	ln -f ${SYSROOT_DIR}/usr/bin/alias ${SYSROOT_DIR}/usr/bin/${n}
 .endfor
-	install -m 0444 ${.CURDIR}/builtin.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/builtin.1 ${SYSROOT_DIR}/usr/share/man/man1/
 .for n in ${NAMES}
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/builtin.1 \
 	    ${SYSROOT_DIR}/usr/share/man/man1/${n}.1

@@ -72,7 +72,7 @@ libunwind.dylib: ${.OBJDIR}/../llvm_target/libunwind/lib/libunwind.a
 	  -mmacosx-version-min=${MACOS_VERSION_MIN} ${.ALLSRC} \
 	  -lsystem_c -lsystem_pthread -lsystem_platform -lcompiler_rt \
 	  -lsystem_malloc -ldyld
-	cp -f ${MINKAR_SDKROOT}/usr/lib/system/libunwind.dylib \
+	rsync -cL ${MINKAR_SDKROOT}/usr/lib/system/libunwind.dylib \
 		${SYSROOT_DIR}/usr/lib/system/
 
 ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/config.${CpuArch}.normal.h \
@@ -84,14 +84,14 @@ lib${LIB}.a libunwind.dylib copyfile
 	  ${SYSROOT_DIR} install normal
 	${.CURDIR}/xcodescripts/create_system_framework.sh \
 	  ${SYSROOT_DIR} - - - normal
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/
 	mkdir -p \
 	  ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources \
 	  ${SYSROOT_DIR}/System/Library/Frameworks/System.framework/Versions/B/Resources
-	cp -f ${.CURDIR}/Info.plist \
+	rsync -cL ${.CURDIR}/Info.plist \
 	  ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources/
-	cp -f ${.CURDIR}/Info.plist \
+	rsync -cL ${.CURDIR}/Info.plist \
 	  ${SYSROOT_DIR}/System/Library/Frameworks/System.framework/Versions/B/Resources/
 
 lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib

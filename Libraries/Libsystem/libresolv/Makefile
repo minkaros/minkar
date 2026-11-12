@@ -37,12 +37,12 @@ ${RESOLVLIB}: lib${LIB}.a
 
 install-sdk: ${RESOLVLIB}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${RESOLVLIB} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${RESOLVLIB} ${MINKAR_SDKROOT}/usr/lib/
 	ln -sf libresolv.9.dylib ${MINKAR_SDKROOT}/usr/lib/libresolv.dylib
 
 install-sysroot: ${RESOLVLIB}
 	mkdir -p ${SYSROOT_DIR}/usr/lib
-	cp -f ${RESOLVLIB} ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${RESOLVLIB} ${SYSROOT_DIR}/usr/lib/
 	ln -sf libresolv.9.dylib ${SYSROOT_DIR}/usr/lib/libresolv.dylib
 
 CLEANFILES +=	${RESOLVLIB}

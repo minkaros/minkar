@@ -23,7 +23,7 @@ CLEANFILES += sort.1
 
 to-sysroot: ${PROG} sort.1
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
-	install -m 0444 sort.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0444 sort.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

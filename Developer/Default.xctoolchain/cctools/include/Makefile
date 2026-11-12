@@ -165,7 +165,7 @@ installapi: install
 	xcrun --sdk $(SDKROOT) tapi installapi $(TAPI_COMMON_OPTS) $(DSTROOT)
      
 	install -d -m 0755 $(DSTROOT)$(DYLIBDIR)
-	install -c -m 0444 $(OBJROOT)/libmacho.tbd \
+	install -C -c -m 0444 $(OBJROOT)/libmacho.tbd \
 		$(DSTROOT)$(DYLIBDIR)/libmacho.tbd
 
 # This is again a bit of a hack, as libmacho.dylib would need be built first

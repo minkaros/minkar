@@ -296,8 +296,8 @@ do-dist: distclean refdoc
 	sh autogen.sh
 	rm -rf $(TOP_DIR)/builds/unix/autom4te.cache
 
-	cp $(CONFIG_GUESS) $(TOP_DIR)/builds/unix
-	cp $(CONFIG_SUB) $(TOP_DIR)/builds/unix
+	rsync -cL $(CONFIG_GUESS) $(TOP_DIR)/builds/unix
+	rsync -cL $(CONFIG_SUB) $(TOP_DIR)/builds/unix
 
 	@# Generate `ChangeLog' file with commits since release 2.11.0
 	@# (when we stopped creating this file manually).

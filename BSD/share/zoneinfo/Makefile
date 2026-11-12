@@ -37,12 +37,12 @@ zic: ${.CURDIR}/tzcode/zic.c ${.CURDIR}/tzcode/private.h ${.CURDIR}/tzcode/tzfil
 to-sysroot: zic .PHONY
 	rm -rf ${.OBJDIR}/out
 	cd ${.CURDIR}/tzdata && ${.OBJDIR}/zic -b fat -d ${.OBJDIR}/out ${ZONES}
-	cd ${.CURDIR}/tzdata && cp ${TABLES} ${.OBJDIR}/out/
+	cd ${.CURDIR}/tzdata && rsync -cL ${TABLES} ${.OBJDIR}/out/
 	echo ${TZVERSION} > ${.OBJDIR}/out/+VERSION
 	rm -rf ${SYSROOT_DIR}/usr/share/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo.default
 	mkdir -p ${SYSROOT_DIR}/usr/share/zoneinfo.default \
 	    ${SYSROOT_DIR}/private/var/db/timezone ${SYSROOT_DIR}/private/etc
-	cd ${.OBJDIR}/out && cp -R . ${SYSROOT_DIR}/usr/share/zoneinfo.default/
+	cd ${.OBJDIR}/out && rsync -rlc ./ ${SYSROOT_DIR}/usr/share/zoneinfo.default/
 	ln -sfn /usr/share/zoneinfo.default \
 	    ${SYSROOT_DIR}/private/var/db/timezone/zoneinfo
 	ln -sfn /var/db/timezone/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo

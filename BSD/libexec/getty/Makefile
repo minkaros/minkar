@@ -18,7 +18,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${SYSROOT_DIR}/private/etc
-	cp -f ${PROG} ${SYSROOT_DIR}/usr/libexec/
-	cp -f ${.CURDIR}/gettytab ${SYSROOT_DIR}/private/etc/
+	rsync -cL ${PROG} ${SYSROOT_DIR}/usr/libexec/
+	rsync -cL ${.CURDIR}/gettytab ${SYSROOT_DIR}/private/etc/
 
 .include <bsd.prog.mk>

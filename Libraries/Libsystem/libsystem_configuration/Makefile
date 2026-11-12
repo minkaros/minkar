@@ -48,8 +48,8 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system \
 		${MINKAR_SDKROOT}/usr/local/include
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${INCS} ${MINKAR_SDKROOT}/usr/local/include/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${INCS} ${MINKAR_SDKROOT}/usr/local/include/
 
 .include <bsd.lib.mk>

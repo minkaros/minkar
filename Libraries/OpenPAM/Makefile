@@ -87,18 +87,18 @@ ${m}.so.2: ${FBSD_DIR}/${m}.c ${PAMLIB}
 
 install-sdk: ${PAMLIB}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${MINKAR_SDKROOT}/usr/include/security
-	cp -f ${PAMLIB} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${PAMLIB} ${MINKAR_SDKROOT}/usr/lib/
 	ln -sf libpam.2.dylib ${MINKAR_SDKROOT}/usr/lib/libpam.dylib
 .for h in ${HEADERS}
-	cp -f ${OPENPAM}/include/security/${h} ${MINKAR_SDKROOT}/usr/include/security/
+	rsync -cL ${OPENPAM}/include/security/${h} ${MINKAR_SDKROOT}/usr/include/security/
 .endfor
 
 install-sysroot: ${PAMLIB} ${ALL_MODULES:S/$/.so.2/}
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}${PAMDIR}
-	cp -f ${PAMLIB} ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${PAMLIB} ${SYSROOT_DIR}/usr/lib/
 	ln -sf libpam.2.dylib ${SYSROOT_DIR}/usr/lib/libpam.dylib
 .for m in ${ALL_MODULES}
-	cp -f ${m}.so.2 ${SYSROOT_DIR}${PAMDIR}/
+	rsync -cL ${m}.so.2 ${SYSROOT_DIR}${PAMDIR}/
 .endfor
 
 CLEANFILES +=	${PAMLIB} ${ALL_MODULES:S/$/.so.2/} pam_unix.mod.o pam_unix_passwd.mod.o

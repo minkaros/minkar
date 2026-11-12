@@ -36,7 +36,7 @@ all: install-headers
 install-headers:
 	mkdir -p ${KFW_HEADERS}
 .for h in ${HEADERS}
-	cp -f ${.CURDIR}/IOKit/network/${h} ${KFW_HEADERS}/
+	rsync -cL ${.CURDIR}/IOKit/network/${h} ${KFW_HEADERS}/
 .endfor
 .PHONY: install-headers
 

@@ -301,9 +301,9 @@ copy_headers: .PHONY
 	# framework is not built yet, but its header list is the one in use.
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOHIDFamily/HID copy_headers
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include
-	cp -f --preserve=timestamps ${.CURDIR}/kext.subproj/bootfiles.h ${MINKAR_SDKROOT}/usr/local/include/
+	rsync -ctL ${.CURDIR}/kext.subproj/bootfiles.h ${MINKAR_SDKROOT}/usr/local/include/
 	mkdir -p ${iokitPrivateHdrs}/hidobjc
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/hid.subproj/HIDDeviceBase.h \
 		${.CURDIR}/hid.subproj/HIDDeviceIvar.h  \
 		${.CURDIR}/hid.subproj/HIDServiceClientIvar.h \
@@ -329,7 +329,7 @@ copy_headers: .PHONY
 	cp -Rf --preserve=timestamps ${.CURDIR:H}/Extensions/IOGraphics/IOGraphicsFamily/IOKit/i2c/* \
 		${iokitHdrs}/i2c
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/IOKit/kext
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/kext.subproj/OSKext.h \
 		${.CURDIR}/kext.subproj/OSKextPrivate.h \
 		${.CURDIR}/kext.subproj/misc_util.h \
@@ -341,9 +341,9 @@ copy_headers: .PHONY
 		${.CURDIR}/kext.subproj/kextmanager_mig.defs \
 		${MINKAR_SDKROOT}/usr/local/include/IOKit/kext/
 	mkdir -p ${iokitHdrs}/audio
-	cp -f --preserve=timestamps ${.CURDIR}/audio.subproj/IOAudioLib.h ${iokitHdrs}/audio/
+	rsync -ctL ${.CURDIR}/audio.subproj/IOAudioLib.h ${iokitHdrs}/audio/
 	mkdir -p ${iokitHdrs}/hidsystem
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/hidsystem.subproj/IOHIDUserDevice.h \
 		${.CURDIR}/hidsystem.subproj/IOHIDServiceClient.h \
 		${.CURDIR}/hidsystem.subproj/IOHIDEventSystemClient.h \
@@ -351,7 +351,7 @@ copy_headers: .PHONY
 		${.CURDIR}/hidsystem.subproj/event_status_driver.h \
 		${iokitHdrs}/hidsystem/
 	mkdir -p ${iokitHdrs}/hid
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/hid.subproj/IOHIDAnalytics.h \
 		${.CURDIR}/hid.subproj/IOHIDEventPrivate.h \
 		${.CURDIR}/hid.subproj/IOHIDConnectionFilterPlugin.h \
@@ -387,31 +387,31 @@ copy_headers: .PHONY
 		${.CURDIR:H}/Extensions/IOHIDFamily/IOHIDFamily/IOHIDProperties.h \
 		${iokitHdrs}/hid/
 	mkdir -p ${iokitHdrs}/network
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/network.subproj/IOUserEthernetController.h \
 		${.CURDIR}/network.subproj/IONetworkLib.h \
 		${iokitHdrs}/network/
 	# The family's headers, as in macOS (SystemConfiguration includes
 	# IONetworkInterface.h and IONetworkController.h).
-	cp -f --preserve=timestamps ${.CURDIR:H}/Extensions/IONetworkingFamily/IOKit/network/*.h \
+	rsync -ctL ${.CURDIR:H}/Extensions/IONetworkingFamily/IOKit/network/*.h \
 		${iokitHdrs}/network/
 	# Also used by SystemConfiguration, configd and fsck_hfs.
-	cp -f --preserve=timestamps ${.CURDIR}/IOCFBundle.h ${iokitHdrs}/
+	rsync -ctL ${.CURDIR}/IOCFBundle.h ${iokitHdrs}/
 	mkdir -p ${iokitHdrs}/storage ${iokitHdrs}/usb
 	# The storage family's public headers, as in macOS (htop includes
 	# IOBlockStorageDriver.h for the disks' statistics).
-	cp -f --preserve=timestamps ${.CURDIR:H}/Extensions/IOStorageFamily/IOKit/storage/*.h \
+	rsync -ctL ${.CURDIR:H}/Extensions/IOStorageFamily/IOKit/storage/*.h \
 		${iokitHdrs}/storage/
-	cp -f --preserve=timestamps ${ROOT_SOURCE_DIR}/Frameworks/IOKit/usb/*.h ${iokitHdrs}/usb/
+	rsync -ctL ${ROOT_SOURCE_DIR}/Frameworks/IOKit/usb/*.h ${iokitHdrs}/usb/
 	mkdir -p ${iokitHdrs}/ps
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/ps.subproj/IOPowerSourcesPrivate.h \
 		${.CURDIR}/ps.subproj/IOPowerSources.h \
 		${.CURDIR}/ps.subproj/IOPSKeysPrivate.h \
 		${.CURDIR}/ps.subproj/IOPSKeys.h \
 		${iokitHdrs}/ps/
 	mkdir -p ${iokitHdrs}/pwr_mgt
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/pwr_mgt.subproj/IOPMUPSPrivate.h \
 		${.CURDIR}/pwr_mgt.subproj/IOPMLibPrivate.h \
 		${.CURDIR}/pwr_mgt.subproj/IOPMKeys.h \
@@ -419,7 +419,7 @@ copy_headers: .PHONY
 		${.CURDIR}/pwr_mgt.subproj/powermanagement.defs \
 		${.CURDIR}/pwr_mgt.subproj/powermanagement_mig.h \
 		${iokitHdrs}/pwr_mgt/
-	cp -f --preserve=timestamps \
+	rsync -ctL \
 		${.CURDIR}/IOKitLibPrivate.h \
 		${.CURDIR}/IOCFPlugIn.h \
 		${.CURDIR}/IOCFSerialize.h \
@@ -429,7 +429,7 @@ copy_headers: .PHONY
 		${.CURDIR}/IODataQueueClient.h \
 		${iokitHdrs}/
 	mkdir -p ${iokitHdrs}/platform
-	cp -f --preserve=timestamps ${.CURDIR}/platform.subproj/IOPlatformSupportPrivate.h \
+	rsync -ctL ${.CURDIR}/platform.subproj/IOPlatformSupportPrivate.h \
 		${iokitHdrs}/platform/
 	rm -f ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers
 	rm -f ${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
@@ -437,7 +437,7 @@ copy_headers: .PHONY
 	ln -sf Versions/A/PrivateHeaders \
 	  ${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
 	mkdir -p ${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
-	cp -f --preserve=timestamps ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/libkern/c++/OSMetaClass.h \
+	rsync -ctL ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/libkern/c++/OSMetaClass.h \
 		${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
 	rm -f ${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Headers \
 		${MINKAR_SDKROOT}${SLF}/DriverKit.framework/PrivateHeaders
@@ -459,7 +459,7 @@ iokitmig64.h iokitmig64.c: ${.CURDIR}/iokitmig.defs
 
 libkxld.a:
 	${MAKE} -C${.CURDIR} -f Makefile.kxld all
-	cp -f --preserve=timestamps ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/local/lib/kernel
+	rsync -ctL ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/local/lib/kernel
 
 SUBDIR =
 

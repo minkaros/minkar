@@ -27,16 +27,16 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/os
 	# The public os/log.h is xnu's (os_log, os_log_error...); this
 	# library's own log.h only adds to it, for its own build.
-	cp -f ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/os/log.h ${MINKAR_SDKROOT}/usr/include/os
-	cp -f ${.CURDIR}/activity.h ${MINKAR_SDKROOT}/usr/include/os
-	cp -f ${.CURDIR}/signpost.h ${MINKAR_SDKROOT}/usr/include/os/signpost.h
+	rsync -cL ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/os/log.h ${MINKAR_SDKROOT}/usr/include/os
+	rsync -cL ${.CURDIR}/activity.h ${MINKAR_SDKROOT}/usr/include/os
+	rsync -cL ${.CURDIR}/signpost.h ${MINKAR_SDKROOT}/usr/include/os/signpost.h
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/minkar
-	cp -f ${.CURDIR}/stub.h ${MINKAR_SDKROOT}/usr/local/include/minkar
-	cp -f ${.CURDIR}/logd_message.h ${MINKAR_SDKROOT}/usr/local/include/minkar
+	rsync -cL ${.CURDIR}/stub.h ${MINKAR_SDKROOT}/usr/local/include/minkar
+	rsync -cL ${.CURDIR}/logd_message.h ${MINKAR_SDKROOT}/usr/local/include/minkar
 
 .include <bsd.lib.mk>

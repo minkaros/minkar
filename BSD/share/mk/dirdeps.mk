@@ -983,7 +983,7 @@ bootstrap-this:	.NOTMAIN
 .if ${_src:T} != ${.MAKE.DEPENDFILE_PREFIX:T}
 	(cd ${.CURDIR} && sed ${.MAKE.DEPENDFILE_BOOTSTRAP_SED} ${_src} > ${_want:T})
 .else
-	cp ${.CURDIR}/${_src:T} ${_want}
+	rsync -cL ${.CURDIR}/${_src:T} ${_want}
 .endif
 
 # create Makefile.depend* for this dir and its dependencies

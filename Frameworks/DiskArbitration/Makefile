@@ -54,7 +54,7 @@ DAServerUser.c DAServer.h: ${.CURDIR}/diskarbitrationd/DAServer.defs
 		-header DAServer.h -sheader /dev/null ${.ALLSRC}
 
 fmwk-install-hook:
-	cp -fR ${.CURDIR}/DiskArbitration/English.lproj ${RESOURCES_DIR}/
+	rsync -rlc ${.CURDIR}/DiskArbitration/English.lproj ${RESOURCES_DIR}/
 	mkdir -p ${MINKAR_SDKROOT}${SLF} ${SYSROOT_DIR}${SLF}
 	rsync -rlc ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
 	rsync -rlc ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/

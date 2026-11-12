@@ -16,7 +16,7 @@ install-firmware: .PHONY
 	src=$$(sh ${.CURDIR}/fetch.sh ${.CURDIR}/MANIFEST ${FW_CACHE}) && \
 	mkdir -p ${DIR} && \
 	for f in $$(awk '!/^#/ && $$1 != "tag" && NF == 2 { print $$1 }' ${.CURDIR}/MANIFEST); do \
-		install -o 0 -g 0 -m 0644 $$src/$$f ${DIR}/; \
+		install -C -o 0 -g 0 -m 0644 $$src/$$f ${DIR}/; \
 	done
 
 .include <bsd.prog.mk>

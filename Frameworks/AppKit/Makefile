@@ -707,7 +707,7 @@ clean-deps:
 
 fmwk-install-hook:
 .for lproj in en.lproj fr.lproj de.lproj
-	cp -Rf ${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerWheel.nib \
+	rsync -rlc ${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerWheel.nib \
 		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerSliders.nib \
 		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerColorList.nib \
 		${RESOURCES_DIR}/${lproj}/

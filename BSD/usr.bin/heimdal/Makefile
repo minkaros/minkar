@@ -52,7 +52,7 @@ ${.OBJDIR}/xtools/asn1_compile: ${.CURDIR}/Makefile
 .for d in lib/roken lib/vers lib/com_err lib/libedit lib/sl lib/asn1
 	cd ${.OBJDIR}/host && ${GM} -j${.MAKE.JOBS:U1} -C ${d}
 .endfor
-	cp ${.OBJDIR}/host/lib/asn1/asn1_compile ${.OBJDIR}/host/lib/sl/slc \
+	rsync -cL ${.OBJDIR}/host/lib/asn1/asn1_compile ${.OBJDIR}/host/lib/sl/slc \
 	    ${.OBJDIR}/host/lib/com_err/compile_et ${.OBJDIR}/xtools/
 
 ${.OBJDIR}/cross/kuser/kinit: ${.OBJDIR}/xtools/asn1_compile
@@ -73,10 +73,10 @@ ${.OBJDIR}/cross/kuser/kinit: ${.OBJDIR}/xtools/asn1_compile
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/cross/kuser/kinit
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/kinit ${SYSROOT_DIR}/usr/bin/kinit
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/kdestroy ${SYSROOT_DIR}/usr/bin/kdestroy
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/heimtools ${SYSROOT_DIR}/usr/bin/klist
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/kinit ${SYSROOT_DIR}/usr/bin/kinit
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/kdestroy ${SYSROOT_DIR}/usr/bin/kdestroy
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/cross/kuser/heimtools ${SYSROOT_DIR}/usr/bin/klist
 .for m in kinit klist kdestroy
-	install -m 0444 ${.CURDIR}/dist/kuser/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
+	install -C -m 0444 ${.CURDIR}/dist/kuser/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
 .endfor
 	touch ${.TARGET}

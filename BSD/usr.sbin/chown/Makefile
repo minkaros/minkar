@@ -13,7 +13,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
 	ln -f ${SYSROOT_DIR}/usr/sbin/chown ${SYSROOT_DIR}/usr/bin/chgrp
 
 .include <bsd.prog.mk>

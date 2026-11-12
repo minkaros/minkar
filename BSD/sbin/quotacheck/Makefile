@@ -19,7 +19,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/quotacheck
-	install -m 0444 ${.CURDIR}/quotacheck.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/quotacheck
+	install -C -m 0444 ${.CURDIR}/quotacheck.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 .include <bsd.prog.mk>

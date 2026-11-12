@@ -22,7 +22,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
-	install -m 0444 ${.CURDIR}/sysctl.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
+	install -C -m 0444 ${.CURDIR}/sysctl.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 .include <bsd.prog.mk>

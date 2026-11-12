@@ -17,12 +17,12 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	cp -f ${PROG} ${SYSROOT_DIR}/usr/bin/
+	rsync -cL ${PROG} ${SYSROOT_DIR}/usr/bin/
 	ln -f ${SYSROOT_DIR}/usr/bin/grep ${SYSROOT_DIR}/usr/bin/egrep
 	ln -f ${SYSROOT_DIR}/usr/bin/grep ${SYSROOT_DIR}/usr/bin/fgrep
 	# grep reads no compressed files itself (FreeBSD main): zgrep and
 	# bzgrep are the script that runs zcat or bzcat into it.
-	install -m 0555 ${.CURDIR}/zgrep.sh ${SYSROOT_DIR}/usr/bin/zgrep
+	install -C -m 0555 ${.CURDIR}/zgrep.sh ${SYSROOT_DIR}/usr/bin/zgrep
 .for l in zegrep zfgrep bzgrep bzegrep bzfgrep
 	ln -f ${SYSROOT_DIR}/usr/bin/zgrep ${SYSROOT_DIR}/usr/bin/${l}
 .endfor

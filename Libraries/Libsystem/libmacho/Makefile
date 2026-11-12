@@ -26,7 +26,7 @@ lib${LIB}.dylib: prep lib${LIB}.a
 	  -Wl,-current_version,949.0.1 -Wl,-compatibility_version,1.0.0 \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a -lSystem
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

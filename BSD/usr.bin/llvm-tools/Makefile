@@ -52,11 +52,11 @@ ${.OBJDIR}/build/bin/llvm-ar: ${.OBJDIR}/build/build.ninja
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/build/bin/llvm-ar
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-ar ${SYSROOT_DIR}/usr/bin/ar
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-ar ${SYSROOT_DIR}/usr/bin/ar
 	ln -sf ar ${SYSROOT_DIR}/usr/bin/ranlib
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-size ${SYSROOT_DIR}/usr/bin/size
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-strings ${SYSROOT_DIR}/usr/bin/strings
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-size ${SYSROOT_DIR}/usr/bin/size
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/build/bin/llvm-strings ${SYSROOT_DIR}/usr/bin/strings
 .for m in ar ranlib size strings
-	install -m 0444 ${.CURDIR}/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
+	install -C -m 0444 ${.CURDIR}/${m}.1 ${SYSROOT_DIR}/usr/share/man/man1/${m}.1
 .endfor
 	touch ${.TARGET}

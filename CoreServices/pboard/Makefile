@@ -36,7 +36,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
 	# Its log directory: launchd opens the job's StandardErrorPath as
 	# nobody (UID and GID -2), who cannot write /var/log.
 	install -d -m 0755 -o 4294967294 -g 4294967294 ${SYSROOT_DIR}/private/var/log/pboard

@@ -23,9 +23,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${FSB}/Contents/Resources ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0444 ${.CURDIR}/Info.plist ${SYSROOT_DIR}${FSB}/Contents/Info.plist
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
-	install -m 0444 ${.CURDIR}/exfat.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0444 ${.CURDIR}/Info.plist ${SYSROOT_DIR}${FSB}/Contents/Info.plist
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
+	install -C -m 0444 ${.CURDIR}/exfat.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
 .for t in fsck_exfat mount_exfat newfs_exfat
 	ln -sfn ../../../../../../sbin/${t} ${SYSROOT_DIR}${FSB}/Contents/Resources/${t}
 .endfor

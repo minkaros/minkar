@@ -43,6 +43,6 @@ ${.OBJDIR}/bash: ${.CURDIR}/Makefile
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/bash
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/bash ${SYSROOT_DIR}/bin/bash
-	install -m 0444 ${.CURDIR}/dist/doc/bash.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/bash ${SYSROOT_DIR}/bin/bash
+	install -C -m 0444 ${.CURDIR}/dist/doc/bash.1 ${SYSROOT_DIR}/usr/share/man/man1/
 	touch ${.TARGET}

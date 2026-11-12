@@ -68,7 +68,7 @@ dt_grammar.o dt_grammar.pieo dt_lex.o dt_lex.pieo: ${.OBJDIR}/inc/sys/dtrace.h
 # The kernel's private headers dtrace uses.
 ${.OBJDIR}/inc/sys/dtrace.h: ${XNU}/bsd/sys/dtrace.h
 	mkdir -p ${.OBJDIR}/inc/sys
-	cd ${XNU}/bsd/sys && cp dtrace.h dtrace_glue.h fasttrap.h fasttrap_isa.h \
+	cd ${XNU}/bsd/sys && rsync -cL dtrace.h dtrace_glue.h fasttrap.h fasttrap_isa.h \
 	    lockstat.h csr.h codesign.h kas_info.h proc_info.h event.h \
 	    ${.OBJDIR}/inc/sys/
 
@@ -82,9 +82,9 @@ all: to-sysroot
 to-sysroot: ${PROG_CXX}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/lib/dtrace \
 	    ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${PROG_CXX} ${SYSROOT_DIR}/usr/sbin/dtrace
-	cd ${XNU}/bsd/dev/dtrace/scripts && install -m 0444 ${DLIBS} \
+	install -C -m 0555 -o 0 -g 0 ${PROG_CXX} ${SYSROOT_DIR}/usr/sbin/dtrace
+	cd ${XNU}/bsd/dev/dtrace/scripts && install -C -m 0444 ${DLIBS} \
 	    ${SYSROOT_DIR}/usr/lib/dtrace/
-	install -m 0444 ${DIST}/cmd/dtrace/dtrace.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${DIST}/cmd/dtrace/dtrace.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

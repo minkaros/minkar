@@ -87,9 +87,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${BINDIR} ${SYSROOT_DIR}/Library/Preferences/SystemConfiguration
-	install -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
 	# The default names (Minkar / minkar), as scutil --set would write them.
-	install -m 0644 ${.CURDIR}/preferences.plist \
+	install -C -m 0644 ${.CURDIR}/preferences.plist \
 	    ${SYSROOT_DIR}/Library/Preferences/SystemConfiguration/
 .for p in ${PLUGINS}
 	mkdir -p ${PLUGINDIR}/${p}.bundle/Contents

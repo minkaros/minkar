@@ -53,7 +53,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	    ${.CURDIR}/kx-sh ${.CURDIR}/kx-cp > ${.OBJDIR}/home/.crossexec
 	# This machine's tools, then the Darwin build that uses them.
 	cd ${B} && env -u MAKEFLAGS -u CFLAGS -u LDFLAGS -u CXXFLAGS DEFPATH=/bin:/usr/bin bin/package make CC=cc
-	cp ${B}/bin/package ${B}/arch/linux.i386-64/bin/package
+	rsync -cL ${B}/bin/package ${B}/arch/linux.i386-64/bin/package
 	# The Darwin build's Mamfiles (see above).
 	cd ${B}/src && for m in lib/libast lib/libdll lib/libsum lib/libcmd cmd/ksh93; do \
 	    sed -i -e 's|exec - ranlib %{@}|exec - ${TC}/llvm-ranlib %{@}|' \
@@ -66,7 +66,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	@if [ -s ${.OBJDIR}/kx/missing ]; then \
 	    echo "ksh: probes with no recorded result (make record with the dev VM up):"; \
 	    sort -u ${.OBJDIR}/kx/missing | head -20; exit 1; fi
-	cp ${B}/arch/darwin.i386-64/bin/ksh ${.TARGET}
+	rsync -cL ${B}/arch/darwin.i386-64/bin/ksh ${.TARGET}
 
 record: .PHONY
 	rm -f ${.CURDIR}/iffe-results ${.OBJDIR}/ksh
@@ -74,6 +74,6 @@ record: .PHONY
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/ksh
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/ksh ${SYSROOT_DIR}/bin/ksh
-	install -m 0444 ${B}/src/cmd/ksh93/sh.1 ${SYSROOT_DIR}/usr/share/man/man1/ksh.1
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/ksh ${SYSROOT_DIR}/bin/ksh
+	install -C -m 0444 ${B}/src/cmd/ksh93/sh.1 ${SYSROOT_DIR}/usr/share/man/man1/ksh.1
 	touch ${.TARGET}

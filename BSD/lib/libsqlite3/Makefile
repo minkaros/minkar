@@ -43,8 +43,8 @@ lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-current_version,${SQLITE_CURRENT} \
 	  -Wl,-install_name,/usr/lib/libsqlite3.dylib
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/libsqlite3.dylib
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libsqlite3.dylib
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/libsqlite3.dylib
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libsqlite3.dylib
 	ln -fs libsqlite3.dylib ${SYSROOT_DIR}/usr/lib/libsqlite3.0.dylib
 
 install-headers: .PHONY
@@ -65,6 +65,6 @@ CLEANFILES += shell.o
 
 man-page: .PHONY
 	mkdir -p ${SYSROOT_DIR}/usr/share/man/man1
-	install -m 0444 ${.CURDIR}/sqlite3.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/sqlite3.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.lib.mk>

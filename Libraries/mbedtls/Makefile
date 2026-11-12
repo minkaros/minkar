@@ -41,8 +41,9 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 all: lib${LIB}.a
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib ${MINKAR_SDKROOT}/usr/local/include
-	cp -f ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/local/lib/
-	rm -rf ${MINKAR_SDKROOT}/usr/local/include/mbedtls ${MINKAR_SDKROOT}/usr/local/include/psa
-	cp -R ${.CURDIR}/include/mbedtls ${.CURDIR}/include/psa ${MINKAR_SDKROOT}/usr/local/include/
+	rsync -cL ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/local/lib/
+	# By content: unchanged headers keep their dates (what includes them is
+	# not built again).
+	rsync -rlc --delete ${.CURDIR}/include/mbedtls ${.CURDIR}/include/psa ${MINKAR_SDKROOT}/usr/local/include/
 
 .include <bsd.lib.mk>

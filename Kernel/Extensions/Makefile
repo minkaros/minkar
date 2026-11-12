@@ -9,11 +9,11 @@ all: kernelcache
   ${SYSROOT_DIR}/System/Library/Extensions
 	mkdir -p ${target_dir}
 .for kext in ${SUBDIR}
-	cp -fR ${.OBJDIR}/${kext}/${kext:S/IOGraphics/IOGOPFramebuffer/}.kext ${target_dir}/
+	rsync -rlc ${.OBJDIR}/${kext}/${kext:S/IOGraphics/IOGOPFramebuffer/}.kext ${target_dir}/
 .endfor
 	# hfs's encodings go inside it, as on macOS, so a load of hfs finds them.
 	mkdir -p ${target_dir}/hfs.kext/Contents/PlugIns
-	cp -fR ${.OBJDIR}/hfs/hfs_encodings/hfs_encodings.kext \
+	rsync -rlc ${.OBJDIR}/hfs/hfs_encodings/hfs_encodings.kext \
 	    ${target_dir}/hfs.kext/Contents/PlugIns/
 .endfor
 
@@ -57,7 +57,7 @@ kernelcache: ${SUBDIR}
 	chmod 0644 ${.TARGET}.tmp
 	${LIPO} -create -output ${.OBJDIR}/${.TARGET} \
 	  -arch x86_64 ${.OBJDIR}/${.TARGET}.tmp
-	cp -f ${.OBJDIR}/${.TARGET} ${ROOT_BINARY_DIR}
+	rsync -cL ${.OBJDIR}/${.TARGET} ${ROOT_BINARY_DIR}
 
 #	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
 	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \

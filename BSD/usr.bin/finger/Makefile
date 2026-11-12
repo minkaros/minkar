@@ -22,8 +22,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 ${SYSROOT_DIR}/usr/share/man/man5
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/finger
-	install -m 0444 ${.CURDIR}/finger.1 ${SYSROOT_DIR}/usr/share/man/man1/
-	install -m 0444 ${.CURDIR}/finger.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/bin/finger
+	install -C -m 0444 ${.CURDIR}/finger.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.CURDIR}/finger.conf.5 ${SYSROOT_DIR}/usr/share/man/man5/
 
 .include <bsd.prog.mk>

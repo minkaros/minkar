@@ -36,6 +36,6 @@ ${STAGE}/usr/lib/liburcu.8.dylib: ${.CURDIR}/Makefile
 ${.OBJDIR}/.installed: ${STAGE}/usr/lib/liburcu.8.dylib
 	mkdir -p ${SYSROOT_DIR}/usr/lib
 .for l in ${URCU_LIBS}
-	install -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/${l}.dylib ${SYSROOT_DIR}/usr/lib/
+	install -C -m 0555 -o 0 -g 0 ${STAGE}/usr/lib/${l}.dylib ${SYSROOT_DIR}/usr/lib/
 .endfor
 	touch ${.TARGET}

@@ -96,10 +96,10 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	# C99's <complex.h> for the functions above (FreeBSD's; <tgmath.h> is
 	# clang's own).
-	cp -f ${.CURDIR}/include/complex.h ${MINKAR_SDKROOT}/usr/include/complex.h
+	rsync -cL ${.CURDIR}/include/complex.h ${MINKAR_SDKROOT}/usr/include/complex.h
 
 .include <bsd.lib.mk>

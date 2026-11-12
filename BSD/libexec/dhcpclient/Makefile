@@ -23,6 +23,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec
-	cp -f ${PROG} ${SYSROOT_DIR}/usr/libexec/
+	rsync -cL ${PROG} ${SYSROOT_DIR}/usr/libexec/
 
 .include <bsd.prog.mk>

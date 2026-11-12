@@ -36,8 +36,8 @@ CLEANFILES += file.1 magic.5
 to-sysroot: ${PROG} file.1 magic.5
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/man/man5
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
-	install -m 0444 file.1 ${SYSROOT_DIR}/usr/share/man/man1/
-	install -m 0444 magic.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0444 file.1 ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 magic.5 ${SYSROOT_DIR}/usr/share/man/man5/
 
 .include <bsd.prog.mk>

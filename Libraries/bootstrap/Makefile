@@ -36,7 +36,7 @@ install-stubs: .PHONY
 	@if [ ! -e ${MINKAR_SDKROOT}/${s:${REAL}} ]; then \
 		mkdir -p ${MINKAR_SDKROOT}/${s:H}; \
 		echo "bootstrap stub: ${s}"; \
-		cp -f ${.CURDIR}/stubs/${s} ${MINKAR_SDKROOT}/${s}; \
+		rsync -cL ${.CURDIR}/stubs/${s} ${MINKAR_SDKROOT}/${s}; \
 	fi
 .endfor
 

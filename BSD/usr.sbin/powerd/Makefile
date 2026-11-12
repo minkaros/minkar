@@ -37,9 +37,9 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${SYSROOT_DIR}/usr/share/man/man8 \
 	    ${SYSROOT_DIR}/System/Library/LaunchDaemons
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/powerd
-	install -m 0444 ${.CURDIR}/powerd.8 ${SYSROOT_DIR}/usr/share/man/man8/
-	install -m 0644 ${.CURDIR}/org.minkar.powerd.plist \
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/powerd
+	install -C -m 0444 ${.CURDIR}/powerd.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0644 ${.CURDIR}/org.minkar.powerd.plist \
 	    ${SYSROOT_DIR}/System/Library/LaunchDaemons/
 
 .include <bsd.prog.mk>

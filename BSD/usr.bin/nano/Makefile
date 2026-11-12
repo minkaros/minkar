@@ -35,13 +35,13 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/src/nano ${.CURDIR}/nanorc
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/man/man5 ${SYSROOT_DIR}/usr/share/nano \
 	    ${SYSROOT_DIR}/etc
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/src/nano ${SYSROOT_DIR}/usr/bin/nano
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/src/nano ${SYSROOT_DIR}/usr/bin/nano
 	ln -sf nano ${SYSROOT_DIR}/usr/bin/rnano
 	ln -sf nano ${SYSROOT_DIR}/usr/bin/pico
-	install -m 0444 ${.CURDIR}/dist/doc/nano.1 ${.CURDIR}/dist/doc/rnano.1 \
+	install -C -m 0444 ${.CURDIR}/dist/doc/nano.1 ${.CURDIR}/dist/doc/rnano.1 \
 	    ${SYSROOT_DIR}/usr/share/man/man1/
 	ln -sf nano.1 ${SYSROOT_DIR}/usr/share/man/man1/pico.1
-	install -m 0444 ${.CURDIR}/dist/doc/nanorc.5 ${SYSROOT_DIR}/usr/share/man/man5/
-	install -m 0444 ${.CURDIR}/dist/syntax/*.nanorc ${SYSROOT_DIR}/usr/share/nano/
-	install -m 0644 ${.CURDIR}/nanorc ${SYSROOT_DIR}/etc/nanorc
+	install -C -m 0444 ${.CURDIR}/dist/doc/nanorc.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0444 ${.CURDIR}/dist/syntax/*.nanorc ${SYSROOT_DIR}/usr/share/nano/
+	install -C -m 0644 ${.CURDIR}/nanorc ${SYSROOT_DIR}/etc/nanorc
 	touch ${.TARGET}

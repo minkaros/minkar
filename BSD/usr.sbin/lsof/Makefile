@@ -35,7 +35,7 @@ version.h: ${DIST}/autotools/version.h.in
 	    -e 's|@ccv@||; s|@ccflags@||; s|@ldflags@||; s|@sysinfo@|Minkar|' \
 	    ${.ALLSRC} > ${.TARGET}
 autotools.h: ${DIST}/autotools/autotools.h.in
-	cp ${.ALLSRC} ${.TARGET}
+	rsync -cL ${.ALLSRC} ${.TARGET}
 
 CLEANFILES += src_print.c src_ptti.c version.h autotools.h lsof.8
 
@@ -56,8 +56,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG} lsof.8
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
-	install -m 0444 lsof.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/sbin/
+	install -C -m 0444 lsof.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 .include <bsd.prog.mk>
 

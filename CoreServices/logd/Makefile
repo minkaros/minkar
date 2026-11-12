@@ -35,9 +35,9 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec ${MINKAR_SDKROOT}/usr/local/include/minkar
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
 	install -d -m 0755 -o 0 -g 0 ${SYSROOT_DIR}/private/var/log/logd
 	# For the log command.
-	cp -f ${.CURDIR}/logd.defs ${.CURDIR}/logd_record.h ${MINKAR_SDKROOT}/usr/local/include/minkar
+	rsync -cL ${.CURDIR}/logd.defs ${.CURDIR}/logd_record.h ${MINKAR_SDKROOT}/usr/local/include/minkar
 
 .include <bsd.prog.mk>

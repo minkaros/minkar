@@ -23,7 +23,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/sbin ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/sbin/traceroute6
-	install -m 0444 ${.CURDIR}/traceroute6.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 4555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/sbin/traceroute6
+	install -C -m 0444 ${.CURDIR}/traceroute6.8 ${SYSROOT_DIR}/usr/share/man/man8/
 
 .include <bsd.prog.mk>

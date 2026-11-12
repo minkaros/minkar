@@ -54,7 +54,7 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/bin/dig/dig
 	    [ -L $$l ] || install -m 0555 -o 0 -g 0 $$l ${SYSROOT_DIR}/usr/lib/bind9/; \
 	done
 .for p in dig host nslookup
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/stage/usr/bin/${p} ${SYSROOT_DIR}/usr/bin/${p}
-	install -m 0444 ${.OBJDIR}/doc/man/${p}.1 ${SYSROOT_DIR}/usr/share/man/man1/${p}.1
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/stage/usr/bin/${p} ${SYSROOT_DIR}/usr/bin/${p}
+	install -C -m 0444 ${.OBJDIR}/doc/man/${p}.1 ${SYSROOT_DIR}/usr/share/man/man1/${p}.1
 .endfor
 	touch ${.TARGET}

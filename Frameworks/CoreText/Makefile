@@ -25,7 +25,7 @@ CFLAGS = -I${.CURDIR:H}  -I${.CURDIR}/fontconfig/fontconfig
 
 fontresources:
 	mkdir -p ${FRAMEWORK_DIR}/Versions/A/Resources ${SYSROOT_DIR}/etc/fonts/conf.d
-	cp -fv ${.CURDIR}/fontconfig/conf.d/*.conf ${FRAMEWORK_DIR}/Versions/A/Resources/
+	rsync -cL ${.CURDIR}/fontconfig/conf.d/*.conf ${FRAMEWORK_DIR}/Versions/A/Resources/
 .for f in  \
 	10-hinting-medium.conf \
 	10-scale-bitmap-fonts.conf \

@@ -79,10 +79,10 @@ ${.OBJDIR}/libpixman-1.0.dylib: lib${LIB}.a
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib ${d}/usr/include/pixman-1
-	cp -f ${.TARGET} ${d}/usr/lib/
+	rsync -cL ${.TARGET} ${d}/usr/lib/
 	ln -sf libpixman-1.0.dylib ${d}/usr/lib/libpixman-1.dylib
 .for h in ${INCS}
-	cp -f ${h} ${d}/usr/include/pixman-1/
+	rsync -cL ${h} ${d}/usr/include/pixman-1/
 .endfor
 .endfor
 

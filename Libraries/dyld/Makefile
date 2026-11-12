@@ -101,10 +101,10 @@ mkdirs: .PHONY
 lib${LIB}.dylib: mkdirs lib${LIB}.a
 	${CC} -o ${.TARGET} -Wl,-force_load,lib${LIB}.a ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.OBJDIR}/lib${LIB}.a ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.OBJDIR}/lib${LIB}.a ${SYSROOT_DIR}/usr/lib/system/
 
 libdyld: ${.OBJDIR}/lib${LIB}.dylib
 

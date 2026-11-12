@@ -70,7 +70,7 @@ msgfmt: $(OBJS)
 	$(CC) -o $@ src/msgfmt.o $(PARSEROBJS) $(LDFLAGS) $(LDLIBS)
 
 xgettext:
-	cp src/xgettext.sh ./xgettext
+	rsync -cL src/xgettext.sh ./xgettext
 
 autopoint: src/autopoint.in
 	cat $< | sed 's,@datadir@,$(datadir),' > $@

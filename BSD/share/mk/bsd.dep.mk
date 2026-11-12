@@ -129,7 +129,7 @@ ${_YC}: .PHONY .META
 .endif
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} ${YFLAGS.${_YSRC}} ${.ALLSRC}
-	cp y.tab.c ${_YC}
+	rsync -cL y.tab.c ${_YC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h

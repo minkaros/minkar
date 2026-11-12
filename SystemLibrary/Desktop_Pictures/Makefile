@@ -8,7 +8,7 @@ install-pictures: .PHONY
 	cd ${.CURDIR} && find . -type f \( -name '*.png' -o -name '*.jpg' \) | \
 	    while read -r pic; do \
 		mkdir -p "${SYSROOT_DIR}${PICSDIR}/$$(dirname "$$pic")"; \
-		install -m 0644 "$$pic" "${SYSROOT_DIR}${PICSDIR}/$$pic"; \
+		install -C -m 0644 "$$pic" "${SYSROOT_DIR}${PICSDIR}/$$pic"; \
 	    done
 
 .include <bsd.prog.mk>

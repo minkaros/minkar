@@ -38,8 +38,8 @@ lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/libxar.1.dylib \
 	  -L${SYSROOT_DIR}/usr/lib -lxml2 -lz -lbz2 -llzma -liconv
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/libxar.1.dylib
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libxar.1.dylib
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/libxar.1.dylib
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libxar.1.dylib
 	ln -fs libxar.1.dylib ${SYSROOT_DIR}/usr/lib/libxar.dylib
 	ln -fs libxar.1.dylib ${MINKAR_SDKROOT}/usr/lib/libxar.dylib
 

@@ -31,6 +31,6 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/sbin/
 
 .include <bsd.prog.mk>

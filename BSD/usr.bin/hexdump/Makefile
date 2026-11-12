@@ -10,7 +10,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/hexdump
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/hexdump
 	ln -f ${SYSROOT_DIR}/usr/bin/hexdump ${SYSROOT_DIR}/usr/bin/od
 
 .include <bsd.prog.mk>

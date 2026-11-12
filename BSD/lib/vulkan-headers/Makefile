@@ -19,7 +19,7 @@ install-headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/include && \
 	rm -rf ${MINKAR_SDKROOT}/usr/include/vulkan ${MINKAR_SDKROOT}/usr/include/vk_video && \
 	cp -R --preserve=timestamps $$src/include/vulkan $$src/include/vk_video ${MINKAR_SDKROOT}/usr/include/ && \
-	install -m 0444 $$src/LICENSE.md ${MINKAR_SDKROOT}/usr/include/vulkan/LICENSE.md && \
+	install -C -m 0444 $$src/LICENSE.md ${MINKAR_SDKROOT}/usr/include/vulkan/LICENSE.md && \
 	cp -R --preserve=timestamps $$src/LICENSES ${MINKAR_SDKROOT}/usr/include/vulkan/
 
 .include <bsd.prog.mk>

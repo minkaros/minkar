@@ -9,7 +9,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/bin/rm
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/bin/rm
 	ln -f ${SYSROOT_DIR}/bin/rm ${SYSROOT_DIR}/bin/unlink
 
 .include <bsd.prog.mk>

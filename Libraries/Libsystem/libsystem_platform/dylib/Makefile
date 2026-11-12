@@ -20,8 +20,8 @@ all: lib${LIB}.dylib
 lib${LIB}.dylib: lib${LIB}.a
 	${CC} -o ${.TARGET} ${DYLIB_LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system
-	cp -f lib${LIB}.dylib ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f lib${LIB}.dylib ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL lib${LIB}.dylib ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL lib${LIB}.dylib ${SYSROOT_DIR}/usr/lib/system/
 
 .include "common.mk"
 

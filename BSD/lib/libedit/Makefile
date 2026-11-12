@@ -73,15 +73,16 @@ lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/libedit.dylib \
 	  -Wl,-current_version,3.1 -Wl,-compatibility_version,1.0 \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a -lncurses
-	cp -f ${.OBJDIR}/lib${LIB}.dylib ${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${.OBJDIR}/lib${LIB}.dylib ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.OBJDIR}/lib${LIB}.dylib ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.OBJDIR}/lib${LIB}.dylib ${SYSROOT_DIR}/usr/lib/
 	# As on macOS: libedit is also the readline library.
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	ln -sf libedit.dylib ${d}/usr/lib/libreadline.dylib
 .endfor
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/editline ${MINKAR_SDKROOT}/usr/include/readline
-	cp -f ${.CURDIR}/src/histedit.h ${MINKAR_SDKROOT}/usr/include/
-	cp -f ${.CURDIR}/src/editline/readline.h ${MINKAR_SDKROOT}/usr/include/editline/
+	# By content: unchanged headers keep their dates.
+	rsync -c ${.CURDIR}/src/histedit.h ${MINKAR_SDKROOT}/usr/include/
+	rsync -c ${.CURDIR}/src/editline/readline.h ${MINKAR_SDKROOT}/usr/include/editline/
 	ln -sf ../editline/readline.h ${MINKAR_SDKROOT}/usr/include/readline/readline.h
 	ln -sf ../editline/readline.h ${MINKAR_SDKROOT}/usr/include/readline/history.h
 

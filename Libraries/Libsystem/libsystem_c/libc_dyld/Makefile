@@ -68,7 +68,7 @@ all: lib${LIB}.a copylib
 
 copylib: lib${LIB}.a
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/dyld
-	cp -f ${.OBJDIR}/libc_dyld.a ${MINKAR_SDKROOT}/usr/local/lib/dyld/libc.a
+	rsync -cL ${.OBJDIR}/libc_dyld.a ${MINKAR_SDKROOT}/usr/local/lib/dyld/libc.a
 
 .include <bsd.lib.mk>
 

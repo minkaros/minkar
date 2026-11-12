@@ -16,10 +16,10 @@ all: ${.OBJDIR}/libnv.a ${.OBJDIR}/libsbuf.a
 
 ${.OBJDIR}/libnv.a: ${NV_OBJS}
 	${AR} rcs ${.TARGET} ${NV_OBJS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
 
 ${.OBJDIR}/libsbuf.a: ${SBUF_OBJS}
 	${AR} rcs ${.TARGET} ${SBUF_OBJS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
 
 .include <bsd.lib.mk>

@@ -26,7 +26,7 @@ CLEANFILES += fseventsdServer.c fseventsdServer.h sys/fsevents.h
 # The kernel's interface to /dev/fsevents, which the SDK does not carry.
 sys/fsevents.h: ${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/fsevents.h
 	mkdir -p sys
-	cp -f ${.ALLSRC} ${.TARGET}
+	rsync -cL ${.ALLSRC} ${.TARGET}
 
 # The server side of the MIG interface.
 fseventsdServer.c fseventsdServer.h: ${FSE}/fseventsd.defs
@@ -41,7 +41,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/libexec
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
 	install -d -m 0755 -o 0 -g 0 ${SYSROOT_DIR}/private/var/db/fseventsd
 
 .include <bsd.prog.mk>

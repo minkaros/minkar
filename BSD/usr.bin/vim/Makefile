@@ -50,15 +50,15 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/src/vim
 	    DESTDIR=${.OBJDIR}/stage STRIP=true
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/vim
-	install -m 0555 -o 0 -g 0 ${.OBJDIR}/stage/usr/bin/vim ${SYSROOT_DIR}/usr/bin/vim
-	install -m 0555 ${.OBJDIR}/stage/usr/bin/vimtutor ${SYSROOT_DIR}/usr/bin/vimtutor
+	install -C -m 0555 -o 0 -g 0 ${.OBJDIR}/stage/usr/bin/vim ${SYSROOT_DIR}/usr/bin/vim
+	install -C -m 0555 ${.OBJDIR}/stage/usr/bin/vimtutor ${SYSROOT_DIR}/usr/bin/vimtutor
 .for l in vi ex view vimdiff rvim rview
 	ln -sf vim ${SYSROOT_DIR}/usr/bin/${l}
 .endfor
 	rm -rf ${SYSROOT_DIR}/usr/share/vim/vim92
-	cp -R ${.OBJDIR}/stage/usr/share/vim/vim92 ${SYSROOT_DIR}/usr/share/vim/
+	rsync -rlc ${.OBJDIR}/stage/usr/share/vim/vim92 ${SYSROOT_DIR}/usr/share/vim/
 .for m in vim.1 vimdiff.1 vimtutor.1
-	install -m 0444 ${.OBJDIR}/stage/usr/share/man/man1/${m} ${SYSROOT_DIR}/usr/share/man/man1/
+	install -C -m 0444 ${.OBJDIR}/stage/usr/share/man/man1/${m} ${SYSROOT_DIR}/usr/share/man/man1/
 .endfor
 .for l in vi ex view rvim rview
 	ln -sf vim.1 ${SYSROOT_DIR}/usr/share/man/man1/${l}.1

@@ -31,7 +31,7 @@ MKMAGIC_SRCS = apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c \
 
 all: lib${LIB}.a magic.mgc
 	mkdir -p ${SYSROOT_DIR}${MAGICPATH}
-	install -m 0444 magic.mgc ${SYSROOT_DIR}${MAGICPATH}/
+	install -C -m 0444 magic.mgc ${SYSROOT_DIR}${MAGICPATH}/
 
 ${SRCS:R:S/$/.o/}: magic.h
 

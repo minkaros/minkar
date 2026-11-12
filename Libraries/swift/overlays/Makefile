@@ -122,7 +122,7 @@ _prev := ${o}
 # NSUInteger is Swift's Int.
 ${SHIMS}/module.modulemap: ${SRC}/.minkar-patches
 	rm -rf ${SHIMS} && mkdir -p ${SHIMS}
-	cp ${SRC}/stdlib/public/SwiftShims/*OverlayShims.h ${SRC}/stdlib/public/SwiftShims/CF*Shims.h \
+	rsync -cL ${SRC}/stdlib/public/SwiftShims/*OverlayShims.h ${SRC}/stdlib/public/SwiftShims/CF*Shims.h \
 	    ${SRC}/stdlib/public/SwiftShims/NS*Shims.h \
 	    ${SRC}/stdlib/public/SwiftShims/FoundationShimSupport.h ${SHIMS}/
 	awk '/^module _Swift[A-Za-z]*OverlayShims/,/^}/' \
@@ -170,10 +170,10 @@ install-overlays: .PHONY ${OVERLAYS:S,^,${OUT}/libswift,:S,$,.dylib,}
 	mkdir -p ${SYSROOT_DIR}/usr/lib/swift ${MINKAR_SDKROOT}/usr/lib/swift ${RESOURCE} \
 	    ${SYSROOT_DIR}/usr/share/swift
 .for o in ${OVERLAYS}
-	install -m 0755 ${OUT}/libswift${o}.dylib ${SYSROOT_DIR}/usr/lib/swift/
-	install -m 0755 ${OUT}/libswift${o}.dylib ${MINKAR_SDKROOT}/usr/lib/swift/
+	install -C -m 0755 ${OUT}/libswift${o}.dylib ${SYSROOT_DIR}/usr/lib/swift/
+	install -C -m 0755 ${OUT}/libswift${o}.dylib ${MINKAR_SDKROOT}/usr/lib/swift/
 	rm -rf ${RESOURCE}/${o}.swiftmodule
-	cp -R ${OUT}/${o}.swiftmodule ${RESOURCE}/
+	rsync -rlc ${OUT}/${o}.swiftmodule ${RESOURCE}/
 .endfor
 
 clean: .PHONY

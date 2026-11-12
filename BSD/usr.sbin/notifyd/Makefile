@@ -53,8 +53,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${BINDIR} ${SYSROOT_DIR}/etc
-	install -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
-	install -m 0644 ${.CURDIR}/notify.conf.MacOSX ${SYSROOT_DIR}/etc/notify.conf
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}${BINDIR}/
+	install -C -m 0644 ${.CURDIR}/notify.conf.MacOSX ${SYSROOT_DIR}/etc/notify.conf
 
 .include <bsd.prog.mk>
 

@@ -175,12 +175,12 @@ ${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 install-pkg: .PHONY ${PROGS:S,^,${OUT}/,} ${TESTS:S,^,${OUT}/,}
 	rm -rf ${DEST} && mkdir -p ${DEST}
 .for t in ${PROGS} ${TESTS}
-	install -m 0755 ${OUT}/${t} ${DEST}/${PROGNAME_${t}:U${t}}
+	install -C -m 0755 ${OUT}/${t} ${DEST}/${PROGNAME_${t}:U${t}}
 .if !empty(RES_${t})
 	cp -R ${OUT}/${PKG}_${t}.bundle ${DEST}/
 .endif
 .endfor
-	cp ${SRC}/LICENSE* ${DEST}/ 2>/dev/null || true
+	rsync -cL ${SRC}/LICENSE* ${DEST}/ 2>/dev/null || true
 .for d in ${DATA}
 	mkdir -p ${DEST}/${d:H}
 	cp -R ${SRC}/${d} ${DEST}/${d:H}/

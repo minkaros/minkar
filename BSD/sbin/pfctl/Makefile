@@ -37,22 +37,22 @@ ${SRCS:R:S/$/.o/} ${SRCS:R:S/$/.pieo/}: ${.OBJDIR}/inc/net/pfvar.h
 
 ${.OBJDIR}/inc/net/pfvar.h: ${XNU}/bsd/net/pfvar.h
 	mkdir -p ${.OBJDIR}/inc/net/altq ${.OBJDIR}/inc/net/pktsched ${.OBJDIR}/inc/net/classq ${.OBJDIR}/inc/libkern
-	cp ${XNU}/bsd/net/pfvar.h ${XNU}/bsd/net/if_pflog.h ${XNU}/bsd/net/radix.h \
+	rsync -cL ${XNU}/bsd/net/pfvar.h ${XNU}/bsd/net/if_pflog.h ${XNU}/bsd/net/radix.h \
 	    ${.OBJDIR}/inc/net/
-	cp ${XNU}/bsd/net/altq/*.h ${.OBJDIR}/inc/net/altq/
-	cp ${XNU}/bsd/net/pktsched/*.h ${.OBJDIR}/inc/net/pktsched/
-	cp ${XNU}/bsd/net/classq/*.h ${.OBJDIR}/inc/net/classq/
-	cp ${XNU}/libkern/libkern/tree.h ${.OBJDIR}/inc/libkern/
+	rsync -cL ${XNU}/bsd/net/altq/*.h ${.OBJDIR}/inc/net/altq/
+	rsync -cL ${XNU}/bsd/net/pktsched/*.h ${.OBJDIR}/inc/net/pktsched/
+	rsync -cL ${XNU}/bsd/net/classq/*.h ${.OBJDIR}/inc/net/classq/
+	rsync -cL ${XNU}/libkern/libkern/tree.h ${.OBJDIR}/inc/libkern/
 
 all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin ${SYSROOT_DIR}/etc ${SYSROOT_DIR}/usr/share/man/man5 \
 	    ${SYSROOT_DIR}/usr/share/man/man8
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/pfctl
-	install -m 0444 ${.CURDIR}/pf.os ${SYSROOT_DIR}/etc/pf.os
-	install -m 0644 ${.CURDIR}/pf.conf ${SYSROOT_DIR}/etc/pf.conf
-	install -m 0444 ${.CURDIR}/pfctl.8 ${SYSROOT_DIR}/usr/share/man/man8/
-	install -m 0444 ${.CURDIR}/pf.conf.5 ${.CURDIR}/pf.os.5 ${SYSROOT_DIR}/usr/share/man/man5/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/sbin/pfctl
+	install -C -m 0444 ${.CURDIR}/pf.os ${SYSROOT_DIR}/etc/pf.os
+	install -C -m 0644 ${.CURDIR}/pf.conf ${SYSROOT_DIR}/etc/pf.conf
+	install -C -m 0444 ${.CURDIR}/pfctl.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	install -C -m 0444 ${.CURDIR}/pf.conf.5 ${.CURDIR}/pf.os.5 ${SYSROOT_DIR}/usr/share/man/man5/
 
 .include <bsd.prog.mk>

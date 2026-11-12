@@ -22,4 +22,4 @@ to-sysroot: .PHONY
 	python3 -B ${ROOT_SOURCE_DIR}/tools/locale/mklocales.py \
 	    --data ${.CURDIR}/data --out ${.OBJDIR}/out
 	mkdir -p ${SYSROOT_DIR}/usr/share/locale
-	cd ${.OBJDIR}/out && cp -R . ${SYSROOT_DIR}/usr/share/locale/
+	cd ${.OBJDIR}/out && rsync -rlc ./ ${SYSROOT_DIR}/usr/share/locale/

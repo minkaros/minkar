@@ -25,7 +25,7 @@ lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.ALLSRC} ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

@@ -29,9 +29,9 @@ to-sysroot: ${PROG}
 	sed -e 's/[$$](MSDOSFS_VERSION)/1.10/g' \
 	    -e 's/[$$](PRODUCT_BUNDLE_IDENTIFIER)/com.apple.filesystems.msdos/' \
 	    ${MSDOS}/Info-msdos_fs.plist > ${SYSROOT_DIR}${FSB}/Contents/Info.plist
-	cp -Rf ${MSDOS}/msdos_util.tproj/en.lproj ${SYSROOT_DIR}${FSB}/Contents/Resources/
-	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
-	install -m 0444 ${MSDOS}/msdos_util.tproj/msdos.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
+	rsync -rlc ${MSDOS}/msdos_util.tproj/en.lproj ${SYSROOT_DIR}${FSB}/Contents/Resources/
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${FSB}/Contents/Resources/
+	install -C -m 0444 ${MSDOS}/msdos_util.tproj/msdos.util.8 ${SYSROOT_DIR}/usr/share/man/man8/
 .for t in fsck_msdos mount_msdos newfs_msdos
 	ln -sfn ../../../../../../sbin/${t} ${SYSROOT_DIR}${FSB}/Contents/Resources/${t}
 .endfor

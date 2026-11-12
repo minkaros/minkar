@@ -32,9 +32,9 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1 \
 	    ${SYSROOT_DIR}/usr/share/mk
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/make
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/make
 	ln -f ${SYSROOT_DIR}/usr/bin/make ${SYSROOT_DIR}/usr/bin/bmake
-	install -m 0444 ${.CURDIR}/dist/make.1 ${SYSROOT_DIR}/usr/share/man/man1/make.1
+	install -C -m 0444 ${.CURDIR}/dist/make.1 ${SYSROOT_DIR}/usr/share/man/man1/make.1
 	ln -f ${SYSROOT_DIR}/usr/share/man/man1/make.1 \
 	    ${SYSROOT_DIR}/usr/share/man/man1/bmake.1
 	sh ${.CURDIR}/dist/mk/install-mk -m 444 ${SYSROOT_DIR}/usr/share/mk

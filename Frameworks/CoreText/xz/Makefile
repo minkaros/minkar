@@ -19,11 +19,11 @@ build: ${.OBJDIR}/Makefile
 	# Into CoreText's bundle once it exists: Frameworks also builds xz
 	# before Foundation (for libcompression), and CoreText builds it again.
 	if [ -d ${.OBJDIR:H}/CoreText.framework/Resources ]; then \
-		cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib \
+		rsync -cL ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib \
 		    ${.OBJDIR:H}/CoreText.framework/Resources/; \
 	fi
 .for dir in ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
 	mkdir -p ${dir}
-	cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib ${dir}/
+	rsync -cL ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib ${dir}/
 	ln -sf liblzma.5.dylib ${dir}/liblzma.dylib
 .endfor

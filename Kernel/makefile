@@ -81,7 +81,9 @@ SDK_CF = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreFoundation.framework
 cf_headers: .PHONY
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation _copy_headers _copy_private_headers
 	mkdir -p ${SDK_CF}
-	cp -Rf "$$(${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation -V .OBJDIR)/CoreFoundation.framework/Versions" \
+	# Copied by content: a header written again unchanged, newer, made the
+	# libraries that include it (WebKit's precompiled headers) build again.
+	rsync -rlc "$$(${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation -V .OBJDIR)/CoreFoundation.framework/Versions" \
 	    ${SDK_CF}/
 	# The bundle's links, which CoreFoundation's own rule makes only with
 	# the bundle itself.

@@ -34,7 +34,7 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
+	install -C -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
 	ln -f ${SYSROOT_DIR}/usr/bin/awk ${SYSROOT_DIR}/usr/bin/nawk
 
 .include <bsd.prog.mk>

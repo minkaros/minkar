@@ -55,7 +55,7 @@ ${CROSS}: ${.CURDIR}/darwin-toolchain.cmake.in ${.CURDIR}/shims/xcrun.in
 	mkdir -p ${SHIMS}
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${MINKAR_SDKROOT}|g' ${.CURDIR}/shims/xcrun.in \
 	    > ${SHIMS}/xcrun
-	install -m 0755 ${.CURDIR}/shims/defaults ${.CURDIR}/shims/xcodebuild ${SHIMS}/
+	install -C -m 0755 ${.CURDIR}/shims/defaults ${.CURDIR}/shims/xcodebuild ${SHIMS}/
 	chmod 0755 ${SHIMS}/xcrun
 	ln -sf ${TC}/ld64 ${SHIMS}/ld
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${MINKAR_SDKROOT}|g' \
@@ -106,15 +106,15 @@ install-swift-runtime: .PHONY build-swift-runtime
 	mkdir -p ${SYSROOT_DIR}/usr/lib/swift ${MINKAR_SDKROOT}/usr/lib/swift \
 	    ${TOOLCHAIN}/usr/lib/swift ${SYSROOT_DIR}/usr/share/swift
 .for l in ${LIBS}
-	install -m 0755 ${LIBDIR}/${l} ${SYSROOT_DIR}/usr/lib/swift/${l}
-	install -m 0755 ${LIBDIR}/${l} ${MINKAR_SDKROOT}/usr/lib/swift/${l}
+	install -C -m 0755 ${LIBDIR}/${l} ${SYSROOT_DIR}/usr/lib/swift/${l}
+	install -C -m 0755 ${LIBDIR}/${l} ${MINKAR_SDKROOT}/usr/lib/swift/${l}
 .endfor
 	# The modules and shims the compiler imports, in its resource directory.
-	cp -R ${BUILD}/lib/swift/. ${TOOLCHAIN}/usr/lib/swift/
+	rsync -rlc ${BUILD}/lib/swift/ ${TOOLCHAIN}/usr/lib/swift/
 	# Swift's own API notes (Dispatch, os), in the compiler's resource directory.
 	mkdir -p ${TOOLCHAIN}/usr/lib/swift/apinotes
-	cp -f ${SRC}/apinotes/*.apinotes ${TOOLCHAIN}/usr/lib/swift/apinotes/
-	install -m 0444 ${SRC}/LICENSE.txt ${SYSROOT_DIR}/usr/share/swift/LICENSE.txt
+	rsync -cL ${SRC}/apinotes/*.apinotes ${TOOLCHAIN}/usr/lib/swift/apinotes/
+	install -C -m 0444 ${SRC}/LICENSE.txt ${SYSROOT_DIR}/usr/share/swift/LICENSE.txt
 
 clean: .PHONY
 	rm -rf ${SRC} ${BUILD} ${SHIMS} ${CROSS} ${.OBJDIR}/*.log

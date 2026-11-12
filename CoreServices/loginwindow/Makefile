@@ -32,8 +32,8 @@ all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${APP}/MacOS ${APP}/Resources
-	install -m 0555 -o 0 -g 0 ${PROG} ${APP}/MacOS/${PROG}
-	install -m 0444 -o 0 -g 0 ${.CURDIR}/loginwindow-Info.plist ${APP}/Info.plist
-	install -m 0444 -o 0 -g 0 ${.CURDIR}/SessionApplications ${APP}/Resources/SessionApplications
+	install -C -m 0555 -o 0 -g 0 ${PROG} ${APP}/MacOS/${PROG}
+	install -C -m 0444 -o 0 -g 0 ${.CURDIR}/loginwindow-Info.plist ${APP}/Info.plist
+	install -C -m 0444 -o 0 -g 0 ${.CURDIR}/SessionApplications ${APP}/Resources/SessionApplications
 
 .include <bsd.prog.mk>

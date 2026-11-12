@@ -57,10 +57,10 @@ libicucore.A.dylib: lib${LIB}.a
 	  ${.OBJDIR}/target/io -name '*.o') -L${.OBJDIR}/target/lib ${LDFLAGS}
 .for dir in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${dir}/usr/lib ${dir}/usr/include
-	cp -f ${.OBJDIR}/${.TARGET} ${dir}/usr/lib/
+	rsync -cL ${.OBJDIR}/${.TARGET} ${dir}/usr/lib/
 	ln -sf ${.TARGET} ${dir}/usr/lib/libicucore.dylib
-	cp -fd ${.OBJDIR}/target/lib/libicudata* ${dir}/usr/lib/
-	cp -Rf ${.CURDIR}/source/i18n/unicode ${.CURDIR}/source/i18n/*.h \
+	rsync -cl ${.OBJDIR}/target/lib/libicudata* ${dir}/usr/lib/
+	rsync -rlc ${.CURDIR}/source/i18n/unicode ${.CURDIR}/source/i18n/*.h \
 	  ${dir}/usr/include
 .endfor
 	# All of ICU's headers (common, i18n, io) for the external libraries
@@ -68,12 +68,15 @@ libicucore.A.dylib: lib${LIB}.a
 	# without the version suffix, as libicucore exports them
 	# (U_DISABLE_RENAMING 1), with pkg-config files for icu-uc, icu-i18n,
 	# icu-io and icu-data, all of them libicucore.
-	rm -rf ${MINKAR_SDKROOT}/usr/local/include/unicode
-	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/unicode ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
-	cp -f ${.CURDIR}/source/common/unicode/*.h ${.CURDIR}/source/i18n/unicode/*.h \
-	  ${.CURDIR}/source/io/unicode/*.h ${MINKAR_SDKROOT}/usr/local/include/unicode/
+	# Made in the object directory and copied by content: unchanged headers
+	# keep their dates (WebKit, which includes them, is not built again).
+	rm -rf ${.OBJDIR}/sdk-unicode
+	mkdir -p ${.OBJDIR}/sdk-unicode ${MINKAR_SDKROOT}/usr/local/include/unicode ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
+	rsync -cL ${.CURDIR}/source/common/unicode/*.h ${.CURDIR}/source/i18n/unicode/*.h \
+	  ${.CURDIR}/source/io/unicode/*.h ${.OBJDIR}/sdk-unicode/
 	sed -i -e 's|^#define U_DISABLE_RENAMING 0$$|#define U_DISABLE_RENAMING 1|' \
-	  ${MINKAR_SDKROOT}/usr/local/include/unicode/uconfig.h
+	  ${.OBJDIR}/sdk-unicode/uconfig.h
+	rsync -rlc --delete ${.OBJDIR}/sdk-unicode/ ${MINKAR_SDKROOT}/usr/local/include/unicode/
 	for pc in uc i18n io data; do \
 	  { echo 'prefix=/usr/local'; echo 'includedir=$${prefix}/include'; echo 'libdir=/usr/lib'; echo; \
 	    echo "Name: icu-$$pc"; echo "Description: ICU ($$pc), in libicucore"; echo 'Version: 78.3'; \

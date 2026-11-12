@@ -29,7 +29,7 @@ security: .PHONY
 	mkdir -p ${SYSROOT_DIR}/private/etc/security ${SYSROOT_DIR}/private/var/audit
 	chmod 0700 ${SYSROOT_DIR}/private/var/audit
 .for f in ${SECURITY}
-	install -m 0444 ${OPENBSM}/etc/${f} ${SYSROOT_DIR}/private/etc/security/
+	install -C -m 0444 ${OPENBSM}/etc/${f} ${SYSROOT_DIR}/private/etc/security/
 .endfor
 	chmod 0555 ${SYSROOT_DIR}/private/etc/security/audit_warn
 	chmod 0400 ${SYSROOT_DIR}/private/etc/security/audit_control \

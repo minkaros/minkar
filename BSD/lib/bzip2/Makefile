@@ -43,7 +43,7 @@ MAN1DIR = ${SYSROOT_DIR}/usr/share/man/man1
 man-pages: .PHONY
 	mkdir -p ${MAN1DIR}
 .for p in bzip2 bzdiff bzmore
-	install -m 0444 ${.CURDIR}/src/${p}.1 ${MAN1DIR}/
+	install -C -m 0444 ${.CURDIR}/src/${p}.1 ${MAN1DIR}/
 .endfor
 .for l in bunzip2 bzcat bzip2recover
 	ln -f ${MAN1DIR}/bzip2.1 ${MAN1DIR}/${l}.1
@@ -59,12 +59,12 @@ bzip2: ${.CURDIR}/src/bzip2.c lib${LIB}.dylib
 	ln -f ${SYSROOT_DIR}/usr/bin/bzip2 ${SYSROOT_DIR}/usr/bin/bzcat
 
 bzdiff: ${.CURDIR}/src/bzdiff
-	cp -f ${.ALLSRC} ${SYSROOT_DIR}/usr/bin/${.TARGET}
+	rsync -cL ${.ALLSRC} ${SYSROOT_DIR}/usr/bin/${.TARGET}
 	chmod +x ${SYSROOT_DIR}/usr/bin/bzdiff
 	ln -sf bzdiff ${SYSROOT_DIR}/usr/bin/bzcmp
 
 bzmore: ${.CURDIR}/src/bzmore
-	cp -f ${.ALLSRC} ${SYSROOT_DIR}/usr/bin/${.TARGET}
+	rsync -cL ${.ALLSRC} ${SYSROOT_DIR}/usr/bin/${.TARGET}
 	chmod +x ${SYSROOT_DIR}/usr/bin/bzmore
 	ln -sf bzmore ${SYSROOT_DIR}/usr/bin/bzless
 
@@ -80,7 +80,7 @@ lib${LIB}.dylib: lib${LIB}.a
           -Wl,-compatibility_version,${MAJMIN}.0 -Wl,-current_version,${VERSION} \
           -Wl,-install_name,/usr/lib/libbz2.${MAJMIN}.dylib
 	rm -f ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
 	ln -fs libbz2.${MAJMIN}.dylib ${SYSROOT_DIR}/usr/lib/libbz2.dylib
 	ln -fs libbz2.${MAJMIN}.dylib ${SYSROOT_DIR}/usr/lib/libbz2.${VERSION}.dylib
 
