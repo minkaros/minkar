@@ -13,19 +13,90 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSImage.h>
+#import <AppKit/NSAttributedString.h>
+#import <AppKit/NSStringDrawing.h>
 #import "NSMenu.subproj/NSMenuView.h"
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSRaise.h>
+#import <objc/runtime.h>
+
+static char menuItemKey;
 
 @implementation NSPopUpButtonCell
+
+/* The item the button shows: the one given with setMenuItem: when it does
+   not use its menu's, else the selected one (a pull-down's first). */
+-(NSMenuItem *)_displayedItem {
+   NSArray *itemArray=[_menu itemArray];
+
+   if(!_usesItemFromMenu){
+    NSMenuItem *item=objc_getAssociatedObject(self,&menuItemKey);
+
+    if(item!=nil)
+     return item;
+   }
+   if(_selectedIndex<0 || _pullsDown || _selectedIndex>=(NSInteger)[itemArray count])
+    return ([itemArray count]>0)?[itemArray objectAtIndex:0]:nil;
+   return [itemArray objectAtIndex:_selectedIndex];
+}
+
+/* The cell hears its menu change, also when items go in or out through
+   the menu itself (TextMate empties and fills its preferences' menus), so
+   its selection and title follow. */
+-(void)_watchMenuInsteadOf:(NSMenu *)old {
+   NSNotificationCenter *center=[NSNotificationCenter defaultCenter];
+   NSString             *names[3]={ NSMenuDidAddItemNotification,NSMenuDidRemoveItemNotification,NSMenuDidChangeItemNotification };
+   int                   i;
+
+   if(old!=nil)
+    for(i=0;i<3;i++)
+     [center removeObserver:self name:names[i] object:old];
+   if(_menu!=nil)
+    for(i=0;i<3;i++)
+     [center addObserver:self selector:@selector(_menuDidChange:) name:names[i] object:_menu];
+}
+
+/* The same item stays selected as others go in or out before it; one that
+   goes leaves no selection; with none, a pop-up shows its first item. */
+-(void)_menuDidChange:(NSNotification *)note {
+   NSInteger count=[_menu numberOfItems];
+   NSInteger index=[[[note userInfo] objectForKey:@"NSMenuItemIndex"] integerValue];
+
+   if([[note name] isEqualToString:NSMenuDidAddItemNotification]){
+    if(_selectedIndex>=0 && index<=_selectedIndex)
+     _selectedIndex++;
+   }
+   else if([[note name] isEqualToString:NSMenuDidRemoveItemNotification]){
+    if(index==_selectedIndex)
+     _selectedIndex=-1;
+    else if(index<_selectedIndex)
+     _selectedIndex--;
+   }
+   if(_selectedIndex>=count)
+    _selectedIndex=-1;
+   if(_selectedIndex<0 && !_pullsDown){
+    NSInteger i;
+
+    for(i=0;i<count;i++)
+     if(![[_menu itemAtIndex:i] isSeparatorItem]){
+      _selectedIndex=i;
+      break;
+     }
+   }
+   [self synchronizeTitleAndSelectedItem];
+}
 
 -init {
    self = [super init];
    _pullsDown = NO;
-   _menu = [[[NSMenu alloc] init] retain];
+   _menu = [[NSMenu alloc] init];
    _selectedIndex=-1;
    _arrowPosition = NSPopUpArrowAtCenter;
    _preferredEdge = NSMaxYEdge;
+   _usesItemFromMenu=YES;
+   // A pop-up's title is its item's: none, not a button's "Button".
+   [super setTitle:@""];
+   [self _watchMenuInsteadOf:nil];
    return self;
 }
 
@@ -38,6 +109,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if([coder allowsKeyedCoding]){
     _pullsDown=[coder decodeBoolForKey:@"NSPullDown"];
     _menu=[[coder decodeObjectForKey:@"NSMenu"] retain];
+    [self _watchMenuInsteadOf:nil];
     _selectedIndex=[coder decodeIntForKey:@"NSSelectedIndex"];
     _arrowPosition = [coder decodeIntForKey: @"NSArrowPosition"];
     _preferredEdge = [coder decodeIntForKey: @"NSPreferredEdge"];
@@ -55,6 +127,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSPopUpButtonCell *copy = [super copyWithZone:zone];
 
    copy->_menu = [_menu copy];
+   [copy _watchMenuInsteadOf:nil];
 
    return copy;
 }
@@ -63,13 +136,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super initTextCell:string];
    _menu = [[NSMenu alloc] initWithTitle:string];
    [_menu addItemWithTitle:string action:[self action] keyEquivalent:@""];
+   [self _watchMenuInsteadOf:nil];
    _arrowPosition = NSPopUpArrowAtCenter;
    _preferredEdge = NSMaxYEdge;
    _pullsDown=pullDown;
+   _usesItemFromMenu=YES;
    return self;
 }
 
 -(void)dealloc {
+   [[NSNotificationCenter defaultCenter] removeObserver:self];
    [_menu release];
    [super dealloc];
 }
@@ -165,9 +241,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)setMenu:(NSMenu *)menu {
+   NSMenu *old=_menu;
+
    menu=[menu retain];
-   [_menu release];
    _menu = menu;
+   [self _watchMenuInsteadOf:old];
+   [old release];
    
    if([_menu numberOfItems]>0)
     _selectedIndex=0;
@@ -303,16 +382,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)synchronizeTitleAndSelectedItem {
-   NSArray    *itemArray=[_menu itemArray];
-   NSMenuItem *item=nil;
-   
-   if(_selectedIndex<0 || _pullsDown){
-    if([itemArray count]>0)
-     item=[itemArray objectAtIndex:0];
-   }
-   else {
-    item=[itemArray objectAtIndex:_selectedIndex];
-   }
+   NSMenuItem *item=[self _displayedItem];
+
   [super setTitle:[item title]];
     // For a redraw of the control
   [(NSControl *)[self controlView] updateCell:self];
@@ -387,9 +458,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 }
 
+/* As wide as its widest item (a pull-down or one showing an item of its
+   own, as that) with the bezel's
+   margins and the room the arrow keeps: only the selected title's width
+   cut the others short (TextMate's preferences showed "Plain ..."). */
 -(NSSize)cellSize  {
-   NSSize result=[super cellSize];
-   
+   NSSize        result=[super cellSize];
+   CGFloat       titleWidth=[[self attributedTitle] size].width;
+   CGFloat       margins=MAX(0,result.width-titleWidth),widest=titleWidth;
+   NSDictionary *attributes=[NSDictionary dictionaryWithObject:[self font] forKey:NSFontAttributeName];
+
+   // A pull-down, or a button showing an item of its own, is as wide as that.
+   if(!_pullsDown && (_usesItemFromMenu || objc_getAssociatedObject(self,&menuItemKey)==nil))
+    for(NSMenuItem *item in [_menu itemArray]){
+     CGFloat width;
+
+     if([item isSeparatorItem] || [item isHidden])
+      continue;
+     width=[[item title] sizeWithAttributes:attributes].width;
+     if([item image]!=nil)
+      width+=[[item image] size].width+4;
+     widest=MAX(widest,width);
+    }
+   result.width=ceil(widest+margins);
+   if(_arrowPosition!=NSPopUpNoArrow && [self arrowImage]!=nil)
+    result.width+=[[self arrowImage] size].width+4+5;
+
    switch([self controlSize]){
    
     case NSRegularControlSize:
@@ -435,16 +529,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSImage *)image
 {
-    NSArray    *itemArray=[_menu itemArray];
-    NSMenuItem *item=nil;
-    if(_selectedIndex<0 || _pullsDown){
-        if([itemArray count]>0)
-            item=[itemArray objectAtIndex:0];
-    }
-    else {
-        item=[itemArray objectAtIndex:_selectedIndex];
-    }
-    return [item image];
+    return [[self _displayedItem] image];
 }
 
 
@@ -529,13 +614,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setUsesItemFromMenu:(BOOL)value {
    _usesItemFromMenu=value;
+   [self synchronizeTitleAndSelectedItem];
 }
 
 @end
 
-/* Minkar: the item shown: a pull-down's title is its. */
-#import <objc/runtime.h>
-static char menuItemKey;
+/* Minkar: the item shown when the cell does not use its menu's. */
 
 @implementation NSPopUpButtonCell (MinkarMenuItem)
 -(NSMenuItem *)menuItem {
@@ -543,7 +627,6 @@ static char menuItemKey;
 }
 -(void)setMenuItem:(NSMenuItem *)item {
    objc_setAssociatedObject(self,&menuItemKey,item,OBJC_ASSOCIATION_RETAIN);
-   if([self pullsDown] && [item title]!=nil)
-    [self setTitle:[item title]];
+   [self synchronizeTitleAndSelectedItem];
 }
 @end

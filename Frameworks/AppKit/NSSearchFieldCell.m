@@ -33,6 +33,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setBezeled:YES];
    [self setBezelStyle:NSTextFieldRoundedBezel];
    [self setEditable:YES];
+   // One line that scrolls, as on the reference platform.
+   [self setWraps:NO];
+   [self setScrollable:YES];
    [self setPlaceholderString:NSLocalizedStringFromTableInBundle(@"Search", nil, [NSBundle bundleForClass:[NSSearchFieldCell class]], @"Placeholder of an empty search field")];
    _searchButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSSearchGlassTemplate"]];
    [_searchButtonCell setImageScaling:NSImageScaleProportionallyUpOrDown];

@@ -242,6 +242,8 @@ static char windowAppearanceKey;
 }
 @end
 
+static char contentTitleContext;
+
 @implementation NSWindow
 
 static char hidesWindowControlsKey;
@@ -500,6 +502,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_contentViewController removeObserver:self forKeyPath:@"title" context:&contentTitleContext];
     [_contentViewController release];
     if(_context)
         [_context release];
@@ -1319,18 +1322,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    window keeping its frame, as on the reference platform (an app that
    lays out its content for the window's size before adding the toolbar
    sees it so there). */
+/* A toolbar set or taken away: as on the reference platform the content
+   keeps its size and the frame grows or shrinks by the toolbar, its top
+   edge kept. The content gave up the room instead: a window with no
+   content yet (TextMate's preferences, sized by their pane before they
+   show) lost the toolbar's height and grew past the screen's bottom. */
 -(void)_toolbarSetFromOldHeight:(CGFloat)oldHeight {
-   NSView *toolbarView=[_toolbar _view];
-   NSRect  content=[[self contentView] frame];
-   CGFloat newHeight,delta;
-
-   [_toolbar layoutFrameSizeWithWidth:NSWidth([[self _backgroundView] bounds])];
-   newHeight=(_toolbar==nil)?0:[_toolbar visibleHeight];
-   delta=newHeight-oldHeight;
-   content.size.height=MAX(0,content.size.height-delta);
-   [[self contentView] setFrame:content];
-   if(toolbarView!=nil)
-    [toolbarView setFrameOrigin:NSMakePoint([self _backgroundView].bounds.origin.x,NSMaxY(content))];
+   [self _toolbarSizeDidChangeFromOldHeight:oldHeight];
    [[self _backgroundView] setNeedsDisplay:YES];
 }
 
@@ -2347,7 +2345,35 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    [self setFrame:frame display:YES];
 }
 
+/* The controllers of the window's views hear them appear and disappear
+   as the window comes on the screen and leaves it, as on the reference
+   platform (not when a view is put in a window not shown yet: TextMate
+   makes its preferences window before the panes it shows). */
+static void sendAppearance(NSView *view,SEL selector) {
+   NSViewController *controller=_NSViewControllerForView(view);
+
+   if(controller!=nil)
+    [controller performSelector:selector];
+   for(NSView *subview in [[[view subviews] copy] autorelease])
+    sendAppearance(subview,selector);
+}
+
 -(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo {
+   BOOL appearing=(!_isVisible && place!=NSWindowOut);
+   BOOL disappearing=(_isVisible && place==NSWindowOut);
+
+   if(appearing)
+    sendAppearance([self _backgroundView],@selector(viewWillAppear));
+   if(disappearing)
+    sendAppearance([self _backgroundView],@selector(viewWillDisappear));
+   [self _orderWindow:place relativeTo:relativeTo];
+   if(appearing)
+    sendAppearance([self _backgroundView],@selector(viewDidAppear));
+   if(disappearing)
+    sendAppearance([self _backgroundView],@selector(viewDidDisappear));
+}
+
+-(void)_orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo {
 // The move notifications are sent under unknown conditions around orderFront: in the Apple AppKit, we do them all the time here until it's figured out. I suspect it is a side effect of off-screen windows being at off-screen coordinates (as opposed to just being hidden)
 
    [self postNotificationName:NSWindowWillMoveNotification];
@@ -3661,14 +3687,31 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
    return _contentViewController;
 }
 
+/* The window shows its content view controller's title, and follows it
+   (TextMate's preferences name the pane shown). */
+-(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+   if(context==&contentTitleContext){
+    NSString *title=[_contentViewController title];
+
+    if(title!=nil)
+     [self setTitle:title];
+    return;
+   }
+   [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+}
+
 /* The controller's view becomes the content view; the window keeps its
    frame unless it has no content yet. */
 -(void)setContentViewController:(NSViewController *)controller {
    if(controller==_contentViewController)
     return;
    [controller retain];
+   [_contentViewController removeObserver:self forKeyPath:@"title" context:&contentTitleContext];
    [_contentViewController release];
    _contentViewController=controller;
+   [controller addObserver:self forKeyPath:@"title" options:0 context:&contentTitleContext];
+   if([controller title]!=nil)
+    [self setTitle:[controller title]];
    if(controller!=nil){
     NSView *view=[controller view];
     NSRect  content=[self contentRectForFrameRect:[self frame]];

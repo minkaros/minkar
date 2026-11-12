@@ -1031,10 +1031,14 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
 
         NSViewController *controller=_NSViewControllerForView(self);
 
+        // A view appears with a window on the screen (NSWindow tells the
+        // rest when it orders the window in or out).
+        BOOL wasShown=[_window isVisible],willShow=[window isVisible];
+
         if(controller!=nil){
-            if(_window!=nil)
+            if(wasShown)
                 [controller viewWillDisappear];
-            if(window!=nil)
+            if(willShow)
                 [controller viewWillAppear];
         }
 
@@ -1061,9 +1065,9 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
         [self viewDidMoveToWindow];
 
         if(controller!=nil){
-            if(was!=nil)
+            if(wasShown)
                 [controller viewDidDisappear];
-            if(window!=nil)
+            if(willShow)
                 [controller viewDidAppear];
         }
     }

@@ -512,6 +512,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    if(_cell==nil)
     return NSMakeSize(NSViewNoIntrinsicMetric,NSViewNoIntrinsicMetric);
+   /* An editable field has a height of its own, not a width: what is
+      typed in it does not size it (a search field takes the room its
+      neighbours leave, as on the reference platform). */
+   if([self isEditable] && (![_cell wraps] || [self usesSingleLineMode]))
+    return NSMakeSize(NSViewNoIntrinsicMetric,[_cell cellSize].height);
+   if([self isEditable] && _preferredMaxLayoutWidth<=0 && NSWidth([self bounds])<=0)
+    return NSMakeSize(NSViewNoIntrinsicMetric,[_cell cellSize].height);
    if(![_cell wraps] || [self usesSingleLineMode])
     return [_cell cellSize];
 
@@ -532,7 +539,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     if(lineHeight>0 && size.height>lineHeight*_maximumNumberOfLines+padding)
      size.height=ceil(lineHeight*_maximumNumberOfLines+padding);
    }
-   return NSMakeSize((_preferredMaxLayoutWidth>0)?NSViewNoIntrinsicMetric:size.width,size.height);
+   return NSMakeSize((_preferredMaxLayoutWidth>0 || [self isEditable])?NSViewNoIntrinsicMetric:size.width,size.height);
 }
 
 -(void)setTitleWithMnemonic:(NSString *)value {
