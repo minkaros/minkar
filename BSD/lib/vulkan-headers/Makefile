@@ -17,8 +17,8 @@ all: install-headers
 install-headers: .PHONY
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${FW_CACHE}) && \
 	mkdir -p ${MINKAR_SDKROOT}/usr/include && \
-	rm -rf ${MINKAR_SDKROOT}/usr/include/vulkan ${MINKAR_SDKROOT}/usr/include/vk_video && \
-	cp -R --preserve=timestamps $$src/include/vulkan $$src/include/vk_video ${MINKAR_SDKROOT}/usr/include/ && \
+	rsync -rlct --delete --exclude /vulkan/LICENSE.md --exclude /vulkan/LICENSES \
+	    $$src/include/vulkan $$src/include/vk_video ${MINKAR_SDKROOT}/usr/include/ && \
 	install -C -m 0444 $$src/LICENSE.md ${MINKAR_SDKROOT}/usr/include/vulkan/LICENSE.md && \
 	cp -R --preserve=timestamps $$src/LICENSES ${MINKAR_SDKROOT}/usr/include/vulkan/
 

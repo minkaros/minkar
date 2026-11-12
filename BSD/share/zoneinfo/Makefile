@@ -39,10 +39,11 @@ to-sysroot: zic .PHONY
 	cd ${.CURDIR}/tzdata && ${.OBJDIR}/zic -b fat -d ${.OBJDIR}/out ${ZONES}
 	cd ${.CURDIR}/tzdata && rsync -cL ${TABLES} ${.OBJDIR}/out/
 	echo ${TZVERSION} > ${.OBJDIR}/out/+VERSION
-	rm -rf ${SYSROOT_DIR}/usr/share/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo.default
+	# By content, what is gone removed: unchanged zones keep their dates.
+	[ -L ${SYSROOT_DIR}/usr/share/zoneinfo ] || rm -rf ${SYSROOT_DIR}/usr/share/zoneinfo
 	mkdir -p ${SYSROOT_DIR}/usr/share/zoneinfo.default \
 	    ${SYSROOT_DIR}/private/var/db/timezone ${SYSROOT_DIR}/private/etc
-	cd ${.OBJDIR}/out && rsync -rlc ./ ${SYSROOT_DIR}/usr/share/zoneinfo.default/
+	cd ${.OBJDIR}/out && rsync -rlc --delete ./ ${SYSROOT_DIR}/usr/share/zoneinfo.default/
 	ln -sfn /usr/share/zoneinfo.default \
 	    ${SYSROOT_DIR}/private/var/db/timezone/zoneinfo
 	ln -sfn /var/db/timezone/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo

@@ -5,7 +5,7 @@ function InstallHeaders() {
 	DESTDIR="$DSTROOT/$1"
 	shift
 	install -d -m 0755 "$DESTDIR"
-	install -m 0444 "$@" "$DESTDIR"
+	install -C -m 0444 "$@" "$DESTDIR"
 }
 
 InstallHeaders /usr/include \
@@ -67,7 +67,7 @@ function InstallManPages() {
 		SECTION=`basename "${MANPAGE/*./}"`
 		MANDIR="$DSTROOT"/usr/share/man/man"$SECTION"
 		install -d -m 0755 "$MANDIR"
-		install -m 0444 "$MANPAGE" "$MANDIR"
+		install -C -m 0444 "$MANPAGE" "$MANDIR"
 	done
 }
 

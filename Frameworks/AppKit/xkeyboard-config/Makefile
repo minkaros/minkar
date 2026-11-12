@@ -49,8 +49,7 @@ generate:
 install-data: generate
 	mkdir -p ${XKB_DEST}/rules
 .for d in ${KCGST_DIRS}
-	rm -rf ${XKB_DEST}/${d}
-	rsync -rlc ${.CURDIR}/${d} ${XKB_DEST}/
+	rsync -rlc --delete ${.CURDIR}/${d} ${XKB_DEST}/
 .endfor
 	rsync -cL ${RULES_SRC}/README ${RULES_SRC}/xkb.dtd ${RULES_SRC}/xfree98 \
 	    ${XKB_DEST}/rules/

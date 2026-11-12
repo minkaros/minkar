@@ -24,13 +24,13 @@ test: sysdir.c sysdir.h
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a copyincs
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 copyincs: ${INCS}
 	mkdir -p ${INCSDIR}
 .for inc in ${INCS}
-	cp -f ${.CURDIR}/${inc} ${INCSDIR}/
+	rsync -cL ${.CURDIR}/${inc} ${INCSDIR}/
 .endfor
 
 .include <bsd.lib.mk>

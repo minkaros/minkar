@@ -54,8 +54,7 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/build/apps/openssl
 	    b=$${m##*/}; install -C -m 0444 $$m ${SYSROOT_DIR}/usr/share/man/man1/$${b%ossl}; \
 	done
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
-	rm -rf ${MINKAR_SDKROOT}/usr/local/include/openssl
-	rsync -rlc ${STAGE}/usr/include/openssl ${MINKAR_SDKROOT}/usr/local/include/
+	rsync -rlc --delete ${STAGE}/usr/include/openssl ${MINKAR_SDKROOT}/usr/local/include/
 .for l in libcrypto libssl
 	rsync -cL ${STAGE}/usr/lib/${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/
 	ln -sf ${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/${l}.dylib

@@ -55,8 +55,7 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/src/vim
 .for l in vi ex view vimdiff rvim rview
 	ln -sf vim ${SYSROOT_DIR}/usr/bin/${l}
 .endfor
-	rm -rf ${SYSROOT_DIR}/usr/share/vim/vim92
-	rsync -rlc ${.OBJDIR}/stage/usr/share/vim/vim92 ${SYSROOT_DIR}/usr/share/vim/
+	rsync -rlc --delete ${.OBJDIR}/stage/usr/share/vim/vim92 ${SYSROOT_DIR}/usr/share/vim/
 .for m in vim.1 vimdiff.1 vimtutor.1
 	install -C -m 0444 ${.OBJDIR}/stage/usr/share/man/man1/${m} ${SYSROOT_DIR}/usr/share/man/man1/
 .endfor

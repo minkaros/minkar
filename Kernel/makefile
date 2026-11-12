@@ -26,12 +26,12 @@ DKIMPL = ${.OBJDIR}/xnu/${KERNEL_CONFIGS}_${ARCH_CONFIGS}/iokit/${KERNEL_CONFIGS
 
 ${DKPATH}: .NOTMAIN
 	mkdir -p ${DKPATH}
-	cp -Rf ${.CURDIR}/xnu/iokit/DriverKit/*.h ${DKPATH}/
+	rsync -cL ${.CURDIR}/xnu/iokit/DriverKit/*.h ${DKPATH}/
 
 # Every time (a directory target would not run again once it exists).
 dkimpl: .PHONY .NOTMAIN
 	mkdir -p ${DKIMPL}
-	cp -f ${.CURDIR}/xnu/iokit/DriverKit/*.iig.cpp ${DKIMPL}/
+	rsync -cL ${.CURDIR}/xnu/iokit/DriverKit/*.iig.cpp ${DKIMPL}/
 installhdrs: ${DKPATH} dkimpl
 TARGETS = ${DKPATH}
 .endif
@@ -121,8 +121,8 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Kernels \
   ${SYSROOT_DIR}/System/Library/Kernels
 	mkdir -p ${target_dir} ${target_dir:H}/Extensions
-	cp -Rf ${.OBJDIR}/xnu/sym/kernel${DEBUG}.dSYM ${target_dir}/
-	cp -f ${.OBJDIR}/xnu/sym/kernel${DEBUG} ${target_dir}/
+	rsync -rlc ${.OBJDIR}/xnu/sym/kernel${DEBUG}.dSYM ${target_dir}/
+	rsync -cL ${.OBJDIR}/xnu/sym/kernel${DEBUG} ${target_dir}/
 	# The installed kernel (with all its symbols) gets its CTF from the
 	# types xnu converted, merged again against its own symbol table (the
 	# CTF maps symbols to types by their index); sym/kernel, which the
@@ -133,7 +133,7 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 	    ${CTFINSERT} ${target_dir}/kernel${DEBUG} -arch x86_64 \
 	    ${target_dir}/kernel${DEBUG}.ctfdata -o ${target_dir}/kernel${DEBUG} && \
 	    rm -f ${target_dir}/kernel${DEBUG}.ctfdata; fi
-	cp -Rf ${.OBJDIR}/xnu/sym/System.kext ${target_dir:H}/Extensions/
+	rsync -rlc ${.OBJDIR}/xnu/sym/System.kext ${target_dir:H}/Extensions/
 .endfor
 
 # NOTE! This kxld build is for the host toolchain. The target kxld is built

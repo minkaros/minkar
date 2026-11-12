@@ -131,12 +131,12 @@ ${LIB}: ${.OBJDIR}/${LIB}
 ${.OBJDIR}/${LIB}: ${OBJS}
 	${CC} -fuse-ld=${LD} -o ${.TARGET} ${OBJS:O:u} ${LDFLAGS}
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${ROOT_BINARY_DIR}/sysroot/usr/lib
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/
 	mkdir -p ${MINKAR_SDKROOT}${MANDIR}/man1 ${SYSROOT_DIR}${MANDIR}/man1
 .for man in ${MAN}
-	cp -f ${.CURDIR}/${man} ${MINKAR_SDKROOT}${MANDIR}/man1/
-	cp -f ${.CURDIR}/${man} ${SYSROOT_DIR}${MANDIR}/man1/
+	rsync -cL ${.CURDIR}/${man} ${MINKAR_SDKROOT}${MANDIR}/man1/
+	rsync -cL ${.CURDIR}/${man} ${SYSROOT_DIR}${MANDIR}/man1/
 .endfor
 
 .include <bsd.lib.mk>

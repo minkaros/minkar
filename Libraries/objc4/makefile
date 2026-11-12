@@ -108,15 +108,15 @@ ${.OBJDIR}/libobjc-trampolines.dylib: ${.CURDIR}/runtime/objc-blocktramps-x86_64
 	  -Wl,-current_version,228 -lSystem \
 	  ${.ALLSRC}
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
-	cp -f ${.OBJDIR}/libobjc-trampolines.dylib ${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${.OBJDIR}/libobjc-trampolines.dylib ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.OBJDIR}/libobjc-trampolines.dylib ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.OBJDIR}/libobjc-trampolines.dylib ${SYSROOT_DIR}/usr/lib/
 
 ${.OBJDIR}/libobjc.A.dylib: lib${LIB}.a ${.OBJDIR}/libobjc-trampolines.dylib
 	${CC} -fuse-ld=${LD} -shared -o ${.TARGET} ${OBJS} ${LDFLAGS} \
 		-L${MINKAR_SDKROOT}/usr/lib -lobjc-trampolines
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${SYSROOT_DIR}/usr/lib
-	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
-	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
+	rsync -cL ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
+	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/
 	ln -sf libobjc.A.dylib ${MINKAR_SDKROOT}/usr/lib/libobjc.dylib
 	ln -sf libobjc.A.dylib ${SYSROOT_DIR}/usr/lib/libobjc.dylib
 

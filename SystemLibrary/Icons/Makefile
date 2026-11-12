@@ -8,20 +8,25 @@
 SUBDIR =
 DIR =		${SYSROOT_DIR}/System/Library/Icons
 
+STAGE =	${.OBJDIR}/icons
+
 all: install-icons
 
 install-icons: .PHONY
-	rm -rf ${DIR}
-	mkdir -p ${DIR}
+	# Made in the object directory and copied by content: unchanged icons
+	# keep their dates, removed ones go.
+	rm -rf ${STAGE}
+	mkdir -p ${STAGE} ${DIR}
 	cd ${.CURDIR}/png && for g in *; do \
-		mkdir -p ${DIR}/$$g && \
-		install -C -o 0 -g 0 -m 0644 $$g/*.png ${DIR}/$$g/ || exit 1; \
+		mkdir -p ${STAGE}/$$g && \
+		install -C -o 0 -g 0 -m 0644 $$g/*.png ${STAGE}/$$g/ || exit 1; \
 	done
-	mkdir -p ${DIR}/Sources
+	mkdir -p ${STAGE}/Sources
 	cd ${.CURDIR}/svg && for g in *; do \
-		mkdir -p ${DIR}/Sources/$$g && \
-		install -C -o 0 -g 0 -m 0644 $$g/*.svgz ${DIR}/Sources/$$g/ || exit 1; \
+		mkdir -p ${STAGE}/Sources/$$g && \
+		install -C -o 0 -g 0 -m 0644 $$g/*.svgz ${STAGE}/Sources/$$g/ || exit 1; \
 	done
-	install -C -o 0 -g 0 -m 0644 ${.CURDIR}/COPYING ${.CURDIR}/AUTHORS ${.CURDIR}/README.md ${DIR}/
+	install -C -o 0 -g 0 -m 0644 ${.CURDIR}/COPYING ${.CURDIR}/AUTHORS ${.CURDIR}/README.md ${STAGE}/
+	rsync -rlc --delete ${STAGE}/ ${DIR}/
 
 .include <bsd.prog.mk>
