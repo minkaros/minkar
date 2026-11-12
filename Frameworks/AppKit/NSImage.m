@@ -113,6 +113,28 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
     [image setTemplate:YES];
 }
 
+/* API 20: the system's symbols, Minkar's own art in AppKit's Symbols
+   folder (a PDF or PNG for each name), as template images. As on the
+   reference platform, a name the system does not have is nil. */
++(NSImage *)imageWithSystemSymbolName:(NSString *)symbolName accessibilityDescription:(NSString *)description {
+   NSBundle *bundle=[NSBundle bundleForClass:[NSImage class]];
+   NSString *path=nil;
+
+   if(symbolName==nil)
+    return nil;
+   for(NSString *type in [NSArray arrayWithObjects:@"pdf",@"png",nil])
+    if(path==nil)
+     path=[bundle pathForResource:symbolName ofType:type inDirectory:@"Symbols"];
+   if(path==nil)
+    return nil;
+
+   NSImage *image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+
+   [image setTemplate:YES];
+   [image setAccessibilityDescription:description];
+   return image;
+}
+
 +imageNamed:(NSString *)name {
    NSImage *image=[[self allImages] objectForKey:name];
    if(image==nil){

@@ -1285,6 +1285,12 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
  * session, told by the server, then makes the app active
  * (_launchServicesMessage:).
  */
+/* API 23, ahead of Minkar's API for the apps: the reference platform lets
+   the active app decline; on Minkar the app comes to the front. */
+-(void)activate {
+   [self activateIgnoringOtherApps:YES];
+}
+
 -(void)activateIgnoringOtherApps:(BOOL)flag {
    NSWindow *window=_keyWindow ? _keyWindow : _mainWindow;
 

@@ -180,6 +180,8 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 
 
 + imageNamed:(NSString *)name;
+/* API 20: the system's symbols (Minkar's own art); nil for a name it has not. */
++ (NSImage *)imageWithSystemSymbolName:(NSString *)symbolName accessibilityDescription:(NSString *)description API_AVAILABLE(macos(11.0));
 
 - initWithSize:(NSSize)size;
 - initWithData:(NSData *)data;

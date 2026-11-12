@@ -203,6 +203,8 @@ typedef enum {
 - (void)updateWindows;
 
 - (void)activateIgnoringOtherApps:(BOOL)flag;
+/* API 23: the app comes to the front. */
+- (void)activate API_AVAILABLE(macos(14.0));
 - (void)deactivate;
 
 - (NSWindow *)modalWindow;

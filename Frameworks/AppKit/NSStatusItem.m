@@ -187,6 +187,10 @@ static const CGFloat kItemPadding = 8;
     [_button setButtonType:NSMomentaryChangeButton];
     [_button setFont:[NSFont menuBarFontOfSize:0]];
     [_button setImagePosition:NSImageLeft];
+    // A status item's button starts with no title, as on the reference
+    // platform (a button cell's default, "Button", showed beside the icon
+    // of an app that sets only an image).
+    [_button setTitle:@""];
     [_button setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [_window setContentView:_button];
     [self _updateLength];
