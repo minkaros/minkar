@@ -1,4 +1,7 @@
 #import <QuartzCore/CAAnimation.h>
+#import <Foundation/NSZone.h>
+#import <Foundation/NSString.h>
+#import <Foundation/NSArray.h>
 
 @implementation CAPropertyAnimation
 
@@ -12,6 +15,20 @@
 
 +animationWithKeyPath:(NSString *)keyPath {
    return [[[self alloc] initWithKeyPath:keyPath] autorelease];
+}
+
+-(void)dealloc {
+   [_keyPath release];
+   [super dealloc];
+}
+
+-copyWithZone:(NSZone *)zone {
+   CAPropertyAnimation *copy=[super copyWithZone:zone];
+
+   copy->_keyPath=[_keyPath copy];
+   copy->_additive=_additive;
+   copy->_cumulative=_cumulative;
+   return copy;
 }
 
 -(NSString *)keyPath {

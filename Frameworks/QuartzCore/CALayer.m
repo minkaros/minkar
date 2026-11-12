@@ -3,6 +3,11 @@
 #import <QuartzCore/CALayerContext.h>
 #import <QuartzCore/CATransaction.h>
 #import <Foundation/NSDictionary.h>
+#import <Foundation/NSTimer.h>
+#import <Foundation/NSRunLoop.h>
+#import <Foundation/NSString.h>
+#import <objc/runtime.h>
+#include <math.h>
 
 NSString * const kCAFilterLinear=@"linear";
 NSString * const kCAFilterNearest=@"nearest";
@@ -20,6 +25,105 @@ NSString * const kCAGravityBottomRight=@"bottomRight";
 NSString * const kCAGravityResize=@"resize";
 NSString * const kCAGravityResizeAspect=@"resizeAspect";
 NSString * const kCAGravityResizeAspectFill=@"resizeAspectFill";
+
+@interface CALayer (CALayerAnimationRuns)
+-(void)_animationRunDidEnd:(id)run;
+@end
+
+/* An animation a layer runs: its delegate hears it start, and stop when
+ * its active time is over (finished) or when it is removed before
+ * (not finished); one removed on completion goes then. The layer is kept
+ * while its animations run. */
+@interface CALayerAnimationRun : NSObject {
+@public
+   CALayer     *_layer;
+   NSString    *_key;
+   CAAnimation *_animation;
+   NSTimer     *_timer;
+   BOOL         _started,_stopped;
+}
+@end
+
+@implementation CALayerAnimationRun
+
+-(void)dealloc {
+   [_layer release];
+   [_key release];
+   [_animation release];
+   [super dealloc];
+}
+
+-(void)start {
+   id delegate=[_animation delegate];
+
+   if(_started || _stopped)
+    return;
+   _started=YES;
+   if([delegate respondsToSelector:@selector(animationDidStart:)])
+    [delegate animationDidStart:_animation];
+}
+
+-(void)stopFinished:(BOOL)finished {
+   id delegate=[_animation delegate];
+
+   if(_stopped)
+    return;
+   [self start];
+   _stopped=YES;
+   [_timer invalidate];
+   _timer=nil;
+   if([delegate respondsToSelector:@selector(animationDidStop:finished:)])
+    [delegate animationDidStop:_animation finished:finished];
+}
+
+-(void)timerFired:(NSTimer *)timer {
+   [[self retain] autorelease];
+   _timer=nil;
+   [_layer _animationRunDidEnd:self];
+}
+
+@end
+
+static char animationRunsKey;
+
+static NSMutableDictionary *animationRuns(CALayer *self) {
+   NSMutableDictionary *runs=objc_getAssociatedObject(self,&animationRunsKey);
+
+   if(runs==nil){
+    runs=[NSMutableDictionary dictionary];
+    objc_setAssociatedObject(self,&animationRunsKey,runs,OBJC_ASSOCIATION_RETAIN);
+   }
+   return runs;
+}
+
+/* How long an animation runs from now: its duration (the default when it
+ * has none), repeated, reversed and scaled by its speed, after its begin
+ * time; a paused one does not end. */
+static CFTimeInterval animationActiveTime(CAAnimation *animation) {
+   CFTimeInterval duration=[animation duration],total;
+   float          repeatCount=[animation repeatCount],speed=[animation speed];
+
+   if(duration<=0)
+    duration=0.25;
+   if([animation repeatDuration]>0)
+    total=[animation repeatDuration];
+   else if(repeatCount>0)
+    total=duration*repeatCount;
+   else
+    total=duration;
+   if([animation autoreverses])
+    total*=2;
+   if(speed<=0 || isinf(total))
+    return INFINITY;
+   total/=speed;
+   if([animation beginTime]>0){
+    CFTimeInterval now=CACurrentMediaTime();
+
+    if([animation beginTime]>now)
+     total+=[animation beginTime]-now;
+   }
+   return total;
+}
 
 @implementation CALayer
 
@@ -79,10 +183,12 @@ NSString * const kCAGravityResizeAspectFill=@"resizeAspectFill";
    return _position;
 }
 
+/* Implicit animations run where a render context draws the layer (as
+   before explicit animations ran everywhere). */
 -(void)setPosition:(CGPoint)value {
    CAAnimation *animation=[self animationForKey:@"position"];
       
-   if(animation==nil && ![CATransaction disableActions]){
+   if(_context!=nil && animation==nil && ![CATransaction disableActions]){
     id action=[self actionForKey:@"position"];
     
     if(action!=nil)
@@ -99,7 +205,7 @@ NSString * const kCAGravityResizeAspectFill=@"resizeAspectFill";
 -(void)setBounds:(CGRect)value {
    CAAnimation *animation=[self animationForKey:@"bounds"];
    
-   if(animation==nil && ![CATransaction disableActions]){
+   if(_context!=nil && animation==nil && ![CATransaction disableActions]){
     id action=[self actionForKey:@"bounds"];
 
     if(action!=nil)
@@ -146,7 +252,7 @@ NSString * const kCAGravityResizeAspectFill=@"resizeAspectFill";
 -(void)setOpacity:(float)value {
    CAAnimation *animation=[self animationForKey:@"opacity"];
    
-   if(animation==nil && ![CATransaction disableActions]){
+   if(_context!=nil && animation==nil && ![CATransaction disableActions]){
     id action=[self actionForKey:@"opacity"];
 
     if(action!=nil)
@@ -581,12 +687,48 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    CGContextRestoreGState(context);
 }
 
+/* The layer keeps a copy; with no key it makes one. */
 -(void)addAnimation:(CAAnimation *)animation forKey:(NSString *)key {
-   if(_context==nil)
+   CALayerAnimationRun *run;
+   CFTimeInterval       active;
+
+   if(animation==nil)
     return;
-    
+   animation=[[animation copy] autorelease];
+   if(key==nil)
+    key=[NSString stringWithFormat:@"_CAAnimation%p",animation];
+   [self removeAnimationForKey:key];
+
    [_animations setObject:animation forKey:key];
-   [_context startTimerIfNeeded];
+   if(_context!=nil)
+    [_context startTimerIfNeeded];
+
+   run=[[[CALayerAnimationRun alloc] init] autorelease];
+   run->_layer=[self retain];
+   run->_key=[key copy];
+   run->_animation=[animation retain];
+   [animationRuns(self) setObject:run forKey:key];
+   [run performSelector:@selector(start) withObject:nil afterDelay:0
+       inModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+
+   active=animationActiveTime(animation);
+   if(!isinf(active)){
+    run->_timer=[NSTimer timerWithTimeInterval:active target:run selector:@selector(timerFired:) userInfo:nil repeats:NO];
+    [[NSRunLoop mainRunLoop] addTimer:run->_timer forMode:NSRunLoopCommonModes];
+   }
+}
+
+/* An animation's active time is over. */
+-(void)_animationRunDidEnd:(CALayerAnimationRun *)run {
+   NSMutableDictionary *runs=animationRuns(self);
+
+   if([runs objectForKey:run->_key]!=run)
+    return;
+   [[run retain] autorelease];
+   [runs removeObjectForKey:run->_key];
+   if([run->_animation isRemovedOnCompletion] && [_animations objectForKey:run->_key]==run->_animation)
+    [_animations removeObjectForKey:run->_key];
+   [run stopFinished:YES];
 }
 
 -(CAAnimation *)animationForKey:(NSString *)key {
@@ -594,11 +736,24 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
 }
 
 -(void)removeAllAnimations {
-   [_animations removeAllObjects];
+   for(NSString *key in [_animations allKeys])
+    [self removeAnimationForKey:key];
 }
 
+/* Removed before its active time is over, it did not finish. */
 -(void)removeAnimationForKey:(NSString *)key {
+   NSMutableDictionary *runs;
+   CALayerAnimationRun *run;
+
+   if(key==nil)
+    return;
+   runs=objc_getAssociatedObject(self,&animationRunsKey);
+   run=[[[runs objectForKey:key] retain] autorelease];
    [_animations removeObjectForKey:key];
+   if(run!=nil){
+    [runs removeObjectForKey:key];
+    [run stopFinished:NO];
+   }
 }
 
 -(NSArray *)animationKeys {
