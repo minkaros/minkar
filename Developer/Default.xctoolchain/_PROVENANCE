@@ -24,3 +24,11 @@ Imported from GitHub: darlinghq/xcbuild.git
 Branch: main
 - xcbuild (SPDX:BSD-2-Clause,SPDX:BSD-3-Clause)
 
+
+Fetched at build time (swift-build/MANIFEST*), not imported:
+https://github.com/swiftlang/swift-build.git and the packages it is built
+from, at the tag swift-6.4.2-RELEASE (swift-llbuild, swift-driver,
+swift-tools-protocols, swift-tools-support-core) or their own releases
+(swift-system 1.8.1, swift-argument-parser 1.8.2, swift-toolchain-sqlite
+1.0.13); our patches in swift-build/patches
+- swift-build (SPDX:Apache-2.0 WITH Swift-exception)

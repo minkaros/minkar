@@ -1,0 +1,16 @@
+diff --git a/Sources/SwiftBuild/SWBBuildServiceConsole.swift b/Sources/SwiftBuild/SWBBuildServiceConsole.swift
+index 39d2ee0..b3f336e 100644
+--- a/Sources/SwiftBuild/SWBBuildServiceConsole.swift
++++ b/Sources/SwiftBuild/SWBBuildServiceConsole.swift
+@@ -153,7 +153,10 @@ open class SWBBuildServiceConsole: @unchecked Sendable {
+     /// Create a new session and activate it.
+     public func createSession(_ name: String) async throws -> SWBBuildServiceSession {
+         // FIXME: <rdar://61869156> Propagate core loading diagnostics
+-        let (res, _) = await self.service.createSession(name: name, cachePath: nil, inferiorProductsPath: self.inferiorProductsPath, environment: nil)
++        let (res, diagnostics) = await self.service.createSession(name: name, cachePath: nil, inferiorProductsPath: self.inferiorProductsPath, environment: nil)
++        for diagnostic in diagnostics {
++            FileHandle.standardError.write(Data("\(diagnostic.kind): \(diagnostic.message)\n".utf8))
++        }
+         let session = try res.get()
+         self.sessions[session.uid] = session
+         self.activeSession = session

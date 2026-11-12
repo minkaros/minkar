@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-toolchain-sqlite 1.0.13 (Apache-2.0 with the Runtime Library
+# Exception; SQLite itself is in the public domain), for llbuild.
+git https://github.com/swiftlang/swift-toolchain-sqlite.git
+commit d9b11cb79071d5ab992ff47dfd2e8d6e19418d97
+name swift-toolchain-sqlite
+path *

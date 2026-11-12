@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-system 1.8.1 (Apache-2.0 with the Runtime Library Exception).
+git https://github.com/apple/swift-system.git
+commit 869129b7bf4ecc57b97d0193ad29690ca2134750
+name swift-system
+path *

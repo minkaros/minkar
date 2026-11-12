@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# llbuild (Apache-2.0 with the Runtime Library Exception), the tag
+# swift-6.4.2-RELEASE: the low-level build system Swift Build runs on.
+git https://github.com/swiftlang/swift-llbuild.git
+commit ab6421207b9e4971c94e97c5832a3d8a4cae9092
+name llbuild
+path *

@@ -1,0 +1,13 @@
+diff --git a/Sources/SWBTaskConstruction/TaskProducers/OtherTaskProducers/ProductPostprocessingTaskProducer.swift b/Sources/SWBTaskConstruction/TaskProducers/OtherTaskProducers/ProductPostprocessingTaskProducer.swift
+index a256b4b..dae0b52 100644
+--- a/Sources/SWBTaskConstruction/TaskProducers/OtherTaskProducers/ProductPostprocessingTaskProducer.swift
++++ b/Sources/SWBTaskConstruction/TaskProducers/OtherTaskProducers/ProductPostprocessingTaskProducer.swift
+@@ -648,6 +648,8 @@ private extension ApplicationProductTypeSpec {
+         // If we're building for the macOS platform, then register the application with LaunchServices.  c.f. <rdar://problem/18464352> Handoff doesn't work with app launched from Xcode
+         let context = producer.context
+         guard context.settings.platform?.name == "macosx" else { return }
++        // lsregister is the host's: an app built for macOS on another host is not registered.
++        guard context.workspaceContext.core.hostOperatingSystem == .macOS else { return }
+         guard let launchServicesRegisterSpec = context.launchServicesRegisterSpec else { return }
+ 
+         let path = scope.evaluate(BuiltinMacros.TARGET_BUILD_DIR).join(scope.evaluate(BuiltinMacros.WRAPPER_NAME))

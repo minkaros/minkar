@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-driver (Apache-2.0 with the Runtime Library Exception), the tag
+# swift-6.4.2-RELEASE: Swift Build plans Swift compilations with it.
+git https://github.com/swiftlang/swift-driver.git
+commit 174567a5681a9a949bcd52f821deb8fa65105434
+name swift-driver
+path *

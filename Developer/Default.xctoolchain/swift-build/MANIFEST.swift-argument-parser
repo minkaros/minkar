@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-argument-parser 1.8.2 (Apache-2.0 with the Runtime Library
+# Exception).
+git https://github.com/apple/swift-argument-parser.git
+commit 6a52f3251125d74daf04fcbd5e6f08a75d074382
+name swift-argument-parser
+path *

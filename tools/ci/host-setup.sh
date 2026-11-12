@@ -22,7 +22,7 @@ set -eu
 BUILD_PACKAGES="clang lld cmake ninja-build python3 python3-venv git curl \
 libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev \
 libacl1-dev libc++-dev libc++abi-dev libedit-dev libffi-dev \
-libicu-dev libkqueue-dev libblocksruntime-dev autoconf automake libtool pkg-config \
+libicu-dev libkqueue-dev libblocksruntime-dev libsqlite3-dev autoconf automake libtool pkg-config \
 bmake make csh bison flex byacc time ruby gperf unifdef"
 # Open CF-lite (APSL, host only): plktool and xcbuild link it.
 OPENCFLITE_REPO=https://github.com/gerickson/opencflite.git

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Swift Build (Apache-2.0 with the Runtime Library Exception), the tag
+# swift-6.4.2-RELEASE: the build engine that plans and runs a project's
+# build from its PIF; patched here (patches/).
+git https://github.com/swiftlang/swift-build.git
+commit 2d847030c63961cb1cf8cbb6ad2bc7245fdfeb09
+name swift-build
+path *

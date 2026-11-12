@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-tools-protocols (Apache-2.0 with the Runtime Library Exception),
+# the tag swift-6.4.2-RELEASE.
+git https://github.com/swiftlang/swift-tools-protocols.git
+commit 4345e69c5572ec3d1f737fba90bca024b32da5cf
+name swift-tools-protocols
+path *

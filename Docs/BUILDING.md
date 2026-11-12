@@ -29,6 +29,7 @@ an x86-64 CPU with AVX if the boot test runs under KVM.
   curl`, `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev
   libbsd-dev`, `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
   `libedit-dev libffi-dev`, `libblocksruntime-dev` (ld64's `Block.h`),
+  `libsqlite3-dev` (Swift Build's llbuild),
   and `libicu-dev libkqueue-dev autoconf automake libtool pkg-config` for
   Open CF-lite (its run loop includes `sys/event.h`, which libkqueue
   gives). (The CTF tools no longer link the host's LLVM or libdispatch:

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# swift-tools-support-core (Apache-2.0 with the Runtime Library
+# Exception), the tag swift-6.4.2-RELEASE: swift-driver's support library.
+git https://github.com/swiftlang/swift-tools-support-core.git
+commit d45c8b38d2824498b7863d3d5f0227937a53c177
+name swift-tools-support-core
+path *
