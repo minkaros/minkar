@@ -5,6 +5,7 @@
 #import "NSLayoutInternal.h"
 #import <AppKit/NSWindow.h>
 #import "NSLayoutSolver.h"
+#import <objc/runtime.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,6 +51,12 @@ typedef struct {
    struct requiredEntry { id what; int count; int variables[8]; } *required;
    NSUInteger      requiredCount,requiredCapacity;
    NSHashTable    *needed;     // the views the solver needs (see findNeeded)
+   /* What the pass asks for, given to the solver at its end: what the
+      solver has from the last pass stays, what is gone goes, what is new
+      is added (see NSLayoutSolver.mm). */
+   struct pendingConstraint { expression e; int op; double strength; id what; BOOL required; BOOL kept; int status; } *pending;
+   NSUInteger      pendingCount,pendingCapacity;
+   NSHashTable    *seenItems;  // the items this pass placed
 }
 @end
 
@@ -67,6 +74,9 @@ typedef struct {
    NSFreeMapTable(items);
    [views release];
    free(required);
+   free(pending);
+   if(seenItems!=NULL)
+    NSFreeHashTable(seenItems);
    if(needed!=NULL)
     NSFreeHashTable(needed);
    [super dealloc];
@@ -88,7 +98,24 @@ static void term(expression *e,int variable,double coefficient) {
    e->count++;
 }
 
-static int add(NSLayoutPass *pass,expression e,int op,double strength) {
+static void push(NSLayoutPass *pass,expression e,int op,double strength,BOOL required,id what) {
+   struct pendingConstraint *entry;
+
+   if(pass->pendingCount==pass->pendingCapacity){
+    pass->pendingCapacity=(pass->pendingCapacity==0)?256:pass->pendingCapacity*2;
+    pass->pending=realloc(pass->pending,sizeof(struct pendingConstraint)*pass->pendingCapacity);
+   }
+   entry=&pass->pending[pass->pendingCount++];
+   entry->e=e;
+   entry->op=op;
+   entry->strength=strength;
+   entry->what=what;
+   entry->required=required;
+   entry->kept=NO;
+   entry->status=NSLayoutSolverAdded;
+}
+
+static void add(NSLayoutPass *pass,expression e,int op,double strength) {
    static int debug=-1;
 
    if(debug<0)
@@ -103,7 +130,7 @@ static int add(NSLayoutPass *pass,expression e,int op,double strength) {
     if(odd)
      NSLog(@"layout: an out of range term: constant %g, strength %g, first coefficient %g",e.constant,strength,e.count>0?e.coefficients[0]:0);
    }
-   return NSLayoutSolverAdd(pass->solver,e.count,e.variables,e.coefficients,e.constant,op,strength);
+   push(pass,e,op,strength,strength>=NSLayoutSolverRequired(),nil);
 }
 
 /* What a required constraint is, as the log says it: a constraint, or a
@@ -121,7 +148,17 @@ static NSString *describeReason(id what) {
  * constraints already in the pass that share a variable with it (the ones
  * it most likely fights), as the reference lists them. */
 static void addRequired(NSLayoutPass *pass,expression e,int op,id what) {
-   if(add(pass,e,op,NSLayoutSolverRequired())==NSLayoutSolverUnsatisfiable){
+   push(pass,e,op,NSLayoutSolverRequired(),YES,what);
+}
+
+/* A required constraint is in (or could not be met: logged once, when it
+   is first added, with the required ones before it that share a
+   variable). */
+static void noteRequired(NSLayoutPass *pass,struct pendingConstraint *entry,BOOL unsatisfiable) {
+   expression e=entry->e;
+   id         what=entry->what;
+
+   if(unsatisfiable){
     NSMutableString *list=[NSMutableString string];
     NSUInteger       n;
     int              i,j;
@@ -138,7 +175,6 @@ static void addRequired(NSLayoutPass *pass,expression e,int op,id what) {
     }
     [list appendFormat:@"    \"%@\"\n",describeReason(what)];
     NSLog(@"Unable to simultaneously satisfy constraints.\n\tProbably at least one of the constraints in the following list is one you don't want.\n(\n%@)\n\nWill attempt to recover by breaking\n%@",list,describeReason(what));
-    add(pass,e,op,NSLayoutSolverStrength(999.999));
    }
    else if(what!=nil){
     struct requiredEntry *entry;
@@ -182,13 +218,19 @@ static NSRect rootFrame(NSView *view,NSView *root) {
 }
 
 static void addItem(NSLayoutPass *pass,id item,NSRect frame) {
-   int first=NSLayoutSolverNewVariable(pass->solver);
+   int first=firstVariable(pass,item);
    expression e={0};
 
-   NSLayoutSolverNewVariable(pass->solver);
-   NSLayoutSolverNewVariable(pass->solver);
-   NSLayoutSolverNewVariable(pass->solver);
-   NSMapInsert(pass->items,item,[NSNumber numberWithInt:first]);
+   // An item keeps its variables from one pass to the next.
+   if(first<0){
+    first=NSLayoutSolverNewVariable(pass->solver);
+    NSLayoutSolverNewVariable(pass->solver);
+    NSLayoutSolverNewVariable(pass->solver);
+    NSLayoutSolverNewVariable(pass->solver);
+    NSMapInsert(pass->items,item,[NSNumber numberWithInt:first]);
+   }
+   if(pass->seenItems!=NULL)
+    NSHashInsert(pass->seenItems,item);
 
    /* A view that translates its autoresizing mask is placed by it, all
       required (the root by its own frame): staying put and a size of at
@@ -464,8 +506,91 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
    }
 }
 
+/* The pass's constraints to the solver: what it has already stays, what
+ * this pass no longer asks for goes (first, so a changed size does not
+ * fight the old one), what is new is added, in order. */
+static void flush(NSLayoutPass *pass) {
+   NSUInteger n;
+
+   NSLayoutSolverBeginPass(pass->solver);
+   for(n=0;n<pass->pendingCount;n++){
+    struct pendingConstraint *entry=&pass->pending[n];
+
+    entry->kept=NSLayoutSolverKeep(pass->solver,entry->e.count,entry->e.variables,entry->e.coefficients,
+      entry->e.constant,entry->op,entry->strength,&entry->status)!=0;
+   }
+   NSLayoutSolverSweep(pass->solver);
+   for(n=0;n<pass->pendingCount;n++){
+    struct pendingConstraint *entry=&pass->pending[n];
+
+    // The same constraint twice in a pass is added once.
+    if(!entry->kept && NSLayoutSolverKeep(pass->solver,entry->e.count,entry->e.variables,entry->e.coefficients,
+      entry->e.constant,entry->op,entry->strength,&entry->status))
+     entry->kept=YES;
+    if(!entry->kept)
+     entry->status=NSLayoutSolverAdd(pass->solver,entry->e.count,entry->e.variables,entry->e.coefficients,
+       entry->e.constant,entry->op,entry->strength,entry->required?NSLayoutSolverStrength(999.999):0);
+    if(entry->required){
+     if(entry->status==NSLayoutSolverUnsatisfiable){
+      if(!entry->kept)
+       noteRequired(pass,entry,YES);
+     }
+     else
+      noteRequired(pass,entry,NO);
+    }
+   }
+}
+
+static char passKey;
+
+/* A view laid out by constraints keeps its pass, so the solver changes by
+ * what changed (a window's size: two constraints) instead of being built
+ * again, which cost a few hundred views' window most of a second. The
+ * fitting size is solved apart. A solver with many variables of items
+ * gone is built again. */
+static NSLayoutPass *passForRoot(NSView *root,BOOL fitting) {
+   NSLayoutPass *pass=fitting?nil:objc_getAssociatedObject(root,&passKey);
+
+   if(pass!=nil && NSLayoutSolverVariableCount(pass->solver)>12*(int)NSCountMapTable(pass->items)+400)
+    pass=nil;
+   if(pass==nil){
+    pass=[[[NSLayoutPass alloc] init] autorelease];
+    if(!fitting)
+     objc_setAssociatedObject(root,&passKey,pass,OBJC_ASSOCIATION_RETAIN);
+   }
+   [pass->views removeAllObjects];
+   pass->pendingCount=0;
+   pass->requiredCount=0;
+   if(pass->needed!=NULL){
+    NSFreeHashTable(pass->needed);
+    pass->needed=NULL;
+   }
+   if(pass->seenItems!=NULL)
+    NSResetHashTable(pass->seenItems);
+   else
+    pass->seenItems=NSCreateHashTable(NSNonOwnedPointerHashCallBacks,0);
+   return pass;
+}
+
+// The items the pass did not place lose their variables.
+static void forgetUnseenItems(NSLayoutPass *pass) {
+   NSMutableArray  *gone=nil;
+   NSMapEnumerator  state=NSEnumerateMapTable(pass->items);
+   void            *key,*value;
+
+   while(NSNextMapEnumeratorPair(&state,&key,&value))
+    if(NSHashGet(pass->seenItems,key)==NULL){
+     if(gone==nil)
+      gone=[NSMutableArray array];
+     [gone addObject:[NSValue valueWithPointer:key]];
+    }
+   NSEndMapTableEnumeration(&state);
+   for(NSValue *item in gone)
+    NSMapRemove(pass->items,[item pointerValue]);
+}
+
 static NSLayoutPass *solve(NSView *root,BOOL fitting) {
-   NSLayoutPass *pass=[[[NSLayoutPass alloc] init] autorelease];
+   NSLayoutPass *pass=passForRoot(root,fitting);
 
    pass->root=root;
    pass->fitting=fitting;
@@ -484,11 +609,13 @@ static NSLayoutPass *solve(NSView *root,BOOL fitting) {
     NSFreeHashTable(named);
    }
    collect(pass,root);
+   forgetUnseenItems(pass);
    for(NSView *view in pass->views)
     addImplicit(pass,view);
    for(NSView *view in pass->views)
     for(NSLayoutConstraint *constraint in [view constraints])
      addConstraint(pass,constraint);
+   flush(pass);
    NSLayoutSolverUpdate(pass->solver);
    return pass;
 }

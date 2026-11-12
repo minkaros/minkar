@@ -29,8 +29,19 @@ extern "C" {
 NSLayoutSolver *NSLayoutSolverCreate(void);
 void NSLayoutSolverFree(NSLayoutSolver *solver);
 int NSLayoutSolverNewVariable(NSLayoutSolver *solver);
+/* Adds a constraint (variable i times coefficient i, plus the constant,
+   related to zero), remembered by what it says. A required one that
+   cannot be met is added at fallbackStrength instead, when that is above
+   zero; the result says it was unsatisfiable. */
 int NSLayoutSolverAdd(NSLayoutSolver *solver, int count, const int *variables, const double *coefficients,
-                      double constant, int op, double strength);
+                      double constant, int op, double strength, double fallbackStrength);
+/* A pass: what it keeps is marked (1 and its first result when the solver
+   has it already), then the sweep takes out what was not. */
+void NSLayoutSolverBeginPass(NSLayoutSolver *solver);
+int NSLayoutSolverKeep(NSLayoutSolver *solver, int count, const int *variables, const double *coefficients,
+                       double constant, int op, double strength, int *status);
+void NSLayoutSolverSweep(NSLayoutSolver *solver);
+int NSLayoutSolverVariableCount(NSLayoutSolver *solver);
 void NSLayoutSolverUpdate(NSLayoutSolver *solver);
 double NSLayoutSolverValue(NSLayoutSolver *solver, int variable);
 
