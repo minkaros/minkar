@@ -918,6 +918,7 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
     return;
 
    NSSize oldSize=_bounds.size;
+   NSRect oldFrame=_frame;
 
     // The bounds keep their scale to the frame, axis by axis; with no scale
     // to keep (an empty frame or bounds), or one that is not a number, they
@@ -945,6 +946,16 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
    // A new size may move what constraints hold inside the view.
    if(!NSEqualSizes(oldSize,_bounds.size))
     NSLayoutViewDidResize(self);
+
+   // What the view covered and what it covers now are drawn again, and
+   // the view itself when its size changed: a moved or resized view
+   // showed its old drawing until something else asked for a display.
+   if(![self isHidden]){
+    if(_superview!=nil)
+     [_superview setNeedsDisplayInRect:NSUnionRect(oldFrame,_frame)];
+    if(!NSEqualSizes(oldFrame.size,_frame.size))
+     [self setNeedsDisplay:YES];
+   }
 
    if(_postsNotificationOnFrameChange)
     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:self];

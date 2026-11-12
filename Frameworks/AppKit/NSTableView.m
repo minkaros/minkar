@@ -2088,9 +2088,13 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
     _rowViews=[[NSMutableDictionary alloc] init];
    numberOfRows=[self numberOfRows];
    visible=[self visibleRect];
-   if(NSIsEmptyRect(visible))
+   /* Views for the rows that show: none while the table shows nothing in
+      its window (not laid out yet; viewWillDraw makes them when it draws),
+      all of its bounds when it is in no window. Making all rows' views at
+      the width of a column not laid out yet cost seconds. */
+   if(NSIsEmptyRect(visible) && [self window]==nil)
     visible=[self bounds];
-   rows=(numberOfRows>0)?[self rowsInRect:visible]:NSMakeRange(0,0);
+   rows=(numberOfRows>0 && !NSIsEmptyRect(visible))?[self rowsInRect:visible]:NSMakeRange(0,0);
    if(NSMaxRange(rows)>(NSUInteger)numberOfRows)
     rows.length=numberOfRows-rows.location;
 

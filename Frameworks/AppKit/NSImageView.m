@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSImageCell.h>
 #import <AppKit/NSImage.h>
+#import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSRaise.h>
 
 @implementation NSImageView
@@ -85,7 +86,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setImage:(NSImage *)image {
 	[_cell setImage:image];
+	[self invalidateIntrinsicContentSize];
 	[self setNeedsDisplay:YES];
+}
+
+/* The image and its frame; with no image, no size of its own. */
+-(NSSize)intrinsicContentSize {
+   if([_cell image]==nil)
+    return NSMakeSize(NSViewNoIntrinsicMetric,NSViewNoIntrinsicMetric);
+   return [_cell cellSize];
 }
 
 -(void)setValuePath:(NSString *)path {
@@ -108,6 +117,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)setImageFrameStyle:(NSImageFrameStyle)frameStyle {
    [_cell setImageFrameStyle:frameStyle];
    [self setNeedsDisplay:YES];
+   [self invalidateIntrinsicContentSize];
 }
 
 -(void)setImageScaling:(NSImageScaling)scaling {

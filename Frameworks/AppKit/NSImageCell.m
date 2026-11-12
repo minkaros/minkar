@@ -188,6 +188,26 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
     }
 }
 
+/* How far each frame style insets the image, as drawWithFrame: draws it. */
+static CGFloat frameInset(NSImageFrameStyle style) {
+   switch(style){
+    case NSImageFramePhoto: return 2;
+    case NSImageFrameGrayBezel: return 6;
+    case NSImageFrameGroove: return 4;
+    case NSImageFrameButton: return 4;
+    default: return 0;
+   }
+}
+
+/* The image's size and the frame around it. */
+-(NSSize)cellSize {
+   CGFloat  inset=frameInset(_frameStyle);
+   NSImage *image=[self _imageValue];
+   NSSize   size=(image!=nil)?[image size]:NSZeroSize;
+
+   return NSMakeSize(size.width+2*inset,size.height+2*inset);
+}
+
 -(void)drawWithFrame:(NSRect)frame inView:(NSView *)control {
 
    switch(_frameStyle){

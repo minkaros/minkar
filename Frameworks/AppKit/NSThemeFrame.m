@@ -29,6 +29,11 @@
 #import <AppKit/NSImage.h>
 #import <AppKit/NSToolbarView.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
+
+/* The view the frame places for an accessory (NSTitlebarAccessoryViewController.m). */
+@interface NSTitlebarAccessoryViewController (NSThemeFrame)
+-(NSView *)_titlebarContainerView;
+@end
 #import <AppKit/NSAttributedString.h>
 #import <Onyx2D/O2Context.h>
 
@@ -381,7 +386,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    NSMutableArray *accessoryViews=[NSMutableArray array];
 
    for(NSTitlebarAccessoryViewController *accessory in accessories)
-    [accessoryViews addObject:[accessory view]];
+    [accessoryViews addObject:[accessory _titlebarContainerView]];
    [self _updateTitlebarOverlay];
    for(NSView *view in _subviews){
     if(view == _titlebarOverlay || [accessoryViews indexOfObjectIdenticalTo:view]!=NSNotFound)
@@ -409,7 +414,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    CGFloat right=NSMaxX([self bounds])-80;
 
    for(NSTitlebarAccessoryViewController *accessory in accessories){
-    NSView *view=[accessory view];
+    NSView *view=[accessory _titlebarContainerView];
     NSRect  frame=[view frame];
 
     if([accessory isHidden]){
