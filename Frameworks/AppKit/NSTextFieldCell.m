@@ -239,9 +239,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 /* A wrapping cell breaks its text at the width given, and is as tall as
-   that makes it. */
+   that makes it. As in the text system, no width (or height) is no limit:
+   TextMate sizes its find field from its bounds before a layout pass has
+   given it any, and its text wrapped at every character. */
 -(NSSize)cellSizeForBounds:(NSRect)rect {
    NSSize single=[self cellSize];
+
+   if(rect.size.width<=0)
+    rect.size.width=CGFLOAT_MAX;
+   if(rect.size.height<=0)
+    rect.size.height=CGFLOAT_MAX;
 
    if(![self wraps] || [self usesSingleLineMode] || rect.size.width>=single.width)
     return NSMakeSize(MIN(rect.size.width,single.width),MIN(rect.size.height,single.height));
@@ -363,12 +370,6 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     CGFloat currentSize = [_font pointSize];
     [self setFont:[NSFont fontWithName:familyName
                                    size:currentSize]];
-}
-
--(id)_replacementKeyPathForBinding:(id)binding {
-    if([binding isEqual:@"value"])
-        return @"stringValue";
-    return [super _replacementKeyPathForBinding:binding];
 }
 
 @end

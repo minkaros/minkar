@@ -679,7 +679,11 @@ respondsToSelector:@selector(tableView:objectValueForTableColumn:row:)]==YES)
     if (vals != nil){
         return [vals objectAtIndex:row];
     }
-    // Apple AppKit only logs here, so we do the same.
+    // The reference platform only logs here, so we do the same; not for a
+    // column left unbound in a table that has its content by a binding
+    // (its cells are set by the delegate), once for each row drawn.
+    if(binder==nil && [self _binderForBinding:@"content"]!=nil)
+     return nil;
     NSLog(@"data source %@ does not respond to tableView:objectValueForTableColumn:row:",
 _dataSource);
     return nil;

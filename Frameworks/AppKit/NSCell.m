@@ -755,6 +755,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(NSSize)cellSizeForBounds:(NSRect)rect {
    NSSize result=[self cellSize];
 
+   // No width or height is no limit, as in the text system.
+   if(rect.size.width<=0)
+    rect.size.width=CGFLOAT_MAX;
+   if(rect.size.height<=0)
+    rect.size.height=CGFLOAT_MAX;
    return NSMakeSize(MIN(rect.size.width,result.width),MIN(rect.size.height,result.height));
 }
 

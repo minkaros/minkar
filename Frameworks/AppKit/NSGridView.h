@@ -4,7 +4,8 @@
  * Part of Minkar.
  *
  * NSGridView (API 19): views in rows and columns, each column as wide and
- * each row as tall as its largest view (or as set), placed in their cells.
+ * each row as tall as its largest view (or as set), placed in their cells
+ * by constraints, as on the reference platform.
  */
 
 #import <AppKit/NSView.h>
@@ -41,8 +42,10 @@ APPKIT_EXPORT const CGFloat NSGridViewSizeForContent;
     NSGridRowAlignment _rowAlignment;
     CGFloat _rowSpacing;
     CGFloat _columnSpacing;
-    BOOL _layingOut;
-    NSSize _lastFittingSize;
+    NSMutableArray *_gridConstraints;
+    NSMutableArray *_columnGuides;
+    NSMutableArray *_rowGuides;
+    NSMutableArray *_spanGuides;
 }
 
 + (instancetype)gridViewWithNumberOfColumns:(NSInteger)columnCount rows:(NSInteger)rowCount;
