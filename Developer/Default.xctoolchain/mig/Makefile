@@ -30,7 +30,7 @@ BINGRP = 0
 .endif
 
 ${TOOLS}/mig: ${.CURDIR}/mig.sh
-	rsync -cL ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 .if !NO_ROOT
 	chown ${BINOWN}:${BINGRP} ${.TARGET}
 	chmod ${BINMODE} ${.TARGET}

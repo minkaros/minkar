@@ -16,7 +16,7 @@ ${TOOLS}/gmake: ${BUILDDIR}
 	CC=${HOST_CC} CFLAGS="" OUTDIR=${BUILDDIR} \
 	       ${.CURDIR}/configure ${GNU_CONFIGURE_ARGS} \
 	       && ./build.sh
-	rsync -cL ${BUILDDIR}/make ${.TARGET}
+	cp -f ${BUILDDIR}/make ${.TARGET}
 .if !NO_ROOT
 	chown ${BINOWN}:${BINGRP} ${.TARGET}
 	chmod ${BINMODE} ${.TARGET}

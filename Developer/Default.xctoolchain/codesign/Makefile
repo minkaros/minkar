@@ -9,7 +9,7 @@ all: ${TOOLS}/codesign
 
 ${TOOLS}/codesign: ${.CURDIR}/codesign.py
 	mkdir -p ${TOOLS}
-	rsync -cL ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 	chmod 755 ${.TARGET}
 
 test:

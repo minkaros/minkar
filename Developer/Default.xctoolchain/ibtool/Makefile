@@ -10,17 +10,17 @@ all: ${TOOLS}/ibtool ${TOOLS}/nibdump ${TOOLS}/nibarchive.py
 
 ${TOOLS}/ibtool: ${.CURDIR}/ibtool.py
 	mkdir -p ${TOOLS}
-	rsync -cL ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 	chmod 755 ${.TARGET}
 
 ${TOOLS}/nibdump: ${.CURDIR}/nibdump.py
 	mkdir -p ${TOOLS}
-	rsync -cL ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 	chmod 755 ${.TARGET}
 
 ${TOOLS}/nibarchive.py: ${.CURDIR}/nibarchive.py
 	mkdir -p ${TOOLS}
-	rsync -cL ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 
 test:
 	python3 -B ${.CURDIR}/tests/test_ibtool.py
