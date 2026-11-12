@@ -185,6 +185,15 @@ static void beforeWaiting(CFRunLoopObserverRef observer,CFRunLoopActivity activi
 	[super dealloc];
 }
 
+/* NSRunLoopCommonModes is a string of its own, and CFRunLoop takes the
+   common modes only as its kCFRunLoopCommonModes (it compares addresses):
+   timers and sources added for the common modes never ran. */
+CFStringRef NSRunLoopCFMode(NSString *mode) {
+   if(mode==nil || [mode isEqualToString:NSRunLoopCommonModes])
+    return kCFRunLoopCommonModes;
+   return (CFStringRef)mode;
+}
+
 /* Minkar: the CFRunLoop of the thread this run loop belongs to. */
 - (CFRunLoopRef)getCFRunLoop {
    return (CFRunLoopRef)_cfRunLoop;
@@ -198,8 +207,8 @@ static void beforeWaiting(CFRunLoopObserverRef observer,CFRunLoopActivity activi
      return;
     [_servedModes addObject:mode];
    }
-   CFRunLoopAddSource([self getCFRunLoop],_performSource,(CFStringRef)mode);
-   CFRunLoopAddObserver([self getCFRunLoop],_observer,(CFStringRef)mode);
+   CFRunLoopAddSource([self getCFRunLoop],_performSource,NSRunLoopCFMode(mode));
+   CFRunLoopAddObserver([self getCFRunLoop],_observer,NSRunLoopCFMode(mode));
 }
 
 /* The modes a perform asked for, the common modes' name as the modes it
@@ -398,7 +407,7 @@ static void beforeWaiting(CFRunLoopObserverRef observer,CFRunLoopActivity activi
    }
    if(![descriptor->_modes containsObject:mode]){
     [descriptor->_modes addObject:mode];
-    CFRunLoopAddSource([self getCFRunLoop],descriptor->_runLoopSource,(CFStringRef)mode);
+    CFRunLoopAddSource([self getCFRunLoop],descriptor->_runLoopSource,NSRunLoopCFMode(mode));
     [self _serveMode:mode];
    }
 }
@@ -408,7 +417,7 @@ static void beforeWaiting(CFRunLoopObserverRef observer,CFRunLoopActivity activi
 
    if(descriptor==nil || ![descriptor->_modes containsObject:mode])
     return;
-   CFRunLoopRemoveSource([self getCFRunLoop],descriptor->_runLoopSource,(CFStringRef)mode);
+   CFRunLoopRemoveSource([self getCFRunLoop],descriptor->_runLoopSource,NSRunLoopCFMode(mode));
    [descriptor->_modes removeObject:mode];
    if([descriptor->_modes count]==0)
     NSMapRemove(_descriptors,source);

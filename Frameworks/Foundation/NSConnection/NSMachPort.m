@@ -21,6 +21,7 @@
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSNotification.h>
 #import <Foundation/NSRunLoop.h>
+#import <Foundation/NSRunLoop-InputSource.h>
 #import <Foundation/NSValue.h>
 #import <Foundation/NSException.h>
 #import <CoreFoundation/CFMachPort.h>
@@ -214,12 +215,12 @@ static void receive(CFMachPortRef cfPort,void *msg,CFIndex size,void *info) {
      return;
     _cfSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,_cfPort,0);
    }
-   CFRunLoopAddSource([runLoop getCFRunLoop],_cfSource,(__bridge CFStringRef)mode);
+   CFRunLoopAddSource([runLoop getCFRunLoop],_cfSource,NSRunLoopCFMode(mode));
 }
 
 -(void)removeFromRunLoop:(NSRunLoop *)runLoop forMode:(NSString *)mode {
    if(_cfSource!=NULL)
-    CFRunLoopRemoveSource([runLoop getCFRunLoop],_cfSource,(__bridge CFStringRef)mode);
+    CFRunLoopRemoveSource([runLoop getCFRunLoop],_cfSource,NSRunLoopCFMode(mode));
 }
 
 -(NSUInteger)reservedSpaceLength {

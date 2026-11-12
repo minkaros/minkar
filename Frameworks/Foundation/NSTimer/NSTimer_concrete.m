@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSString.h>
 #import <Foundation/NSAutoreleasePool.h>
 #import <Foundation/NSDate.h>
+#import <Foundation/NSRunLoop-InputSource.h>
 
 @implementation NSTimer_concrete
 
@@ -47,7 +48,7 @@ static void timerFired(CFRunLoopTimerRef cfTimer,void *info) {
     // itself), and is set to each fire date the timer has.
     _cfTimer=CFRunLoopTimerCreate(NULL,[_fireDate timeIntervalSinceReferenceDate],1.0e9,0,0,timerFired,&context);
    }
-   CFRunLoopAddTimer(runLoop,_cfTimer,(CFStringRef)mode);
+   CFRunLoopAddTimer(runLoop,_cfTimer,NSRunLoopCFMode(mode));
 }
 
 -(void)_unschedule {

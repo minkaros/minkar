@@ -10,6 +10,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSDelayedPerform;
 
+/* A mode as CFRunLoop takes it: the common modes are CF's own constant,
+   which CFRunLoop knows by its address. Foundation's own. */
+__attribute__((visibility("hidden"))) CFStringRef NSRunLoopCFMode(NSString *mode);
+
 @interface NSRunLoop (private)
 
 - (void)invalidateTimerWithDelayedPerform:(NSDelayedPerform *)delayed;
