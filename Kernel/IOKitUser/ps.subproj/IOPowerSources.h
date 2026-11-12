@@ -30,6 +30,7 @@
 
 #include <sys/cdefs.h>
 #include <CoreFoundation/CoreFoundation.h> /* CFTimeInterval, CFArrayRef, CFDictionaryRef, CFRunLoopSourceRef */
+#include <IOKit/ps/IOPSKeys.h>   /* Minkar: the keys, as the reference header has them */
 __BEGIN_DECLS
 
 
