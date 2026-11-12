@@ -57,6 +57,15 @@ private:
 
 private:
     ext::optional<std::string> _outputPartialInfoPlist;
+    /* Minkar: what today's build systems pass (Swift Build). */
+    ext::optional<std::string> _developmentRegion;
+    ext::optional<std::string> _bundleIdentifier;
+    ext::optional<std::string> _generateObjcAssetSymbols;
+    ext::optional<std::string> _generateAssetSymbolIndex;
+    ext::optional<std::string> _generateSwiftAssetSymbols;
+    ext::optional<std::string> _generateSwiftAssetSymbolExtensions;
+    ext::optional<std::string> _ignoredValue;
+    ext::optional<bool>        _ignoredFlag;
     ext::optional<std::string> _appIcon;
     ext::optional<std::string> _launchImage;
     ext::optional<std::string> _flattenedAppIconPath;
@@ -127,6 +136,16 @@ public:
 public:
     ext::optional<std::string> const &outputPartialInfoPlist() const
     { return _outputPartialInfoPlist; }
+    ext::optional<std::string> const &developmentRegion() const
+    { return _developmentRegion; }
+    ext::optional<std::string> const &bundleIdentifier() const
+    { return _bundleIdentifier; }
+    ext::optional<std::string> const &generateObjcAssetSymbols() const
+    { return _generateObjcAssetSymbols; }
+    ext::optional<std::string> const &generateAssetSymbolIndex() const
+    { return _generateAssetSymbolIndex; }
+    ext::optional<std::string> const &generateSwiftAssetSymbols() const
+    { return _generateSwiftAssetSymbols; }
     ext::optional<std::string> const &appIcon() const
     { return _appIcon; }
     ext::optional<std::string> const &launchImage() const

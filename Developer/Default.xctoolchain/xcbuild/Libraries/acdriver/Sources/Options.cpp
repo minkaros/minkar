@@ -58,6 +58,28 @@ parseArgument(std::vector<std::string> const &args, std::vector<std::string>::co
         return libutil::Options::AppendNext<std::string>(&_targetDevice, args, it);
     } else if (arg == "--output-partial-info-plist") {
         return libutil::Options::Next<std::string>(&_outputPartialInfoPlist, args, it);
+    } else if (arg == "--development-region") {
+        return libutil::Options::Next<std::string>(&_developmentRegion, args, it);
+    } else if (arg == "--bundle-identifier") {
+        return libutil::Options::Next<std::string>(&_bundleIdentifier, args, it);
+    } else if (arg == "--generate-objc-asset-symbols") {
+        return libutil::Options::Next<std::string>(&_generateObjcAssetSymbols, args, it);
+    } else if (arg == "--generate-asset-symbol-index") {
+        return libutil::Options::Next<std::string>(&_generateAssetSymbolIndex, args, it);
+    } else if (arg == "--generate-swift-asset-symbols") {
+        return libutil::Options::Next<std::string>(&_generateSwiftAssetSymbols, args, it);
+    } else if (arg == "--generate-swift-asset-symbol-extensions") {
+        return libutil::Options::Next<std::string>(&_generateSwiftAssetSymbolExtensions, args, it);
+    } else if (arg == "--include-all-app-icons" || arg == "--skip-app-store-deployment" ||
+               arg == "--include-sticker-content") {
+        /* Accepted; what they choose does not apply to Minkar's builds. */
+        return libutil::Options::Current<bool>(&_ignoredFlag, arg);
+    } else if (arg == "--alternate-app-icon" || arg == "--accent-color" || arg == "--widget-background-color" ||
+               arg == "--lightweight-asset-runtime-mode" || arg == "--standalone-icon-behavior" ||
+               arg == "--stickers-icon-role" || arg == "--include-language" ||
+               arg == "--include-partial-info-plist-localizations" ||
+               arg == "--filter-for-thinning-device-configuration" || arg == "--ui-framework-family") {
+        return libutil::Options::Next<std::string>(&_ignoredValue, args, it);
     } else if (arg == "--app-icon") {
         return libutil::Options::Next<std::string>(&_appIcon, args, it);
     } else if (arg == "--launch-image") {

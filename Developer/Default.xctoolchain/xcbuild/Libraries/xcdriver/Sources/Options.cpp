@@ -78,6 +78,8 @@ parseArgument(std::vector<std::string> const &args, std::vector<std::string>::co
         return libutil::Options::Current<bool>(&_showBuildSettings, arg);
     } else if (arg == "-list") {
         return libutil::Options::Current<bool>(&_list, arg);
+    } else if (arg == "-dumpPIF") {
+        return libutil::Options::Next<std::string>(&_dumpPIF, args, it);
     } else if (arg == "-find" || arg == "-find-executable") {
         return libutil::Options::Next<std::string>(&_findExecutable, args, it);
     } else if (arg == "-find-library") {

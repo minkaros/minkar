@@ -29,8 +29,10 @@
 
 A subset of the reference platform's ibtool for building applications:
 
+    ibtool --version [--output-format xml1]
     ibtool --compile OUT.nib [--errors] [--warnings] [--notices]
            [--output-format human-readable-text|xml1]
+           [--output-partial-info-plist PLIST]
            [--minimum-deployment-target VERSION] [--module NAME] IN.xib
 
 A xib is an XML description of objects (windows, views, menus, controllers
@@ -1363,9 +1365,16 @@ def compile_xib(path, module=None):
     return N.write(root), compiler
 
 
+# Minkar's ibtool, versioned on its own.
+IBTOOL_VERSION = "1.0"
+IBTOOL_SHORT_VERSION = "1.0"
+
+
 def main(argv):
     out, inputs, fmt_out = None, [], "human-readable-text"
     module = None
+    version = False
+    partial = None
     i = 1
     while i < len(argv):
         a = argv[i]
@@ -1381,6 +1390,14 @@ def main(argv):
                 or a.startswith("--sdk") or a.startswith("--auto-activate-custom-fonts") is False and a == "--sdk":
             i += 1 if "=" in a else 2
             continue
+        if a == "--version":
+            version = True
+            i += 1
+            continue
+        if a.startswith("--output-partial-info-plist"):
+            partial = a.split("=", 1)[1] if "=" in a else argv[i + 1]
+            i += 1 if "=" in a else 2
+            continue
         if a.startswith("--module"):
             module = a.split("=", 1)[1] if "=" in a else argv[i + 1]
             i += 1 if "=" in a else 2
@@ -1393,6 +1410,19 @@ def main(argv):
             continue
         inputs.append(a)
         i += 1
+    # Build systems ask for the version first (Swift Build: --version
+    # --output-format xml1), as com.apple.ibtool.version.
+    if version:
+        info = {"bundle-version": IBTOOL_VERSION, "short-bundle-version": IBTOOL_SHORT_VERSION}
+        if fmt_out == "xml1":
+            import plistlib
+            sys.stdout.buffer.write(plistlib.dumps({"com.apple.ibtool.version": info}))
+        else:
+            sys.stdout.write("/* com.apple.ibtool.version */\n{\n")
+            for key, value in info.items():
+                sys.stdout.write('    "%s" = "%s";\n' % (key, value))
+            sys.stdout.write("}\n")
+        return 0
     if out is None or len(inputs) != 1:
         sys.stderr.write("usage: ibtool --compile OUT.nib [options] IN.xib\n")
         return 64
@@ -1405,6 +1435,13 @@ def main(argv):
         sys.stderr.write("%s: warning: %s\n" % (inputs[0], w))
     with open(out, "wb") as f:
         f.write(data)
+    # What the interface adds to the app's Info.plist: nothing yet (a
+    # storyboard's NSMainStoryboardFile would go here). Build systems read
+    # it back and merge it.
+    if partial is not None:
+        import plistlib
+        with open(partial, "wb") as f:
+            plistlib.dump({}, f)
     return 0
 
 

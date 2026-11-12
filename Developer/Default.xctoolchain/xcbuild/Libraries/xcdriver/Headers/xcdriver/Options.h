@@ -58,6 +58,7 @@ private:
 
 private:
     ext::optional<bool>        _list;
+    ext::optional<std::string> _dumpPIF;
     ext::optional<bool>        _showSDKs;
     ext::optional<bool>        _showBuildSettings;
 
@@ -172,6 +173,8 @@ public:
 public:
     bool list() const
     { return _list.value_or(false); }
+    ext::optional<std::string> const &dumpPIF() const
+    { return _dumpPIF; }
     bool showSDKs() const
     { return _showSDKs.value_or(false); }
     bool showBuildSettings() const

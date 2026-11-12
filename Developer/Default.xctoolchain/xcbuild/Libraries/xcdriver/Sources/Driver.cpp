@@ -15,6 +15,7 @@
 #include <xcdriver/HelpAction.h>
 #include <xcdriver/LicenseAction.h>
 #include <xcdriver/ListAction.h>
+#include <xcdriver/DumpPIFAction.h>
 #include <xcdriver/ShowSDKsAction.h>
 #include <xcdriver/ShowBuildSettingsAction.h>
 #include <xcdriver/UsageAction.h>
@@ -59,6 +60,8 @@ Run(process::User const *user, process::Context const *processContext, process::
             return ShowBuildSettingsAction::Run(user, processContext, filesystem, options);
         case Action::List:
             return ListAction::Run(user, processContext, filesystem, options);
+        case Action::DumpPIF:
+            return DumpPIFAction::Run(user, processContext, filesystem, options);
         case Action::Version:
             return VersionAction::Run(user, processContext, filesystem, options);
         case Action::Usage:

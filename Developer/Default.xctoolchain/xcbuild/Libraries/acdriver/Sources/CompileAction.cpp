@@ -48,6 +48,18 @@ CompileAction::
 {
 }
 
+/* The names of a catalog's image sets, in its groups too. */
+static void
+CollectImageNames(xcassets::Asset::Asset const *asset, std::vector<std::string> *names)
+{
+    for (auto const &child : asset->children()) {
+        if (child->type() == xcassets::Asset::AssetType::ImageSet) {
+            names->push_back(child->name().name());
+        }
+        CollectImageNames(child.get(), names);
+    }
+}
+
 static bool
 WriteOutput(Filesystem *filesystem, Options const &options, Compile::Output const &compileOutput, Output *output, Result *result)
 {
@@ -289,7 +301,22 @@ run(Filesystem *filesystem, Options const &options, Output *output, Result *resu
     /*
      * Compile each asset catalog into the output.
      */
+    std::vector<std::string> imageNames;
     for (std::string const &input : options.inputs()) {
+        /*
+         * Minkar: an Icon Composer icon (.icon) is not compiled yet; the
+         * app builds without it.
+         */
+        if (FSUtil::GetFileExtension(input) == "icon") {
+            result->normal(
+                Result::Severity::Notice,
+                "Icon Composer icons are not compiled yet",
+                ext::nullopt,
+                input);
+            compileOutput.inputs().push_back(input);
+            continue;
+        }
+
         /*
          * Load the input asset catalog.
          */
@@ -311,7 +338,48 @@ run(Filesystem *filesystem, Options const &options, Output *output, Result *resu
             continue;
         }
 
+        CollectImageNames(catalog.get(), &imageNames);
         compileOutput.inputs().push_back(input);
+    }
+
+    /*
+     * Minkar: the asset symbols, when asked (Swift Build): an Objective-C
+     * header naming the bundle and each image, and an index of them.
+     */
+    if (options.generateObjcAssetSymbols()) {
+        std::string header = "#import <Foundation/Foundation.h>\n\n";
+        header += "/* Generated from the asset catalogs. */\n";
+        header += "static NSString * const ACBundleID = @\"" + options.bundleIdentifier().value_or("") + "\";\n";
+        for (std::string const &name : imageNames) {
+            std::string symbol;
+            bool upper = true;
+            for (char c : name) {
+                if (isalnum(static_cast<unsigned char>(c))) {
+                    symbol += upper ? static_cast<char>(toupper(static_cast<unsigned char>(c))) : c;
+                    upper = false;
+                } else {
+                    upper = true;
+                }
+            }
+            header += "static NSString * const ACImageName" + symbol + " = @\"" + name + "\";\n";
+        }
+        std::vector<uint8_t> contents(header.begin(), header.end());
+        if (!filesystem->write(contents, *options.generateObjcAssetSymbols())) {
+            result->normal(Result::Severity::Error, "unable to write asset symbols");
+        }
+    }
+    if (options.generateAssetSymbolIndex()) {
+        auto index = plist::Dictionary::New();
+        auto images = plist::Array::New();
+        for (std::string const &name : imageNames) {
+            images->append(plist::String::New(name));
+        }
+        index->set("images", std::move(images));
+        auto format = plist::Format::XML::Create(plist::Format::Encoding::UTF8);
+        auto serialize = plist::Format::XML::Serialize(index.get(), format);
+        if (serialize.first == nullptr || !filesystem->write(*serialize.first, *options.generateAssetSymbolIndex())) {
+            result->normal(Result::Severity::Error, "unable to write asset symbol index");
+        }
     }
 
     /*

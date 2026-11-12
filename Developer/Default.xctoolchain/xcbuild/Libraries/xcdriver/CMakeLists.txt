@@ -16,6 +16,7 @@ add_library(xcdriver
             Sources/HelpAction.cpp
             Sources/LicenseAction.cpp
             Sources/ListAction.cpp
+            Sources/DumpPIFAction.cpp
             Sources/ShowBuildSettingsAction.cpp
             Sources/ShowSDKsAction.cpp
             Sources/Usage.cpp

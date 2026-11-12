@@ -38,6 +38,7 @@ public:
         Build,
         ShowBuildSettings,
         List,
+        DumpPIF,
         Version,
         Usage,
         Help,
