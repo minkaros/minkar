@@ -103,7 +103,13 @@ TARGET_DIRS = ${.OBJDIR}/ld/parsers ${.OBJDIR}/ld/code-sign-blobs \
 DEPENDS = ${TARGET_DIRS} ${TOOLCHAIN}/usr/lib/libxar.a \
 	  ${.OBJDIR}/../../../llvm_host/lib/libtapi.so
 
-all: ${TOOLS}/ld64
+all: ${TOOLS}/ld64 ld-link
+
+# "ld" in the toolchain is ld64, as in the reference toolchain: clang looks
+# for the linker beside itself first, so it links Mach-O with ld64 without
+# -fuse-ld (Swift Build's builds, a plain "clang hello.c").
+ld-link: .PHONY ${TOOLS}/ld64
+	ln -sfn ld64 ${TOOLS}/ld
 
 ${TARGET_DIRS}:
 	mkdir -p ${.TARGET}

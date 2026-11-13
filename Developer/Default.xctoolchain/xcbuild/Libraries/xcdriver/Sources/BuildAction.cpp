@@ -1,6 +1,7 @@
 /**
  Copyright (c) 2015-present, Facebook, Inc.
  All rights reserved.
+ Modifications Copyright (c) 2026 The Minkar contributors
 
  This source code is licensed under the BSD-style license found in the
  LICENSE file in the root directory of this source tree. An additional grant
@@ -8,6 +9,7 @@
  */
 
 #include <xcdriver/BuildAction.h>
+#include <xcdriver/SwiftBuildAction.h>
 #include <xcdriver/Action.h>
 #include <xcdriver/Options.h>
 #include <xcexecution/NinjaExecutor.h>
@@ -125,6 +127,11 @@ VerifySupportedOptions(Options const &options)
 int BuildAction::
 Run(process::User const *user, process::Context const *processContext, process::Launcher *processLauncher, Filesystem *filesystem, Options const &options)
 {
+    /* Minkar: Swift Build runs the build when the toolchain has it. */
+    if (SwiftBuildAction::Available(processContext, filesystem, options)) {
+        return SwiftBuildAction::Run(user, processContext, processLauncher, filesystem, options);
+    }
+
     // TODO(grp): Implement these options.
     if (!VerifySupportedOptions(options)) {
         return -1;
