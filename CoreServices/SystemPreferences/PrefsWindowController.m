@@ -75,6 +75,7 @@ static NSArray<NSString *> *knownOrder(void)
 {
     return @[ @"org.minkar.preference.dock", @"org.minkar.preference.users",
               @"org.minkar.preference.displays", @"org.minkar.preference.keyboard",
+              @"org.minkar.preference.mouse",
               @"org.minkar.preference.network", @"org.minkar.preference.datetime" ];
 }
 

@@ -63,8 +63,15 @@ WSEventsSetKeyRepeat(uint64_t delayNanos, uint64_t intervalNanos)
 	kRepeatInterval = intervalNanos;
 }
 
-/* A second click within 500 ms and 4 pixels of the first counts double. */
-static const uint64_t kClickInterval = 500000000;
+/* A second click within the double-click interval (500 ms unless the
+ * mouse's settings say otherwise) and 4 pixels of the first counts double. */
+static uint64_t kClickInterval = 500000000;
+
+void
+WSEventsSetClickInterval(uint64_t intervalNanos)
+{
+	kClickInterval = intervalNanos;
+}
 static const double kClickSlop = 4;
 
 /* ---- The snapshot input routes over ---- */

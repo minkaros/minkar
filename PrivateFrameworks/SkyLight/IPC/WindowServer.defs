@@ -72,6 +72,8 @@ type ws_display_stream_options_t = struct[10] of uint32_t
 	ctype: SLSDisplayStreamOptions;
 type ws_key_characters_t = struct[4] of uint32_t
 	ctype: SLSKeyCharacters;
+type ws_mouse_settings_t = struct[2] of uint32_t
+	ctype: SLSMouseSettings;
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
@@ -669,3 +671,16 @@ routine display_dock_rect(
 	display			: uint32_t;
 	out rect		: ws_int_rect_t;
 	out result		: int32_t);
+
+/* ---- The mouse (interface version 21) ---- */
+
+/* Its primary button and double-click interval (SLSMouseSettings). */
+routine mouse_settings_set(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	settings		: ws_mouse_settings_t;
+	out result		: int32_t);
+
+routine mouse_settings_get(
+	server			: mach_port_t;
+	out settings		: ws_mouse_settings_t);

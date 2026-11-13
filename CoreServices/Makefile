@@ -47,7 +47,8 @@ SUBDIR += Logs
 SUBDIR += Terminal
 # System Preferences and its panes (Phase 5, item 6).
 SUBDIR += SystemPreferences SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
-	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Network
+	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Mouse \
+	SystemPreferences/Panes/Network
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

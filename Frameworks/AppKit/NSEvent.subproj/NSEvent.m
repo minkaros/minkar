@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include <SkyLight/SkyLight.h>
+extern int _CGUsesSkyLight(void);
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSEvent_mouse.h>
 #import <AppKit/NSEvent_keyboard.h>
@@ -76,7 +77,21 @@ void NSEventNoteMouseButtons(NSEvent *event) {
 
 /* The user's settings (the reference's keys), in seconds; the key repeat
    ones are kept in 15 ms units. */
+/* The window server's (the Mouse pane sets it there, where clicks are
+   counted); the global default without one. */
 +(NSTimeInterval)doubleClickInterval {
+   /* Asked again at most every 2 seconds: a view may ask on every click. */
+   static NSTimeInterval cached, askedAt;
+   NSTimeInterval now=[NSDate timeIntervalSinceReferenceDate];
+
+   if(cached>0 && now-askedAt<2)
+    return cached;
+   SLSMouseSettings mouse;
+   if(_CGUsesSkyLight() && SLSGetMouseSettings(&mouse)==kSLSErrorSuccess && mouse.doubleClickInterval>0){
+    cached=mouse.doubleClickInterval/1000.0;
+    askedAt=now;
+    return cached;
+   }
    id value=[[NSUserDefaults standardUserDefaults] objectForKey:@"com.apple.mouse.doubleClickThreshold"];
 
    return (value!=nil && [value doubleValue]>0)?[value doubleValue]:0.5;

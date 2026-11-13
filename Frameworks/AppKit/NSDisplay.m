@@ -410,7 +410,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 }
 
 -(CGFloat)doubleClickInterval {
-   return 1.0;
+   return [NSEvent doubleClickInterval];
 }
 
 

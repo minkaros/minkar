@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	20
+#define kSLSInterfaceVersion	21
 
 typedef int32_t SLSConnectionID;
 
@@ -860,6 +860,21 @@ typedef struct {
 
 int SLSSetKeyboardSettings(const SLSKeyboardSettings *settings);
 int SLSGetKeyboardSettings(SLSKeyboardSettings *settings);
+
+/*
+ * The mouse (interface version 21): the primary button (swapButtons 1: the
+ * right button is the primary one, for the left-handed; the left one
+ * opens context menus) and the double-click interval, 150 to 2000 ms
+ * (500 by default). Kept by the server across restarts; only the console
+ * user or root may set them.
+ */
+typedef struct {
+	uint32_t swapButtons;
+	uint32_t doubleClickInterval;
+} SLSMouseSettings;
+
+int SLSSetMouseSettings(const SLSMouseSettings *settings);
+int SLSGetMouseSettings(SLSMouseSettings *settings);
 
 /* A key's characters with modifiers (CGEventFlags' bits), UTF-8, as the
  * keyboard layout in use gives them (interface version 19). */

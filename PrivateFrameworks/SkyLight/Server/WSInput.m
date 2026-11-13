@@ -118,6 +118,30 @@ WSInputLoadKeyboard(void)
 	return km;
 }
 
+/* ---- The mouse's settings (SLSSetMouseSettings) ---- */
+
+static NSString *const kMousePath = @"/var/db/WindowServer/Mouse.plist";
+static SLSMouseSettings mouse = { 0, 500 };
+
+static BOOL
+mouseSettingsValid(const SLSMouseSettings *m)
+{
+	return m->swapButtons <= 1 && m->doubleClickInterval >= 150 && m->doubleClickInterval <= 2000;
+}
+
+/* The saved settings, at start, on the input queue. */
+static void
+WSInputLoadMouse(void)
+{
+	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kMousePath];
+	SLSMouseSettings m = { [saved[@"SwapButtons"] boolValue] ? 1 : 0,
+			       saved[@"DoubleClickInterval"] != nil ? [saved[@"DoubleClickInterval"] unsignedIntValue] : 500 };
+
+	if (mouseSettingsValid(&m))
+		mouse = m;
+	WSEventsSetClickInterval((uint64_t)mouse.doubleClickInterval * 1000000);
+}
+
 @implementation WSInput {
 	NSMutableArray<NSNumber *> *_screenTokens;	/* one per display */
 	io_connect_t _connect;
@@ -162,6 +186,7 @@ WSInputLoadKeyboard(void)
 	kern_return_t kr;
 
 	_keymap = WSInputLoadKeyboard();
+	WSInputLoadMouse();
 	if (_keymap == NULL)
 		fprintf(stderr, "WindowServer: no keyboard layout: keys are not delivered\n");
 	if (service == IO_OBJECT_NULL) {
@@ -285,7 +310,14 @@ WSInputLoadKeyboard(void)
 	case NX_LMOUSEDOWN: case NX_LMOUSEUP: case NX_RMOUSEDOWN: case NX_RMOUSEUP:
 	case NX_OMOUSEDOWN: case NX_OMOUSEUP:
 		e.type = nx->type;		/* the same numbers as CGEventType's */
-		e.buttonNumber = nx->type <= NX_LMOUSEUP ? 0 : nx->type <= NX_RMOUSEUP ? 1 : 2;
+		/* Left-handed: the right button is the primary one. */
+		if (mouse.swapButtons) {
+			if (e.type == NX_LMOUSEDOWN || e.type == NX_LMOUSEUP)
+				e.type += NX_RMOUSEDOWN - NX_LMOUSEDOWN;
+			else if (e.type == NX_RMOUSEDOWN || e.type == NX_RMOUSEUP)
+				e.type -= NX_RMOUSEDOWN - NX_LMOUSEDOWN;
+		}
+		e.buttonNumber = e.type <= NX_LMOUSEUP ? 0 : e.type <= NX_RMOUSEUP ? 1 : 2;
 		break;
 	case NX_SCROLLWHEELMOVED:
 		e.type = kSLSEventScrollWheel;
@@ -398,6 +430,47 @@ wss_keyboard_settings_set(mach_port_t server, audit_token_t token, SLSKeyboardSe
 	    settings.layout, settings.variant[0] ? " " : "", settings.variant,
 	    settings.initialRepeat, settings.repeatInterval);
 	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* The mouse's primary button and double-click interval, for root or the
+ * console's user: applied on the input queue, kept in Mouse.plist. */
+kern_return_t
+wss_mouse_settings_set(mach_port_t server, audit_token_t token, SLSMouseSettings settings, int32_t *result)
+{
+	WSConnection *connection = [WSConnection connectionForToken:token];
+
+	(void)server;
+	if (connection == nil || !WSMayControlInput(connection)) {
+		*result = connection == nil ? kSLSErrorInvalidConnection : kSLSErrorCannotComplete;
+		return KERN_SUCCESS;
+	}
+	if (!mouseSettingsValid(&settings)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	dispatch_sync(WSInputQueue, ^{
+		mouse = settings;
+		WSEventsSetClickInterval((uint64_t)settings.doubleClickInterval * 1000000);
+	});
+	NSDictionary *saved = @{ @"SwapButtons": @(settings.swapButtons != 0),
+				 @"DoubleClickInterval": @(settings.doubleClickInterval) };
+	[[NSFileManager defaultManager] createDirectoryAtPath:[kMousePath stringByDeletingLastPathComponent]
+	    withIntermediateDirectories:YES attributes:nil error:NULL];
+	[saved writeToFile:kMousePath atomically:YES];
+	fprintf(stderr, "WindowServer: mouse primary button %s, double-click %u ms\n",
+	    settings.swapButtons ? "right" : "left", settings.doubleClickInterval);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_mouse_settings_get(mach_port_t server, SLSMouseSettings *settings)
+{
+	(void)server;
+	dispatch_sync(WSInputQueue, ^{
+		*settings = mouse;
+	});
 	return KERN_SUCCESS;
 }
 

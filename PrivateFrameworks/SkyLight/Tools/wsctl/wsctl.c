@@ -241,6 +241,36 @@ dockRect(int argc, char *argv[])
 	return 0;
 }
 
+/* The mouse's settings: shown, or set (left|right, and the double-click
+   interval in ms). */
+static int
+mouseSettings(int argc, char *argv[])
+{
+	SLSMouseSettings m;
+
+	if (SLSGetMouseSettings(&m) != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	if (argc == 2) {
+		printf("primary=%s double-click=%u\n", m.swapButtons ? "right" : "left", m.doubleClickInterval);
+		return 0;
+	}
+	if (strcmp(argv[2], "left") != 0 && strcmp(argv[2], "right") != 0) {
+		fprintf(stderr, "wsctl: mouse left|right [MS]\n");
+		return 2;
+	}
+	m.swapButtons = strcmp(argv[2], "right") == 0;
+	if (argc == 4)
+		m.doubleClickInterval = (uint32_t)strtoul(argv[3], NULL, 10);
+	int err = SLSSetMouseSettings(&m);
+	if (err != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: the mouse settings were not set (%d)\n", err);
+		return 1;
+	}
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -268,7 +298,9 @@ main(int argc, char *argv[])
 		return front();
 	if ((argc == 2 || argc == 6) && strcmp(argv[1], "dock-rect") == 0)
 		return dockRect(argc, argv);
+	if (argc >= 2 && argc <= 4 && strcmp(argv[1], "mouse") == 0)
+		return mouseSettings(argc, argv);
 	fprintf(stderr, "usage: wsctl stats [reset] | windows | displays | modes | mode ID [permanent] | restore | front"
-	    " | dock-rect [X Y WIDTH HEIGHT]\n");
+	    " | dock-rect [X Y WIDTH HEIGHT] | mouse [left|right [MS]]\n");
 	return 2;
 }

@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Mouse pane, in Spanish. The keys are the English texts. */
+
+"Primary mouse button:" = "Botón principal del ratón:";
+"Left" = "Izquierdo";
+"Right" = "Derecho";
+"Double-Click Speed" = "Velocidad del doble clic";
+"Slow" = "Lenta";
+"Fast" = "Rápida";

@@ -297,6 +297,31 @@ SLSGetKeyboardSettings(SLSKeyboardSettings *settings)
 }
 
 int
+SLSSetMouseSettings(const SLSMouseSettings *settings)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (settings == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_mouse_settings_set(server, *settings, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetMouseSettings(SLSMouseSettings *settings)
+{
+	mach_port_t server = SLSServerPort();
+
+	if (settings == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_mouse_settings_get(server, settings) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return kSLSErrorSuccess;
+}
+
+int
 SLSKeyboardTranslate(uint16_t keyCode, uint32_t modifierFlags, SLSKeyCharacters *characters)
 {
 	mach_port_t server = SLSServerPort();

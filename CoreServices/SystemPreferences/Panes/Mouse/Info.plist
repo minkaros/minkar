@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>Mouse</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.minkar.preference.mouse</string>
+	<key>CFBundleName</key>
+	<string>Mouse</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>19.6.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSPrefPaneIconLabel</key>
+	<string>Mouse</string>
+	<key>MinkarPrefPaneIconColor</key>
+	<string>0.45 0.55 0.65</string>
+	<key>NSPrincipalClass</key>
+	<string>MousePane</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright (c) 2026 The Minkar contributors</string>
+</dict>
+</plist>
