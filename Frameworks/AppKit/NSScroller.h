@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -37,6 +38,15 @@ enum {
 };
 typedef NSUInteger NSUsableScrollerParts;
 
+/* Legacy scrollers take room beside the content; overlay scrollers are
+   drawn over it while scrolling. Minkar's are legacy. */
+typedef NS_ENUM(NSInteger, NSScrollerStyle) {
+    NSScrollerStyleLegacy = 0,
+    NSScrollerStyleOverlay = 1
+};
+
+APPKIT_EXPORT NSString *const NSPreferredScrollerStyleDidChangeNotification;
+
 typedef NS_ENUM(NSInteger, NSScrollerKnobStyle) {
     NSScrollerKnobStyleDefault = 0,
     NSScrollerKnobStyleDark = 1,
@@ -60,6 +70,11 @@ typedef NS_ENUM(NSInteger, NSScrollerKnobStyle) {
     BOOL _isEnabled;
     BOOL _isHighlighted;
 }
+
++(NSScrollerStyle)preferredScrollerStyle;
++(CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize scrollerStyle:(NSScrollerStyle)scrollerStyle;
+-(NSScrollerStyle)scrollerStyle;
+-(void)setScrollerStyle:(NSScrollerStyle)scrollerStyle;
 
 + (CGFloat)scrollerWidth;
 

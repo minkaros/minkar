@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSMenu, NSUndoManager;
 
+@class NSUserActivity;
+
 @interface NSResponder : NSObject <NSCoding> {
     id _nextResponder;
 }
@@ -57,6 +59,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)rightMouseUp:(NSEvent *)event;
 - (void)rightMouseDown:(NSEvent *)event;
 - (void)rightMouseDragged:(NSEvent *)event;
+
+/* The activity the responder stands for, made current with its window. */
+@property (strong) NSUserActivity *userActivity;
+- (void)updateUserActivityState:(NSUserActivity *)userActivity;
 
 @end
 

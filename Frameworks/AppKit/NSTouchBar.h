@@ -68,6 +68,44 @@ APPKIT_EXPORT NSTouchBarItemIdentifier const NSTouchBarItemIdentifierCandidateLi
 @property (readwrite, copy) NSString *customizationLabel;
 @end
 
+@class NSImage, NSGestureRecognizer;
+@protocol NSSharingServicePickerTouchBarItemDelegate;
+
+/* An item that opens a second bar. With no Touch Bar, nothing is shown. */
+@interface NSPopoverTouchBarItem : NSTouchBarItem {
+    NSTouchBar *_popoverTouchBar;
+    NSTouchBar *_pressAndHoldTouchBar;
+    NSString *_customizationLabel;
+    NSView *_collapsedRepresentation;
+    NSImage *_collapsedRepresentationImage;
+    NSString *_collapsedRepresentationLabel;
+    BOOL _showsCloseButton;
+}
+@property (strong) NSTouchBar *popoverTouchBar;
+@property (strong) NSTouchBar *pressAndHoldTouchBar;
+@property (readwrite, copy) NSString *customizationLabel;
+@property (strong) NSView *collapsedRepresentation;
+@property (strong) NSImage *collapsedRepresentationImage;
+@property (copy) NSString *collapsedRepresentationLabel;
+@property BOOL showsCloseButton;
+- (void)showPopover:(id)sender;
+- (void)dismissPopover:(id)sender;
+- (NSGestureRecognizer *)makeStandardActivatePopoverGestureRecognizer;
+@end
+
+/* The share button of a Touch Bar. */
+@interface NSSharingServicePickerTouchBarItem : NSTouchBarItem {
+    id _delegate;
+    BOOL _enabled;
+    NSString *_buttonTitle;
+    NSImage *_buttonImage;
+}
+@property (assign) id<NSSharingServicePickerTouchBarItemDelegate> delegate;
+@property (getter=isEnabled) BOOL enabled;
+@property (copy) NSString *buttonTitle;
+@property (strong) NSImage *buttonImage;
+@end
+
 @protocol NSTouchBarDelegate <NSObject>
 @optional
 - (NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier;

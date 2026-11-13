@@ -52,6 +52,8 @@ APPKIT_EXPORT NSString *const NSPrintHorizontallyCentered;
 APPKIT_EXPORT NSString *const NSPrintVerticallyCentered;
 
 APPKIT_EXPORT NSString *const NSPrintHeaderAndFooter;
+APPKIT_EXPORT NSString *const NSPrintJobSavingURL;
+APPKIT_EXPORT NSString *const NSPrintJobSavingFileNameExtensionHidden;
 
 @interface NSPrintInfo : NSObject <NSCopying> {
     NSMutableDictionary *_attributes;

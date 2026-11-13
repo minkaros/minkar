@@ -460,4 +460,18 @@ static char showsHiddenFilesKey;
    objc_setAssociatedObject(self,&showsHiddenFilesKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
 }
 
+static char canSelectHiddenExtensionKey, extensionHiddenKey;
+-(BOOL)canSelectHiddenExtension {
+   return [objc_getAssociatedObject(self,&canSelectHiddenExtensionKey) boolValue];
+}
+-(void)setCanSelectHiddenExtension:(BOOL)value {
+   objc_setAssociatedObject(self,&canSelectHiddenExtensionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+-(BOOL)isExtensionHidden {
+   return [objc_getAssociatedObject(self,&extensionHiddenKey) boolValue];
+}
+-(void)setExtensionHidden:(BOOL)value {
+   objc_setAssociatedObject(self,&extensionHiddenKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
 @end

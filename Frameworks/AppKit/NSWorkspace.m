@@ -26,6 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
 NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
 NSString * const NSWorkspaceDidTerminateApplicationNotification=@"NSWorkspaceDidTerminateApplicationNotification";
+NSString * const NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification=@"NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification";
 NSString * const NSWorkspaceDidActivateApplicationNotification=@"NSWorkspaceDidActivateApplicationNotification";
 NSString * const NSWorkspaceDidDeactivateApplicationNotification=@"NSWorkspaceDidDeactivateApplicationNotification";
 NSString * const NSWorkspaceDidHideApplicationNotification=@"NSWorkspaceDidHideApplicationNotification";

@@ -88,6 +88,9 @@ enum {
                 didEndSelector:(SEL)didEndSelector
                    contextInfo:(void *)contextInfo;
 @property BOOL showsHiddenFiles;
+/* Minkar shows every file's extension: these are kept, and change nothing. */
+@property BOOL canSelectHiddenExtension;
+@property (getter=isExtensionHidden) BOOL extensionHidden;
 
 @end
 

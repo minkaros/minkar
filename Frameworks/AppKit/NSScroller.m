@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17,10 +18,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSRaise.h>
 
+NSString * const NSPreferredScrollerStyleDidChangeNotification=@"NSPreferredScrollerStyleDidChangeNotification";
+
 @implementation NSScroller
 
 +(CGFloat)scrollerWidth {
    return [[NSDisplay currentDisplay] scrollerWidth];
+}
+
+/* Minkar's scrollers always take their room: legacy, whatever was asked. */
++(NSScrollerStyle)preferredScrollerStyle {
+   return NSScrollerStyleLegacy;
+}
+
+/* Minkar draws scrollers in one size. */
++(CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize scrollerStyle:(NSScrollerStyle)scrollerStyle {
+   return [self scrollerWidth];
+}
+
+-(NSScrollerStyle)scrollerStyle {
+   return NSScrollerStyleLegacy;
+}
+
+-(void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
 }
 
 /* OS X has a global default "AppleScrollBarVariant" with the values: Single, DoubleMin, DoubleMax, and DoubleBoth

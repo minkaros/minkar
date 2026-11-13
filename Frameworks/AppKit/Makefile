@@ -97,6 +97,7 @@ SRCS = \
     NSGlyphInfo.m \
     NSGradient.m \
     NSGraphics.m \
+    NSFocusRingStyle.m \
     NSGraphicsContext.m \
     NSHelpManager.m \
     NSAssetCatalog.m \
@@ -257,6 +258,9 @@ SRCS = \
     NSViewBackingLayer.m \
     NSViewController.m \
     NSTouchBar.m \
+    NSSharingService.m \
+    NSHapticFeedback.m \
+    NSAccessibilityCustomAction.m \
     NSTextInputContext.m \
     NSTitlebarAccessoryViewController.m \
     NSGridView.m \
@@ -548,6 +552,9 @@ HEADERS = \
     NSViewBackingLayer.h \
     NSViewController.h \
     NSTouchBar.h \
+    NSSharingService.h \
+    NSHapticFeedback.h \
+    NSAccessibilityCustomAction.h \
     NSTextInputContext.h \
     NSTitlebarAccessoryViewController.h \
     NSGridView.h \

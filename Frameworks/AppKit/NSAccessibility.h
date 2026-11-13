@@ -188,6 +188,7 @@ APPKIT_EXPORT NSString *const NSAccessibilityVerticalScrollBarAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityWarningValueAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityCriticalValueAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityPlaceholderValueAttribute;
+APPKIT_EXPORT NSString *const NSAccessibilityMarkedMisspelledTextAttribute;
 
 /* The types of the accessibility API's names (API 10.13). */
 typedef NSString *NSAccessibilityRole;
@@ -201,6 +202,8 @@ APPKIT_EXPORT NSString *const NSAccessibilityApplicationRole;
 APPKIT_EXPORT NSString *const NSAccessibilityBrowserRole;
 APPKIT_EXPORT NSString *const NSAccessibilityBusyIndicatorRole;
 APPKIT_EXPORT NSString *const NSAccessibilityButtonRole;
+APPKIT_EXPORT NSString *const NSAccessibilityLevelIndicatorRole;
+APPKIT_EXPORT NSString *const NSAccessibilityPopoverRole;
 APPKIT_EXPORT NSString *const NSAccessibilityCellRole;
 APPKIT_EXPORT NSString *const NSAccessibilityCheckBoxRole;
 APPKIT_EXPORT NSString *const NSAccessibilityColorWellRole;
@@ -274,6 +277,8 @@ APPKIT_EXPORT NSString *const NSAccessibilityUnknownSubrole;
 APPKIT_EXPORT NSString *const NSAccessibilityZoomButtonSubrole;
 APPKIT_EXPORT NSString *const NSAccessibilitySortButtonSubrole;
 APPKIT_EXPORT NSString *const NSAccessibilityRatingIndicatorSubrole;
+APPKIT_EXPORT NSString *const NSAccessibilitySwitchSubrole;
+APPKIT_EXPORT NSString *const NSAccessibilityToggleSubrole;
 APPKIT_EXPORT NSString *const NSAccessibilityContentListSubrole;
 APPKIT_EXPORT NSString *const NSAccessibilityDefinitionListSubrole;
 

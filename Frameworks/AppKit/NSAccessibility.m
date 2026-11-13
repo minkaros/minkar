@@ -188,11 +188,14 @@ NSString * const NSAccessibilityVerticalScrollBarAttribute=@"AXVerticalScrollBar
 NSString * const NSAccessibilityWarningValueAttribute=@"AXWarningValue";
 NSString * const NSAccessibilityCriticalValueAttribute=@"AXCriticalValue";
 NSString * const NSAccessibilityPlaceholderValueAttribute=@"AXPlaceholderValue";
+NSString * const NSAccessibilityMarkedMisspelledTextAttribute=@"AXMarkedMisspelledText";
 
 NSString * const NSAccessibilityApplicationRole=@"AXApplication";
 NSString * const NSAccessibilityBrowserRole=@"AXBrowser";
 NSString * const NSAccessibilityBusyIndicatorRole=@"AXBusyIndicator";
 NSString * const NSAccessibilityButtonRole=@"AXButton";
+NSString * const NSAccessibilityLevelIndicatorRole=@"AXLevelIndicator";
+NSString * const NSAccessibilityPopoverRole=@"AXPopover";
 NSString * const NSAccessibilityCellRole=@"AXCell";
 NSString * const NSAccessibilityCheckBoxRole=@"AXCheckBox";
 NSString * const NSAccessibilityColorWellRole=@"AXColorWell";
@@ -268,6 +271,8 @@ NSString * const NSAccessibilitySortButtonSubrole=@"AXSortButton";
 NSString * const NSAccessibilityRatingIndicatorSubrole=@"AXRatingIndicator";
 NSString * const NSAccessibilityContentListSubrole=@"AXContentList";
 NSString * const NSAccessibilityDefinitionListSubrole=@"AXDefinitionList";
+NSString * const NSAccessibilitySwitchSubrole=@"AXSwitch";
+NSString * const NSAccessibilityToggleSubrole=@"AXToggle";
 
 
 NSString * const NSAccessibilityCancelAction=@"AXCancel";

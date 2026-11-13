@@ -106,6 +106,76 @@ NSTouchBarItemIdentifier const NSTouchBarItemIdentifierCandidateList=@"NSTouchBa
 
 @end
 
+@implementation NSPopoverTouchBarItem
+
+-(void)dealloc {
+   [_popoverTouchBar release];
+   [_pressAndHoldTouchBar release];
+   [_customizationLabel release];
+   [_collapsedRepresentation release];
+   [_collapsedRepresentationImage release];
+   [_collapsedRepresentationLabel release];
+   [super dealloc];
+}
+
+-(NSTouchBar *)popoverTouchBar {
+   if(_popoverTouchBar==nil)
+    _popoverTouchBar=[[NSTouchBar alloc] init];
+   return _popoverTouchBar;
+}
+-(void)setPopoverTouchBar:(NSTouchBar *)bar { bar=[bar retain]; [_popoverTouchBar release]; _popoverTouchBar=bar; }
+-(NSTouchBar *)pressAndHoldTouchBar { return _pressAndHoldTouchBar; }
+-(void)setPressAndHoldTouchBar:(NSTouchBar *)bar { bar=[bar retain]; [_pressAndHoldTouchBar release]; _pressAndHoldTouchBar=bar; }
+-(NSString *)customizationLabel { return (_customizationLabel!=nil)?_customizationLabel:@""; }
+-(void)setCustomizationLabel:(NSString *)label { label=[label copy]; [_customizationLabel release]; _customizationLabel=label; }
+-(NSView *)collapsedRepresentation { return _collapsedRepresentation; }
+-(void)setCollapsedRepresentation:(NSView *)view { view=[view retain]; [_collapsedRepresentation release]; _collapsedRepresentation=view; }
+-(NSImage *)collapsedRepresentationImage { return _collapsedRepresentationImage; }
+-(void)setCollapsedRepresentationImage:(NSImage *)image { image=[image retain]; [_collapsedRepresentationImage release]; _collapsedRepresentationImage=image; }
+-(NSString *)collapsedRepresentationLabel { return _collapsedRepresentationLabel; }
+-(void)setCollapsedRepresentationLabel:(NSString *)label { label=[label copy]; [_collapsedRepresentationLabel release]; _collapsedRepresentationLabel=label; }
+-(BOOL)showsCloseButton { return _showsCloseButton; }
+-(void)setShowsCloseButton:(BOOL)value { _showsCloseButton=value; }
+-(NSView *)view { return _collapsedRepresentation; }
+
+/* There is no Touch Bar to show the popover bar on. */
+-(void)showPopover:(id)sender {
+}
+
+-(void)dismissPopover:(id)sender {
+}
+
+-(NSGestureRecognizer *)makeStandardActivatePopoverGestureRecognizer {
+   return nil;
+}
+
+@end
+
+@implementation NSSharingServicePickerTouchBarItem
+
+-(instancetype)initWithIdentifier:(NSTouchBarItemIdentifier)identifier {
+   if((self=[super initWithIdentifier:identifier])!=nil)
+    _enabled=YES;
+   return self;
+}
+
+-(void)dealloc {
+   [_buttonTitle release];
+   [_buttonImage release];
+   [super dealloc];
+}
+
+-(id)delegate { return _delegate; }
+-(void)setDelegate:(id)delegate { _delegate=delegate; }
+-(BOOL)isEnabled { return _enabled; }
+-(void)setEnabled:(BOOL)value { _enabled=value; }
+-(NSString *)buttonTitle { return _buttonTitle; }
+-(void)setButtonTitle:(NSString *)title { title=[title copy]; [_buttonTitle release]; _buttonTitle=title; }
+-(NSImage *)buttonImage { return _buttonImage; }
+-(void)setButtonImage:(NSImage *)image { image=[image retain]; [_buttonImage release]; _buttonImage=image; }
+
+@end
+
 static BOOL automaticCustomizeMenuItem;
 
 @implementation NSTouchBar

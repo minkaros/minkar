@@ -18,6 +18,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceWillPowerOffNotification;
  * is the NSRunningApplication. */
 APPKIT_EXPORT NSString *const NSWorkspaceDidLaunchApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidTerminateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidActivateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidDeactivateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidHideApplicationNotification;
