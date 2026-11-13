@@ -220,6 +220,8 @@ static CTFontDescriptorRef descriptorFromPattern(FcPattern *p, CFNumberRef size)
         setCString(d, kCTFontFamilyNameAttribute, (const char *)family);
     if (FcPatternGetString(p, FC_STYLE, 0, &style) == FcResultMatch)
         setCString(d, kCTFontStyleNameAttribute, (const char *)style);
+    else
+        CFDictionarySetValue(d, kCTFontStyleNameAttribute, CFSTR("Regular"));
     if (FcPatternGetString(p, FC_FULLNAME, 0, &s) == FcResultMatch)
         setCString(d, kCTFontDisplayNameAttribute, (const char *)s);
     else if (family != NULL)
@@ -323,10 +325,12 @@ static CFArrayRef copyListed(CTFontDescriptorRef descriptor) {
     for (int i = 0; set != NULL && i < set->nfont; i++) {
         CTFontDescriptorRef d = descriptorFromPattern(set->fonts[i], size);
         CFTypeRef name = CFDictionaryGetValue(d->attributes, kCTFontNameAttribute);
-        /* A face is listed once (fontconfig lists each of its languages' names). */
-        if (name == NULL || !CFSetContainsValue(seen, name)) {
-            if (name != NULL)
-                CFSetAddValue(seen, name);
+        /* A face is listed once (fontconfig lists each of its languages'
+           names), and only with a PostScript name and a family: a face
+           without them cannot be opened by name. */
+        if (name != NULL && CFDictionaryGetValue(d->attributes, kCTFontFamilyNameAttribute) != NULL &&
+            !CFSetContainsValue(seen, name)) {
+            CFSetAddValue(seen, name);
             CFArrayAppendValue(list, d);
         }
         CFRelease(d);

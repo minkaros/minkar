@@ -13,6 +13,7 @@
 #import <AppKit/KTFont.h>
 #import <AppKit/NSRaise.h>
 #import "O2Font_FT.h"
+#import FT_OUTLINE_H
 #import <AppKit/NSFontTypeface.h>
 //#import <AppKit/NSGraphicsContext.h>
 
@@ -175,4 +176,77 @@ static CGFloat cachedAdvance(KTFont_FT *self,CGGlyph glyph) {
    CGContextSetTextMatrix(cgContext,textMatrix);
 }
 #endif
+@end
+
+/* Minkar: a glyph's outline at the font's size, in points with y up,
+   from its unhinted FreeType outline (quadratic and cubic curves). */
+typedef struct {
+   CGMutablePathRef path;
+   CGFloat          scale;
+   const CGAffineTransform *xform;
+   BOOL             open;
+} OutlineState;
+
+static CGPoint outlinePoint(OutlineState *state,const FT_Vector *v) {
+   return CGPointMake(v->x*state->scale,v->y*state->scale);
+}
+
+static int outlineMoveTo(const FT_Vector *to,void *user) {
+   OutlineState *state=user;
+   CGPoint       p=outlinePoint(state,to);
+
+   if(state->open)
+    CGPathCloseSubpath(state->path);
+   CGPathMoveToPoint(state->path,state->xform,p.x,p.y);
+   state->open=YES;
+   return 0;
+}
+
+static int outlineLineTo(const FT_Vector *to,void *user) {
+   OutlineState *state=user;
+   CGPoint       p=outlinePoint(state,to);
+
+   CGPathAddLineToPoint(state->path,state->xform,p.x,p.y);
+   return 0;
+}
+
+static int outlineConicTo(const FT_Vector *control,const FT_Vector *to,void *user) {
+   OutlineState *state=user;
+   CGPoint       c=outlinePoint(state,control),p=outlinePoint(state,to);
+
+   CGPathAddQuadCurveToPoint(state->path,state->xform,c.x,c.y,p.x,p.y);
+   return 0;
+}
+
+static int outlineCubicTo(const FT_Vector *c1,const FT_Vector *c2,const FT_Vector *to,void *user) {
+   OutlineState *state=user;
+   CGPoint       a=outlinePoint(state,c1),b=outlinePoint(state,c2),p=outlinePoint(state,to);
+
+   CGPathAddCurveToPoint(state->path,state->xform,a.x,a.y,b.x,b.y,p.x,p.y);
+   return 0;
+}
+
+@implementation KTFont_FT (Outlines)
+
+-(CGPathRef)createPathForGlyph:(CGGlyph)glyph transform:(CGAffineTransform *)xform {
+   O2Font_FT       *o2Font=(O2Font_FT *)_font;
+   FT_Face          face=[o2Font face];
+   CGMutablePathRef path=CGPathCreateMutable();
+   FT_Outline_Funcs funcs={ outlineMoveTo,outlineLineTo,outlineConicTo,outlineCubicTo,0,0 };
+   OutlineState     state={ path,0,xform,NO };
+
+   if(face==NULL || face->units_per_EM==0)
+    return path;
+   @synchronized(o2Font){
+    if(FT_Load_Glyph(face,glyph,FT_LOAD_NO_SCALE|FT_LOAD_NO_HINTING|FT_LOAD_NO_BITMAP)==0 &&
+       face->glyph->format==FT_GLYPH_FORMAT_OUTLINE){
+     state.scale=_size/face->units_per_EM;
+     FT_Outline_Decompose(&face->glyph->outline,&funcs,&state);
+     if(state.open)
+      CGPathCloseSubpath(path);
+    }
+   }
+   return path;
+}
+
 @end
