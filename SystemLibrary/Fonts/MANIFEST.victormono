@@ -1,0 +1,8 @@
+# Victor Mono 1.5.6 (SIL Open Font License 1.1): the variable faces
+# (upright, italic, oblique) as its repository publishes them, at the
+# tag's commit, installed unchanged, with their license.
+git https://github.com/rubjo/victor-mono
+commit 9869246020a516dca042fad80023c81f81282336
+name victor-mono
+path public/VictorMonoVariable.zip
+path LICENSE

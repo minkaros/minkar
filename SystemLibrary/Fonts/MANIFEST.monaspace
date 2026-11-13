@@ -1,0 +1,8 @@
+# Monaspace 1.400 (SIL Open Font License 1.1): its five variable families
+# (Argon, Krypton, Neon, Radon, Xenon), at the tag's commit, installed
+# unchanged, with their license.
+git https://github.com/githubnext/monaspace
+commit f31794b6e9e65698a062262e2f826f679dcb7070
+name monaspace
+path fonts/Variable?Fonts
+path LICENSE

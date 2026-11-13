@@ -1,0 +1,8 @@
+# Gotico-Antiqua (ANRT, SIL Open Font License 1.1): its sixteen revivals
+# of fifteenth-century types, at a fixed commit, installed unchanged, with
+# their license.
+git https://github.com/anrt-type/GoticoAntiqua
+commit e13b3f5a59f8bcccd743190da50838b55352f479
+name gotico-antiqua
+path fonts
+path LICENSE.txt

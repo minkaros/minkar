@@ -19,6 +19,12 @@
 # Gelasio (OFL 1.1) and TeX Gyre Pagella (GUST). The names asked for lead
 # to them through the table in AppKit's O2Font_FT.m; users never see the
 # names asked for.
+#
+# More free families the user chose (2026-11-13), each at the commit its
+# MANIFEST pins, installed unchanged with its license (all SIL Open Font
+# License 1.1): Victor Mono and Monaspace (Argon, Krypton, Neon, Radon,
+# Xenon), fixed-pitch; Libre Caslon Condensed; and ANRT's Gotico-Antiqua
+# revivals of fifteenth-century types.
 
 SUBDIR =
 
@@ -42,6 +48,7 @@ DEJAVU =	DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSans-Oblique.ttf DejaVuSans-Bo
 		DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf DejaVuSansMono-Oblique.ttf \
 		DejaVuSansMono-BoldOblique.ttf
 GELASIO =	'Gelasio[wght].ttf' 'Gelasio-Italic[wght].ttf'
+MONASPACE =	Argon Krypton Neon Radon Xenon
 PAGELLA =	texgyrepagella-regular.otf texgyrepagella-bold.otf texgyrepagella-italic.otf \
 		texgyrepagella-bolditalic.otf
 
@@ -77,5 +84,29 @@ install-fonts: .PHONY
 		install -C -o 0 -g 0 -m 0644 $$src/fonts/opentype/public/tex-gyre/$$f ${DIR}/ || exit 1; \
 	done && \
 	install -C -o 0 -g 0 -m 0644 $$src/doc/fonts/tex-gyre/GUST-FONT-LICENSE.txt ${DIR}/TeXGyre-LICENSE.txt
+
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.victormono ${CACHE}) && \
+	python3 -I -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+	    $$src/public/VictorMonoVariable.zip $$src/unpacked && \
+	for f in VictorMonoVariable.ttf VictorMonoVariableItalic.ttf VictorMonoVariableOblique.ttf; do \
+		install -C -o 0 -g 0 -m 0644 $$src/unpacked/$$f ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/VictorMono-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.monaspace ${CACHE}) && \
+	for f in ${MONASPACE}; do \
+		install -C -o 0 -g 0 -m 0644 "$$src/fonts/Variable Fonts/Monaspace $$f/Monaspace $$f Var.ttf" \
+		    "${DIR}/Monaspace $$f Var.ttf" || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Monaspace-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.caslon ${CACHE}) && \
+	for f in 'LibreCaslonCondensed[wght].ttf' 'LibreCaslonCondensed-Italic[wght].ttf'; do \
+		install -C -o 0 -g 0 -m 0644 "$$src/fonts/variable/$$f" ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/LibreCaslonCondensed-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.gotico ${CACHE}) && \
+	for f in "$$src"/fonts/*.otf; do \
+		install -C -o 0 -g 0 -m 0644 "$$f" ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/LICENSE.txt ${DIR}/GoticoAntiqua-LICENSE.txt
 
 .include <bsd.prog.mk>

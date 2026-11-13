@@ -1,0 +1,8 @@
+# Libre Caslon Condensed (SIL Open Font License 1.1): the variable faces
+# (upright and italic) at a fixed commit, installed unchanged, with their
+# license.
+git https://github.com/ertekinno/libre-caslon-condensed
+commit fe610911976af0ac73e15f9f5cdbc83fc42efdbd
+name libre-caslon-condensed
+path fonts/variable
+path OFL.txt
