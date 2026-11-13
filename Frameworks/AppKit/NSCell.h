@@ -279,6 +279,9 @@ enum {
 @property (getter=isHighlighted) BOOL highlighted;
 @property (getter=isScrollable) BOOL scrollable;
 @property (getter=isSelectable) BOOL selectable;
+- (NSRect)focusRingMaskBoundsForFrame:(NSRect)cellFrame inView:(NSView *)controlView;
+- (void)drawFocusRingMaskWithFrame:(NSRect)cellFrame inView:(NSView *)controlView;
+
 @end
 
 /* Minkar: the events a cell sends its action on, and its contextual menu. */

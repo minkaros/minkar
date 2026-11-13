@@ -1145,4 +1145,16 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
    NSUnimplementedMethod();
 }
 
+/* Minkar: a bordered button's ring follows its bezel, rounded as drawn. */
+-(void)drawFocusRingMaskWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+   NSRect frame=[self focusRingMaskBoundsForFrame:cellFrame inView:controlView];
+
+   if(![self isBordered]){
+    NSRectFill(frame);
+    return;
+   }
+   CGFloat radius=MIN(4,MIN(frame.size.width,frame.size.height)/2);
+   [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,1,1) xRadius:radius yRadius:radius] fill];
+}
+
 @end

@@ -1057,4 +1057,14 @@ static char sendMaskKey, menuKey, expansionKey;
 -(void)setAllowsExpansionToolTips:(BOOL)flag {
    objc_setAssociatedObject(self,&expansionKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
 }
+/* Minkar: the shape the focus ring follows (API 10.7): the cell's frame,
+   filled in the current color (drawn inside NSSetFocusRingStyle). */
+-(NSRect)focusRingMaskBoundsForFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+   return cellFrame;
+}
+
+-(void)drawFocusRingMaskWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+   NSRectFill([self focusRingMaskBoundsForFrame:cellFrame inView:controlView]);
+}
+
 @end

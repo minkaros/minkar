@@ -423,6 +423,10 @@ static void drawHostedLayerTree(NSView *self,CGContextRef context) {
    }
    CGRect   bounds=[layer bounds];
 
+   /* An opaque view is drawn without what is behind it: the layers it
+      hosts replace its pixels, also where they leave them clear. */
+   if([self isOpaque])
+    CGContextClearRect(context,NSRectToCGRect(self->_bounds));
    CGContextSaveGState(context);
    if([self isFlipped]){
     CGContextTranslateCTM(context,0,NSMaxY(self->_bounds)+NSMinY(self->_bounds));
