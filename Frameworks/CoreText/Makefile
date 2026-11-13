@@ -54,7 +54,17 @@ fontresources:
 	90-synthetic.conf
 	ln -sf /System/Library/Frameworks/CoreText.framework/Resources/${f} \
 		${SYSROOT_DIR}/etc/fonts/conf.d/
+	mkdir -p ${FRAMEWORK_DIR}/Versions/A/Resources/conf.d
+	ln -sf ../${f} ${FRAMEWORK_DIR}/Versions/A/Resources/conf.d/
 .endfor
+	# CoreText's own configuration (CTFontManager.c): the rules from its
+	# resources, not /etc/fonts, which a sandboxed process may not read;
+	# its cache is the user's (added in code).
+	sed -e 's|<include ignore_missing="yes">/etc/fonts/conf.d</include>|<include ignore_missing="yes">/System/Library/Frameworks/CoreText.framework/Resources/conf.d</include>|' \
+	    -e '/<cachedir/d' -e '/the following element will be removed in the future/d' \
+	    ${.CURDIR}/fontconfig/fonts.conf > ${FRAMEWORK_DIR}/Versions/A/Resources/fonts.conf.new
+	grep -q 'CoreText.framework/Resources/conf.d' ${FRAMEWORK_DIR}/Versions/A/Resources/fonts.conf.new
+	mv ${FRAMEWORK_DIR}/Versions/A/Resources/fonts.conf.new ${FRAMEWORK_DIR}/Versions/A/Resources/fonts.conf
 
 installresources: std_install_hook fontresources
 

@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 const CFStringRef kCTFontManagerErrorDomain = CFSTR("com.apple.CoreText.CTFontManagerErrorDomain");
 const CFStringRef kCTFontManagerErrorFontURLsKey = CFSTR("CTFontManagerErrorFontURLs");
@@ -18,11 +21,47 @@ const CFStringRef kCTFontManagerErrorFontURLsKey = CFSTR("CTFontManagerErrorFont
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static CFMutableSetRef registered;	/* the paths registered */
 
+/* CoreText's fontconfig configuration: the one in its resources (which
+   any process, sandboxed or not, may read), with its cache in the user's
+   cache directory, where sandbox profiles let font caches be read
+   (com.apple.FontRegistry). A process that may not write there reads the
+   cache another wrote. FONTCONFIG_FILE, when set, is used instead. */
+static const char kConfigFile[] = "/System/Library/Frameworks/CoreText.framework/Resources/fonts.conf";
+
+static FcConfig *loadConfig(void) {
+    if (getenv("FONTCONFIG_FILE") != NULL)
+        return FcInitLoadConfigAndFonts();
+
+    FcConfig *config = FcConfigCreate();
+    if (config == NULL)
+        return NULL;
+    char cache[PATH_MAX] = "";
+    size_t n = confstr(_CS_DARWIN_USER_CACHE_DIR, cache, sizeof(cache));
+    if (n > 0 && n < sizeof(cache) - 64) {
+        strlcat(cache, "com.apple.FontRegistry", sizeof(cache));
+        mkdir(cache, 0700);
+        strlcat(cache, "/fontconfig", sizeof(cache));
+        mkdir(cache, 0700);
+    } else
+        cache[0] = '\0';
+
+    char xml[2 * PATH_MAX + 256];
+    snprintf(xml, sizeof(xml),
+        "<?xml version=\"1.0\"?><fontconfig><include>%s</include>%s%s%s</fontconfig>", kConfigFile,
+        cache[0] ? "<cachedir>" : "", cache, cache[0] ? "</cachedir>" : "");
+    if (!FcConfigParseAndLoadFromMemory(config, (const FcChar8 *)xml, FcTrue) || !FcConfigBuildFonts(config)) {
+        FcConfigDestroy(config);
+        return FcInitLoadConfigAndFonts();
+    }
+    FcConfigSetCurrent(config);
+    return config;
+}
+
 void *_CTFontManagerSharedFontConfig(void) {
     static FcConfig *config;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        config = FcInitLoadConfigAndFonts();
+        config = loadConfig();
         registered = CFSetCreateMutable(kCFAllocatorDefault, 0, &kCFTypeSetCallBacks);
     });
     return config;
