@@ -18,6 +18,8 @@
 	<string>1</string>
 	<key>NSPrefPaneIconLabel</key>
 	<string>Date &amp; Time</string>
+	<key>MinkarPrefPaneSystemIcon</key>
+	<string>prefs/preferences-system-time</string>
 	<key>MinkarPrefPaneIconColor</key>
 	<string>0.85 0.35 0.30</string>
 	<key>NSPrincipalClass</key>

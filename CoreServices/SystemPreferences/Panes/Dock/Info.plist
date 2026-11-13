@@ -18,6 +18,8 @@
 	<string>1</string>
 	<key>NSPrefPaneIconLabel</key>
 	<string>Dock</string>
+	<key>MinkarPrefPaneSystemIcon</key>
+	<string>prefs/preferences-system-windows</string>
 	<key>MinkarPrefPaneIconColor</key>
 	<string>0.25 0.25 0.30</string>
 	<key>NSPrincipalClass</key>

@@ -9,7 +9,8 @@
  * from its bundle through NSPreferencePane. The window takes the pane's
  * size; the panes' order is the reference platform's for those it knows.
  *
- * Atlas's provisional look: a pane with no icon file gets a drawn one, a
+ * Each of Minkar's panes shows its icon from the system's icon package
+ * (MinkarPrefPaneSystemIcon); a pane with no icon gets a drawn one, a
  * rounded square in its MinkarPrefPaneIconColor with its label's initial.
  */
 
@@ -42,6 +43,15 @@ static const CGFloat kGridWidth = 668;
 
 - (NSImage *)loadIcon
 {
+    /* Minkar's own panes name their icon in the system's icon package
+       (/System/Library/Icons/<group>/<name>.png); others bring theirs. */
+    NSString *system = [_bundle objectForInfoDictionaryKey:@"MinkarPrefPaneSystemIcon"];
+    if ([system isKindOfClass:[NSString class]] && [system length] && [system rangeOfString:@".."].location == NSNotFound) {
+        NSString *path = [NSString stringWithFormat:@"/System/Library/Icons/%@.png", system];
+        NSImage *image = [[NSImage alloc] initWithContentsOfFile:path];
+        if (image != nil)
+            return image;
+    }
     NSString *file = [_bundle objectForInfoDictionaryKey:@"NSPrefPaneIconFile"];
     if ([file length]) {
         NSString *path = [_bundle pathForResource:[file stringByDeletingPathExtension] ofType:[file pathExtension]];

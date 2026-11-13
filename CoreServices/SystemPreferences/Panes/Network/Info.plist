@@ -18,6 +18,8 @@
 	<string>1</string>
 	<key>NSPrefPaneIconLabel</key>
 	<string>Network</string>
+	<key>MinkarPrefPaneSystemIcon</key>
+	<string>prefs/preferences-system-network</string>
 	<key>MinkarPrefPaneIconColor</key>
 	<string>0.35 0.60 0.85</string>
 	<key>NSPrincipalClass</key>

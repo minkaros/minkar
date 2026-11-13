@@ -18,6 +18,8 @@
 	<string>1</string>
 	<key>NSPrefPaneIconLabel</key>
 	<string>Keyboard</string>
+	<key>MinkarPrefPaneSystemIcon</key>
+	<string>prefs/preferences-desktop-keyboard</string>
 	<key>MinkarPrefPaneIconColor</key>
 	<string>0.55 0.55 0.60</string>
 	<key>NSPrincipalClass</key>
