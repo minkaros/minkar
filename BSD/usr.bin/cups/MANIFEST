@@ -1,0 +1,6 @@
+# CUPS 2.4.20 (Apache-2.0 with the exceptions in its NOTICE), OpenPrinting's
+# release of 5 Oct 2026; the tarball's signature checked against Zdenek
+# Dohnal's key (7082A0A50A2E92640F3880E0E4522DCC9B246FF7).
+url https://github.com/OpenPrinting/cups/releases/download/v2.4.20/cups-2.4.20-source.tar.gz
+sha256 ab4d9cd7f3e58060091d2b24972223d6401675f11c49b65abf4f6ef31dea22ff
+version 2.4.20
