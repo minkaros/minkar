@@ -782,11 +782,13 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
 
 -(void)renderInContext:(CGContextRef)context {
    [treeLock() lock];
-   [self _renderInContextLocked:context];
+   [self _renderInContextLocked:context flipped:NO];
    [treeLock() unlock];
 }
 
--(void)_renderInContextLocked:(CGContextRef)context {
+/* flipped: an ancestor's geometryFlipped turned y down here, so contents
+   are drawn turned back, to show upright. */
+-(void)_renderInContextLocked:(CGContextRef)context flipped:(BOOL)flipped {
    CGPathRef shape;
 
    if(_hidden || context==NULL)
@@ -807,7 +809,17 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
    CGImageRef image=[self _copyContentsImage];
    if(image!=NULL){
     CGSize size=CGSizeMake(CGImageGetWidth(image)/_contentsScale,CGImageGetHeight(image)/_contentsScale);
-    CGContextDrawImage(context,[self _contentsFrameForSize:size],image);
+    CGRect frame=[self _contentsFrameForSize:size];
+
+    if(flipped){
+     CGContextSaveGState(context);
+     CGContextTranslateCTM(context,0,CGRectGetMinY(frame)+CGRectGetMaxY(frame));
+     CGContextScaleCTM(context,1,-1);
+     CGContextDrawImage(context,frame,image);
+     CGContextRestoreGState(context);
+    }
+    else
+     CGContextDrawImage(context,frame,image);
     CGImageRelease(image);
    }
    else
@@ -823,7 +835,7 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
    for(CALayer *child in ordered){
     CGContextSaveGState(context);
     CGContextConcatCTM(context,[child _toSuperlayer]);
-    [child _renderInContextLocked:context];
+    [child _renderInContextLocked:context flipped:flipped!=_geometryFlipped];
     CGContextRestoreGState(context);
    }
    if(_borderWidth>0 && _borderColor!=NULL){

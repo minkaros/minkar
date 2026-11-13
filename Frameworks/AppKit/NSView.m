@@ -2085,7 +2085,9 @@ static void clearNeedsDisplay(NSView *self){
 }
 
 static NSGraphicsContext *graphicsContextForView(NSView *view){
-   if(view->_layer!=nil){
+   /* Minkar: a layer tree the view hosts is drawn into the window; only
+      layer-backed views (and surface layers) draw into a bitmap. */
+   if(view->_layer!=nil && (NSViewLayersEnabled || isSurfaceLayer(view->_layer))){
     NSRect             frame=[view frame];
     size_t             width=frame.size.width;
     size_t             height=frame.size.height;
