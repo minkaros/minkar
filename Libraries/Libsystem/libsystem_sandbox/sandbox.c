@@ -156,6 +156,33 @@ void sandbox_free_error(char *errorbuf) {
 	free(errorbuf);
 }
 
+/*
+ * Minkar's services under the reference platform's names, as profiles
+ * written for it allow them (invisible aliases, decided 10 Nov 2026): a
+ * service is allowed when the profile allows it by any of its names.
+ */
+static const char *const service_aliases[][4] = {
+	{ "org.minkar.WindowServer", "com.apple.windowserver.active", "com.apple.CARenderServer", NULL },
+	{ "org.minkar.coreservices.launchservicesd", "com.apple.coreservices.launchservicesd", "com.apple.lsd.mapdb", NULL },
+	{ "org.minkar.iosurfaced", "com.apple.CARenderServer", NULL, NULL },
+	{ "org.minkar.logd", "com.apple.logd", "com.apple.system.logger", NULL },
+	{ "org.minkar.pboard", "com.apple.pasteboard.1", NULL, NULL },
+	{ "org.minkar.fseventsd", "com.apple.FSEvents", NULL, NULL },
+};
+
+static int check_one(pid_t pid, const char *operation, int kind, const char *name, int *denied) {
+	struct sb_check_args args;
+	memset(&args, 0, sizeof(args));
+	args.pid = pid;
+	args.name_kind = kind;
+	args.operation = (uint64_t)(uintptr_t)operation;
+	args.name = (uint64_t)(uintptr_t)name;
+	if (__mac_syscall(SB_POLICY_NAME, SB_CALL_CHECK, &args) != 0)
+		return -1;
+	*denied = args.sandboxed && args.result == SB_DENY;
+	return 0;
+}
+
 int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...) {
 	const char *name = NULL;
 	int kind = -1;
@@ -189,17 +216,20 @@ int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type typ
 		errno = EINVAL;
 		return -1;
 	}
-	struct sb_check_args args;
-	memset(&args, 0, sizeof(args));
-	args.pid = pid;
-	args.name_kind = kind;
-	args.operation = (uint64_t)(uintptr_t)operation;
-	args.name = (uint64_t)(uintptr_t)name;
-	if (__mac_syscall(SB_POLICY_NAME, SB_CALL_CHECK, &args) != 0) {
+	int denied = 0;
+	if (check_one(pid, operation, kind, name, &denied) != 0) {
 		/* No policy loaded: no process is sandboxed. */
 		if (errno == ENOENT || errno == ENOSYS || errno == EINVAL)
 			return 0;
 		return -1;
 	}
-	return args.sandboxed && args.result == SB_DENY ? 1 : 0;
+	if (denied && kind == SBN_GLOBAL_NAME && name != NULL)
+		for (size_t i = 0; i < sizeof(service_aliases) / sizeof(service_aliases[0]); i++) {
+			if (strcmp(service_aliases[i][0], name) != 0)
+				continue;
+			for (int j = 1; j < 4 && service_aliases[i][j] != NULL && denied; j++)
+				if (check_one(pid, operation, kind, service_aliases[i][j], &denied) != 0)
+					return -1;
+		}
+	return denied ? 1 : 0;
 }
