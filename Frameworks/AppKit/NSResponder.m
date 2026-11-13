@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSUserActivity.h>
 #import <objc/runtime.h>
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSKeyboardBindingManager.h>
@@ -75,6 +76,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    for(i=0;i<icount;i++){
     NSEvent      *event=[events objectAtIndex:i];
     NSString     *string=[event charactersIgnoringModifiers];
+
+    /* Minkar: a view that is a text input client gets its keys through its
+       input context (insertText:replacementRange:, doCommandBySelector:),
+       as on the reference platform; the older text calls are for others. */
+    if([self conformsToProtocol:@protocol(NSTextInputClient)] && [self respondsToSelector:@selector(inputContext)]){
+     NSTextInputContext *context=[(id)self inputContext];
+
+     if(context!=nil && [context handleEvent:event])
+      continue;
+    }
 
     NSKeyboardBinding *keyBinding=[[NSKeyboardBindingManager defaultKeyBindingManager] keyBindingWithString:string modifierFlags:[event modifierFlags]];
     NSArray      *selectorNames=[keyBinding selectorNames];
