@@ -116,7 +116,7 @@ SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation
 QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D
-CoreVideo: OpenGL Foundation
+CoreVideo: OpenGL Foundation CoreGraphics IOSurface
 AppKit: CoreData QuartzCore ApplicationServices CoreServices
 UserNotifications: Foundation
 ServiceManagement: CoreFoundation Security/minkar

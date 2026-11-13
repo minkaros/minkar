@@ -80,3 +80,20 @@ void CVDisplayLinkRelease(CVDisplayLinkRef self) {
 }
 
 @end
+
+/* Minkar's display link runs at 60 Hz on the main display. */
+CGDirectDisplayID CVDisplayLinkGetCurrentCGDisplay(CVDisplayLinkRef self) {
+    return CGMainDisplayID();
+}
+
+CVReturn CVDisplayLinkSetCurrentCGDisplay(CVDisplayLinkRef self, CGDirectDisplayID displayID) {
+    return displayID == CGMainDisplayID() ? kCVReturnSuccess : kCVReturnInvalidDisplay;
+}
+
+CVTime CVDisplayLinkGetNominalOutputVideoRefreshPeriod(CVDisplayLinkRef self) {
+    return (CVTime){ 1, 60, 0 };
+}
+
+double CVDisplayLinkGetActualOutputVideoRefreshPeriod(CVDisplayLinkRef self) {
+    return 1.0 / 60.0;
+}

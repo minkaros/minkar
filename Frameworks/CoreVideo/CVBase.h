@@ -29,3 +29,14 @@ typedef struct {
     uint64_t flags;
     uint64_t reserved;
 } CVTimeStamp;
+
+/* A time as a rational number of seconds (CVDisplayLink's periods). */
+typedef struct {
+    int64_t timeValue;
+    int32_t timeScale;
+    int32_t flags;
+} CVTime;
+
+enum {
+    kCVTimeIsIndefinite = 1 << 0
+};

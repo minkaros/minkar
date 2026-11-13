@@ -9,7 +9,7 @@ SUBDIR =
 MK_INSTALLLIB = no
 MK_WERROR = no
 
-SRCS =		CVDisplayLink.m CVConstants.c
+SRCS =		CVDisplayLink.m CVConstants.c CVPixelBuffer.c
 HEADERS =	CVBase.h CVDisplayLink.h CVPixelBuffer.h CVReturn.h CoreVideo.h
 RESOURCES =	Info.plist
 
@@ -18,7 +18,7 @@ INCLUDE_ROOT != mkdir -p ${.OBJDIR}/include-root && \
 	ln -sfn ${.CURDIR} ${.OBJDIR}/include-root/CoreVideo && \
 	echo ${.OBJDIR}/include-root
 CFLAGS =	-I${INCLUDE_ROOT} -std=gnu17 -Wno-nullability-completeness
-LDFLAGS =	-framework OpenGL -framework Foundation -framework CoreFoundation -lobjc
+LDFLAGS =	-framework OpenGL -framework Foundation -framework CoreFoundation -framework CoreGraphics -framework IOSurface -lobjc
 
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

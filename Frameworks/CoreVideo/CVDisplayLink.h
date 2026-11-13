@@ -5,6 +5,7 @@
 #import <CoreVideo/CVBase.h>
 #import <CoreVideo/CVReturn.h>
 #import <OpenGL/OpenGL.h>
+#include <CoreGraphics/CGDirectDisplay.h>
 
 /* Usable from C, as the reference platform's: an object pointer in
    Objective-C, an opaque one in C. */
@@ -22,6 +23,10 @@ COREVIDEO_EXPORT CVReturn CVDisplayLinkSetOutputCallback(CVDisplayLinkRef self, 
 COREVIDEO_EXPORT CVReturn CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(CVDisplayLinkRef self, CGLContextObj cglContext, CGLPixelFormatObj cglPixelFormat);
 
 COREVIDEO_EXPORT CVReturn CVDisplayLinkStart(CVDisplayLinkRef self);
+COREVIDEO_EXPORT CGDirectDisplayID CVDisplayLinkGetCurrentCGDisplay(CVDisplayLinkRef self);
+COREVIDEO_EXPORT CVReturn CVDisplayLinkSetCurrentCGDisplay(CVDisplayLinkRef self, CGDirectDisplayID displayID);
+COREVIDEO_EXPORT CVTime CVDisplayLinkGetNominalOutputVideoRefreshPeriod(CVDisplayLinkRef self);
+COREVIDEO_EXPORT double CVDisplayLinkGetActualOutputVideoRefreshPeriod(CVDisplayLinkRef self);
 COREVIDEO_EXPORT CVReturn CVDisplayLinkStop(CVDisplayLinkRef self);
 COREVIDEO_EXPORT Boolean CVDisplayLinkIsRunning(CVDisplayLinkRef self);
 
