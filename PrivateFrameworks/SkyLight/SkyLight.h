@@ -66,6 +66,8 @@ SLSConnectionID SLSMainConnectionID(void);
  */
 int SLSSetDenyWindowServerConnections(int deny);
 void SLSShutdownServerConnections(void);
+/* Whether this process refused or closed its connection itself. */
+int SLSServerConnectionsDenied(void);
 
 /* The server's port (MACH_PORT_NULL when there is none), for the other
  * client functions. */

@@ -292,6 +292,10 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
         int err = SLSReceiveEvents(events, kSLSMaxEvents, &n, 1);
         /* The window server went away: as on the reference platform, the
          * app ends with it (loginwindow starts the session's apps again). */
+        /* Minkar: unless the app closed it itself (a browser's content
+         * process, CGSShutdownServerConnections): then no events come. */
+        if(err == kSLSErrorInvalidConnection && SLSServerConnectionsDenied())
+            return;
         if(err == kSLSErrorInvalidConnection) {
             fprintf(stderr, "%s: the window server went away; exiting\n", getprogname());
             _exit(1);

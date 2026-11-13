@@ -129,6 +129,15 @@ SLSSetDenyWindowServerConnections(int deny)
 	return error;
 }
 
+int
+SLSServerConnectionsDenied(void)
+{
+	pthread_mutex_lock(&stateLock);
+	int result = denied;
+	pthread_mutex_unlock(&stateLock);
+	return result;
+}
+
 /* The server is told by the client port's death, and frees what the
  * connection held. */
 void
