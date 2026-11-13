@@ -52,6 +52,10 @@ CORETEXT_EXPORT void CTFontManagerUnregisterFontURLs(CFArrayRef fontURLs, CTFont
 CORETEXT_EXPORT CFArrayRef CTFontManagerCopyAvailableFontFamilyNames(void);
 CORETEXT_EXPORT CFArrayRef CTFontManagerCopyAvailablePostScriptNames(void);
 
+/* The faces of a font file, and a face in memory (a web font). */
+CORETEXT_EXPORT CFArrayRef CTFontManagerCreateFontDescriptorsFromURL(CFURLRef fileURL);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontManagerCreateFontDescriptorFromData(CFDataRef data);
+
 /* Minkar: the fontconfig configuration every font lookup uses (an
    FcConfig *), with the fonts registered for the process in it. */
 CORETEXT_EXPORT void *_CTFontManagerSharedFontConfig(void);

@@ -15,13 +15,10 @@ O2FontRef O2FontCreateWithFontName_platform(NSString *name) {
     return [[O2Font_FT alloc] initWithFontName:name];
 }
 
+/* Minkar: a font made from data is the same kind of font as one made
+ * by name, so CoreText and AppKit can lay out and draw it. */
 O2FontRef O2FontCreateWithDataProvider_platform(O2DataProviderRef provider) {
-#ifdef FREETYPE_PRESENT
-    return [[O2Font_freetype alloc] initWithDataProvider:provider];
-#else
-    return nil;
-#endif
-
+    return [[O2Font_FT alloc] initWithDataProvider:provider];
 }
 
 @implementation O2Font(FreeType)
@@ -179,6 +176,57 @@ static NSString *substituteFontName(NSString *name) {
    return [NSString stringWithUTF8String:bold?(italic?faces->boldItalic:faces->bold):(italic?faces->italic:faces->regular)];
 }
 
+/* The metrics and character map of the face just opened. */
+static void readFace(O2Font_FT *self,NSString *name) {
+   FT_Face face=self->_face;
+
+   FT_Select_Charmap(face, FT_ENCODING_UNICODE);
+
+   if(!(face->face_flags&FT_FACE_FLAG_SCALABLE))
+    NSLog(@"FreeType font face is not scalable: %@", name);
+
+   self->_unitsPerEm=(float)face->units_per_EM;
+   self->_ascent=face->ascender;
+   self->_descent=face->descender;
+   self->_leading=0;
+   self->_capHeight=face->height;
+   self->_xHeight=face->height;
+   self->_italicAngle=0;
+   self->_stemV=0;
+   self->_bbox.origin.x=face->bbox.xMin;
+   self->_bbox.origin.y=face->bbox.yMin;
+   self->_bbox.size.width=face->bbox.xMax-face->bbox.xMin;
+   self->_bbox.size.height=face->bbox.yMax-face->bbox.yMin;
+   self->_numberOfGlyphs=face->num_glyphs;
+   self->_advances=NULL;
+}
+
+/* Minkar: a font read from memory (a web font, a font in a document);
+ * its name is the face's PostScript name. */
+-initWithDataProvider:(O2DataProviderRef)provider {
+   CFDataRef   data;
+   const char *psName;
+
+   self=[super initWithDataProvider:provider];
+   data=O2DataProviderCopyData(provider);
+   if(data==NULL || CFDataGetLength(data)==0){
+    if(data!=NULL)
+     CFRelease(data);
+    [self release];
+    return nil;
+   }
+   _data=(NSData *)data;
+   if(FT_New_Memory_Face(O2FontSharedFreeTypeLibrary(),[_data bytes],[_data length],0,&_face)!=0){
+    _face=NULL;
+    [self release];
+    return nil;
+   }
+   psName=FT_Get_Postscript_Name(_face);
+   _name=[[NSString alloc] initWithUTF8String:(psName!=NULL)?psName:""];
+   readFace(self,_name);
+   return self;
+}
+
 -initWithFontName:(NSString *)name {
    self = [super initWithFontName:name];
 
@@ -200,36 +248,100 @@ static NSString *substituteFontName(NSString *name) {
 
    FT_Error ret=FT_New_Face(O2FontSharedFreeTypeLibrary(),[filename fileSystemRepresentation],0,&_face);
 
-   if(ret!=0)
+   if(ret!=0){
     NSLog(@"FT_New_Face returned %d",ret);
-
-   FT_Select_Charmap(_face, FT_ENCODING_UNICODE);
- //  FT_Set_Char_Size(_face,0,2048*64,72,72);
-
-   if(!(_face->face_flags&FT_FACE_FLAG_SCALABLE))
-    NSLog(@"FreeType font face is not scalable: %@", name);
-
-   _unitsPerEm=(float)_face->units_per_EM;
-   _ascent=_face->ascender;
-   _descent=_face->descender;
-   _leading=0;
-   _capHeight=_face->height;
-   _xHeight=_face->height;
-   _italicAngle=0;
-   _stemV=0;
-   _bbox.origin.x=_face->bbox.xMin;
-   _bbox.origin.y=_face->bbox.yMin;
-   _bbox.size.width=_face->bbox.xMax-_face->bbox.xMin;
-   _bbox.size.height=_face->bbox.yMax-_face->bbox.yMin;
-   _numberOfGlyphs=_face->num_glyphs;
-   _advances=NULL;
-
+    [self release];
+    return nil;
+   }
+   _path=[filename copy];
+   readFace(self,name);
    return self;
 }
 
 -(void)dealloc {
-   FT_Done_Face(_face);
+   if(_face!=NULL)
+    FT_Done_Face(_face);
+   [_path release];
+   [_data release];
+   [_variations release];
    [super dealloc];
+}
+
+/* Minkar: each glyph's box in font units, from its unscaled outline. */
+-(BOOL)getGlyphBBoxes:(const O2Glyph *)glyphs count:(size_t)count rects:(O2Rect *)rects {
+   if(_face==NULL)
+    return NO;
+   for(size_t i=0;i<count;i++){
+    if(FT_Load_Glyph(_face,glyphs[i],FT_LOAD_NO_SCALE|FT_LOAD_NO_HINTING|FT_LOAD_NO_BITMAP)!=0){
+     rects[i]=O2RectZero;
+     continue;
+    }
+    FT_Glyph_Metrics *m=&_face->glyph->metrics;
+    rects[i]=O2RectMake(m->horiBearingX,m->horiBearingY-m->height,m->width,m->height);
+   }
+   /* The face's size is set again before the next scaled load. */
+   _pixelSize=0;
+   return YES;
+}
+
+/* Minkar: an instance of a variable font. The keys are the axes' names
+ * (CoreGraphics) or their tags as numbers (CoreText); axes not given
+ * keep their default. */
+-(O2FontRef)copyWithVariations:(NSDictionary *)variations {
+   FT_MM_Var *mm=NULL;
+   O2Font_FT *copy;
+   FT_Face    face=NULL;
+   FT_Error   error;
+
+   if(_face==NULL || !FT_HAS_MULTIPLE_MASTERS(_face) || [variations count]==0)
+    return [self retain];
+   if(_path!=nil)
+    error=FT_New_Face(O2FontSharedFreeTypeLibrary(),[_path fileSystemRepresentation],0,&face);
+   else
+    error=FT_New_Memory_Face(O2FontSharedFreeTypeLibrary(),[_data bytes],[_data length],0,&face);
+   if(error!=0)
+    return [self retain];
+   if(FT_Get_MM_Var(face,&mm)!=0){
+    FT_Done_Face(face);
+    return [self retain];
+   }
+
+   FT_Fixed            coords[mm->num_axis>0?mm->num_axis:1];
+   NSMutableDictionary *applied=[NSMutableDictionary dictionary];
+
+   for(FT_UInt i=0;i<mm->num_axis;i++){
+    FT_Var_Axis *axis=&mm->axis[i];
+    NSString    *axisName=[NSString stringWithUTF8String:(axis->name!=NULL)?axis->name:""];
+    id           value=[variations objectForKey:axisName];
+
+    if(value==nil)
+     value=[variations objectForKey:[NSNumber numberWithUnsignedInt:(unsigned)axis->tag]];
+    coords[i]=axis->def;
+    if([value respondsToSelector:@selector(doubleValue)]){
+     double v=[value doubleValue];
+     double lo=axis->minimum/65536.0,hi=axis->maximum/65536.0;
+
+     v=(v<lo)?lo:(v>hi)?hi:v;
+     coords[i]=(FT_Fixed)(v*65536.0);
+    }
+    [applied setObject:[NSNumber numberWithDouble:coords[i]/65536.0] forKey:axisName];
+   }
+   FT_Set_Var_Design_Coordinates(face,mm->num_axis,coords);
+   FT_Done_MM_Var(O2FontSharedFreeTypeLibrary(),mm);
+
+   copy=NSAllocateObject([O2Font_FT class],0,NULL);
+   copy->_name=[_name copy];
+   copy->_provider=(_provider!=NULL)?O2DataProviderRetain(_provider):NULL;
+   copy->_face=face;
+   copy->_path=[_path copy];
+   copy->_data=[_data retain];
+   copy->_variations=[applied copy];
+   readFace(copy,_name);
+   return copy;
+}
+
+-(NSDictionary *)variations {
+   return _variations;
 }
 
 -(FT_Face)face {

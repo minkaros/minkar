@@ -14,6 +14,7 @@
 
 #include <CoreText/CoreTextExport.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreGraphics/CGGeometry.h>
 
 typedef const struct __CTFontDescriptor *CTFontDescriptorRef;
 
@@ -77,5 +78,18 @@ CORETEXT_EXPORT const CFStringRef kCTFontPostScriptNameKey;
 
 /* The font manager: posted when fonts are registered or unregistered. */
 CORETEXT_EXPORT const CFStringRef kCTFontManagerRegisteredFontsChangedNotification;
+
+/* Descriptors: an attributes dictionary, and the fonts matching it. */
+CORETEXT_EXPORT CFTypeID CTFontDescriptorGetTypeID(void);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontDescriptorCreateWithNameAndSize(CFStringRef name, CGFloat size);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionaryRef attributes);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontDescriptorCreateCopyWithAttributes(CTFontDescriptorRef original, CFDictionaryRef attributes);
+CORETEXT_EXPORT CFDictionaryRef CTFontDescriptorCopyAttributes(CTFontDescriptorRef descriptor);
+CORETEXT_EXPORT CFTypeRef CTFontDescriptorCopyAttribute(CTFontDescriptorRef descriptor, CFStringRef attribute);
+CORETEXT_EXPORT CFTypeRef CTFontDescriptorCopyLocalizedAttribute(CTFontDescriptorRef descriptor, CFStringRef attribute, CFStringRef *language);
+/* Every face with the descriptor's names and symbolic traits (NULL for
+   none), or the closest one. */
+CORETEXT_EXPORT CFArrayRef CTFontDescriptorCreateMatchingFontDescriptors(CTFontDescriptorRef descriptor, CFSetRef mandatoryAttributes);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontDescriptorCreateMatchingFontDescriptor(CTFontDescriptorRef descriptor, CFSetRef mandatoryAttributes);
 
 #endif

@@ -18,6 +18,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGAffineTransform.h>
 #import <CoreGraphics/CGFont.h>
 #import <CoreGraphics/CGPath.h>
+#import <CoreGraphics/CGContext.h>
+#import <CoreText/CTFontDescriptor.h>
 
 /* A CF type in the API; CoreText's KTFont objects behind it. */
 typedef const struct __CTFont *CTFontRef;
@@ -151,3 +153,30 @@ CORETEXT_EXPORT CFStringRef CTFontCopyDisplayName(CTFontRef font);
 CORETEXT_EXPORT CGFontRef CTFontCopyGraphicsFont(CTFontRef font, CT_FONT_ATTRIBUTES *attributes);
 CORETEXT_EXPORT CGFloat CTFontGetUnitsPerEm(CTFontRef font);
 CORETEXT_EXPORT CFTypeID CTFontGetTypeID(void);
+
+/* Fonts from descriptors, and what describes a font. */
+CORETEXT_EXPORT CTFontRef CTFontCreateWithFontDescriptor(CTFontDescriptorRef descriptor, CGFloat size, const CGAffineTransform *matrix);
+CORETEXT_EXPORT CTFontDescriptorRef CTFontCopyFontDescriptor(CTFontRef font);
+CORETEXT_EXPORT CFTypeRef CTFontCopyAttribute(CTFontRef font, CFStringRef attribute);
+CORETEXT_EXPORT CFStringRef CTFontCopyName(CTFontRef font, CFStringRef nameKey);
+CORETEXT_EXPORT CFStringRef CTFontCopyLocalizedName(CTFontRef font, CFStringRef nameKey, CFStringRef *actualLanguage);
+CORETEXT_EXPORT CFCharacterSetRef CTFontCopyCharacterSet(CTFontRef font);
+CORETEXT_EXPORT CFArrayRef CTFontCopyFeatures(CTFontRef font);
+CORETEXT_EXPORT CFArrayRef CTFontCopyVariationAxes(CTFontRef font);
+CORETEXT_EXPORT CFDictionaryRef CTFontCopyVariation(CTFontRef font);
+
+/* The font's sfnt tables; the available ones' tags are the array's values. */
+typedef FourCharCode CTFontTableTag;
+typedef uint32_t CTFontTableOptions;
+enum {
+    kCTFontTableOptionNoOptions = 0,
+    kCTFontTableOptionExcludeSynthetic = (1 << 0)
+};
+CORETEXT_EXPORT CFArrayRef CTFontCopyAvailableTables(CTFontRef font, CTFontTableOptions options);
+CORETEXT_EXPORT CFDataRef CTFontCopyTable(CTFontRef font, CTFontTableTag table, CTFontTableOptions options);
+
+/* A font that can draw the string's characters (the font itself when it
+   can), drawing glyphs, and their boxes. */
+CORETEXT_EXPORT CTFontRef CTFontCreateForString(CTFontRef currentFont, CFStringRef string, CFRange range);
+CORETEXT_EXPORT void CTFontDrawGlyphs(CTFontRef font, const CGGlyph glyphs[], const CGPoint positions[], size_t count, CGContextRef context);
+CORETEXT_EXPORT CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef font, CTFontOrientation orientation, const CGGlyph glyphs[], CGRect *boundingRects, CFIndex count);

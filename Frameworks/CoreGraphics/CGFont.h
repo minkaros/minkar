@@ -10,6 +10,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreGraphics/CGGeometry.h>
 #import <CoreFoundation/CFData.h>
+#import <CoreFoundation/CFArray.h>
+#import <CoreFoundation/CFDictionary.h>
+#import <CoreGraphics/CGDataProvider.h>
 #include <stdint.h>
 
 /* CF's naming rules for what the functions return (Create, Copy). */
@@ -49,6 +52,19 @@ COREGRAPHICS_EXPORT CGGlyph CGFontGetGlyphWithGlyphName(CGFontRef self, CFString
 COREGRAPHICS_EXPORT CFStringRef CGFontCopyGlyphNameForGlyph(CGFontRef self, CGGlyph glyph);
 
 COREGRAPHICS_EXPORT CFDataRef CGFontCopyTableForTag(CGFontRef self, uint32_t tag);
+/* The tags of the font's tables, as the array's values (not CF objects). */
+COREGRAPHICS_EXPORT CFArrayRef CGFontCopyTableTags(CGFontRef self);
+
+COREGRAPHICS_EXPORT CGFontRef CGFontCreateWithDataProvider(CGDataProviderRef provider);
+COREGRAPHICS_EXPORT CFStringRef CGFontCopyPostScriptName(CGFontRef self);
+/* Boxes in font units; false when the font cannot give them. */
+COREGRAPHICS_EXPORT bool CGFontGetGlyphBBoxes(CGFontRef self, const CGGlyph *glyphs, size_t count, CGRect *bboxes);
+
+/* Variable fonts: the axes (NULL for a font without), an instance with
+   some axes set (keys: the axes' names), and the values of an instance. */
+COREGRAPHICS_EXPORT CFArrayRef CGFontCopyVariationAxes(CGFontRef self);
+COREGRAPHICS_EXPORT CGFontRef CGFontCreateCopyWithVariations(CGFontRef self, CFDictionaryRef variations);
+COREGRAPHICS_EXPORT CFDictionaryRef CGFontCopyVariations(CGFontRef self);
 
 
 CF_IMPLICIT_BRIDGING_DISABLED

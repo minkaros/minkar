@@ -1,4 +1,5 @@
 /* Copyright (c) 2008 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -70,6 +71,12 @@ typedef enum {
 
 - (NSData *)copyTableForTag:(uint32_t)tag;
 
+/* Minkar: glyph boxes in font units, and instances of a variable font.
+   The base class has neither: no boxes, and a copy is the font itself. */
+- (BOOL)getGlyphBBoxes:(const O2Glyph *)glyphs count:(size_t)count rects:(O2Rect *)rects;
+- (O2FontRef)copyWithVariations:(NSDictionary *)variations;
+- (NSDictionary *)variations;
+
 - (O2Glyph)glyphWithGlyphName:(NSString *)name;
 - (NSString *)copyGlyphNameForGlyph:(O2Glyph)glyph;
 
@@ -107,6 +114,9 @@ O2Glyph O2FontGetGlyphWithGlyphName(O2FontRef self, CFStringRef name);
 NSString *O2FontCopyGlyphNameForGlyph(O2FontRef self, O2Glyph glyph);
 
 NSData *O2FontCopyTableForTag(O2FontRef self, uint32_t tag);
+BOOL O2FontGetGlyphBBoxes(O2FontRef self, const O2Glyph *glyphs, size_t count, O2Rect *rects);
+O2FontRef O2FontCreateCopyWithVariations(O2FontRef self, NSDictionary *variations);
+NSDictionary *O2FontCopyVariations(O2FontRef self);
 
 uint16_t O2FontUnicodeForGlyphName(CFStringRef name);
 
