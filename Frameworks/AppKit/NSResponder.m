@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <AppKit/NSWindow.h>
 #import <Foundation/NSUserActivity.h>
 #import <objc/runtime.h>
 #import <AppKit/NSResponder.h>
@@ -301,4 +302,32 @@ static char userActivityKey;
 -(void)restoreStateWithCoder:(NSCoder *)coder { }
 -(void)invalidateRestorableState { }
 +(NSArray *)restorableStateKeyPaths { return [NSArray array]; }
+@end
+
+/* Windows' restoration settings: kept, though Minkar does not restore
+   windows yet (no state is saved between launches). */
+@implementation NSWindow (MinkarRestoration)
+
+static char restorableKey, restorationClassKey;
+
+-(BOOL)isRestorable {
+   NSNumber *value=objc_getAssociatedObject(self,&restorableKey);
+   return value!=nil?[value boolValue]:YES;
+}
+
+-(void)setRestorable:(BOOL)value {
+   objc_setAssociatedObject(self,&restorableKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(Class)restorationClass {
+   return objc_getAssociatedObject(self,&restorationClassKey);
+}
+
+-(void)setRestorationClass:(Class)value {
+   objc_setAssociatedObject(self,&restorationClassKey,value,OBJC_ASSOCIATION_ASSIGN);
+}
+
+-(void)disableSnapshotRestoration { }
+-(void)enableSnapshotRestoration { }
+
 @end

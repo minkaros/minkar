@@ -602,6 +602,11 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 @property (getter=isOneShot) BOOL oneShot;
 @property (getter=isOpaque) BOOL opaque;
 @property (getter=isReleasedWhenClosed) BOOL releasedWhenClosed;
+@property(getter=isRestorable) BOOL restorable;
+@property(assign) Class restorationClass;
+- (void)disableSnapshotRestoration;
+- (void)enableSnapshotRestoration;
+
 @end
 
 /* The window's delegate (API 19: a formal protocol, every method optional). */

@@ -1456,6 +1456,11 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    NSUnimplementedMethod();
 }
 
+/* Not public API, but apps call it (Firefox): whether a modal session runs. */
+-(BOOL)_isRunningModal {
+   return [_modalStack count]>0;
+}
+
 -(NSWindow *)modalWindow {
    return [[_modalStack lastObject] modalWindow];
 }
