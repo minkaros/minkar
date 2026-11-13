@@ -161,6 +161,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTrackingArea.h>
 #import <AppKit/NSTreeController.h>
 #import <AppKit/NSUserDefaultsController.h>
+#import <AppKit/NSUserInterfaceLayout.h>
 #import <AppKit/NSView.h>
 #import <AppKit/NSStackView.h>
 #import <AppKit/NSViewController.h>

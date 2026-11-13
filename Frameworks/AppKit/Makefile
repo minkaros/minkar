@@ -362,6 +362,7 @@ HEADERS = \
     NSController/NSObservationProxy.h \
     NSController/NSTreeController.h \
     NSController/NSUserDefaultsController.h \
+    NSUserInterfaceLayout.h \
     NSController/NSUserDefaultsControllerProxy.h \
     NSController/_NSControllerArray.h \
     NSCursor.h \

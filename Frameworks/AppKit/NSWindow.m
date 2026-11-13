@@ -1770,6 +1770,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return content;
 }
 
+/* The title bar's buttons sit by the application's reading direction. */
+-(NSUserInterfaceLayoutDirection)windowTitlebarLayoutDirection {
+   return (NSApp!=nil)?[NSApp userInterfaceLayoutDirection]:NSUserInterfaceLayoutDirectionLeftToRight;
+}
+
 -(NSRect)constrainFrameRect:(NSRect)rect toScreen:(NSScreen *)screen {
    if ( !screen) return rect;
    NSRect visRect = [screen visibleFrame];

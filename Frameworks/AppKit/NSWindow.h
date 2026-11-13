@@ -477,6 +477,7 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 - (NSRect)frameRectForContentRect:(NSRect)rect;
 - (NSRect)contentRectForFrameRect:(NSRect)rect;
 @property (readonly) NSRect contentLayoutRect;
+@property (readonly) NSUserInterfaceLayoutDirection windowTitlebarLayoutDirection;
 - (NSRect)constrainFrameRect:(NSRect)rect toScreen:(NSScreen *)screen;
 
 - (NSWindow *)parentWindow;

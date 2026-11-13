@@ -2728,3 +2728,27 @@ drawn:
 }
 
 @end
+
+/* Minkar: a view's reading direction (API 10.8), kept beside the view;
+   the application's until one is set. */
+static char layoutDirectionKey;
+
+@implementation NSView (MinkarLayoutDirection)
+
+-(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {
+   NSNumber *value=objc_getAssociatedObject(self,&layoutDirectionKey);
+
+   if(value!=nil)
+    return [value integerValue];
+   return (NSApp!=nil)?[NSApp userInterfaceLayoutDirection]:NSUserInterfaceLayoutDirectionLeftToRight;
+}
+
+-(void)setUserInterfaceLayoutDirection:(NSUserInterfaceLayoutDirection)direction {
+   if(direction==[self userInterfaceLayoutDirection] && objc_getAssociatedObject(self,&layoutDirectionKey)!=nil)
+    return;
+   objc_setAssociatedObject(self,&layoutDirectionKey,[NSNumber numberWithInteger:direction],OBJC_ASSOCIATION_RETAIN);
+   [self setNeedsLayout:YES];
+   [self setNeedsDisplay:YES];
+}
+
+@end

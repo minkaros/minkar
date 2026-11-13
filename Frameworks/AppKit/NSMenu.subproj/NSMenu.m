@@ -587,7 +587,7 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 /* Minkar: font, highlighted item, properties to update, size (kept
    beside the menu; the menu bar and menu windows draw with their own). */
 #import <objc/runtime.h>
-static char fontKey, minimumWidthKey, stateColumnKey, contextPlugInsKey;
+static char fontKey, minimumWidthKey, stateColumnKey, contextPlugInsKey, layoutDirectionKey;
 
 @implementation NSMenu (MinkarMenuExtras)
 
@@ -648,6 +648,19 @@ static char fontKey, minimumWidthKey, stateColumnKey, contextPlugInsKey;
 
 -(void)setAllowsContextMenuPlugIns:(BOOL)flag {
    objc_setAssociatedObject(self,&contextPlugInsKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* The menu's reading direction (API 10.11): the application's unless set. */
+-(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {
+   NSNumber *value=objc_getAssociatedObject(self,&layoutDirectionKey);
+
+   if(value!=nil)
+    return [value integerValue];
+   return (NSApp!=nil)?[NSApp userInterfaceLayoutDirection]:NSUserInterfaceLayoutDirectionLeftToRight;
+}
+
+-(void)setUserInterfaceLayoutDirection:(NSUserInterfaceLayoutDirection)direction {
+   objc_setAssociatedObject(self,&layoutDirectionKey,[NSNumber numberWithInteger:direction],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

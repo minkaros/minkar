@@ -4,13 +4,9 @@
  */
 #import <AppKit/NSView.h>
 #import <AppKit/NSLayoutConstraint.h>
+#import <AppKit/NSUserInterfaceLayout.h>
 
 NS_ASSUME_NONNULL_BEGIN
-
-typedef NS_ENUM(NSInteger, NSUserInterfaceLayoutOrientation) {
-    NSUserInterfaceLayoutOrientationHorizontal = 0,
-    NSUserInterfaceLayoutOrientationVertical = 1,
-};
 
 typedef NS_ENUM(NSInteger, NSStackViewGravity) {
     NSStackViewGravityTop = 1,

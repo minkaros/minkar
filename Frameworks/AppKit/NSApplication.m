@@ -1457,6 +1457,15 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
 }
 
 /* Not public API, but apps call it (Firefox): whether a modal session runs. */
+/* Minkar: the direction the first preferred language is written in. */
+-(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {
+   NSArray  *languages=[NSLocale preferredLanguages];
+   NSString *language=([languages count]>0)?[languages objectAtIndex:0]:@"en";
+
+   return ([NSLocale characterDirectionForLanguage:language]==NSLocaleLanguageDirectionRightToLeft)?
+      NSUserInterfaceLayoutDirectionRightToLeft:NSUserInterfaceLayoutDirectionLeftToRight;
+}
+
 -(BOOL)_isRunningModal {
    return [_modalStack count]>0;
 }

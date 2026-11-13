@@ -23,6 +23,7 @@
  */
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSUserInterfaceLayout.h>
 #import <AppKit/NSAppearance.h>
 #import <AppKit/AppKitExport.h>
 #import <AppKit/NSGraphics.h>
@@ -271,6 +272,9 @@ typedef enum {
 
 @property (readonly, getter=isFullKeyboardAccessEnabled) BOOL fullKeyboardAccessEnabled;
 @property (getter=isAutomaticCustomizeTouchBarMenuItemEnabled) BOOL automaticCustomizeTouchBarMenuItemEnabled;
+
+/* Minkar: right to left when the first preferred language is written so. */
+@property(readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
 
 @end
 

@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Reviewed for API completeness against 10.6.
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSUserInterfaceLayout.h>
 #import <AppKit/NSAppearance.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSAnimation.h>
@@ -409,6 +410,9 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isHidden) BOOL hidden;
+/* Minkar: the view's reading direction, the application's unless set. */
+@property NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+
 @end
 
 @interface NSObject (NSView_toolTipOwner)
