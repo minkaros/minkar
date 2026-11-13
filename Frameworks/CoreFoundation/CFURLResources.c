@@ -82,6 +82,9 @@ KEY(kCFURLVolumeIsLocalKey,			"NSURLVolumeIsLocalKey");
 KEY(kCFURLIsPackageKey,				"NSURLIsPackageKey");
 KEY(kCFURLIsApplicationKey,			"NSURLIsApplicationKey");
 KEY(kCFURLQuarantinePropertiesKey,		"NSURLQuarantinePropertiesKey");
+KEY(kCFURLHasHiddenExtensionKey,		"NSURLHasHiddenExtensionKey");
+KEY(kCFURLTypeIdentifierKey,		"NSURLTypeIdentifierKey");
+KEY(kCFURLLocalizedTypeDescriptionKey,	"NSURLLocalizedTypeDescriptionKey");
 
 KEY(kCFURLFileResourceTypeNamedPipe,		"NSFileTypeNamedPipe");
 KEY(kCFURLFileResourceTypeCharacterSpecial,	"NSFileTypeCharacterSpecial");

@@ -16,7 +16,7 @@ FMWK_INSTALL_DIR = /System/Library/Frameworks/CoreServices.framework/Versions/A/
 LDFLAGS += -Wl,-umbrella,CoreServices -framework CoreFoundation
 MK_WERROR = no
 
-SRCS = LSSession.c LSSessionUser.c LSOpen.c UTType.c UTCoreTypes.c LSConstants.c
+SRCS = LSSession.c LSSessionUser.c LSOpen.c UTType.c UTCoreTypes.c LSConstants.c LSSharedFileList.c LSItemFSRef.c
 HEADERS = LaunchServices.h LSInfo.h LSOpen.h UTType.h UTCoreTypes.h LSQuarantine.h LSSharedFileList.h
 PRIVATE_HEADERS = LSSession.h
 MODULEMAP = LaunchServices.modulemap

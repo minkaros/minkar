@@ -40,6 +40,20 @@ typedef struct LSLaunchURLSpec {
 	void *_Nullable			asyncRefCon;
 } LSLaunchURLSpec;
 
+struct FSRef;
+
+/* The same as LSLaunchURLSpec, with FSRefs. */
+typedef struct LSLaunchFSRefSpec {
+	const struct FSRef *_Nullable	appRef;
+	ItemCount			numDocs;
+	const struct FSRef *_Nullable	itemRefs;
+	const struct AEDesc *_Nullable	passThruParams;
+	LSLaunchFlags			launchFlags;
+	void *_Nullable			asyncRefCon;
+} LSLaunchFSRefSpec;
+
+OSStatus LSOpenFromRefSpec(const LSLaunchFSRefSpec *inLaunchSpec, struct FSRef *_Nullable outLaunchedRef);
+
 /* Opens an item with its application (an application: launches it). */
 OSStatus LSOpenCFURLRef(CFURLRef inURL, CFURLRef _Nullable *_Nullable outLaunchedURL);
 OSStatus LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec,

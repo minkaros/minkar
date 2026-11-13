@@ -69,6 +69,16 @@ OSStatus LSSetDefaultHandlerForURLScheme(CFStringRef inURLScheme, CFStringRef in
 OSStatus LSSetDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole,
     CFStringRef inHandlerBundleID);
 
+struct FSRef;
+
+/* The older calls: by MIME type, by extension, an item's attribute. */
+OSStatus LSCopyApplicationForMIMEType(CFStringRef inMIMEType, LSRolesMask inRoleMask,
+    CFURLRef _Nullable *_Nullable outAppURL);
+OSStatus LSGetApplicationForInfo(OSType inType, OSType inCreator, CFStringRef _Nullable inExtension,
+    LSRolesMask inRoleMask, struct FSRef *_Nullable outAppRef, CFURLRef _Nullable *_Nullable outAppURL);
+OSStatus LSCopyItemAttribute(const struct FSRef *inItem, LSRolesMask inRoles, CFStringRef inAttributeName,
+    CFTypeRef _Nullable *_Nonnull outValue);
+
 /* LSCopyItemAttribute's attributes. */
 CF_EXPORT const CFStringRef kLSItemContentType;
 CF_EXPORT const CFStringRef kLSItemFileType;
