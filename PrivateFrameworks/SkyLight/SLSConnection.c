@@ -74,12 +74,20 @@ openMainConnection(void)
 		return;
 
 	/* The server may be starting (launchd restarting it): try for a
-	 * while, so an app started then does not run without one. */
+	 * while, so an app started then does not run without one.
+	 * Only a service not there yet is waited for: a refused lookup (a
+	 * sandboxed process may not reach the server) ends it at once. */
+	int textOnly = -1;
 	for (int tries = 0; ; tries++) {
-		if (bootstrap_look_up(bootstrap_port, kSLSServiceName, &serverPort) == KERN_SUCCESS)
+		kern_return_t kr = bootstrap_look_up(bootstrap_port, kSLSServiceName, &serverPort);
+		if (kr == KERN_SUCCESS)
 			break;
 		serverPort = MACH_PORT_NULL;
-		if (tries >= 40 || getenv("SLS_NO_WAIT") != NULL || textConsole())
+		if (kr != BOOTSTRAP_UNKNOWN_SERVICE || tries >= 40 || getenv("SLS_NO_WAIT") != NULL)
+			return;
+		if (textOnly < 0)
+			textOnly = textConsole();
+		if (textOnly)
 			return;
 		usleep(250000);
 	}
