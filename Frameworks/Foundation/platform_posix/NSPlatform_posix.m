@@ -27,6 +27,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSPipe_posix.h"
 
 #include <pwd.h>
+#include <dispatch/dispatch.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -83,24 +84,58 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	return [NSCondition_posix class];
 }
 
-static struct passwd *pwent = NULL;
+/* The user's name, full name and home, read once. getpwuid's answer is
+   copied: its storage is reused by the next lookup. A process that may
+   not look users up (a sandboxed helper) gets them from its environment,
+   as on the reference platform, rather than an exception. */
+static NSString *pwName, *pwFullName, *pwHome;
 
--(void)_checkAndGetPWEnt {
-   if (pwent == NULL) {
-      pwent = getpwuid(getuid());
-      if (pwent == NULL)
-         NSRaiseException(NSInternalInconsistencyException, self, _cmd, @"Can't obtain user's information from system");
-   }
+static NSString *envString(const char *name) {
+    const char *value = issetugid() ? NULL : getenv(name);
+    return (value != NULL && value[0] != '\0') ? [NSString stringWithUTF8String:value] : nil;
+}
+
+static void loadUserInformation(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        struct passwd pw, *result = NULL;
+        char buffer[4096];
+        NSString *name = nil, *full = nil, *home = nil;
+
+        if (getpwuid_r(getuid(), &pw, buffer, sizeof(buffer), &result) == 0 && result != NULL) {
+            if (pw.pw_name != NULL)
+                name = [NSString stringWithUTF8String:pw.pw_name];
+            if (pw.pw_gecos != NULL && pw.pw_gecos[0] != '\0')
+                full = [NSString stringWithUTF8String:pw.pw_gecos];
+            if (pw.pw_dir != NULL && pw.pw_dir[0] != '\0')
+                home = [NSString stringWithUTF8String:pw.pw_dir];
+        }
+        if (name == nil)
+            name = envString("USER");
+        if (name == nil)
+            name = envString("LOGNAME");
+        if (name == nil)
+            name = [NSString stringWithFormat:@"%u", (unsigned)getuid()];
+        if (full == nil)
+            full = name;
+        if (home == nil)
+            home = envString("HOME");
+        if (home == nil)
+            home = @"/";
+        pwName = [name copy];
+        pwFullName = [full copy];
+        pwHome = [home copy];
+    });
 }
 
 -(NSString *)userName {
-    [self _checkAndGetPWEnt];
-    return [NSString stringWithCString:pwent->pw_name];
+    loadUserInformation();
+    return pwName;
 }
 
 -(NSString *)fullUserName {
-    [self _checkAndGetPWEnt];
-    return [NSString stringWithCString:pwent->pw_gecos];
+    loadUserInformation();
+    return pwFullName;
 }
 
 // Minkar: CFFIXED_USER_HOME, when set (and the process is not setuid),
@@ -110,8 +145,8 @@ static struct passwd *pwent = NULL;
 
     if (fixed != NULL && fixed[0] != '\0')
         return [NSString stringWithUTF8String:fixed];
-    [self _checkAndGetPWEnt];
-    return [NSString stringWithCString:pwent->pw_dir];
+    loadUserInformation();
+    return pwHome;
 }
 
 -(NSString *)libraryDirectory {
