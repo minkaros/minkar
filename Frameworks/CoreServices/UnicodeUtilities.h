@@ -82,6 +82,42 @@ OSStatus UCCompareCollationKeys(const UCCollationValue *key1Ptr,
                                 ItemCount key2Length, Boolean *equivalent,
                                 SInt32 *order);
 
+/* Keyboard layouts (kTISPropertyUnicodeKeyLayoutData) and translating a
+   key to the characters it types with them. */
+typedef struct UCKeyboardLayout UCKeyboardLayout;
+typedef unsigned long UniCharCount;
+
+enum {
+    kUCKeyActionDown = 0,
+    kUCKeyActionUp = 1,
+    kUCKeyActionAutoKey = 2,
+    kUCKeyActionDisplay = 3
+};
+
+enum {
+    kUCKeyTranslateNoDeadKeysBit = 0,
+    kUCKeyTranslateNoDeadKeysMask = 1UL << kUCKeyTranslateNoDeadKeysBit
+};
+
+enum {
+    kUCOutputBufferTooSmall = -25340,
+    kUCTextBreakLocatorMissingType = -25341
+};
+
+OSStatus UCKeyTranslate(const UCKeyboardLayout *keyLayoutPtr, UInt16 virtualKeyCode, UInt16 keyAction,
+    UInt32 modifierKeyState, UInt32 keyboardType, OptionBits keyTranslateOptions, UInt32 *deadKeyState,
+    UniCharCount maxStringLength, UniCharCount *actualStringLength, UniChar unicodeString[]);
+
+/* Minkar: the layout data the text input sources give. It names the
+   window server's keyboard layout in use, which translates the keys. */
+#define kMinkarKeyboardLayoutMagic 0x4d6b4b4cU	/* 'MkKL' */
+typedef struct {
+    UInt32 magic;
+    UInt32 version;
+    char layout[32];
+    char variant[32];
+} MinkarKeyboardLayoutData;
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,7 +2,7 @@ MK_WERROR = no
 FRAMEWORK = CoreServices
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = CoreServices.c MacMemory.c Files.c Folders.c Resources.c Gestalt.c IconsCore.c MDItem.c LSItemInfo.c \
+SRCS = CoreServices.c MacMemory.c Files.c Folders.c KeyTranslate.c Resources.c Gestalt.c IconsCore.c MDItem.c LSItemInfo.c \
 	UnicodeUtilities.c
 HEADERS = CoreServices.h Metadata.h MacErrors.h MacMemory.h Files.h Folders.h Resources.h Gestalt.h IconsCore.h Finder.h LSItemInfo.h \
 	UnicodeUtilities.h

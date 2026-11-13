@@ -48,6 +48,21 @@ CF_EXPORT const CFStringRef kTISTypeInk;
 CF_EXPORT const CFStringRef kTISNotifySelectedKeyboardInputSourceChanged;
 CF_EXPORT const CFStringRef kTISNotifyEnabledKeyboardInputSourcesChanged;
 
+CF_EXPORT CFTypeID TISInputSourceGetTypeID(void);
+CF_EXPORT void *TISGetInputSourceProperty(TISInputSourceRef inputSource, CFStringRef propertyKey);
+CF_EXPORT CFArrayRef TISCreateInputSourceList(CFDictionaryRef properties, Boolean includeAllInstalled);
+CF_EXPORT CFArrayRef TISCreateASCIICapableInputSourceList(void);
+CF_EXPORT TISInputSourceRef TISCopyCurrentKeyboardInputSource(void);
+CF_EXPORT TISInputSourceRef TISCopyCurrentKeyboardLayoutInputSource(void);
+CF_EXPORT TISInputSourceRef TISCopyCurrentASCIICapableKeyboardInputSource(void);
+CF_EXPORT TISInputSourceRef TISCopyCurrentASCIICapableKeyboardLayoutInputSource(void);
+CF_EXPORT TISInputSourceRef TISCopyInputSourceForLanguage(CFStringRef language);
+CF_EXPORT TISInputSourceRef TISCopyInputMethodKeyboardLayoutOverride(void);
+CF_EXPORT OSStatus TISSelectInputSource(TISInputSourceRef inputSource);
+CF_EXPORT OSStatus TISDeselectInputSource(TISInputSourceRef inputSource);
+CF_EXPORT OSStatus TISEnableInputSource(TISInputSourceRef inputSource);
+CF_EXPORT OSStatus TISDisableInputSource(TISInputSourceRef inputSource);
+
 CF_EXTERN_C_END
 
 #endif
