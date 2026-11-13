@@ -388,7 +388,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _number = (int)self;
     _styleMask=styleMask;
     _frame=[self frameRectForContentRect:contentRect];
-    _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
+    /* Only a titled window is kept to the visible frame: a borderless one
+       (the desktop, a panel, an overlay) may cover the menu bar and the
+       Dock, as on the reference platform. */
+    if(styleMask&NSWindowStyleMaskTitled)
+     _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
     _level=NSNormalWindowLevel;
     _hasShadow=YES;
     SLSWindowID window = 0;
