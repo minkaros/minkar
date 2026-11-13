@@ -6,6 +6,8 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+/* Modifications Copyright (c) 2026 The Minkar contributors */
+
 #import <AppKit/NSFont.h>
 #import "KTFont_FT.h"
 #import <AppKit/KTFont.h>
@@ -26,25 +28,52 @@
 }
 
 
+/* Every UI font type: its face and default size. System text is Inter,
+   fixed pitch is Agave; the emphasized types are bold. */
 -initWithUIFontType:(CTFontUIFontType)uiFontType size:(CGFloat)size language:(NSString *)language {
-   O2Font *font=nil;
+   static const struct { CGFloat size; const char *name; } types[]={
+    [kCTFontUIFontUser]={ 12, "Inter-Regular" },
+    [kCTFontUIFontUserFixedPitch]={ 10, "Agave-Regular" },
+    [kCTFontUIFontSystem]={ 12, "Inter-Regular" },
+    [kCTFontUIFontEmphasizedSystem]={ 12, "Inter-Bold" },
+    [kCTFontUIFontSmallSystem]={ 11, "Inter-Regular" },
+    [kCTFontUIFontSmallEmphasizedSystem]={ 11, "Inter-Bold" },
+    [kCTFontUIFontMiniSystem]={ 9, "Inter-Regular" },
+    [kCTFontUIFontMiniEmphasizedSystem]={ 9, "Inter-Bold" },
+    [kCTFontUIFontViews]={ 12, "Inter-Regular" },
+    [kCTFontUIFontApplication]={ 12, "Inter-Regular" },
+    [kCTFontUIFontLabel]={ 10, "Inter-Regular" },
+    [kCTFontUIFontMenuTitle]={ 14, "Inter-Regular" },
+    [kCTFontUIFontMenuItem]={ 12, "Inter-Regular" },
+    [kCTFontUIFontMenuItemMark]={ 14, "Inter-Regular" },
+    [kCTFontUIFontMenuItemCmdKey]={ 14, "Inter-Regular" },
+    [kCTFontUIFontWindowTitle]={ 13, "Inter-Regular" },
+    [kCTFontUIFontPushButton]={ 13, "Inter-Regular" },
+    [kCTFontUIFontUtilityWindowTitle]={ 11, "Inter-Regular" },
+    [kCTFontUIFontAlertHeader]={ 13, "Inter-Bold" },
+    [kCTFontUIFontSystemDetail]={ 12, "Inter-Regular" },
+    [kCTFontUIFontEmphasizedSystemDetail]={ 12, "Inter-Bold" },
+    [kCTFontUIFontToolbar]={ 11, "Inter-Regular" },
+    [kCTFontUIFontSmallToolbar]={ 10, "Inter-Regular" },
+    [kCTFontUIFontMessage]={ 13, "Inter-Regular" },
+    [kCTFontUIFontPalette]={ 11, "Inter-Regular" },
+    [kCTFontUIFontToolTip]={ 11, "Inter-Regular" },
+    [kCTFontUIFontControlContent]={ 13, "Inter-Regular" },
+   };
+   O2Font *font;
 
-   switch(uiFontType){
-
-    case kCTFontMenuTitleFontType:
-     if(size==0)
-      size=14.0;
-     font=O2FontCreateWithFontName(@"Inter-Regular");
-     break;
-    case kCTFontMenuItemFontType:
-    case kCTFontSystemFontType:
-     if(size==0)
-      size=12.0;
-     font=O2FontCreateWithFontName(@"Inter-Regular");
-     break;
-
-    default:
-     return nil;
+   if((uint32_t)uiFontType>=sizeof(types)/sizeof(types[0])){
+    [self release];
+    return nil;
+   }
+   if(size<=0)
+    size=types[uiFontType].size;
+   font=O2FontCreateWithFontName([NSString stringWithUTF8String:types[uiFontType].name]);
+   if(font==nil)
+    font=O2FontCreateWithFontName(@"Inter-Regular");
+   if(font==nil){
+    [self release];
+    return nil;
    }
 
    self=[self initWithFont:font size:size];
