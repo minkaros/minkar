@@ -3,7 +3,7 @@
 # Part of Minkar.
 #
 # cstest: the code integrity policy's test program. One copy in the trust
-# cache, three outside it (see cstest.c). Built in the CoreServices stage,
+# cache, four outside it (see cstest.c). Built in the CoreServices stage,
 # after IOKit; mktrustcache leaves OUTSIDE out of the cache (Image/Makefile).
 
 SUBDIR =
@@ -39,6 +39,12 @@ to-sysroot: ${PROG}
 	${CODESIGN} -f -s - -i org.minkar.cstest-adhoc \
 	    --entitlements ${.CURDIR}/unrestricted.entitlements \
 	    ${SYSROOT_DIR}${OUTSIDE}/cstest-adhoc
+	# A third-party app's identity and profile entitlements: it runs, with
+	# no privilege (decided 13 Nov 2026).
+	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${OUTSIDE}/cstest-profile
+	${CODESIGN} -f -s - -i org.minkar.cstest-profile \
+	    --entitlements ${.CURDIR}/profile.entitlements \
+	    ${SYSROOT_DIR}${OUTSIDE}/cstest-profile
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${OUTSIDE}/cstest-unsigned
 
 .include <bsd.prog.mk>

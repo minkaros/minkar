@@ -33,9 +33,14 @@
  * the MAC policies about it (mac_vnode_check_signature). This policy adds
  * CS_SIGNED, so the kernel reads the signature's entitlements, and
  * CS_PLATFORM_BINARY when the CodeDirectory's hash is in the static trust
- * cache that the image build writes. Entitlements outside the
- * com.apple.security. namespace are restricted: a signature outside the
- * trust cache that carries one is refused, and its exec fails.
+ * cache that the image build writes. Entitlements are restricted except
+ * for com.apple.security.* and, decided on 13 Nov 2026 for third-party
+ * apps, the identity and provisioning profile ones
+ * (com.apple.application-identifier, com.apple.developer.*): those let a
+ * validly signed app start but give it no privilege, as no Minkar service
+ * grants access on them (their profile is not checked yet). A signature
+ * outside the trust cache that carries a restricted one is refused, and
+ * its exec fails.
  */
 
 #include <IOKit/IOLib.h>
@@ -71,7 +76,30 @@ extern "C" void *kalloc(vm_size_t size);
 #define TRUST_CACHE_PATH	"/System/Library/Security/TrustCache"
 #define TRUST_CACHE_MAX		(8 * 1024 * 1024)
 #define ENTITLEMENTS_MAX	(256 * 1024)
-#define UNRESTRICTED_PREFIX	"com.apple.security."
+/* Entitlements any valid signature may carry: by prefix, or whole. */
+static const char *const kUnrestrictedPrefixes[] = {
+	"com.apple.security.",
+	"com.apple.developer.",
+};
+static const char *const kUnrestrictedNames[] = {
+	"com.apple.application-identifier",
+};
+
+static bool
+is_unrestricted(const char *name)
+{
+	for (size_t i = 0; i < sizeof(kUnrestrictedPrefixes) / sizeof(kUnrestrictedPrefixes[0]); i++) {
+		if (strncmp(name, kUnrestrictedPrefixes[i], strlen(kUnrestrictedPrefixes[i])) == 0) {
+			return true;
+		}
+	}
+	for (size_t i = 0; i < sizeof(kUnrestrictedNames) / sizeof(kUnrestrictedNames[0]); i++) {
+		if (strcmp(name, kUnrestrictedNames[i]) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
 
 static IOLock *sLock;
 static struct trust_cache_module1 *sCache;	/* NULL until loaded */
@@ -239,8 +267,7 @@ find_restricted_entitlement(struct cs_blob *blob, char *name, size_t namelen)
 		goto out;
 	}
 	while ((key = OSDynamicCast(OSSymbol, iter->getNextObject())) != NULL) {
-		if (strncmp(key->getCStringNoCopy(), UNRESTRICTED_PREFIX,
-		    sizeof(UNRESTRICTED_PREFIX) - 1) != 0) {
+		if (!is_unrestricted(key->getCStringNoCopy())) {
 			strlcpy(name, key->getCStringNoCopy(), namelen);
 			break;
 		}

@@ -36,9 +36,10 @@
  *                         (a restricted entitlement), run as nobody
  *
  * The build installs one copy in the trust cache (/usr/local/bin/cstest)
- * and three outside it, in /usr/local/tests/codesign/outside: re-signed
+ * and four outside it, in /usr/local/tests/codesign/outside: re-signed
  * with the same entitlements (its exec is refused), ad hoc with an
- * unrestricted entitlement only, and unsigned.
+ * unrestricted entitlement only, ad hoc with a third-party app's identity
+ * and profile entitlements (they run, with no privilege), and unsigned.
  */
 
 #include <IOKit/IOKitLib.h>
