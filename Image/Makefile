@@ -51,7 +51,8 @@ EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
 LOADER =		${EFILOADER_SRC}/Build/EmulatorX64/DEBUG_CLANGDWARF/X64/loader.efi
 
 IMAGE ?=		${ROOT_BINARY_DIR}/Minkar.img
-IMAGE_SIZE_MB ?=	2048
+# 3 GB: room for large apps (Firefox) and their caches in the test VMs.
+IMAGE_SIZE_MB ?=	3072
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 # msgbuf: dmesg keeps the whole boot (a release kernel's 16 KB fill before
 # the login; the NVMe test reads its driver's boot lines there).
