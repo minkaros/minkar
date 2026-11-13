@@ -99,6 +99,7 @@ SRCS = \
     NSGraphics.m \
     NSGraphicsContext.m \
     NSHelpManager.m \
+    NSAssetCatalog.m \
     NSImage.m \
     NSImageStandardImages.m \
     NSImageCell.m \
@@ -642,7 +643,7 @@ LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
 	-framework CoreServices -framework DiskArbitration \
-	-lobjc -lSystem
+	-lobjc -lSystem -lcompression -lz
 
 DIRS = \
 	NSLayout \

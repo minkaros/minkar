@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import "NSAssetCatalog.h"
 #import <objc/runtime.h>
 #import <AppKit/NSWorkspace.h>
 #import <CoreServices/CoreServices.h>
@@ -143,8 +144,15 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
 
     for(i=0;i<count;i++){
      NSBundle *bundle=[bundles objectAtIndex:i];
-     NSString *path=[bundle pathForImageResource:name];
+     NSString *path;
 
+     // The bundle's asset catalog first, as on the reference platform.
+     image=[[NSAssetCatalog catalogForBundle:bundle] imageNamed:name];
+     if(image!=nil){
+      [image setName:name];
+      break;
+     }
+     path=[bundle pathForImageResource:name];
      if(path!=nil){
          image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
          [image setName:name];
@@ -1080,8 +1088,12 @@ static char accessibilityDescriptionKey;
 
 /* The named image resource of this bundle (any image type). */
 -(NSImage *)imageForResource:(NSString *)name {
-   NSString *path=[self pathForImageResource:name];
+   NSImage *cataloged=[[NSAssetCatalog catalogForBundle:self] imageNamed:name];
+   NSString *path;
 
+   if(cataloged!=nil)
+    return cataloged;
+   path=[self pathForImageResource:name];
    if(path==nil)
     return nil;
    NSImage *image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
