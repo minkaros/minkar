@@ -16,6 +16,7 @@
 #include <CoreServices/MacErrors.h>
 #include <CoreServices/MacMemory.h>
 #include <CoreServices/Files.h>
+#include <CoreServices/Folders.h>
 #include <CoreServices/Resources.h>
 #include <CoreServices/Gestalt.h>
 #include <CoreServices/IconsCore.h>

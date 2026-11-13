@@ -13,6 +13,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <MacTypes.h>
+#include <CoreServices/Folders.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,8 +22,8 @@ extern "C" {
 typedef struct OpaqueIconRef *IconRef;
 typedef UInt32 IconServicesUsageFlags;
 
+/* kOnSystemDisk is the Folder Manager's (Folders.h). */
 enum {
-    kOnSystemDisk = -32768,
     kSystemIconsCreator = 'macs'
 };
 
