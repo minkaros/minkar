@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * 
  * Copyright (c) 2015 Nicholas Fraser
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -935,6 +936,15 @@ void mpack_write_i64(mpack_writer_t* writer, int64_t value) {
         mpack_write_native_i64(writer, value);
     }
 
+}
+
+/* Minkar: an int64 always as a signed integer (0xd3), so that the reader
+   gets a signed type back even for a non-negative value (XPC keeps
+   int64 and uint64 apart). */
+void mpack_write_i64_signed(mpack_writer_t* writer, int64_t value) {
+    mpack_writer_track_element(writer);
+    mpack_write_native_u8(writer, 0xd3);
+    mpack_write_native_i64(writer, value);
 }
 
 void mpack_write_bool(mpack_writer_t* writer, bool value) {

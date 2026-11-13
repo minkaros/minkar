@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * 
  * Copyright (c) 2015 Nicholas Fraser
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1066,6 +1067,9 @@ void mpack_write_i32(mpack_writer_t* writer, int32_t value);
 
 /*! Writes a 64-bit integer in the most efficient packing available. */
 void mpack_write_i64(mpack_writer_t* writer, int64_t value);
+
+/** Writes a 64-bit signed integer, always in its signed form (Minkar). */
+void mpack_write_i64_signed(mpack_writer_t* writer, int64_t value);
 
 /*! Writes an integer in the most efficient packing available. */
 static inline void mpack_write_int(mpack_writer_t* writer, int64_t value) {

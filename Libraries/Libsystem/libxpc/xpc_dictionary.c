@@ -260,7 +260,8 @@ xpc2mpack(mpack_writer_t *writer, xpc_object_t obj)
 		break;
 
 	case _XPC_TYPE_INT64:
-		mpack_write_i64(writer, xpc_int64_get_value(obj));
+		/* Signed on the wire, so it arrives an int64, not a uint64. */
+		mpack_write_i64_signed(writer, xpc_int64_get_value(obj));
 		break;
 
 	case _XPC_TYPE_DOUBLE:
