@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #if defined(__APPLE__)
+#include <crt_externs.h>
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 #include <stdlib.h>
@@ -127,18 +128,22 @@ static struct passwd *pwent = NULL;
    return @"/tmp";
 }
 
+// Minkar: the arguments as they are now (_NSGetArgv), not as they were at
+// launch: a program may rewrite its argv (Firefox's child processes take
+// theirs out), and the entries past its new end are NULL.
 -(NSArray *)arguments {
-    extern int                NSProcessInfoArgc;
-    extern const char *const *NSProcessInfoArgv;
+    int             argc=*_NSGetArgc();
+    char          **argv=*_NSGetArgv();
     NSMutableArray *result=[NSMutableArray array];
     int             i;
 
     // Arguments are UTF-8; one that is not keeps its bytes as Latin 1.
-    for(i=0;i<NSProcessInfoArgc;i++) {
-        NSString *s = [NSString stringWithUTF8String:NSProcessInfoArgv[i]];
+    for(i=0;argv!=NULL && i<argc && argv[i]!=NULL;i++) {
+        NSString *s = [NSString stringWithUTF8String:argv[i]];
         if(s==nil)
-            s=[NSString stringWithCString:NSProcessInfoArgv[i] encoding:NSISOLatin1StringEncoding];
-        [result addObject:s];
+            s=[NSString stringWithCString:argv[i] encoding:NSISOLatin1StringEncoding];
+        if(s!=nil)
+            [result addObject:s];
     }
 
     return result;

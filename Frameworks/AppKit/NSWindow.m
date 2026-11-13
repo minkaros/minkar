@@ -1759,6 +1759,17 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return result;
 }
 
+/* Minkar: the part of the window, in its own coordinates, where content
+   is laid out: below the title bar and the toolbar (API 10.10). */
+-(NSRect)contentLayoutRect {
+   NSRect frame=[self frame];
+   NSRect content=[self contentRectForFrameRect:frame];
+
+   content.origin.x-=frame.origin.x;
+   content.origin.y-=frame.origin.y;
+   return content;
+}
+
 -(NSRect)constrainFrameRect:(NSRect)rect toScreen:(NSScreen *)screen {
    if ( !screen) return rect;
    NSRect visRect = [screen visibleFrame];

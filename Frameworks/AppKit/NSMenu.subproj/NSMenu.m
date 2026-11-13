@@ -587,7 +587,7 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 /* Minkar: font, highlighted item, properties to update, size (kept
    beside the menu; the menu bar and menu windows draw with their own). */
 #import <objc/runtime.h>
-static char fontKey, minimumWidthKey, stateColumnKey;
+static char fontKey, minimumWidthKey, stateColumnKey, contextPlugInsKey;
 
 @implementation NSMenu (MinkarMenuExtras)
 
@@ -637,6 +637,17 @@ static char fontKey, minimumWidthKey, stateColumnKey;
 
 -(void)setShowsStateColumn:(BOOL)flag {
    objc_setAssociatedObject(self,&stateColumnKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* Whether a context menu may show the items of contextual menu plug-ins
+   (API 10.6); Minkar loads none, so the setting changes no menu. */
+-(BOOL)allowsContextMenuPlugIns {
+   NSNumber *value=objc_getAssociatedObject(self,&contextPlugInsKey);
+   return value?[value boolValue]:YES;
+}
+
+-(void)setAllowsContextMenuPlugIns:(BOOL)flag {
+   objc_setAssociatedObject(self,&contextPlugInsKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

@@ -108,6 +108,7 @@ typedef NS_OPTIONS(NSUInteger, NSMenuProperties) {
 @property (readonly) NSSize size;
 @property CGFloat minimumWidth;
 @property BOOL showsStateColumn;
+@property BOOL allowsContextMenuPlugIns;
 
 @end
 
