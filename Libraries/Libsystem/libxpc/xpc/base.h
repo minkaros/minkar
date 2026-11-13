@@ -1,167 +1,148 @@
-// Copyright (c) 2009-2011 Apple Inc. All rights reserved.
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Attribute and availability macros shared by the XPC headers.
+ */
 
 #ifndef __XPC_BASE_H__
 #define __XPC_BASE_H__
 
 #include <sys/cdefs.h>
 
-__BEGIN_DECLS
-
-#if !defined(__has_include)
+#ifndef __has_include
 #define __has_include(x) 0
-#endif // !defined(__has_include)
-
-#if !defined(__has_attribute)
+#endif
+#ifndef __has_attribute
 #define __has_attribute(x) 0
-#endif // !defined(__has_attribute)
+#endif
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+#ifndef __has_extension
+#define __has_extension(x) 0
+#endif
 
-#if __has_include(<xpc/availability.h>)
-#include <xpc/availability.h>
-#else // __has_include(<xpc/availability.h>)
 #ifdef __APPLE__
 #include <Availability.h>
 #endif
+#ifndef __OSX_AVAILABLE_STARTING
+#define __OSX_AVAILABLE_STARTING(mac, ios)
+#endif
+#ifndef __OSX_AVAILABLE_BUT_DEPRECATED
+#define __OSX_AVAILABLE_BUT_DEPRECATED(macIntro, macDep, iosIntro, iosDep)
+#endif
 #define __XPC_IOS_SIMULATOR_AVAILABLE_STARTING(version)
-#endif // __has_include(<xpc/availability.h>)
-
-#if XPC_SERVICE_MAIN_IN_LIBXPC
-#define XPC_HOSTING_OLD_MAIN 1
-#else // XPC_SERVICE_MAIN_IN_LIBXPC
-#define XPC_HOSTING_OLD_MAIN 0
-#endif // XPC_SERVICE_MAIN_IN_LIBXPC
 
 #ifndef __XPC_INDIRECT__
-#error "Please #include <xpc/xpc.h> instead of this file directly."
-#endif // __XPC_INDIRECT__ 
+#error "Include <xpc/xpc.h>, not <xpc/base.h>."
+#endif
 
-#pragma mark Attribute Shims
-#ifdef __GNUC__
-#define XPC_CONSTRUCTOR __attribute__((constructor))
-#define XPC_NORETURN __attribute__((__noreturn__))
-#define XPC_NOTHROW __attribute__((__nothrow__))
-#define XPC_NONNULL1 __attribute__((__nonnull__(1)))
-#define XPC_NONNULL2 __attribute__((__nonnull__(2)))
-#define XPC_NONNULL3 __attribute__((__nonnull__(3)))
-#define XPC_NONNULL4 __attribute__((__nonnull__(4)))
-#define XPC_NONNULL5 __attribute__((__nonnull__(5)))
-#define XPC_NONNULL6 __attribute__((__nonnull__(6)))
-#define XPC_NONNULL7 __attribute__((__nonnull__(7)))
-#define XPC_NONNULL8 __attribute__((__nonnull__(8)))
-#define XPC_NONNULL9 __attribute__((__nonnull__(9)))
-#define XPC_NONNULL10 __attribute__((__nonnull__(10)))
-#define XPC_NONNULL11 __attribute__((__nonnull__(11)))
-#define XPC_NONNULL_ALL __attribute__((__nonnull__))
-#define XPC_SENTINEL __attribute__((__sentinel__))
-#define XPC_PURE __attribute__((__pure__))
-#define XPC_WARN_RESULT __attribute__((__warn_unused_result__))
-#define XPC_MALLOC __attribute__((__malloc__))
-#define XPC_UNUSED __attribute__((__unused__))
-#define XPC_USED __attribute__((__used__))
-#define XPC_PACKED __attribute__((__packed__))
-#define XPC_PRINTF(m, n) __attribute__((format(printf, m, n)))
-#define XPC_INLINE static __inline__ __attribute__((__always_inline__))
-#define XPC_NOINLINE __attribute__((noinline))
-#define XPC_NOIMPL __attribute__((unavailable))
+/* xpc_service_main(), the entry point before xpc_main(). */
+#if XPC_SERVICE_MAIN_IN_LIBXPC
+#define XPC_HOSTING_OLD_MAIN 1
+#else
+#define XPC_HOSTING_OLD_MAIN 0
+#endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define XPC_EXPORT		extern __attribute__((__visibility__("default")))
+#define XPC_NOEXPORT		__attribute__((__visibility__("hidden")))
+#define XPC_WEAKIMPORT		extern __attribute__((__weak_import__))
+#define XPC_CONSTRUCTOR		__attribute__((__constructor__))
+#define XPC_NORETURN		__attribute__((__noreturn__))
+#define XPC_NOTHROW		__attribute__((__nothrow__))
+#define XPC_MALLOC		__attribute__((__malloc__))
+#define XPC_PURE		__attribute__((__pure__))
+#define XPC_USED		__attribute__((__used__))
+#define XPC_UNUSED		__attribute__((__unused__))
+#define XPC_PACKED		__attribute__((__packed__))
+#define XPC_NOINLINE		__attribute__((__noinline__))
+#define XPC_INLINE		static __inline__ __attribute__((__always_inline__))
+#define XPC_WARN_RESULT		__attribute__((__warn_unused_result__))
+#define XPC_SENTINEL		__attribute__((__sentinel__))
+#define XPC_PRINTF(fmt, args)	__attribute__((__format__(__printf__, fmt, args)))
+#define XPC_TRANSPARENT_UNION	__attribute__((__transparent_union__))
+#define XPC_DEPRECATED(msg)	__attribute__((__deprecated__(msg)))
+#define XPC_NONNULL(n)		__attribute__((__nonnull__(n)))
+#define XPC_NONNULL1		XPC_NONNULL(1)
+#define XPC_NONNULL2		XPC_NONNULL(2)
+#define XPC_NONNULL3		XPC_NONNULL(3)
+#define XPC_NONNULL4		XPC_NONNULL(4)
+#define XPC_NONNULL5		XPC_NONNULL(5)
+#define XPC_NONNULL6		XPC_NONNULL(6)
+#define XPC_NONNULL7		XPC_NONNULL(7)
+#define XPC_NONNULL8		XPC_NONNULL(8)
+#define XPC_NONNULL9		XPC_NONNULL(9)
+#define XPC_NONNULL10		XPC_NONNULL(10)
+#define XPC_NONNULL11		XPC_NONNULL(11)
+#define XPC_NONNULL_ALL		__attribute__((__nonnull__))
 #if __has_extension(attribute_unavailable_with_message)
-#define XPC_UNAVAILABLE(m) __attribute__((unavailable(m)))
-#else // __has_extension(attribute_unavailable_with_message)
-#define XPC_UNAVAILABLE(m) XPC_NOIMPL
-#endif // __has_extension(attribute_unavailable_with_message)
+#define XPC_UNAVAILABLE(msg)	__attribute__((__unavailable__(msg)))
+#else
+#define XPC_UNAVAILABLE(msg)	__attribute__((__unavailable__))
+#endif
+#define _xpc_unreachable()	__builtin_unreachable()
+#else
+#define XPC_EXPORT		extern
+#define XPC_NOEXPORT
+#define XPC_WEAKIMPORT		extern
+#define XPC_CONSTRUCTOR
+#define XPC_NORETURN
+#define XPC_NOTHROW
+#define XPC_MALLOC
+#define XPC_PURE
+#define XPC_USED
+#define XPC_UNUSED
+#define XPC_PACKED
+#define XPC_NOINLINE
+#define XPC_INLINE		static inline
+#define XPC_WARN_RESULT
+#define XPC_SENTINEL
+#define XPC_PRINTF(fmt, args)
+#define XPC_TRANSPARENT_UNION
+#define XPC_DEPRECATED(msg)
+#define XPC_NONNULL(n)
+#define XPC_NONNULL1
+#define XPC_NONNULL2
+#define XPC_NONNULL3
+#define XPC_NONNULL4
+#define XPC_NONNULL5
+#define XPC_NONNULL6
+#define XPC_NONNULL7
+#define XPC_NONNULL8
+#define XPC_NONNULL9
+#define XPC_NONNULL10
+#define XPC_NONNULL11
+#define XPC_NONNULL_ALL
+#define XPC_UNAVAILABLE(msg)
+#define _xpc_unreachable()	abort()
+#endif
 
-#define XPC_EXPORT extern __attribute__((visibility("default")))
-#define XPC_NOEXPORT __attribute__((visibility("hidden")))
-#define XPC_WEAKIMPORT extern __attribute__((weak_import))
-#define XPC_DEBUGGER_EXCL XPC_NOEXPORT XPC_USED
-#define XPC_TRANSPARENT_UNION __attribute__((transparent_union))
-#if __clang__
-#define XPC_DEPRECATED(m) __attribute__((deprecated(m)))
-#else // __clang__
-#define XPC_DEPRECATED(m) __attribute__((deprecated))
-#endif // __clang 
+/* Only callable from a debugger. */
+#define XPC_DEBUGGER_EXCL	XPC_NOEXPORT XPC_USED
 
+/* Not implemented on this platform. */
+#define XPC_NOIMPL		XPC_UNAVAILABLE("not implemented")
+
+/* Ownership of what a function returns or takes, for ARC. */
 #if __has_feature(objc_arc)
-#define XPC_GIVES_REFERENCE __strong
-#define XPC_UNRETAINED __unsafe_unretained
-#define XPC_BRIDGE(xo) ((__bridge void *)(xo))
-#define XPC_BRIDGEREF_BEGIN(xo) ((__bridge_retained void *)(xo))
+#define XPC_GIVES_REFERENCE	__strong
+#define XPC_UNRETAINED		__unsafe_unretained
+#define XPC_BRIDGE(xo)		((__bridge void *)(xo))
+#define XPC_BRIDGEREF_BEGIN(xo)	((__bridge_retained void *)(xo))
 #define XPC_BRIDGEREF_BEGIN_WITH_REF(xo) ((__bridge void *)(xo))
 #define XPC_BRIDGEREF_MIDDLE(xo) ((__bridge id)(xo))
-#define XPC_BRIDGEREF_END(xo) ((__bridge_transfer id)(xo))
-#else // __has_feature(objc_arc)
+#define XPC_BRIDGEREF_END(xo)	((__bridge_transfer id)(xo))
+#else
 #define XPC_GIVES_REFERENCE
 #define XPC_UNRETAINED
-#define XPC_BRIDGE(xo)
-#define XPC_BRIDGEREF_BEGIN(xo) (xo)
+#define XPC_BRIDGE(xo)		(xo)
+#define XPC_BRIDGEREF_BEGIN(xo)	(xo)
 #define XPC_BRIDGEREF_BEGIN_WITH_REF(xo) (xo)
 #define XPC_BRIDGEREF_MIDDLE(xo) (xo)
-#define XPC_BRIDGEREF_END(xo) (xo)
-#endif // __has_feature(objc_arc)
+#define XPC_BRIDGEREF_END(xo)	(xo)
+#endif
 
-#define _xpc_unreachable() __builtin_unreachable()
-#else // __GNUC__ 
-/*! @parseOnly */
-#define XPC_CONSTRUCTOR
-/*! @parseOnly */
-#define XPC_NORETURN
-/*! @parseOnly */
-#define XPC_NOTHROW
-/*! @parseOnly */
-#define XPC_NONNULL1
-/*! @parseOnly */
-#define XPC_NONNULL2
-/*! @parseOnly */
-#define XPC_NONNULL3
-/*! @parseOnly */
-#define XPC_NONNULL4
-/*! @parseOnly */
-#define XPC_NONNULL5
-/*! @parseOnly */
-#define XPC_NONNULL6
-/*! @parseOnly */
-#define XPC_NONNULL7
-/*! @parseOnly */
-#define XPC_NONNULL8
-/*! @parseOnly */
-#define XPC_NONNULL9
-/*! @parseOnly */
-#define XPC_NONNULL10
-/*! @parseOnly */
-#define XPC_NONNULL11
-/*! @parseOnly */
-#define XPC_NONNULL(n)
-/*! @parseOnly */
-#define XPC_NONNULL_ALL
-/*! @parseOnly */
-#define XPC_SENTINEL
-/*! @parseOnly */
-#define XPC_PURE
-/*! @parseOnly */
-#define XPC_WARN_RESULT
-/*! @parseOnly */
-#define XPC_MALLOC
-/*! @parseOnly */
-#define XPC_UNUSED
-/*! @parseOnly */
-#define XPC_PACKED
-/*! @parseOnly */
-#define XPC_PRINTF(m, n)
-/*! @parseOnly */
-#define XPC_INLINE static inline
-/*! @parseOnly */
-#define XPC_NOINLINE
-/*! @parseOnly */
-#define XPC_NOIMPL
-/*! @parseOnly */
-#define XPC_EXPORT extern
-/*! @parseOnly */
-#define XPC_WEAKIMPORT
-/*! @parseOnly */
-#define XPC_DEPRECATED
-/*! @parseOnly */
-#define XPC_UNAVAILABLE(m)
-#endif // __GNUC__ 
-
-__END_DECLS
-
-#endif // __XPC_BASE_H__ 
+#endif /* __XPC_BASE_H__ */

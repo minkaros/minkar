@@ -85,6 +85,9 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	# apinotes/README.md).
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/xpc
 	rsync -cL ${.CURDIR}/apinotes/XPC.apinotes ${MINKAR_SDKROOT}/usr/include/xpc/
+	# XPC's public headers are libxpc's own (one copy, kept with its code).
+	rsync -cL ${ROOT_SOURCE_DIR}/Libraries/Libsystem/libxpc/xpc/*.h \
+		${MINKAR_SDKROOT}/usr/include/xpc/
 
 SUBDIR = rpcsvc
 
