@@ -1,0 +1,10 @@
+# Noto Sans CJK 2.004 (SIL Open Font License 1.1): Chinese (simplified and
+# traditional), Japanese and Korean in one collection per weight; the
+# regular and bold collections at a fixed commit, installed unchanged,
+# with their license.
+git https://github.com/notofonts/noto-cjk
+commit f8d157532fbfaeda587e826d4cd5b21a49186f7c
+name noto-cjk
+path Sans/OTC/NotoSansCJK-Regular.ttc
+path Sans/OTC/NotoSansCJK-Bold.ttc
+path Sans/LICENSE

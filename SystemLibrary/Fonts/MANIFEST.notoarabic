@@ -1,0 +1,7 @@
+# Noto Sans Arabic (SIL Open Font License 1.1): the variable font as Google
+# Fonts publishes it, at a fixed commit, installed unchanged, with its
+# license.
+git https://github.com/google/fonts
+commit 5bb28733cec313b63fbd415b574b5ae35c8aa8b8
+name google-fonts-arabic
+path ofl/notosansarabic

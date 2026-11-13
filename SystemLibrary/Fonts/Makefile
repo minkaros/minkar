@@ -25,6 +25,10 @@
 # License 1.1): Victor Mono and Monaspace (Argon, Krypton, Neon, Radon,
 # Xenon), fixed-pitch; Libre Caslon Condensed; and ANRT's Gotico-Antiqua
 # revivals of fifteenth-century types.
+#
+# Writing systems Inter and the others lack (2026-11-13, OFL 1.1, unchanged
+# with their licenses): Noto Sans CJK (Chinese, Japanese and Korean, the
+# regular and bold collections) and Noto Sans Arabic.
 
 SUBDIR =
 
@@ -108,5 +112,13 @@ install-fonts: .PHONY
 		install -C -o 0 -g 0 -m 0644 "$$f" ${DIR}/ || exit 1; \
 	done && \
 	install -C -o 0 -g 0 -m 0644 $$src/LICENSE.txt ${DIR}/GoticoAntiqua-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.notocjk ${CACHE}) && \
+	for f in NotoSansCJK-Regular.ttc NotoSansCJK-Bold.ttc; do \
+		install -C -o 0 -g 0 -m 0644 $$src/Sans/OTC/$$f ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/Sans/LICENSE ${DIR}/NotoSansCJK-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.notoarabic ${CACHE})/ofl/notosansarabic && \
+	install -C -o 0 -g 0 -m 0644 "$$src/NotoSansArabic[wdth,wght].ttf" ${DIR}/ && \
+	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/NotoSansArabic-LICENSE.txt
 
 .include <bsd.prog.mk>
