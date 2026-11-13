@@ -415,6 +415,8 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 /* What the window's title bar covers of the view (API 11). */
 @property(readonly) NSEdgeInsets safeAreaInsets;
 @property(readonly) NSRect safeAreaRect;
+@property(readonly) BOOL wantsUpdateLayer;
+- (void)updateLayer;
 
 @end
 

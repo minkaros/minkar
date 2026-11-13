@@ -413,6 +413,14 @@ static void updateSurfaceLayer(NSView *self) {
    view is flipped back). */
 static void drawHostedLayerTree(NSView *self,CGContextRef context) {
    CALayer *layer=self->_layer;
+
+   if([self wantsUpdateLayer]){
+    /* The root fills the view (changed only when it must: a change asks
+       for another drawing). */
+    if(!CGRectEqualToRect([layer bounds],NSRectToCGRect(self->_bounds)))
+     [layer setBounds:NSRectToCGRect(self->_bounds)];
+    [self updateLayer];
+   }
    CGRect   bounds=[layer bounds];
 
    CGContextSaveGState(context);
@@ -1777,6 +1785,15 @@ static char inputContextKey;
      CALayer *layer=[self makeBackingLayer];
      if(isSurfaceLayer(layer))
       [self setLayer:layer];
+     /* Minkar: a view that fills its layer itself (wantsUpdateLayer) gets
+        a layer tree it hosts, flipped as the view is. */
+     else if([self wantsUpdateLayer]){
+      if([layer isKindOfClass:[NSViewBackingLayer class]])
+       layer=[CALayer layer];
+      [layer setGeometryFlipped:[self isFlipped]];
+      [layer setBounds:NSRectToCGRect(_bounds)];
+      [self setLayer:layer];
+     }
     }
     _wantsLayer=value;
     return;
@@ -2825,6 +2842,14 @@ static char layoutDirectionKey;
 @end
 
 @implementation NSView (MinkarHostedLayers)
+
+/* Whether the view fills its layer in updateLayer, not drawRect: (API 10.8). */
+-(BOOL)wantsUpdateLayer {
+   return NO;
+}
+
+-(void)updateLayer {
+}
 
 /* The hosted layer tree changed: draw it again. */
 -(void)_minkarLayerTreeDidChange {
