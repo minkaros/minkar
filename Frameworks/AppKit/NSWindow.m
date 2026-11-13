@@ -1795,6 +1795,13 @@ static char titlebarSeparatorKey;
    if ( !screen) return rect;
    NSRect visRect = [screen visibleFrame];
 
+   /* Minkar: a resizable window taller than the visible area is cut to
+      it, so its title bar stays below the menu bar (as documented). */
+   if(([self styleMask]&NSWindowStyleMaskResizable) && rect.size.height>visRect.size.height){
+    rect.origin.y=NSMaxY(rect)-visRect.size.height;
+    rect.size.height=visRect.size.height;
+   }
+
    if (NSMaxX(rect) > NSMaxX(visRect)) {
     rect.origin.x = NSMaxX(visRect) - rect.size.width;
    }
@@ -2394,6 +2401,15 @@ static void sendAppearance(NSView *view,SEL selector) {
    BOOL appearing=(!_isVisible && place!=NSWindowOut);
    BOOL disappearing=(_isVisible && place==NSWindowOut);
 
+   /* Minkar: a titled window is kept on screen, below the menu bar, when
+      it is ordered in (an app may have set any frame before). */
+   if(appearing && ([self styleMask]&NSWindowStyleMaskTitled) && _parentWindow==nil){
+    NSScreen *screen=[self screen]!=nil?[self screen]:[NSScreen mainScreen];
+    NSRect    constrained=[self constrainFrameRect:_frame toScreen:screen];
+
+    if(!NSEqualRects(constrained,_frame))
+     [self setFrame:constrained display:NO];
+   }
    if(appearing)
     sendAppearance([self _backgroundView],@selector(viewWillAppear));
    if(disappearing)
