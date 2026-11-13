@@ -540,11 +540,26 @@ extern uintptr_t __CFRuntimeDefaultObjCClass;
 /* CF's own generic class (CFObjCClasses.c), the default before Foundation
  * loads: instances made then keep it. */
 extern uintptr_t __CFRuntimeCoreObjCClass;
+/* Minkar: an object's class from its isa. The Objective-C runtime may turn
+ * an object's isa into a non-pointer one (bit 0 set: the class with flags
+ * and counts around it, as for an object that is weakly referenced or has
+ * associated objects); compared raw with a class, a CF string so marked
+ * was taken for a foreign object, and CFRelease and -release sent each
+ * other the object without end. ISA_MASK as the runtime's (x86_64). */
+CF_INLINE uintptr_t __CFObjectClassBits(const void *cf) {
+    uintptr_t isa = *(const uintptr_t *)cf;
+#if defined(__x86_64__)
+    if (isa & 1)
+        isa &= 0x00007ffffffffff8ULL;
+#endif
+    return isa;
+}
+
 CF_INLINE Boolean __CFIsForeignObjCForType(CFTypeID typeID, const void *cf) {
     if (cf == NULL || typeID >= __CFRuntimeClassTableSize ||
         !__CFRuntimeObjCDispatch[typeID])
         return false;
-    uintptr_t isa = *(const uintptr_t *)cf;
+    uintptr_t isa = __CFObjectClassBits(cf);
     if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference ||
         (isa == __CFRuntimeDefaultObjCClass && isa != 0) ||
         (isa == __CFRuntimeCoreObjCClass && isa != 0))

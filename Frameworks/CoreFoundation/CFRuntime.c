@@ -454,7 +454,7 @@ CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf) {
     t = __CFGenericTypeID_inline(cf);
     if (t >= __CFRuntimeClassTableSize || __CFRuntimeClassTable[t] == NULL)
         return false;
-    isa = *(uintptr_t *)cf;
+    isa = __CFObjectClassBits(cf);
     return isa == 0 || isa == (uintptr_t)__CFRuntimeClassTable[t];
 }
 
@@ -474,7 +474,7 @@ extern SEL sel_registerName(const char *);
 uintptr_t __CFRuntimeDefaultObjCClass = 0;
 
 static inline Boolean __CFIsForeignObjC(CFTypeRef cf) {
-    uintptr_t isa = *(const uintptr_t *)cf;
+    uintptr_t isa = __CFObjectClassBits(cf);
     /* CF's own classes: the core one (__CFType) too, which objects made
      * before Foundation set the default class keep; taken for foreign,
      * their -retain (CFRetain) would send -retain again, without end. */
