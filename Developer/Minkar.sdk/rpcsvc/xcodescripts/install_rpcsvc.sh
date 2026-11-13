@@ -15,9 +15,9 @@ for xfile in "$SRCROOT"/*.x; do
 	printf " rpcgen -h -o %s %s\n" "$OBJROOT"/"$hfile" "$xfile"
 	${RPCGEN} -h -o "$OBJROOT"/"$hfile" "$xfile"
 
-	printf " install -m 0444 %s %s\n" "$OBJROOT"/"$hfile" "$destination"
-	install -m 0444 "$OBJROOT"/"$hfile" "$destination"
+	printf " install -C -m 0444 %s %s\n" "$OBJROOT"/"$hfile" "$destination"
+	install -C -m 0444 "$OBJROOT"/"$hfile" "$destination"
 
-	printf " install -m 0444 %s %s\n" "$xfile" "$destination"
-	install -m 0444 "$xfile" "$destination"
+	printf " install -C -m 0444 %s %s\n" "$xfile" "$destination"
+	install -C -m 0444 "$xfile" "$destination"
 done

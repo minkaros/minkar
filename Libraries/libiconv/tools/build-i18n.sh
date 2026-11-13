@@ -50,6 +50,6 @@ for dir in "$work/i18n/csmapper" "$work/i18n/esdb" "$work"/i18n/csmapper/*/ "$wo
 	[ -n "$files" ] || continue
 	for dest in "$@"; do
 		mkdir -p "$dest$filesdir"
-		(cd "$dir" && install -m 0444 $files "$dest$filesdir/")
+		(cd "$dir" && install -C -m 0444 $files "$dest$filesdir/")
 	done
 done

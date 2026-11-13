@@ -41,14 +41,25 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	# Compatibility symlinks
 	ln -sfn Minkar.platform ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform
 	ln -sfn Minkar.sdk ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-	rsync -rlc ${.CURDIR}/usr ${.CURDIR}/System ${MINKAR_SDKROOT}/
-	rsync -cL ${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/pthread/tsd_private.h \
-		${MINKAR_SDKROOT}/usr/local/include/pthread/
-	${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/make_symbol_aliasing.sh \
-		${MINKAR_SDKROOT} ${MINKAR_SDKROOT}/usr/include/sys/_symbol_aliasing.h
-	env SRCROOT=${libc_path} DSTROOT=${MINKAR_SDKROOT} \
+	# Libc's headers are installed and then edited in place (unifdef):
+	# that is done in a stage here, and the result copied by content.
+	rm -rf ${.OBJDIR}/libc-headers && mkdir -p ${.OBJDIR}/libc-headers
+	env SRCROOT=${libc_path} DSTROOT=${.OBJDIR}/libc-headers \
 		SDK_INSTALL_HEADERS_ROOT=. "PATH=${TOOLS}:${PATH}" ARCHS="${CpuArch} " \
 		VARIANT_PLATFORM_NAME=macosx bash ${libc_path}/xcodescripts/headers.sh
+	# The SDK's own files here, but not the headers Libc installs (its
+	# older copies here would replace them, and each pass would write
+	# them again).
+	cd ${.OBJDIR}/libc-headers && find . -type f | sed 's|^\.||' > ${.OBJDIR}/libc-headers.list
+	rsync -rlc --exclude-from=${.OBJDIR}/libc-headers.list ${.CURDIR}/usr ${.CURDIR}/System ${MINKAR_SDKROOT}/
+	rsync -rlc ${.OBJDIR}/libc-headers/ ${MINKAR_SDKROOT}/
+	rsync -cL ${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/pthread/tsd_private.h \
+		${MINKAR_SDKROOT}/usr/local/include/pthread/
+	# Generated files are made here and copied by content, so unchanged
+	# ones keep their dates (what includes them is not built again).
+	${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/make_symbol_aliasing.sh \
+		${MINKAR_SDKROOT} ${.OBJDIR}/_symbol_aliasing.h
+	rsync -c ${.OBJDIR}/_symbol_aliasing.h ${MINKAR_SDKROOT}/usr/include/sys/_symbol_aliasing.h
 	cd ${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_pthread && \
 		env DSTROOT=${MINKAR_SDKROOT} SDK_INSTALL_HEADERS_ROOT=. \
 		sh xcodescripts/install-sys-headers.sh
@@ -75,7 +86,8 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	# (objc4 here has no List.h: its List submodule is left out.)
 	${TOOLS}/unifdef -DBUILD_FOR_OSX ${objc_path}/runtime/Module/module.modulemap | \
 		awk '/^  module List \{/ { skip = 1 } !skip { print } skip && /^  \}/ { skip = 0 }' \
-		> ${MINKAR_SDKROOT}/usr/include/objc/module.modulemap
+		> ${.OBJDIR}/objc.modulemap
+	rsync -c ${.OBJDIR}/objc.modulemap ${MINKAR_SDKROOT}/usr/include/objc/module.modulemap
 	rsync -cL ${objc_path}/runtime/Module/ObjectiveC.apinotes ${MINKAR_SDKROOT}/usr/include/objc/
 	mkdir -p ${MINKAR_SDKROOT}/usr/include/dispatch ${MINKAR_SDKROOT}/usr/include/os
 	rsync -cL ${.CURDIR}/usr/include/dispatch/darwin/module.modulemap \

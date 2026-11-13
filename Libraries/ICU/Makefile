@@ -81,5 +81,6 @@ libicucore.A.dylib: lib${LIB}.a
 	  { echo 'prefix=/usr/local'; echo 'includedir=$${prefix}/include'; echo 'libdir=/usr/lib'; echo; \
 	    echo "Name: icu-$$pc"; echo "Description: ICU ($$pc), in libicucore"; echo 'Version: 78.3'; \
 	    echo 'Cflags: -I$${includedir}'; echo 'Libs: -L$${libdir} -licucore'; \
-	  } > ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig/icu-$$pc.pc; \
+	  } > ${.OBJDIR}/icu-$$pc.pc; \
+	  rsync -c ${.OBJDIR}/icu-$$pc.pc ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig/icu-$$pc.pc; \
 	done

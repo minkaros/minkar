@@ -30,7 +30,8 @@ ${.OBJDIR}/libz.1.dylib: lib${LIB}.a
 	# For the external libraries that ask pkg-config for zlib (libpng).
 	mkdir -p ${MINKAR_SDKROOT}/usr/lib/pkgconfig
 	printf 'prefix=/usr\nlibdir=$${prefix}/lib\nincludedir=$${prefix}/include\n\nName: zlib\nDescription: zlib compression library\nVersion: 1.3.2\nLibs: -L$${libdir} -lz\nCflags: -I$${includedir}\n' \
-	    > ${MINKAR_SDKROOT}/usr/lib/pkgconfig/zlib.pc
+	    > ${.OBJDIR}/zlib.pc
+	rsync -c ${.OBJDIR}/zlib.pc ${MINKAR_SDKROOT}/usr/lib/pkgconfig/zlib.pc
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib
 	rsync -cL ${.TARGET} ${d}/usr/lib/

@@ -9,15 +9,15 @@ if [ "${PLATFORM_NAME/iphone/}" != "${PLATFORM_NAME}" ]; then exit 0; fi
 OSV="$DSTROOT"/usr/local/OpenSourceVersions
 OSL="$DSTROOT"/usr/local/OpenSourceLicenses
 mkdir -p -m 0755 "$OSV" "$OSL"
-install -m 0444 removefile.plist "$OSV"
-install -m 0444 LICENSE "$OSL"/removefile.txt
+install -C -m 0444 removefile.plist "$OSV"
+install -C -m 0444 LICENSE "$OSL"/removefile.txt
 
 function InstallManPages() {
 	for MANPAGE in "$@"; do
 		SECTION=`basename "${MANPAGE/*./}"`
 		MANDIR="$DSTROOT"/usr/share/man/man"$SECTION"
 		install -d -m 0755 "$MANDIR"
-		install -m 0444 "$MANPAGE" "$MANDIR"
+		install -C -m 0444 "$MANPAGE" "$MANDIR"
 	done
 }
 

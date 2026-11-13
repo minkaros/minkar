@@ -11,7 +11,7 @@ if [ -n "${DRIVERKIT}" -a -z "${DRIVERKITSDK}" ]; then
 fi
 
 MKDIR="mkdir -p"
-INSTALL=install
+INSTALL="install -C"
 MV=mv
 ECHO=echo
 CHMOD=chmod

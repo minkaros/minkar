@@ -10,7 +10,7 @@ function InstallManPages() {
 		SECTION=`basename "${MANPAGE/*./}"`
 		MANDIR="$DSTROOT"/usr/share/man/man"$SECTION"
 		install -d  -m 0755 "$MANDIR"
-		install -m 0444 "$MANPAGE" "$MANDIR"
+		install -C -m 0444 "$MANPAGE" "$MANDIR"
 	done
 }
 

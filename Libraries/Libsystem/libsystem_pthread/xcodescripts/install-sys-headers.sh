@@ -33,7 +33,7 @@ mkdir -p "$DESTDIR"
 for X in \
 	qos.h \
 	; do
-	cp "../../../Developer/Minkar.sdk/usr/include/sys/$X" "$DESTDIR"
+	rsync -c "../../../Developer/Minkar.sdk/usr/include/sys/$X" "$DESTDIR"
 done
 
 DESTDIR="$DSTROOT/usr/local/include/sys"
@@ -41,7 +41,7 @@ mkdir -p "$DESTDIR"
 for X in \
 	qos_private.h \
 	; do
-	cp "../../../Developer/Minkar.sdk/usr/include/sys/$X" "$DESTDIR"
+	rsync -c "../../../Developer/Minkar.sdk/usr/include/sys/$X" "$DESTDIR"
 done
 
 DESTDIR="$DSTROOT/usr/include/sys/_pthread"
@@ -59,6 +59,6 @@ for X in \
 	_pthread_t.h \
 	_pthread_types.h \
 	; do
-	cp "../../../Developer/Minkar.sdk/usr/include/sys/_pthread/$X" "$DESTDIR"
+	rsync -c "../../../Developer/Minkar.sdk/usr/include/sys/_pthread/$X" "$DESTDIR"
 done
 
