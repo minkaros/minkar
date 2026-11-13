@@ -146,4 +146,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 
+/* Minkar: a pointer's events come from a mouse or touchpad (no tablet). */
+-(NSEventSubtype)subtype {
+   return NSEventSubtypeMouseEvent;
+}
+
 @end
