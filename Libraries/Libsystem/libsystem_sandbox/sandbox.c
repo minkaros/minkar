@@ -212,9 +212,16 @@ int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type typ
 		name = NULL;
 		break;
 	}
+	/* No operation: whether the process is sandboxed at all. */
 	if (operation == NULL) {
-		errno = EINVAL;
-		return -1;
+		struct sb_check_args args;
+		memset(&args, 0, sizeof(args));
+		args.pid = pid;
+		args.name_kind = -1;
+		args.operation = (uint64_t)(uintptr_t)"";
+		if (__mac_syscall(SB_POLICY_NAME, SB_CALL_CHECK, &args) != 0)
+			return errno == ENOENT || errno == ENOSYS || errno == EINVAL ? 0 : -1;
+		return args.sandboxed ? 1 : 0;
 	}
 	int denied = 0;
 	if (check_one(pid, operation, kind, name, &denied) != 0) {

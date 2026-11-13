@@ -61,7 +61,8 @@ enum sandbox_filter_type {
  * Whether the process pid would be denied an operation ("mach-lookup",
  * "file-read-data", ...) on a name or path (the argument after type, a
  * const char *, unless type is SANDBOX_FILTER_NONE): 1 denied, 0 allowed
- * (also for a process without a sandbox), -1 error (errno).
+ * (also for a process without a sandbox), -1 error (errno). With a NULL
+ * operation: 1 when the process is sandboxed, 0 when it is not.
  */
 int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...);
 
