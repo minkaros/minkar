@@ -2860,7 +2860,9 @@ static void sendAppearance(NSView *view,SEL selector) {
     } else if ([self respondsToSelector: @selector( windowWillUseStandardFrame:defaultFrame: )]) {
         zoomedFrame = [self windowWillUseStandardFrame: self defaultFrame: zoomedFrame];
     }
-    //  zoomedFrame = [self constrainFrameRect: zoomedFrame toScreen: screen];
+    /* Minkar: what the delegate gives is kept on screen, below the menu
+       bar (a delegate may give the whole screen). */
+    zoomedFrame = [self constrainFrameRect: zoomedFrame toScreen: screen];
 
     return zoomedFrame;
 }
