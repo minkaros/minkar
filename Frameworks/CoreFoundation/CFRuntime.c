@@ -475,8 +475,12 @@ uintptr_t __CFRuntimeDefaultObjCClass = 0;
 
 static inline Boolean __CFIsForeignObjC(CFTypeRef cf) {
     uintptr_t isa = *(const uintptr_t *)cf;
+    /* CF's own classes: the core one (__CFType) too, which objects made
+     * before Foundation set the default class keep; taken for foreign,
+     * their -retain (CFRetain) would send -retain again, without end. */
     if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference ||
-        (isa == __CFRuntimeDefaultObjCClass && isa != 0))
+        (isa == __CFRuntimeDefaultObjCClass && isa != 0) ||
+        (isa == __CFRuntimeCoreObjCClass && isa != 0))
         return false;
     CFTypeID t = __CFGenericTypeID_inline(cf);
     if (t < __CFRuntimeClassTableSize &&
