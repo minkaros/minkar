@@ -106,6 +106,33 @@ SLSGetDisplayMenuBarHeight(SLSDisplayID display, uint32_t *height)
 	return result;
 }
 
+int
+SLSSetDisplayDockRect(SLSDisplayID display, SLSIntRect rect)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_display_set_dock_rect(server, display, rect, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetDisplayDockRect(SLSDisplayID display, SLSIntRect *rect)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (rect == NULL)
+		return kSLSErrorIllegalArgument;
+	memset(rect, 0, sizeof(*rect));
+	if (server == MACH_PORT_NULL ||
+	    ws_display_dock_rect(server, display, rect, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
 /*
  * The online displays whose bounds contain the point, or meet the rect
  * (bounds include their origin, not their far edges).

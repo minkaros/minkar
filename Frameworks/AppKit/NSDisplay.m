@@ -48,7 +48,8 @@ CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display) {
 
 /* A display's bounds (from the top left of the main display, y down) in
  * AppKit's screen coordinates (from the bottom left, y up), and its
- * visible part, without the menu bar. */
+ * visible part, without the menu bar and the Dock (unless it hides
+ * itself), on whichever edge the Dock is: as on the reference platform. */
 static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect *visible) {
     CGRect b = CGDisplayBounds(display);
     NSRect frame = NSMakeRect(b.origin.x, mainHeight - (b.origin.y + b.size.height),
@@ -56,6 +57,26 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 
     *visible = frame;
     visible->size.height -= _NSMenuBarHeightForDisplay(display);
+
+    SLSIntRect r;
+    if(_CGUsesSkyLight() && SLSGetDisplayDockRect(display, &r) == kSLSErrorSuccess &&
+       r.width > 0 && r.height > 0) {
+        NSRect dock = NSIntersectionRect(frame,
+            NSMakeRect(r.x, mainHeight - (r.y + r.height), r.width, r.height));
+
+        if(!NSIsEmptyRect(dock)) {
+            if(NSWidth(dock) >= NSHeight(dock)) {
+                CGFloat top = MIN(NSMaxY(dock), NSMaxY(*visible));
+                visible->size.height = NSMaxY(*visible) - top;
+                visible->origin.y = top;
+            } else if(NSMidX(dock) < NSMidX(frame)) {
+                CGFloat left = MIN(NSMaxX(dock), NSMaxX(*visible));
+                visible->size.width = NSMaxX(*visible) - left;
+                visible->origin.x = left;
+            } else
+                visible->size.width = MAX(NSMinX(dock) - NSMinX(*visible), 0);
+        }
+    }
     return frame;
 }
 

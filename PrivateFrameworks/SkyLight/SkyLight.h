@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	19
+#define kSLSInterfaceVersion	20
 
 typedef int32_t SLSConnectionID;
 
@@ -138,6 +138,22 @@ int SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info);
  */
 #define kSLSMenuBarHeight	22
 int SLSGetDisplayMenuBarHeight(SLSDisplayID display, uint32_t *height);
+
+/* A rect in whole points (also windows' surfaces and damage). */
+typedef struct SLSIntRect {
+	int32_t	x, y, width, height;
+} SLSIntRect;
+
+/*
+ * The part of a display the Dock keeps, in global points from the top
+ * left of the main display (interface version 20): windows are zoomed and
+ * placed beside it (NSScreen's visibleFrame). An empty rect when the Dock
+ * hides itself or is not on that display. Only the Dock may set it, and
+ * it goes when the Dock's connection does. A change is told to every
+ * connection as kSLSEventDisplayReconfigured with no flags.
+ */
+int SLSSetDisplayDockRect(SLSDisplayID display, SLSIntRect rect);
+int SLSGetDisplayDockRect(SLSDisplayID display, SLSIntRect *rect);
 
 
 /* ---- Display modes and configuration ---------------------------------- */
@@ -449,9 +465,6 @@ int SLSSetWindowAlpha(SLSWindowID window, double alpha);
 
 /* ---- Window surfaces ---------------------------------------------------- */
 
-typedef struct SLSIntRect {
-	int32_t	x, y, width, height;
-} SLSIntRect;
 
 /*
  * A window's surface: two buffers of premultiplied 32-bit BGRA pixels

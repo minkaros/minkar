@@ -12,9 +12,9 @@ APP_INSTALL_DIR = /System/Library/CoreServices
 SRCS =		main.m DockModel.m DockView.m DesktopWindow.m
 FRAMEWORKS =	AppKit CoreGraphics Foundation
 MK_WERROR =	no
-CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
+CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
-LDFLAGS +=	-lobjc
+LDFLAGS +=	-lobjc -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
 # The Spanish texts (the English ones are the keys).
 RESOURCES =	${.CURDIR}/es.lproj
 

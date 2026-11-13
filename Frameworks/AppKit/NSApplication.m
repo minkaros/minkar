@@ -257,6 +257,15 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
  * platform.
  */
 -(void)_displayReconfigured:(CGDirectDisplayID)display flags:(CGDisplayChangeSummaryFlags)flags {
+    /* No flags: only the visible part changed (the Dock moved, resized or
+       hid itself). The screens are read again and apps told, but windows
+       stay where they are, as on the reference platform. */
+    if(flags == 0) {
+        [[NSDisplay currentDisplay] _reloadScreens];
+        [[NSNotificationCenter defaultCenter]
+            postNotificationName:NSApplicationDidChangeScreenParametersNotification object:self];
+        return;
+    }
     NSRect was = [[[NSScreen screens] objectAtIndex:0] frame];
 
     _CGDisplayReconfigured(display, flags);

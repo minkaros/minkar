@@ -652,3 +652,20 @@ routine keyboard_translate(
 	modifier_flags		: uint32_t;
 	out characters		: ws_key_characters_t;
 	out result		: int32_t);
+
+/* ---- The Dock's place (interface version 20) ---- */
+
+/* The part of a display the Dock keeps (global points, from the top
+ * left), or an empty rect; only the Dock may set it. */
+routine display_set_dock_rect(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	rect			: ws_int_rect_t;
+	out result		: int32_t);
+
+routine display_dock_rect(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out rect		: ws_int_rect_t;
+	out result		: int32_t);

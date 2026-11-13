@@ -208,6 +208,39 @@ setMode(const char *arg, uint32_t option)
 	return 0;
 }
 
+/* The Dock's place on the main display; or tries to set it (only the
+   Dock may: a test that the server refuses others). */
+static int
+dockRect(int argc, char *argv[])
+{
+	SLSDisplayID display;
+	uint32_t n = 0;
+	SLSIntRect r;
+
+	if (SLSGetOnlineDisplayList(1, &display, &n) != kSLSErrorSuccess || n == 0) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	if (argc == 6) {
+		r.x = atoi(argv[2]);
+		r.y = atoi(argv[3]);
+		r.width = atoi(argv[4]);
+		r.height = atoi(argv[5]);
+		int err = SLSSetDisplayDockRect(display, r);
+		if (err != kSLSErrorSuccess) {
+			fprintf(stderr, "wsctl: the Dock's place was not set (%d)\n", err);
+			return 1;
+		}
+		return 0;
+	}
+	if (SLSGetDisplayDockRect(display, &r) != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	printf("%d,%d %dx%d\n", r.x, r.y, r.width, r.height);
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -233,6 +266,9 @@ main(int argc, char *argv[])
 	}
 	if (argc == 2 && strcmp(argv[1], "front") == 0)
 		return front();
-	fprintf(stderr, "usage: wsctl stats [reset] | windows | displays | modes | mode ID [permanent] | restore | front\n");
+	if ((argc == 2 || argc == 6) && strcmp(argv[1], "dock-rect") == 0)
+		return dockRect(argc, argv);
+	fprintf(stderr, "usage: wsctl stats [reset] | windows | displays | modes | mode ID [permanent] | restore | front"
+	    " | dock-rect [X Y WIDTH HEIGHT]\n");
 	return 2;
 }

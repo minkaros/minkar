@@ -21,6 +21,7 @@
  */
 
 #import "DockView.h"
+#include <SkyLight/SkyLight.h>
 #include <math.h>
 
 static const CGFloat kEdgeGap = 4;          /* between the bar and the edge */
@@ -888,6 +889,11 @@ static NSUInteger separatorCount(DockModel *model)
     _shown = YES;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(modelChanged:)
                                                  name:DockModelDidChangeNotification object:model];
+    /* A display changed (mode, arrangement): placed again. Its own area
+       published again is no change, so no notice comes back. */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(modelChanged:)
+                                                 name:NSApplicationDidChangeScreenParametersNotification
+                                               object:nil];
     [self layout];
     return self;
 }
@@ -944,6 +950,41 @@ static NSUInteger separatorCount(DockModel *model)
     }
 }
 
+/* Tells the window server the part of the screen the Dock keeps: from its
+   edge to the bar's far side (not the room for magnified tiles), or none
+   when it hides itself. Apps' visible frame leaves it out. */
+- (void)publishReservedArea
+{
+    NSScreen *screen = [[NSScreen screens] firstObject];
+    NSRect full = [screen frame];
+    CGFloat depth = kEdgeGap + [DockView barThicknessForModel:_model];
+    NSRect shown = [self frameShown:YES];
+    NSRect area = NSZeroRect;
+
+    if (!_model.autohide) {
+        switch (_model.orientation) {
+        case DockOrientationLeft:
+            area = NSMakeRect(NSMinX(full), NSMinY(shown), depth, NSHeight(shown));
+            break;
+        case DockOrientationRight:
+            area = NSMakeRect(NSMaxX(full) - depth, NSMinY(shown), depth, NSHeight(shown));
+            break;
+        default:
+            area = NSMakeRect(NSMinX(shown), NSMinY(full), NSWidth(shown), depth);
+            break;
+        }
+    }
+    /* Global points from the top left of the main display. */
+    SLSIntRect rect = { 0, 0, 0, 0 };
+    if (!NSIsEmptyRect(area)) {
+        rect.x = (int32_t)floor(NSMinX(area));
+        rect.y = (int32_t)floor(NSMaxY(full) - NSMaxY(area));
+        rect.width = (int32_t)ceil(NSWidth(area));
+        rect.height = (int32_t)ceil(NSHeight(area));
+    }
+    SLSSetDisplayDockRect(CGMainDisplayID(), rect);
+}
+
 - (void)layout
 {
     if (!_model.autohide)
@@ -952,6 +993,7 @@ static NSUInteger separatorCount(DockModel *model)
     if (!NSEqualRects(frame, [self frame]))
         [self setFrame:frame display:YES];
     [_view setNeedsDisplay:YES];
+    [self publishReservedArea];
 
     if (_model.autohide) {
         if (_trigger == nil) {

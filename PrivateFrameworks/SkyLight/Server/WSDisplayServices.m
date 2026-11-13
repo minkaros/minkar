@@ -35,7 +35,10 @@
 
 #include <math.h>
 #include <pthread.h>
+#include <bsm/libbsm.h>
+#include <libproc.h>
 #include <stdio.h>
+#include <string.h>
 #import "WSServer.h"
 #import "WSConnection.h"
 #import "WSEvents.h"
@@ -111,6 +114,96 @@ wss_display_menu_bar_height(mach_port_t server, uint32_t display, int32_t *resul
 	*height = d.menuBarHeight;
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
+}
+
+/* ---- The Dock's place ---- */
+
+#define kDockPath "/System/Library/CoreServices/Dock.app/Contents/MacOS/Dock"
+
+/* Each display's Dock rect (SLSIntRect as NSData), and whose it is. */
+static NSMutableDictionary<NSNumber *, NSData *> *dockRects;
+static WSConnection *dockOwner;
+
+/* Every connection hears that the visible part of the displays changed:
+ * a reconfiguration notice with no flags (no display itself changed). */
+static void
+notifyDockChanged(SLSDisplayID display)
+{
+	SLSEvent e;
+	memset(&e, 0, sizeof(e));
+	e.type = kSLSEventDisplayReconfigured;
+	e.buttonNumber = display;
+	e.flags = 0;
+	e.timestamp = WSNanoseconds();
+	for (WSConnection *c in [WSConnection allConnections])
+		WSEventsEnqueue(c, &e);
+}
+
+static BOOL
+isDock(audit_token_t token)
+{
+	char path[PROC_PIDPATHINFO_MAXSIZE];
+
+	if (proc_pidpath(audit_token_to_pid(token), path, sizeof(path)) <= 0)
+		return NO;
+	return strcmp(path, kDockPath) == 0;
+}
+
+kern_return_t
+wss_display_set_dock_rect(mach_port_t server, audit_token_t token, uint32_t display,
+    SLSIntRect rect, int32_t *result)
+{
+	(void)server;
+	if (WSDisplayWithID(display) == nil || rect.width < 0 || rect.height < 0) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	WSConnection *connection = [WSConnection connectionForToken:token];
+	if (connection == nil || !isDock(token)) {
+		*result = connection == nil ? kSLSErrorInvalidConnection : kSLSErrorCannotComplete;
+		return KERN_SUCCESS;
+	}
+	if (dockRects == nil)
+		dockRects = [NSMutableDictionary dictionary];
+	if (rect.width == 0 || rect.height == 0)
+		memset(&rect, 0, sizeof(rect));
+	NSData *now = [NSData dataWithBytes:&rect length:sizeof(rect)];
+	dockOwner = connection;
+	*result = kSLSErrorSuccess;
+	if ([dockRects[@(display)] isEqual:now])
+		return KERN_SUCCESS;
+	dockRects[@(display)] = now;
+	notifyDockChanged(display);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_dock_rect(mach_port_t server, uint32_t display, SLSIntRect *rect, int32_t *result)
+{
+	(void)server;
+	memset(rect, 0, sizeof(*rect));
+	if (WSDisplayWithID(display) == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	NSData *r = dockRects[@(display)];
+	if (r != nil)
+		memcpy(rect, r.bytes, sizeof(*rect));
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* The Dock gone: its place is free again. */
+static void
+dockConnectionDied(WSConnection *c)
+{
+	if (c != dockOwner)
+		return;
+	dockOwner = nil;
+	NSArray<NSNumber *> *displays = dockRects.allKeys;
+	[dockRects removeAllObjects];
+	for (NSNumber *d in displays)
+		notifyDockChanged(d.unsignedIntValue);
 }
 
 /* ---- Display modes and configuration ---- */
@@ -988,6 +1081,7 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 {
 	BOOL moved = NO;
 
+	dockConnectionDied(c);
 	/* Its display streams end. */
 	for (WSDisplay *d in WSDisplays)
 		[(WSCompositor *)d.compositor removeStreamsOfOwner:c];
