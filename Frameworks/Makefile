@@ -59,6 +59,7 @@ SUBDIR += Quartz
 # Frameworks Firefox links (13 Nov 2026): what it needs to load, each with
 # what Minkar can do today (see each Makefile).
 SUBDIR += CoreAudio
+SUBDIR += AudioUnit
 SUBDIR += CoreMedia
 SUBDIR += VideoToolbox
 SUBDIR += CoreMIDI
@@ -69,6 +70,7 @@ SUBDIR += Vision
 SUBDIR += IOBluetooth
 SUBDIR += MediaPlayer
 SUBDIR += AuthenticationServices
+SUBDIR += AVFoundation
 # WebKit.framework is a stage of its own, after BSD (WPE WebKit): the
 # top Makefile.
 # Uniform types as objects (API 20).
@@ -125,6 +127,7 @@ OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 Quartz: AppKit QuickLook
 CoreAudio: CoreFoundation
+AudioUnit: AudioToolbox
 CoreMedia: CoreFoundation
 VideoToolbox: CoreMedia CoreVideo
 CoreMIDI: CoreFoundation
@@ -135,6 +138,7 @@ Vision: Foundation CoreGraphics
 IOBluetooth: Foundation
 MediaPlayer: Foundation CoreGraphics
 AuthenticationServices: Foundation
+AVFoundation: CoreMedia CoreVideo QuartzCore
 UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics
