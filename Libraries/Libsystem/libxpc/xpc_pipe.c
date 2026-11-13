@@ -32,6 +32,9 @@ extern kern_return_t bootstrap_look_up2(mach_port_t bp, const name_t service_nam
 static const char kPortKey[] = "pipe-port";
 static _Atomic uint64_t next_id = 1;
 
+/* The Mach transport's ports travel as xpc_port_t. */
+#define XPORT(p) ((xpc_port_t)(uintptr_t)(p))
+
 xpc_pipe_t
 xpc_pipe_create_from_port(mach_port_t port, uint64_t flags)
 {
@@ -100,7 +103,8 @@ wait_for_message(mach_port_t port)
 int
 xpc_pipe_routine(xpc_pipe_t pipe, xpc_object_t msg, xpc_object_t *reply)
 {
-	mach_port_t service, reply_port = MACH_PORT_NULL, remote = MACH_PORT_NULL;
+	mach_port_t service, reply_port = MACH_PORT_NULL;
+	xpc_port_t remote = NULL;
 	struct xpc_credentials creds;
 	xpc_object_t result = NULL;
 	uint64_t id, got_id = 0;
@@ -118,19 +122,19 @@ xpc_pipe_routine(xpc_pipe_t pipe, xpc_object_t msg, xpc_object_t *reply)
 		return ENOMEM;
 	}
 	id = atomic_fetch_add(&next_id, 1);
-	if (xpc_pipe_send(msg, id, reply_port, service) != 0)
+	if (xpc_pipe_send(msg, id, XPORT(reply_port), XPORT(service)) != 0)
 		error = errno == EPIPE ? EPIPE : EIO;
 	mach_port_deallocate(mach_task_self(), service);
 	while (error == 0) {
 		error = wait_for_message(reply_port);
 		if (error != 0)
 			break;
-		if (xpc_pipe_receive(reply_port, &remote, &result, &got_id, &creds) < 0) {
+		if (xpc_pipe_receive(XPORT(reply_port), &remote, &result, &got_id, &creds) < 0) {
 			error = EIO;
 			break;
 		}
-		if (MACH_PORT_VALID(remote))
-			mach_port_deallocate(mach_task_self(), remote);
+		if (MACH_PORT_VALID((mach_port_t)(uintptr_t)remote))
+			mach_port_deallocate(mach_task_self(), (mach_port_t)(uintptr_t)remote);
 		if (got_id == id)
 			break;
 		/* An answer to another request: not this one's. */
@@ -154,6 +158,7 @@ int
 xpc_pipe_receive_request(mach_port_t port, xpc_object_t *request, mach_port_t *reply_port, uint64_t *id)
 {
 	struct xpc_credentials creds;
+	xpc_port_t remote;
 	int error;
 
 	if (request == NULL || reply_port == NULL || id == NULL)
@@ -163,8 +168,11 @@ xpc_pipe_receive_request(mach_port_t port, xpc_object_t *request, mach_port_t *r
 	for (;;) {
 		if ((error = wait_for_message(port)) != 0)
 			return error;
-		if (xpc_pipe_receive(port, reply_port, request, id, &creds) >= 0)
+		remote = NULL;
+		if (xpc_pipe_receive(XPORT(port), &remote, request, id, &creds) >= 0) {
+			*reply_port = (mach_port_t)(uintptr_t)remote;
 			return 0;
+		}
 		/* A message that is not a pipe request: dropped, wait again. */
 	}
 }
@@ -176,7 +184,7 @@ xpc_pipe_send_reply(xpc_object_t reply, mach_port_t reply_port, uint64_t id)
 
 	if (reply == NULL || !MACH_PORT_VALID(reply_port))
 		return EINVAL;
-	if (xpc_pipe_send(reply, id, MACH_PORT_NULL, reply_port) != 0)
+	if (xpc_pipe_send(reply, id, XPORT(MACH_PORT_NULL), XPORT(reply_port)) != 0)
 		error = errno == EPIPE ? EPIPE : EIO;
 	mach_port_deallocate(mach_task_self(), reply_port);
 	return error;
