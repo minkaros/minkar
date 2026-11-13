@@ -30,6 +30,24 @@ typedef struct {
     uint64_t reserved;
 } CVTimeStamp;
 
+/* CVTimeStamp's flags. */
+enum {
+    kCVTimeStampVideoTimeValid = (1 << 0),
+    kCVTimeStampHostTimeValid = (1 << 1),
+    kCVTimeStampSMPTETimeValid = (1 << 2),
+    kCVTimeStampVideoRefreshPeriodValid = (1 << 3),
+    kCVTimeStampRateScalarValid = (1 << 4),
+    kCVTimeStampTopField = (1 << 16),
+    kCVTimeStampBottomField = (1 << 17),
+    kCVTimeStampVideoHostTimeValid = (kCVTimeStampVideoTimeValid | kCVTimeStampHostTimeValid),
+    kCVTimeStampIsInterlaced = (kCVTimeStampTopField | kCVTimeStampBottomField)
+};
+
+/* The host clock: mach absolute time. */
+COREVIDEO_EXPORT uint64_t CVGetCurrentHostTime(void);
+COREVIDEO_EXPORT double CVGetHostClockFrequency(void);
+COREVIDEO_EXPORT uint32_t CVGetHostClockMinimumTimeDelta(void);
+
 /* A time as a rational number of seconds (CVDisplayLink's periods). */
 typedef struct {
     int64_t timeValue;

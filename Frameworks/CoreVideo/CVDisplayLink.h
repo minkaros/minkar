@@ -19,6 +19,8 @@ typedef struct CVDisplayLink *CVDisplayLinkRef;
 typedef CVReturn (*CVDisplayLinkOutputCallback)(CVDisplayLinkRef, const CVTimeStamp *, const CVTimeStamp *, CVOptionFlags, CVOptionFlags *, void *);
 
 COREVIDEO_EXPORT CVReturn CVDisplayLinkCreateWithActiveCGDisplays(CVDisplayLinkRef *result);
+COREVIDEO_EXPORT CVReturn CVDisplayLinkCreateWithCGDisplay(CGDirectDisplayID displayID, CVDisplayLinkRef *result);
+COREVIDEO_EXPORT CVReturn CVDisplayLinkCreateWithCGDisplays(CGDirectDisplayID *displayArray, CFIndex count, CVDisplayLinkRef *result);
 COREVIDEO_EXPORT CVReturn CVDisplayLinkSetOutputCallback(CVDisplayLinkRef self, CVDisplayLinkOutputCallback callback, void *userInfo);
 COREVIDEO_EXPORT CVReturn CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(CVDisplayLinkRef self, CGLContextObj cglContext, CGLPixelFormatObj cglPixelFormat);
 
@@ -27,6 +29,8 @@ COREVIDEO_EXPORT CGDirectDisplayID CVDisplayLinkGetCurrentCGDisplay(CVDisplayLin
 COREVIDEO_EXPORT CVReturn CVDisplayLinkSetCurrentCGDisplay(CVDisplayLinkRef self, CGDirectDisplayID displayID);
 COREVIDEO_EXPORT CVTime CVDisplayLinkGetNominalOutputVideoRefreshPeriod(CVDisplayLinkRef self);
 COREVIDEO_EXPORT double CVDisplayLinkGetActualOutputVideoRefreshPeriod(CVDisplayLinkRef self);
+COREVIDEO_EXPORT CVTime CVDisplayLinkGetOutputVideoLatency(CVDisplayLinkRef self);
+COREVIDEO_EXPORT CVReturn CVDisplayLinkGetCurrentTime(CVDisplayLinkRef self, CVTimeStamp *outTime);
 COREVIDEO_EXPORT CVReturn CVDisplayLinkStop(CVDisplayLinkRef self);
 COREVIDEO_EXPORT Boolean CVDisplayLinkIsRunning(CVDisplayLinkRef self);
 
