@@ -181,3 +181,7 @@ ${.OBJDIR}/lib${LIB}.dylib: notify_ipcUser.c lib${LIB}.a
 	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>
+
+# The flags above change what the sources build (DS_AVAILABLE): the
+# objects are rebuilt when this file changes.
+${OBJS}: ${.CURDIR}/makefile
