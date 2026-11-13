@@ -8,14 +8,16 @@
  * a sandboxed process that may not read /etc still finds its user. It
  * runs as root and answers from the local files through libinfo itself,
  * with its own directory module off (XBS_DISABLE_LIBINFO): users,
- * groups and group lists. Password hashes are never given: pw_passwd and
- * gr_passwd are "*". Other routines get an error, and libinfo asks the
- * next module.
+ * groups and group lists. As with the files themselves, only a caller
+ * running as root, and not sandboxed (it could not read them), gets
+ * password hashes; others get "*". Other routines
+ * get an error, and libinfo asks the next module.
  */
 
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
+#include <sandbox.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,15 +25,23 @@
 #include <unistd.h>
 #include <xpc/xpc.h>
 #include <xpc/launchd.h>
+#include <bsm/audit.h>
 
 #define SERVICE		"com.apple.system.opendirectoryd.libinfo"
 #define OD_RPC_NAME	"rpc_name"
 #define OD_RPC_RESULT	"result"
 #define OD_RPC_ERROR	"error"
 
+/* Whether the request's sender runs as root (euid 0), without a sandbox. */
+static int caller_is_root;
+
+static const char *secret(const char *hash) {
+	return caller_is_root && hash != NULL ? hash : "*";
+}
+
 static void set_user(xpc_object_t d, const struct passwd *pw) {
 	xpc_dictionary_set_string(d, "pw_name", pw->pw_name);
-	xpc_dictionary_set_string(d, "pw_passwd", "*");
+	xpc_dictionary_set_string(d, "pw_passwd", secret(pw->pw_passwd));
 	xpc_dictionary_set_int64(d, "pw_uid", pw->pw_uid);
 	xpc_dictionary_set_int64(d, "pw_gid", pw->pw_gid);
 	xpc_dictionary_set_int64(d, "pw_change", (int64_t)pw->pw_change);
@@ -44,7 +54,7 @@ static void set_user(xpc_object_t d, const struct passwd *pw) {
 
 static void set_group(xpc_object_t d, const struct group *gr) {
 	xpc_dictionary_set_string(d, "gr_name", gr->gr_name);
-	xpc_dictionary_set_string(d, "gr_passwd", "*");
+	xpc_dictionary_set_string(d, "gr_passwd", secret(gr->gr_passwd));
 	xpc_dictionary_set_int64(d, "gr_gid", gr->gr_gid);
 	xpc_object_t members = xpc_array_create(NULL, 0);
 	for (char **m = gr->gr_mem; m != NULL && *m != NULL; m++)
@@ -174,6 +184,11 @@ int main(void) {
 		uint64_t id = 0;
 		if (xpc_pipe_receive_request(port, &request, &reply_port, &id) != 0)
 			continue;
+		audit_token_t token;
+		memset(&token, 0xff, sizeof(token));
+		xpc_dictionary_get_audit_token(request, &token);
+		caller_is_root = token.val[1] == 0 &&
+		    sandbox_check((pid_t)token.val[5], NULL, SANDBOX_FILTER_NONE) == 0;
 		xpc_object_t reply = xpc_dictionary_create(NULL, NULL, 0);
 		if (!answer(request, reply))
 			xpc_dictionary_set_int64(reply, OD_RPC_ERROR, ENOTSUP);
