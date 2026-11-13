@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ dirhelper: creates each user's own folders under /var/folders (their
+ user, temporary and cache directories), for the user who asks.
+ Started on demand.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.dirhelper</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/dirhelper</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>com.apple.bsd.dirhelper</key>
+		<true/>
+	</dict>
+	<key>UserName</key>
+	<string>root</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/dirhelper.log</string>
+</dict>
+</plist>

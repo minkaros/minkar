@@ -20,6 +20,7 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -w \
 	-I${MINKAR_SDKROOT}/usr/include \
 	-I${MINKAR_SDKROOT}/usr/local/include \
 	-D__DARWIN_UNIX03 \
+	-DHAVE_SYSTEM_CORESERVICES \
 	-include${.OBJDIR}/config.${CpuArch}.normal.h
 
 LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -148,3 +149,7 @@ ${.OBJDIR}/libSystem.B.dylib: all_subdir_${DIRPRFX}${d}
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
+
+# The flags above change what init.c builds (HAVE_SYSTEM_CORESERVICES):
+# rebuilt when this file changes.
+${OBJS}: ${.CURDIR}/Makefile

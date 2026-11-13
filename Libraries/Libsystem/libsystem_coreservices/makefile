@@ -1,7 +1,7 @@
 SUBDIR =
 MK_WERROR = no
 LIB = system_coreservices
-SRCS = sysdir.c NSSystemDirectories.c
+SRCS = sysdir.c NSSystemDirectories.c dirhelper.c
 
 SLF = /System/Library/Frameworks
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -10,7 +10,9 @@ TEST_CFLAGS = -g -DTEST
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-current_version,114 -Wl,-compatibility_version,1 \
 	-umbrella System \
-	-Wl,-install_name,/usr/lib/system/libsystem_coreservices.dylib
+	-Wl,-install_name,/usr/lib/system/libsystem_coreservices.dylib \
+	-Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -L${MINKAR_SDKROOT}/usr/lib/system \
+	-lxpc -lsystem_c -lsystem_kernel -lsystem_platform -lsystem_malloc -ldyld
 
 INCS = sysdir.h NSSystemDirectories.h
 INCSDIR = ${MINKAR_SDKROOT}/usr/include
