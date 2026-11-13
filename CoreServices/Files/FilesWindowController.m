@@ -148,14 +148,18 @@ static NSTextField *label(CGFloat size, BOOL bold)
     NSRect b = [[_window contentView] bounds];
     CGFloat top = NSMaxY(b) - kBarHeight;
 
-    /* The bar spans the window, above the sidebar: the view modes, then
-       back and forward, at its left; the folder's name in its middle. */
+    /* The bar spans the window, above the sidebar. The window's buttons
+       are at its left, over the sidebar; back and forward follow, where
+       the folder's contents begin, and the view modes are at its right.
+       The folder's name is in the middle of what is left. */
     NSSize nav = [_navigation naturalSize], modes = [_viewModes naturalSize];
     CGFloat mid = top + kBarHeight / 2;
-    [_viewModes setFrame:NSMakeRect(10, floor(mid - modes.height / 2), modes.width, modes.height)];
-    [_navigation setFrame:NSMakeRect(20 + modes.width, floor(mid - nav.height / 2), nav.width, nav.height)];
-    CGFloat side = 30 + modes.width + nav.width;
-    [_title setFrame:NSMakeRect(side, floor(mid - 10), MAX(NSWidth(b) - 2 * side, 0), 20)];
+    CGFloat navX = kSidebarWidth + 10;
+    CGFloat modesX = NSWidth(b) - 10 - modes.width;
+    [_navigation setFrame:NSMakeRect(navX, floor(mid - nav.height / 2), nav.width, nav.height)];
+    [_viewModes setFrame:NSMakeRect(modesX, floor(mid - modes.height / 2), modes.width, modes.height)];
+    CGFloat left = navX + nav.width + 10, right = modesX - 10;
+    [_title setFrame:NSMakeRect(left, floor(mid - 10), MAX(right - left, 0), 20)];
     [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b) - kBarHeight)];
     NSRect content = NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
                                 NSHeight(b) - kBarHeight - kStatusHeight);

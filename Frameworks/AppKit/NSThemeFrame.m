@@ -310,7 +310,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         [self _drawTitlebarControls];
 }
 
-/* The window's buttons, at the right of the title bar, and its title in
+/* The window's buttons, at the left of the title bar, and its title in
    the middle (unless hidden). */
 -(void)_drawTitlebarControls {
     NSWindow *window = [self window];
@@ -444,7 +444,9 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    [contentView setFrame:contentFrame];
 }
 
-/* Close at the right of the title bar, zoom and minimize left of it. */
+/* At the left of the title bar: close, minimize, zoom, in the reference
+   platform's order and spacing, which apps lay out their title bar
+   contents around (their look stays Atlas's own). */
 -(void)_layoutControls {
     NSRect bounds = [self bounds];
     NSWindow *window = [self window];
@@ -453,14 +455,14 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     /* A full-size content view may draw a taller bar: centered in it. */
     if(([window styleMask] & NSWindowStyleMaskFullSizeContentView) && [window _titlebarHeight] > 0)
         bar = [window _titlebarHeight];
-    NSRect button = NSMakeRect(NSWidth(bounds) - NSWindowControlSpacing - NSWindowControlDiameter,
+    NSRect button = NSMakeRect(NSWindowControlSpacing,
         floor(NSHeight(bounds) - bar / 2 - NSWindowControlDiameter / 2),
         NSWindowControlDiameter, NSWindowControlDiameter);
     _closeButtonRect = button;
-    button.origin.x -= NSWindowControlSpacing + NSWindowControlDiameter;
-    _zoomButtonRect = button;
-    button.origin.x -= NSWindowControlSpacing + NSWindowControlDiameter;
+    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
     _miniButtonRect = button;
+    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
+    _zoomButtonRect = button;
     controls = NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
 }
 
