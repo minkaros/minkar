@@ -23,6 +23,12 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
  * alert's), not only shown faint for a style that lacks them. */
 - (void)_setHidesWindowControls:(BOOL)hides;
 - (BOOL)_hidesWindowControls;
+/* The title bar buttons' size (14 x 16 points), and the window's own
+ * buttons as its frame view lays them out (kind: NSWindowCloseButton,
+ * NSWindowMiniaturizeButton, NSWindowZoomButton). */
++ (NSSize)_standardWindowButtonSize;
+- (void)_setStandardButtonFrame:(NSRect)frame kind:(NSInteger)kind;
+- (BOOL)_isStandardButtonHidden:(NSWindowButton)kind;
 /* The new window server's ID for this window (0 with the legacy one). */
 - (uint32_t)_skyLightWindowID;
 /* Notes a rect drawn (in the window's base coordinates), sent to the

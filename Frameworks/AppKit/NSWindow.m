@@ -354,9 +354,29 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    NSUnimplementedMethod();
 }
 
+/* The title bar's buttons are 14 x 16 points (the 12-point control in
+   their middle), as on the reference platform: apps that lay out their
+   title bar contents measure them. */
++(NSSize)_standardWindowButtonSize {
+   return NSMakeSize(14,16);
+}
+
+/* A button of the kind and size of a window's: close, minimize, zoom (the
+   others are not drawn by Atlas's windows). The window's own controls are
+   drawn by its frame; this one has their size, for apps to measure. */
 +(NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(NSWindowStyleMask)styleMask {
-   NSUnimplementedMethod();
-   return nil;
+   if(button!=NSWindowCloseButton && button!=NSWindowMiniaturizeButton && button!=NSWindowZoomButton)
+    return nil;
+   NSSize   size=[self _standardWindowButtonSize];
+   NSButton *result=[[[NSButton alloc] initWithFrame:NSMakeRect(0,0,size.width,size.height)] autorelease];
+
+   [result setBordered:NO];
+   [result setTitle:@""];
+   [result setImagePosition:NSImageOnly];
+   [result setEnabled:(button==NSWindowCloseButton)?(styleMask&NSWindowStyleMaskClosable)!=0:
+                      (button==NSWindowMiniaturizeButton)?(styleMask&NSWindowStyleMaskMiniaturizable)!=0:
+                      (styleMask&NSWindowStyleMaskResizable)!=0];
+   return result;
 }
 
 +(void)menuChanged:(NSMenu *)menu {
@@ -1595,9 +1615,36 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return _firstResponder;
 }
 
+/* The window's own close, minimize and zoom buttons (titled windows):
+   their frames follow the controls the frame view draws, and hiding one
+   takes its control away. They are made the first time they are asked
+   for and kept with the window. */
+static char standardButtonsKey;
+
 -(NSButton *)standardWindowButton:(NSWindowButton)value {
-   NSUnimplementedMethod();
-   return nil;
+   if(!(_styleMask&NSWindowStyleMaskTitled) ||
+      (value!=NSWindowCloseButton && value!=NSWindowMiniaturizeButton && value!=NSWindowZoomButton))
+    return nil;
+   NSMutableArray *buttons=objc_getAssociatedObject(self,&standardButtonsKey);
+   if(buttons==nil){
+    buttons=[NSMutableArray array];
+    for(NSInteger kind=NSWindowCloseButton;kind<=NSWindowZoomButton;kind++)
+     [buttons addObject:[NSWindow standardWindowButton:kind forStyleMask:_styleMask]];
+    objc_setAssociatedObject(self,&standardButtonsKey,buttons,OBJC_ASSOCIATION_RETAIN);
+    [_backgroundView setNeedsDisplay:YES];
+   }
+   return [buttons objectAtIndex:value];
+}
+
+-(void)_setStandardButtonFrame:(NSRect)frame kind:(NSInteger)kind {
+   NSArray *buttons=objc_getAssociatedObject(self,&standardButtonsKey);
+   if(buttons!=nil && kind>=0 && kind<(NSInteger)[buttons count] && !NSEqualRects([[buttons objectAtIndex:kind] frame],frame))
+    [[buttons objectAtIndex:kind] setFrame:frame];
+}
+
+-(BOOL)_isStandardButtonHidden:(NSWindowButton)kind {
+   NSArray *buttons=objc_getAssociatedObject(self,&standardButtonsKey);
+   return buttons!=nil && kind>=0 && kind<(NSInteger)[buttons count] && [[buttons objectAtIndex:kind] isHidden];
 }
 
 -(NSButtonCell *)defaultButtonCell {

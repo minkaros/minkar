@@ -320,10 +320,13 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     NSUInteger mask = [window styleMask];
     BOOL over = NSPointInRect(pointer, controls);
     if(![window _hidesWindowControls]) {
+    if(!NSIsEmptyRect(_closeButtonRect))
     drawControl(_context, _closeButtonRect, kControlClose, (mask & NSClosableWindowMask) != 0,
         over && NSPointInRect(pointer, _closeButtonRect));
+    if(!NSIsEmptyRect(_zoomButtonRect))
     drawControl(_context, _zoomButtonRect, kControlZoom, (mask & NSResizableWindowMask) != 0,
         over && NSPointInRect(pointer, _zoomButtonRect));
+    if(!NSIsEmptyRect(_miniButtonRect))
     drawControl(_context, _miniButtonRect, kControlMini, (mask & NSMiniaturizableWindowMask) != 0,
         over && NSPointInRect(pointer, _miniButtonRect));
     }
@@ -444,25 +447,51 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    [contentView setFrame:contentFrame];
 }
 
-/* At the left of the title bar: close, minimize, zoom, in the reference
-   platform's order and spacing, which apps lay out their title bar
-   contents around (their look stays Atlas's own). */
--(void)_layoutControls {
-    NSRect bounds = [self bounds];
+/* The title bar's height: the window's, or a full-size content view's own
+   taller bar (_setTitlebarHeight:). An app may change it (as on the
+   reference platform, where it is this frame view's). */
+-(CGFloat)_titlebarHeight {
     NSWindow *window = [self window];
-    CGFloat bar = NSWindowTitleHeight;
 
-    /* A full-size content view may draw a taller bar: centered in it. */
     if(([window styleMask] & NSWindowStyleMaskFullSizeContentView) && [window _titlebarHeight] > 0)
-        bar = [window _titlebarHeight];
-    NSRect button = NSMakeRect(NSWindowControlSpacing,
-        floor(NSHeight(bounds) - bar / 2 - NSWindowControlDiameter / 2),
-        NSWindowControlDiameter, NSWindowControlDiameter);
-    _closeButtonRect = button;
-    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
-    _miniButtonRect = button;
-    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
-    _zoomButtonRect = button;
+        return [window _titlebarHeight];
+    return NSWindowTitleHeight;
+}
+
+/* Where the close button's frame starts (its bottom left, in this view):
+   by default 7 points from the left, centered in the title bar. The
+   others follow 20 points apart. Apps that draw into the title bar move
+   the three by giving their own (Firefox centers them in its tab strip). */
+-(NSPoint)_closeButtonOrigin {
+    NSSize size = [NSWindow _standardWindowButtonSize];
+
+    return NSMakePoint(NSWindowControlSpacing - 1,
+        floor(NSHeight([self bounds]) - [self _titlebarHeight] / 2 - size.height / 2));
+}
+
+/* At the left of the title bar: close, minimize, zoom, in the reference
+   platform's order, sizes and spacing, which apps lay out their title bar
+   contents around (their look stays Atlas's own). Each button's frame is
+   14 x 16 points with the 12-point control in its middle. */
+-(void)_layoutControls {
+    NSWindow *window = [self window];
+    NSSize size = [NSWindow _standardWindowButtonSize];
+    NSPoint origin = [self _closeButtonOrigin];
+    CGFloat step = NSWindowControlSpacing + NSWindowControlDiameter;
+    NSRect frames[3];
+
+    for(int i = 0; i < 3; i++) {
+        frames[i] = NSMakeRect(origin.x + i * step, origin.y, size.width, size.height);
+        [window _setStandardButtonFrame:frames[i] kind:i];
+    }
+    NSRect (^circle)(NSRect) = ^NSRect(NSRect f) {
+        return NSMakeRect(floor(NSMidX(f) - NSWindowControlDiameter / 2),
+            floor(NSMidY(f) - NSWindowControlDiameter / 2), NSWindowControlDiameter, NSWindowControlDiameter);
+    };
+    /* A button the app hid takes no room and no clicks. */
+    _closeButtonRect = [window _isStandardButtonHidden:NSWindowCloseButton] ? NSZeroRect : circle(frames[0]);
+    _miniButtonRect = [window _isStandardButtonHidden:NSWindowMiniaturizeButton] ? NSZeroRect : circle(frames[1]);
+    _zoomButtonRect = [window _isStandardButtonHidden:NSWindowZoomButton] ? NSZeroRect : circle(frames[2]);
     controls = NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
 }
 
