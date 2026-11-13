@@ -44,7 +44,7 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-reexport-lcopyfile -Wl,-reexport-lmacho \
 	-Wl,-reexport-lremovefile -Wl,-reexport-lsystem_trace \
 	-Wl,-reexport-lsystem_dnssd -Wl,-reexport-lsystem_configuration \
-	-Wl,-reexport-lcommonCrypto \
+	-Wl,-reexport-lcommonCrypto -Wl,-reexport-lsystem_sandbox \
 	-lcompiler_rt -ldyld -lsystem_c -lc++ -lCrashReporterClient\
 	-lsystem_platform -lsystem_kernel -lsystem_blocks -lsystem_malloc \
 	-lsystem_info -lsystem_notify -lsystem_trace -lsystem_asl \
@@ -100,7 +100,8 @@ SUBDIR = libmacho copyfile removefile libdispatch libsystem_blocks libsystem_ker
 	libsystem_platform libsystem_malloc libsystem_pthread libsystem_notify \
 	libsystem_info libsystem_trace libsystem_c libsystem_asl \
 	libsystem_dnssd libxpc liblaunch libsystem_m libsystem_darwin \
-	libsystem_coreservices libsystem_configuration libcommonCrypto
+	libsystem_coreservices libsystem_configuration libcommonCrypto \
+	libsystem_sandbox
 
 # Library versions within libsystem were taken from Monterey System.tbd
 # libcache.dylib 83
@@ -138,6 +139,12 @@ SUBDIR = libmacho copyfile removefile libdispatch libsystem_blocks libsystem_ker
 # (CFLAGS): make it before the first of them, also with -j (they are
 # built one after the other).
 all_subdir_${DIRPRFX}${SUBDIR:[1]}: ${.OBJDIR}/config.${CpuArch}.normal.h
+
+# libSystem re-exports them all: linked after them, also with -j (a new
+# one was not there yet when it was linked).
+.for d in ${SUBDIR}
+${.OBJDIR}/libSystem.B.dylib: all_subdir_${DIRPRFX}${d}
+.endfor
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>

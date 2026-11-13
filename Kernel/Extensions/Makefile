@@ -2,7 +2,7 @@ SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarBGE MinkarVirtio MinkarNVMe \
-	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity
+	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity MinkarSandbox
 
 all: kernelcache
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
@@ -53,7 +53,8 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
 	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext \
 	${EXTENSIONS}/MinkarDiskImage/MinkarDiskImage.kext \
-	${EXTENSIONS}/MinkarCodeIntegrity/MinkarCodeIntegrity.kext
+	${EXTENSIONS}/MinkarCodeIntegrity/MinkarCodeIntegrity.kext \
+	${EXTENSIONS}/MinkarSandbox/MinkarSandbox.kext
 	chmod 0644 ${.TARGET}.tmp
 	${LIPO} -create -output ${.OBJDIR}/${.TARGET} \
 	  -arch x86_64 ${.OBJDIR}/${.TARGET}.tmp
