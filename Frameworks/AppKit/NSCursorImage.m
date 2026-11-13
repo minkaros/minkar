@@ -68,6 +68,41 @@ typedef struct {
 } NSCursorShape;
 
 static const NSCursorShape shapes[] = {
+    { "IBeamCursorForVerticalLayout", 8, 3, {
+        "X               X",
+        "X               X",
+        "X               X",
+        "XXXXXXXXXXXXXXXXX",
+        "X               X",
+        "X               X",
+        "X               X",
+        NULL } },
+    { "resizeNorthWestSouthEastCursor", 5, 5, {
+        "XXXXX      ",
+        "XXXX       ",
+        "XXX        ",
+        "XX X       ",
+        "X   X      ",
+        "     X     ",
+        "      X   X",
+        "       X XX",
+        "        XXX",
+        "       XXXX",
+        "      XXXXX",
+        NULL } },
+    { "resizeNorthEastSouthWestCursor", 5, 5, {
+        "      XXXXX",
+        "       XXXX",
+        "        XXX",
+        "       X XX",
+        "      X   X",
+        "     X     ",
+        "X   X      ",
+        "XX X       ",
+        "XXX        ",
+        "XXXX       ",
+        "XXXXX      ",
+        NULL } },
     { "IBeamCursor", 3, 8, {
         "XXX XXX",
         "   X   ",
@@ -171,6 +206,8 @@ static const char *const aliases[][2] = {
     { "resizeRightCursor", "resizeLeftRightCursor" },
     { "resizeUpCursor", "resizeUpDownCursor" },
     { "resizeDownCursor", "resizeUpDownCursor" },
+    { "rowResizeCursor", "resizeUpDownCursor" },
+    { "columnResizeCursor", "resizeLeftRightCursor" },
 };
 
 /* A shape with a one-pixel white outline around its black pixels. */

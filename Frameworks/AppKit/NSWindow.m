@@ -1770,6 +1770,22 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return content;
 }
 
+-(NSWindowOcclusionState)occlusionState {
+   return ([self isVisible] && ![self isMiniaturized] && ![NSApp isHidden])?NSWindowOcclusionStateVisible:0;
+}
+
+static char titlebarSeparatorKey;
+
+/* Atlas draws the title bar without a separator line of its own: the
+   style is kept for the app (automatic until set). */
+-(NSTitlebarSeparatorStyle)titlebarSeparatorStyle {
+   return [objc_getAssociatedObject(self,&titlebarSeparatorKey) integerValue];
+}
+
+-(void)setTitlebarSeparatorStyle:(NSTitlebarSeparatorStyle)style {
+   objc_setAssociatedObject(self,&titlebarSeparatorKey,[NSNumber numberWithInteger:style],OBJC_ASSOCIATION_RETAIN);
+}
+
 /* The title bar's buttons sit by the application's reading direction. */
 -(NSUserInterfaceLayoutDirection)windowTitlebarLayoutDirection {
    return (NSApp!=nil)?[NSApp userInterfaceLayoutDirection]:NSUserInterfaceLayoutDirectionLeftToRight;

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -200,6 +201,61 @@ static NSMutableArray *_cursorStack=nil;
     shared=[[self alloc] initWithName:NSStringFromSelector(_cmd)];
 
    return shared;
+}
+
+/* Minkar: the cursors of later APIs. Busy but clickable is the arrow
+   (the app answers); a frame's edge or corner names the shape. */
++(NSCursor *)IBeamCursorForVerticalLayout {
+   static NSCursor *shared=nil;
+
+   if(shared==nil)
+    shared=[[self alloc] initWithName:NSStringFromSelector(_cmd)];
+
+   return shared;
+}
+
++(NSCursor *)rowResizeCursor {
+   static NSCursor *shared=nil;
+
+   if(shared==nil)
+    shared=[[self alloc] initWithName:NSStringFromSelector(_cmd)];
+
+   return shared;
+}
+
++(NSCursor *)columnResizeCursor {
+   static NSCursor *shared=nil;
+
+   if(shared==nil)
+    shared=[[self alloc] initWithName:NSStringFromSelector(_cmd)];
+
+   return shared;
+}
+
++(NSCursor *)busyButClickableCursor {
+   return [self arrowCursor];
+}
+
++(NSCursor *)frameResizeCursorFromPosition:(NSCursorFrameResizePosition)position inDirections:(NSCursorFrameResizeDirections)directions {
+   static NSCursor *diagonal[2];
+   BOOL vertical=(position&(NSCursorFrameResizePositionTop|NSCursorFrameResizePositionBottom))!=0;
+   BOOL horizontal=(position&(NSCursorFrameResizePositionLeft|NSCursorFrameResizePositionRight))!=0;
+
+   if(vertical && horizontal){
+    BOOL descending=(position==NSCursorFrameResizePositionTopLeft || position==NSCursorFrameResizePositionBottomRight);
+    int  which=descending?0:1;
+
+    @synchronized(self){
+     if(diagonal[which]==nil)
+      diagonal[which]=[[self alloc] initWithName:descending?@"resizeNorthWestSouthEastCursor":@"resizeNorthEastSouthWestCursor"];
+    }
+    return diagonal[which];
+   }
+   if(vertical)
+    return [self resizeUpDownCursor];
+   if(horizontal)
+    return [self resizeLeftRightCursor];
+   return [self arrowCursor];
 }
 
 +(NSCursor *)dragCopyCursor {

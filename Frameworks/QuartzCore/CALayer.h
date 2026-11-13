@@ -17,6 +17,22 @@ enum {
     kCALayerMaxYMargin = 0x20,
 };
 
+/* The edges drawn antialiased (edgeAntialiasingMask). */
+typedef NS_OPTIONS(unsigned int, CAEdgeAntialiasingMask) {
+    kCALayerLeftEdge = 1U << 0,
+    kCALayerRightEdge = 1U << 1,
+    kCALayerBottomEdge = 1U << 2,
+    kCALayerTopEdge = 1U << 3,
+};
+
+/* The corners cornerRadius rounds (maskedCorners). */
+typedef NS_OPTIONS(NSUInteger, CACornerMask) {
+    kCALayerMinXMinYCorner = 1U << 0,
+    kCALayerMaxXMinYCorner = 1U << 1,
+    kCALayerMinXMaxYCorner = 1U << 2,
+    kCALayerMaxXMaxYCorner = 1U << 3,
+};
+
 CA_EXPORT NSString *const kCAFilterLinear;
 CA_EXPORT NSString *const kCAFilterNearest;
 CA_EXPORT NSString *const kCAFilterTrilinear;
@@ -68,6 +84,10 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
     BOOL _needsDisplayOnBoundsChange;
     BOOL _needsLayout;
     BOOL _doubleSided;
+    BOOL _geometryFlipped;
+    BOOL _allowsEdgeAntialiasing;
+    unsigned _edgeAntialiasingMask;
+    NSUInteger _maskedCorners;
     NSString *_name;
     NSString *_contentsGravity;
     CALayer *_mask;
@@ -85,7 +105,7 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 @property CGRect bounds;
 @property CGRect frame;
 @property float opacity;
-@property BOOL opaque;
+@property(getter=isOpaque) BOOL opaque;
 @property(retain) id contents;
 //@property CATransform3D transform;
 @property CATransform3D sublayerTransform;
@@ -98,6 +118,12 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 @property CGFloat borderWidth;
 @property CGFloat cornerRadius;
 @property BOOL masksToBounds;
+/* Sublayers are laid out with y down; the layer's own contents are not. */
+@property(getter=isGeometryFlipped) BOOL geometryFlipped;
+@property BOOL contentsOpaque;
+@property BOOL allowsEdgeAntialiasing;
+@property CAEdgeAntialiasingMask edgeAntialiasingMask;
+@property CACornerMask maskedCorners;
 @property(getter=isHidden) BOOL hidden;
 @property(getter=isDoubleSided) BOOL doubleSided;
 @property(copy) NSString *name;

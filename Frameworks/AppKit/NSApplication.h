@@ -111,6 +111,10 @@ typedef enum {
     NSPrintingFailure,
 } NSApplicationPrintReply;
 
+typedef NS_OPTIONS(NSUInteger, NSApplicationOcclusionState) {
+    NSApplicationOcclusionStateVisible = 1UL << 1,
+};
+
 @interface NSApplication : NSResponder <NSAppearanceCustomization> {
     NSString *bundleID;
     NSDisplay *_display;
@@ -275,6 +279,9 @@ typedef enum {
 
 /* Minkar: right to left when the first preferred language is written so. */
 @property(readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+
+/* Whether any of the app's windows shows on screen (API 10.9). */
+@property(readonly) NSApplicationOcclusionState occlusionState;
 
 @end
 

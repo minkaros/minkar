@@ -2735,6 +2735,37 @@ static char layoutDirectionKey;
 
 @implementation NSView (MinkarLayoutDirection)
 
+/* The part of the view under the window's title bar and toolbar, when the
+   content reaches up there (a full-size content view). */
+-(NSEdgeInsets)safeAreaInsets {
+   NSWindow *window=[self window];
+   NSEdgeInsets insets=NSEdgeInsetsZero;
+
+   if(window==nil)
+    return insets;
+   NSRect layout=[window contentLayoutRect];
+   NSRect mine=[self convertRect:[self bounds] toView:nil];
+   CGFloat topCovered=NSMaxY(mine)-NSMaxY(layout);
+
+   if(topCovered>0)
+    insets.top=topCovered;
+   return insets;
+}
+
+-(NSRect)safeAreaRect {
+   NSEdgeInsets insets=[self safeAreaInsets];
+   NSRect       bounds=[self bounds];
+
+   bounds.origin.x+=insets.left;
+   bounds.size.width-=insets.left+insets.right;
+   bounds.size.height-=insets.top+insets.bottom;
+   if(![self isFlipped])
+    bounds.origin.y+=insets.bottom;
+   else
+    bounds.origin.y+=insets.top;
+   return bounds;
+}
+
 -(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {
    NSNumber *value=objc_getAssociatedObject(self,&layoutDirectionKey);
 

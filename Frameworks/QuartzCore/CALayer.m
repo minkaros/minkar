@@ -328,6 +328,9 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
    _contents=nil;
    _transform=CATransform3DIdentity;
    _sublayerTransform=CATransform3DIdentity;
+   _allowsEdgeAntialiasing=NO;
+   _edgeAntialiasingMask=kCALayerLeftEdge|kCALayerRightEdge|kCALayerBottomEdge|kCALayerTopEdge;
+   _maskedCorners=kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner|kCALayerMinXMaxYCorner|kCALayerMaxXMaxYCorner;
    _minificationFilter=kCAFilterLinear;
    _magnificationFilter=kCAFilterLinear;
    _animations=[[NSMutableDictionary alloc] init];
@@ -456,6 +459,25 @@ COLOR_PROPERTY(shadowColor,setShadowColor,_shadowColor)
 VALUE_PROPERTY(CGFloat,borderWidth,setBorderWidth,_borderWidth)
 VALUE_PROPERTY(CGFloat,cornerRadius,setCornerRadius,_cornerRadius)
 VALUE_PROPERTY(BOOL,masksToBounds,setMasksToBounds,_masksToBounds)
+VALUE_PROPERTY(BOOL,allowsEdgeAntialiasing,setAllowsEdgeAntialiasing,_allowsEdgeAntialiasing)
+VALUE_PROPERTY(CAEdgeAntialiasingMask,edgeAntialiasingMask,setEdgeAntialiasingMask,_edgeAntialiasingMask)
+
+-(BOOL)isGeometryFlipped { return _geometryFlipped; }
+-(void)setGeometryFlipped:(BOOL)value {
+   _geometryFlipped=value;
+   [self setNeedsDisplay];
+}
+
+/* Whether the contents cover the layer (the same as opaque). */
+-(BOOL)isOpaque { return _opaque; }
+-(BOOL)contentsOpaque { return _opaque; }
+-(void)setContentsOpaque:(BOOL)value { [self setOpaque:value]; }
+
+-(CACornerMask)maskedCorners { return _maskedCorners; }
+-(void)setMaskedCorners:(CACornerMask)value {
+   _maskedCorners=value;
+   [self setNeedsDisplay];
+}
 VALUE_PROPERTY(BOOL,isHidden,setHidden,_hidden)
 VALUE_PROPERTY(BOOL,isDoubleSided,setDoubleSided,_doubleSided)
 VALUE_PROPERTY(CGFloat,zPosition,setZPosition,_zPosition)
@@ -601,21 +623,29 @@ COPY_PROPERTY(NSDictionary *,style,setStyle,_style)
    return NO;
 }
 
-static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
+/* Minkar: only the corners in the mask are rounded (maskedCorners). */
+static CGPathRef createRoundedPathWithCorners(CGRect rect,CGFloat radius,CACornerMask corners) {
    CGMutablePathRef path=CGPathCreateMutable();
    radius=MIN(radius,MIN(rect.size.width,rect.size.height)/2);
-   if(radius<=0)
+   if(radius<=0 || (corners&15)==0)
     CGPathAddRect(path,NULL,rect);
    else {
     CGFloat minX=CGRectGetMinX(rect),maxX=CGRectGetMaxX(rect),minY=CGRectGetMinY(rect),maxY=CGRectGetMaxY(rect);
-    CGPathMoveToPoint(path,NULL,minX+radius,minY);
-    CGPathAddArcToPoint(path,NULL,maxX,minY,maxX,maxY,radius);
-    CGPathAddArcToPoint(path,NULL,maxX,maxY,minX,maxY,radius);
-    CGPathAddArcToPoint(path,NULL,minX,maxY,minX,minY,radius);
-    CGPathAddArcToPoint(path,NULL,minX,minY,maxX,minY,radius);
+    CGFloat r1=(corners&kCALayerMaxXMinYCorner)?radius:0,r2=(corners&kCALayerMaxXMaxYCorner)?radius:0;
+    CGFloat r3=(corners&kCALayerMinXMaxYCorner)?radius:0,r0=(corners&kCALayerMinXMinYCorner)?radius:0;
+
+    CGPathMoveToPoint(path,NULL,minX+r0,minY);
+    if(r1>0) CGPathAddArcToPoint(path,NULL,maxX,minY,maxX,maxY,r1); else CGPathAddLineToPoint(path,NULL,maxX,minY);
+    if(r2>0) CGPathAddArcToPoint(path,NULL,maxX,maxY,minX,maxY,r2); else CGPathAddLineToPoint(path,NULL,maxX,maxY);
+    if(r3>0) CGPathAddArcToPoint(path,NULL,minX,maxY,minX,minY,r3); else CGPathAddLineToPoint(path,NULL,minX,maxY);
+    if(r0>0) CGPathAddArcToPoint(path,NULL,minX,minY,maxX,minY,r0); else CGPathAddLineToPoint(path,NULL,minX,minY);
     CGPathCloseSubpath(path);
    }
    return path;
+}
+
+static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
+   return createRoundedPathWithCorners(rect,radius,15);
 }
 
 /* Where contents of the size go in the bounds, by contentsGravity (the
@@ -649,7 +679,7 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    [self layoutIfNeeded];
    CGContextSaveGState(context);
    CGContextSetAlpha(context,_opacity);
-   shape=createRoundedPath(_bounds,_cornerRadius);
+   shape=createRoundedPathWithCorners(_bounds,_cornerRadius,(CACornerMask)_maskedCorners);
    if(_masksToBounds){
     CGContextAddPath(context,shape);
     CGContextClip(context);
@@ -669,6 +699,11 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    NSArray *ordered=[_sublayers sortedArrayUsingComparator:^NSComparisonResult(CALayer *a,CALayer *b){
       return (a->_zPosition<b->_zPosition)?NSOrderedAscending:(a->_zPosition>b->_zPosition)?NSOrderedDescending:NSOrderedSame;
    }];
+   /* A flipped layer's sublayers are placed from its top edge down. */
+   if(_geometryFlipped){
+    CGContextTranslateCTM(context,0,CGRectGetMinY(_bounds)+CGRectGetMaxY(_bounds));
+    CGContextScaleCTM(context,1,-1);
+   }
    for(CALayer *child in ordered){
     CGContextSaveGState(context);
     CGContextConcatCTM(context,[child _toSuperlayer]);
@@ -676,7 +711,11 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
     CGContextRestoreGState(context);
    }
    if(_borderWidth>0 && _borderColor!=NULL){
-    CGPathRef inner=createRoundedPath(CGRectInset(_bounds,_borderWidth/2,_borderWidth/2),MAX(0,_cornerRadius-_borderWidth/2));
+    if(_geometryFlipped){
+     CGContextScaleCTM(context,1,-1);
+     CGContextTranslateCTM(context,0,-(CGRectGetMinY(_bounds)+CGRectGetMaxY(_bounds)));
+    }
+    CGPathRef inner=createRoundedPathWithCorners(CGRectInset(_bounds,_borderWidth/2,_borderWidth/2),MAX(0,_cornerRadius-_borderWidth/2),(CACornerMask)_maskedCorners);
     CGContextSetStrokeColorWithColor(context,_borderColor);
     CGContextSetLineWidth(context,_borderWidth);
     CGContextAddPath(context,inner);

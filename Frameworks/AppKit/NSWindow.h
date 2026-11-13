@@ -143,6 +143,16 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
     NSWindowAnimationBehaviorAlertPanel
 };
 
+typedef NS_OPTIONS(NSUInteger, NSWindowOcclusionState) {
+    NSWindowOcclusionStateVisible = 1UL << 1,
+};
+typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
+    NSTitlebarSeparatorStyleAutomatic,
+    NSTitlebarSeparatorStyleNone,
+    NSTitlebarSeparatorStyleLine,
+    NSTitlebarSeparatorStyleShadow
+};
+
 @interface NSWindow : NSResponder <NSAppearanceCustomization> {
     int _number;
     //CGLContextObj _cglContext;
@@ -478,6 +488,10 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 - (NSRect)contentRectForFrameRect:(NSRect)rect;
 @property (readonly) NSRect contentLayoutRect;
 @property (readonly) NSUserInterfaceLayoutDirection windowTitlebarLayoutDirection;
+/* Whether the window shows on screen (API 10.9). */
+@property (readonly) NSWindowOcclusionState occlusionState;
+/* The line under the title bar (API 11). */
+@property NSTitlebarSeparatorStyle titlebarSeparatorStyle;
 - (NSRect)constrainFrameRect:(NSRect)rect toScreen:(NSScreen *)screen;
 
 - (NSWindow *)parentWindow;

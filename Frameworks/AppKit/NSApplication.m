@@ -1456,6 +1456,22 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    NSUnimplementedMethod();
 }
 
+/* Visible while the app is not hidden and a window of it is on screen. */
+-(NSApplicationOcclusionState)occlusionState {
+   if(_isHidden)
+    return 0;
+   for(NSWindow *window in [self windows])
+    if([window isVisible] && ![window isMiniaturized])
+     return NSApplicationOcclusionStateVisible;
+   return 0;
+}
+
+/* Not public API, but apps call it (Firefox): whether an app-modal session
+   (runModalForWindow:, not a sheet) runs; sheets do not use the stack. */
+-(BOOL)_isRunningAppModal {
+   return [_modalStack count]>0;
+}
+
 /* Not public API, but apps call it (Firefox): whether a modal session runs. */
 /* Minkar: the direction the first preferred language is written in. */
 -(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {

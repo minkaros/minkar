@@ -412,6 +412,9 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 @property (getter=isHidden) BOOL hidden;
 /* Minkar: the view's reading direction, the application's unless set. */
 @property NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+/* What the window's title bar covers of the view (API 11). */
+@property(readonly) NSEdgeInsets safeAreaInsets;
+@property(readonly) NSRect safeAreaRect;
 
 @end
 

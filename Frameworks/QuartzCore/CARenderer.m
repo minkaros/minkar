@@ -336,6 +336,11 @@ void CATexImage2DCGImage(CGImageRef image){
 
    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+   /* Minkar: a flipped layer's sublayers are placed from its top down. */
+   if([layer isGeometryFlipped]){
+    glTranslatef(0,bounds.size.height,0);
+    glScalef(1,-1,1);
+   }
    for(CALayer *child in layer.sublayers)
     [self _renderLayer:child z:z+1 currentTime:currentTime];
 
