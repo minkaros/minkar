@@ -1,5 +1,6 @@
 /* Copyright (c) 2008 Johannes Fortmann
    Copyright (c) 2009 Christopher J. W. Lloyd - <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -44,14 +45,11 @@ FT_Library O2FontSharedFreeTypeLibrary(){
    return library;
 }
 
+/* Minkar: CoreText's, so the fonts an app registers there are found here. */
+extern void *_CTFontManagerSharedFontConfig(void);
+
 FcConfig *O2FontSharedFontConfig() {
-   static FcConfig *fontConfig=NULL;
-
-   if(fontConfig==NULL){
-    fontConfig=FcInitLoadConfigAndFonts();
-   }
-
-   return fontConfig;
+   return (FcConfig *)_CTFontManagerSharedFontConfig();
 }
 
 /* Minkar: a PostScript name is looked up as one first: a family whose
