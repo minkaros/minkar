@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2018 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  *
@@ -29,6 +30,9 @@
 #include <grp.h>
 #include <unistd.h>
 #include <mach/mach.h>
+/* Minkar: no membership service yet: these calls keep their local answers
+   (the directory service answers the lookups, ds_module.c). */
+#undef DS_AVAILABLE
 #include "membership.h"
 #include "membershipPriv.h"
 #include <servers/bootstrap.h>

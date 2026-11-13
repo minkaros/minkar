@@ -134,9 +134,11 @@ HDRS = -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern \
 	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders
 
-# -DDS_AVAILABLE -- zoe 2/11/26 Put this back once we have DirectoryService
+# DS_AVAILABLE: users and groups from the directory service (directoryd,
+# 13 Nov 2026), which a sandboxed process may ask when it may not read
+# /etc; membership.c keeps its local answers (no membership service).
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-DPRIVATE -D__APPLE__ -fblocks -fno-common -DDISPATCH_USE_DTRACE=0 \
+	-DPRIVATE -DDS_AVAILABLE=1 -D__APPLE__ -fblocks -fno-common -DDISPATCH_USE_DTRACE=0 \
 	-DINET6 -D__DARWIN_NON_CANCELABLE -DCONFIG_MAC -DSYNTH_ROOTFS \
 	-DTARGET_OS_BRIDGE=0 -Wno-int-conversion -Wno-implicit-int \
         ${HDRS} \

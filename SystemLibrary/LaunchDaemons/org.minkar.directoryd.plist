@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ directoryd: users and groups for libinfo, under the service name the
+ sandbox profiles allow. Started on demand; it answers from the local
+ files and never asks itself (XBS_DISABLE_LIBINFO).
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.directoryd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/directoryd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>com.apple.system.opendirectoryd.libinfo</key>
+		<true/>
+	</dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>XBS_DISABLE_LIBINFO</key>
+		<string>YES</string>
+	</dict>
+	<key>UserName</key>
+	<string>root</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/directoryd.log</string>
+</dict>
+</plist>

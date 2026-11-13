@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2018 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  *
@@ -88,7 +89,8 @@ typedef struct
 } ds_si_private_t;
 
 extern uint32_t gL1CacheEnabled;
-extern int _si_opendirectory_disabled;
+/* Minkar: defined here, membership.c being built without the service. */
+int _si_opendirectory_disabled;
 
 static pthread_key_t _ds_serv_cache_key = 0;
 static xpc_pipe_t __od_pipe;	/* use accessor only */

@@ -29,6 +29,8 @@ SUBDIR += pboard pboard/tests
 SUBDIR += logd
 # The file system's events for FSEvents (Atlas.md, K0).
 SUBDIR += fseventsd
+# Users and groups for sandboxed processes (libinfo's directory module).
+SUBDIR += directoryd
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
 # the desktop (Atlas.md, D1), Files, the file manager (K1), and the Menu Extras
 # (Atlas.md, MB1).
