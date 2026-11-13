@@ -13,5 +13,7 @@
 #include "LSOpen.h"
 #include "UTType.h"
 #include "UTCoreTypes.h"
+#include "LSQuarantine.h"
+#include "LSSharedFileList.h"
 
 #endif

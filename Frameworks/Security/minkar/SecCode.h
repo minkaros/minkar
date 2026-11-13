@@ -46,12 +46,14 @@ CF_EXPORT const CFStringRef kSecCodeInfoTeamIdentifier;
 CF_EXPORT const CFStringRef kSecCodeInfoMainExecutable;
 CF_EXPORT const CFStringRef kSecCodeInfoCertificates;
 CF_EXPORT const CFStringRef kSecCodeInfoFlags;
+CF_EXPORT const CFStringRef kSecCodeInfoStatus;
 CF_EXPORT const CFStringRef kSecCodeInfoFormat;
 CF_EXPORT const CFStringRef kSecCodeInfoPList;
 CF_EXPORT const CFStringRef kSecCodeInfoUnique;
 CF_EXPORT const CFStringRef kSecCodeInfoDesignatedRequirement;
 CF_EXPORT const CFStringRef kSecCodeInfoEntitlementsDict;
 CF_EXPORT const CFStringRef kSecGuestAttributePid;
+CF_EXPORT const CFStringRef kSecGuestAttributeAudit;
 
 CFTypeID SecCodeGetTypeID(void);
 CFTypeID SecStaticCodeGetTypeID(void);

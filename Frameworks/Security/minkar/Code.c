@@ -21,12 +21,14 @@ const CFStringRef kSecCodeInfoTeamIdentifier = CFSTR("teamid");
 const CFStringRef kSecCodeInfoMainExecutable = CFSTR("main-executable");
 const CFStringRef kSecCodeInfoCertificates = CFSTR("certificates");
 const CFStringRef kSecCodeInfoFlags = CFSTR("flags");
+const CFStringRef kSecCodeInfoStatus = CFSTR("status");
 const CFStringRef kSecCodeInfoFormat = CFSTR("format");
 const CFStringRef kSecCodeInfoPList = CFSTR("info-plist");
 const CFStringRef kSecCodeInfoUnique = CFSTR("unique");
 const CFStringRef kSecCodeInfoDesignatedRequirement = CFSTR("designated-requirement");
 const CFStringRef kSecCodeInfoEntitlementsDict = CFSTR("entitlements-dict");
 const CFStringRef kSecGuestAttributePid = CFSTR("pid");
+const CFStringRef kSecGuestAttributeAudit = CFSTR("audit");
 
 struct __SecCode {
     CFRuntimeBase base;

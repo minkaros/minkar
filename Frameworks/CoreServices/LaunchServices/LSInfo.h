@@ -69,6 +69,18 @@ OSStatus LSSetDefaultHandlerForURLScheme(CFStringRef inURLScheme, CFStringRef in
 OSStatus LSSetDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole,
     CFStringRef inHandlerBundleID);
 
+/* LSCopyItemAttribute's attributes. */
+CF_EXPORT const CFStringRef kLSItemContentType;
+CF_EXPORT const CFStringRef kLSItemFileType;
+CF_EXPORT const CFStringRef kLSItemFileCreator;
+CF_EXPORT const CFStringRef kLSItemExtension;
+CF_EXPORT const CFStringRef kLSItemDisplayName;
+CF_EXPORT const CFStringRef kLSItemDisplayKind;
+CF_EXPORT const CFStringRef kLSItemRoleHandlerDisplayName;
+CF_EXPORT const CFStringRef kLSItemIsInvisible;
+CF_EXPORT const CFStringRef kLSItemExtensionIsHidden;
+CF_EXPORT const CFStringRef kLSItemQuarantineProperties;
+
 CF_EXTERN_C_END
 CF_ASSUME_NONNULL_END
 

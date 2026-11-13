@@ -11,9 +11,9 @@ MK_WERROR = no
 FRAMEWORK = Security
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = SecBase.c Authorization.c Keychain.c Crypto.c Transform.c Code.c
+SRCS = SecBase.c Authorization.c Keychain.c Crypto.c Transform.c Code.c Policy.c
 HEADERS = Security.h SecBase.h Authorization.h AuthorizationDB.h SecItem.h SecKeychain.h SecCertificate.h SecKey.h \
-	SecImportExport.h SecTransform.h SecCode.h
+	SecImportExport.h SecTransform.h SecCode.h SecPolicy.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks

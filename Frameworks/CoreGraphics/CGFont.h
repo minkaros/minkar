@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17,6 +18,13 @@ CF_IMPLICIT_BRIDGING_ENABLED
 typedef struct O2Font *CGFontRef;
 
 typedef uint16_t CGGlyph;
+
+/* A variation axis (CGFontCopyVariationAxes' entries) and the font's
+   variation (CGFontCopyVariations): the keys of their dictionaries. */
+COREGRAPHICS_EXPORT const CFStringRef kCGFontVariationAxisName;
+COREGRAPHICS_EXPORT const CFStringRef kCGFontVariationAxisMinValue;
+COREGRAPHICS_EXPORT const CFStringRef kCGFontVariationAxisMaxValue;
+COREGRAPHICS_EXPORT const CFStringRef kCGFontVariationAxisDefaultValue;
 
 COREGRAPHICS_EXPORT CFTypeID CGFontGetTypeID(void);
 COREGRAPHICS_EXPORT CGFontRef CGFontCreateWithFontName(CFStringRef name);

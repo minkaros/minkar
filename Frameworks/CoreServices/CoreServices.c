@@ -2,6 +2,7 @@
 
 /* Metadata attribute names: the strings NSMetadataItem keeps them under. */
 const CFStringRef kMDItemPath = CFSTR("kMDItemPath");
+const CFStringRef kMDItemWhereFroms = CFSTR("kMDItemWhereFroms");
 const CFStringRef kMDItemFSName = CFSTR("kMDItemFSName");
 const CFStringRef kMDItemDisplayName = CFSTR("kMDItemDisplayName");
 const CFStringRef kMDItemFSSize = CFSTR("kMDItemFSSize");

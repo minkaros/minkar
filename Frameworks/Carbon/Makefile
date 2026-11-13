@@ -8,13 +8,13 @@ MK_WERROR = no
 FRAMEWORK = Carbon
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = HIToolbox.c
-HEADERS = Carbon.h HIToolbox.h Events.h
+SRCS = HIToolbox.c TextInputSources.c
+HEADERS = Carbon.h HIToolbox.h Events.h TextInputSources.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} 
-LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreServices -Wl,-reexport_framework,ApplicationServices
+LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreServices -Wl,-reexport_framework,ApplicationServices -framework CoreFoundation
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

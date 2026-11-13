@@ -4,8 +4,8 @@ MK_WERROR = no
 FRAMEWORK = CoreText
 FMWK_COMPAT_VERSION = 1.0.0
 
-SRCS = CTFont.m KTFont.m CTLine.m CTParagraphStyle.m CTStringAttributes.m
-HEADERS = CoreText.h CoreTextExport.h CTFont.h KTFont.h CTLine.h CTParagraphStyle.h CTStringAttributes.h SFNTLayoutTypes.h
+SRCS = CTFont.m CTFontDescriptor.m KTFont.m CTLine.m CTParagraphStyle.m CTStringAttributes.m
+HEADERS = CoreText.h CoreTextExport.h CTFont.h CTFontDescriptor.h KTFont.h CTLine.h CTParagraphStyle.h CTStringAttributes.h SFNTLayoutTypes.h
 RESOURCES = Info.plist
 LDFLAGS = -framework Onyx2D -framework CoreGraphics -framework Foundation \
 	-framework CoreFoundation -L${.OBJDIR}/libxml2 -lxml2 -lintl -lobjc \

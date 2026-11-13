@@ -22,5 +22,6 @@
 #include "SecImportExport.h"
 #include "SecTransform.h"
 #include "SecCode.h"
+#include "SecPolicy.h"
 
 #endif

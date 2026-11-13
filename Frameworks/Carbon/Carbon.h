@@ -14,5 +14,6 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/HIToolbox.h>
 #include <Carbon/Events.h>
+#include <Carbon/TextInputSources.h>
 
 #endif

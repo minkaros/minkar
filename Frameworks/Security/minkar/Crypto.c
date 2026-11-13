@@ -96,6 +96,16 @@ const CFStringRef kSecKeyAlgorithmRSAEncryptionPKCS1 = CFSTR("algid:encrypt:RSA:
 const CFStringRef kSecKeyAlgorithmRSAEncryptionOAEPSHA1 = CFSTR("algid:encrypt:RSA:OAEP:SHA1");
 const CFStringRef kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256 = CFSTR("algid:sign:RSA:message-PKCS1v15:SHA256");
 const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA256 = CFSTR("algid:sign:RSA:digest-PKCS1v15:SHA256");
+/* Values as in the reference platform's open-source Security (APSL). */
+const CFStringRef kSecKeyAlgorithmECDSASignatureDigestX962SHA1 = CFSTR("algid:sign:ECDSA:digest-X962:SHA1");
+const CFStringRef kSecKeyAlgorithmECDSASignatureDigestX962SHA256 = CFSTR("algid:sign:ECDSA:digest-X962:SHA256");
+const CFStringRef kSecKeyAlgorithmECDSASignatureDigestX962SHA384 = CFSTR("algid:sign:ECDSA:digest-X962:SHA384");
+const CFStringRef kSecKeyAlgorithmECDSASignatureDigestX962SHA512 = CFSTR("algid:sign:ECDSA:digest-X962:SHA512");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15Raw = CFSTR("algid:sign:RSA:digest-PKCS1v15");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA1 = CFSTR("algid:sign:RSA:digest-PKCS1v15:SHA1");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA384 = CFSTR("algid:sign:RSA:digest-PKCS1v15:SHA384");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA512 = CFSTR("algid:sign:RSA:digest-PKCS1v15:SHA512");
+const CFStringRef kSecKeyAlgorithmRSASignatureRaw = CFSTR("algid:sign:RSA:raw");
 const CFStringRef kSecKeyAlgorithmECDSASignatureMessageX962SHA256 = CFSTR("algid:sign:ECDSA:message-X962:SHA256");
 const CFStringRef kSecAttrKeyType = CFSTR("type");
 const CFStringRef kSecAttrKeyTypeRSA = CFSTR("42");

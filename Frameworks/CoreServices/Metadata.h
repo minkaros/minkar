@@ -12,6 +12,8 @@ CF_EXTERN_C_BEGIN
 /* The names of file attributes in metadata queries (NSMetadataQuery,
  * NSMetadataItem's valueForAttribute:). */
 CF_EXPORT const CFStringRef kMDItemPath;
+/* Where a downloaded file came from: its URLs (the page, the file). */
+CF_EXPORT const CFStringRef kMDItemWhereFroms;
 CF_EXPORT const CFStringRef kMDItemFSName;
 CF_EXPORT const CFStringRef kMDItemDisplayName;
 CF_EXPORT const CFStringRef kMDItemFSSize;

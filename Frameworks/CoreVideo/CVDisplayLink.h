@@ -1,11 +1,19 @@
+#include <CoreFoundation/CoreFoundation.h>
+#ifdef __OBJC__
 #import <Foundation/Foundation.h>
+#endif
 #import <CoreVideo/CVBase.h>
 #import <CoreVideo/CVReturn.h>
 #import <OpenGL/OpenGL.h>
 
+/* Usable from C, as the reference platform's: an object pointer in
+   Objective-C, an opaque one in C. */
+#ifdef __OBJC__
 @class CVDisplayLink;
-
 typedef CVDisplayLink *CVDisplayLinkRef;
+#else
+typedef struct CVDisplayLink *CVDisplayLinkRef;
+#endif
 
 typedef CVReturn (*CVDisplayLinkOutputCallback)(CVDisplayLinkRef, const CVTimeStamp *, const CVTimeStamp *, CVOptionFlags, CVOptionFlags *, void *);
 
