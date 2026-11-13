@@ -22,9 +22,10 @@
 #include <os/log.h>
 #include <CoreServices/CoreServices.h>
 
-/* The bar is the title bar too (a full-size content view): as high as the
-   window's own, its controls in line with the window's buttons. */
-static const CGFloat kBarHeight = 40, kStatusHeight = 22, kSidebarWidth = 170;
+/* The bar is the title bar too (a full-size content view): 52 points, a
+   unified toolbar's height on the reference platform, its controls in line
+   with the window's buttons. */
+static const CGFloat kBarHeight = 52, kStatusHeight = 22, kSidebarWidth = 170;
 
 @interface FilesWindowController () <FilesBrowserViewDelegate, FilesColumnViewDelegate, FilesSidebarViewDelegate,
                                      NSWindowDelegate>

@@ -458,15 +458,18 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     return NSWindowTitleHeight;
 }
 
-/* Where the close button's frame starts (its bottom left, in this view):
-   by default 7 points from the left, centered in the title bar. The
-   others follow 20 points apart. Apps that draw into the title bar move
-   the three by giving their own (Firefox centers them in its tab strip). */
+/* Where the close button's frame starts (its bottom left, in this view),
+   centered in the title bar: 7 points from the left in a plain title bar,
+   20 in a taller unified one (a toolbar's, as the reference platform lays
+   them out). The others follow 20 points apart. Apps that draw into the
+   title bar move the three by giving their own (Firefox centers them in
+   its tab strip). */
 -(NSPoint)_closeButtonOrigin {
-    NSSize size = [NSWindow _standardWindowButtonSize];
+    NSSize  size = [NSWindow _standardWindowButtonSize];
+    CGFloat bar = [self _titlebarHeight];
 
-    return NSMakePoint(NSWindowControlSpacing - 1,
-        floor(NSHeight([self bounds]) - [self _titlebarHeight] / 2 - size.height / 2));
+    return NSMakePoint(bar > NSWindowTitleHeight ? 20 : NSWindowControlSpacing - 1,
+        floor(NSHeight([self bounds]) - bar / 2 - size.height / 2));
 }
 
 /* At the left of the title bar: close, minimize, zoom, in the reference
