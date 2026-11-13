@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -990,6 +991,43 @@ void O2ContextSetShouldSmoothFonts(O2ContextRef self,BOOL yesOrNo) {
     return;
 
    [O2ContextCurrentGState(self) setShouldSmoothFonts:yesOrNo];
+}
+
+void O2ContextSetAllowsFontSubpixelPositioning(O2ContextRef self,BOOL yesOrNo) {
+   if(self!=nil)
+    O2ContextCurrentGState(self)->_allowsFontSubpixelPositioning=yesOrNo;
+}
+
+void O2ContextSetShouldSubpixelPositionFonts(O2ContextRef self,BOOL yesOrNo) {
+   if(self!=nil)
+    O2ContextCurrentGState(self)->_shouldSubpixelPositionFonts=yesOrNo;
+}
+
+void O2ContextSetAllowsFontSubpixelQuantization(O2ContextRef self,BOOL yesOrNo) {
+   if(self!=nil)
+    O2ContextCurrentGState(self)->_allowsFontSubpixelQuantization=yesOrNo;
+}
+
+void O2ContextSetShouldSubpixelQuantizeFonts(O2ContextRef self,BOOL yesOrNo) {
+   if(self!=nil)
+    O2ContextCurrentGState(self)->_shouldSubpixelQuantizeFonts=yesOrNo;
+}
+
+BOOL O2ContextGetDrawsGlyphsAtSubpixelPositions(O2ContextRef self) {
+   O2GState *state=(self!=nil)?O2ContextCurrentGState(self):nil;
+
+   return state!=nil && state->_allowsFontSubpixelPositioning && state->_shouldSubpixelPositionFonts;
+}
+
+/* Minkar: the transform from the context's default user space to the
+   device (what a window context or a scaled bitmap starts with); the
+   current CTM keeps its place above it. */
+void O2ContextSetBaseCTM(O2ContextRef self,O2AffineTransform transform) {
+   if(self==nil)
+    return;
+   self->_userToDeviceTransform=transform;
+   O2GStateSetDeviceSpaceCTM(O2ContextCurrentGState(self),
+      O2AffineTransformConcat(O2GStateUserSpaceTransform(O2ContextCurrentGState(self)),transform));
 }
 
 void O2ContextSetLineWidth(O2ContextRef self,O2Float width) {

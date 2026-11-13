@@ -58,6 +58,15 @@ typedef int32_t SLSConnectionID;
  */
 SLSConnectionID SLSMainConnectionID(void);
 
+/*
+ * A process that will not draw (a browser's content process) refuses the
+ * connection before anything opens it, or closes the one it has; after
+ * either, SLSMainConnectionID is 0. Refusing fails when a connection is
+ * already open.
+ */
+int SLSSetDenyWindowServerConnections(int deny);
+void SLSShutdownServerConnections(void);
+
 /* The server's port (MACH_PORT_NULL when there is none), for the other
  * client functions. */
 mach_port_t SLSServerPort(void);

@@ -127,9 +127,21 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
    FT_GlyphSlot slot=face->glyph;
 
    [font setPixelSize:gState->_pointSize];
-    
-   for(i=0;i<count;i++){
 
+   /* Minkar: with subpixel positioning allowed and asked for
+    * (CGContextSetShouldSubpixelPositionFonts), a glyph is rendered
+    * shifted by the fraction of a pixel it starts at, and the pen moves
+    * by the exact advance; else at whole pixels, as before. */
+   BOOL subpixel=O2ContextGetDrawsGlyphsAtSubpixelPositions(self);
+
+   for(i=0;i<count;i++){
+    O2Float x=subpixel?floor(point.x):(int)point.x;
+
+    if(subpixel){
+     FT_Vector delta={ (FT_Pos)((point.x-x)*64),0 };
+
+     FT_Set_Transform(face,NULL,&delta);
+    }
     ftError=FT_Load_Glyph(face,glyphs[i],FT_LOAD_DEFAULT);
     if(ftError)
      continue; 
@@ -138,10 +150,15 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
     if(ftError)
      continue;
       
-    drawFreeTypeBitmap(self,_surface,&slot->bitmap,point.x+slot->bitmap_left,point.y-slot->bitmap_top,paint);
+    drawFreeTypeBitmap(self,_surface,&slot->bitmap,x+slot->bitmap_left,point.y-slot->bitmap_top,paint);
 
-    point.x += slot->advance.x >> 6;
+    if(subpixel)
+     point.x += slot->linearHoriAdvance/65536.0;
+    else
+     point.x += slot->advance.x >> 6;
    }
+   if(subpixel)
+    FT_Set_Transform(face,NULL,NULL);
    
    O2PaintRelease(paint);
    

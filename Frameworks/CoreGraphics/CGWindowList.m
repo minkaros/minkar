@@ -145,22 +145,17 @@ static void release_pixels(void *info, const void *data, size_t size)
  * smallest rectangle around them. Each window's image comes from the
  * server (SLSCopyWindowImage), so minimized and ordered-out windows can be
  * imaged one at a time (kCGWindowListOptionIncludingWindow), as the
- * Dock's thumbnails are.
+ * Dock's thumbnails are. The ids are freed.
  */
-CGImageRef CGWindowListCreateImage(CGRect screenBounds, CGWindowListOption listOption,
-                                   CGWindowID windowID, CGWindowImageOption imageOption)
+static CGImageRef create_image_of_windows(CGRect screenBounds, SLSWindowID *ids, uint32_t n,
+                                          CGWindowImageOption imageOption)
 {
-    SLSWindowID *ids;
-    uint32_t n, i;
+    uint32_t i;
     CGRect bounds = screenBounds;
     CGContextRef context;
     CGColorSpaceRef space;
     CGImageRef image = NULL;
 
-    ids = malloc(kSLSMaxWindowList * sizeof(*ids));
-    if (ids == NULL)
-        return NULL;
-    n = sls_window_ids(listOption, windowID, ids);
     if (n == 0) {
         free(ids);
         return NULL;
@@ -234,6 +229,35 @@ CGImageRef CGWindowListCreateImage(CGRect screenBounds, CGWindowListOption listO
     return image;
 }
 
+CGImageRef CGWindowListCreateImage(CGRect screenBounds, CGWindowListOption listOption,
+                                   CGWindowID windowID, CGWindowImageOption imageOption)
+{
+    SLSWindowID *ids = malloc(kSLSMaxWindowList * sizeof(*ids));
+
+    if (ids == NULL)
+        return NULL;
+    return create_image_of_windows(screenBounds, ids, sls_window_ids(listOption, windowID, ids),
+                                   imageOption);
+}
+
+/* The windows of an array of window numbers (as CGWindowListCreate gives),
+   the first one in front. */
+CGImageRef CGWindowListCreateImageFromArray(CGRect screenBounds, CFArrayRef windowArray,
+                                            CGWindowImageOption imageOption)
+{
+    CFIndex count = windowArray != NULL ? CFArrayGetCount(windowArray) : 0;
+    SLSWindowID *ids;
+
+    if (count <= 0)
+        return NULL;
+    ids = malloc((size_t)count * sizeof(*ids));
+    if (ids == NULL)
+        return NULL;
+    for (CFIndex j = 0; j < count; j++)
+        ids[j] = (SLSWindowID)(uintptr_t)CFArrayGetValueAtIndex(windowArray, j);
+    return create_image_of_windows(screenBounds, ids, (uint32_t)count, imageOption);
+}
+
 CFArrayRef CGWindowListCreate(CGWindowListOption option, CGWindowID relativeToWindow)
 {
     CFMutableArrayRef array;
@@ -287,4 +311,41 @@ CFArrayRef CGWindowListCreateDescriptionFromArray(CFArrayRef windowArray)
         }
     }
     return array;
+}
+
+/*
+ * The connection functions of the window server's private API, as apps
+ * call them (a browser's content processes refuse the connection and
+ * close it). A window transform needs the compositor to scale or move a
+ * window's image, which it does not do yet: only the identity is taken.
+ */
+typedef int32_t CGSConnectionID;
+
+extern CGSConnectionID _CGSDefaultConnection(void);
+extern CGError CGSSetDenyWindowServerConnections(bool deny);
+extern void CGSShutdownServerConnections(void);
+extern CGError CGSSetWindowTransform(CGSConnectionID cid, CGWindowID wid, CGAffineTransform transform);
+
+CGSConnectionID _CGSDefaultConnection(void)
+{
+    return SLSMainConnectionID();
+}
+
+CGError CGSSetDenyWindowServerConnections(bool deny)
+{
+    return SLSSetDenyWindowServerConnections(deny);
+}
+
+void CGSShutdownServerConnections(void)
+{
+    SLSShutdownServerConnections();
+}
+
+CGError CGSSetWindowTransform(CGSConnectionID cid, CGWindowID wid, CGAffineTransform transform)
+{
+    SLSWindowInfo info;
+
+    if (SLSGetWindowInfo(wid, &info) != kSLSErrorSuccess)
+        return kCGErrorIllegalArgument;
+    return CGAffineTransformIsIdentity(transform) ? kCGErrorSuccess : kCGErrorNotImplemented;
 }

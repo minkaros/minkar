@@ -1,4 +1,5 @@
 /* Copyright(c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -15,6 +16,7 @@ CF_ASSUME_NONNULL_BEGIN
 
 typedef void (*CGBitmapContextReleaseDataCallback)(void * _Nullable userInfo, void * _Nullable data);
 
+COREGRAPHICS_EXPORT CGContextRef _Nullable CGBitmapContextCreateWithData(void * _Nullable data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow, CGColorSpaceRef _Nullable space, uint32_t bitmapInfo, CGBitmapContextReleaseDataCallback _Nullable releaseCallback, void * _Nullable releaseInfo);
 COREGRAPHICS_EXPORT CGContextRef _Nullable CGBitmapContextCreate(void * _Nullable data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow, CGColorSpaceRef _Nullable colorSpace, uint32_t bitmapInfo);
 
 COREGRAPHICS_EXPORT void * _Nullable CGBitmapContextGetData(CGContextRef self);

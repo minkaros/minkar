@@ -9,6 +9,7 @@ SRCS= \
 	CGBitmapContext.m \
 	CGColor.m \
 	CGColorSpace.m \
+	CGColorSpaceICC.c \
 	CGContext.m \
 	CGDataConsumer.m \
 	CGDataProvider.m \

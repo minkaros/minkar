@@ -95,6 +95,8 @@ enum {
 
 COREGRAPHICS_EXPORT CGImageRef CGWindowListCreateImage(CGRect screenBounds,
     CGWindowListOption listOption, CGWindowID windowID, CGWindowImageOption imageOption);
+COREGRAPHICS_EXPORT CGImageRef CGWindowListCreateImageFromArray(CGRect screenBounds,
+    CFArrayRef windowArray, CGWindowImageOption imageOption);
 
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);
 CGRect CGOutsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);

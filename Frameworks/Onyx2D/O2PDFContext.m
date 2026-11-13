@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -664,6 +665,98 @@ const NSString *kO2PDFContextTitle=@"kO2PDFContextTitle";
     [self encodePDFObject:(id)_xref];
     [_dataConsumer release];
     _dataConsumer=nil;
+}
+
+/* Minkar: link annotations, and the catalog's named destinations. */
+
+/* A rect in user space as the page's default space sees it. */
+static O2Rect pageRect(O2PDFContext *self,O2Rect rect) {
+   O2AffineTransform ctm=O2ContextGetCTM(self);
+   O2Point corners[4]={
+    { rect.origin.x,rect.origin.y }, { rect.origin.x+rect.size.width,rect.origin.y },
+    { rect.origin.x,rect.origin.y+rect.size.height }, { rect.origin.x+rect.size.width,rect.origin.y+rect.size.height },
+   };
+   O2Float minX=0,minY=0,maxX=0,maxY=0;
+
+   for(int i=0;i<4;i++){
+    O2Point p=O2PointApplyAffineTransform(corners[i],ctm);
+
+    if(i==0 || p.x<minX) minX=p.x;
+    if(i==0 || p.y<minY) minY=p.y;
+    if(i==0 || p.x>maxX) maxX=p.x;
+    if(i==0 || p.y>maxY) maxY=p.y;
+   }
+   return O2RectMake(minX,minY,maxX-minX,maxY-minY);
+}
+
+-(void)addLinkForRect:(O2Rect)rect action:(O2PDFDictionary *)action destination:(O2PDFObject *)destination {
+   O2PDFDictionary *link=[O2PDFDictionary pdfDictionary];
+   O2PDFArray      *annotations;
+   O2PDFArray      *border=[O2PDFArray pdfArray];
+
+   if(_page==nil)
+    return;
+   [link setNameForKey:"Type" value:"Annot"];
+   [link setNameForKey:"Subtype" value:"Link"];
+   [link setObjectForKey:"Rect" value:[O2PDFArray pdfArrayWithRect:pageRect(self,rect)]];
+   [border addInteger:0];
+   [border addInteger:0];
+   [border addInteger:0];
+   [link setObjectForKey:"Border" value:border];
+   if(action!=nil)
+    [link setObjectForKey:"A" value:action];
+   if(destination!=nil)
+    [link setObjectForKey:"Dest" value:destination];
+   if(![_page getArrayForKey:"Annots" value:&annotations]){
+    annotations=[O2PDFArray pdfArray];
+    [_page setObjectForKey:"Annots" value:annotations];
+   }
+   [annotations addObject:[self referenceForObject:link]];
+}
+
+-(void)setURL:(NSURL *)url forRect:(O2Rect)rect {
+   O2PDFDictionary *action=[O2PDFDictionary pdfDictionary];
+   NSString        *string=[url absoluteString];
+
+   if(string==nil)
+    return;
+   [action setNameForKey:"S" value:"URI"];
+   [action setObjectForKey:"URI" value:[O2PDFString pdfObjectWithCString:[string UTF8String]]];
+   [self addLinkForRect:rect action:action destination:nil];
+}
+
+-(void)setDestination:(NSString *)name forRect:(O2Rect)rect {
+   if(name==nil)
+    return;
+   [self addLinkForRect:rect action:nil destination:[O2PDFString pdfObjectWithString:name]];
+}
+
+-(void)addDestination:(NSString *)name atPoint:(O2Point)point {
+   O2PDFDictionary *names,*dests;
+   O2PDFArray      *list,*destination=[O2PDFArray pdfArray];
+   O2Point          p=O2PointApplyAffineTransform(point,O2ContextGetCTM(self));
+
+   if(_page==nil || name==nil)
+    return;
+   [destination addObject:[self referenceForObject:_page]];
+   [destination addObject:[O2PDFObject_Name pdfObjectWithCString:"XYZ"]];
+   [destination addNumber:p.x];
+   [destination addNumber:p.y];
+   [destination addInteger:0];
+   if(![_catalog getDictionaryForKey:"Names" value:&names]){
+    names=[O2PDFDictionary pdfDictionary];
+    [_catalog setObjectForKey:"Names" value:names];
+   }
+   if(![names getDictionaryForKey:"Dests" value:&dests]){
+    dests=[O2PDFDictionary pdfDictionary];
+    [names setObjectForKey:"Dests" value:dests];
+   }
+   if(![dests getArrayForKey:"Names" value:&list]){
+    list=[O2PDFArray pdfArray];
+    [dests setObjectForKey:"Names" value:list];
+   }
+   [list addObject:[O2PDFString pdfObjectWithString:name]];
+   [list addObject:destination];
 }
 
 @end

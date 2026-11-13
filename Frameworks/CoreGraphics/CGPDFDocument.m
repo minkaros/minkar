@@ -1,4 +1,5 @@
 /* Copyright(c) 2008 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -19,6 +20,17 @@ void CGPDFDocumentRelease(CGPDFDocumentRef self) {
 
 CGPDFDocumentRef CGPDFDocumentCreateWithProvider(CGDataProviderRef provider) {
    return [[O2PDFDocument alloc] initWithDataProvider:provider];
+}
+
+CGPDFDocumentRef CGPDFDocumentCreateWithURL(CFURLRef url) {
+   CGDataProviderRef provider=(url!=NULL)?CGDataProviderCreateWithURL(url):NULL;
+   CGPDFDocumentRef  document;
+
+   if(provider==NULL)
+    return NULL;
+   document=CGPDFDocumentCreateWithProvider(provider);
+   CGDataProviderRelease(provider);
+   return document;
 }
 
 size_t CGPDFDocumentGetNumberOfPages(CGPDFDocumentRef self) {

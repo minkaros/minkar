@@ -1,4 +1,5 @@
 /* Copyright (c) 2009 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -19,6 +20,11 @@ COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextTitle;
 COREGRAPHICS_EXPORT CGContextRef CGPDFContextCreate(CGDataConsumerRef consumer, const CGRect *mediaBox, CFDictionaryRef auxiliaryInfo);
 
 COREGRAPHICS_EXPORT void CGPDFContextClose(CGContextRef self);
+
+/* Links on the current page, and named destinations they can go to. */
+COREGRAPHICS_EXPORT void CGPDFContextSetURLForRect(CGContextRef context, CFURLRef url, CGRect rect);
+COREGRAPHICS_EXPORT void CGPDFContextSetDestinationForRect(CGContextRef context, CFStringRef name, CGRect rect);
+COREGRAPHICS_EXPORT void CGPDFContextAddDestinationAtPoint(CGContextRef context, CFStringRef name, CGPoint point);
 
 
 CF_IMPLICIT_BRIDGING_DISABLED

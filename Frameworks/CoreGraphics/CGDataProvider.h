@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreFoundation/CFData.h>
+#import <CoreFoundation/CFURL.h>
 
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
@@ -22,6 +24,8 @@ COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderRetain(CGDataProvi
 COREGRAPHICS_EXPORT void CGDataProviderRelease(CGDataProviderRef _Nullable provider);
 
 COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithCFData(CFDataRef _Nullable data);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithURL(CFURLRef _Nullable url);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithFilename(const char * _Nullable filename);
 
 COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithData(void * _Nullable info, const void * _Nullable data, size_t size, CGDataProviderReleaseDataCallback _Nullable releaseCallback);
 

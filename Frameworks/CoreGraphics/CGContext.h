@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted,free of charge,to any person obtaining a copy of this software and associated documentation files (the "Software"),to deal in the Software without restriction,including without limitation the rights to use,copy,modify,merge,publish,distribute,sublicense,and/or sell copies of the Software,and to permit persons to whom the Software is furnished to do so,subject to the following conditions:
 
@@ -91,6 +92,7 @@ COREGRAPHICS_EXPORT void CGContextSetAllowsAntialiasing(CGContextRef context, bo
 
 // layers
 COREGRAPHICS_EXPORT void CGContextBeginTransparencyLayer(CGContextRef context, CFDictionaryRef _Nullable unused);
+COREGRAPHICS_EXPORT void CGContextBeginTransparencyLayerWithRect(CGContextRef context, CGRect rect, CFDictionaryRef _Nullable auxInfo);
 COREGRAPHICS_EXPORT void CGContextEndTransparencyLayer(CGContextRef context);
 
 // path
@@ -184,6 +186,12 @@ COREGRAPHICS_EXPORT void CGContextSetFont(CGContextRef context, CGFontRef _Nulla
 COREGRAPHICS_EXPORT void CGContextSetFontSize(CGContextRef context, CGFloat size);
 COREGRAPHICS_EXPORT void CGContextSelectFont(CGContextRef context, const char *name, CGFloat size, CGTextEncoding encoding);
 COREGRAPHICS_EXPORT void CGContextSetShouldSmoothFonts(CGContextRef context, bool yesOrNo);
+COREGRAPHICS_EXPORT void CGContextSetAllowsFontSubpixelPositioning(CGContextRef context, bool allowsFontSubpixelPositioning);
+COREGRAPHICS_EXPORT void CGContextSetShouldSubpixelPositionFonts(CGContextRef context, bool shouldSubpixelPositionFonts);
+COREGRAPHICS_EXPORT void CGContextSetAllowsFontSubpixelQuantization(CGContextRef context, bool allowsFontSubpixelQuantization);
+COREGRAPHICS_EXPORT void CGContextSetShouldSubpixelQuantizeFonts(CGContextRef context, bool shouldSubpixelQuantizeFonts);
+/* The transform below the CTM, from default user space to the device. */
+COREGRAPHICS_EXPORT void CGContextSetBaseCTM(CGContextRef context, CGAffineTransform transform);
 
 COREGRAPHICS_EXPORT void CGContextSetLineWidth(CGContextRef context, CGFloat width);
 COREGRAPHICS_EXPORT void CGContextSetLineCap(CGContextRef context, CGLineCap lineCap);

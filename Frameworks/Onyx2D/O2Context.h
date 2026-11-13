@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -289,6 +290,13 @@ void O2ContextSetFont(O2ContextRef self, O2FontRef font);
 void O2ContextSetFontSize(O2ContextRef self, O2Float size);
 void O2ContextSelectFont(O2ContextRef self, const char *name, O2Float size, O2TextEncoding encoding);
 void O2ContextSetShouldSmoothFonts(O2ContextRef self, BOOL yesOrNo);
+void O2ContextSetAllowsFontSubpixelPositioning(O2ContextRef self, BOOL yesOrNo);
+void O2ContextSetShouldSubpixelPositionFonts(O2ContextRef self, BOOL yesOrNo);
+void O2ContextSetAllowsFontSubpixelQuantization(O2ContextRef self, BOOL yesOrNo);
+void O2ContextSetShouldSubpixelQuantizeFonts(O2ContextRef self, BOOL yesOrNo);
+/* Whether glyphs are drawn at their exact positions: allowed and asked for. */
+BOOL O2ContextGetDrawsGlyphsAtSubpixelPositions(O2ContextRef self);
+void O2ContextSetBaseCTM(O2ContextRef self, O2AffineTransform transform);
 
 void O2ContextSetLineWidth(O2ContextRef self, O2Float width);
 void O2ContextSetLineCap(O2ContextRef self, O2LineCap lineCap);

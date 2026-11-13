@@ -44,6 +44,9 @@ static SLSConnectionID mainConnection = 0;
  * release what the connection held.
  */
 static mach_port_t clientPort = MACH_PORT_NULL;
+static pthread_mutex_t stateLock = PTHREAD_MUTEX_INITIALIZER;
+static int denied;		/* SLSSetDenyWindowServerConnections */
+static int opened;		/* a connection was opened (or tried) */
 
 /* The -textconsole boot argument: no window server at all, so no wait. */
 static int
@@ -62,6 +65,13 @@ openMainConnection(void)
 {
 	uint32_t version = 0;
 	int32_t connection = 0;
+
+	pthread_mutex_lock(&stateLock);
+	opened = 1;
+	int refuse = denied;
+	pthread_mutex_unlock(&stateLock);
+	if (refuse)
+		return;
 
 	/* The server may be starting (launchd restarting it): try for a
 	 * while, so an app started then does not run without one. */
@@ -103,6 +113,40 @@ SLSMainConnectionID(void)
 {
 	pthread_once(&connectOnce, openMainConnection);
 	return mainConnection;
+}
+
+int
+SLSSetDenyWindowServerConnections(int deny)
+{
+	int error = kSLSErrorSuccess;
+
+	pthread_mutex_lock(&stateLock);
+	if (deny && opened && mainConnection != 0)
+		error = kSLSErrorFailure;
+	else
+		denied = deny != 0;
+	pthread_mutex_unlock(&stateLock);
+	return error;
+}
+
+/* The server is told by the client port's death, and frees what the
+ * connection held. */
+void
+SLSShutdownServerConnections(void)
+{
+	pthread_once(&connectOnce, openMainConnection);
+	pthread_mutex_lock(&stateLock);
+	if (clientPort != MACH_PORT_NULL) {
+		mach_port_mod_refs(mach_task_self(), clientPort, MACH_PORT_RIGHT_RECEIVE, -1);
+		clientPort = MACH_PORT_NULL;
+	}
+	if (serverPort != MACH_PORT_NULL) {
+		mach_port_deallocate(mach_task_self(), serverPort);
+		serverPort = MACH_PORT_NULL;
+	}
+	mainConnection = 0;
+	denied = 1;
+	pthread_mutex_unlock(&stateLock);
 }
 
 mach_port_t
