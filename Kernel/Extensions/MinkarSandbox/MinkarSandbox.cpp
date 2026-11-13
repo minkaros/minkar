@@ -153,6 +153,18 @@ static int vnode_kind(vnode_t vp) {
 }
 
 /* A file operation on a vnode (or on a name in a directory). */
+/*
+ * /etc, /tmp and /var are the system's links into /private: every path
+ * through them follows one, and the kernel asks to read the link (as
+ * readlink) each time. Their metadata is always allowed, as on the
+ * reference platform; what they lead to is checked as itself.
+ */
+static bool is_system_link(const char *operation, const char *path, vnode_t vp) {
+	if (strcmp(operation, "file-read-metadata") != 0 || vnode_vtype(vp) != VLNK)
+		return false;
+	return strcmp(path, "/etc") == 0 || strcmp(path, "/tmp") == 0 || strcmp(path, "/var") == 0;
+}
+
 static int check_vnode(kauth_cred_t cred, const char *operation, vnode_t vp, struct componentname *cnp) {
 	Profile *p = cred_profile(cred);
 	if (p == NULL || vp == NULL)
@@ -176,10 +188,13 @@ static int check_vnode(kauth_cred_t cred, const char *operation, vnode_t vp, str
 		}
 	} else
 		c->query.vnode_type = vnode_kind(vp);
+	if (error == 0 && is_system_link(operation, c->path, vp))
+		goto out;
 	if (error == 0) {
 		c->query.path = c->path;
 		error = decide(p, operation, c);
 	}
+out:
 	check_free(c);
 	return error;
 }
