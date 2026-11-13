@@ -1,4 +1,6 @@
 #import <QuartzCore/CALayer.h>
+#include <dispatch/dispatch.h>
+#import <IOSurface/IOSurfaceRef.h>
 #import <QuartzCore/CAAnimation.h>
 #import <QuartzCore/CALayerContext.h>
 #import <QuartzCore/CATransaction.h>
@@ -125,6 +127,21 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
    return total;
 }
 
+/* Minkar: a layer tree a view hosts is drawn by that view; a change
+   anywhere in the tree tells the view (on the main thread) to draw again.
+   Apps change their trees from other threads (a browser's compositor):
+   changes and drawing hold one lock. */
+static NSRecursiveLock *treeLock(void) {
+   static NSRecursiveLock *lock;
+   static dispatch_once_t  once;
+   dispatch_once(&once,^{ lock=[NSRecursiveLock new]; });
+   return lock;
+}
+
+static char hostViewKey;
+
+static void layerChanged(CALayer *layer);
+
 @implementation CALayer
 
 +layer {
@@ -156,11 +173,32 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
 }
 
 -(void)setSublayers:(NSArray *)sublayers {
+   [treeLock() lock];
    sublayers=[sublayers copy];
    [_sublayers release];
    _sublayers=sublayers;
    [_sublayers makeObjectsPerformSelector:@selector(_setSuperLayer:) withObject:self];
    [_sublayers makeObjectsPerformSelector:@selector(_setContext:) withObject:_context];
+   [treeLock() unlock];
+   layerChanged(self);
+}
+
++(void)_minkarLockTree {
+   [treeLock() lock];
+}
+
++(void)_minkarUnlockTree {
+   [treeLock() unlock];
+}
+
+/* The view that draws this tree (not retained), or nil. */
+-(void)_minkarSetHostView:(id)view {
+   objc_setAssociatedObject(self,&hostViewKey,view,OBJC_ASSOCIATION_ASSIGN);
+}
+
+/* The same contents changed in place (an IOSurface drawn again). */
+-(void)setContentsChanged {
+   layerChanged(self);
 }
 
 -(id)delegate {
@@ -196,6 +234,7 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
    }
    
    _position=value;
+   layerChanged(self);
 }
 
 -(CGRect)bounds {
@@ -217,6 +256,7 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
    if(!CGSizeEqualToSize(_bounds.size,value.size))
     _needsLayout=YES;
    _bounds=value;
+   layerChanged(self);
 }
 
 -(CGRect)frame {
@@ -260,6 +300,7 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
    }
 
    _opacity=value;
+   layerChanged(self);
 }
 
 -(BOOL)opaque {
@@ -275,9 +316,12 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
 }
 
 -(void)setContents:(id)value {
+   [treeLock() lock];
    value=[value retain];
    [_contents release];
    _contents=value;
+   [treeLock() unlock];
+   layerChanged(self);
 }
 
 -(CATransform3D)transform {
@@ -286,6 +330,7 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
 
 -(void)setTransform:(CATransform3D)value {
    _transform=value;
+   layerChanged(self);
 }
 
 -(CATransform3D)sublayerTransform {
@@ -446,7 +491,7 @@ static CFTimeInterval animationActiveTime(CAAnimation *animation) {
 
 #define COLOR_PROPERTY(getter,setter,ivar) \
    -(CGColorRef)getter { return ivar; } \
-   -(void)setter:(CGColorRef)value { value=CGColorRetain(value); CGColorRelease(ivar); ivar=value; }
+   -(void)setter:(CGColorRef)value { value=CGColorRetain(value); CGColorRelease(ivar); ivar=value; layerChanged(self); }
 
 COLOR_PROPERTY(backgroundColor,setBackgroundColor,_backgroundColor)
 COLOR_PROPERTY(borderColor,setBorderColor,_borderColor)
@@ -454,7 +499,7 @@ COLOR_PROPERTY(shadowColor,setShadowColor,_shadowColor)
 
 #define VALUE_PROPERTY(type,getter,setter,ivar) \
    -(type)getter { return ivar; } \
-   -(void)setter:(type)value { ivar=value; }
+   -(void)setter:(type)value { ivar=value; layerChanged(self); }
 
 VALUE_PROPERTY(CGFloat,borderWidth,setBorderWidth,_borderWidth)
 VALUE_PROPERTY(CGFloat,cornerRadius,setCornerRadius,_cornerRadius)
@@ -671,7 +716,77 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    return CGRectMake(x,y,size.width,size.height);
 }
 
+static void releaseSurfaceCopy(void *info,const void *data,size_t size) {
+   free((void *)data);
+}
+
+/* Minkar: an IOSurface's pixels as an image (a copy: the surface goes on
+   being drawn). BGRA and RGBA surfaces, premultiplied. */
+static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
+   size_t   width=IOSurfaceGetWidth(surface),height=IOSurfaceGetHeight(surface);
+   size_t   rowBytes=IOSurfaceGetBytesPerRow(surface);
+   OSType   format=IOSurfaceGetPixelFormat(surface);
+   uint32_t info;
+
+   if(format=='BGRA' || format==0)
+    info=(opaque?kCGImageAlphaNoneSkipFirst:kCGImageAlphaPremultipliedFirst)|kCGBitmapByteOrder32Little;
+   else if(format=='RGBA')
+    info=(opaque?kCGImageAlphaNoneSkipLast:kCGImageAlphaPremultipliedLast)|kCGBitmapByteOrder32Big;
+   else
+    return NULL;
+   if(width==0 || height==0 || rowBytes<width*4)
+    return NULL;
+   void *copy=malloc(rowBytes*height);
+   if(copy==NULL)
+    return NULL;
+   IOSurfaceLock(surface,kIOSurfaceLockReadOnly,NULL);
+   const void *base=IOSurfaceGetBaseAddress(surface);
+   if(base!=NULL)
+    memcpy(copy,base,rowBytes*height);
+   IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL);
+   if(base==NULL){
+    free(copy);
+    return NULL;
+   }
+   CGColorSpaceRef   space=CGColorSpaceCreateDeviceRGB();
+   CGDataProviderRef provider=CGDataProviderCreateWithData(NULL,copy,rowBytes*height,releaseSurfaceCopy);
+   CGImageRef        image=CGImageCreate(width,height,8,32,rowBytes,space,info,provider,NULL,false,kCGRenderingIntentDefault);
+   CGDataProviderRelease(provider);
+   CGColorSpaceRelease(space);
+   return image;
+}
+
+/* The contents to draw: an image, or an IOSurface's pixels, cut to
+   contentsRect (in the unit square, from the bottom left). */
+-(CGImageRef)_copyContentsImage {
+   CGImageRef image=NULL;
+
+   if(_contents==nil)
+    return NULL;
+   CFTypeID type=CFGetTypeID((CFTypeRef)_contents);
+   if(type==CGImageGetTypeID())
+    image=CGImageRetain((CGImageRef)_contents);
+   else if(type==IOSurfaceGetTypeID())
+    image=createImageFromSurface((IOSurfaceRef)_contents,_opaque);
+   if(image!=NULL && !CGRectEqualToRect(_contentsRect,CGRectMake(0,0,1,1)) && !CGRectIsEmpty(_contentsRect)){
+    CGFloat    w=CGImageGetWidth(image),h=CGImageGetHeight(image);
+    CGRect     crop=CGRectMake(_contentsRect.origin.x*w,(1-_contentsRect.origin.y-_contentsRect.size.height)*h,
+                               _contentsRect.size.width*w,_contentsRect.size.height*h);
+    CGImageRef part=CGImageCreateWithImageInRect(image,CGRectIntegral(crop));
+
+    CGImageRelease(image);
+    image=part;
+   }
+   return image;
+}
+
 -(void)renderInContext:(CGContextRef)context {
+   [treeLock() lock];
+   [self _renderInContextLocked:context];
+   [treeLock() unlock];
+}
+
+-(void)_renderInContextLocked:(CGContextRef)context {
    CGPathRef shape;
 
    if(_hidden || context==NULL)
@@ -689,10 +804,11 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
     CGContextAddPath(context,shape);
     CGContextFillPath(context);
    }
-   if(_contents!=nil && CFGetTypeID((CFTypeRef)_contents)==CGImageGetTypeID()){
-    CGImageRef image=(CGImageRef)_contents;
-    CGSize     size=CGSizeMake(CGImageGetWidth(image)/_contentsScale,CGImageGetHeight(image)/_contentsScale);
+   CGImageRef image=[self _copyContentsImage];
+   if(image!=NULL){
+    CGSize size=CGSizeMake(CGImageGetWidth(image)/_contentsScale,CGImageGetHeight(image)/_contentsScale);
     CGContextDrawImage(context,[self _contentsFrameForSize:size],image);
+    CGImageRelease(image);
    }
    else
     [self drawInContext:context];
@@ -707,7 +823,7 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    for(CALayer *child in ordered){
     CGContextSaveGState(context);
     CGContextConcatCTM(context,[child _toSuperlayer]);
-    [child renderInContext:context];
+    [child _renderInContextLocked:context];
     CGContextRestoreGState(context);
    }
    if(_borderWidth>0 && _borderColor!=NULL){
@@ -829,3 +945,13 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
 }
 
 @end
+
+static void layerChanged(CALayer *layer) {
+   CALayer *root=layer;
+
+   while([root superlayer]!=nil)
+    root=[root superlayer];
+   id view=objc_getAssociatedObject(root,&hostViewKey);
+   if(view!=nil)
+    [view performSelectorOnMainThread:@selector(_minkarLayerTreeDidChange) withObject:nil waitUntilDone:NO];
+}

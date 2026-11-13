@@ -190,3 +190,11 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 - (void)layoutSublayersOfLayer:(CALayer *)layer;
 
 @end
+
+/* Minkar: drawing a hosted layer tree (AppKit's views do it). */
+@interface CALayer (MinkarHosting)
+- (void)setContentsChanged;
+- (void)_minkarSetHostView:(id)view;
++ (void)_minkarLockTree;
++ (void)_minkarUnlockTree;
+@end

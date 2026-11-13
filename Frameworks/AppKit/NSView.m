@@ -408,6 +408,26 @@ static void updateSurfaceLayer(NSView *self) {
    [(CAMetalLayer *)layer _minkarSetWindow:window rect:rect];
 }
 
+/* Minkar: the layer tree the view hosts, in the view's coordinates: the
+   root layer's bounds fill the view, y up as Core Animation's (a flipped
+   view is flipped back). */
+static void drawHostedLayerTree(NSView *self,CGContextRef context) {
+   CALayer *layer=self->_layer;
+   CGRect   bounds=[layer bounds];
+
+   CGContextSaveGState(context);
+   if([self isFlipped]){
+    CGContextTranslateCTM(context,0,NSMaxY(self->_bounds)+NSMinY(self->_bounds));
+    CGContextScaleCTM(context,1,-1);
+   }
+   CGContextTranslateCTM(context,NSMinX(self->_bounds),NSMinY(self->_bounds));
+   if(bounds.size.width>0 && bounds.size.height>0)
+    CGContextScaleCTM(context,self->_bounds.size.width/bounds.size.width,self->_bounds.size.height/bounds.size.height);
+   CGContextTranslateCTM(context,-bounds.origin.x,-bounds.origin.y);
+   [layer renderInContext:context];
+   CGContextRestoreGState(context);
+}
+
 static inline void buildTransformsIfNeeded(NSView *self) {
    if(!self->_validTransforms){
     self->_transformToWindow=[self createTransformToWindow];
@@ -1779,7 +1799,25 @@ static char inputContextKey;
    if(!NSViewLayersEnabled){
     /* Without layer-backed views, only a layer that shows its own
        surfaces: kept, told its view's geometry, not composited. */
+    /* Minkar: any other layer is a tree the view hosts and draws
+       itself, in place of drawRect: (as a layer-hosting view). */
+    if(value!=_layer && value!=nil && !isSurfaceLayer(value)){
+     if(isSurfaceLayer(_layer)){
+      [(CAMetalLayer *)_layer _minkarSetWindow:0 rect:CGRectZero];
+      if([_layer delegate]==self)
+       [_layer setDelegate:nil];
+     }
+     [_layer _minkarSetHostView:nil];
+     [value retain];
+     [_layer release];
+     _layer=value;
+     [_layer _minkarSetHostView:self];
+     [self setNeedsDisplay:YES];
+     return;
+    }
     if(value!=_layer && (value==nil || isSurfaceLayer(value))){
+     if(!isSurfaceLayer(_layer))
+      [_layer _minkarSetHostView:nil];
      if(isSurfaceLayer(_layer)){
       [(CAMetalLayer *)_layer _minkarSetWindow:0 rect:CGRectZero];
       if([_layer delegate]==self)
@@ -2337,6 +2375,8 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
            [[NSColor yellowColor] set];
            NSRectFill(rect);
        }
+      else if(!NSViewLayersEnabled && _layer!=nil && !isSurfaceLayer(_layer))
+           drawHostedLayerTree(self,graphicsPort);
       else
            [self drawRect:rect];
 
@@ -2779,6 +2819,15 @@ static char layoutDirectionKey;
     return;
    objc_setAssociatedObject(self,&layoutDirectionKey,[NSNumber numberWithInteger:direction],OBJC_ASSOCIATION_RETAIN);
    [self setNeedsLayout:YES];
+   [self setNeedsDisplay:YES];
+}
+
+@end
+
+@implementation NSView (MinkarHostedLayers)
+
+/* The hosted layer tree changed: draw it again. */
+-(void)_minkarLayerTreeDidChange {
    [self setNeedsDisplay:YES];
 }
 
