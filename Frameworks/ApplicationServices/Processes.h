@@ -34,6 +34,49 @@ enum {
     kProcessTransformToUIElementApplication = 4
 };
 
+/* What GetProcessInformation fills in (the 64-bit layout, packed to 2). */
+#include <CoreServices/Files.h>
+#pragma pack(push, 2)
+struct ProcessInfoRec {
+    UInt32 processInfoLength;
+    StringPtr processName;		/* a Pascal string buffer of 32 bytes, or NULL */
+    ProcessSerialNumber processNumber;
+    UInt32 processType;
+    OSType processSignature;
+    UInt32 processMode;
+    Ptr processLocation;
+    UInt32 processSize;
+    UInt32 processFreeMem;
+    ProcessSerialNumber processLauncher;
+    UInt32 processLaunchDate;
+    UInt32 processActiveTime;
+    FSRef *processAppRef;		/* or NULL */
+};
+#pragma pack(pop)
+typedef struct ProcessInfoRec ProcessInfoRec;
+typedef ProcessInfoRec *ProcessInfoRecPtr;
+
+enum {
+    modeDeskAccessory = 0x00020000,
+    modeMultiLaunch = 0x00010000,
+    modeNeedSuspendResume = 0x00004000,
+    modeCanBackground = 0x00001000,
+    modeDoesActivateOnFGSwitch = 0x00000800,
+    modeOnlyBackground = 0x00000400,
+    modeGetFrontClicks = 0x00000200,
+    modeGetAppDiedMsg = 0x00000100,
+    mode32BitCompatible = 0x00000080,
+    modeHighLevelEventAware = 0x00000040,
+    modeLocalAndRemoteHLEvents = 0x00000020,
+    modeStationeryAware = 0x00000010,
+    modeUseTextEditServices = 0x00000008,
+    modeDisplayManagerAware = 0x00000004
+};
+
+OSErr GetProcessInformation(const ProcessSerialNumber *PSN, ProcessInfoRec *info);
+CFDictionaryRef ProcessInformationCopyDictionary(const ProcessSerialNumber *PSN, UInt32 infoToReturn);
+OSStatus GetProcessBundleLocation(const ProcessSerialNumber *psn, FSRef *location);
+
 OSErr GetCurrentProcess(ProcessSerialNumber *PSN);
 OSStatus GetProcessForPID(pid_t pid, ProcessSerialNumber *psn);
 OSStatus GetProcessPID(const ProcessSerialNumber *psn, pid_t *pid);
