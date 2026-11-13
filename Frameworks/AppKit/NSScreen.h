@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2006-2007 Christopher J. W. Lloyd
  * Copyright (C) 2022-2025 Zoe Knox <zoe@ravynsoft.com>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -42,7 +43,7 @@ extern NSString * const NSScreenColorSpaceDidChangeNotification;
 @property(copy, readonly) NSDictionary *deviceDescription;
 @property(copy, readonly) NSString *localizedName;
 @property(readonly) CGFloat backingScaleFactor;
-@property(readonly) CGFloat maximumPotentialExtendedDynamicRangeColorComponentsValue;
+@property(readonly) CGFloat maximumPotentialExtendedDynamicRangeColorComponentValue;
 @property(readonly) CGFloat maximumExtendedDynamicRangeColorComponentValue;
 @property(readonly) CGFloat maximumReferenceExtendedDynamicRangeColorComponentValue;
 

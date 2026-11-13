@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2006-2007 Christopher J. W. Lloyd
  * Copyright (C) 2022-2025 Zoe Knox <zoe@ravynsoft.com>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -36,7 +37,7 @@ NSString * const NSScreenColorSpaceDidChangeNotification = @"NSScreenColorSpaceD
     _frame=frame;
     _visibleFrame=visibleFrame;
     _backingScaleFactor = 1.0;
-    _maximumPotentialExtendedDynamicRangeColorComponentsValue = 1.0;
+    _maximumPotentialExtendedDynamicRangeColorComponentValue = 1.0;
     _maximumExtendedDynamicRangeColorComponentValue = 1.0;
     _maximumReferenceExtendedDynamicRangeColorComponentValue = 0;
    return self;

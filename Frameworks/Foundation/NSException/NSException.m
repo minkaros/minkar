@@ -124,7 +124,7 @@ static void NSExceptionUncaught(id exception) {
     if (addresses == NULL)
         return;
     for (NSUInteger i = 0; i < count; i++)
-        addresses[i] = [[stack objectAtIndex:i] pointerValue];
+        addresses[i] = (void *)[[stack objectAtIndex:i] unsignedIntegerValue];
     char **symbols = backtrace_symbols(addresses, (int)count);
     fprintf(stderr, "*** First throw call stack:\n");
     for (NSUInteger i = 0; symbols != NULL && i < count; i++)

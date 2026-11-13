@@ -140,7 +140,7 @@ static void *nsThreadStartThread(void* t)
     int i, frameCount = backtrace(callstack, 128);
     //ignore current frame
     for (i = 1; i < frameCount; i++) {
-        [ret addObject:[NSValue valueWithPointer:callstack[i]]];
+        [ret addObject:[NSNumber numberWithUnsignedInteger:(NSUInteger)callstack[i]]];
     }
     
     return ret;
