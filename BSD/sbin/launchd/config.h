@@ -15,11 +15,9 @@
 #define HAVE_RESPONSIBILITY 0
 #endif
 
-#if __has_include(<sandbox.h>)
+/* libsystem_sandbox (13 Nov 2026): launchd asks it whether a sandboxed
+   process may look up or register a Mach service. */
 #define HAVE_SANDBOX 1
-#else
-#define HAVE_SANDBOX 0
-#endif
 
 /* libbsm and libauditd (OpenBSM, Libraries/openbsm). Without them launchd
  * uses only the audit system calls, declared in <bsm/audit.h>. */
