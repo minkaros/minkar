@@ -23,6 +23,7 @@
 
 /*	CFURL.h
 	Copyright (c) 1998-2014, Apple Inc. All rights reserved.
+	Modifications Copyright (c) 2026 The Minkar contributors
 */
 
 #if !defined(__COREFOUNDATION_CFURL__)
@@ -134,6 +135,13 @@ CFURLRef CFURLCreateFromFileSystemRepresentationRelativeToBase(CFAllocatorRef al
 /* Returns success or failure. */
 CF_EXPORT
 Boolean CFURLGetFileSystemRepresentation(CFURLRef url, Boolean resolveAgainstBase, UInt8 *buffer, CFIndex maxBufLen);
+
+/* Minkar: an FSRef for a file URL's file, and back (CoreServices' Files.h). */
+struct FSRef;
+CF_EXPORT
+CFURLRef CFURLCreateFromFSRef(CFAllocatorRef allocator, const struct FSRef *fsRef);
+CF_EXPORT
+Boolean CFURLGetFSRef(CFURLRef url, struct FSRef *fsRef);
 
 /* Creates a new URL by resolving the relative portion of relativeURL against its base. */
 CF_EXPORT
@@ -713,6 +721,10 @@ const CFStringRef kCFURLIsVolumeKey CF_AVAILABLE(10_6, 4_0);
 
 CF_EXPORT
 const CFStringRef kCFURLIsPackageKey CF_AVAILABLE(10_6, 4_0);
+
+CF_EXPORT
+const CFStringRef kCFURLIsApplicationKey;
+    /* True for an application's bundle (Read-only, value type CFBoolean). */
     /* True for packaged directories (Read-only 10_6 and 10_7, read-write 10_8, value type CFBoolean). Note: You can only set or clear this property on directories; if you try to set this property on non-directory objects, the property is ignored. If the directory is a package for some other reason (extension type, etc), setting this property to false will have no effect. */
 
 CF_EXPORT

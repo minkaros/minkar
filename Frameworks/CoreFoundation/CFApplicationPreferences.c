@@ -23,6 +23,7 @@
 
 /*	CFApplicationPreferences.c
 	Copyright (c) 1998-2014, Apple Inc. All rights reserved.
+	Modifications Copyright (c) 2026 The Minkar contributors
 	Responsibility: David Smith
 */
 
@@ -670,4 +671,53 @@ void _CFApplicationPreferencesRemoveDomain(_CFApplicationPreferences *self, CFPr
     }
     updateDictRep(self);
     __CFUnlock(&__CFApplicationPreferencesLock);
+}
+
+/*
+ * Minkar: a value is forced when the machine's administrator sets it, in
+ * /Library/Managed Preferences/<user>/<app>.plist or, for every user,
+ * /Library/Managed Preferences/<app>.plist.
+ */
+#include <pwd.h>
+#include <unistd.h>
+
+static Boolean __CFManagedPreferencesHaveKey(CFStringRef path, CFStringRef key) {
+    Boolean found = false;
+    CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, path, kCFURLPOSIXPathStyle, false);
+    CFReadStreamRef stream = url ? CFReadStreamCreateWithFile(kCFAllocatorSystemDefault, url) : NULL;
+    if (stream && CFReadStreamOpen(stream)) {
+        CFPropertyListRef plist = CFPropertyListCreateWithStream(kCFAllocatorSystemDefault, stream, 0, kCFPropertyListImmutable, NULL, NULL);
+        if (plist) {
+            found = CFGetTypeID(plist) == CFDictionaryGetTypeID() && CFDictionaryContainsKey((CFDictionaryRef)plist, key);
+            CFRelease(plist);
+        }
+        CFReadStreamClose(stream);
+    }
+    if (stream) CFRelease(stream);
+    if (url) CFRelease(url);
+    return found;
+}
+
+Boolean CFPreferencesAppValueIsForced(CFStringRef key, CFStringRef applicationID) {
+    if (key == NULL || applicationID == NULL) return false;
+    if (CFEqual(applicationID, kCFPreferencesCurrentApplication)) {
+        CFBundleRef bundle = CFBundleGetMainBundle();
+        applicationID = bundle ? CFBundleGetIdentifier(bundle) : NULL;
+        if (applicationID == NULL) return false;
+    }
+    struct passwd *pw = getpwuid(geteuid());
+    Boolean forced = false;
+    if (pw && pw->pw_name) {
+        CFStringRef path = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL,
+            CFSTR("/Library/Managed Preferences/%s/%@.plist"), pw->pw_name, applicationID);
+        forced = __CFManagedPreferencesHaveKey(path, key);
+        CFRelease(path);
+    }
+    if (!forced) {
+        CFStringRef path = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL,
+            CFSTR("/Library/Managed Preferences/%@.plist"), applicationID);
+        forced = __CFManagedPreferencesHaveKey(path, key);
+        CFRelease(path);
+    }
+    return forced;
 }

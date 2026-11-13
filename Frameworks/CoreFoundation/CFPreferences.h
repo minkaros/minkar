@@ -23,6 +23,7 @@
 
 /*	CFPreferences.h
 	Copyright (c) 1998-2014, Apple Inc. All rights reserved.
+	Modifications Copyright (c) 2026 The Minkar contributors
 */
 
 #if !defined(__COREFOUNDATION_CFPREFERENCES__)
@@ -97,6 +98,10 @@ void CFPreferencesRemoveSuitePreferencesFromApp(CFStringRef applicationID, CFStr
 Returns success or failure. */
 CF_EXPORT
 Boolean CFPreferencesAppSynchronize(CFStringRef applicationID);
+
+/* Whether the administrator sets key for applicationID (managed preferences). */
+CF_EXPORT
+Boolean CFPreferencesAppValueIsForced(CFStringRef key, CFStringRef applicationID);
 
 /* The primitive get mechanism; all arguments must be non-NULL
 (use the constants above for common values).  Only the exact

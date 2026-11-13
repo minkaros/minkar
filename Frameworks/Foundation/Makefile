@@ -90,6 +90,8 @@ SRCS = 	NSFormatter.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSBackgroundActivityScheduler.m \
+	NSUserActivity.m \
+	NSURL/NSURLFileTypeMappings.m \
 	NSData/NSData.m \
 	NSData/NSDataBase64.m \
 	NSData/NSData_mapped.m \
@@ -407,6 +409,8 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSUserActivity.m = -fobjc-arc
+CFLAGS.NSURLFileTypeMappings.m = -fobjc-arc
 CFLAGS.NSMachPort.m = -fobjc-arc
 CFLAGS.NSMachBootstrapServer.m = -fobjc-arc
 CFLAGS.NSPortCoder.m = -fobjc-arc

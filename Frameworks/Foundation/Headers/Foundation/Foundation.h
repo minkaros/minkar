@@ -177,6 +177,7 @@
 #import <Foundation/NSExpression.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSBackgroundActivityScheduler.h>
+#import <Foundation/NSUserActivity.h>
 #import <Foundation/NSProxy.h>
 #import <Foundation/NSRange.h>
 #import <Foundation/NSRunLoop.h>

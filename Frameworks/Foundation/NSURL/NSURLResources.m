@@ -52,7 +52,10 @@
 #import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSPropertyList.h>
+#import <Foundation/NSNull.h>
+#import <Foundation/NSScanner.h>
 #import <Foundation/NSSet.h>
+#import <Foundation/NSUUID.h>
 #import <Foundation/NSString.h>
 #import <Foundation/FoundationErrors.h>
 #include <dispatch/dispatch.h>
@@ -333,6 +336,76 @@ static NSData *readAttribute(const char *path, NSString *name) {
     return data;
 }
 
+// Quarantine: the "com.apple.quarantine" attribute holds
+// "flags;time;agent;identifier" (flags in hexadecimal, the time in seconds
+// since 1970 in hexadecimal), what other systems read too. The rest of the
+// properties (type, URLs, the agent's bundle) are kept beside it, as a
+// property list in "org.minkar.quarantine".
+static NSString *const quarantineAttribute = @"com.apple.quarantine";
+static NSString *const quarantineMoreAttribute = @"org.minkar.quarantine";
+
+static NSDictionary *quarantineProperties(const char *fs) {
+    NSData *data = readAttribute(fs, quarantineAttribute);
+    if (data == nil)
+        return nil;
+    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    NSArray *fields = [text componentsSeparatedByString:@";"];
+    NSMutableDictionary *properties = [NSMutableDictionary dictionary];
+    NSData *more = readAttribute(fs, quarantineMoreAttribute);
+    if (more != nil) {
+        id plist = [NSPropertyListSerialization propertyListWithData:more options:0 format:NULL error:NULL];
+        if ([plist isKindOfClass:[NSDictionary class]])
+            [properties addEntriesFromDictionary:plist];
+    }
+    if ([fields count] > 1) {
+        unsigned int seconds = 0;
+        [[NSScanner scannerWithString:fields[1]] scanHexInt:&seconds];
+        properties[@"LSQuarantineTimeStamp"] = [NSDate dateWithTimeIntervalSince1970:seconds];
+    }
+    if ([fields count] > 2 && [fields[2] length] > 0)
+        properties[@"LSQuarantineAgentName"] = fields[2];
+    if ([fields count] > 3 && [fields[3] length] > 0)
+        properties[@"LSQuarantineEventIdentifier"] = fields[3];
+    properties[@"LSQuarantineIsOwnedByCurrentUser"] = @YES;
+    return properties;
+}
+
+static BOOL setQuarantineProperties(const char *fs, id value) {
+    if (value == nil || [value isKindOfClass:[NSNull class]]) {
+        BOOL ok = removexattr(fs, [quarantineAttribute UTF8String], 0) == 0 || errno == ENOATTR;
+        return (removexattr(fs, [quarantineMoreAttribute UTF8String], 0) == 0 || errno == ENOATTR) && ok;
+    }
+    if (![value isKindOfClass:[NSDictionary class]])
+        return NO;
+    NSDictionary *properties = value;
+    NSDate *date = [properties[@"LSQuarantineTimeStamp"] isKindOfClass:[NSDate class]]
+        ? properties[@"LSQuarantineTimeStamp"] : [NSDate date];
+    NSString *agent = [properties[@"LSQuarantineAgentName"] isKindOfClass:[NSString class]]
+        ? properties[@"LSQuarantineAgentName"] : [[NSProcessInfo processInfo] processName];
+    NSString *identifier = [properties[@"LSQuarantineEventIdentifier"] isKindOfClass:[NSString class]]
+        ? properties[@"LSQuarantineEventIdentifier"] : [[NSUUID UUID] UUIDString];
+    /* 0x0083: quarantined, by a known agent, not yet approved. */
+    NSString *text = [NSString stringWithFormat:@"0083;%08lx;%@;%@",
+        (unsigned long)[date timeIntervalSince1970],
+        [agent stringByReplacingOccurrencesOfString:@";" withString:@" "], identifier];
+    const char *bytes = [text UTF8String];
+    if (setxattr(fs, [quarantineAttribute UTF8String], bytes, strlen(bytes), 0, 0) != 0)
+        return NO;
+    NSMutableDictionary *more = [NSMutableDictionary dictionary];
+    for (NSString *key in properties) {
+        if ([key isEqualToString:@"LSQuarantineTimeStamp"] || [key isEqualToString:@"LSQuarantineAgentName"] ||
+            [key isEqualToString:@"LSQuarantineEventIdentifier"] || [key isEqualToString:@"LSQuarantineIsOwnedByCurrentUser"])
+            continue;
+        id item = properties[key];
+        more[key] = [item isKindOfClass:[NSURL class]] ? [item absoluteString] : item;
+    }
+    if ([more count] == 0)
+        return removexattr(fs, [quarantineMoreAttribute UTF8String], 0) == 0 || errno == ENOATTR;
+    NSData *data = [NSPropertyListSerialization dataWithPropertyList:more format:NSPropertyListBinaryFormat_v1_0
+                                                             options:0 error:NULL];
+    return data != nil && setxattr(fs, [quarantineMoreAttribute UTF8String], [data bytes], [data length], 0, 0) == 0;
+}
+
 // Tags are kept as "Name" or "Name\n<color number>" in a property list.
 static NSArray *tagNames(const char *path) {
     NSData *data = readAttribute(path, tagsAttribute);
@@ -458,6 +531,7 @@ static id resourceValue(NSURL *url __attribute__((unused)), NSString *path, cons
         return [key isEqualToString:NSURLTypeIdentifierKey] ? type : description;
     }
     if ([key isEqualToString:NSURLTagNamesKey]) return tagNames(fs);
+    if ([key isEqualToString:NSURLQuarantinePropertiesKey]) return quarantineProperties(fs);
     if ([key isEqualToString:NSURLIsExcludedFromBackupKey]) return @(readAttribute(fs, backupAttribute) != nil);
 
     if ([key hasPrefix:@"NSURLVolume"]) {
@@ -682,6 +756,8 @@ static BOOL setFlag(const char *fs, uint32_t flag, BOOL on) {
                                                                      options:0 error:NULL];
             ok = data && setxattr(fs, [tagsAttribute UTF8String], [data bytes], [data length], 0, 0) == 0;
         }
+    } else if ([key isEqualToString:NSURLQuarantinePropertiesKey]) {
+        ok = setQuarantineProperties(fs, value);
     } else if ([key isEqualToString:NSURLHasHiddenExtensionKey] || [key isEqualToString:NSURLLabelNumberKey]) {
         ok = YES;   // nothing keeps them
     } else {

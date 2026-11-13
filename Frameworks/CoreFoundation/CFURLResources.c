@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define KEY(name, value)	const CFStringRef name = CFSTR(value)
 
@@ -78,6 +79,9 @@ KEY(kCFURLTotalFileAllocatedSizeKey,		"NSURLTotalFileAllocatedSizeKey");
 KEY(kCFURLLocalizedNameKey,			"NSURLLocalizedNameKey");
 KEY(kCFURLIsAliasFileKey,			"NSURLIsAliasFileKey");
 KEY(kCFURLVolumeIsLocalKey,			"NSURLVolumeIsLocalKey");
+KEY(kCFURLIsPackageKey,				"NSURLIsPackageKey");
+KEY(kCFURLIsApplicationKey,			"NSURLIsApplicationKey");
+KEY(kCFURLQuarantinePropertiesKey,		"NSURLQuarantinePropertiesKey");
 
 KEY(kCFURLFileResourceTypeNamedPipe,		"NSFileTypeNamedPipe");
 KEY(kCFURLFileResourceTypeCharacterSpecial,	"NSFileTypeCharacterSpecial");
@@ -230,6 +234,117 @@ copyValue(CFURLRef url, const char *path, const struct stat *st, CFStringRef key
     return NULL;
 }
 
+/*
+ * What CF does not read itself (packages, applications, quarantine, tags,
+ * types, ...) NSURL reads: a CF URL is an NSURL. NULL when Foundation is
+ * not loaded or it has no value.
+ */
+#include <objc/runtime.h>
+#include <objc/message.h>
+
+static CFTypeRef
+copyFromFoundation(CFURLRef url, CFStringRef key)
+{
+    id value = NULL;
+    SEL sel = sel_registerName("getResourceValue:forKey:error:");
+
+    if (objc_getClass("NSURL") == NULL)
+        return NULL;
+    if (!((signed char (*)(id, SEL, id *, id, id *))objc_msgSend)((id)url, sel, &value, (id)key, NULL) ||
+        value == NULL)
+        return NULL;
+    return CFRetain((CFTypeRef)value);
+}
+
+Boolean
+CFURLSetResourcePropertyForKey(CFURLRef url, CFStringRef key, CFTypeRef propertyValue, CFErrorRef *error)
+{
+    id err = NULL;
+    signed char ok;
+
+    if (error != NULL)
+        *error = NULL;
+    if (objc_getClass("NSURL") == NULL) {
+        if (error != NULL)
+            *error = CFErrorCreate(kCFAllocatorDefault, kCFErrorDomainCocoa, 512 /* NSFileWriteUnknownError */, NULL);
+        return false;
+    }
+    ok = ((signed char (*)(id, SEL, id, id, id *))objc_msgSend)((id)url,
+        sel_registerName("setResourceValue:forKey:error:"), (id)propertyValue, (id)key, &err);
+    if (!ok && error != NULL && err != NULL)
+        *error = (CFErrorRef)CFRetain((CFTypeRef)err);
+    return ok != 0;
+}
+
+Boolean
+CFURLSetResourcePropertiesForKeys(CFURLRef url, CFDictionaryRef keyedPropertyValues, CFErrorRef *error)
+{
+    CFIndex count = keyedPropertyValues != NULL ? CFDictionaryGetCount(keyedPropertyValues) : 0;
+    const void **keys, **values;
+    Boolean ok = true;
+
+    if (error != NULL)
+        *error = NULL;
+    if (count == 0)
+        return true;
+    keys = malloc(2 * count * sizeof(void *));
+    if (keys == NULL)
+        return false;
+    values = keys + count;
+    CFDictionaryGetKeysAndValues(keyedPropertyValues, keys, values);
+    for (CFIndex i = 0; i < count && ok; i++)
+        ok = CFURLSetResourcePropertyForKey(url, keys[i], values[i], error);
+    free(keys);
+    return ok;
+}
+
+/*
+ * File system references are CoreServices' (FSPathMakeRef, FSRefMakePath),
+ * which links CoreFoundation: they are looked up when called.
+ */
+#include <dlfcn.h>
+
+static void *
+coreServicesSymbol(const char *name)
+{
+    void *symbol = dlsym(RTLD_DEFAULT, name);
+
+    if (symbol == NULL) {
+        void *handle = dlopen("/System/Library/Frameworks/CoreServices.framework/CoreServices", RTLD_LAZY);
+
+        if (handle != NULL)
+            symbol = dlsym(handle, name);
+    }
+    return symbol;
+}
+
+struct FSRef;
+
+Boolean
+CFURLGetFSRef(CFURLRef url, struct FSRef *fsRef)
+{
+    int (*makeRef)(const UInt8 *, struct FSRef *, Boolean *) = coreServicesSymbol("FSPathMakeRef");
+    char path[PATH_MAX];
+
+    if (url == NULL || fsRef == NULL || makeRef == NULL ||
+        !CFURLGetFileSystemRepresentation(url, true, (UInt8 *)path, sizeof(path)))
+        return false;
+    return makeRef((const UInt8 *)path, fsRef, NULL) == 0;
+}
+
+CFURLRef
+CFURLCreateFromFSRef(CFAllocatorRef allocator, const struct FSRef *fsRef)
+{
+    int (*makePath)(const struct FSRef *, UInt8 *, UInt32) = coreServicesSymbol("FSRefMakePath");
+    char path[PATH_MAX];
+    struct stat st;
+
+    if (fsRef == NULL || makePath == NULL || makePath(fsRef, (UInt8 *)path, sizeof(path)) != 0)
+        return NULL;
+    return CFURLCreateFromFileSystemRepresentation(allocator, (const UInt8 *)path, strlen(path),
+        stat(path, &st) == 0 && S_ISDIR(st.st_mode));
+}
+
 Boolean
 CFURLResourceIsReachable(CFURLRef url, CFErrorRef *error)
 {
@@ -264,8 +379,13 @@ CFURLCopyResourcePropertyForKey(CFURLRef url, CFStringRef key, void *propertyVal
         setErrno(error, errno);
         return false;
     }
-    if (propertyValueTypeRefPtr != NULL)
-        *(CFTypeRef *)propertyValueTypeRefPtr = copyValue(url, path, &st, key);
+    if (propertyValueTypeRefPtr != NULL) {
+        CFTypeRef value = copyValue(url, path, &st, key);
+
+        if (value == NULL)
+            value = copyFromFoundation(url, key);
+        *(CFTypeRef *)propertyValueTypeRefPtr = value;
+    }
     return true;
 }
 
@@ -290,6 +410,8 @@ CFURLCopyResourcePropertiesForKeys(CFURLRef url, CFArrayRef keys, CFErrorRef *er
         CFStringRef key = CFArrayGetValueAtIndex(keys, i);
         CFTypeRef value = copyValue(url, path, &st, key);
 
+        if (value == NULL)
+            value = copyFromFoundation(url, key);
         if (value != NULL) {
             CFDictionarySetValue(dict, key, value);
             CFRelease(value);
