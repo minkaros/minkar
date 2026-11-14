@@ -542,11 +542,88 @@ static inline O2AffineTransform createImageToSurfaceTransform(O2ImageRef image,O
    return result;
 }
 
+/* Minkar: an image drawn unscaled at whole pixels, through a rectangular
+   clip at most, opaque and with a normal blend, in the surface's own
+   32-bit BGRA layout: its rows are copied (opaque) or blended whole, not
+   read, converted and blended one span at a time by the rasterizer. The
+   pixels are those the general path gives (same rows, same blend), which
+   is most of what an app hosting IOSurface layers (Firefox) draws. YES
+   when it drew. */
+static BOOL drawImageRowsFast(O2Context_builtin *self,O2Image *image,O2AffineTransform imageToSurface) {
+   O2GState     *gState=O2ContextCurrentGState(self);
+   O2Surface    *surface=self->_surface;
+   O2BitmapInfo  info=O2ImageGetBitmapInfo(image);
+   O2BitmapInfo  surfaceInfo=O2ImageGetBitmapInfo(surface);
+   unsigned      alpha=info&kO2BitmapAlphaInfoMask;
+   size_t        width=O2ImageGetWidth(image),height=O2ImageGetHeight(image);
+
+   if(self->_clipContext!=nil || gState->_alpha!=1 || gState->_blendMode!=kO2BlendModeNormal ||
+      O2ImageGetMask(image)!=NULL || O2ImageIsMask(image) || O2ImageGetDecode(image)!=NULL)
+    return NO;
+   if(O2ImageGetBitsPerPixel(image)!=32 || O2ImageGetBitsPerComponent(image)!=8 ||
+      O2ImageGetBitsPerPixel(surface)!=32 || O2ImageGetBitsPerComponent(surface)!=8)
+    return NO;
+   if((info&kO2BitmapByteOrderMask)!=kO2BitmapByteOrder32Little ||
+      surfaceInfo!=(kO2BitmapByteOrder32Little|kO2ImageAlphaPremultipliedFirst))
+    return NO;
+   if(alpha!=kO2ImageAlphaPremultipliedFirst && alpha!=kO2ImageAlphaNoneSkipFirst)
+    return NO;
+
+   /* Whole-pixel translation only, as the general path tells it. */
+   O2AffineTransform surfaceToImage=O2AffineTransformInvert(imageToSurface);
+   if(surfaceToImage.a!=1 || surfaceToImage.b!=0 || surfaceToImage.c!=0 || ABS(surfaceToImage.d)!=1 ||
+      surfaceToImage.tx!=floor(surfaceToImage.tx) || surfaceToImage.ty!=floor(surfaceToImage.ty))
+    return NO;
+
+   const uint8_t *bytes=[image directBytes];
+   size_t         length=[[image directData] length];
+   size_t         rowBytes=O2ImageGetBytesPerRow(image);
+   uint8_t       *pixels=O2SurfaceGetPixelBytes(surface);
+   size_t         surfaceRowBytes=O2ImageGetBytesPerRow(surface);
+   if(bytes==NULL || pixels==NULL || rowBytes<width*4 || length<rowBytes*height)
+    return NO;
+
+   /* The image's rectangle on the surface, cut to the clip (the viewport). */
+   int x0=(int)-surfaceToImage.tx,x1=x0+(int)width;
+   O2Point c0=O2PointApplyAffineTransform(O2PointMake(0,0),imageToSurface);
+   O2Point c1=O2PointApplyAffineTransform(O2PointMake(0,(O2Float)height),imageToSurface);
+   int y0=(int)floor(MIN(c0.y,c1.y)+0.5),y1=(int)floor(MAX(c0.y,c1.y)+0.5);
+
+   x0=MAX(x0,self->_vpx);
+   x1=MIN(x1,self->_vpx+self->_vpwidth);
+   y0=MAX(y0,self->_vpy);
+   y1=MIN(y1,self->_vpy+self->_vpheight);
+   if(x1<=x0 || y1<=y0)
+    return YES;
+
+   int u0=x0+(int)surfaceToImage.tx;
+   int count=x1-x0;
+   for(int y=y0;y<y1;y++){
+    /* The image row the general path reads for this surface row. */
+    int v=(int)(((y+0.5)*surfaceToImage.d+surfaceToImage.ty)-0.5);
+    v=MAX(0,MIN(v,(int)height-1));
+    const uint8_t *src=bytes+(size_t)v*rowBytes+(size_t)u0*4;
+    uint8_t       *dst=pixels+(size_t)y*surfaceRowBytes+(size_t)x0*4;
+
+    if(alpha==kO2ImageAlphaNoneSkipFirst){
+     memcpy(dst,src,(size_t)count*4);
+     for(int i=0;i<count;i++)
+      dst[i*4+3]=0xFF;
+    }
+    else
+     O2argb8u_sover_by_coverage((O2argb8u *)src,(O2argb8u *)dst,256,count);
+   }
+   return YES;
+}
+
 -(void)drawImage:(O2Image *)image inRect:(O2Rect)rect {
    O2GState  *gState=O2ContextCurrentGState(self);
    O2ImageRef softMask=O2ImageGetMask(image);
         
    O2AffineTransform imageToSurface=createImageToSurfaceTransform(image,rect,gState->_deviceSpaceTransform);
+
+   if(drawImageRowsFast(self,image,imageToSurface))
+    return;
    O2AffineTransform maskToSurface;
    
    if(softMask==NULL)
