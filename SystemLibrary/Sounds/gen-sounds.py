@@ -3,8 +3,8 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Minkar's system sounds, made here from sines, envelopes and seeded
-# noise (no recordings, nothing from elsewhere): 16-bit stereo AIFF at
+# Minkar's system sounds, made here from sines, glides and envelopes
+# (no recordings, nothing from elsewhere): 16-bit stereo AIFF at
 # 44.1 kHz. The same script always makes the same files.
 #
 #   gen-sounds.py OUTDIR
@@ -48,15 +48,14 @@ def sweep(f0, f1, seconds, decay, attack=0.003):
     return out
 
 
-def noise(seconds, decay, seed, smooth):
-    """Seeded noise, low-passed by a one-pole filter, fading."""
+def glide(f0, f1, seconds, decay, attack):
+    """A soft tone falling from f0 to f1, with a touch of its octave."""
     n = int(seconds * RATE)
-    out, x, y = [], seed, 0.0
+    out, phase = [], 0.0
     for i in range(n):
-        x = (1103515245 * x + 12345) & 0x7FFFFFFF
-        v = x / 0x3FFFFFFF - 1.0
-        y += smooth * (v - y)
-        out.append(envelope(i / RATE, 0.004, decay) * y)
+        t = i / RATE
+        phase += 2 * math.pi * f0 * (f1 / f0) ** (t / seconds) / RATE
+        out.append(envelope(t, attack, decay) * (math.sin(phase) + 0.15 * math.sin(2 * phase)))
     return out
 
 
@@ -111,8 +110,8 @@ SOUNDS = {
     # Received: two falling notes.
     'Received': lambda: mix(tone([(1046.5, 1.0), (2093, 0.15)], 0.5, 0.08),
                             tone([(783.99, 1.0), (1568, 0.15)], 0.5, 0.12, start=0.09)),
-    # Moved to the Trash: a short crumple of filtered noise.
-    'Trash': lambda: mix(noise(0.35, 0.07, 1729, 0.18), noise(0.35, 0.03, 4242, 0.5)),
+    # Moved to the Trash: a soft tone gliding down, as something dropping.
+    'Trash': lambda: glide(760, 190, 0.45, 0.16, attack=0.02),
     # A pop: a tiny falling blip.
     'Pop': lambda: sweep(900, 380, 0.09, 0.025, attack=0.001),
     # A tink: very short and high.
