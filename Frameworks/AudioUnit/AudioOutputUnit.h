@@ -13,6 +13,15 @@
 extern "C" {
 #endif
 
+enum {
+    kAudioOutputUnitRange = 0x0200,
+    kAudioOutputUnitStartSelect = 0x0201,
+    kAudioOutputUnitStopSelect = 0x0202,
+};
+
+typedef OSStatus (*AudioOutputUnitStartProc)(void *self);
+typedef OSStatus (*AudioOutputUnitStopProc)(void *self);
+
 OSStatus AudioOutputUnitStart(AudioUnit ci);
 OSStatus AudioOutputUnitStop(AudioUnit ci);
 

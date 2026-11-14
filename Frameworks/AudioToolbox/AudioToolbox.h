@@ -15,5 +15,16 @@
 #include <AudioToolbox/ExtendedAudioFile.h>
 #include <AudioToolbox/AudioServices.h>
 #include <AudioUnit/AudioUnit.h>
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* Shows what an AudioToolbox object is, for debugging. */
+void CAShow(void *inObject);
+void CAShowFile(void *inObject, FILE *inFile);
+#ifdef __cplusplus
+}
+#endif
 
 #endif

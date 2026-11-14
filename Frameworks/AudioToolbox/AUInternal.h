@@ -65,6 +65,7 @@ struct OpaqueAudioComponent {
     const char *name;
     UInt32 version;
     const AUClass *cls;
+    AudioComponentFactoryFunction factory;  /* a component the app registered */
 };
 
 /* Tells the unit's listeners a property changed. */
@@ -77,6 +78,10 @@ void _AURenderNotify(AudioUnit unit, AudioUnitRenderActionFlags flags, const Aud
                      UInt32 bus, UInt32 frames, AudioBufferList *data);
 
 __attribute__((visibility("hidden"))) extern const AUClass _AUOutputClass;
+__attribute__((visibility("hidden"))) extern const AUClass _AUPlugInClass;
+/* A registered component's method for a selector, or NULL (AUPlugIn.c). */
+__attribute__((visibility("hidden")))
+AudioComponentMethod _AUPlugInMethod(AudioUnit unit, SInt16 selector);
 
 /* Linear PCM to interleaved float, and the formats it reads. */
 __attribute__((visibility("hidden")))
