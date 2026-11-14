@@ -19,14 +19,13 @@ Boolean _AUFormatIsSupported(const AudioStreamBasicDescription *f) {
     if (f == NULL || f->mFormatID != kAudioFormatLinearPCM || f->mSampleRate <= 0 ||
         f->mFramesPerPacket != 1 || f->mChannelsPerFrame == 0 || f->mChannelsPerFrame > kMaxChannels)
         return false;
-    if ((f->mFormatFlags & kAudioFormatFlagIsBigEndian) != kAudioFormatFlagsNativeEndian)
-        return false;
     bytes = f->mBitsPerChannel / 8;
     if (f->mFormatFlags & kAudioFormatFlagIsFloat) {
         if (f->mBitsPerChannel != 32 && f->mBitsPerChannel != 64)
             return false;
     } else if (f->mFormatFlags & kAudioFormatFlagIsSignedInteger) {
-        if (f->mBitsPerChannel != 16 && f->mBitsPerChannel != 24 && f->mBitsPerChannel != 32)
+        if (f->mBitsPerChannel != 8 && f->mBitsPerChannel != 16 && f->mBitsPerChannel != 24 &&
+            f->mBitsPerChannel != 32)
             return false;
     } else if (f->mBitsPerChannel != 8) {   /* unsigned 8-bit */
         return false;
@@ -37,37 +36,54 @@ Boolean _AUFormatIsSupported(const AudioStreamBasicDescription *f) {
     return f->mBytesPerFrame == bytes * f->mChannelsPerFrame;
 }
 
+/* A sample's bytes, least significant first. */
+static inline void load(const AudioStreamBasicDescription *f, const unsigned char *p, unsigned char *le, UInt32 n) {
+    if (f->mFormatFlags & kAudioFormatFlagIsBigEndian)
+        for (UInt32 i = 0; i < n; i++)
+            le[i] = p[n - 1 - i];
+    else
+        memcpy(le, p, n);
+}
+
+static inline void store(const AudioStreamBasicDescription *f, unsigned char *p, const unsigned char *le, UInt32 n) {
+    if (f->mFormatFlags & kAudioFormatFlagIsBigEndian)
+        for (UInt32 i = 0; i < n; i++)
+            p[i] = le[n - 1 - i];
+    else
+        memcpy(p, le, n);
+}
+
 static inline float readSample(const AudioStreamBasicDescription *f, const unsigned char *p) {
+    unsigned char b[8];
+    UInt32 n = f->mBitsPerChannel / 8;
+
+    load(f, p, b, n);
     if (f->mFormatFlags & kAudioFormatFlagIsFloat) {
-        if (f->mBitsPerChannel == 32) {
+        if (n == 4) {
             float v;
-            memcpy(&v, p, sizeof(v));
+            memcpy(&v, b, sizeof(v));
             return v;
         } else {
             double v;
-            memcpy(&v, p, sizeof(v));
+            memcpy(&v, b, sizeof(v));
             return (float)v;
         }
     }
     if (f->mFormatFlags & kAudioFormatFlagIsSignedInteger) {
-        switch (f->mBitsPerChannel) {
-        case 16: {
-            int16_t v;
-            memcpy(&v, p, sizeof(v));
-            return v * (1.0f / 32768.0f);
-        }
-        case 24: {
-            int32_t v = (int32_t)((uint32_t)p[0] << 8 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 24) >> 8;
-            return v * (1.0f / 8388608.0f);
-        }
-        default: {
-            int32_t v;
-            memcpy(&v, p, sizeof(v));
-            return v * (1.0f / 2147483648.0f);
-        }
+        switch (n) {
+        case 1:
+            return (int8_t)b[0] * (1.0f / 128.0f);
+        case 2:
+            return (int16_t)(b[0] | b[1] << 8) * (1.0f / 32768.0f);
+        case 3:
+            return ((int32_t)((uint32_t)b[0] << 8 | (uint32_t)b[1] << 16 | (uint32_t)b[2] << 24) >> 8) *
+                   (1.0f / 8388608.0f);
+        default:
+            return (int32_t)((uint32_t)b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24) *
+                   (1.0f / 2147483648.0f);
         }
     }
-    return (p[0] - 128) * (1.0f / 128.0f);
+    return (b[0] - 128) * (1.0f / 128.0f);
 }
 
 /* Mono goes to every output channel; extra input channels are dropped and
@@ -110,13 +126,17 @@ void _AUToFloat(const AudioStreamBasicDescription *f, const AudioBufferList *in,
 }
 
 static inline void writeSample(const AudioStreamBasicDescription *f, unsigned char *p, float v) {
+    unsigned char b[8];
+    UInt32 n = f->mBitsPerChannel / 8;
+
     if (f->mFormatFlags & kAudioFormatFlagIsFloat) {
-        if (f->mBitsPerChannel == 32) {
-            memcpy(p, &v, sizeof(v));
+        if (n == 4) {
+            memcpy(b, &v, sizeof(v));
         } else {
             double d = v;
-            memcpy(p, &d, sizeof(d));
+            memcpy(b, &d, sizeof(d));
         }
+        store(f, p, b, n);
         return;
     }
     if (v > 1)
@@ -124,25 +144,25 @@ static inline void writeSample(const AudioStreamBasicDescription *f, unsigned ch
     else if (v < -1)
         v = -1;
     if (f->mFormatFlags & kAudioFormatFlagIsSignedInteger) {
-        switch (f->mBitsPerChannel) {
-        case 16: {
-            int16_t s = (int16_t)lrintf(v * 32767.0f);
-            memcpy(p, &s, sizeof(s));
-            return;
+        int32_t s;
+        switch (n) {
+        case 1:
+            s = (int32_t)lrintf(v * 127.0f);
+            break;
+        case 2:
+            s = (int32_t)lrintf(v * 32767.0f);
+            break;
+        case 3:
+            s = (int32_t)lrintf(v * 8388607.0f);
+            break;
+        default:
+            s = (int32_t)lrint((double)v * 2147483647.0);
+            break;
         }
-        case 24: {
-            int32_t s = (int32_t)lrintf(v * 8388607.0f);
-            p[0] = s & 0xff;
-            p[1] = (s >> 8) & 0xff;
-            p[2] = (s >> 16) & 0xff;
-            return;
-        }
-        default: {
-            int32_t s = (int32_t)lrint((double)v * 2147483647.0);
-            memcpy(p, &s, sizeof(s));
-            return;
-        }
-        }
+        for (UInt32 i = 0; i < n; i++)
+            b[i] = (unsigned char)((uint32_t)s >> (8 * i));
+        store(f, p, b, n);
+        return;
     }
     p[0] = (unsigned char)lrintf(v * 127.0f + 128.0f);
 }

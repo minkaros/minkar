@@ -8,7 +8,9 @@
 #define __AUDIOTOOLBOX__
 
 #include <AudioToolbox/AudioConverter.h>
+#include <AudioToolbox/AudioFile.h>
 #include <AudioToolbox/AudioQueue.h>
+#include <AudioToolbox/ExtendedAudioFile.h>
 #include <AudioToolbox/AudioServices.h>
 #include <AudioUnit/AudioUnit.h>
 
