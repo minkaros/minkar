@@ -1,0 +1,11 @@
+speexdsp's resampler, for AudioToolbox (AudioConverter and the output
+units' rate conversion).
+
+From speexdsp 1.2.1 (https://downloads.xiph.org/releases/speex/speexdsp-1.2.1.tar.gz,
+SHA-256 8c777343e4a6399569c72abc38a95b24db56882c83dbdb6c6424a5f4aeb54d3d):
+libspeexdsp/resample.c, libspeexdsp/arch.h and include/speex/speex_resampler.h,
+unchanged. BSD-style license (Xiph.Org), in COPYING.
+
+Built as the library's own "outside Speex" variant: OUTSIDE_SPEEX,
+FLOATING_POINT and RANDOM_PREFIX=minkar_audio, so its symbols are
+minkar_audio_resampler_*, hidden in AudioToolbox.

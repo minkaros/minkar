@@ -2,19 +2,25 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# AudioToolbox.framework: system sounds (there is no audio output yet).
+# AudioToolbox.framework: audio components and output units (AU3), and
+# system sounds. speexdsp's resampler is built in, its symbols hidden.
 
 MK_WERROR = no
 FRAMEWORK = AudioToolbox
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = AudioServices.c
+SRCS = AudioServices.c AUComponent.c AUFormat.c AUOutputUnit.c \
+  resample.c
 HEADERS = AudioToolbox.h AudioServices.h
+
+.PATH: ${.CURDIR}/speexdsp
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
-CFLAGS += -I${.CURDIR:H} -F${FMWKS} 
-LDFLAGS += -F${FMWKS} -framework CoreFoundation
+CFLAGS += -I${.CURDIR:H} -F${FMWKS}
+CFLAGS += -DOUTSIDE_SPEEX -DFLOATING_POINT -DRANDOM_PREFIX=minkar_audio \
+  -DEXPORT='__attribute__((visibility("hidden")))'
+LDFLAGS += -F${FMWKS} -framework CoreFoundation -framework CoreAudio
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

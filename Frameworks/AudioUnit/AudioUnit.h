@@ -61,4 +61,8 @@ enum {
 }
 #endif
 
+#include <AudioUnit/AUComponent.h>
+#include <AudioUnit/AudioUnitProperties.h>
+#include <AudioUnit/AudioOutputUnit.h>
+
 #endif

@@ -11,7 +11,7 @@ FRAMEWORK = AudioUnit
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = AudioUnitVersion.c
-HEADERS = AudioUnit.h
+HEADERS = AudioUnit.h AUComponent.h AudioUnitProperties.h AudioOutputUnit.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks

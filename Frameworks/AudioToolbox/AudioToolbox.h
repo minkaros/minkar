@@ -8,5 +8,6 @@
 #define __AUDIOTOOLBOX__
 
 #include <AudioToolbox/AudioServices.h>
+#include <AudioUnit/AudioUnit.h>
 
 #endif
