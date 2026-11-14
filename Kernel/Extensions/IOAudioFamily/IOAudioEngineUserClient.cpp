@@ -154,6 +154,21 @@ IOAudioEngineUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
         args->structureOutputSize = sizeof(info);
         return kIOReturnSuccess;
     }
+    case kIOAudioEngineMethodGetPosition: {
+        /* Where the hardware is, as the driver reads it (its DMA, which
+           runs ahead of what is heard), with the loop count it belongs
+           to: the count is read first, so a wrap between the reads shows
+           as a frame lower than the last one. */
+        UInt32 loops = 0;
+
+        if (args->scalarOutputCount < 2)
+            return kIOReturnBadArgument;
+        audioEngine->getLoopCountAndTimeStamp(&loops, NULL);
+        args->scalarOutput[0] = loops;
+        args->scalarOutput[1] = audioEngine->getCurrentSampleFrame();
+        args->scalarOutputCount = 2;
+        return kIOReturnSuccess;
+    }
     default:
         return kIOReturnUnsupported;
     }

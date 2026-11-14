@@ -156,7 +156,8 @@ enum {
     kIOAudioEngineMethodStop = 1,       /* no arguments */
     kIOAudioEngineMethodGetInfo = 2,    /* out: IOAudioEngineInfo */
     kIOAudioEngineMethodGetStream = 3,  /* in: index; out: IOAudioEngineStreamInfo */
-    kIOAudioEngineMethodCount = 4
+    kIOAudioEngineMethodGetPosition = 4,/* out: loop count, current sample frame */
+    kIOAudioEngineMethodCount = 5
 };
 
 typedef struct _IOAudioEngineInfo {
