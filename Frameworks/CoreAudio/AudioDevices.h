@@ -13,6 +13,9 @@
 
 __attribute__((visibility("hidden"))) UInt32 _AudioDeviceCopyIDs(AudioDeviceID *ids, UInt32 capacity);
 __attribute__((visibility("hidden"))) AudioDeviceID _AudioDeviceDefaultOutput(void);
+__attribute__((visibility("hidden"))) AudioDeviceID _AudioDeviceDefaultInput(void);
+/* The frames a cycle this process asks the audio service for. */
+__attribute__((visibility("hidden"))) UInt32 _AudioDeviceFramesPerCycle(AudioObjectID id);
 __attribute__((visibility("hidden"))) AudioDeviceID _AudioDeviceWithUID(CFStringRef uid);
 __attribute__((visibility("hidden"))) Boolean _AudioDeviceExists(AudioObjectID id);
 __attribute__((visibility("hidden"))) Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddress *a);

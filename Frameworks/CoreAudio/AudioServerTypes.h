@@ -14,8 +14,10 @@
 #include <mach/mach_types.h>
 
 #define kAudioServerName                "org.minkar.audiod"
-#define kAudioServerInterfaceVersion    1
-#define kAudioServerFramesPerCycle      512
+#define kAudioServerInterfaceVersion    2
+#define kAudioServerFramesPerCycle      512     /* unless the first client asks otherwise */
+#define kAudioServerMinFramesPerCycle   64
+#define kAudioServerMaxFramesPerCycle   4096
 #define kAudioServerChannels            2
 
 typedef char as_name_t[512];
@@ -40,6 +42,12 @@ typedef struct AudioServerArea {
     volatile double   outputSampleTime;
     volatile uint64_t outputHostTime;
     volatile uint32_t late;         /* cycles the client missed */
+    /* The device's input, when it has one (inputChannels 0 when not): the
+       cycle's recorded frames, as float, and when they were recorded. */
+    uint32_t inputChannels;
+    uint32_t inputSamplesOffset;    /* from the area's start */
+    volatile double   inputSampleTime;
+    volatile uint64_t inputHostTime;
 } AudioServerArea;
 
 #endif /* _AUDIOSERVERTYPES_H_ */

@@ -25,6 +25,9 @@ typedef struct Device {
     io_service_t    engine;         /* retained */
     io_service_t    volume;         /* IOAudioLevelControl, or 0 */
     io_service_t    mute;           /* IOAudioToggleControl, or 0 */
+    io_service_t    inputVolume;    /* the input's level, or 0 */
+    Boolean         hasInput;
+    UInt32          framesPerCycle; /* asked of the audio service */
     CFStringRef     uid;
 } Device;
 
@@ -50,8 +53,9 @@ static SInt64 numberProperty(io_registry_entry_t entry, const char *key, SInt64 
     return n;
 }
 
-/* The engine's control of a type and subtype for output, or 0. */
-static io_service_t findControl(io_service_t engine, UInt32 type, UInt32 subType) {
+/* The engine's control of a type and subtype for a usage (output or
+   input), or 0. */
+static io_service_t findControl(io_service_t engine, UInt32 type, UInt32 subType, UInt32 usage) {
     io_iterator_t children;
     io_registry_entry_t child;
     io_service_t found = 0;
@@ -61,7 +65,7 @@ static io_service_t findControl(io_service_t engine, UInt32 type, UInt32 subType
     while (found == 0 && (child = IOIteratorNext(children)) != 0) {
         if ((UInt32)numberProperty(child, "IOAudioControlType", 0) == type &&
             (UInt32)numberProperty(child, "IOAudioControlSubType", 0) == subType &&
-            (UInt32)numberProperty(child, "IOAudioControlUsage", 'outp') == 'outp')
+            (UInt32)numberProperty(child, "IOAudioControlUsage", 'outp') == usage)
             found = child;
         else
             IOObjectRelease(child);
@@ -70,22 +74,22 @@ static io_service_t findControl(io_service_t engine, UInt32 type, UInt32 subType
     return found;
 }
 
-/* An engine with an output stream. */
-static Boolean hasOutput(io_service_t engine) {
+/* Whether an engine has a stream of a direction (0 output, 1 input). */
+static Boolean hasStream(io_service_t engine, SInt64 direction) {
     io_iterator_t children;
     io_registry_entry_t child;
-    Boolean output = false;
+    Boolean found = false;
 
     if (IORegistryEntryGetChildIterator(engine, kIOServicePlane, &children) != KERN_SUCCESS)
         return false;
-    while (!output && (child = IOIteratorNext(children)) != 0) {
+    while (!found && (child = IOIteratorNext(children)) != 0) {
         if (IOObjectConformsTo(child, "IOAudioStream") &&
-            numberProperty(child, "IOAudioStreamDirection", -1) == 0)
-            output = true;
+            numberProperty(child, "IOAudioStreamDirection", -1) == direction)
+            found = true;
         IOObjectRelease(child);
     }
     IOObjectRelease(children);
-    return output;
+    return found;
 }
 
 /* The engines, once: each output engine is a device, in the registry's
@@ -104,15 +108,18 @@ static void findDevices(void) {
     while ((engine = IOIteratorNext(engines)) != 0) {
         io_string_t path;
 
-        if (deviceCount == kMaxDevices || !hasOutput(engine)) {
+        if (deviceCount == kMaxDevices || !hasStream(engine, 0)) {
             IOObjectRelease(engine);
             continue;
         }
         Device *d = &devices[deviceCount];
         d->id = kFirstDeviceID + deviceCount;
         d->engine = engine;
-        d->volume = findControl(engine, 'levl', 'vlme');
-        d->mute = findControl(engine, 'togl', 'mute');
+        d->volume = findControl(engine, 'levl', 'vlme', 'outp');
+        d->mute = findControl(engine, 'togl', 'mute', 'outp');
+        d->hasInput = hasStream(engine, 1);
+        d->inputVolume = d->hasInput ? findControl(engine, 'levl', 'vlme', 'inpt') : 0;
+        d->framesPerCycle = kAudioServerFramesPerCycle;
         if (IORegistryEntryGetPath(engine, kIOServicePlane, path) == KERN_SUCCESS)
             d->uid = CFStringCreateWithCString(NULL, path, kCFStringEncodingUTF8);
         else
@@ -156,6 +163,24 @@ AudioDeviceID _AudioDeviceDefaultOutput(void) {
     return id;
 }
 
+/* The first device with an input. */
+AudioDeviceID _AudioDeviceDefaultInput(void) {
+    AudioDeviceID id = kAudioObjectUnknown;
+
+    pthread_mutex_lock(&devicesLock);
+    findDevices();
+    for (UInt32 i = 0; i < deviceCount && id == kAudioObjectUnknown; i++)
+        if (devices[i].hasInput)
+            id = devices[i].id;
+    pthread_mutex_unlock(&devicesLock);
+    return id;
+}
+
+UInt32 _AudioDeviceFramesPerCycle(AudioObjectID id) {
+    Device *d = deviceWithID(id);
+    return d != NULL ? d->framesPerCycle : kAudioServerFramesPerCycle;
+}
+
 AudioDeviceID _AudioDeviceWithUID(CFStringRef uid) {
     AudioDeviceID id = kAudioObjectUnknown;
 
@@ -181,15 +206,28 @@ typedef struct Level {
     Float64 minDB, maxDB;
 } Level;
 
-static Boolean readLevel(Device *d, Level *l) {
-    if (d->volume == 0)
+static Boolean readControlLevel(io_service_t control, Level *l) {
+    if (control == 0)
         return false;
-    l->value = (SInt32)numberProperty(d->volume, "IOAudioControlValue", 0);
-    l->min = (SInt32)numberProperty(d->volume, "IOAudioLevelControlMinValue", 0);
-    l->max = (SInt32)numberProperty(d->volume, "IOAudioLevelControlMaxValue", 0);
-    l->minDB = (SInt32)numberProperty(d->volume, "IOAudioLevelControlMinDB", 0) / 65536.0;
-    l->maxDB = (SInt32)numberProperty(d->volume, "IOAudioLevelControlMaxDB", 0) / 65536.0;
+    l->value = (SInt32)numberProperty(control, "IOAudioControlValue", 0);
+    l->min = (SInt32)numberProperty(control, "IOAudioLevelControlMinValue", 0);
+    l->max = (SInt32)numberProperty(control, "IOAudioLevelControlMaxValue", 0);
+    l->minDB = (SInt32)numberProperty(control, "IOAudioLevelControlMinDB", 0) / 65536.0;
+    l->maxDB = (SInt32)numberProperty(control, "IOAudioLevelControlMaxDB", 0) / 65536.0;
     return l->max > l->min;
+}
+
+static Boolean readLevel(Device *d, Level *l) {
+    return readControlLevel(d->volume, l);
+}
+
+static Boolean isInput(const AudioObjectPropertyAddress *a) {
+    return a->mScope == kAudioObjectPropertyScopeInput;
+}
+
+/* The level a volume property is about: the input's in the input scope. */
+static Boolean readScopedLevel(Device *d, const AudioObjectPropertyAddress *a, Level *l) {
+    return readControlLevel(isInput(a) ? d->inputVolume : d->volume, l);
 }
 
 static Float32 scalarOf(const Level *l, SInt32 value) {
@@ -248,17 +286,21 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
     case kAudioDevicePropertyDeviceIsAlive:
     case kAudioDevicePropertyDeviceIsRunning:
     case kAudioDevicePropertyBufferFrameSize:
+    case kAudioDevicePropertyBufferFrameSizeRange:
         return true;
     case kAudioDevicePropertyStreamConfiguration:
     case kAudioDevicePropertyStreamFormat:
     case kAudioDevicePropertyLatency:
     case kAudioDevicePropertySafetyOffset:
-        return a->mScope == kAudioObjectPropertyScopeOutput || a->mScope == kAudioObjectPropertyScopeWildcard;
+        return a->mScope == kAudioObjectPropertyScopeOutput || a->mScope == kAudioObjectPropertyScopeWildcard ||
+               (isInput(a) && d->hasInput);
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
     case kAudioDevicePropertyVolumeRangeDecibels:
     case kAudioDevicePropertyVolumeScalarToDecibels:
     case kAudioDevicePropertyVolumeDecibelsToScalar:
+        if (isInput(a))
+            return d->inputVolume != 0 && isVolumeElement(a);
         return d->volume != 0 && isOutputOrGlobal(a) && isVolumeElement(a);
     case kAudioDevicePropertyMute:
         return (d->mute != 0 || d->volume != 0) && isOutputOrGlobal(a) && isVolumeElement(a);
@@ -272,6 +314,7 @@ Boolean _AudioDeviceIsPropertySettable(AudioObjectID id, const AudioObjectProper
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
     case kAudioDevicePropertyMute:
+    case kAudioDevicePropertyBufferFrameSize:
         return true;
     default:
         return false;
@@ -292,6 +335,7 @@ UInt32 _AudioDevicePropertySize(AudioObjectID id, const AudioObjectPropertyAddre
     case kAudioDevicePropertyVolumeDecibelsToScalar:
         return sizeof(Float32);
     case kAudioDevicePropertyVolumeRangeDecibels:
+    case kAudioDevicePropertyBufferFrameSizeRange:
         return sizeof(AudioValueRange);
     case kAudioDevicePropertyStreamConfiguration:
         return sizeof(AudioBufferList);
@@ -366,11 +410,16 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         *(UInt32 *)out = numberProperty(d->engine, "IOAudioEngineState", 0) == 1;
         break;
     case kAudioDevicePropertyBufferFrameSize:
-        /* The audio service's cycle. */
-        *(UInt32 *)out = kAudioServerFramesPerCycle;
+        /* The audio service's cycle, as this process asks for it. */
+        *(UInt32 *)out = d->framesPerCycle;
+        break;
+    case kAudioDevicePropertyBufferFrameSizeRange:
+        ((AudioValueRange *)out)->mMinimum = kAudioServerMinFramesPerCycle;
+        ((AudioValueRange *)out)->mMaximum = 1024;
         break;
     case kAudioDevicePropertyLatency:
-        *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineOutputSampleLatency", 0);
+        *(UInt32 *)out = (UInt32)numberProperty(d->engine, isInput(a) ? "IOAudioEngineInputSampleLatency" :
+                                                "IOAudioEngineOutputSampleLatency", 0);
         break;
     case kAudioDevicePropertySafetyOffset:
         *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineSampleOffset", 0);
@@ -380,7 +429,7 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         AudioBufferList *list = out;
         list->mNumberBuffers = 1;
         list->mBuffers[0].mNumberChannels = kAudioServerChannels;
-        list->mBuffers[0].mDataByteSize = kAudioServerFramesPerCycle * kAudioServerChannels * sizeof(Float32);
+        list->mBuffers[0].mDataByteSize = d->framesPerCycle * kAudioServerChannels * sizeof(Float32);
         list->mBuffers[0].mData = NULL;
         break;
     }
@@ -399,28 +448,28 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     }
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
-        if (!readLevel(d, &l))
+        if (!readScopedLevel(d, a, &l))
             return kAudioHardwareUnspecifiedError;
         {
             UInt32 n = (UInt32)(d - devices);
-            SInt32 value = mutedByLevel[n] ? levelBeforeMute[n] : l.value;
+            SInt32 value = !isInput(a) && mutedByLevel[n] ? levelBeforeMute[n] : l.value;
             *(Float32 *)out = a->mSelector == kAudioDevicePropertyVolumeScalar ?
                 scalarOf(&l, value) : decibelsOf(&l, value);
         }
         break;
     case kAudioDevicePropertyVolumeRangeDecibels:
-        if (!readLevel(d, &l))
+        if (!readScopedLevel(d, a, &l))
             return kAudioHardwareUnspecifiedError;
         ((AudioValueRange *)out)->mMinimum = l.minDB;
         ((AudioValueRange *)out)->mMaximum = l.maxDB;
         break;
     case kAudioDevicePropertyVolumeScalarToDecibels:
-        if (!readLevel(d, &l))
+        if (!readScopedLevel(d, a, &l))
             return kAudioHardwareUnspecifiedError;
         *(Float32 *)out = decibelsOf(&l, valueOfScalar(&l, *(Float32 *)out));
         break;
     case kAudioDevicePropertyVolumeDecibelsToScalar:
-        if (!readLevel(d, &l))
+        if (!readScopedLevel(d, a, &l))
             return kAudioHardwareUnspecifiedError;
         *(Float32 *)out = l.maxDB > l.minDB ?
             (Float32)((*(Float32 *)out - l.minDB) / (l.maxDB - l.minDB)) : 0;
@@ -454,14 +503,23 @@ OSStatus _AudioDeviceSetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         return kAudioHardwareBadPropertySizeError;
     n = (UInt32)(d - devices);
     switch (a->mSelector) {
+    case kAudioDevicePropertyBufferFrameSize: {
+        UInt32 frames = *(const UInt32 *)data;
+        if (frames < kAudioServerMinFramesPerCycle || frames > 1024)
+            return kAudioHardwareIllegalOperationError;
+        d->framesPerCycle = frames;     /* for this process's next start */
+        return noErr;
+    }
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels: {
-        if (!readLevel(d, &l))
+        if (!readScopedLevel(d, a, &l))
             return kAudioHardwareUnspecifiedError;
         Float32 scalar = *(const Float32 *)data;
         if (a->mSelector == kAudioDevicePropertyVolumeDecibels)
             scalar = l.maxDB > l.minDB ? (Float32)((scalar - l.minDB) / (l.maxDB - l.minDB)) : 0;
         SInt32 value = valueOfScalar(&l, scalar);
+        if (isInput(a))
+            return setControlValue(d->inputVolume, value);
         if (mutedByLevel[n]) {
             levelBeforeMute[n] = value;     /* applied when unmuted */
             return noErr;

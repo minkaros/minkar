@@ -6,8 +6,9 @@
  * A device's IO procedures, through the audio service (audiod,
  * AudioServer.defs). Starting one opens a session: a shared area and two
  * semaphores; a real-time thread waits for each cycle, calls the procedure
- * with the cycle's output buffer (in the shared area, cleared first) and
- * its times, and tells the service it is done. The service mixes every
+ * with the cycle's input (what the device recorded, when it has an input),
+ * its output buffer (in the shared area, cleared first) and their times,
+ * and tells the service it is done. The service mixes every
  * client's samples in the same cycle.
  */
 
@@ -106,8 +107,8 @@ static void *ioThread(void *arg) {
     IOProc *p = arg;
     AudioServerArea *area = p->area;
     float *samples = (float *)((char *)area + area->samplesOffset);
-    AudioBufferList output;
-    AudioTimeStamp now, outputTime;
+    AudioBufferList output, input;
+    AudioTimeStamp now, outputTime, inputTime;
 
     makeRealtime(area);
     while (p->running) {
@@ -129,7 +130,20 @@ static void *ioThread(void *arg) {
         output.mBuffers[0].mDataByteSize = area->framesPerCycle * area->channels * sizeof(float);
         output.mBuffers[0].mData = samples;
         memset(samples, 0, output.mBuffers[0].mDataByteSize);
-        p->proc(p->device, &now, NULL, &now, &output, &outputTime, p->clientData);
+        /* What the input recorded, and when, for a device that has one. */
+        memset(&inputTime, 0, sizeof(inputTime));
+        if (area->inputChannels > 0) {
+            input.mNumberBuffers = 1;
+            input.mBuffers[0].mNumberChannels = area->inputChannels;
+            input.mBuffers[0].mDataByteSize = area->framesPerCycle * area->inputChannels * sizeof(float);
+            input.mBuffers[0].mData = (char *)area + area->inputSamplesOffset;
+            inputTime.mSampleTime = area->inputSampleTime;
+            inputTime.mHostTime = area->inputHostTime;
+            inputTime.mRateScalar = 1;
+            inputTime.mFlags = now.mFlags;
+        }
+        p->proc(p->device, &now, area->inputChannels > 0 ? &input : NULL, &inputTime, &output, &outputTime,
+                p->clientData);
         semaphore_signal(p->done);
     }
     return NULL;
@@ -164,7 +178,8 @@ OSStatus AudioDeviceStart(AudioObjectID device, AudioDeviceIOProcID id) {
         return kAudioHardwareNotRunningError;
     }
     mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &p->client);
-    if (as_start_io(server, uid, p->client, &session, &area, &size, &wake, &done, &result) != KERN_SUCCESS ||
+    if (as_start_io(server, uid, p->client, _AudioDeviceFramesPerCycle(device), &session, &area, &size, &wake,
+                    &done, &result) != KERN_SUCCESS ||
         result != 0) {
         mach_port_mod_refs(mach_task_self(), p->client, MACH_PORT_RIGHT_RECEIVE, -1);
         p->client = MACH_PORT_NULL;

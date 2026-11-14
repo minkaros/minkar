@@ -133,6 +133,9 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
     case kAudioHardwarePropertyDefaultSystemOutputDevice:
         *(AudioObjectID *)outData = _AudioDeviceDefaultOutput();
         break;
+    case kAudioHardwarePropertyDefaultInputDevice:
+        *(AudioObjectID *)outData = _AudioDeviceDefaultInput();
+        break;
     case kAudioHardwarePropertyTranslateUIDToDevice:
         *(AudioObjectID *)outData = qualifierSize >= sizeof(CFStringRef) && qualifier != NULL ?
             _AudioDeviceWithUID(*(const CFStringRef *)qualifier) : kAudioObjectUnknown;

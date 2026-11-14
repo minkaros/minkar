@@ -28,7 +28,8 @@ routine hello(
 	server			: mach_port_t;
 	out version		: int32_t);
 
-/* IO on the device of uid (CoreAudio's device UID) for frames a cycle:
+/* IO on the device of uid (CoreAudio's device UID), frames a cycle (the
+   device's first client sets it; a later one gets the device's):
    the shared area (a memory entry of size bytes), the semaphores, and a
    session number for stop_io. result: 0, or an OSStatus. */
 routine start_io(
@@ -36,6 +37,7 @@ routine start_io(
 	ServerAuditToken token	: audit_token_t;
 	uid			: as_name_t;
 	client			: mach_port_make_send_t;
+	frames			: uint32_t;
 	out session		: int32_t;
 	out area		: mach_port_move_send_t;
 	out size		: uint32_t;

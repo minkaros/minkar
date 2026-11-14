@@ -86,6 +86,7 @@ enum {
     kAudioDevicePropertyNominalSampleRate = 'nsrt',
     kAudioDevicePropertyStreamConfiguration = 'slay',
     kAudioDevicePropertyBufferFrameSize = 'fsiz',
+    kAudioDevicePropertyBufferFrameSizeRange = 'fsz#',
     kAudioDevicePropertyLatency = 'ltnc',
     kAudioDevicePropertyDataSource = 'ssrc',
     kAudioDevicePropertyStreams = 'stm#',

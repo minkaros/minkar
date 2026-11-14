@@ -3,14 +3,17 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * audiod, the audio service (AU2): it owns the output devices (the
- * kernel's IOAudioFamily engines) and mixes its clients into them.
+ * audiod, the audio service (AU2): it owns the audio devices (the
+ * kernel's IOAudioFamily engines), mixes its clients into their outputs and
+ * gives them what their inputs record.
  *
  * A device's IO runs on a real-time thread while it has clients. Each cycle
- * (kFramesPerCycle frames) it chooses the frames of the device's timeline
- * the cycle's samples will be played at, ahead of the hardware by a cycle
- * and the engine's sample offset; it writes those times into each client's
- * shared area and wakes the clients; it waits for each one, at most until
+ * (its frames set by the device's first client, 512 unless it asks for
+ * fewer) it chooses the frames of the device's timeline the cycle's samples
+ * will be played at, ahead of the hardware by two cycles and the engine's
+ * sample offset; it copies the frames the input recorded last, behind the
+ * hardware, into each client's shared area with those times, and wakes
+ * the clients; it waits for each one, at most until
  * the cycle's deadline, adds their samples, and writes the sum, converted
  * to the device's format, into the device's own buffer. Silence is written
  * too, so the hardware never plays a buffer's old samples again.
@@ -45,7 +48,7 @@
 
 #define kMaxDevices     8
 #define kMaxSessions    32
-#define kFramesPerCycle kAudioServerFramesPerCycle
+#define kMaxFrames      kAudioServerMaxFramesPerCycle
 #define kChannels       kAudioServerChannels
 #define kSamplesOffset  128     /* the samples, after the area's header */
 
@@ -61,6 +64,9 @@ typedef struct Device {
     uint32_t        bytesPerFrame;
     uint32_t        channels;
     uint32_t        bitDepth;
+    const void     *inputBuffer;        /* what the hardware records, or NULL */
+    uint32_t        inputChannels, inputBitDepth;
+    uint32_t        framesPerCycle;     /* set by the device's first client */
     double          sampleRate;
     uint32_t        sampleOffset;
     pthread_t       thread;
@@ -272,10 +278,26 @@ static int openDevice(Device *d) {
         return 0;
     if (IOConnectCallStructMethod(d->connection, kIOAudioEngineMethodGetInfo, NULL, 0, &info, &size) != KERN_SUCCESS)
         goto fail;
-    size = sizeof(stream);
-    if (IOConnectCallMethod(d->connection, kIOAudioEngineMethodGetStream, &index, 1, NULL, 0,
-                            NULL, NULL, &stream, &size) != KERN_SUCCESS)
+    /* The first output stream, and the first input one if there is. */
+    int64_t outIndex = -1, inIndex = -1;
+    IOAudioEngineStreamInfo inStream;
+    for (index = 0; index < info.fNumStreams; index++) {
+        IOAudioEngineStreamInfo si;
+        size = sizeof(si);
+        if (IOConnectCallMethod(d->connection, kIOAudioEngineMethodGetStream, &index, 1, NULL, 0,
+                                NULL, NULL, &si, &size) != KERN_SUCCESS)
+            continue;
+        if (si.fDirection == kIOAudioStreamDirectionOutput && outIndex < 0) {
+            outIndex = (int64_t)index;
+            stream = si;
+        } else if (si.fDirection == kIOAudioStreamDirectionInput && inIndex < 0) {
+            inIndex = (int64_t)index;
+            inStream = si;
+        }
+    }
+    if (outIndex < 0)
         goto fail;
+    index = (uint64_t)outIndex;
     if (stream.fFormat.fSampleFormat != kIOAudioStreamSampleFormatLinearPCM ||
         stream.fFormat.fNumericRepresentation != kIOAudioStreamNumericRepresentationSignedInt ||
         (stream.fFormat.fBitWidth != 16 && stream.fFormat.fBitWidth != 32)) {
@@ -287,17 +309,29 @@ static int openDevice(Device *d) {
         goto fail;
     d->status = (const volatile IOAudioEngineStatus *)(uintptr_t)address;
     address = 0;
-    if (IOConnectMapMemory64(d->connection, kIOAudioEngineMemoryStream, mach_task_self(),
+    if (IOConnectMapMemory64(d->connection, kIOAudioEngineMemoryStream + (uint32_t)outIndex, mach_task_self(),
                              &address, &length, kIOMapAnywhere) != KERN_SUCCESS)
         goto fail;
     d->buffer = (void *)(uintptr_t)address;
+    d->inputBuffer = NULL;
+    d->inputChannels = 0;
+    if (inIndex >= 0 && inStream.fFormat.fNumericRepresentation == kIOAudioStreamNumericRepresentationSignedInt &&
+        (inStream.fFormat.fBitWidth == 16 || inStream.fFormat.fBitWidth == 32)) {
+        address = 0;
+        if (IOConnectMapMemory64(d->connection, kIOAudioEngineMemoryStream + (uint32_t)inIndex, mach_task_self(),
+                                 &address, &length, kIOMapAnywhere | kIOMapReadOnly) == KERN_SUCCESS) {
+            d->inputBuffer = (const void *)(uintptr_t)address;
+            d->inputChannels = inStream.fFormat.fNumChannels;
+            d->inputBitDepth = inStream.fFormat.fBitWidth;
+        }
+    }
     d->channels = stream.fFormat.fNumChannels;
     d->bitDepth = stream.fFormat.fBitWidth;
     d->bytesPerFrame = d->channels * d->bitDepth / 8;
     d->bufferFrames = info.fNumSampleFramesPerBuffer;
     d->sampleRate = info.fSampleRateWhole;
     d->sampleOffset = info.fSampleOffset;
-    if (d->bufferFrames < 2 * kFramesPerCycle || d->sampleRate <= 0 || d->channels == 0)
+    if (d->bufferFrames < 4 * kAudioServerMinFramesPerCycle || d->sampleRate <= 0 || d->channels == 0)
         goto fail;
     return 1;
 fail:
@@ -341,10 +375,29 @@ static void writeFrames(Device *d, uint64_t frame, const float *mix, uint32_t co
     }
 }
 
+/* The recorded frames from frame on, as float stereo (mono to both);
+   frames before the device started are silence. */
+static void readFrames(Device *d, int64_t frame, float *out, uint32_t count) {
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t at = (uint32_t)((uint64_t)(frame + i) % d->bufferFrames);
+        for (uint32_t c = 0; c < kChannels; c++) {
+            uint32_t from = c < d->inputChannels ? c : 0;
+            float v;
+            if (frame + (int64_t)i < 0)
+                v = 0;
+            else if (d->inputBitDepth == 16)
+                v = ((const int16_t *)d->inputBuffer)[at * d->inputChannels + from] / 32768.0f;
+            else
+                v = ((const int32_t *)d->inputBuffer)[at * d->inputChannels + from] / 2147483648.0f;
+            out[i * kChannels + c] = v;
+        }
+    }
+}
+
 /* A real-time thread: a cycle's computing time out of its period. */
 static void makeRealtime(Device *d) {
     struct thread_time_constraint_policy policy;
-    double periodNanos = kFramesPerCycle / d->sampleRate * 1e9;
+    double periodNanos = d->framesPerCycle / d->sampleRate * 1e9;
 
     policy.period = (uint32_t)nanosToHost(periodNanos);
     policy.computation = (uint32_t)nanosToHost(periodNanos / 4);
@@ -357,7 +410,8 @@ static void makeRealtime(Device *d) {
 
 static void *deviceThread(void *arg) {
     Device *d = arg;
-    static float mix[kFramesPerCycle * kChannels];
+    static float mix[kMaxFrames * kChannels], recorded[kMaxFrames * kChannels];
+    const uint32_t kFramesPerCycle = d->framesPerCycle;
     uint64_t cycle = 0;
     double hostPerFrame = 1e9 / d->sampleRate * timebase.denom / timebase.numer;
 
@@ -371,6 +425,11 @@ static void *deviceThread(void *arg) {
     double nowFrame = measureFrame(d);
     uint64_t writeFrame = (uint64_t)nowFrame + lead;
     uint64_t wake = mach_absolute_time();
+    /* The input is read behind the hardware: frames it has recorded, with
+       a margin for the controller's FIFO. One cycle's worth, in step with
+       the output's. */
+    const double inputMargin = d->sampleOffset + 32;
+    int64_t readFrame = (int64_t)nowFrame - (int64_t)inputMargin - kFramesPerCycle;
 
     while (d->running) {
         mach_wait_until(wake);
@@ -383,8 +442,22 @@ static void *deviceThread(void *arg) {
             syslog(LOG_WARNING, "%s: behind at cycle %llu (%.0f frames late)", d->uid,
                    (unsigned long long)cycle, nowFrame + d->sampleOffset - (double)writeFrame);
             writeFrame = (uint64_t)nowFrame + lead;
+            readFrame = (int64_t)nowFrame - (int64_t)inputMargin - kFramesPerCycle;
             d->resyncs++;
         }
+        if (d->inputBuffer != NULL) {
+            /* Not past what is recorded: a cycle that came early waits for
+               the next (the frames stay in step). */
+            if ((double)(readFrame + kFramesPerCycle) > nowFrame - inputMargin + kFramesPerCycle / 2.0 &&
+                readFrame + (int64_t)kFramesPerCycle > 0) {
+                syslog(LOG_WARNING, "%s: input not recorded yet at cycle %llu (%.0f frames early)", d->uid,
+                       (unsigned long long)cycle, (double)(readFrame + kFramesPerCycle) - (nowFrame - inputMargin));
+                readFrame = (int64_t)(nowFrame - inputMargin) - kFramesPerCycle;
+                d->resyncs++;
+            }
+            readFrames(d, readFrame, recorded, kFramesPerCycle);
+        }
+        uint64_t inputHost = now - (uint64_t)((nowFrame - (double)readFrame) * hostPerFrame);
         uint64_t outputHost = now + (uint64_t)(((double)writeFrame - nowFrame) * hostPerFrame);
         double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / 4.0;
         uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
@@ -401,6 +474,13 @@ static void *deviceThread(void *arg) {
             s->area->nowHostTime = now;
             s->area->outputSampleTime = (double)writeFrame;
             s->area->outputHostTime = outputHost;
+            s->area->framesPerCycle = kFramesPerCycle;
+            if (s->area->inputChannels > 0) {
+                memcpy((char *)s->area + s->area->inputSamplesOffset, recorded,
+                       kFramesPerCycle * kChannels * sizeof(float));
+                s->area->inputSampleTime = (double)readFrame;
+                s->area->inputHostTime = inputHost;
+            }
             __sync_synchronize();
             s->area->cycle = cycle;
             /* A done signalled after an earlier cycle's deadline is not
@@ -434,6 +514,7 @@ static void *deviceThread(void *arg) {
         }
         writeFrames(d, writeFrame, mix, kFramesPerCycle);
         writeFrame += kFramesPerCycle;
+        readFrame += kFramesPerCycle;
         d->completedCycles++;
         /* Next: when the hardware is lead frames before the next cycle's,
            at the nominal rate from this cycle's measure. */
@@ -444,13 +525,20 @@ static void *deviceThread(void *arg) {
 }
 
 /* The device's IO started with its first client, stopped with its last. */
-static int startDevice(Device *d) {
+static int startDevice(Device *d, uint32_t frames) {
     if (d->clients++ > 0)
         return 1;
+    if (frames < kAudioServerMinFramesPerCycle || frames > kMaxFrames)
+        frames = kAudioServerFramesPerCycle;
     if (!openDevice(d)) {
         d->clients--;
         return 0;
     }
+    /* The cycle being written, and the two ahead with the engine's offset,
+       fit in the hardware's buffer. */
+    while (frames > kAudioServerMinFramesPerCycle && 3 * frames + d->sampleOffset > d->bufferFrames)
+        frames /= 2;
+    d->framesPerCycle = frames;
     memset(d->buffer, 0, (size_t)d->bufferFrames * d->bytesPerFrame);
     if (IOConnectCallScalarMethod(d->connection, kIOAudioEngineMethodStart, NULL, 0, NULL, NULL) != KERN_SUCCESS) {
         d->clients--;
@@ -463,7 +551,8 @@ static int startDevice(Device *d) {
         d->clients--;
         return 0;
     }
-    syslog(LOG_INFO, "%s: running, %u frames a cycle", d->uid, kFramesPerCycle);
+    syslog(LOG_INFO, "%s: running, %u frames a cycle%s", d->uid, d->framesPerCycle,
+           d->inputBuffer != NULL ? ", with its input" : "");
     return 1;
 }
 
@@ -513,7 +602,7 @@ kern_return_t ass_hello(mach_port_t server, int32_t *version) {
 }
 
 kern_return_t ass_start_io(mach_port_t server, audit_token_t token, as_name_t uid,
-    mach_port_t client, int32_t *session, mach_port_t *area, uint32_t *size,
+    mach_port_t client, uint32_t frames, int32_t *session, mach_port_t *area, uint32_t *size,
     mach_port_t *wake, mach_port_t *done, int32_t *result) {
     Session *s = NULL;
     Device *d;
@@ -536,7 +625,7 @@ kern_return_t ass_start_io(mach_port_t server, audit_token_t token, as_name_t ui
         mach_port_deallocate(mach_task_self(), client);
         return KERN_SUCCESS;
     }
-    if (!startDevice(d)) {
+    if (!startDevice(d, frames)) {
         pthread_mutex_unlock(&lock);
         mach_port_deallocate(mach_task_self(), client);
         return KERN_SUCCESS;
@@ -544,7 +633,8 @@ kern_return_t ass_start_io(mach_port_t server, audit_token_t token, as_name_t ui
     s->device = d;
     s->pid = audit_token_to_pid(token);
     s->client = client;
-    s->areaSize = round_page(kSamplesOffset + kFramesPerCycle * kChannels * sizeof(float));
+    /* The output's samples, then the input's. */
+    s->areaSize = round_page(kSamplesOffset + 2 * kMaxFrames * kChannels * sizeof(float));
     vm_address_t address = 0;
     if (vm_allocate(mach_task_self(), &address, s->areaSize, VM_FLAGS_ANYWHERE) != KERN_SUCCESS) {
         stopDevice(d);
@@ -555,9 +645,11 @@ kern_return_t ass_start_io(mach_port_t server, audit_token_t token, as_name_t ui
     }
     s->area = (AudioServerArea *)address;
     s->area->version = kAudioServerInterfaceVersion;
-    s->area->framesPerCycle = kFramesPerCycle;
+    s->area->framesPerCycle = d->framesPerCycle;
     s->area->channels = kChannels;
     s->area->samplesOffset = kSamplesOffset;
+    s->area->inputChannels = d->inputBuffer != NULL ? kChannels : 0;
+    s->area->inputSamplesOffset = kSamplesOffset + kMaxFrames * kChannels * sizeof(float);
     s->area->sampleRate = d->sampleRate;
     entrySize = s->areaSize;
     mach_make_memory_entry_64(mach_task_self(), &entrySize, address,
@@ -628,7 +720,7 @@ int main(int argc, char **argv) {
     mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_PORT_SET, &portSet);
     mach_port_move_member(mach_task_self(), service, portSet);
     mach_port_move_member(mach_task_self(), notifyPort, portSet);
-    syslog(LOG_INFO, "ready, %d output devices", deviceCount);
+    syslog(LOG_INFO, "ready, %d devices", deviceCount);
 
     /* Every two seconds: the devices' volume and mute saved when they
        changed, and the engines looked for while there are none (the
