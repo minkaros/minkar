@@ -37,6 +37,7 @@ struct OpaqueAudioConverter {
     Boolean ended, drained;
 
     AudioBufferList *inList;    /* what the input procedure fills */
+    AudioBufferList *view;      /* a chunk of the input, taken in turn */
 };
 
 static Boolean alive(AudioConverterRef c) {
@@ -67,6 +68,7 @@ static void freeConverter(AudioConverterRef c) {
     free(c->pending);
     free(c->out);
     free(c->inList);
+    free(c->view);
     c->magic = 0;
     free(c);
 }
@@ -129,7 +131,8 @@ OSStatus AudioConverterNew(const AudioStreamBasicDescription *inSource, const Au
     c->in = malloc(kChunkFrames * c->src.mChannelsPerFrame * sizeof(float));
     c->out = malloc(kOutFrames * c->dst.mChannelsPerFrame * sizeof(float));
     c->inList = calloc(1, offsetof(AudioBufferList, mBuffers) + kMaxBuffers * sizeof(AudioBuffer));
-    if (c->in == NULL || c->out == NULL || c->inList == NULL) {
+    c->view = calloc(1, offsetof(AudioBufferList, mBuffers) + kMaxBuffers * sizeof(AudioBuffer));
+    if (c->in == NULL || c->out == NULL || c->inList == NULL || c->view == NULL) {
         freeConverter(c);
         return kAudio_MemFullError;
     }
@@ -357,7 +360,7 @@ static Boolean growPending(AudioConverterRef c, UInt32 frames) {
    time through c->in. */
 static OSStatus takeInput(AudioConverterRef c, const AudioBufferList *list, UInt32 frames) {
     UInt32 done = 0;
-    AudioBufferList *view = c->inList;
+    AudioBufferList *view = c->view;   /* never the list it views */
     UInt32 planar = (c->src.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0;
 
     if (!growPending(c, frames))
