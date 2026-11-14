@@ -3,7 +3,7 @@ SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarBGE MinkarVirtio MinkarNVMe \
 	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity MinkarSandbox \
-	 MinkarHDA
+	 IOAudioFamily MinkarHDA
 
 all: kernelcache
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
@@ -56,6 +56,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarDiskImage/MinkarDiskImage.kext \
 	${EXTENSIONS}/MinkarCodeIntegrity/MinkarCodeIntegrity.kext \
 	${EXTENSIONS}/MinkarSandbox/MinkarSandbox.kext \
+	${EXTENSIONS}/IOAudioFamily/IOAudioFamily.kext \
 	${EXTENSIONS}/MinkarHDA/MinkarHDA.kext
 	chmod 0644 ${.TARGET}.tmp
 	${LIPO} -create -output ${.OBJDIR}/${.TARGET} \

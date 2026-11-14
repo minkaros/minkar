@@ -1,0 +1,33 @@
+IOAudioFamily for Minkar
+========================
+
+Our own implementation (BSD-2-Clause) of the audio driver family:
+IOAudioDevice, IOAudioEngine, IOAudioStream, IOAudioControl,
+IOAudioLevelControl, IOAudioToggleControl and the engine's user client.
+It follows the family's public API so that drivers written for it build
+here; it is not binary compatible with the reference platform's kext and
+contains none of its code (that code is published under the Apple Public
+Source License 1.1, which Minkar does not take in).
+
+The bundle identifier is com.apple.iokit.IOAudioFamily, the name drivers
+list in OSBundleLibraries.
+
+How it works:
+
+* A driver's IOAudioDevice sets its hardware up in initHardware() and
+  activates an IOAudioEngine for each sample buffer the hardware runs.
+* The engine's streams hold the formats the hardware takes, the one in use
+  and the sample buffer (the hardware's own DMA buffer).
+* The driver stamps every wrap of the buffer (takeTimeStamp): the loop
+  count and its time are in a status page clients map, written under a
+  sequence number so a reader never mixes two wraps.
+* There is no mixing or sample conversion in the kernel: Minkar's audio
+  service maps the buffers (IOAudioEngineUserClient) and writes and reads
+  the device's own format in place, ahead of the hardware. clipOutputSamples
+  and convertInputSamples answer kIOReturnUnsupported.
+* Controls (volume, mute) call the driver's value change handler; a client
+  sets them through the registry (IOAudioControlValue).
+
+Not implemented yet: IOAudioPort, IOAudioSelectorControl, the family's
+power management, the classic mix buffers and their user client protocol,
+input streams' erase head.
