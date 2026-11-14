@@ -2545,8 +2545,20 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
        NSUInteger rectsCount;
        [self getRectsBeingDrawn:&rects count:&rectsCount];
        // If there is only one rect, it's the visible rect - it's already clipped
-       if (rectsCount > 1)
-           CGContextClipToRects(graphicsPort, rects, rectsCount);
+       /* Minkar: rects that cover most of what they span are drawn as their
+        * union: a clip of several rectangles costs Onyx2D a coverage mask
+        * of the whole surface, more than drawing the little in between. */
+       if (rectsCount > 1) {
+           CGFloat area = 0;
+           NSRect  span = rects[0];
+
+           for (NSUInteger i = 0; i < rectsCount; i++) {
+               area += NSWidth(rects[i]) * NSHeight(rects[i]);
+               span = NSUnionRect(span, rects[i]);
+           }
+           if (area < 0.75 * NSWidth(span) * NSHeight(span))
+               CGContextClipToRects(graphicsPort, rects, rectsCount);
+       }
 
       // [_window dirtyRect:[self convertRect:rect toView:nil]];
        if ([NSGraphicsContext inQuartzDebugMode]) {
