@@ -93,4 +93,9 @@ __attribute__((visibility("hidden")))
 void _AUMapChannels(const float *in, UInt32 inChannels, float *out, UInt32 outChannels, UInt32 frames,
                     const SInt32 *map);
 
+/* A container's header in memory (AudioFile.c), for AudioFileStream. */
+__attribute__((visibility("hidden")))
+OSStatus _AudioFileParseHeader(const void *bytes, UInt32 size, UInt32 *type,
+                               AudioStreamBasicDescription *format, SInt64 *dataOffset, SInt64 *dataBytes);
+
 #endif /* _AUINTERNAL_H_ */

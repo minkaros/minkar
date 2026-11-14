@@ -325,6 +325,59 @@ static OSStatus parse(AudioFileID f) {
     return kAudioFileUnsupportedFileTypeError;
 }
 
+/* ---- A header in memory (for AudioFileStream) ------------------------------ */
+
+typedef struct {
+    const unsigned char *bytes;
+    UInt32 size;
+} HeaderBytes;
+
+static OSStatus headerRead(void *client, SInt64 position, UInt32 count, void *buffer, UInt32 *actual) {
+    HeaderBytes *h = client;
+
+    *actual = 0;
+    if (position < 0 || position >= h->size)
+        return noErr;
+    if (position + count > h->size)
+        count = (UInt32)(h->size - position);
+    memcpy(buffer, h->bytes + position, count);
+    *actual = count;
+    return noErr;
+}
+
+/* As large as a stream may be: the header's sizes are not cut to what has
+   come so far. */
+static SInt64 headerSize(void *client) {
+    return (SInt64)1 << 50;
+}
+
+/* The start of a stream: its type, format and where its audio data starts
+   (and how long it is, or -1). kAudioFileInvalidFileError while the header
+   is not all there yet; another error when it never will be. */
+OSStatus _AudioFileParseHeader(const void *bytes, UInt32 size, AudioFileTypeID *type,
+                               AudioStreamBasicDescription *format, SInt64 *dataOffset, SInt64 *dataBytes) {
+    HeaderBytes h = { bytes, size };
+    struct OpaqueAudioFileID f;
+    OSStatus status;
+
+    memset(&f, 0, sizeof(f));
+    f.magic = kFileMagic;
+    f.fd = -1;
+    f.client = &h;
+    f.readProc = headerRead;
+    f.getSizeProc = headerSize;
+    status = parse(&f);
+    free(f.cookie);
+    if (status != noErr)
+        return size < 12 ? kAudioFileInvalidFileError : status;
+    *type = f.type;
+    *format = f.format;
+    *dataOffset = f.dataOffset;
+    /* A stream written as it goes has no length (0 or all ones). */
+    *dataBytes = f.dataBytes == 0 || f.dataBytes >= 0xFFFFFFFFLL ? -1 : f.dataBytes;
+    return noErr;
+}
+
 /* ---- Writing the containers ---------------------------------------------- */
 
 static Boolean writableFormat(AudioFileTypeID type, const AudioStreamBasicDescription *d) {
