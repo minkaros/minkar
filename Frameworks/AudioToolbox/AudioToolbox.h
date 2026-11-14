@@ -7,6 +7,7 @@
 #ifndef __AUDIOTOOLBOX__
 #define __AUDIOTOOLBOX__
 
+#include <AudioToolbox/AudioConverter.h>
 #include <AudioToolbox/AudioServices.h>
 #include <AudioUnit/AudioUnit.h>
 
