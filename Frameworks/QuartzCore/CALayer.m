@@ -169,7 +169,13 @@ static void layerChanged(CALayer *layer);
 }
 
 -(NSArray *)sublayers {
-   return _sublayers;
+   NSArray *result;
+
+   /* Another thread may replace the array meanwhile: the caller's stays. */
+   [treeLock() lock];
+   result=[[_sublayers retain] autorelease];
+   [treeLock() unlock];
+   return result;
 }
 
 -(void)setSublayers:(NSArray *)sublayers {

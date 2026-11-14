@@ -439,13 +439,19 @@ static BOOL isIdentity3D(CATransform3D t) {
    return memcmp(&t,&CATransform3DIdentity,sizeof(t))==0;
 }
 
+/* A move only (scrolled content): drawn one to one, moved in the parent. */
+static BOOL isTranslation3D(CATransform3D t) {
+   t.m41=t.m42=t.m43=0;
+   return isIdentity3D(t);
+}
+
 /* rect: the layer's bounds in window coordinates (from the window's top
    left); yDown: its sublayers' space runs down; clip: what is seen. */
 static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMutableData *out) {
    if([layer isHidden])
     return YES;
    if([layer class]!=[CALayer class] || [layer opacity]!=1 || [layer mask]!=nil ||
-      !isIdentity3D(layerTransform(layer)) ||
+      !isTranslation3D(layerTransform(layer)) ||
       !isIdentity3D([layer sublayerTransform]) ||
       [layer backgroundColor]!=NULL || [layer borderWidth]!=0 || [layer cornerRadius]!=0 ||
       [layer shadowOpacity]!=0 || !CGRectEqualToRect([layer contentsRect],CGRectMake(0,0,1,1)))
@@ -479,7 +485,8 @@ static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMut
    CGRect bounds=[layer bounds];
    for(CALayer *sub in [layer sublayers]){
     CGRect frame=[sub frame];
-    CGFloat dx=frame.origin.x-bounds.origin.x,dy=frame.origin.y-bounds.origin.y;
+    CATransform3D move=layerTransform(sub);
+    CGFloat dx=frame.origin.x+move.m41-bounds.origin.x,dy=frame.origin.y+move.m42-bounds.origin.y;
     CGRect  child=CGRectMake(rect.origin.x+dx,
                              yDown?rect.origin.y+dy:rect.origin.y+rect.size.height-dy-frame.size.height,
                              frame.size.width,frame.size.height);
@@ -497,16 +504,22 @@ static NSData *serverLayersForView(NSView *self) {
    if(root==nil || self->_window==nil || ![self->_window respondsToSelector:@selector(_skyLightWindowID)] ||
       [(id)self->_window _skyLightWindowID]==0)
     return nil;
-   if(!CGSizeEqualToSize([root bounds].size,NSSizeToCGSize(self->_bounds.size)))
+   if(!CGSizeEqualToSize([root bounds].size,NSSizeToCGSize(self->_bounds.size)) ||
+      !isIdentity3D(layerTransform(root)))
     return nil;
    NSRect  r=[self convertRect:self->_bounds toView:nil];
    CGFloat height=[self->_window frame].size.height;
    CGRect  rect=CGRectMake(r.origin.x,height-(r.origin.y+r.size.height),r.size.width,r.size.height);
    NSMutableData *out=[NSMutableData data];
+   BOOL           flat;
 
    /* The root's space runs up (a flipped view is turned back for it),
-      unless the root flips it. */
-   if(!flattenLayer(root,rect,[root isGeometryFlipped],rect,out) || [out length]==0)
+      unless the root flips it. The app changes the tree from its own
+      threads: it is read under the tree's lock. */
+   [CALayer _minkarLockTree];
+   flat=flattenLayer(root,rect,[root isGeometryFlipped],rect,out);
+   [CALayer _minkarUnlockTree];
+   if(!flat || [out length]==0)
     return nil;
    return out;
 }
