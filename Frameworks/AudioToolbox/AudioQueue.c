@@ -9,8 +9,9 @@
  * played buffer goes back to the app through its callback, on the run
  * loop or dispatch queue it gave or on the queue's own. Offline, the app
  * pulls the samples itself, converted to a format of its choosing.
- * The unit converts the queue's format and rate to the device's. Input
- * queues come with the device's input (AU2); compressed formats with the
+ * The unit converts the queue's format and rate to the device's. An input
+ * queue records from the default input through a HAL unit, converted to
+ * its format, into the buffers in turn. Compressed formats come with the
  * codecs (AU4).
  */
 
@@ -37,6 +38,7 @@ typedef struct QueueBuffer {
     struct QueueBuffer *nextQueued;
     UInt32 offset;              /* bytes played */
     UInt32 trimEnd;             /* bytes not to play at the end */
+    Float64 startTime;          /* an input buffer's first frame, in the queue's time */
     Boolean queued;
 } QueueBuffer;
 
@@ -74,6 +76,18 @@ struct OpaqueAudioQueue {
     int listenerCount;
 
     AudioQueueLevelMeterState meters[kMaxMeterChannels];
+
+    /* An input queue: the HAL unit records, the converter takes its frames
+       to the queue's format, into the buffers in turn. */
+    Boolean isInput;
+    AudioQueueInputCallback inputCallback;
+    AudioQueueInputCallbackBlock inputBlock;
+    AudioConverterRef inConverter;
+    float *inFrames;            /* a cycle's recording, float stereo at the device's rate */
+    UInt32 inFrameCount;
+    Boolean inFramesGiven;
+    Float64 recordedFrames;     /* in the queue's rate, since start */
+    UInt64 overruns;            /* cycles with no buffer to fill */
 
     struct OpaqueAudioQueueProcessingTap *tap;
     Boolean offline;            /* rendered by AudioQueueOfflineRender, not the device */
@@ -122,6 +136,8 @@ static void release(AudioQueueRef q) {
             dispatch_release(q->userQueue);
         if (q->outputBlock != NULL)
             Block_release(q->outputBlock);
+        if (q->inputBlock != NULL)
+            Block_release(q->inputBlock);
         q->magic = 0;
         pthread_mutex_destroy(&q->lock);
         free(q);
@@ -171,6 +187,17 @@ static void returnBuffer(AudioQueueRef q, QueueBuffer *b) {
     onCallbackThread(q, ^{
         if (q->disposed)
             return;
+        if (q->isInput) {
+            AudioTimeStamp start;
+            memset(&start, 0, sizeof(start));
+            start.mSampleTime = b->startTime;
+            start.mFlags = kAudioTimeStampSampleTimeValid;
+            if (q->inputBlock != NULL)
+                q->inputBlock(q, &b->buffer, &start, 0, NULL);
+            else if (q->inputCallback != NULL)
+                q->inputCallback(q->userData, q, &b->buffer, &start, 0, NULL);
+            return;
+        }
         if (q->outputBlock != NULL)
             q->outputBlock(q, &b->buffer);
         else if (q->callback != NULL)
@@ -437,12 +464,186 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *format, AudioQue
     return noErr;
 }
 
+/* The converter's input: the cycle's recording, once. */
+static OSStatus recordingInput(AudioConverterRef c, UInt32 *ioPackets, AudioBufferList *data,
+                               AudioStreamPacketDescription **descriptions, void *userData) {
+    AudioQueueRef q = userData;
+
+    if (q->inFramesGiven) {
+        *ioPackets = 0;
+        return 'nomo';      /* used up, not ended */
+    }
+    data->mNumberBuffers = 1;
+    data->mBuffers[0].mNumberChannels = 2;
+    data->mBuffers[0].mDataByteSize = q->inFrameCount * 2 * sizeof(float);
+    data->mBuffers[0].mData = q->inFrames;
+    *ioPackets = q->inFrameCount;
+    q->inFramesGiven = true;
+    return noErr;
+}
+
+/* The HAL unit has recorded a cycle: into the buffers, converted; each
+   full one goes back to the app. */
+static OSStatus recorded(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *time,
+                         UInt32 bus, UInt32 frames, AudioBufferList *unused) {
+    AudioQueueRef q = refCon;
+    struct { UInt32 n; AudioBuffer b; } list = { 1, { 2, frames * 2 * sizeof(float), q->inFrames } };
+    UInt32 bpf = q->format.mBytesPerFrame;
+    OSStatus status;
+
+    if (frames > 8192)
+        return noErr;
+    status = AudioUnitRender(q->unit, flags, time, 1, frames, (AudioBufferList *)&list);
+    if (status != noErr)
+        return status;
+    q->inFrameCount = frames;
+    q->inFramesGiven = false;
+    for (;;) {
+        QueueBuffer *b;
+        UInt32 room, produced;
+        AudioBufferList out;
+
+        pthread_mutex_lock(&q->lock);
+        b = q->head;
+        pthread_mutex_unlock(&q->lock);
+        if (b == NULL || q->paused) {
+            q->overruns += b == NULL;
+            AudioConverterReset(q->inConverter);
+            break;
+        }
+        if (b->buffer.mAudioDataByteSize == 0)
+            b->startTime = q->recordedFrames;
+        room = (b->buffer.mAudioDataBytesCapacity - b->buffer.mAudioDataByteSize) / bpf;
+        out.mNumberBuffers = 1;
+        out.mBuffers[0].mNumberChannels = q->format.mChannelsPerFrame;
+        out.mBuffers[0].mDataByteSize = room * bpf;
+        out.mBuffers[0].mData = (char *)b->buffer.mAudioData + b->buffer.mAudioDataByteSize;
+        produced = room;
+        status = AudioConverterFillComplexBuffer(q->inConverter, recordingInput, q, &produced, &out, NULL);
+        b->buffer.mAudioDataByteSize += produced * bpf;
+        q->recordedFrames += produced;
+        if (b->buffer.mAudioDataBytesCapacity - b->buffer.mAudioDataByteSize < bpf) {
+            pthread_mutex_lock(&q->lock);
+            q->head = b->nextQueued;
+            if (q->head == NULL)
+                q->tail = NULL;
+            b->queued = false;
+            b->nextQueued = NULL;
+            pthread_mutex_unlock(&q->lock);
+            returnBuffer(q, b);
+            continue;       /* the rest into the next buffer */
+        }
+        if (status != noErr || produced == 0)
+            break;          /* the cycle is used up */
+    }
+    return noErr;
+}
+
+static OSStatus newInput(const AudioStreamBasicDescription *format, AudioQueueRef *outAQ) {
+    AudioComponentDescription d = { kAudioUnitType_Output, kAudioUnitSubType_HALOutput,
+                                    kAudioUnitManufacturer_Apple, 0, 0 };
+    AudioObjectPropertyAddress a = { kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal,
+                                     kAudioObjectPropertyElementMain };
+    AudioStreamBasicDescription device;
+    AURenderCallbackStruct cb;
+    AudioDeviceID input = kAudioObjectUnknown;
+    UInt32 one = 1, zero = 0, size = sizeof(input);
+    Float64 rate = 0;
+    AudioQueueRef q;
+    OSStatus status;
+
+    if (format == NULL || outAQ == NULL)
+        return kAudio_ParamError;
+    *outAQ = NULL;
+    if (format->mFormatID != kAudioFormatLinearPCM)
+        return kAudioQueueErr_CodecNotFound;
+    if (!_AUFormatIsSupported(format) || (format->mFormatFlags & kAudioFormatFlagIsNonInterleaved))
+        return kAudioQueueErr_InvalidPropertyValue;
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &size, &input) != noErr ||
+        input == kAudioObjectUnknown)
+        return kAudioQueueErr_InvalidDevice;
+    a.mSelector = kAudioDevicePropertyNominalSampleRate;
+    size = sizeof(rate);
+    AudioObjectGetPropertyData(input, &a, 0, NULL, &size, &rate);
+    if (rate <= 0)
+        return kAudioQueueErr_InvalidDevice;
+    q = calloc(1, sizeof(*q));
+    if (q == NULL)
+        return kAudio_MemFullError;
+    q->magic = kQueueMagic;
+    q->refs = 1;
+    q->isInput = true;
+    q->format = *format;
+    q->volume = 1;
+    pthread_mutex_init(&q->lock, NULL);
+    q->inFrames = calloc(8192, 2 * sizeof(float));
+
+    memset(&device, 0, sizeof(device));
+    device.mSampleRate = rate;
+    device.mFormatID = kAudioFormatLinearPCM;
+    device.mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
+    device.mBytesPerPacket = device.mBytesPerFrame = 2 * sizeof(float);
+    device.mFramesPerPacket = 1;
+    device.mChannelsPerFrame = 2;
+    device.mBitsPerChannel = 32;
+    status = q->inFrames != NULL ? AudioConverterNew(&device, format, &q->inConverter) : kAudio_MemFullError;
+    if (status == noErr)
+        status = AudioComponentInstanceNew(AudioComponentFindNext(NULL, &d), &q->unit);
+    if (status == noErr)
+        status = AudioUnitSetProperty(q->unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1,
+                                      &one, sizeof(one));
+    if (status == noErr)
+        status = AudioUnitSetProperty(q->unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, 0,
+                                      &zero, sizeof(zero));
+    if (status == noErr)
+        status = AudioUnitSetProperty(q->unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                      &input, sizeof(input));
+    if (status == noErr)
+        status = AudioUnitSetProperty(q->unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 1,
+                                      &device, sizeof(device));
+    cb.inputProc = recorded;
+    cb.inputProcRefCon = q;
+    if (status == noErr)
+        status = AudioUnitSetProperty(q->unit, kAudioOutputUnitProperty_SetInputCallback, kAudioUnitScope_Global, 0,
+                                      &cb, sizeof(cb));
+    if (status == noErr)
+        status = AudioUnitInitialize(q->unit);
+    if (status != noErr) {
+        if (q->unit != NULL)
+            AudioComponentInstanceDispose(q->unit);
+        if (q->inConverter != NULL)
+            AudioConverterDispose(q->inConverter);
+        free(q->inFrames);
+        pthread_mutex_destroy(&q->lock);
+        free(q);
+        return status == kAudioConverterErr_FormatNotSupported ? kAudioQueueErr_InvalidPropertyValue
+                                                               : kAudioQueueErr_InvalidDevice;
+    }
+    *outAQ = q;
+    return noErr;
+}
+
+/* An input queue: what the default input records, in the queue's format,
+   into the buffers the app enqueues; each comes back full, with the time
+   of its first frame. */
 OSStatus AudioQueueNewInput(const AudioStreamBasicDescription *format, AudioQueueInputCallback callback,
                             void *userData, CFRunLoopRef runLoop, CFStringRef mode, UInt32 flags,
                             AudioQueueRef *outAQ) {
-    if (outAQ != NULL)
-        *outAQ = NULL;
-    return kAudioQueueErr_InvalidDevice;    /* no input device yet */
+    OSStatus status = newInput(format, outAQ);
+    AudioQueueRef q;
+
+    if (status != noErr)
+        return status;
+    q = *outAQ;
+    q->inputCallback = callback;
+    q->userData = userData;
+    if (runLoop != NULL) {
+        q->runLoop = (CFRunLoopRef)CFRetain(runLoop);
+        q->mode = mode != NULL ? CFStringCreateCopy(NULL, mode) : (CFStringRef)CFRetain(kCFRunLoopCommonModes);
+    } else {
+        q->own = dispatch_queue_create("org.minkar.AudioQueue", DISPATCH_QUEUE_SERIAL);
+    }
+    return noErr;
 }
 
 static void stopUnit(AudioQueueRef q) {
@@ -489,6 +690,9 @@ OSStatus AudioQueueDispose(AudioQueueRef q, Boolean immediate) {
     if (q->offlineConverter != NULL)
         AudioConverterDispose(q->offlineConverter);
     free(q->offlineScratch);
+    if (q->inConverter != NULL)
+        AudioConverterDispose(q->inConverter);
+    free(q->inFrames);
 
     /* Blocks on the queue's own dispatch queue are let finish before the
        buffers go; any on the app's run loop find disposed set. */
@@ -591,7 +795,10 @@ OSStatus AudioQueueEnqueueBufferWithParameters(AudioQueueRef q, AudioQueueBuffer
         pthread_mutex_unlock(&q->lock);
         return b == NULL ? kAudioQueueErr_InvalidBuffer : kAudioQueueErr_BufferEnqueuedTwice;
     }
-    if (ref->mAudioDataByteSize == 0 || ref->mAudioDataByteSize > ref->mAudioDataBytesCapacity) {
+    if (q->isInput) {
+        /* To be filled: from its start. */
+        ref->mAudioDataByteSize = 0;
+    } else if (ref->mAudioDataByteSize == 0 || ref->mAudioDataByteSize > ref->mAudioDataBytesCapacity) {
         pthread_mutex_unlock(&q->lock);
         return kAudioQueueErr_BufferEmpty;
     }
@@ -632,6 +839,7 @@ OSStatus AudioQueueStart(AudioQueueRef q, const AudioTimeStamp *startTime) {
     q->stopping = false;
     if (!was) {
         q->playedFrames = 0;
+        q->recordedFrames = 0;
         q->startHostTime = mach_absolute_time();
     }
     q->draining = false;
@@ -692,7 +900,7 @@ OSStatus AudioQueueStop(AudioQueueRef q, Boolean immediate) {
 
     if (!alive(q))
         return kAudio_ParamError;
-    if (!immediate) {
+    if (!immediate && !q->isInput) {
         pthread_mutex_lock(&q->lock);
         if (q->running && q->head != NULL && !q->paused) {
             q->stopping = true;     /* render stops the queue when drained */
@@ -703,6 +911,10 @@ OSStatus AudioQueueStop(AudioQueueRef q, Boolean immediate) {
     }
     stopUnit(q);
     pthread_mutex_lock(&q->lock);
+    if (q->isInput)
+        for (QueueBuffer *b = q->head; b != NULL; b = b->nextQueued)
+            if (b->buffer.mAudioDataByteSize == 0)
+                b->startTime = q->recordedFrames;  /* empty: nothing recorded into it */
     was = q->running;
     q->running = q->paused = q->stopping = q->draining = false;
     pthread_mutex_unlock(&q->lock);
@@ -1019,7 +1231,7 @@ OSStatus AudioQueueGetCurrentTime(AudioQueueRef q, AudioQueueTimelineRef t, Audi
     if (!q->running)
         return kAudioQueueErr_InvalidRunState;
     memset(out, 0, sizeof(*out));
-    out->mSampleTime = q->playedFrames;
+    out->mSampleTime = q->isInput ? q->recordedFrames : q->playedFrames;
     out->mHostTime = mach_absolute_time();
     out->mRateScalar = 1;
     out->mFlags = kAudioTimeStampSampleHostTimeValid | kAudioTimeStampRateScalarValid;
@@ -1057,9 +1269,17 @@ OSStatus AudioQueueNewOutputWithDispatchQueue(AudioQueueRef *outAQ, const AudioS
 OSStatus AudioQueueNewInputWithDispatchQueue(AudioQueueRef *outAQ, const AudioStreamBasicDescription *format,
                                              UInt32 flags, dispatch_queue_t queue,
                                              AudioQueueInputCallbackBlock block) {
-    if (outAQ != NULL)
-        *outAQ = NULL;
-    return kAudioQueueErr_InvalidDevice;    /* no input device yet */
+    OSStatus status;
+
+    if (outAQ == NULL || queue == NULL || block == NULL)
+        return kAudio_ParamError;
+    status = newInput(format, outAQ);
+    if (status != noErr)
+        return status;
+    dispatch_retain(queue);
+    (*outAQ)->userQueue = queue;
+    (*outAQ)->inputBlock = Block_copy(block);
+    return noErr;
 }
 
 /* ---- The device's time ------------------------------------------------------------ */

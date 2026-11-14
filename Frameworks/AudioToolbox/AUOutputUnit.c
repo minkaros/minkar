@@ -7,7 +7,10 @@
  * that pulls the client's samples through its render callback, in the
  * client's format and rate, converts them to the device's interleaved
  * float, resamples them when the rates differ and applies the unit's
- * volume. Input (element 1) comes with the device's input (AU2).
+ * volume. The HAL unit also records: with its input enabled (element 1),
+ * each cycle's recorded frames are kept, the app's input callback is told,
+ * and AudioUnitRender on bus 1 gives them in the app's format (at the
+ * device's rate).
  */
 
 #include "AUInternal.h"
@@ -35,6 +38,13 @@ typedef struct {
     Boolean         initialized;
     volatile Boolean running;
     Boolean         outputEnabled;
+    Boolean         inputEnabled;
+    AURenderCallbackStruct inputCallback;
+    AudioStreamBasicDescription inputClient;  /* output scope, element 1 */
+    float          *recorded;           /* the cycle's input, interleaved stereo */
+    float          *mapped;             /* it in the app's channels (up to 8) */
+    UInt32          recordedFrames;
+    AudioTimeStamp  recordedTime;
     Boolean         allocate;           /* ShouldAllocateBuffer */
     OSStatus        lastRenderError;
     AudioDeviceIOProcID procID;
@@ -69,15 +79,24 @@ static void deviceFormat(const OutputState *s, AudioStreamBasicDescription *f) {
     f->mBytesPerPacket = f->mBytesPerFrame = sizeof(float) * kOutChannels;
 }
 
-static AudioDeviceID defaultDevice(void) {
-    AudioObjectPropertyAddress a = { kAudioHardwarePropertyDefaultOutputDevice,
-                                     kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+static AudioDeviceID defaultDeviceFor(AudioObjectPropertySelector which) {
+    AudioObjectPropertyAddress a = { which, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
     AudioDeviceID d = kAudioObjectUnknown;
     UInt32 size = sizeof(d);
 
     if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &size, &d) != noErr)
         return kAudioObjectUnknown;
     return d;
+}
+
+static AudioDeviceID defaultDevice(void) {
+    return defaultDeviceFor(kAudioHardwarePropertyDefaultOutputDevice);
+}
+
+static Boolean deviceHasInput(AudioDeviceID d) {
+    AudioObjectPropertyAddress a = { kAudioDevicePropertyStreamConfiguration, kAudioObjectPropertyScopeInput,
+                                     kAudioObjectPropertyElementMain };
+    return d != kAudioObjectUnknown && AudioObjectHasProperty(d, &a);
 }
 
 static Float64 rateOf(AudioDeviceID d) {
@@ -116,6 +135,7 @@ static OSStatus outputCreate(AudioUnit unit) {
     if (s->deviceRate <= 0)
         s->deviceRate = 48000;
     canonicalFormat(&s->client, s->deviceRate);
+    canonicalFormat(&s->inputClient, s->deviceRate);
     s->maxFrames = kDefaultMaxFrames;
     s->volume = 1;
     s->outputEnabled = true;
@@ -131,6 +151,10 @@ static void freeBuffers(OutputState *s) {
     free(s->bufferMemory);
     free(s->scratch);
     free(s->fifo);
+    free(s->recorded);
+    free(s->mapped);
+    s->recorded = NULL;
+    s->mapped = NULL;
     s->resampler = NULL;
     s->buffers = NULL;
     s->bufferMemory = s->scratch = NULL;
@@ -151,9 +175,17 @@ static OSStatus outputInitialize(AudioUnit unit) {
     if (s->initialized)
         goto out;
     if (!s->deviceSet) {
-        s->device = defaultDevice();
+        /* Recording only: the default input. */
+        s->device = s->inputEnabled && !s->outputEnabled ? defaultDeviceFor(kAudioHardwarePropertyDefaultInputDevice)
+                                                         : defaultDevice();
         s->deviceRate = rateOf(s->device);
     }
+    if (s->inputEnabled && !deviceHasInput(s->device)) {
+        status = kAudioUnitErr_NoConnection;
+        goto out;
+    }
+    if (s->inputEnabled && fabs(s->inputClient.mSampleRate - s->deviceRate) > 0.5)
+        s->inputClient.mSampleRate = s->deviceRate;     /* recorded at the device's rate */
     if (s->device == kAudioObjectUnknown || s->deviceRate <= 0) {
         status = kAudioUnitErr_FailedInitialization;
         goto out;
@@ -167,7 +199,10 @@ static OSStatus outputInitialize(AudioUnit unit) {
     s->scratch = calloc(s->maxFrames, sizeof(float) * kOutChannels);
     s->fifoCapacity = (UInt32)ceil(s->maxFrames * s->deviceRate / s->client.mSampleRate) + kMaxDeviceFrames + 64;
     s->fifo = calloc(s->fifoCapacity, sizeof(float) * kOutChannels);
-    if (s->buffers == NULL || s->bufferMemory == NULL || s->scratch == NULL || s->fifo == NULL) {
+    s->recorded = calloc(kMaxDeviceFrames, sizeof(float) * kOutChannels);
+    s->mapped = s->inputEnabled ? calloc(kMaxDeviceFrames, sizeof(float) * 8) : NULL;
+    if (s->buffers == NULL || s->bufferMemory == NULL || s->scratch == NULL || s->fifo == NULL ||
+        s->recorded == NULL || (s->inputEnabled && s->mapped == NULL)) {
         freeBuffers(s);
         status = kAudio_MemFullError;
         goto out;
@@ -321,7 +356,33 @@ static OSStatus outputIOProc(AudioObjectID device, const AudioTimeStamp *now, co
     float *out, gain;
     UInt32 channels, frames, guard = 0;
 
-    if (output == NULL || output->mNumberBuffers == 0 || !s->running || !s->outputEnabled)
+    if (!s->running)
+        return noErr;
+    if (s->inputEnabled && input != NULL && input->mNumberBuffers > 0 && s->recorded != NULL) {
+        /* The cycle's recorded frames, kept for AudioUnitRender on bus 1;
+           the app's input callback is told they are there. */
+        UInt32 ch = input->mBuffers[0].mNumberChannels, n;
+        const float *in = input->mBuffers[0].mData;
+        AURenderCallbackStruct icb;
+        AudioUnitRenderActionFlags iflags = 0;
+
+        n = ch > 0 ? input->mBuffers[0].mDataByteSize / (ch * sizeof(float)) : 0;
+        if (n > kMaxDeviceFrames)
+            n = kMaxDeviceFrames;
+        for (UInt32 i = 0; i < n; i++) {
+            s->recorded[i * 2] = in[i * ch];
+            s->recorded[i * 2 + 1] = in[i * ch + (ch > 1 ? 1 : 0)];
+        }
+        s->recordedFrames = n;
+        s->recordedTime = *inputTime;
+        if (pthread_mutex_trylock(&unit->lock) == 0) {
+            icb = s->inputCallback;
+            pthread_mutex_unlock(&unit->lock);
+            if (icb.inputProc != NULL && n > 0)
+                icb.inputProc(icb.inputProcRefCon, &iflags, &s->recordedTime, 1, n, NULL);
+        }
+    }
+    if (output == NULL || output->mNumberBuffers == 0 || !s->outputEnabled)
         return noErr;
     channels = output->mBuffers[0].mNumberChannels;
     if (channels == 0)
@@ -380,6 +441,33 @@ static OSStatus outputIOProc(AudioObjectID device, const AudioTimeStamp *now, co
     return noErr;
 }
 
+/* Bus 1: the cycle's recorded frames, in the app's input format. */
+static OSStatus outputRender(AudioUnit unit, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *time,
+                             UInt32 bus, UInt32 frames, AudioBufferList *data) {
+    OutputState *s = S(unit);
+    Boolean planar = (s->inputClient.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0;
+    UInt32 step;
+
+    if (bus != 1 || !isHAL(unit))
+        return kAudioUnitErr_InvalidElement;
+    if (!s->inputEnabled || !s->running)
+        return kAudioUnitErr_NoConnection;
+    if (frames > s->recordedFrames)
+        return kAudioUnitErr_TooManyFramesToProcess;
+    step = planar ? s->inputClient.mBitsPerChannel / 8 : s->inputClient.mBytesPerFrame;
+    for (UInt32 b = 0; b < data->mNumberBuffers; b++)
+        if (data->mBuffers[b].mData == NULL || data->mBuffers[b].mDataByteSize < frames * step)
+            return kAudio_ParamError;   /* the app gives the buffers */
+    /* The recorded frames are stereo: as many channels as the app asks for. */
+    if (s->mapped == NULL || s->inputClient.mChannelsPerFrame > 8)
+        return kAudioUnitErr_FormatNotSupported;
+    _AUMapChannels(s->recorded, kOutChannels, s->mapped, s->inputClient.mChannelsPerFrame, frames, NULL);
+    _AUFromFloat(&s->inputClient, s->mapped, frames, data, 0);
+    for (UInt32 b = 0; b < data->mNumberBuffers; b++)
+        data->mBuffers[b].mDataByteSize = frames * step;
+    return noErr;
+}
+
 /* ---- Properties ------------------------------------------------------------ */
 
 static OSStatus outputGetPropertyInfo(AudioUnit unit, AudioUnitPropertyID id, AudioUnitScope scope,
@@ -415,6 +503,7 @@ static OSStatus outputGetPropertyInfo(AudioUnit unit, AudioUnitPropertyID id, Au
         *writable = false;
         return noErr;
     case kAudioUnitProperty_SetRenderCallback:
+    case kAudioOutputUnitProperty_SetInputCallback:
         *size = sizeof(AURenderCallbackStruct);
         *writable = true;
         return noErr;
@@ -447,6 +536,8 @@ static OSStatus outputGetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
             return kAudioUnitErr_InvalidElement;
         if (scope == kAudioUnitScope_Input && element == 0)
             f = s->client;
+        else if (scope == kAudioUnitScope_Output && element == 1)
+            f = s->inputClient;
         else
             deviceFormat(s, &f);
         PUT(AudioStreamBasicDescription, f);
@@ -461,9 +552,11 @@ static OSStatus outputGetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
     case kAudioOutputUnitProperty_IsRunning:
         PUT(UInt32, s->running);
     case kAudioOutputUnitProperty_EnableIO:
-        PUT(UInt32, element == 0 ? s->outputEnabled : 0);
+        PUT(UInt32, element == 0 ? s->outputEnabled : s->inputEnabled);
     case kAudioOutputUnitProperty_HasIO:
-        PUT(UInt32, element == 0 ? 1 : 0);
+        PUT(UInt32, element == 0 ? 1 : (isHAL(unit) && deviceHasInput(s->device)));
+    case kAudioOutputUnitProperty_SetInputCallback:
+        PUT(AURenderCallbackStruct, s->inputCallback);
     case kAudioOutputUnitProperty_StartTimestampsAtZero:
         PUT(UInt32, 1);
     case kAudioUnitProperty_LastRenderError: {
@@ -512,6 +605,17 @@ static OSStatus outputSetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
             /* The device side: its rate is the device's. */
             if (fabs(f->mSampleRate - s->deviceRate) > 0.5)
                 status = kAudioUnitErr_FormatNotSupported;
+        } else if (scope == kAudioUnitScope_Output && element == 1 && isHAL(unit)) {
+            /* What the app gets from the input: at the device's rate. */
+            if (fabs(f->mSampleRate - s->deviceRate) > 0.5)
+                status = kAudioUnitErr_FormatNotSupported;
+            else if (s->initialized)
+                status = kAudioUnitErr_Initialized;
+            else
+                s->inputClient = *f;
+        } else if (scope == kAudioUnitScope_Input && element == 1 && isHAL(unit)) {
+            if (fabs(f->mSampleRate - s->deviceRate) > 0.5)
+                status = kAudioUnitErr_FormatNotSupported;
         } else {
             status = element > 1 ? kAudioUnitErr_InvalidElement : kAudioUnitErr_FormatNotSupported;
         }
@@ -555,9 +659,15 @@ static OSStatus outputSetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
         else if (element == 0 && scope == kAudioUnitScope_Output)
             s->outputEnabled = *(const UInt32 *)data != 0;
         else if (element == 1 && scope == kAudioUnitScope_Input && isHAL(unit))
-            status = *(const UInt32 *)data != 0 ? kAudioUnitErr_InvalidPropertyValue : noErr;
+            s->inputEnabled = *(const UInt32 *)data != 0;
         else
             status = kAudioUnitErr_InvalidElement;
+        break;
+    case kAudioOutputUnitProperty_SetInputCallback:
+        if (size < sizeof(AURenderCallbackStruct))
+            status = kAudioUnitErr_InvalidPropertyValue;
+        else
+            s->inputCallback = *(const AURenderCallbackStruct *)data;
         break;
     case kAudioOutputUnitProperty_StartTimestampsAtZero:
         break;
@@ -623,7 +733,7 @@ const AUClass _AUOutputClass = {
     .setProperty = outputSetProperty,
     .getParameter = outputGetParameter,
     .setParameter = outputSetParameter,
-    .render = NULL,
+    .render = outputRender,
     .reset = outputReset,
     .start = outputStart,
     .stop = outputStop,
