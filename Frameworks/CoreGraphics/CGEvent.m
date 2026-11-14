@@ -633,16 +633,43 @@ CGEventSourceStateID CGEventSourceGetSourceStateID(CGEventSourceRef source) {
  * the events posted. A private state (one source's own events) is not
  * kept: it reads as nothing pressed, as before any event.
  */
+/* The input state, from the window server. Kept for 2 ms: an app asks for
+   it over and over in one pass of its event loop (Firefox, whether input
+   is waiting, several times a pass), and each ask was a round trip to the
+   server. 2 ms is shorter than any input a person makes. */
+static pthread_mutex_t hidLock = PTHREAD_MUTEX_INITIALIZER;
+static SLSHIDState hidCached[2];
+static uint64_t hidCachedAt[2];
+
 static bool hidState(CGEventSourceStateID stateID, SLSHIDState *state) {
     uint32_t which;
+    int slot;
 
-    if(stateID == kCGEventSourceStateHIDSystemState)
+    if(stateID == kCGEventSourceStateHIDSystemState) {
         which = kSLSHIDStateHardware;
-    else if(stateID == kCGEventSourceStateCombinedSessionState)
+        slot = 0;
+    } else if(stateID == kCGEventSourceStateCombinedSessionState) {
         which = kSLSHIDStateCombined;
-    else
+        slot = 1;
+    } else
         return false;
-    return _CGUsesSkyLight() && SLSGetHIDState(which, state) == kSLSErrorSuccess;
+    if(!_CGUsesSkyLight())
+        return false;
+    uint64_t now = nanoseconds();
+    pthread_mutex_lock(&hidLock);
+    if(hidCachedAt[slot] != 0 && now - hidCachedAt[slot] < 2000000) {
+        *state = hidCached[slot];
+        pthread_mutex_unlock(&hidLock);
+        return true;
+    }
+    pthread_mutex_unlock(&hidLock);
+    if(SLSGetHIDState(which, state) != kSLSErrorSuccess)
+        return false;
+    pthread_mutex_lock(&hidLock);
+    hidCached[slot] = *state;
+    hidCachedAt[slot] = nanoseconds();
+    pthread_mutex_unlock(&hidLock);
+    return true;
 }
 
 bool CGEventSourceButtonState(CGEventSourceStateID stateID, CGMouseButton button) {
