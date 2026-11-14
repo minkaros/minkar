@@ -34,6 +34,7 @@
 #include <mach/semaphore.h>
 #include <mach/task.h>
 #include <mach/thread_policy.h>
+#include <math.h>
 #include <notify.h>
 #include <pthread.h>
 #include <servers/bootstrap.h>
@@ -73,7 +74,10 @@ typedef struct Device {
     volatile int    running;
     volatile uint64_t completedCycles;  /* a session ends after the cycle it was in */
     uint64_t        resyncs, lateCycles;
+    uint64_t        inputResyncs;       /* the input's, apart: it may come in bursts */
     double          lastMeasured;
+    double          inputMeasured;      /* the input's frame, on its own timeline */
+    double          inputSlack;         /* frames the input came late by, kept as margin */
     int             clients;
 } Device;
 
@@ -344,9 +348,9 @@ fail:
    the frame in it). A wrap the driver has not counted yet shows as a frame
    lower than the last: the buffer is added. */
 static double measureFrame(Device *d) {
-    uint64_t out[2] = { 0, 0 };
-    uint32_t count = 2;
-    double frame;
+    uint64_t out[3] = { 0, 0, 0 };
+    uint32_t count = 3;
+    double frame, moved;
 
     if (IOConnectCallScalarMethod(d->connection, kIOAudioEngineMethodGetPosition, NULL, 0, out, &count) != KERN_SUCCESS)
         return d->lastMeasured;
@@ -354,6 +358,18 @@ static double measureFrame(Device *d) {
     while (frame < d->lastMeasured - d->bufferFrames / 2.0)
         frame += d->bufferFrames;
     d->lastMeasured = frame;
+    /* The input's DMA, on its own timeline from the same start: on
+       hardware it runs with the output's, an emulated controller's starts
+       late and moves as the host gives it frames. It is measured every
+       cycle, so it moves less than half the buffer between two. */
+    if (count >= 3 && d->inputMeasured < 0)
+        d->inputMeasured = (double)out[2];
+    else if (count >= 3) {
+        moved = fmod((double)out[2] - fmod(d->inputMeasured, d->bufferFrames) + 2.0 * d->bufferFrames, d->bufferFrames);
+        if (moved < d->bufferFrames / 2.0)
+            d->inputMeasured += moved;
+    } else
+        d->inputMeasured = frame;
     return frame;
 }
 
@@ -422,14 +438,18 @@ static void *deviceThread(void *arg) {
        first cycles, which take page faults). */
     uint64_t lead = d->sampleOffset + 2 * kFramesPerCycle;
     d->lastMeasured = 0;
+    d->inputMeasured = -1;              /* the first measure sets it */
     double nowFrame = measureFrame(d);
     uint64_t writeFrame = (uint64_t)nowFrame + lead;
     uint64_t wake = mach_absolute_time();
-    /* The input is read behind the hardware: frames it has recorded, with
+    /* The input is read behind its own DMA: frames it has recorded, with
        a margin for the controller's FIFO. One cycle's worth, in step with
-       the output's. */
-    const double inputMargin = d->sampleOffset + 32;
-    int64_t readFrame = (int64_t)nowFrame - (int64_t)inputMargin - kFramesPerCycle;
+       the output's cycles. An input that comes in bursts (an emulated
+       controller's, as the host gives it frames) makes the margin as large
+       as the most it came late by, up to a quarter of the buffer. */
+    d->inputSlack = 0;
+    double inputMargin = d->sampleOffset + 32;
+    int64_t readFrame = (int64_t)d->inputMeasured - (int64_t)inputMargin - kFramesPerCycle;
 
     while (d->running) {
         mach_wait_until(wake);
@@ -442,22 +462,40 @@ static void *deviceThread(void *arg) {
             syslog(LOG_WARNING, "%s: behind at cycle %llu (%.0f frames late)", d->uid,
                    (unsigned long long)cycle, nowFrame + d->sampleOffset - (double)writeFrame);
             writeFrame = (uint64_t)nowFrame + lead;
-            readFrame = (int64_t)nowFrame - (int64_t)inputMargin - kFramesPerCycle;
+            readFrame = (int64_t)d->inputMeasured - (int64_t)inputMargin - kFramesPerCycle;
             d->resyncs++;
         }
         if (d->inputBuffer != NULL) {
             /* Not past what is recorded: a cycle that came early waits for
                the next (the frames stay in step). */
-            if ((double)(readFrame + kFramesPerCycle) > nowFrame - inputMargin + kFramesPerCycle / 2.0 &&
-                readFrame + (int64_t)kFramesPerCycle > 0) {
-                syslog(LOG_WARNING, "%s: input not recorded yet at cycle %llu (%.0f frames early)", d->uid,
-                       (unsigned long long)cycle, (double)(readFrame + kFramesPerCycle) - (nowFrame - inputMargin));
-                readFrame = (int64_t)(nowFrame - inputMargin) - kFramesPerCycle;
-                d->resyncs++;
+            double early = (double)(readFrame + kFramesPerCycle) - (d->inputMeasured - inputMargin);
+            double late = d->inputMeasured - (double)readFrame - (d->bufferFrames - kFramesPerCycle);
+            if (early > 0 && readFrame + (int64_t)kFramesPerCycle > 0) {
+                double slack = early + 32 > d->inputSlack ? early + 32 : d->inputSlack;
+                if (slack > d->bufferFrames / 4.0)
+                    slack = d->bufferFrames / 4.0;
+                if (d->inputResyncs < 8)
+                    syslog(LOG_WARNING, "%s: input not recorded yet at cycle %llu (%.0f frames early), margin %.0f",
+                           d->uid, (unsigned long long)cycle, early, d->sampleOffset + 32 + slack);
+                d->inputSlack = slack;
+                inputMargin = d->sampleOffset + 32 + slack;
+                /* Back by the margin and as much again: an input that
+                   drifts from the output (an emulated controller's, whose
+                   streams keep their own rates) comes back here seldom. */
+                readFrame = (int64_t)(d->inputMeasured - 2 * inputMargin) - kFramesPerCycle;
+                d->inputResyncs++;
+            } else if (late > 0) {
+                /* So far behind that the hardware wrote over the frames. */
+                if (d->inputResyncs < 8)
+                    syslog(LOG_WARNING, "%s: input overwritten at cycle %llu (%.0f frames late)", d->uid,
+                           (unsigned long long)cycle, late);
+                readFrame = (int64_t)(d->inputMeasured - inputMargin) - kFramesPerCycle;
+                d->inputResyncs++;
             }
             readFrames(d, readFrame, recorded, kFramesPerCycle);
         }
-        uint64_t inputHost = now - (uint64_t)((nowFrame - (double)readFrame) * hostPerFrame);
+        double inputAge = d->inputMeasured - (double)readFrame;
+        uint64_t inputHost = now - (uint64_t)((inputAge > 0 ? inputAge : 0) * hostPerFrame);
         uint64_t outputHost = now + (uint64_t)(((double)writeFrame - nowFrame) * hostPerFrame);
         double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / 4.0;
         uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
@@ -564,10 +602,10 @@ static void stopDevice(Device *d) {
     pthread_join(d->thread, NULL);
     pthread_mutex_lock(&lock);
     IOConnectCallScalarMethod(d->connection, kIOAudioEngineMethodStop, NULL, 0, NULL, NULL);
-    syslog(LOG_INFO, "%s: stopped after %llu cycles, %llu late client cycles, %llu resyncs", d->uid,
-           (unsigned long long)d->completedCycles, (unsigned long long)d->lateCycles,
-           (unsigned long long)d->resyncs);
-    d->completedCycles = d->lateCycles = d->resyncs = 0;
+    syslog(LOG_INFO, "%s: stopped after %llu cycles (%llu input resyncs), %llu late client cycles, %llu resyncs",
+           d->uid, (unsigned long long)d->completedCycles, (unsigned long long)d->inputResyncs,
+           (unsigned long long)d->lateCycles, (unsigned long long)d->resyncs);
+    d->completedCycles = d->lateCycles = d->resyncs = d->inputResyncs = 0;
 }
 
 /* ---- Sessions ---------------------------------------------------------- */
