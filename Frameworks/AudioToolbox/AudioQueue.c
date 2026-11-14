@@ -52,6 +52,9 @@ struct OpaqueAudioQueue {
     volatile Boolean disposed;
     int refs;                   /* the app's, and one per pending block */
     Float64 playedFrames;       /* since start, in the queue's rate */
+    Float64 latency;            /* seconds from a render to the speaker */
+    SInt64 tailFrames;          /* silence still to give once drained */
+    Boolean draining;
     UInt64 startHostTime;
     UInt32 decodeFrames;
     Float32 volume;
@@ -205,7 +208,16 @@ static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const Au
             }
         }
         q->playedFrames += done / bpf;
-        drained = q->stopping && q->head == NULL;
+        if (q->stopping && q->head == NULL) {
+            /* What was handed out last is still on its way to the
+               speaker: keep the device running until it has played. */
+            if (!q->draining) {
+                q->draining = true;
+                q->tailFrames = (SInt64)(q->latency * q->format.mSampleRate) + 2 * (SInt64)frames;
+            }
+            q->tailFrames -= frames - done / bpf;
+            drained = q->tailFrames <= 0;
+        }
     }
     pthread_mutex_unlock(&q->lock);
 
@@ -224,6 +236,7 @@ static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const Au
     if (drained) {
         pthread_mutex_lock(&q->lock);
         q->stopping = false;    /* once */
+        q->draining = false;
         pthread_mutex_unlock(&q->lock);
         finishStopping(q);
     }
@@ -480,8 +493,13 @@ OSStatus AudioQueueStart(AudioQueueRef q, const AudioTimeStamp *startTime) {
         q->playedFrames = 0;
         q->startHostTime = mach_absolute_time();
     }
+    q->draining = false;
     pthread_mutex_unlock(&q->lock);
     if (!was) {
+        UInt32 size = sizeof(q->latency);
+        if (AudioUnitGetProperty(q->unit, kAudioUnitProperty_Latency, kAudioUnitScope_Global, 0, &q->latency,
+                                 &size) != noErr)
+            q->latency = 0;
         status = AudioOutputUnitStart(q->unit);
         if (status != noErr)
             return kAudioQueueErr_CannotStart;
@@ -544,7 +562,7 @@ OSStatus AudioQueueStop(AudioQueueRef q, Boolean immediate) {
     stopUnit(q);
     pthread_mutex_lock(&q->lock);
     was = q->running;
-    q->running = q->paused = q->stopping = false;
+    q->running = q->paused = q->stopping = q->draining = false;
     pthread_mutex_unlock(&q->lock);
     returnAll(q);
     if (was)

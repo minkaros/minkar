@@ -472,8 +472,11 @@ static OSStatus outputGetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
         PUT(OSStatus, e);
     }
     case kAudioUnitProperty_Latency: {
+        /* From a render to the speaker: the service runs the safety
+           offset and two cycles ahead, and the device adds its own. */
         UInt32 frames = deviceUInt32(s->device, kAudioDevicePropertyLatency, kAudioObjectPropertyScopeOutput) +
-                        deviceUInt32(s->device, kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal);
+                        deviceUInt32(s->device, kAudioDevicePropertySafetyOffset, kAudioObjectPropertyScopeOutput) +
+                        2 * deviceUInt32(s->device, kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal);
         PUT(Float64, s->deviceRate > 0 ? frames / s->deviceRate : 0);
     }
     case kAudioUnitProperty_SetRenderCallback:
