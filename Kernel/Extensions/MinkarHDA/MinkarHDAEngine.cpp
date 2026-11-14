@@ -259,6 +259,19 @@ MinkarHDAEngine::getCurrentSampleFrame()
     return (position / fBytesPerFrame) % kFrames;
 }
 
+/* The input stream's own position: on hardware it runs with the output's
+   (both start together), but an emulated controller moves it only as the
+   host gives it frames. */
+UInt32
+MinkarHDAEngine::getCurrentInputSampleFrame()
+{
+    if (fInput < 0)
+        return getCurrentSampleFrame();
+    uint32_t position = fController->read32(fController->inputStream(0) + HDA_SD_LPIB);
+
+    return (position / fBytesPerFrame) % kFrames;
+}
+
 IOReturn
 MinkarHDAEngine::performFormatChange(IOAudioStream *audioStream,
     const IOAudioStreamFormat *newFormat, const IOAudioSampleRate *newSampleRate)

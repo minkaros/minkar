@@ -67,6 +67,10 @@ public:
     virtual IOReturn performAudioEngineStart() = 0;
     virtual IOReturn performAudioEngineStop() = 0;
     virtual UInt32 getCurrentSampleFrame() = 0;
+    /* Where the input's DMA is, when it runs apart from the output's (an
+       emulated controller fills it as it gets the frames); the output's by
+       default. */
+    virtual UInt32 getCurrentInputSampleFrame();
     virtual IOReturn performFormatChange(IOAudioStream *audioStream,
         const IOAudioStreamFormat *newFormat, const IOAudioSampleRate *newSampleRate);
 

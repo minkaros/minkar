@@ -156,7 +156,7 @@ enum {
     kIOAudioEngineMethodStop = 1,       /* no arguments */
     kIOAudioEngineMethodGetInfo = 2,    /* out: IOAudioEngineInfo */
     kIOAudioEngineMethodGetStream = 3,  /* in: index; out: IOAudioEngineStreamInfo */
-    kIOAudioEngineMethodGetPosition = 4,/* out: loop count, current sample frame */
+    kIOAudioEngineMethodGetPosition = 4,/* out: loop count, current sample frame[, the input's frame] */
     kIOAudioEngineMethodCount = 5
 };
 

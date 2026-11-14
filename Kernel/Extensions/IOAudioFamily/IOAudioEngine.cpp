@@ -257,6 +257,12 @@ IOAudioEngine::getAudioStream(IOAudioStreamDirection direction, UInt32 channelID
     return NULL;
 }
 
+UInt32
+IOAudioEngine::getCurrentInputSampleFrame()
+{
+    return getCurrentSampleFrame();
+}
+
 /* Output streams first, then input streams. */
 UInt32
 IOAudioEngine::getNumStreams() const

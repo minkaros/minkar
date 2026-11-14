@@ -161,6 +161,7 @@ public:
     virtual IOReturn performAudioEngineStart() override;
     virtual IOReturn performAudioEngineStop() override;
     virtual UInt32 getCurrentSampleFrame() override;
+    virtual UInt32 getCurrentInputSampleFrame() override;
     virtual IOReturn performFormatChange(IOAudioStream *audioStream,
         const IOAudioStreamFormat *newFormat, const IOAudioSampleRate *newSampleRate) override;
 

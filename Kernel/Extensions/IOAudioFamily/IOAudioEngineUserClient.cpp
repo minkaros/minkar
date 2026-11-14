@@ -158,8 +158,9 @@ IOAudioEngineUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
         /* Where the hardware is, as the driver reads it (its DMA, which
            runs ahead of what is heard), with the loop count it belongs
            to: the count is read first, so a wrap between the reads shows
-           as a frame lower than the last one. */
-        UInt32 loops = 0;
+           as a frame lower than the last one. A third output asks for the
+           input's frame too. */
+        UInt32 loops = 0, wanted = args->scalarOutputCount;
 
         if (args->scalarOutputCount < 2)
             return kIOReturnBadArgument;
@@ -167,6 +168,10 @@ IOAudioEngineUserClient::externalMethod(uint32_t selector, IOExternalMethodArgum
         args->scalarOutput[0] = loops;
         args->scalarOutput[1] = audioEngine->getCurrentSampleFrame();
         args->scalarOutputCount = 2;
+        if (wanted >= 3) {
+            args->scalarOutput[2] = audioEngine->getCurrentInputSampleFrame();
+            args->scalarOutputCount = 3;
+        }
         return kIOReturnSuccess;
     }
     default:
