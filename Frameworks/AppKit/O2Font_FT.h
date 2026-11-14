@@ -5,12 +5,14 @@
 #import FT_FREETYPE_H
 #import FT_RENDER_H
 #import FT_MULTIPLE_MASTERS_H
+#import FT_ADVANCES_H
 #import <fontconfig.h>
 
 @interface O2Font_FT : O2Font {
     FT_Face _face;
     CGFloat _pixelSize;
     NSString *_path;		/* the file the face is read from, or nil */
+    FT_Long _faceIndex;		/* the face in that file (a collection has several) */
     NSData *_data;		/* the bytes the face is read from, or nil */
     NSDictionary *_variations;	/* axis name -> value, for an instance */
 }

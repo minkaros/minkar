@@ -52,9 +52,19 @@ FcConfig *O2FontSharedFontConfig() {
 /* Minkar: a PostScript name is looked up as one first: a family whose
  * name has spaces ("Monaspace Neon", MonaspaceNeon-Regular) is not the
  * part before the hyphen, which matched no font and gave the first one. */
-static NSString *filenameForPostScriptName(NSString *name) {
+/* The face's index in its file: a collection (.ttc) holds several faces,
+ * and the one asked for is rarely the first. */
+static FT_Long faceIndexOf(FcPattern *font) {
+   int index=0;
+
+   if(FcPatternGetInteger(font, FC_INDEX, 0, &index)!=FcResultMatch)
+    index=0;
+   return index;
+}
+
+static NSString *filenameAndIndexForPostScriptName(NSString *name,FT_Long *index) {
    FcPattern *pat=FcPatternCreate();
-   FcObjectSet *props=FcObjectSetBuild(FC_FILE, NULL);
+   FcObjectSet *props=FcObjectSetBuild(FC_FILE, FC_INDEX, NULL);
    NSString *ret=nil;
 
    FcPatternAddString(pat, FC_POSTSCRIPT_NAME, (const FcChar8 *)[name UTF8String]);
@@ -62,8 +72,11 @@ static NSString *filenameForPostScriptName(NSString *name) {
    if(set!=NULL) {
       FcChar8 *filename;
 
-      if(set->nfont>0 && FcPatternGetString(set->fonts[0], FC_FILE, 0, &filename)==FcResultMatch)
+      if(set->nfont>0 && FcPatternGetString(set->fonts[0], FC_FILE, 0, &filename)==FcResultMatch) {
          ret=[NSString stringWithUTF8String:(char *)filename];
+         if(index!=NULL)
+          *index=faceIndexOf(set->fonts[0]);
+      }
       FcFontSetDestroy(set);
    }
    FcPatternDestroy(pat);
@@ -71,10 +84,14 @@ static NSString *filenameForPostScriptName(NSString *name) {
    return ret;
 }
 
-+(NSString*)filenameForPattern:(NSString *)pattern {
+static NSString *filenameForPostScriptName(NSString *name) {
+   return filenameAndIndexForPostScriptName(name,NULL);
+}
+
+static NSString *filenameAndIndexForPattern(Class self,NSString *pattern,FT_Long *index) {
    int i;
    if([pattern length]>0 && [pattern rangeOfString:@":"].location==NSNotFound) {
-      NSString *file=filenameForPostScriptName(pattern);
+      NSString *file=filenameAndIndexForPostScriptName(pattern,index);
 
       if(file!=nil)
          return file;
@@ -82,7 +99,7 @@ static NSString *filenameForPostScriptName(NSString *name) {
    pattern = [self nativeFontNameForPostscriptName:pattern];
    FcPattern *pat=FcNameParse((unsigned char*)[pattern UTF8String]);
 
-   FcObjectSet *props=FcObjectSetBuild(FC_FILE, NULL);
+   FcObjectSet *props=FcObjectSetBuild(FC_FILE, FC_INDEX, NULL);
 
    FcFontSet *set = FcFontList (O2FontSharedFontConfig(), pat, props);
    NSString* ret=NULL;
@@ -91,6 +108,8 @@ static NSString *filenameForPostScriptName(NSString *name) {
 
       if (FcPatternGetString (set->fonts[i], FC_FILE, 0, &filename) == FcResultMatch) {
          ret=[NSString stringWithUTF8String:(char*)filename];
+         if(index!=NULL)
+          *index=faceIndexOf(set->fonts[i]);
       }
    }
 
@@ -98,6 +117,10 @@ static NSString *filenameForPostScriptName(NSString *name) {
    FcObjectSetDestroy(props);
    FcFontSetDestroy(set);
    return ret;
+}
+
++(NSString*)filenameForPattern:(NSString *)pattern {
+   return filenameAndIndexForPattern(self,pattern,NULL);
 }
 
 /* Minkar: the fonts applications ask for by name that the system does not
@@ -248,23 +271,25 @@ static void readFace(O2Font_FT *self,NSString *name) {
 -initWithFontName:(NSString *)name {
    self = [super initWithFontName:name];
 
-   NSString *filename=[[self class] filenameForPattern:name];
+   FT_Long   index=0;
+   NSString *filename=filenameAndIndexForPattern([self class],name,&index);
    /* Minkar: a font that is not installed is drawn in the free face that
     * stands for it (substituteFontName), else in the system font, not in
     * whichever font fontconfig lists first. */
    if(filename==nil && [name length]>0)
-    filename=filenameForPostScriptName(substituteFontName(name));
+    filename=filenameAndIndexForPostScriptName(substituteFontName(name),&index);
    if(filename==nil)
-    filename=filenameForPostScriptName(@"Inter-Regular");
+    filename=filenameAndIndexForPostScriptName(@"Inter-Regular",&index);
    if(filename==nil) {
-    filename=[[self class] filenameForPattern:@""];
+    filename=filenameAndIndexForPattern([self class],@"",&index);
 
     if(filename==nil) {
       filename=@"/System/Library/Fonts/TTF/NimbusSans-Regular.ttf";
+      index=0;
     }
    }
 
-   FT_Error ret=FT_New_Face(O2FontSharedFreeTypeLibrary(),[filename fileSystemRepresentation],0,&_face);
+   FT_Error ret=FT_New_Face(O2FontSharedFreeTypeLibrary(),[filename fileSystemRepresentation],index,&_face);
 
    if(ret!=0){
     NSLog(@"FT_New_Face returned %d",ret);
@@ -272,6 +297,7 @@ static void readFace(O2Font_FT *self,NSString *name) {
     return nil;
    }
    _path=[filename copy];
+   _faceIndex=index;
    readFace(self,name);
    return self;
 }
@@ -314,7 +340,7 @@ static void readFace(O2Font_FT *self,NSString *name) {
    if(_face==NULL || !FT_HAS_MULTIPLE_MASTERS(_face) || [variations count]==0)
     return [self retain];
    if(_path!=nil)
-    error=FT_New_Face(O2FontSharedFreeTypeLibrary(),[_path fileSystemRepresentation],0,&face);
+    error=FT_New_Face(O2FontSharedFreeTypeLibrary(),[_path fileSystemRepresentation],_faceIndex,&face);
    else
     error=FT_New_Memory_Face(O2FontSharedFreeTypeLibrary(),[_data bytes],[_data length],0,&face);
    if(error!=0)
@@ -352,6 +378,7 @@ static void readFace(O2Font_FT *self,NSString *name) {
    copy->_provider=(_provider!=NULL)?O2DataProviderRetain(_provider):NULL;
    copy->_face=face;
    copy->_path=[_path copy];
+   copy->_faceIndex=_faceIndex;
    copy->_data=[_data retain];
    copy->_variations=[applied copy];
    readFace(copy,_name);
@@ -410,18 +437,28 @@ static void readFace(O2Font_FT *self,NSString *name) {
    return 0;
 }
 
+/* Minkar: every glyph's advance in font units, read from the font's
+ * metrics (FT_Get_Advances) without loading the glyphs: loading each one
+ * took seconds for a font of tens of thousands of glyphs (CJK), on every
+ * font made. */
 -(void)fetchAdvances {
-   O2Glyph glyph;
+   FT_Fixed *units=NSZoneMalloc(NULL,sizeof(FT_Fixed)*(_numberOfGlyphs>0?_numberOfGlyphs:1));
+   O2Glyph   glyph;
 
-   [self setPixelSize:_unitsPerEm];
-
-   _advances=NSZoneMalloc(NULL,sizeof(int)*_numberOfGlyphs);
-
-   for(glyph=0;glyph<_numberOfGlyphs;glyph++){
-    FT_Load_Glyph(_face, glyph, FT_LOAD_DEFAULT);
-
-    _advances[glyph]=_face->glyph->advance.x/(float)(2<<5);
+   _advances=NSZoneMalloc(NULL,sizeof(int)*(_numberOfGlyphs>0?_numberOfGlyphs:1));
+   if(_numberOfGlyphs>0 && FT_Get_Advances(_face,0,(FT_UInt)_numberOfGlyphs,FT_LOAD_NO_SCALE,units)==0){
+    for(glyph=0;glyph<_numberOfGlyphs;glyph++)
+     _advances[glyph]=(int)units[glyph];
    }
+   else {
+    [self setPixelSize:_unitsPerEm];
+    for(glyph=0;glyph<_numberOfGlyphs;glyph++){
+     FT_Load_Glyph(_face, glyph, FT_LOAD_DEFAULT);
+
+     _advances[glyph]=_face->glyph->advance.x/(float)(2<<5);
+    }
+   }
+   NSZoneFree(NULL,units);
 }
 
 -(NSCharacterSet *)coveredCharacterSet {
