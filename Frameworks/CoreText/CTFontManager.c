@@ -27,6 +27,7 @@ static CFMutableSetRef registered;	/* the paths registered */
    (com.apple.FontRegistry). A process that may not write there reads the
    cache another wrote. FONTCONFIG_FILE, when set, is used instead. */
 static const char kConfigFile[] = "/System/Library/Frameworks/CoreText.framework/Resources/fonts.conf";
+static const char kSystemCache[] = "/System/Library/Caches/com.apple.FontRegistry/fontconfig";
 
 static FcConfig *loadConfig(void) {
     if (getenv("FONTCONFIG_FILE") != NULL)
@@ -45,10 +46,22 @@ static FcConfig *loadConfig(void) {
     } else
         cache[0] = '\0';
 
-    char xml[2 * PATH_MAX + 256];
+    /* The system's cache first: every process may read it, sandboxed ones
+       too (their profiles allow /System), and root (fontcache, at boot)
+       writes it; then the user's, which the others write. Fontconfig
+       reads all its cache directories and writes the first it can. */
+    if (geteuid() == 0) {
+        mkdir("/System/Library/Caches", 0755);
+        mkdir("/System/Library/Caches/com.apple.FontRegistry", 0755);
+        mkdir(kSystemCache, 0755);
+        /* Root keeps only the system's: a cache of its own would stand in
+           for it, and the system's would never be written. */
+        cache[0] = '\0';
+    }
+    char xml[3 * PATH_MAX + 256];
     snprintf(xml, sizeof(xml),
-        "<?xml version=\"1.0\"?><fontconfig><include>%s</include>%s%s%s</fontconfig>", kConfigFile,
-        cache[0] ? "<cachedir>" : "", cache, cache[0] ? "</cachedir>" : "");
+        "<?xml version=\"1.0\"?><fontconfig><include>%s</include><cachedir>%s</cachedir>%s%s%s</fontconfig>",
+        kConfigFile, kSystemCache, cache[0] ? "<cachedir>" : "", cache, cache[0] ? "</cachedir>" : "");
     if (!FcConfigParseAndLoadFromMemory(config, (const FcChar8 *)xml, FcTrue) || !FcConfigBuildFonts(config)) {
         FcConfigDestroy(config);
         return FcInitLoadConfigAndFonts();

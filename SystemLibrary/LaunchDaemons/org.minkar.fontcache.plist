@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ fontcache: the system's font cache, brought up to date at every boot
+ (as root), for the sandboxed processes that read it. Runs once.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.fontcache</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/fontcache</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>UserName</key>
+	<string>root</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/fontcache.log</string>
+</dict>
+</plist>

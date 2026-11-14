@@ -33,6 +33,8 @@ SUBDIR += fseventsd
 SUBDIR += directoryd
 # Users' own folders under /var/folders (confstr's user directories).
 SUBDIR += dirhelper
+# The system's font cache, written at boot for sandboxed processes.
+SUBDIR += fontcache
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
 # the desktop (Atlas.md, D1), Files, the file manager (K1), and the Menu Extras
 # (Atlas.md, MB1).
