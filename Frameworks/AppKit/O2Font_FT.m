@@ -119,6 +119,11 @@ static const substituteFaces gelasio={ "Gelasio-Regular","Gelasio_700wght","Gela
 static const substituteFaces pagella={ "TeXGyrePagella-Regular","TeXGyrePagella-Bold","TeXGyrePagella-Italic","TeXGyrePagella-BoldItalic" };
 static const substituteFaces inter={ "Inter-Regular","Inter-Bold","Inter-Italic","Inter-BoldItalic" };
 static const substituteFaces agave={ "Agave-Regular","Agave-Bold","Agave-Regular","Agave-Bold" };
+static const substituteFaces notoJP={ "NotoSansCJKjp-Regular","NotoSansCJKjp-Bold","NotoSansCJKjp-Regular","NotoSansCJKjp-Bold" };
+static const substituteFaces notoSC={ "NotoSansCJKsc-Regular","NotoSansCJKsc-Bold","NotoSansCJKsc-Regular","NotoSansCJKsc-Bold" };
+static const substituteFaces notoTC={ "NotoSansCJKtc-Regular","NotoSansCJKtc-Bold","NotoSansCJKtc-Regular","NotoSansCJKtc-Bold" };
+static const substituteFaces notoKR={ "NotoSansCJKkr-Regular","NotoSansCJKkr-Bold","NotoSansCJKkr-Regular","NotoSansCJKkr-Bold" };
+static const substituteFaces notoArabic={ "NotoSansArabic-Regular","NotoSansArabic-Bold","NotoSansArabic-Regular","NotoSansArabic-Bold" };
 
 static const struct { const char *family; const substituteFaces *faces; } substituteFamilies[]={
    { "helvetica",&liberationSans }, { "helveticaneue",&liberationSans }, { "arial",&liberationSans },
@@ -132,6 +137,19 @@ static const struct { const char *family; const substituteFaces *faces; } substi
    { ".applesystemuifont",&inter }, { ".sfnstext",&inter }, { ".sfnsdisplay",&inter },
    { ".sfns",&inter }, { "sfprotext",&inter }, { "sfprodisplay",&inter }, { "sfpro",&inter },
    { "sanfrancisco",&inter },
+   /* Writing systems Inter lacks: the reference platform's families for
+      them, to Noto's (a stand-in without their glyphs drew empty boxes). */
+   { "hiraginosans",&notoJP }, { "hiraginokakugothicpro",&notoJP }, { "hiraginokakugothicpron",&notoJP },
+   { "hiraginokakugothicstd",&notoJP }, { "hiraginomarugothicpro",&notoJP }, { "hiraginomarugothicpron",&notoJP },
+   { "hiraginominchopro",&notoJP }, { "hiraginominchopron",&notoJP }, { "osaka",&notoJP }, { "yugothic",&notoJP },
+   { "yumincho",&notoJP },
+   { "pingfangsc",&notoSC }, { "heitisc",&notoSC }, { "stheitisc",&notoSC }, { "songtisc",&notoSC },
+   { "stsong",&notoSC }, { "stheiti",&notoSC }, { "hiraginosansgb",&notoSC },
+   { "pingfangtc",&notoTC }, { "pingfanghk",&notoTC }, { "heititc",&notoTC }, { "songtitc",&notoTC },
+   { "applesdgothicneo",&notoKR }, { "applegothic",&notoKR }, { "applemyungjo",&notoKR },
+   { "nanumgothic",&notoKR }, { "nanummyeongjo",&notoKR },
+   { "geezapro",&notoArabic }, { "baghdad",&notoArabic }, { "damascus",&notoArabic }, { "alnile",&notoArabic },
+   { "kufistandardgk",&notoArabic }, { "decotypenaskh",&notoArabic },
 };
 
 static NSString *stripSuffix(NSString *string,NSArray *suffixes) {
