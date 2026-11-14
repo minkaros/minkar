@@ -3,7 +3,9 @@
 # automake/autoconf again.
 NO_AUTOTOOLS =	ACLOCAL=: AUTOCONF=: AUTOMAKE=: AUTOHEADER=:
 
-# fontconfig, built as a static library and linked into CoreText.
+# fontconfig, built as a static library and linked into CoreText, optimized
+# (-O2, as its own build would be: CFLAGS given here replace configure's
+# default; unoptimized, scanning the CJK fonts took over 20 seconds).
 # GNU gperf is not used: src/fcobjshash.h comes from our own BSD-2
 # generator, ../fcobjshash-gen.py.
 
@@ -24,7 +26,7 @@ all: ${.OBJDIR}/Makefile build
 ${.OBJDIR}/Makefile: ${.CURDIR}/configure
 	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} LIBTOOL=${LIBTOOL} \
 	LDFLAGS="-fuse-ld=${LD} ${SDK_FLAGS}" \
-	CFLAGS="${SDK_FLAGS}" \
+	CFLAGS="${SDK_FLAGS} -O2" \
 	FREETYPE_CFLAGS="${FREETYPE_CFLAGS}" FREETYPE_LIBS="${FREETYPE_LIBS}" \
 	LIBXML2_CFLAGS="${LIBXML2_CFLAGS}" LIBXML2_LIBS="${LIBXML2_LIBS}" \
 	GPERF="python3 -I ${.CURDIR:H}/fcobjshash-gen.py" \
