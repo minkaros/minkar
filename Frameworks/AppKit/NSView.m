@@ -2157,10 +2157,16 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    NSGraphicsContext *graphicsContext=[NSGraphicsContext currentContext];
    CGContextRef       context=[graphicsContext graphicsPort];
 
-   if(_layer!=nil){
+   /* Only a view that drew into a bitmap of its own (layer-backed, or a
+      surface layer: graphicsContextForView) gives it to its layer. A layer
+      tree the view hosts was drawn into the window: the whole window's
+      bitmap became the app's root layer's contents, a copy every frame
+      that the next frame drew again. */
+   if(_layer!=nil && (NSViewLayersEnabled || isSurfaceLayer(_layer))){
     CGImageRef image=CGBitmapContextCreateImage(context);
 
     [_layer setContents:image];
+    CGImageRelease(image);
    }
 
    CGContextRestoreGState(context);
