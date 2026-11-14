@@ -49,6 +49,10 @@ static NSArray *_preferredFontNames = nil;
    [super dealloc];
 }
 
+-(NSArray *)copyTableTags {
+   return nil;
+}
+
 -(NSData *)copyTableForTag:(uint32_t)tag {
    O2InvalidAbstractInvocation();
    return nil;
@@ -525,6 +529,10 @@ NSString *O2FontCopyGlyphNameForGlyph(O2FontRef self,O2Glyph glyph) {
 
 NSData   *O2FontCopyTableForTag(O2FontRef self,uint32_t tag) {
    return [self copyTableForTag:(uint32_t)tag];
+}
+
+NSArray  *O2FontCopyTableTags(O2FontRef self) {
+   return [self copyTableTags];
 }
 
 BOOL O2FontGetGlyphBBoxes(O2FontRef self,const O2Glyph *glyphs,size_t count,O2Rect *rects) {

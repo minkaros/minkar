@@ -70,6 +70,9 @@ typedef enum {
 - initWithDataProvider:(O2DataProviderRef)provider;
 
 - (NSData *)copyTableForTag:(uint32_t)tag;
+/* The font's sfnt table tags, or nil when the font cannot list them
+   without its whole file (O2Font_FT asks FreeType). */
+- (NSArray *)copyTableTags;
 
 /* Minkar: glyph boxes in font units, and instances of a variable font.
    The base class has neither: no boxes, and a copy is the font itself. */
@@ -114,6 +117,7 @@ O2Glyph O2FontGetGlyphWithGlyphName(O2FontRef self, CFStringRef name);
 NSString *O2FontCopyGlyphNameForGlyph(O2FontRef self, O2Glyph glyph);
 
 NSData *O2FontCopyTableForTag(O2FontRef self, uint32_t tag);
+NSArray *O2FontCopyTableTags(O2FontRef self);
 BOOL O2FontGetGlyphBBoxes(O2FontRef self, const O2Glyph *glyphs, size_t count, O2Rect *rects);
 O2FontRef O2FontCreateCopyWithVariations(O2FontRef self, NSDictionary *variations);
 NSDictionary *O2FontCopyVariations(O2FontRef self);

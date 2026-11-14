@@ -356,17 +356,35 @@ static void readFace(O2Font_FT *self,NSString *name) {
 }
 
 /* An sfnt table's bytes ('post', 'OS/2', ...); nil when the font has none. */
+/* A table's bytes: read into memory not cleared first (the table fills
+   it all; a CJK font's tables are megabytes). */
 -(NSData *)copyTableForTag:(uint32_t)tag {
    FT_ULong length=0;
 
    if(_face==NULL || FT_Load_Sfnt_Table(_face,tag,0,NULL,&length)!=0 || length==0)
     return nil;
-   NSMutableData *data=[[NSMutableData alloc] initWithLength:length];
-   if(FT_Load_Sfnt_Table(_face,tag,0,[data mutableBytes],&length)!=0){
-    [data release];
+   void *bytes=malloc(length);
+   if(bytes==NULL)
+    return nil;
+   if(FT_Load_Sfnt_Table(_face,tag,0,bytes,&length)!=0){
+    free(bytes);
     return nil;
    }
-   return data;
+   return [[NSData alloc] initWithBytesNoCopy:bytes length:length freeWhenDone:YES];
+}
+
+/* The tables' tags from the face's table directory, without reading the
+   file (CGFontCopyTableTags read the whole of it to find them). */
+-(NSArray *)copyTableTags {
+   FT_ULong tag,length;
+   NSMutableArray *tags;
+
+   if(_face==NULL || !FT_IS_SFNT(_face))
+    return nil;
+   tags=[[NSMutableArray alloc] init];
+   for(FT_UInt i=0;FT_Sfnt_Table_Info(_face,i,&tag,&length)==0;i++)
+    [tags addObject:[NSNumber numberWithUnsignedInt:(uint32_t)tag]];
+   return tags;
 }
 
 -(O2Glyph)glyphWithGlyphName:(NSString *)name {

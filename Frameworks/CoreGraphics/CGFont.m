@@ -99,6 +99,16 @@ CGFontRef CGFontCreateWithDataProvider(CGDataProviderRef provider) {
 /* The table directory of the whole font file (FreeType gives the file
    for the tag 0); a collection's first font. */
 CFArrayRef CGFontCopyTableTags(CGFontRef self) {
+   /* From the font's table directory when it can list it (FreeType's),
+      without reading the file; else from the file's first bytes. */
+   NSArray *listed=O2FontCopyTableTags(self);
+   if(listed!=nil){
+    CFMutableArrayRef result=CFArrayCreateMutable(NULL,[listed count],NULL);
+    for(NSNumber *tag in listed)
+     CFArrayAppendValue(result,(const void *)(uintptr_t)[tag unsignedIntValue]);
+    [listed release];
+    return result;
+   }
    CFDataRef          file=CGFontCopyTableForTag(self,0);
    CFMutableArrayRef  tags;
    const UInt8       *bytes;
