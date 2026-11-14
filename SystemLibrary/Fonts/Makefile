@@ -23,7 +23,7 @@
 # More free families the user chose (2026-11-13), each at the commit its
 # MANIFEST pins, installed unchanged with its license (all SIL Open Font
 # License 1.1): Victor Mono and Monaspace (Argon, Krypton, Neon, Radon,
-# Xenon), fixed-pitch; Libre Caslon Condensed; and ANRT's Gotico-Antiqua
+# Xenon; its static fonts, normal width), fixed-pitch; Libre Caslon Condensed; and ANRT's Gotico-Antiqua
 # revivals of fifteenth-century types.
 #
 # Writing systems Inter and the others lack (2026-11-13, OFL 1.1, unchanged
@@ -52,7 +52,6 @@ DEJAVU =	DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSans-Oblique.ttf DejaVuSans-Bo
 		DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf DejaVuSansMono-Oblique.ttf \
 		DejaVuSansMono-BoldOblique.ttf
 GELASIO =	'Gelasio[wght].ttf' 'Gelasio-Italic[wght].ttf'
-MONASPACE =	Argon Krypton Neon Radon Xenon
 PAGELLA =	texgyrepagella-regular.otf texgyrepagella-bold.otf texgyrepagella-italic.otf \
 		texgyrepagella-bolditalic.otf
 
@@ -97,10 +96,11 @@ install-fonts: .PHONY
 	done && \
 	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/VictorMono-LICENSE.txt
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.monaspace ${CACHE}) && \
-	for f in ${MONASPACE}; do \
-		install -C -o 0 -g 0 -m 0644 "$$src/fonts/Variable Fonts/Monaspace $$f/Monaspace $$f Var.ttf" \
-		    "${DIR}/Monaspace $$f Var.ttf" || exit 1; \
+	for f in "$$src/fonts/Static Fonts"/Monaspace\ */*.otf; do \
+		case "$$f" in *Wide*) continue ;; esac; \
+		install -C -o 0 -g 0 -m 0644 "$$f" ${DIR}/ || exit 1; \
 	done && \
+	rm -f "${DIR}"/Monaspace\ *\ Var.ttf && \
 	install -C -o 0 -g 0 -m 0644 $$src/LICENSE ${DIR}/Monaspace-LICENSE.txt
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.caslon ${CACHE}) && \
 	for f in 'LibreCaslonCondensed[wght].ttf' 'LibreCaslonCondensed-Italic[wght].ttf'; do \
