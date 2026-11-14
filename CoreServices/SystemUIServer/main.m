@@ -9,6 +9,7 @@
  */
 
 #import "ClockExtra.h"
+#import "VolumeExtra.h"
 
 @interface SystemUIServer : NSObject <NSApplicationDelegate>
 @end
@@ -22,7 +23,8 @@
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
 
     _extras = [NSMutableArray array];
-    for (Class cls in @[ [ClockExtra class] ]) {
+    /* Right to left: the clock, then the volume. */
+    for (Class cls in @[ [ClockExtra class], [VolumeExtra class] ]) {
         NSStatusItem *item = [bar statusItemWithLength:NSVariableStatusItemLength];
         [_extras addObject:[[cls alloc] initWithStatusItem:item]];
     }

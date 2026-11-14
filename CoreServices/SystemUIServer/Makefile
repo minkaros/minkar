@@ -12,8 +12,8 @@
 SUBDIR =
 APP =		SystemUIServer
 APP_INSTALL_DIR = /System/Library/CoreServices
-SRCS =		main.m ClockExtra.m
-FRAMEWORKS =	AppKit Foundation
+SRCS =		main.m ClockExtra.m VolumeExtra.m
+FRAMEWORKS =	AppKit Foundation CoreAudio
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
