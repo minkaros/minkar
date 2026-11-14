@@ -13,7 +13,10 @@
  * off the Dock to remove it. With autohide the Dock slides off its edge and
  * comes back when the pointer reaches that edge.
  *
- * It draws only when the model changes or the pointer acts on it.
+ * It draws only when the model changes or the pointer acts on it. With
+ * magnification it redraws at most once a display refresh, only when the
+ * tiles' sizes change and only over the bar, from icons kept ready at the
+ * tile size and at the largest size.
  *
  * Atlas's provisional look: the layout follows the reference platform's
  * Dock; sizes and colors are Atlas's own and will change with its visual
@@ -29,6 +32,8 @@ static const NSTimeInterval kLongPress = 0.6;
 static const CGFloat kDragThreshold = 4;
 static const NSTimeInterval kSlideTime = 0.2;
 static const NSTimeInterval kAutohideDelay = 0.5;  /* autohide-delay's default */
+static const NSTimeInterval kFrameTime = 1.0 / 60;  /* the fastest the Dock redraws */
+static const CGFloat kMagnifyStep = 0.5;            /* pointer motion worth a redraw */
 
 /* ---- Geometry along the Dock (main axis) and away from its edge (cross axis) ---- */
 
@@ -71,8 +76,14 @@ static NSUInteger separatorCount(DockModel *model)
 
 + (NSDictionary *)attributes
 {
-    return @{ NSFontAttributeName: [NSFont systemFontOfSize:13],
-              NSForegroundColorAttributeName: [NSColor whiteColor] };
+    static NSDictionary *attributes;
+    static dispatch_once_t once;
+
+    dispatch_once(&once, ^{
+        attributes = @{ NSFontAttributeName: [NSFont systemFontOfSize:13],
+                        NSForegroundColorAttributeName: [NSColor whiteColor] };
+    });
+    return attributes;
 }
 
 - (BOOL)isOpaque
@@ -128,7 +139,9 @@ static NSUInteger separatorCount(DockModel *model)
 
 - (void)showText:(NSString *)text beside:(NSRect)tile orientation:(DockOrientation)orientation
 {
-    NSSize size = [text sizeWithAttributes:[DockLabelView attributes]];
+    BOOL same = [self isVisible] && [text isEqualToString:_view.text];
+    NSSize size = same ? NSMakeSize(NSWidth([self frame]) - 20, NSHeight([self frame]) - 8)
+                       : [text sizeWithAttributes:[DockLabelView attributes]];
     CGFloat width = ceil(size.width) + 20, height = ceil(size.height) + 8;
     NSRect frame;
 
@@ -144,6 +157,12 @@ static NSUInteger separatorCount(DockModel *model)
         break;
     }
     frame = NSIntegralRect(frame);
+    if (same) {
+        /* The same name beside a tile that moved (magnified): moved, not drawn again. */
+        if (!NSEqualPoints(frame.origin, [self frame].origin))
+            [self setFrameOrigin:frame.origin];
+        return;
+    }
     _view.text = text;
     [self setFrame:frame display:NO];
     [_view setNeedsDisplay:YES];
@@ -232,6 +251,7 @@ static NSUInteger separatorCount(DockModel *model)
 @property (nonatomic, weak) DockWindow *dockWindow;
 /* Where the pointer is along the Dock, or NAN when it is not on it. */
 @property (nonatomic) CGFloat pointerMain;
+- (void)forgetIcons;
 @end
 
 @interface DockWindow ()
@@ -250,6 +270,13 @@ static NSUInteger separatorCount(DockModel *model)
     NSTrackingArea *_tracking;
     DockDragWindow *_dragWindow;
     NSInteger _labelled;      /* the tile whose label shows, or -1 */
+    NSMutableDictionary *_icons;  /* [icon, icon drawn at a size], by icon and pixels */
+    CGFloat _drawnMain;       /* the pointer the last drawing magnified for */
+    NSRect _drawnBar;         /* where the bar and its tiles were drawn */
+    CFAbsoluteTime _lastFrame;
+    BOOL _framePending;
+    NSImage *_barImage;       /* a short bar, its ends and middle copied to draw it */
+    DockOrientation _barOrientation;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -258,8 +285,47 @@ static NSUInteger separatorCount(DockModel *model)
         _pressed = -1;
         _labelled = -1;
         _pointerMain = NAN;
+        _drawnMain = NAN;
+        _icons = [NSMutableDictionary dictionary];
     }
     return self;
+}
+
+/* -- Icons, ready at the sizes drawn -- */
+
+- (void)forgetIcons
+{
+    [_icons removeAllObjects];
+}
+
+/* The icon drawn once at size points, so that drawing it (or shrinking it
+   a little, while magnified) does not scale its largest picture each time. */
+- (NSImage *)icon:(NSImage *)icon atSize:(CGFloat)size
+{
+    CGFloat scale = [[self window] backingScaleFactor] > 0 ? [[self window] backingScaleFactor] : 1;
+    NSInteger pixels = (NSInteger)ceil(size * scale);
+    NSString *key = [NSString stringWithFormat:@"%p-%ld", (__bridge void *)icon, (long)pixels];
+    /* The entry holds the icon too: its address, in the key, is not reused
+       while the entry lasts. */
+    NSImage *ready = [_icons[key] lastObject];
+
+    if (ready != nil || icon == nil || pixels <= 0)
+        return ready;
+    ready = [[NSImage alloc] initWithSize:NSMakeSize(size, size)];
+    [ready lockFocus];
+    [icon drawInRect:NSMakeRect(0, 0, size, size) fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1];
+    [ready unlockFocus];
+    if ([_icons count] > 1024)  /* every size of every tile, magnified */
+        [_icons removeAllObjects];
+    _icons[key] = @[ icon, ready ];
+    return ready;
+}
+
+/* What to draw a tile's icon from at a size: the icon drawn once at that
+   very size, so that drawing it is a copy rather than a resampling. */
+- (NSImage *)drawableIcon:(NSImage *)icon forSize:(CGFloat)size
+{
+    return icon != nil ? [self icon:icon atSize:size] : nil;
 }
 
 - (BOOL)isOpaque
@@ -370,7 +436,8 @@ static NSUInteger separatorCount(DockModel *model)
     CGFloat distance = fabs(self.pointerMain - center) / (tile + gapFor(tile));
     if (distance >= 3)
         return tile;
-    return tile + (large - tile) * (cos(distance * M_PI / 3) + 1) / 2;
+    /* Whole points: each size's icon is drawn once and then copied. */
+    return round(tile + (large - tile) * (cos(distance * M_PI / 3) + 1) / 2);
 }
 
 /* The tiles' places along the Dock, in the order shown (a dragged tile
@@ -443,6 +510,70 @@ static NSUInteger separatorCount(DockModel *model)
 
 /* -- Drawing -- */
 
+static const CGFloat kBarRadius = 14;
+static const CGFloat kBarCap = 16;      /* a rounded end, its edge included */
+static const CGFloat kBarMiddle = 128;  /* a piece of the straight middle, repeated */
+
+/* The bar's rounded rectangle at its colors. */
+static void drawBarPath(NSRect rect)
+{
+    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rect, 0.5, 0.5)
+                                                         xRadius:kBarRadius yRadius:kBarRadius];
+    [[NSColor colorWithCalibratedWhite:0.96 alpha:0.55] setFill];
+    [path fill];
+    [[NSColor colorWithCalibratedWhite:1.0 alpha:0.6] setStroke];
+    [path setLineWidth:1];
+    [path stroke];
+}
+
+/* A span in an image of the given size, as rectForSpan: places it in the
+   view (the main axis runs down the image on a side). */
+- (NSRect)rectForSpan:(DockSpan)s inSize:(NSSize)size
+{
+    if ([self orientation] == DockOrientationBottom)
+        return NSMakeRect(s.main, s.cross, s.mainLength, s.crossLength);
+    return NSMakeRect([self orientation] == DockOrientationLeft ? s.cross : size.width - s.cross - s.crossLength,
+                      size.height - s.main - s.mainLength, s.crossLength, s.mainLength);
+}
+
+/* The bar, from a short one drawn once: its two ends and pieces of its
+   middle copied as they are, rather than a rounded rectangle filled and
+   stroked at every frame (the most of a magnified redraw). */
+- (void)drawBarFrom:(CGFloat)start length:(CGFloat)length thickness:(CGFloat)thickness
+{
+    CGFloat shortLength = 2 * kBarCap + kBarMiddle;
+    BOOL bottom = [self orientation] == DockOrientationBottom;
+    NSSize size = bottom ? NSMakeSize(shortLength, thickness) : NSMakeSize(thickness, shortLength);
+
+    if (length < shortLength) {
+        drawBarPath([self rectForSpan:(DockSpan){ start, 0, length, thickness }]);
+        return;
+    }
+    if (_barImage == nil || !NSEqualSizes([_barImage size], size) || _barOrientation != [self orientation]) {
+        _barImage = [[NSImage alloc] initWithSize:size];
+        _barOrientation = [self orientation];
+        [_barImage lockFocus];
+        drawBarPath(NSMakeRect(0, 0, size.width, size.height));
+        [_barImage unlockFocus];
+    }
+    /* Ends and middle pieces at their own size: copies, with no resampling. */
+    [self drawBarPiece:(DockSpan){ start, 0, kBarCap, thickness } from:0 size:size];
+    for (CGFloat at = kBarCap; at < length - kBarCap; at += kBarMiddle) {
+        CGFloat piece = MIN(kBarMiddle, length - kBarCap - at);
+        [self drawBarPiece:(DockSpan){ start + at, 0, piece, thickness } from:kBarCap size:size];
+    }
+    [self drawBarPiece:(DockSpan){ start + length - kBarCap, 0, kBarCap, thickness }
+                  from:kBarCap + kBarMiddle size:size];
+}
+
+- (void)drawBarPiece:(DockSpan)span from:(CGFloat)main size:(NSSize)size
+{
+    DockSpan source = { main, 0, span.mainLength, span.crossLength };
+
+    [_barImage drawInRect:[self rectForSpan:span] fromRect:[self rectForSpan:source inSize:size]
+                operation:NSCompositeSourceOver fraction:1];
+}
+
 - (void)drawRect:(NSRect)dirty
 {
     DockModel *model = self.model;
@@ -452,17 +583,19 @@ static NSUInteger separatorCount(DockModel *model)
     CGFloat tile = model.tileSize, ind = indicatorSpace(tile), pad = padding(tile);
 
     [[NSColor clearColor] set];
-    NSRectFill([self bounds]);
+    NSRectFill(dirty);
     [self layoutMains:mains sizes:sizes count:count barStart:&start barLength:&length];
+    _drawnMain = self.pointerMain;
+    _lastFrame = CFAbsoluteTimeGetCurrent();
+    {
+        /* What is painted now: the bar drawn, and what of an earlier one
+           this drawing did not cover (to clear on the next). */
+        DockSpan all = { start, 0, length, [DockView windowThicknessForModel:model] };
+        NSRect now = [self rectForSpan:all];
+        _drawnBar = NSContainsRect(dirty, _drawnBar) ? now : NSUnionRect(_drawnBar, now);
+    }
 
-    DockSpan barSpan = { start, 0, length, [DockView barThicknessForModel:model] };
-    NSRect bar = NSInsetRect([self rectForSpan:barSpan], 0.5, 0.5);
-    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:bar xRadius:14 yRadius:14];
-    [[NSColor colorWithCalibratedWhite:0.96 alpha:0.55] setFill];
-    [path fill];
-    [[NSColor colorWithCalibratedWhite:1.0 alpha:0.6] setStroke];
-    [path setLineWidth:1];
-    [path stroke];
+    [self drawBarFrom:start length:length thickness:[DockView barThicknessForModel:model]];
 
     for (NSUInteger i = 0; i < count; i++) {
         DockTile *t = tiles[i];
@@ -470,9 +603,11 @@ static NSUInteger separatorCount(DockModel *model)
         NSRect rect = [self rectForSpan:s];
         BOOL lifted = _dragging && (NSInteger)i == _pressed;
 
+        if (!NSIntersectsRect(rect, dirty))
+            continue;
         if (!lifted && t.icon != nil)
-            [t.icon drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver
-                      fraction:(NSInteger)i == _pressed ? 0.6 : 1.0];
+            [[self drawableIcon:t.icon forSize:sizes[i]] drawInRect:rect fromRect:NSZeroRect
+                operation:NSCompositeSourceOver fraction:(NSInteger)i == _pressed ? 0.6 : 1.0];
         if (t.application != nil) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
             [[NSColor colorWithCalibratedWhite:0.15 alpha:0.85] setFill];
@@ -530,8 +665,6 @@ static NSUInteger separatorCount(DockModel *model)
         [label orderOut:nil];
         return;
     }
-    if (index == _labelled && [label isVisible])
-        return;
     _labelled = index;
     NSRect rect = [self rectForTileAtIndex:(NSUInteger)index];
     NSRect onScreen = rect;
@@ -551,8 +684,50 @@ static NSUInteger separatorCount(DockModel *model)
     self.pointerMain = [self mainOfPoint:p];
     [self.dockWindow pointerInside:YES];
     if (self.model.magnification)
-        [self setNeedsDisplay:YES];
+        [self magnifiedNeedsDisplay];
     [self showLabelForPoint:p];
+}
+
+/* The bar and its tiles where they will be drawn now. */
+- (NSRect)barRectNow
+{
+    NSUInteger count = [self.model.tiles count];
+    CGFloat mains[count + 1], sizes[count + 1], start, length;
+
+    [self layoutMains:mains sizes:sizes count:count barStart:&start barLength:&length];
+    DockSpan all = { start, 0, length, [DockView windowThicknessForModel:self.model] };
+    return [self rectForSpan:all];
+}
+
+/* With magnification: a redraw when the pointer moved enough to change
+   the tiles' sizes, over the bar as it was and as it will be (on whole
+   pixels: a clip that is not costs a coverage mask), and no more often
+   than the display refreshes. */
+- (void)magnifiedNeedsDisplay
+{
+    CGFloat now = self.pointerMain;
+    CFAbsoluteTime wait;
+
+    if (isnan(now) != isnan(_drawnMain))
+        ;   /* entering or leaving: always */
+    else if (isnan(now) || fabs(now - _drawnMain) < kMagnifyStep)
+        return;
+    if (_framePending)
+        return;
+    wait = kFrameTime - (CFAbsoluteTimeGetCurrent() - _lastFrame);
+    if (wait <= 0) {
+        [self setNeedsDisplayInRect:NSIntegralRect(NSUnionRect(_drawnBar, [self barRectNow]))];
+        return;
+    }
+    _framePending = YES;
+    [self performSelector:@selector(magnifiedFrame) withObject:nil afterDelay:wait
+                  inModes:@[NSRunLoopCommonModes]];
+}
+
+- (void)magnifiedFrame
+{
+    _framePending = NO;
+    [self setNeedsDisplayInRect:NSIntegralRect(NSUnionRect(_drawnBar, [self barRectNow]))];
 }
 
 - (void)mouseEntered:(NSEvent *)event
@@ -568,7 +743,7 @@ static NSUInteger separatorCount(DockModel *model)
     [[self.dockWindow label] orderOut:nil];
     [self.dockWindow pointerInside:NO];
     if (self.model.magnification)
-        [self setNeedsDisplay:YES];
+        [self magnifiedNeedsDisplay];
 }
 
 - (void)mouseDown:(NSEvent *)event
@@ -1023,6 +1198,7 @@ static NSUInteger separatorCount(DockModel *model)
 
 - (void)modelChanged:(NSNotification *)note
 {
+    [_view forgetIcons];    /* tiles or sizes may have gone */
     [self layout];
 }
 
