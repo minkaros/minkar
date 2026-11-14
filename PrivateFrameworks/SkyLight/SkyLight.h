@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	21
+#define kSLSInterfaceVersion	22
 
 typedef int32_t SLSConnectionID;
 
@@ -502,6 +502,27 @@ int SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID);
  * present); surface 0 takes the layer away (interface version 16).
  */
 int SLSWindowSetLayerIOSurface(SLSWindowID window, uint32_t surfaceID, SLSIntRect rect);
+
+/*
+ * Layers under the window's content (interface version 22): IOSurfaces of
+ * this process (BGRA, 4 bytes per pixel, width x height), each with its
+ * first pixel at x, y in the window (from its top left) and seen only in
+ * clip (window coordinates). The server draws them in order, under the window's own
+ * pixels, which show through where they are clear: an app's layer tree
+ * of surfaces (Firefox's tiles) is composed by the server, read from the
+ * surfaces at every frame, without the app drawing it. Each call replaces
+ * the list and shows it at the next frame; count 0 takes the layers away.
+ */
+typedef struct {
+	uint32_t surfaceID;
+	uint32_t width, height;
+	int32_t x, y;
+	int32_t clipX, clipY, clipWidth, clipHeight;
+} SLSWindowLayer;
+
+#define kSLSMaxWindowLayers	16
+
+int SLSWindowSetLayers(SLSWindowID window, const SLSWindowLayer *layers, uint32_t count);
 
 /*
  * Pacing a layer by the display: once a frame that shows the window's

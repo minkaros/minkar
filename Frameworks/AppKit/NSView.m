@@ -15,6 +15,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSBitmapImageRep.h>
 #import <AppKit/NSViewController.h>
 #import <objc/runtime.h>
+#include <objc/message.h>
+#include <IOSurface/IOSurface.h>
+#include <SkyLight/SkyLight.h>
 #include <math.h>
 #import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
@@ -408,6 +411,121 @@ static void updateSurfaceLayer(NSView *self) {
    [(CAMetalLayer *)layer _minkarSetWindow:window rect:rect];
 }
 
+/*
+ * Minkar: a hosted layer tree that is only surfaces and the bounds that
+ * clip them (Firefox's tiles) is composed by the window server: the view
+ * leaves that part of the window clear and gives the server the surfaces,
+ * which it draws under the window's pixels at every frame
+ * (SLSWindowSetLayers). The app's drawing into a surface shows without
+ * this process drawing anything. A tree with anything else (opacity,
+ * transforms, colors, borders, masks, shadows, images, its own drawing)
+ * is drawn here as before.
+ */
+static char serverLayersKey;	/* the list sent last, as NSData */
+
+/* -[CALayer transform] (not declared in our header): a structure this
+   large comes back through objc_msgSend_stret on x86_64. */
+static CATransform3D layerTransform(CALayer *layer) {
+   CATransform3D t;
+#if defined(__x86_64__)
+   ((void (*)(CATransform3D *,id,SEL))objc_msgSend_stret)(&t,layer,@selector(transform));
+#else
+   t=((CATransform3D (*)(id,SEL))objc_msgSend)(layer,@selector(transform));
+#endif
+   return t;
+}
+
+static BOOL isIdentity3D(CATransform3D t) {
+   return memcmp(&t,&CATransform3DIdentity,sizeof(t))==0;
+}
+
+/* rect: the layer's bounds in window coordinates (from the window's top
+   left); yDown: its sublayers' space runs down; clip: what is seen. */
+static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMutableData *out) {
+   if([layer isHidden])
+    return YES;
+   if([layer class]!=[CALayer class] || [layer opacity]!=1 || [layer mask]!=nil ||
+      !isIdentity3D(layerTransform(layer)) ||
+      !isIdentity3D([layer sublayerTransform]) ||
+      [layer backgroundColor]!=NULL || [layer borderWidth]!=0 || [layer cornerRadius]!=0 ||
+      [layer shadowOpacity]!=0 || !CGRectEqualToRect([layer contentsRect],CGRectMake(0,0,1,1)))
+    return NO;
+   if([layer masksToBounds])
+    clip=CGRectIntersection(clip,rect);
+
+   id contents=[layer contents];
+   if(contents!=nil){
+    if(CFGetTypeID((CFTypeRef)contents)!=IOSurfaceGetTypeID())
+     return NO;
+    IOSurfaceRef surface=(IOSurfaceRef)contents;
+    size_t       w=IOSurfaceGetWidth(surface),h=IOSurfaceGetHeight(surface);
+    OSType       format=IOSurfaceGetPixelFormat(surface);
+    /* Drawn one to one, as the server shows it. */
+    if((format!='BGRA' && format!=0) || w!=(size_t)rect.size.width || h!=(size_t)rect.size.height ||
+       rect.origin.x!=floor(rect.origin.x) || rect.origin.y!=floor(rect.origin.y))
+     return NO;
+    if([out length]/sizeof(SLSWindowLayer)>=kSLSMaxWindowLayers)
+     return NO;
+    CGRect seen=CGRectIntegral(CGRectIntersection(clip,rect));
+    if(!CGRectIsEmpty(seen)){
+     SLSWindowLayer l={ IOSurfaceGetID(surface),(uint32_t)w,(uint32_t)h,
+                        (int32_t)rect.origin.x,(int32_t)rect.origin.y,
+                        (int32_t)seen.origin.x,(int32_t)seen.origin.y,
+                        (int32_t)seen.size.width,(int32_t)seen.size.height };
+     [out appendBytes:&l length:sizeof(l)];
+    }
+   }
+
+   CGRect bounds=[layer bounds];
+   for(CALayer *sub in [layer sublayers]){
+    CGRect frame=[sub frame];
+    CGFloat dx=frame.origin.x-bounds.origin.x,dy=frame.origin.y-bounds.origin.y;
+    CGRect  child=CGRectMake(rect.origin.x+dx,
+                             yDown?rect.origin.y+dy:rect.origin.y+rect.size.height-dy-frame.size.height,
+                             frame.size.width,frame.size.height);
+    if(!flattenLayer(sub,child,yDown!=[sub isGeometryFlipped],clip,out))
+     return NO;
+   }
+   return YES;
+}
+
+/* The surfaces of the view's tree for the server, or nil when the tree
+   must be drawn here. */
+static NSData *serverLayersForView(NSView *self) {
+   CALayer *root=self->_layer;
+
+   if(root==nil || self->_window==nil || ![self->_window respondsToSelector:@selector(_skyLightWindowID)] ||
+      [(id)self->_window _skyLightWindowID]==0)
+    return nil;
+   if(!CGSizeEqualToSize([root bounds].size,NSSizeToCGSize(self->_bounds.size)))
+    return nil;
+   NSRect  r=[self convertRect:self->_bounds toView:nil];
+   CGFloat height=[self->_window frame].size.height;
+   CGRect  rect=CGRectMake(r.origin.x,height-(r.origin.y+r.size.height),r.size.width,r.size.height);
+   NSMutableData *out=[NSMutableData data];
+
+   /* The root's space runs up (a flipped view is turned back for it),
+      unless the root flips it. */
+   if(!flattenLayer(root,rect,[root isGeometryFlipped],rect,out) || [out length]==0)
+    return nil;
+   return out;
+}
+
+/* Sends the list when it changed (an empty one takes the layers away). */
+static void sendServerLayers(NSView *self,NSWindow *window,NSData *list) {
+   NSData *last=objc_getAssociatedObject(self,&serverLayersKey);
+
+   if(window==nil || ![window respondsToSelector:@selector(_skyLightWindowID)])
+    return;
+   if(list==nil && last==nil)
+    return;
+   /* The same surfaces again: their pixels changed, the server shows them
+      again only when told. */
+   SLSWindowSetLayers([(id)window _skyLightWindowID],(const SLSWindowLayer *)[list bytes],
+      (uint32_t)([list length]/sizeof(SLSWindowLayer)));
+   objc_setAssociatedObject(self,&serverLayersKey,list,OBJC_ASSOCIATION_RETAIN);
+}
+
 /* Minkar: the layer tree the view hosts, in the view's coordinates: the
    root layer's bounds fill the view, y up as Core Animation's (a flipped
    view is flipped back). */
@@ -421,6 +539,20 @@ static void drawHostedLayerTree(NSView *self,CGContextRef context) {
      [layer setBounds:NSRectToCGRect(self->_bounds)];
     [self updateLayer];
    }
+   NSData *server=serverLayersForView(self);
+   if(server!=nil){
+    /* The window clear where the server shows the surfaces. */
+    CGFloat height=[self->_window frame].size.height;
+    const SLSWindowLayer *l=[server bytes];
+    for(NSUInteger i=0;i<[server length]/sizeof(SLSWindowLayer);i++){
+     NSRect base=NSMakeRect(l[i].clipX,height-(l[i].clipY+l[i].clipHeight),l[i].clipWidth,l[i].clipHeight);
+     CGContextClearRect(context,NSRectToCGRect([self convertRect:base fromView:nil]));
+    }
+    sendServerLayers(self,self->_window,server);
+    return;
+   }
+   sendServerLayers(self,self->_window,nil);
+
    CGRect   bounds=[layer bounds];
 
    /* An opaque view is drawn without what is behind it: the layers it
@@ -1075,6 +1207,10 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
         }
 
         [self viewWillMoveToWindow:window];
+
+        /* Surfaces the server showed for this view leave with it. */
+        if(objc_getAssociatedObject(self,&serverLayersKey)!=nil)
+         sendServerLayers(self,_window,nil);
 
         NSWindow *was=_window;
         _window=window;
@@ -2865,6 +3001,23 @@ static char layoutDirectionKey;
 
 /* The hosted layer tree changed: draw it again. */
 -(void)_minkarLayerTreeDidChange {
+   /* Composed by the server: told the surfaces again, nothing drawn here,
+      unless what it is to draw changed (where the window is clear). */
+   NSData *last=objc_getAssociatedObject(self,&serverLayersKey);
+   if(last!=nil){
+    NSData *now=serverLayersForView(self);
+    BOOL    sameRects=(now!=nil && [now length]==[last length]);
+    if(sameRects){
+     const SLSWindowLayer *a=[now bytes],*b=[last bytes];
+     for(NSUInteger i=0;i<[now length]/sizeof(SLSWindowLayer) && sameRects;i++)
+      sameRects=(a[i].clipX==b[i].clipX && a[i].clipY==b[i].clipY &&
+                 a[i].clipWidth==b[i].clipWidth && a[i].clipHeight==b[i].clipHeight);
+    }
+    if(sameRects){
+     sendServerLayers(self,_window,now);
+     return;
+    }
+   }
    [self setNeedsDisplay:YES];
 }
 

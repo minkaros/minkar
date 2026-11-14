@@ -43,6 +43,7 @@ typedef SLSWindowID ws_window_list_t[kSLSMaxWindowList];
 typedef SLSIntRect ws_damage_t[kSLSMaxDamageRects];
 typedef SLSIntRect ws_region_t[kSLSMaxRegionRects];
 typedef SLSEvent ws_event_list_t[kSLSMaxEvents];
+typedef SLSWindowLayer ws_window_layer_list_t[kSLSMaxWindowLayers];
 
 /* The message the server sends a client's port when its event queue
  * stops being empty: a header only. */

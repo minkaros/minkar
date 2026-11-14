@@ -783,7 +783,20 @@ alpha8(double alpha)
 
 - (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y alpha:(double)alpha
 {
-	WSComposeOp op = { .dst = _frame->_address, .rect = { x, y, surface.width, surface.height },
+	[self drawSurface:surface x:x y:y clip:(SLSIntRect){ x, y, (int32_t)surface.width,
+	    (int32_t)surface.height } alpha:alpha];
+}
+
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y clip:(SLSIntRect)clip alpha:(double)alpha
+{
+	/* The clip within the surface: the rect drawn; the surface's first
+	 * pixel stays at (x, y). */
+	int x0 = MAX(clip.x, x), y0 = MAX(clip.y, y);
+	int x1 = MIN(clip.x + clip.width, x + (int)surface.width);
+	int y1 = MIN(clip.y + clip.height, y + (int)surface.height);
+	if (x1 <= x0 || y1 <= y0)
+		return;
+	WSComposeOp op = { .dst = _frame->_address, .rect = { x0, y0, x1 - x0, y1 - y0 },
 	    .srcOrigin = { x, y }, .dstStride = _rowBytes / 4, .srcStride = surface.rowBytes / 4,
 	    .mode = kOver, .alpha = alpha8(alpha) };
 	WSVulkanBuffer *memory = [surface isKindOfClass:[WSSurface class]] ?

@@ -311,3 +311,17 @@ SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID)
 	_SLSForgetSurface(window);
 	return result;
 }
+
+int
+SLSWindowSetLayers(SLSWindowID window, const SLSWindowLayer *layers, uint32_t count)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (count > kSLSMaxWindowLayers || (count > 0 && layers == NULL))
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_layers(server, window, (SLSWindowLayer *)layers, count, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

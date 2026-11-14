@@ -63,6 +63,9 @@
 - (void)drawShadowX:(int)x y:(int)y width:(int)width height:(int)height alpha:(double)alpha;
 /* A window's surface at (x, y), over what is drawn, with its alpha. */
 - (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y alpha:(double)alpha;
+/* Only the part of it in clip (the frame's pixels): a window's layer
+ * seen through its parent's bounds. */
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y clip:(SLSIntRect)clip alpha:(double)alpha;
 /* The windows are drawn; the clip goes. */
 - (void)endWindows;
 

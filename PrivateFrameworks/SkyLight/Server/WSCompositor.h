@@ -38,6 +38,14 @@
 
 #import "WSServer.h"
 
+/* A layer under a window's content: its surface, its first pixel and
+ * the part seen, in window coordinates. */
+@interface WSUnderLayer : NSObject
+@property (strong) id surface;		/* WSIOSurfaceBacking */
+@property int32_t x, y;
+@property SLSIntRect clip;
+@end
+
 /* One window as a frame draws it: taken on the IPC queue. */
 @interface WSFrameItem : NSObject
 @property (strong) id surface;		/* WSSurface, or nil */
@@ -49,6 +57,9 @@
  * surface and where, in window coordinates. */
 @property (strong) id layerSurface;
 @property SLSIntRect layerRect;
+/* Layers under the window's content (SLSWindowSetLayers): each a
+ * WSUnderLayer, in order. */
+@property (strong) NSArray *underLayers;
 /* Set since the last frame: once this frame is on the screen, the window
  * (windowID) is told so at layerNotify, a send right of the item's. */
 @property BOOL layerFresh;

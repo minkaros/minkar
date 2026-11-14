@@ -46,7 +46,7 @@
 
 /* IOSurfaces kept per window: a CAMetalLayer's drawables, three, and one
  * to spare. */
-enum { kRecentIOSurfaces = 4 };
+enum { kRecentIOSurfaces = 16 };
 
 @interface WSWindow ()
 @property (readwrite) int32_t level;
@@ -64,6 +64,8 @@ enum { kRecentIOSurfaces = 4 };
 /* Its layer (SLSWindowSetLayerIOSurface) and where it goes. */
 @property (strong) WSIOSurfaceBacking *layerSurface;
 @property SLSIntRect layerRect;
+/* Its layers under its content (SLSWindowSetLayers), WSUnderLayers. */
+@property (strong) NSArray *underLayers;
 /* Where to say its layer is shown (a send right), and which setting of
  * the layer is the last and which was last put in a frame. */
 @property mach_port_t layerNotify;
@@ -1002,6 +1004,57 @@ wss_window_set_layer_iosurface(mach_port_t server, audit_token_t token, uint32_t
 	return KERN_SUCCESS;
 }
 
+/* The window's layers under its content, in global coordinates (for
+   damage): the parts seen. */
+static void
+damageUnderLayers(WSWindow *w)
+{
+	if (!w.onScreen)
+		return;
+	for (WSUnderLayer *under in w.underLayers) {
+		SLSIntRect c = under.clip;
+		WSDamageGlobalRect((SLSRect){ w.frame.x + c.x, w.frame.y + c.y, c.width, c.height });
+	}
+}
+
+kern_return_t
+wss_window_set_layers(mach_port_t server, audit_token_t token, uint32_t window,
+    SLSWindowLayer *layers, mach_msg_type_number_t count, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	(void)server;
+	if (w == nil)
+		return KERN_SUCCESS;
+	NSMutableArray *list = [NSMutableArray arrayWithCapacity:count];
+	int32_t ww = (int32_t)ceil(w.frame.width), wh = (int32_t)ceil(w.frame.height);
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		SLSWindowLayer l = layers[i];
+		/* The part seen: inside the clip, the surface and the window. */
+		int32_t x0 = MAX(MAX(l.clipX, l.x), 0), y0 = MAX(MAX(l.clipY, l.y), 0);
+		int32_t x1 = MIN(MIN(l.clipX + l.clipWidth, l.x + (int32_t)l.width), ww);
+		int32_t y1 = MIN(MIN(l.clipY + l.clipHeight, l.y + (int32_t)l.height), wh);
+		if (l.surfaceID == 0 || l.width == 0 || l.height == 0 || x1 <= x0 || y1 <= y0)
+			continue;
+		WSIOSurfaceBacking *backing = recentIOSurface(w, l.surfaceID, l.width, l.height);
+		if (backing == nil) {
+			*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of that size */
+			return KERN_SUCCESS;
+		}
+		WSUnderLayer *under = [[WSUnderLayer alloc] init];
+		under.surface = backing;
+		under.x = l.x;
+		under.y = l.y;
+		under.clip = (SLSIntRect){ x0, y0, x1 - x0, y1 - y0 };
+		[list addObject:under];
+	}
+	damageUnderLayers(w);		/* where they were */
+	w.underLayers = list.count > 0 ? list : nil;
+	damageUnderLayers(w);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
 kern_return_t
 wss_window_set_layer_notify(mach_port_t server, audit_token_t token, uint32_t window,
     mach_port_t notify, int32_t *result)
@@ -1065,6 +1118,7 @@ WSWindowSnapshot(void)
 		item.shadow = w.hasShadow && !w.shield;
 		item.layerSurface = w.layerSurface;
 		item.layerRect = w.layerRect;
+		item.underLayers = w.underLayers;
 		/* A layer set since the last frame: its app hears when this one
 		 * is on the screen. */
 		if (w.layerSurface != nil && w.layerNotify != MACH_PORT_NULL &&

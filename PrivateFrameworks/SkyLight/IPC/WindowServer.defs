@@ -74,6 +74,9 @@ type ws_key_characters_t = struct[4] of uint32_t
 	ctype: SLSKeyCharacters;
 type ws_mouse_settings_t = struct[2] of uint32_t
 	ctype: SLSMouseSettings;
+type ws_window_layer_t = struct[9] of uint32_t
+	ctype: SLSWindowLayer;
+type ws_window_layer_list_t = array[*:16] of ws_window_layer_t;
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
@@ -684,3 +687,12 @@ routine mouse_settings_set(
 routine mouse_settings_get(
 	server			: mach_port_t;
 	out settings		: ws_mouse_settings_t);
+
+/* ---- Layers under a window's content (interface version 22) ---- */
+
+routine window_set_layers(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	layers			: ws_window_layer_list_t;
+	out result		: int32_t);

@@ -219,6 +219,18 @@ shadowMask(int x, int y, int w, int h)
 
 - (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y alpha:(double)alpha
 {
+	[self drawSurface:surface x:x y:y clip:(SLSIntRect){ x, y, (int32_t)surface.width,
+	    (int32_t)surface.height } alpha:alpha];
+}
+
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y clip:(SLSIntRect)clip alpha:(double)alpha
+{
+	/* The clip within the surface. */
+	int x0 = MAX(clip.x, x), y0 = MAX(clip.y, y);
+	int x1 = MIN(clip.x + clip.width, x + (int)surface.width);
+	int y1 = MIN(clip.y + clip.height, y + (int)surface.height);
+	if (x1 <= x0 || y1 <= y0)
+		return;
 	const uint8_t *pixels = [surface lockFront];
 	pixman_image_t *src = pixman_image_create_bits(PIXMAN_a8r8g8b8, surface.width,
 	    surface.height, (uint32_t *)(uintptr_t)pixels, surface.rowBytes);
@@ -228,8 +240,8 @@ shadowMask(int x, int y, int w, int h)
 		pixman_color_t a = { 0, 0, 0, (uint16_t)(alpha * 0xffff) };
 		mask = pixman_image_create_solid_fill(&a);
 	}
-	pixman_image_composite32(PIXMAN_OP_OVER, src, mask, _shadow, 0, 0, 0, 0, x, y,
-	    surface.width, surface.height);
+	pixman_image_composite32(PIXMAN_OP_OVER, src, mask, _shadow, x0 - x, y0 - y, 0, 0, x0, y0,
+	    x1 - x0, y1 - y0);
 	if (mask != NULL)
 		pixman_image_unref(mask);
 	pixman_image_unref(src);

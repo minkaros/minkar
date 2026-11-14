@@ -37,6 +37,9 @@
 #import "WSDisplayStream.h"
 #import "WSSurface.h"
 
+@implementation WSUnderLayer
+@end
+
 @implementation WSFrameItem
 - (void)dealloc
 {
@@ -507,6 +510,13 @@ backendClass(void)
 		if ([surface live])
 			pixman_region32_union_rect(&_live, &_live, x, y, surface.width,
 			    surface.height);
+		/* Its layers under its content, which shows over them where it
+		 * is clear (an app's tree of surfaces: Firefox's tiles). */
+		for (WSUnderLayer *under in item.underLayers) {
+			SLSIntRect c = under.clip;
+			[_backend drawSurface:under.surface x:x + under.x y:y + under.y
+			    clip:(SLSIntRect){ x + c.x, y + c.y, c.width, c.height } alpha:item.alpha];
+		}
 		[_backend drawSurface:surface x:x y:y alpha:item.alpha];
 		/* Its layer over it (a CAMetalLayer's drawable); each present
 		 * damages it, so it is not drawn again at every frame. */
