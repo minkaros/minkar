@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 The Khronos Group Inc.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and /or associated documentation files
@@ -118,6 +119,7 @@ void O2DContextClipAndFillEdges(O2Context_builtin *self,int fillRuleMask);
 
 -(void)dealloc {
    [_clipContext release];
+   [_clipMaskPhases release];
    [_paint release];
    
    if(_edges!=NULL){
@@ -334,14 +336,31 @@ ONYX2D_STATIC BOOL O2PathIsPixelRect(O2Path *path){
           rect.size.width==floor(rect.size.width) && rect.size.height==floor(rect.size.height);
 }
 
+/* Whether the coverage mask made for one clip's phases serves another: the
+ * same phases (a saved graphics state shares its clip's phase objects, so a
+ * restore brings back the very ones the mask was made from). */
+ONYX2D_STATIC BOOL O2ClipPhasesIdentical(NSArray *a,NSArray *b){
+   NSUInteger i,count=[a count];
+
+   if(a==nil || b==nil || [b count]!=count)
+    return NO;
+   for(i=0;i<count;i++)
+    if([a objectAtIndex:i]!=[b objectAtIndex:i])
+     return NO;
+   return YES;
+}
+
 /* The viewport is the clip's bounding box (the rasterizer skips what is
  * outside); a clip that is not a rectangle on whole pixels also gets a
- * coverage mask, which every span writer applies. */
+ * coverage mask, which every span writer applies. A mask is the size of
+ * the surface, so one already made for the same clip is kept rather than
+ * made again (each restore of the graphics state sets the clip anew). */
 -(void)clipToState:(O2ClipState *)clipState {
    O2GState          *gState=O2ContextCurrentGState(self);
    NSArray           *phases=[O2GStateClipState(gState) clipPhases];
    int                i,count=[phases count];
    O2Context_builtin *mask=nil;
+   BOOL               reuse=_clipContext!=nil && O2ClipPhasesIdentical(phases,_clipMaskPhases);
 
    O2ContextDeviceClipReset_builtin(self);
 
@@ -361,7 +380,7 @@ ONYX2D_STATIC BOOL O2PathIsPixelRect(O2Path *path){
        O2ContextDeviceClipToEvenOddPath_builtin(self,path);
       else
        O2ContextDeviceClipToNonZeroPath_builtin(self,path);
-      if(!O2PathIsPixelRect(path)){
+      if(!reuse && !O2PathIsPixelRect(path)){
        O2Context_builtin *next=O2ContextCreateClipMask_builtin(self,path,evenOdd,mask);
 
        [mask release];
@@ -372,21 +391,26 @@ ONYX2D_STATIC BOOL O2PathIsPixelRect(O2Path *path){
      case O2ClipPhaseMask:;
       O2Rect             bounds=O2RectTransformedBounds(O2ClipPhaseRect(phase),O2ClipPhaseTransform(phase));
       O2Rect             viewport=O2RectIntersection(O2RectMake(_vpx,_vpy,_vpwidth,_vpheight),O2RectIntegral(bounds));
-      O2Context_builtin *next=O2ContextCreateClipMaskFromImage_builtin(self,phase,mask);
-
       _vpx=viewport.origin.x;
       _vpy=viewport.origin.y;
       _vpwidth=viewport.size.width;
       _vpheight=viewport.size.height;
+      if(!reuse){
+       O2Context_builtin *next=O2ContextCreateClipMaskFromImage_builtin(self,phase,mask);
 
-      [mask release];
-      mask=next;
+       [mask release];
+       mask=next;
+      }
       break;
     }
    }
 
+   if(reuse)
+    return;
    [_clipContext release];
    _clipContext=mask;
+   [_clipMaskPhases release];
+   _clipMaskPhases=mask!=nil ? [[NSArray alloc] initWithArray:phases] : nil;
 }
 
 ONYX2D_STATIC O2Paint *paintFromColor(O2Context_builtin *self,O2ColorRef color,O2AffineTransform surfaceToPaintMatrix){

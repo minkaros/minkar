@@ -4,6 +4,7 @@
  * -------------------------------------
  *
  * Copyright (c) 2007 The Khronos Group Inc.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and /or associated documentation files
@@ -72,6 +73,7 @@ typedef void (*O2WriteCoverage_argb8u)(O2Surface *surface, O2Surface *mask, O2Pa
 
     O2Paint *_paint;
     O2Context_builtin *_clipContext;
+    NSArray *_clipMaskPhases;   /* the clip phases _clipContext was made from */
 
     O2BlendSpan_argb8u _blend_argb8u_PRE;
     O2BlendSpan_argb32f _blend_argb32f_PRE;
