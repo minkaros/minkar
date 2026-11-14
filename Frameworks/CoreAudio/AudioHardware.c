@@ -5,12 +5,15 @@
  *
  * The system object and the devices it owns (AudioDevices.c): until the
  * audio service (AU2) owns them, the kernel's output engines. Listeners
- * are kept; nothing calls them yet.
+ * of a device's volume and mute are called when the service tells they
+ * changed.
  */
 
 #include "AudioHardware.h"
 #include "AudioDevices.h"
 #include <Block.h>
+#include <dispatch/dispatch.h>
+#include <notify.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -174,9 +177,12 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static Listener *listeners;
 static size_t listenerCount;
 
+static void watchChanges(void);
+
 static OSStatus addListener(Listener entry) {
     if (entry.object != kAudioObjectSystemObject && !_AudioDeviceExists(entry.object))
         return kAudioHardwareBadObjectError;
+    watchChanges();
     pthread_mutex_lock(&lock);
     Listener *grown = realloc(listeners, (listenerCount + 1) * sizeof(Listener));
     if (grown != NULL) {
@@ -204,6 +210,65 @@ static OSStatus removeListener(AudioObjectID object, const AudioObjectPropertyAd
     }
     pthread_mutex_unlock(&lock);
     return status;
+}
+
+/* The audio service tells when a device's volume or mute changed (by any
+   app or by the menu bar): the listeners of those properties are called,
+   each with the address it listens to. */
+#define kVolumeChangedNotification "org.minkar.audio.volume"
+
+static Boolean listensTo(const Listener *l, AudioObjectPropertySelector selector) {
+    return l->address.mSelector == selector || l->address.mSelector == kAudioObjectPropertySelectorWildcard;
+}
+
+static void volumeChanged(void) {
+    static const AudioObjectPropertySelector changed[] = {
+        kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyVolumeDecibels, kAudioDevicePropertyMute
+    };
+
+    pthread_mutex_lock(&lock);
+    for (size_t i = 0; i < listenerCount; i++) {
+        Listener l = listeners[i];
+        if (l.object == kAudioObjectSystemObject)
+            continue;
+        for (size_t s = 0; s < sizeof(changed) / sizeof(changed[0]); s++) {
+            if (!listensTo(&l, changed[s]))
+                continue;
+            AudioObjectPropertyAddress address = l.address;
+            if (address.mSelector == kAudioObjectPropertySelectorWildcard)
+                address.mSelector = changed[s];
+            if (l.block != NULL) {
+                AudioObjectPropertyListenerBlock block = (AudioObjectPropertyListenerBlock)_Block_copy(l.block);
+                dispatch_queue_t queue = l.queue != NULL ? (dispatch_queue_t)l.queue
+                                                         : dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+                dispatch_async(queue, ^{
+                    block(1, &address);
+                    _Block_release(block);
+                });
+            } else if (l.proc != NULL) {
+                AudioObjectPropertyListenerProc proc = l.proc;
+                void *clientData = l.clientData;
+                AudioObjectID object = l.object;
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    proc(object, 1, &address, clientData);
+                });
+            }
+            if (l.address.mSelector != kAudioObjectPropertySelectorWildcard)
+                break;
+        }
+    }
+    pthread_mutex_unlock(&lock);
+}
+
+static void watchChanges(void) {
+    static dispatch_once_t once;
+
+    dispatch_once(&once, ^{
+        int token;
+        notify_register_dispatch(kVolumeChangedNotification, &token,
+                                 dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+                                 ^(int t) { volumeChanged(); });
+    });
 }
 
 OSStatus AudioObjectAddPropertyListener(AudioObjectID object, const AudioObjectPropertyAddress *address,
