@@ -50,9 +50,15 @@ static mach_port_t audioServer(void) {
     return server;
 }
 
+/* A procedure's ID is its slot, so one function may serve several
+   procedures (each with its own client data). */
+static AudioDeviceIOProcID idOf(IOProc *p) {
+    return (AudioDeviceIOProcID)(uintptr_t)p;
+}
+
 static IOProc *findProc(AudioDeviceID device, AudioDeviceIOProcID id) {
     for (int i = 0; i < kMaxProcs; i++)
-        if (procs[i].proc != NULL && procs[i].device == device && procs[i].proc == id)
+        if (procs[i].proc != NULL && procs[i].device == device && idOf(&procs[i]) == id)
             return &procs[i];
     return NULL;
 }
@@ -66,19 +72,17 @@ OSStatus AudioDeviceCreateIOProcID(AudioObjectID device, AudioDeviceIOProc proc,
     if (proc == NULL || outID == NULL)
         return kAudioHardwareIllegalOperationError;
     pthread_mutex_lock(&procsLock);
-    if (findProc(device, proc) == NULL)
-        for (int i = 0; i < kMaxProcs; i++)
-            if (procs[i].proc == NULL) {
-                memset(&procs[i], 0, sizeof(procs[i]));
-                procs[i].device = device;
-                procs[i].proc = proc;
-                procs[i].clientData = clientData;
-                status = noErr;
-                break;
-            }
+    for (int i = 0; i < kMaxProcs; i++)
+        if (procs[i].proc == NULL) {
+            memset(&procs[i], 0, sizeof(procs[i]));
+            procs[i].device = device;
+            procs[i].proc = proc;
+            procs[i].clientData = clientData;
+            *outID = idOf(&procs[i]);
+            status = noErr;
+            break;
+        }
     pthread_mutex_unlock(&procsLock);
-    if (status == noErr)
-        *outID = proc;
     return status;
 }
 

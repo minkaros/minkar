@@ -17,6 +17,17 @@
 extern "C" {
 #endif
 
+/* Errors any audio call may return. */
+enum {
+    kAudio_UnimplementedError = -4,
+    kAudio_FileNotFoundError = -43,
+    kAudio_FilePermissionError = -54,
+    kAudio_TooManyFilesOpenError = -42,
+    kAudio_BadFilePathError = '!pth',
+    kAudio_ParamError = -50,
+    kAudio_MemFullError = -108,
+};
+
 typedef Float64 AudioSampleType_Float64;
 typedef UInt32 AudioFormatID;
 typedef UInt32 AudioFormatFlags;
