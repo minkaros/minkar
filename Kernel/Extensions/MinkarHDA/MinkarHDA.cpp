@@ -268,6 +268,8 @@ MinkarHDA::describeCodec(uint8_t cad)
         setNumber(group, "widgets", HDA_SUB_NODE_TOTAL(widgets), 8);
         groups->setObject(group);
         group->release();
+        if (HDA_FG_TYPE(type) == HDA_FG_TYPE_AUDIO && fGroups[cad] == NULL)
+            parseAudioGroup(cad, nid);
         LOG("codec %u: %04x:%04x rev %08x, function group %u type %u, %u widgets from %u",
             cad, vendor >> 16, vendor & 0xFFFF, revision, nid, HDA_FG_TYPE(type),
             HDA_SUB_NODE_TOTAL(widgets), HDA_SUB_NODE_START(widgets));
@@ -291,6 +293,259 @@ MinkarHDA::probeCodecs()
     for (uint8_t cad = 0; cad < HDA_MAX_CODECS; cad++)
         if (fCodecMask & (1U << cad))
             describeCodec(cad);
+}
+
+/* ---- Audio function groups -------------------------------------------- */
+
+bool
+MinkarHDA::verb(uint8_t cad, uint8_t nid, uint32_t v, uint32_t payload, uint32_t *response)
+{
+    return sendCommand(HDA_CMD12(cad, nid, v, payload), response);
+}
+
+bool
+MinkarHDA::verb4(uint8_t cad, uint8_t nid, uint32_t v, uint32_t payload)
+{
+    return sendCommand(HDA_CMD4(cad, nid, v, payload), NULL);
+}
+
+HDAWidget *
+MinkarHDA::widget(HDAAudioGroup *group, uint8_t nid)
+{
+    if (nid < group->firstWidget || nid >= group->firstWidget + group->widgetCount)
+        return NULL;
+    return &group->widgets[nid - group->firstWidget];
+}
+
+/* A widget's connection list: entries 4 (short form) or 2 (long form) at a
+   time; an entry with the range bit stands for every node from the
+   previous entry to it. */
+void
+MinkarHDA::readConnections(HDAAudioGroup *group, HDAWidget *w)
+{
+    uint32_t length = 0;
+    uint32_t prev = 0;
+
+    w->connectionCount = 0;
+    if (!(w->caps & HDA_WCAP_CONN_LIST) ||
+        !getParameter(group->cad, w->nid, HDA_PARAM_CONN_LIST_LENGTH, &length))
+        return;
+    bool longForm = (length & HDA_CONN_LONG_FORM) != 0;
+    uint32_t count = length & 0x7F;
+    uint32_t perResponse = longForm ? 2 : 4, bits = longForm ? 16 : 8;
+    uint32_t rangeBit = 1U << (bits - 1), mask = rangeBit - 1;
+
+    for (uint32_t i = 0; i < count; i += perResponse) {
+        uint32_t list = 0;
+
+        if (!verb(group->cad, w->nid, HDA_VERB_GET_CONNECTION_LIST, i, &list))
+            return;
+        for (uint32_t j = 0; j < perResponse && i + j < count; j++) {
+            uint32_t entry = (list >> (j * bits)) & ((1U << bits) - 1);
+            uint32_t nid = entry & mask;
+
+            if ((entry & rangeBit) && prev != 0 && nid > prev) {
+                for (uint32_t n = prev + 1; n <= nid && w->connectionCount < HDA_MAX_CONNECTIONS; n++)
+                    w->connections[w->connectionCount++] = (uint8_t)n;
+            } else if (w->connectionCount < HDA_MAX_CONNECTIONS)
+                w->connections[w->connectionCount++] = (uint8_t)nid;
+            prev = nid;
+        }
+    }
+}
+
+/* Every widget of the group: its kind, capabilities and connections, and
+   a pin's capabilities and default configuration. */
+bool
+MinkarHDA::parseAudioGroup(uint8_t cad, uint8_t nid)
+{
+    uint32_t nodes = 0;
+    HDAAudioGroup *group;
+
+    if (!getParameter(cad, nid, HDA_PARAM_SUB_NODE_COUNT, &nodes) || HDA_SUB_NODE_TOTAL(nodes) == 0)
+        return false;
+    group = (HDAAudioGroup *)IOMallocZero(sizeof(*group));
+    if (group == NULL)
+        return false;
+    group->cad = cad;
+    group->nid = nid;
+    group->firstWidget = (uint8_t)HDA_SUB_NODE_START(nodes);
+    group->widgetCount = (uint8_t)min(HDA_SUB_NODE_TOTAL(nodes), (uint32_t)HDA_MAX_WIDGETS);
+    /* The group and its widgets powered (D0) before they are read. */
+    verb(cad, nid, HDA_VERB_SET_POWER_STATE, 0);
+    for (int i = 0; i < group->widgetCount; i++) {
+        HDAWidget *w = &group->widgets[i];
+
+        w->nid = (uint8_t)(group->firstWidget + i);
+        getParameter(cad, w->nid, HDA_PARAM_WIDGET_CAPS, &w->caps);
+        w->type = (uint8_t)HDA_WCAP_TYPE(w->caps);
+        if (w->caps & HDA_WCAP_POWER)
+            verb(cad, w->nid, HDA_VERB_SET_POWER_STATE, 0);
+        if (w->caps & HDA_WCAP_IN_AMP)
+            getParameter(cad, (w->caps & HDA_WCAP_AMP_OVERRIDE) ? w->nid : nid,
+                         HDA_PARAM_IN_AMP_CAPS, &w->inAmpCaps);
+        if (w->caps & HDA_WCAP_OUT_AMP)
+            getParameter(cad, (w->caps & HDA_WCAP_AMP_OVERRIDE) ? w->nid : nid,
+                         HDA_PARAM_OUT_AMP_CAPS, &w->outAmpCaps);
+        if (w->type == HDA_WIDGET_PIN) {
+            getParameter(cad, w->nid, HDA_PARAM_PIN_CAPS, &w->pinCaps);
+            verb(cad, w->nid, HDA_VERB_GET_CONFIG_DEFAULT, 0, &w->config);
+        }
+        readConnections(group, w);
+    }
+    fGroups[cad] = group;
+    return true;
+}
+
+/* A way from the node to a free DAC, through mixers and selectors. */
+bool
+MinkarHDA::findPath(HDAAudioGroup *group, HDAOutput *out, uint8_t nid, int depth)
+{
+    HDAWidget *w = widget(group, nid);
+
+    if (w == NULL || depth >= HDA_MAX_PATH || (depth > 0 && w->used))
+        return false;
+    out->path[depth] = nid;
+    if (w->type == HDA_WIDGET_OUTPUT) {
+        if (w->caps & HDA_WCAP_DIGITAL)
+            return false;
+        out->dac = nid;
+        out->length = (uint8_t)(depth + 1);
+        return true;
+    }
+    if (depth > 0 && w->type != HDA_WIDGET_MIXER && w->type != HDA_WIDGET_SELECTOR)
+        return false;
+    for (uint8_t i = 0; i < w->connectionCount; i++) {
+        out->pathInput[depth] = i;
+        if (findPath(group, out, w->connections[i], depth + 1))
+            return true;
+    }
+    return false;
+}
+
+/* Rank of an output pin: its association, then its sequence, as the
+   board's maker set them (association 15 last). */
+static uint32_t
+outputRank(const HDAWidget *w)
+{
+    uint32_t association = HDA_CONFIG_ASSOCIATION(w->config);
+
+    if (association == 0 || association == 15)
+        association = 16;
+    return association * 16 + HDA_CONFIG_SEQUENCE(w->config);
+}
+
+/* The analog outputs of a group, best first: each connected output pin
+   (line out, speaker, headphones) with its own DAC. */
+void
+MinkarHDA::findOutputs(HDAAudioGroup *group)
+{
+    for (;;) {
+        HDAWidget *best = NULL;
+
+        for (int i = 0; i < group->widgetCount; i++) {
+            HDAWidget *w = &group->widgets[i];
+            uint32_t device = HDA_CONFIG_DEVICE(w->config);
+
+            if (w->type != HDA_WIDGET_PIN || w->used || !(w->pinCaps & HDA_PINCAP_OUTPUT) ||
+                HDA_CONFIG_CONNECTIVITY(w->config) == HDA_CONNECT_NONE ||
+                (device != HDA_DEVICE_LINE_OUT && device != HDA_DEVICE_SPEAKER &&
+                 device != HDA_DEVICE_HP_OUT))
+                continue;
+            if (best == NULL || outputRank(w) < outputRank(best))
+                best = w;
+        }
+        if (best == NULL || fOutputCount == HDA_MAX_OUTPUTS)
+            return;
+        best->used = true;              /* tried, with or without a path */
+        HDAOutput *out = &fOutputs[fOutputCount];
+        bzero(out, sizeof(*out));
+        out->cad = group->cad;
+        out->pin = best->nid;
+        out->device = (uint8_t)HDA_CONFIG_DEVICE(best->config);
+        if (!findPath(group, out, best->nid, 0))
+            continue;
+        for (int i = 1; i < out->length; i++)
+            widget(group, out->path[i])->used = true;
+        fOutputCount++;
+    }
+}
+
+/* Unmuted at 0 dB (an amplifier's offset is its 0 dB step). */
+static uint32_t
+unmuted(uint32_t ampCaps)
+{
+    return HDA_AMPCAP_OFFSET(ampCaps);
+}
+
+/* The path set up: inputs chosen, amplifiers open, the pin driving its
+   jack (with its external amplifier on). */
+void
+MinkarHDA::enableOutput(HDAAudioGroup *group, const HDAOutput *out)
+{
+    uint8_t cad = out->cad;
+
+    for (int i = 0; i < out->length; i++) {
+        HDAWidget *w = widget(group, out->path[i]);
+        bool hasNext = i + 1 < out->length;
+
+        if (hasNext && w->connectionCount > 1 && w->type != HDA_WIDGET_MIXER)
+            verb(cad, w->nid, HDA_VERB_SET_CONNECTION_SELECT, out->pathInput[i]);
+        if (w->caps & HDA_WCAP_OUT_AMP)
+            verb4(cad, w->nid, HDA_VERB_SET_AMP, HDA_AMP_SET_OUTPUT | HDA_AMP_SET_LEFT |
+                  HDA_AMP_SET_RIGHT | unmuted(w->outAmpCaps));
+        if (hasNext && (w->caps & HDA_WCAP_IN_AMP))
+            verb4(cad, w->nid, HDA_VERB_SET_AMP, HDA_AMP_SET_INPUT | HDA_AMP_SET_LEFT |
+                  HDA_AMP_SET_RIGHT | HDA_AMP_SET_INDEX(out->pathInput[i]) | unmuted(w->inAmpCaps));
+    }
+    HDAWidget *pin = widget(group, out->pin);
+    uint32_t control = HDA_PIN_CONTROL_OUT;
+
+    if (out->device == HDA_DEVICE_HP_OUT && (pin->pinCaps & HDA_PINCAP_HP))
+        control |= HDA_PIN_CONTROL_HP;
+    verb(cad, out->pin, HDA_VERB_SET_PIN_CONTROL, control);
+    if (pin->pinCaps & HDA_PINCAP_EAPD)
+        verb(cad, out->pin, HDA_VERB_SET_EAPD, HDA_EAPD_ENABLE);
+}
+
+/* The outputs in the registry (HDAOutputs), best first. */
+void
+MinkarHDA::publishOutputs()
+{
+    OSArray *outputs = OSArray::withCapacity((unsigned)fOutputCount);
+
+    if (outputs == NULL)
+        return;
+    for (int i = 0; i < fOutputCount; i++) {
+        const HDAOutput *out = &fOutputs[i];
+        OSDictionary *d = OSDictionary::withCapacity(5);
+        OSArray *path = OSArray::withCapacity(out->length);
+
+        if (d == NULL || path == NULL) {
+            OSSafeReleaseNULL(d);
+            OSSafeReleaseNULL(path);
+            continue;
+        }
+        for (int j = 0; j < out->length; j++) {
+            OSNumber *n = OSNumber::withNumber(out->path[j], 8);
+            if (n != NULL) {
+                path->setObject(n);
+                n->release();
+            }
+        }
+        setNumber(d, "codec", out->cad, 8);
+        setNumber(d, "pin", out->pin, 8);
+        setNumber(d, "dac", out->dac, 8);
+        setNumber(d, "device", out->device, 8);
+        d->setObject("path", path);
+        path->release();
+        outputs->setObject(d);
+        d->release();
+        LOG("output %d: codec %u pin %u (device %u) <- DAC %u, %u widgets", i, out->cad,
+            out->pin, out->device, out->dac, out->length);
+    }
+    setProperty("HDAOutputs", outputs);
+    outputs->release();
 }
 
 /* ---- IOService --------------------------------------------------------- */
@@ -328,6 +583,12 @@ MinkarHDA::start(IOService *provider)
         read8(HDA_VMAJ), read8(HDA_VMIN), HDA_GCAP_OSS(fCaps), HDA_GCAP_ISS(fCaps),
         HDA_GCAP_BSS(fCaps), fCodecMask);
     probeCodecs();
+    for (int cad = 0; cad < HDA_MAX_CODECS; cad++)
+        if (fGroups[cad] != NULL)
+            findOutputs(fGroups[cad]);
+    for (int i = 0; i < fOutputCount; i++)
+        enableOutput(fGroups[fOutputs[i].cad], &fOutputs[i]);
+    publishOutputs();
     registerService();
     return true;
 }
@@ -344,6 +605,11 @@ MinkarHDA::stop(IOService *provider)
 void
 MinkarHDA::free()
 {
+    for (int cad = 0; cad < HDA_MAX_CODECS; cad++)
+        if (fGroups[cad] != NULL) {
+            IOFree(fGroups[cad], sizeof(*fGroups[cad]));
+            fGroups[cad] = NULL;
+        }
     OSSafeReleaseNULL(fRingMem);
     OSSafeReleaseNULL(fMap);
     OSSafeReleaseNULL(fDesc);

@@ -14,6 +14,41 @@
 #include "HDA.h"
 
 #define HDA_MAX_CODECS  15
+#define HDA_MAX_WIDGETS 128
+#define HDA_MAX_CONNECTIONS 32
+#define HDA_MAX_PATH    6
+#define HDA_MAX_OUTPUTS 8
+
+/* A widget of an audio function group. */
+struct HDAWidget {
+    uint8_t  nid;
+    uint8_t  type;                  /* HDA_WIDGET_* */
+    uint32_t caps;                  /* WIDGET_CAPS */
+    uint32_t pinCaps;               /* PIN_CAPS (pins) */
+    uint32_t config;                /* CONFIG_DEFAULT (pins) */
+    uint32_t inAmpCaps, outAmpCaps;
+    uint8_t  connections[HDA_MAX_CONNECTIONS];
+    uint8_t  connectionCount;
+    bool     used;                  /* on an output path */
+};
+
+/* An output: a pin, the DAC that feeds it, and the widgets between (from
+   the pin to the DAC), each with the input it takes from the next. */
+struct HDAOutput {
+    uint8_t cad;
+    uint8_t pin, dac;
+    uint8_t path[HDA_MAX_PATH];
+    uint8_t pathInput[HDA_MAX_PATH];  /* connection index into path[i + 1] */
+    uint8_t length;
+    uint8_t device;                 /* HDA_DEVICE_* of the pin */
+};
+
+/* A codec's audio function group and its widgets. */
+struct HDAAudioGroup {
+    uint8_t   cad, nid;
+    uint8_t   firstWidget, widgetCount;
+    HDAWidget widgets[HDA_MAX_WIDGETS];
+};
 
 class MinkarHDA : public IOService {
     OSDeclareDefaultStructors(MinkarHDA);
@@ -34,6 +69,15 @@ private:
     void stopRings();
     void probeCodecs();
     void describeCodec(uint8_t cad);
+    bool parseAudioGroup(uint8_t cad, uint8_t nid);
+    void readConnections(HDAAudioGroup *group, HDAWidget *w);
+    HDAWidget *widget(HDAAudioGroup *group, uint8_t nid);
+    bool findPath(HDAAudioGroup *group, HDAOutput *out, uint8_t nid, int depth);
+    void findOutputs(HDAAudioGroup *group);
+    void enableOutput(HDAAudioGroup *group, const HDAOutput *out);
+    void publishOutputs();
+    bool verb(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload, uint32_t *response = NULL);
+    bool verb4(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload);
 
     uint8_t  read8(uint32_t reg)  { return *(volatile uint8_t *)(fRegs + reg); }
     uint16_t read16(uint32_t reg) { return *(volatile uint16_t *)(fRegs + reg); }
@@ -55,6 +99,10 @@ private:
     uint16_t                  fCORBEntries, fRIRBEntries;
     uint16_t                  fRIRBRead;        /* last RIRB entry read */
     IOLock                   *fCommandLock;
+
+    HDAAudioGroup            *fGroups[HDA_MAX_CODECS];
+    HDAOutput                 fOutputs[HDA_MAX_OUTPUTS];
+    int                       fOutputCount;
 };
 
 #endif /* _MINKAR_HDA_DRIVER_H_ */
