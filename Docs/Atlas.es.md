@@ -59,6 +59,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
+| Notificaciones | 5.6 | N0–N2 | — | N0 (tras AU3) |
 
 Las demás piezas de la sesión (LoginWindow, Preferencias del Sistema, el
 lenguaje visual) son puntos de la Fase 5 en [ROADMAP.es.md](ROADMAP.es.md).
@@ -826,6 +827,30 @@ Como en la sesión: cada hito añade a la suite local pruebas en la imagen
 y `screendump`) e interacción por QMP, y la puerta M6 abre las apps de la
 lista de 19.6.0.
 
+### 5.6 Centro de notificaciones (N0–N2)
+
+Decidido el 14 nov 2026: justo después de cerrar AU3 y antes de AU4. Las
+notificaciones de las apps con sonido necesitan un sitio que las muestre; Atlas
+no tenía ninguno.
+
+- [ ] N0 — Entrega y avisos: `NSUserNotificationCenter` y
+  `NSUserNotification` (las apps de API 19 aún los usan) y `UserNotifications`
+  (`UNUserNotificationCenter`, peticiones, contenido, sonidos) entregan las
+  notificaciones a un servicio de la sesión, `notificationd`, por Mach;
+  SystemUIServer dibuja el aviso arriba a la derecha y suena el sonido de la
+  notificación (Notice por omisión, uno con nombre o ninguno). Criterio: la
+  notificación de una app muestra su aviso y suena; al pulsarla, la app pasa
+  al frente con la notificación.
+- [ ] N1 — La lista y los ajustes: las notificaciones entregadas en un panel
+  desde la barra de menús, un panel Notificaciones en Preferencias del Sistema
+  (permitidas, aviso o alerta, sonido, por app) y No molestar. Criterio: la
+  notificación de una app silenciada aparece en la lista pero ni se muestra ni
+  suena.
+- [ ] N2 — Alertas con acciones y respuestas, notificaciones programadas
+  (disparadores de tiempo y de calendario) y globos en el Dock.
+
+N0 y N1 forman parte de Minkar 19.6.0; N2 sigue en 19.6.x.
+
 ## 6. Puertas
 
 - **M5** (Fase 5, sin cambios): desde el arranque se llega a una sesión
@@ -833,6 +858,6 @@ lista de 19.6.0.
   la resolución desde Preferencias, con el lenguaje visual que necesita
   K1; MB1 forma parte de ella.
 - **M6 y Minkar 19.6.0** (un escritorio de uso diario): MB2 y MB3, D2 y
-  D3, K2 y K3, y las apps esenciales A0–A10; el navegador no es
-  obligatorio.
-- **19.6.x:** MB4, D4, K4 y las apps de la segunda tabla de 5.2.
+  D3, K2 y K3, las apps esenciales A0–A10 y las notificaciones N0–N1; el
+  navegador no es obligatorio.
+- **19.6.x:** MB4, D4, K4, N2 y las apps de la segunda tabla de 5.2.

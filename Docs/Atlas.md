@@ -56,6 +56,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
+| Notifications | 5.6 | N0–N2 | — | N0 (after AU3) |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -779,12 +780,34 @@ behavior through its files, its pasteboard and `screendump`) and QMP
 interaction to the local suite, and the apps on the 19.6.0 list are opened
 by the M6 gate.
 
+### 5.6 Notification center (N0–N2)
+
+Decided 14 Nov 2026: right after AU3 closes and before AU4. Apps' notifications
+with sound need a place that shows them; nothing in Atlas had one.
+
+- [ ] N0 — Delivery and banners: `NSUserNotificationCenter` and
+  `NSUserNotification` (API 19 apps still use them) and `UserNotifications`
+  (`UNUserNotificationCenter`, requests, content, sounds) hand notifications
+  to a session service, `notificationd`, over Mach; SystemUIServer draws
+  the banner at the top right, and the notification's sound plays (the
+  default is Notice, a named sound, or none). Gate: an app's notification
+  shows its banner and plays its sound; clicking it brings the app to the
+  front with the notification.
+- [ ] N1 — The list and the settings: delivered notifications in a panel
+  from the menu bar, a Notifications pane in System Preferences (allowed,
+  banner or alert, sound, per app) and Do Not Disturb. Gate: a muted app's
+  notification is listed but neither shown nor heard.
+- [ ] N2 — Alerts with actions and replies, scheduled notifications (time
+  and calendar triggers) and badges on the Dock.
+
+N0 and N1 are part of Minkar 19.6.0; N2 follows in 19.6.x.
+
 ## 6. Gates
 
 - **M5** (Phase 5, unchanged): from boot, a graphical session starts, an
   app opens from the Dock, Files browses, and the resolution changes from
   Preferences, with the visual language K1 needs; MB1 is part of it.
 - **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and
-  D3, K2 and K3, and the essential apps A0–A10; the browser is not
-  required.
-- **19.6.x:** MB4, D4, K4 and the apps of 5.2's second table.
+  D3, K2 and K3, the essential apps A0–A10 and notifications N0–N1; the
+  browser is not required.
+- **19.6.x:** MB4, D4, K4, N2 and the apps of 5.2's second table.
