@@ -59,8 +59,11 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   PSP arrancado y el firmware del DMCUB cargado; modos fijados programando el
   OTG, el plano, los relojes y la salida (HDMI y DisplayPort, con
   entrenamiento del enlace); la pantalla apagada y encendida de nuevo;
-  conexión en caliente. Criterio: `wsctl mode` cambia el modo del PC 1, y la
-  pantalla se duerme y despierta.
+  conexión en caliente. Después, el audio por HDMI y DisplayPort (traído
+  aquí desde AU1 el 14 nov 2026): los pines digitales que MinkarHDA ya
+  encuentra, activados con el ELD de la pantalla. Criterio: `wsctl mode`
+  cambia el modo del PC 1, la pantalla se duerme y despierta, y un seno se
+  oye por la pantalla.
 - [ ] **R3 — Memoria y DMA.** La traducción de direcciones de los hubs de
   memoria (la GART y los espacios de direcciones de GPU por proceso), SDMA 5.2
   con su firmware, las interrupciones (IH) y el cliente de usuario; el

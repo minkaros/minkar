@@ -51,8 +51,11 @@ their SHA-256, as Tahiti's are (ADR 0002).
 - [ ] **R2 — Modes.** The display's EDID over the engine's AUX and DDC; the
   PSP brought up and the DMCUB's firmware loaded; modes set by programming
   the OTG, the plane, the clocks and the output (HDMI and DisplayPort, with
-  link training); the display turned off and back on; hot plug. Gate:
-  `wsctl mode` changes PC 1's mode, and the display sleeps and wakes.
+  link training); the display turned off and back on; hot plug. Then the
+  audio over HDMI and DisplayPort (moved here from AU1 on 14 Nov 2026):
+  the digital pins MinkarHDA already finds, enabled with the display's ELD.
+  Gate: `wsctl mode` changes PC 1's mode, the display sleeps and wakes,
+  and a sine is heard through the display.
 - [ ] **R3 — Memory and DMA.** The memory hubs' address translation (the
   GART and per-process GPU address spaces), SDMA 5.2 with its firmware,
   interrupts (IH), and the user client; the window server presents its
