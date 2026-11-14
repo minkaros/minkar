@@ -567,9 +567,55 @@ CFTypeRef CTFontCopyAttribute(CTFontRef font, CFStringRef attribute) {
    the one a sort by that character would give. Sorting all faces for each
    character (a browser asks for every run of text) cost milliseconds each.
    Rebuilt when faces are added or removed. Under fcLock. */
-static FcFontSet *fallbackFaces;
 static int fallbackGeneration = -1;
 static CFMutableDictionaryRef fallbackFound;	/* character + 1 -> name or kCFNull */
+
+/* The faces a script is best drawn in, before the configuration's order,
+   which knows no script and took a fixed-pitch Korean face for Japanese
+   and DejaVu for Arabic. Japanese first for Han, which has no language
+   here (an app that knows it names its font). */
+static const char *const cjkFamilies[] = { "Noto Sans CJK JP", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK KR", NULL };
+static const char *const hangulFamilies[] = { "Noto Sans CJK KR", NULL };
+static const char *const arabicFamilies[] = { "Noto Sans Arabic", NULL };
+
+static const char *const *preferredFamilies(UTF32Char c) {
+    if ((c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F) || (c >= 0xA960 && c <= 0xA97F) ||
+        (c >= 0xAC00 && c <= 0xD7FF))
+        return hangulFamilies;
+    if ((c >= 0x2E80 && c <= 0x2FDF) || (c >= 0x3000 && c <= 0x30FF) || (c >= 0x3190 && c <= 0x9FFF) ||
+        (c >= 0xF900 && c <= 0xFAFF) || (c >= 0xFF00 && c <= 0xFFEF) || (c >= 0x20000 && c <= 0x3FFFF))
+        return cjkFamilies;
+    if ((c >= 0x0600 && c <= 0x06FF) || (c >= 0x0750 && c <= 0x077F) || (c >= 0x0870 && c <= 0x08FF) ||
+        (c >= 0xFB50 && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF))
+        return arabicFamilies;
+    return NULL;
+}
+
+static int inFamily(FcPattern *face, const char *wanted) {
+    FcChar8 *family;
+    for (int n = 0; FcPatternGetString(face, FC_FAMILY, n, &family) == FcResultMatch; n++)
+        if (strcmp((const char *)family, wanted) == 0)
+            return 1;
+    return 0;
+}
+
+static FcFontSet *fallbackFaces;
+
+/* The first face, in the configuration's order, that has the character
+   (and is of family, when one is given). */
+static CFStringRef copyFaceWithCharacter(UTF32Char character, const char *family) {
+    for (int i = 0; fallbackFaces != NULL && i < fallbackFaces->nfont; i++) {
+        FcCharSet *has;
+        FcChar8 *name;
+        if (family != NULL && !inFamily(fallbackFaces->fonts[i], family))
+            continue;
+        if (FcPatternGetCharSet(fallbackFaces->fonts[i], FC_CHARSET, 0, &has) == FcResultMatch &&
+            FcCharSetHasChar(has, character) &&
+            FcPatternGetString(fallbackFaces->fonts[i], FC_POSTSCRIPT_NAME, 0, &name) == FcResultMatch)
+            return CFStringCreateWithCString(NULL, (const char *)name, kCFStringEncodingUTF8);
+    }
+    return NULL;
+}
 
 static int fontCount(FcConfig *config) {
     FcFontSet *system = FcConfigGetFonts(config, FcSetSystem);
@@ -599,14 +645,11 @@ static CFStringRef copyFallbackName(FcConfig *config, UTF32Char character) {
         return found == kCFNull ? NULL : CFRetain(found);
 
     CFStringRef result = NULL;
-    for (int i = 0; fallbackFaces != NULL && i < fallbackFaces->nfont && result == NULL; i++) {
-        FcCharSet *has;
-        FcChar8 *name;
-        if (FcPatternGetCharSet(fallbackFaces->fonts[i], FC_CHARSET, 0, &has) == FcResultMatch &&
-            FcCharSetHasChar(has, character) &&
-            FcPatternGetString(fallbackFaces->fonts[i], FC_POSTSCRIPT_NAME, 0, &name) == FcResultMatch)
-            result = CFStringCreateWithCString(NULL, (const char *)name, kCFStringEncodingUTF8);
-    }
+    const char *const *preferred = preferredFamilies(character);
+    for (int f = 0; preferred != NULL && preferred[f] != NULL && result == NULL; f++)
+        result = copyFaceWithCharacter(character, preferred[f]);
+    if (result == NULL)
+        result = copyFaceWithCharacter(character, NULL);
     if (CFDictionaryGetCount(fallbackFound) >= 65536)
         CFDictionaryRemoveAllValues(fallbackFound);
     CFDictionarySetValue(fallbackFound, key, result != NULL ? (CFTypeRef)result : kCFNull);
