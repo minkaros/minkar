@@ -39,6 +39,7 @@ typedef struct QueueBuffer {
     UInt32 offset;              /* bytes played */
     UInt32 trimEnd;             /* bytes not to play at the end */
     Float64 startTime;          /* an input buffer's first frame, in the queue's time */
+    UInt64 startHostTime;       /* and when it was recorded, or 0 */
     Boolean queued;
 } QueueBuffer;
 
@@ -191,7 +192,9 @@ static void returnBuffer(AudioQueueRef q, QueueBuffer *b) {
             AudioTimeStamp start;
             memset(&start, 0, sizeof(start));
             start.mSampleTime = b->startTime;
-            start.mFlags = kAudioTimeStampSampleTimeValid;
+            start.mHostTime = b->startHostTime;
+            start.mFlags = kAudioTimeStampSampleTimeValid |
+                           (b->startHostTime != 0 ? kAudioTimeStampHostTimeValid : 0);
             if (q->inputBlock != NULL)
                 q->inputBlock(q, &b->buffer, &start, 0, NULL);
             else if (q->inputCallback != NULL)
@@ -498,6 +501,15 @@ static OSStatus recorded(void *refCon, AudioUnitRenderActionFlags *flags, const 
         return status;
     q->inFrameCount = frames;
     q->inFramesGiven = false;
+    /* Each buffer's first frame: when the cycle's first was recorded, and
+       the frames converted before it in the cycle at the queue's rate. */
+    UInt32 producedInCycle = 0;
+    Float64 ticksPerFrame = 0;
+    if (time != NULL && (time->mFlags & kAudioTimeStampHostTimeValid) && q->format.mSampleRate > 0) {
+        mach_timebase_info_data_t tb;
+        mach_timebase_info(&tb);
+        ticksPerFrame = 1e9 * tb.denom / tb.numer / q->format.mSampleRate;
+    }
     for (;;) {
         QueueBuffer *b;
         UInt32 room, produced;
@@ -511,8 +523,10 @@ static OSStatus recorded(void *refCon, AudioUnitRenderActionFlags *flags, const 
             AudioConverterReset(q->inConverter);
             break;
         }
-        if (b->buffer.mAudioDataByteSize == 0)
+        if (b->buffer.mAudioDataByteSize == 0) {
             b->startTime = q->recordedFrames;
+            b->startHostTime = ticksPerFrame > 0 ? time->mHostTime + (UInt64)(producedInCycle * ticksPerFrame) : 0;
+        }
         room = (b->buffer.mAudioDataBytesCapacity - b->buffer.mAudioDataByteSize) / bpf;
         out.mNumberBuffers = 1;
         out.mBuffers[0].mNumberChannels = q->format.mChannelsPerFrame;
@@ -522,6 +536,7 @@ static OSStatus recorded(void *refCon, AudioUnitRenderActionFlags *flags, const 
         status = AudioConverterFillComplexBuffer(q->inConverter, recordingInput, q, &produced, &out, NULL);
         b->buffer.mAudioDataByteSize += produced * bpf;
         q->recordedFrames += produced;
+        producedInCycle += produced;
         if (b->buffer.mAudioDataBytesCapacity - b->buffer.mAudioDataByteSize < bpf) {
             pthread_mutex_lock(&q->lock);
             q->head = b->nextQueued;
@@ -913,8 +928,10 @@ OSStatus AudioQueueStop(AudioQueueRef q, Boolean immediate) {
     pthread_mutex_lock(&q->lock);
     if (q->isInput)
         for (QueueBuffer *b = q->head; b != NULL; b = b->nextQueued)
-            if (b->buffer.mAudioDataByteSize == 0)
+            if (b->buffer.mAudioDataByteSize == 0) {
                 b->startTime = q->recordedFrames;  /* empty: nothing recorded into it */
+                b->startHostTime = 0;
+            }
     was = q->running;
     q->running = q->paused = q->stopping = q->draining = false;
     pthread_mutex_unlock(&q->lock);
