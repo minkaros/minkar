@@ -10,8 +10,9 @@ FRAMEWORK = AudioToolbox
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = AudioServices.c AUComponent.c AUFormat.c AUOutputUnit.c AudioConverter.c \
-  resample.c
-HEADERS = AudioToolbox.h AudioServices.h AudioConverter.h
+  AudioQueue.c resample.c
+HEADERS = AudioToolbox.h AudioServices.h AudioConverter.h \
+  AudioQueue.h
 
 .PATH: ${.CURDIR}/speexdsp
 SUBDIR =
