@@ -644,8 +644,10 @@ static NSString * const NSAutomaticApplicationMenu = @"NSAutomaticApplicationMen
     first = [_mainMenu itemAtIndex:0];
    }
 
-   if(first != nil && [[[first submenu] _name] isEqualToString:@"NSAppleMenu"])
-    ;
+   if(first != nil && [[[first submenu] _name] isEqualToString:@"NSAppleMenu"]) {
+    if([first representedObject] != NSAutomaticApplicationMenu)
+     [first setTitle:applicationMenuTitle()];
+   }
    else if([first hasSubmenu] && [[first submenu] _name] == nil) {
     [[first submenu] setValue:@"NSAppleMenu" forKey:@"name"];
     [first setTitle:applicationMenuTitle()];

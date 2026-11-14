@@ -160,13 +160,10 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
     objectData=[unarchiver decodeObjectForKey:@"IB.objectdata"];
     [objectData buildConnectionsWithNameTable:_nameTable];
 	if((menu=[objectData mainMenu])!=nil) {
-		// Rename the first item to have the application name.
-		if ([menu numberOfItems] > 0) {
-			NSMenuItem *firstItem = [menu itemAtIndex: 0];
-			NSString *appName = [NSString stringWithFormat:@"!%@", [[[NSBundle mainBundle] localizedInfoDictionary] objectForKey:(NSString *)kCFBundleNameKey]];
-			[firstItem setTitle: appName];
-			[[firstItem submenu] setValue:@"NSAppleMenu" forKey:@"name"];
-		}
+		// The first item is the app menu; NSApplication titles it with
+		// the app's name.
+		if ([menu numberOfItems] > 0)
+			[[[menu itemAtIndex: 0] submenu] setValue:@"NSAppleMenu" forKey:@"name"];
 		[NSApp setMainMenu:menu];
 	}
 	
