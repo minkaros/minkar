@@ -2,6 +2,7 @@
  * @APPLE_LICENSE_HEADER_START@
  *
  * Copyright (c) 1999-2012 Apple Computer, Inc.  All Rights Reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This file contains Original Code and/or Modifications of Original Code
  * as defined in and that are subject to the Apple Public Source License
@@ -195,7 +196,8 @@ typedef struct _IOHIDCmdGateActionArgs {
 
 #define DISPLAY_IS_ENABLED (displayState & IOPMDeviceUsable)
 
-#ifdef NEW_HID
+/* Minkar: every input event keeps the display awake (the display
+ * wrangler's idle timer), with or without NEW_HID. */
 #define TICKLE_DISPLAY(event) \
 { \
     if (!evStateChanging && displayManager) { \
@@ -208,9 +210,6 @@ typedef struct _IOHIDCmdGateActionArgs {
     } \
     updateHidActivity(); \
 }
-#else
-#define TICKLE_DISPLAY(x) /**/
-#endif
 
 enum {
     // Options for IOHIDPostEvent()
@@ -4635,6 +4634,8 @@ void IOHIDSystem::pointerEventGated(void * p)
     PointerEventArgs * args = (PointerEventArgs *)p;
     IOGBounds desk;
     IOGPoint before, after;
+
+    TICKLE_DISPLAY(args->kind == kPointerScroll ? NX_SCROLLWHEELMOVED : NX_MOUSEMOVED);
 
     if (args->kind == kPointerScroll) {
         NXEventData data;
