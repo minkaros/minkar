@@ -213,11 +213,17 @@ MinkarHDAEngine::createControls()
     /* A step's size in 16.16 dB: (n + 1) quarter decibels. */
     IOFixed16 step = (IOFixed16)((HDA_AMPCAP_STEP_SIZE(caps) + 1) << 14);
 
-    fVolume = (SInt32)offset;
     if (dac == NULL || !(dac->caps & HDA_WCAP_OUT_AMP))
         return false;
+    /* Start 20 dB down, not at the amplifier's 0 dB (its loudest on most
+       codecs): until the audio service restores the user's level, a
+       first sound must not be a blast. */
+    uint32_t quarterDBPerStep = HDA_AMPCAP_STEP_SIZE(caps) + 1;
+    uint32_t down = (80 + quarterDBPerStep - 1) / quarterDBPerStep;
+    fVolume = (SInt32)(offset > down ? offset - down : 0);
+    applyOutputAmp();
     if (steps > 0) {
-        IOAudioLevelControl *volume = IOAudioLevelControl::createVolumeControl((SInt32)offset,
+        IOAudioLevelControl *volume = IOAudioLevelControl::createVolumeControl(fVolume,
             0, (SInt32)steps, -(IOFixed16)offset * step, (IOFixed16)(steps - offset) * step,
             kIOAudioControlChannelIDAll, kIOAudioControlChannelNameAll, 0,
             kIOAudioControlUsageOutput);
