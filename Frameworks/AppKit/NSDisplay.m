@@ -1,5 +1,6 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
    Copyright (C) 2022-2024 Zoe Knox <zoe@ravynsoft.com>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -19,6 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
+#import <AudioToolbox/AudioServices.h>
 #import <AppKit/NSDisplay.h>
 #import <AppKit/NSDraggingManager.h>
 #import <AppKit/NSRaise.h>
@@ -321,7 +323,8 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 }
 
 -(void)beep {
-   NSUnimplementedMethod();
+   /* Minkar: the user's alert sound. */
+   AudioServicesPlayAlertSound(kSystemSoundID_UserPreferredAlert);
 }
 
 -(NSSet *)allFontFamilyNames {
