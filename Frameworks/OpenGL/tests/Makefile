@@ -16,7 +16,7 @@ CC =		clang
 SRCDIR =	..
 BUILDDIR =	build
 CGL_SRCS =	$(SRCDIR)/CGLContext.c $(SRCDIR)/CGLDriverRegistry.c \
-		$(SRCDIR)/CGLGlobal.c $(SRCDIR)/CGLNullDriver.c \
+		$(SRCDIR)/CGLGlobal.c $(SRCDIR)/CGLMesaDriver.c $(SRCDIR)/CGLNullDriver.c \
 		$(SRCDIR)/CGLPBuffer.c $(SRCDIR)/CGLPixelFormat.c \
 		$(SRCDIR)/GLDispatch.gen.c
 TEST_CFLAGS =	-std=gnu17 -g -Wall -Wextra -Werror \

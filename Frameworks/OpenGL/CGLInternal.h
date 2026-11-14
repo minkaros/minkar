@@ -121,5 +121,7 @@ CGL_HIDDEN CGLGLProc cgl_gl_proc(int index);
 
 /* Built-in drivers. */
 CGL_HIDDEN extern const CGLDriver cgl_null_driver;
+CGL_HIDDEN extern const CGLDriver cgl_mesa_driver;
+CGL_HIDDEN int cgl_mesa_available(void);
 
 #endif /* _CGL_INTERNAL_H_ */

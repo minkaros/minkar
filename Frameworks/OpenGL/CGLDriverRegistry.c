@@ -57,6 +57,16 @@ static CGLError register_locked(const CGLDriver *driver)
 
 static void register_builtin_drivers(void)
 {
+    /* Mesa draws for every app when it is installed, unless
+       CGL_DISABLE_MESA=1; it is loaded here, when CGL is first used. */
+    const char *noMesa = getenv("CGL_DISABLE_MESA");
+
+    if ((noMesa == NULL || strcmp(noMesa, "1") != 0) && cgl_mesa_available()) {
+        pthread_mutex_lock(&registry_lock);
+        register_locked(&cgl_mesa_driver);
+        pthread_mutex_unlock(&registry_lock);
+    }
+
     /*
      * The null renderer creates contexts that draw nothing. It is only
      * useful for testing the CGL/AppKit paths, so it is opt-in.

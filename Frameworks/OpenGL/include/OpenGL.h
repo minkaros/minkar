@@ -37,6 +37,7 @@
 /* Like macOS, the GL API itself comes from <OpenGL/gl.h> or <OpenGL/gl3.h>. */
 #include <OpenGL/CGLCurrent.h>
 #include <OpenGL/CGLDevice.h>
+#include <OpenGL/CGLIOSurface.h>
 #include <OpenGL/CGLRenderers.h>
 #include <OpenGL/CGLTypes.h>
 

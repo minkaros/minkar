@@ -11,6 +11,7 @@ SRCS = \
 	CGLContext.c \
 	CGLDriverRegistry.c \
 	CGLGlobal.c \
+	CGLMesaDriver.c \
 	CGLNullDriver.c \
 	CGLPBuffer.c \
 	CGLPixelFormat.c \
@@ -19,6 +20,7 @@ SRCS = \
 HEADERS = \
 	include/CGLCurrent.h \
 	include/CGLDevice.h \
+	include/CGLIOSurface.h \
 	include/CGLRenderers.h \
 	include/CGLTypes.h \
 	include/OpenGL.h \
@@ -51,6 +53,8 @@ INCLUDE_ROOT != mkdir -p ${.OBJDIR}/include-root && \
 	ln -sfn ${.CURDIR}/include ${.OBJDIR}/include-root/OpenGL && \
 	echo ${.OBJDIR}/include-root
 CFLAGS = -I${INCLUDE_ROOT} -I${.CURDIR} -std=gnu17 -fvisibility=hidden
+# The Mesa renderer's IOSurface textures (CGLTexImageIOSurface2D).
+LDFLAGS = -framework IOSurface -framework CoreFoundation
 
 # GL entry points (GLDispatch.gen.[ch]) are generated from the vendored
 # headers and committed; regenerate after updating include/glmesa.h or

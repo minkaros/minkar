@@ -119,6 +119,16 @@ typedef struct CGLDriver {
 
     /* GL entry point lookup for API dispatch (optional, used later). */
     void    *(*getProcAddress)(void *context, const char *name);
+
+    /*
+     * CGLTexImageIOSurface2D (optional): the texture bound to 'target'
+     * takes the IOSurface ('ioSurface', an IOSurfaceRef) as its image.
+     * Without it the call fails with kCGLBadValue.
+     */
+    CGLError (*texImageIOSurface)(void *context, GLenum target,
+                                  GLenum internalFormat, GLsizei width,
+                                  GLsizei height, GLenum format, GLenum type,
+                                  void *ioSurface, GLuint plane);
 } CGLDriver;
 
 /*

@@ -109,6 +109,7 @@ CFNetwork/minkar: CoreFoundation
 CoreServices/LaunchServices: CoreFoundation
 Onyx2D: CoreFoundation Foundation
 CoreGraphics: CoreFoundation IOSurface Onyx2D OpenGL ../PrivateFrameworks/SkyLight
+OpenGL: CoreFoundation IOSurface
 CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE CFNetwork/minkar
 CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation

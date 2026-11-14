@@ -769,3 +769,22 @@ CGLError CGLFlushDrawable(CGLContextObj ctx)
     pthread_mutex_unlock(&ctx->lock);
     return err;
 }
+
+CGLError CGLTexImageIOSurface2D(CGLContextObj ctx, GLenum target,
+    GLenum internal_format, GLsizei width, GLsizei height, GLenum format,
+    GLenum type, IOSurfaceRef ioSurface, GLuint plane)
+{
+    CGLError err;
+
+    if (ctx == NULL)
+        return kCGLBadContext;
+    if (ioSurface == NULL || width <= 0 || height <= 0)
+        return kCGLBadValue;
+    if (ctx->driver->texImageIOSurface == NULL)
+        return kCGLBadValue;
+    pthread_mutex_lock(&ctx->lock);
+    err = ctx->driver->texImageIOSurface(ctx->driverContext, target,
+        internal_format, width, height, format, type, ioSurface, plane);
+    pthread_mutex_unlock(&ctx->lock);
+    return err;
+}
