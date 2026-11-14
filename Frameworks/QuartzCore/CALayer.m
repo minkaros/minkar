@@ -716,12 +716,20 @@ static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
    return CGRectMake(x,y,size.width,size.height);
 }
 
-static void releaseSurfaceCopy(void *info,const void *data,size_t size) {
-   free((void *)data);
+/* Minkar: an IOSurface's pixels as an image, read in place: the surface
+   stays locked (read-only) and retained while the image lives, which is
+   only while one drawing uses it. A copy of the whole surface on every
+   drawing was most of Firefox's main thread. BGRA and RGBA surfaces,
+   premultiplied. */
+static void releaseSurfaceImage(void *info,const void *data,size_t size) {
+   IOSurfaceRef surface=(IOSurfaceRef)info;
+
+   (void)data;
+   (void)size;
+   IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL);
+   CFRelease(surface);
 }
 
-/* Minkar: an IOSurface's pixels as an image (a copy: the surface goes on
-   being drawn). BGRA and RGBA surfaces, premultiplied. */
 static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
    size_t   width=IOSurfaceGetWidth(surface),height=IOSurfaceGetHeight(surface);
    size_t   rowBytes=IOSurfaceGetBytesPerRow(surface);
@@ -736,20 +744,15 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
     return NULL;
    if(width==0 || height==0 || rowBytes<width*4)
     return NULL;
-   void *copy=malloc(rowBytes*height);
-   if(copy==NULL)
-    return NULL;
    IOSurfaceLock(surface,kIOSurfaceLockReadOnly,NULL);
    const void *base=IOSurfaceGetBaseAddress(surface);
-   if(base!=NULL)
-    memcpy(copy,base,rowBytes*height);
-   IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL);
    if(base==NULL){
-    free(copy);
+    IOSurfaceUnlock(surface,kIOSurfaceLockReadOnly,NULL);
     return NULL;
    }
+   CFRetain(surface);
    CGColorSpaceRef   space=CGColorSpaceCreateDeviceRGB();
-   CGDataProviderRef provider=CGDataProviderCreateWithData(NULL,copy,rowBytes*height,releaseSurfaceCopy);
+   CGDataProviderRef provider=CGDataProviderCreateWithData((void *)surface,base,rowBytes*height,releaseSurfaceImage);
    CGImageRef        image=CGImageCreate(width,height,8,32,rowBytes,space,info,provider,NULL,false,kCGRenderingIntentDefault);
    CGDataProviderRelease(provider);
    CGColorSpaceRelease(space);
