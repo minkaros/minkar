@@ -1415,13 +1415,12 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
 -(void)_setActiveFromLaunchServices:(BOOL)active {
    if(active==_isActive)
        return;
-   /* The front app's menu bar is on the screen (MB0). */
-   if(_activationPolicy==NSApplicationActivationPolicyRegular) {
-       if(active)
-           [NSMenuBarWindow _showMenuBars];
-       else
-           [NSMenuBarWindow _hideMenuBars];
-   }
+   /* The front app's menu bar is on the screen (MB0). It stays when the
+      app goes behind an agent (a Menu Extra's panel, which has no menu
+      bar): it goes when another regular app comes to the front
+      (_launchServicesMessage:). */
+   if(_activationPolicy==NSApplicationActivationPolicyRegular && active)
+       [NSMenuBarWindow _showMenuBars];
    [[NSNotificationCenter defaultCenter] postNotificationName:
        active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
        object:self];
@@ -1440,6 +1439,12 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
        [self _openURLs:urlsFromOpenMessage(open, [data length]) reveal:(open->flags & kLSSessionOpenReveal)!=0];
        return;
    }
+
+   /* Another regular app in front: its menu bar replaces this one's. */
+   if(msg->kind==kLSSessionAppActivated && msg->app.pid!=getpid() &&
+      msg->app.activationPolicy==NSApplicationActivationPolicyRegular &&
+      _activationPolicy==NSApplicationActivationPolicyRegular)
+       [NSMenuBarWindow _hideMenuBars];
 
    if(msg->app.pid==getpid()) {
        switch(msg->kind) {
