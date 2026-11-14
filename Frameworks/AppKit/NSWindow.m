@@ -2556,10 +2556,13 @@ static void sendAppearance(NSView *view,SEL selector) {
 
    [self captureEvents]; // what does this do?
 
+   /* Minkar: nil when the date passes with no event. The type of nil (0)
+      matched no mask, so the loop asked again, at once, until an event
+      came: a wait with a date never ended at it, and spun. */
    do {
     event=[NSApp nextEventMatchingMask:mask untilDate:untilDate inMode:mode dequeue:dequeue];
 
-   }while(!(mask&NSEventMaskFromType([event type])));
+   }while(event!=nil && !(mask&NSEventMaskFromType([event type])));
 
    return event;
 }
