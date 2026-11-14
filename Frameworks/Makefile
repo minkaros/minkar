@@ -118,12 +118,12 @@ DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation
 QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D
 CoreVideo: OpenGL Foundation CoreGraphics IOSurface
-AppKit: CoreData QuartzCore ApplicationServices CoreServices
+AppKit: CoreData QuartzCore ApplicationServices CoreServices AudioToolbox
 UserNotifications: Foundation
 ServiceManagement: CoreFoundation Security/minkar
 Security/minkar: CoreFoundation
 AddressBook: Foundation
-AudioToolbox: CoreFoundation
+AudioToolbox: CoreFoundation CoreAudio
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 Quartz: AppKit QuickLook
