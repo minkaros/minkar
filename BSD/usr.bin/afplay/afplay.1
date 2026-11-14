@@ -1,0 +1,48 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 14, 2026
+.Dt AFPLAY 1
+.Os Minkar
+.Sh NAME
+.Nm afplay
+.Nd play a sound file
+.Sh SYNOPSIS
+.Nm
+.Op Fl v Ar volume
+.Op Fl t Ar time
+.Op Fl r Ar rate
+.Op Fl q Ar quality
+.Op Fl d
+.Op Fl h
+.Ar audio_file
+.Sh DESCRIPTION
+.Nm
+plays
+.Ar audio_file
+on the default output device, in any format AudioToolbox reads (WAVE,
+AIFF, AIFC and CAF of linear PCM), and returns when it has played.
+The options are:
+.Bl -tag -width indent
+.It Fl v Ar volume
+The playback volume: 1 is the file's own level, 0 is silence and values
+above 1 amplify.
+.It Fl t Ar time
+Play only the first
+.Ar time
+seconds.
+.It Fl r Ar rate
+The playback rate; only 1 for now.
+.It Fl q Ar quality
+The quality of the rate conversion to the device: 0 for low, 1 for high
+(the default).
+.It Fl d
+Show the file's type, format and length before playing it.
+.It Fl h
+Show a short help.
+.El
+.Pp
+An interrupt stops the playback at once.
+.Sh EXIT STATUS
+0 once the file has played, 130 when interrupted, 1 on an error.
+.Sh SEE ALSO
+.Xr open 1
