@@ -560,10 +560,69 @@ CFTypeRef CTFontCopyAttribute(CTFontRef font, CFStringRef attribute) {
     return value;
 }
 
+/* Fallback without a language: every face once, in the order the
+   configuration prefers families, and what was found for each character.
+   fontconfig ranks a face that has the character before one that lacks it
+   and only then by family, so the first face in this order that has it is
+   the one a sort by that character would give. Sorting all faces for each
+   character (a browser asks for every run of text) cost milliseconds each.
+   Rebuilt when faces are added or removed. Under fcLock. */
+static FcFontSet *fallbackFaces;
+static int fallbackGeneration = -1;
+static CFMutableDictionaryRef fallbackFound;	/* character + 1 -> name or kCFNull */
+
+static int fontCount(FcConfig *config) {
+    FcFontSet *system = FcConfigGetFonts(config, FcSetSystem);
+    FcFontSet *application = FcConfigGetFonts(config, FcSetApplication);
+    return (system != NULL ? system->nfont : 0) + (application != NULL ? application->nfont : 0);
+}
+
+static CFStringRef copyFallbackName(FcConfig *config, UTF32Char character) {
+    int generation = fontCount(config);
+    if (fallbackFaces == NULL || generation != fallbackGeneration) {
+        if (fallbackFaces != NULL)
+            FcFontSetDestroy(fallbackFaces);
+        FcPattern *p = FcPatternCreate();
+        FcResult r;
+        FcConfigSubstitute(config, p, FcMatchPattern);
+        FcDefaultSubstitute(p);
+        fallbackFaces = FcFontSort(config, p, FcFalse, NULL, &r);
+        FcPatternDestroy(p);
+        fallbackGeneration = generation;
+        if (fallbackFound == NULL)
+            fallbackFound = CFDictionaryCreateMutable(NULL, 0, NULL, &kCFTypeDictionaryValueCallBacks);
+        CFDictionaryRemoveAllValues(fallbackFound);
+    }
+    const void *key = (const void *)(uintptr_t)(character + 1);
+    CFTypeRef found = CFDictionaryGetValue(fallbackFound, key);
+    if (found != NULL)
+        return found == kCFNull ? NULL : CFRetain(found);
+
+    CFStringRef result = NULL;
+    for (int i = 0; fallbackFaces != NULL && i < fallbackFaces->nfont && result == NULL; i++) {
+        FcCharSet *has;
+        FcChar8 *name;
+        if (FcPatternGetCharSet(fallbackFaces->fonts[i], FC_CHARSET, 0, &has) == FcResultMatch &&
+            FcCharSetHasChar(has, character) &&
+            FcPatternGetString(fallbackFaces->fonts[i], FC_POSTSCRIPT_NAME, 0, &name) == FcResultMatch)
+            result = CFStringCreateWithCString(NULL, (const char *)name, kCFStringEncodingUTF8);
+    }
+    if (CFDictionaryGetCount(fallbackFound) >= 65536)
+        CFDictionaryRemoveAllValues(fallbackFound);
+    CFDictionarySetValue(fallbackFound, key, result != NULL ? (CFTypeRef)result : kCFNull);
+    return result;
+}
+
 /* A face that has the character, for fallback: fontconfig's sort by the
    character set, as the configuration orders families. */
 CFStringRef _CTFontCopyPostScriptNameForCharacter(UTF32Char character, CFStringRef language) {
     FcConfig *config = _CTFontManagerSharedFontConfig();
+    if (language == NULL) {
+        pthread_mutex_lock(&fcLock);
+        CFStringRef name = copyFallbackName(config, character);
+        pthread_mutex_unlock(&fcLock);
+        return name;
+    }
     FcPattern *p = FcPatternCreate();
     FcCharSet *cs = FcCharSetCreate();
     FcCharSetAddChar(cs, character);
