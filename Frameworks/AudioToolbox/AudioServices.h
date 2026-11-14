@@ -31,6 +31,11 @@ enum {
 };
 
 enum {
+    kAudioServicesPropertyIsUISound = 'isui',
+    kAudioServicesPropertyCompletePlaybackIfAppDies = 'ifdi',
+};
+
+enum {
     kSystemSoundID_UserPreferredAlert = 0x00001000,
     kSystemSoundID_FlashScreen = 0x00000FFE,
     kUserPreferredAlert = kSystemSoundID_UserPreferredAlert
@@ -47,6 +52,12 @@ void AudioServicesPlayAlertSoundWithCompletion(SystemSoundID inSystemSoundID, vo
 OSStatus AudioServicesAddSystemSoundCompletion(SystemSoundID inSystemSoundID, CFRunLoopRef inRunLoop, CFStringRef inRunLoopMode,
                                                AudioServicesSystemSoundCompletionProc inCompletionRoutine, void *inClientData);
 void AudioServicesRemoveSystemSoundCompletion(SystemSoundID inSystemSoundID);
+OSStatus AudioServicesGetPropertyInfo(AudioServicesPropertyID inPropertyID, UInt32 inSpecifierSize,
+                                      const void *inSpecifier, UInt32 *outPropertyDataSize, Boolean *outWritable);
+OSStatus AudioServicesGetProperty(AudioServicesPropertyID inPropertyID, UInt32 inSpecifierSize,
+                                  const void *inSpecifier, UInt32 *ioPropertyDataSize, void *outPropertyData);
+OSStatus AudioServicesSetProperty(AudioServicesPropertyID inPropertyID, UInt32 inSpecifierSize,
+                                  const void *inSpecifier, UInt32 inPropertyDataSize, const void *inPropertyData);
 
 #ifdef __cplusplus
 }
