@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2024 Zoe Knox <zoe@ravynsoft.com>
  * Contains code Copyright (c) 2006-2007 Christopher J. W. Lloyd
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +42,13 @@
     NSWindow *_menuWindow;
     NSUInteger _selectedItemIndex;
     NSMutableArray *_visibleArray;
+    /* Minkar: each visible item's top in the menu's content (one more for
+       its end), measured once; the content's height, and how far it is
+       scrolled when it is taller than the screen. */
+    CGFloat *_itemTops;
+    NSUInteger _itemTopsCount;
+    CGFloat _contentHeight;
+    CGFloat _scrollOffset;
 }
 
 -initWithMenu:(NSMenu *)menu;
@@ -66,6 +74,18 @@
 -(void)_trackFromKeyboard;
 /* How far below the menu's top the item's top is, in points. */
 -(CGFloat)_topOfItemAtIndex:(NSUInteger)index;
+/* A menu taller than the room it has is cut to that height and scrolls:
+   arrows at its top and bottom, the pointer over them, the wheel, the
+   keyboard. */
+-(void)_fitToHeight:(CGFloat)height;
+-(BOOL)_isScrollable;
+-(void)_setScrollOffset:(CGFloat)offset;
+-(CGFloat)_scrollOffset;
+-(CGFloat)_maximumScrollOffset;
+/* Scrolls one step when the point (the view's) is over an arrow; YES
+   when it scrolled. */
+-(BOOL)_scrollAtPoint:(NSPoint)point;
+-(void)_scrollByWheel:(CGFloat)deltaY;
 -(NSMenuItem *)itemAtSelectedIndex;
 -(void)setWindow:(NSWindow *)window;
 

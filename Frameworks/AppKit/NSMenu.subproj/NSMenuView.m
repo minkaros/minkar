@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2024 Zoe Knox <zoe@ravynsoft.com>
  * Contains code Copyright (c) 2006-2007 Christopher J. W. Lloyd
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -78,8 +79,14 @@ enum {
 
     frame.size = [self sizeForMenuItems:[self visibleItemArray]];
     [self setFrame:frame];
+    _contentHeight = frame.size.height;
 
     return self;
+}
+
+-(void)dealloc {
+    free(_itemTops);
+    [super dealloc];
 }
 
 -(Margins)menuItemTextMargins {
@@ -228,13 +235,146 @@ enum {
     return result;
 }
 
--(CGFloat)_topOfItemAtIndex:(NSUInteger)index {
+/* Each visible item's top in the content, measured once while the menu
+   is open (measuring every title on every move made long menus slow). */
+-(void)_layoutItems {
     NSArray *items = [self visibleItemArray];
+    NSUInteger count = [items count];
     CGFloat y = WINDOW_BORDER_THICKNESS;
 
-    for(NSUInteger i = 0; i < index && i < [items count]; i++)
+    free(_itemTops);
+    _itemTops = malloc((count + 1) * sizeof(CGFloat));
+    _itemTopsCount = count;
+    for(NSUInteger i = 0; i < count; i++) {
+        _itemTops[i] = y;
         y += [self heightOfMenuItem:[items objectAtIndex:i]];
-    return y;
+    }
+    _itemTops[count] = y;
+}
+
+-(CGFloat)_topOfItemAtIndex:(NSUInteger)index {
+    if(_itemTops == NULL)
+        [self _layoutItems];
+    if(index > _itemTopsCount)
+        index = _itemTopsCount;
+    return _itemTops[index];
+}
+
+/* The item whose span holds y (in the content), or NSNotFound. */
+-(NSUInteger)_itemIndexAtContentY:(CGFloat)y {
+    NSUInteger low = 0, high;
+
+    if(_itemTops == NULL)
+        [self _layoutItems];
+    high = _itemTopsCount;
+    if(high == 0 || y < _itemTops[0] || y >= _itemTops[high])
+        return NSNotFound;
+    while(high - low > 1) {
+        NSUInteger middle = (low + high) / 2;
+        if(_itemTops[middle] <= y)
+            low = middle;
+        else
+            high = middle;
+    }
+    return low;
+}
+
+/* ---- Scrolling --------------------------------------------------------- */
+
+#define SCROLL_ARROW_HEIGHT 18
+
+-(BOOL)_isScrollable {
+    return _contentHeight > [self bounds].size.height + 0.5;
+}
+
+-(CGFloat)_maximumScrollOffset {
+    CGFloat max = _contentHeight - [self bounds].size.height;
+    return max > 0 ? max : 0;
+}
+
+-(CGFloat)_scrollOffset {
+    return _scrollOffset;
+}
+
+-(void)_setScrollOffset:(CGFloat)offset {
+    if(offset > [self _maximumScrollOffset])
+        offset = [self _maximumScrollOffset];
+    if(offset < 0)
+        offset = 0;
+    if(offset != _scrollOffset) {
+        _scrollOffset = floor(offset);
+        [self setNeedsDisplay:YES];
+    }
+}
+
+-(BOOL)_showsTopArrow {
+    return [self _isScrollable] && _scrollOffset > 0;
+}
+
+-(BOOL)_showsBottomArrow {
+    return [self _isScrollable] && _scrollOffset < [self _maximumScrollOffset];
+}
+
+/* The window and the view cut to the height; the content scrolls. */
+-(void)_fitToHeight:(CGFloat)height {
+    NSWindow *window = [self window];
+    NSRect frame = [window frame];
+
+    height = floor(height);
+    if(_contentHeight <= height || height < 3 * SCROLL_ARROW_HEIGHT)
+        return;
+    frame.origin.y += frame.size.height - height;
+    frame.size.height = height;
+    [window setFrame:frame display:NO];
+    [self setFrame:NSMakeRect(0, 0, frame.size.width, height)];
+    [self _setScrollOffset:_scrollOffset];
+}
+
+/* One item's height a step, faster the further over the arrow. */
+-(BOOL)_scrollAtPoint:(NSPoint)point {
+    CGFloat step = kNSMenuItemHeight;
+
+    if([self _showsTopArrow] && point.y < SCROLL_ARROW_HEIGHT) {
+        [self _setScrollOffset:_scrollOffset - (point.y < SCROLL_ARROW_HEIGHT / 2 ? 2 * step : step)];
+        return YES;
+    }
+    if([self _showsBottomArrow] && point.y >= [self bounds].size.height - SCROLL_ARROW_HEIGHT) {
+        BOOL deep = point.y >= [self bounds].size.height - SCROLL_ARROW_HEIGHT / 2;
+        [self _setScrollOffset:_scrollOffset + (deep ? 2 * step : step)];
+        return YES;
+    }
+    return NO;
+}
+
+-(void)_scrollByWheel:(CGFloat)deltaY {
+    if([self _isScrollable])
+        [self _setScrollOffset:_scrollOffset - deltaY * kNSMenuItemHeight];
+}
+
+/* An item's rectangle in the view (scrolled). */
+-(NSRect)_rectOfItemAtIndex:(NSUInteger)index {
+    CGFloat top = [self _topOfItemAtIndex:index];
+    CGFloat bottom = [self _topOfItemAtIndex:index + 1];
+
+    return NSMakeRect(0, top - _scrollOffset, [self bounds].size.width, bottom - top);
+}
+
+/* The item brought between the arrows. */
+-(void)_scrollItemToVisible:(NSUInteger)index {
+    CGFloat top, bottom, height = [self bounds].size.height;
+
+    if(![self _isScrollable] || index >= _itemTopsCount)
+        return;
+    top = [self _topOfItemAtIndex:index];
+    bottom = [self _topOfItemAtIndex:index + 1];
+    if(top - _scrollOffset < SCROLL_ARROW_HEIGHT && top > [self _topOfItemAtIndex:0])
+        [self _setScrollOffset:top - SCROLL_ARROW_HEIGHT];
+    else if(top <= [self _topOfItemAtIndex:0])
+        [self _setScrollOffset:0];
+    if(bottom - _scrollOffset > height - SCROLL_ARROW_HEIGHT && index + 1 < _itemTopsCount)
+        [self _setScrollOffset:bottom - height + SCROLL_ARROW_HEIGHT];
+    else if(index + 1 >= _itemTopsCount)
+        [self _setScrollOffset:bottom - height + WINDOW_BORDER_THICKNESS];
 }
 
 /* A submenu opens to the right of this menu, its first item level with
@@ -243,16 +383,15 @@ enum {
 -(void)positionBranchForSelectedItem:(NSWindow *)branch screen:(NSScreen *)screen {
     NSRect branchFrame = [branch frame];
     NSRect screenVisible = [screen visibleFrame];
-    NSArray *items = [self visibleItemArray];
-    NSRect itemArea = boundsToTitleAreaRect([self bounds]);
-    CGFloat y = itemArea.origin.y;
-    NSUInteger i, count = [items count];
-
-    for(i = 0; i < count && i < _selectedItemIndex; i++)
-        y += [self heightOfMenuItem:[items objectAtIndex:i]];
+    CGFloat y = [self _topOfItemAtIndex:_selectedItemIndex] - _scrollOffset;
 
     /* The view is flipped: the item's top is y, the branch's border
-       above it. */
+       above it. A branch taller than the screen scrolls. */
+    if(branchFrame.size.height > screenVisible.size.height &&
+       [branch respondsToSelector:@selector(menuView)]) {
+        [[(NSMenuWindow *)branch menuView] _fitToHeight:screenVisible.size.height];
+        branchFrame = [branch frame];
+    }
     NSPoint topLeft = NSMakePoint(NSMaxX([self bounds]), y - WINDOW_BORDER_THICKNESS);
     topLeft = [[self window] convertBaseToScreen:[self convertPoint:topLeft toView:nil]];
 
@@ -337,35 +476,15 @@ enum {
 }
 
 
+/* The item under a point of the view: none over a scroll arrow. */
 -(NSUInteger)itemIndexAtPoint:(NSPoint)point {
-    NSInteger result = NSNotFound;
-    NSRect bounds = [self bounds];
-    NSArray *items = [[self menu] itemArray];
-    unsigned i, count = [items count];
-    NSRect previousBorderRect = NSMakeRect(0, 0, 0, 0);
-    BOOL overflow = NO;
-
-    for(i = 0; i < count; ++i) {
-        NSMenuItem *item = [items objectAtIndex:i];
-        NSRect titleRect = [self titleRectForItem:item previousBorderRect:previousBorderRect];
-        NSRect borderRect = [self borderRectFromTitleRect:titleRect];
-
-        if(NSMaxX(borderRect) > NSMaxX(bounds))
-            overflow = YES;
-
-        if(NSMouseInRect(point, borderRect, [self isFlipped]))
-            result = i;
-
-        previousBorderRect = borderRect;
-        previousBorderRect.origin.y += [self heightOfMenuItem:item];
-    }
-
-    if(overflow) {
-        if(NSMouseInRect(point, [self overflowRect], [self isFlipped]))
-            return count;
-    }
-
-    return result;
+    if(point.x < 0 || point.x >= [self bounds].size.width)
+        return NSNotFound;
+    if([self _showsTopArrow] && point.y < SCROLL_ARROW_HEIGHT)
+        return NSNotFound;
+    if([self _showsBottomArrow] && point.y >= [self bounds].size.height - SCROLL_ARROW_HEIGHT)
+        return NSNotFound;
+    return [self _itemIndexAtContentY:point.y + _scrollOffset];
 }
 
 -(NSUInteger)selectedItemIndex {
@@ -380,8 +499,20 @@ enum {
         if ([delegate respondsToSelector:@selector(menu:willHighlightItem:)])
             [delegate menu:[self menu] willHighlightItem:
                 (itemIndex < [items count]) ? [items objectAtIndex:itemIndex] : nil];
+        NSUInteger previous = _selectedItemIndex;
+
         _selectedItemIndex=itemIndex;
-        [self setNeedsDisplay:YES];
+        if([self _isMenuBar]) {
+            [self setNeedsDisplay:YES];
+            return;
+        }
+        /* Only the two items change. */
+        if(previous < [items count])
+            [self setNeedsDisplayInRect:[self _rectOfItemAtIndex:previous]];
+        if(itemIndex < [items count]) {
+            [self _scrollItemToVisible:itemIndex];
+            [self setNeedsDisplayInRect:[self _rectOfItemAtIndex:itemIndex]];
+        }
     }
 }
 
@@ -420,7 +551,21 @@ enum {
 
     [[self graphicsStyle] drawMenuWindowBackgroundInRect:rect]; // FIXME: MenuBarBackground?	
 
-    for(i = 0; i < count; i++) {
+    /* Only the items in the rectangle; the content moved up by the
+       scroll. */
+    if(_itemTops == NULL || _itemTopsCount != count)
+        [self _layoutItems];
+    CGContextRef scrollContext = [[NSGraphicsContext currentContext] graphicsPort];
+    CGFloat contentTop = NSMinY(rect) + _scrollOffset, contentBottom = NSMaxY(rect) + _scrollOffset;
+    NSUInteger first = [self _itemIndexAtContentY:contentTop];
+
+    if(first == NSNotFound)
+        first = (count > 0 && contentTop < _itemTops[0]) ? 0 : count;
+    if(first < count)
+        origin.y = _itemTops[first];
+    CGContextSaveGState(scrollContext);
+    CGContextTranslateCTM(scrollContext, 0, -_scrollOffset);
+    for(i = first; i < count && _itemTops[i] < contentBottom; i++) {
         NSMenuItem *item = [items objectAtIndex:i];
 		
         if([item isSeparatorItem]) {
@@ -529,6 +674,43 @@ enum {
             origin.y += itemHeight;
         }
     }
+    CGContextRestoreGState(scrollContext);
+    [self _drawScrollArrows];
+}
+
+/* The scroll arrows, over the items at the top and the bottom, while
+   there is more to see that way. */
+-(void)_drawScrollArrows {
+    NSRect bounds = [self bounds];
+    CGFloat center = floor(NSMidX(bounds));
+
+    [[NSColor controlTextColor] setFill];
+    if([self _showsTopArrow]) {
+        NSRect zone = NSMakeRect(WINDOW_BORDER_THICKNESS, WINDOW_BORDER_THICKNESS,
+            bounds.size.width - 2 * WINDOW_BORDER_THICKNESS, SCROLL_ARROW_HEIGHT - WINDOW_BORDER_THICKNESS);
+        NSBezierPath *arrow = [NSBezierPath bezierPath];
+
+        [[self graphicsStyle] drawMenuWindowBackgroundInRect:zone];
+        [[NSColor controlTextColor] setFill];
+        [arrow moveToPoint:NSMakePoint(center - 5, NSMinY(zone) + 12)];
+        [arrow lineToPoint:NSMakePoint(center + 5, NSMinY(zone) + 12)];
+        [arrow lineToPoint:NSMakePoint(center, NSMinY(zone) + 6)];
+        [arrow closePath];
+        [arrow fill];
+    }
+    if([self _showsBottomArrow]) {
+        NSRect zone = NSMakeRect(WINDOW_BORDER_THICKNESS, NSMaxY(bounds) - SCROLL_ARROW_HEIGHT,
+            bounds.size.width - 2 * WINDOW_BORDER_THICKNESS, SCROLL_ARROW_HEIGHT - WINDOW_BORDER_THICKNESS);
+        NSBezierPath *arrow = [NSBezierPath bezierPath];
+
+        [[self graphicsStyle] drawMenuWindowBackgroundInRect:zone];
+        [[NSColor controlTextColor] setFill];
+        [arrow moveToPoint:NSMakePoint(center - 5, NSMinY(zone) + 6)];
+        [arrow lineToPoint:NSMakePoint(center + 5, NSMinY(zone) + 6)];
+        [arrow lineToPoint:NSMakePoint(center, NSMinY(zone) + 12)];
+        [arrow closePath];
+        [arrow fill];
+    }
 }
 
 /*
@@ -593,6 +775,9 @@ const float kMouseMovementThreshold = .001f;
 	// once the pointer has been over an item: a press held and released
 	// where the menu opened leaves it open
 	BOOL pressedSinceOpen = NO, overItemOnce = NO;
+	/* Over a scroll arrow: the loop wakes by itself to go on scrolling. */
+	BOOL autoscrolling = NO;
+	NSEvent *lastMouseEvent = [[event retain] autorelease];
 	
 	MENUDEBUG(@"entering outer loop");
 	
@@ -630,6 +815,8 @@ const float kMouseMovementThreshold = .001f;
                 if(NSMouseInRect(checkPoint,[checkView bounds],[checkView isFlipped])){
                     
                     MENUDEBUG(@"found a menu: %@", checkView);
+                    if([checkView _scrollAtPoint:checkPoint])
+                        autoscrolling = YES;
                     
                     // Which item is the cursor on top of?
                     unsigned itemIndex=[checkView itemIndexAtPoint:checkPoint];
@@ -685,10 +872,34 @@ const float kMouseMovementThreshold = .001f;
                 MENUDEBUG(@"getting next window event for %@", [self window]);
 		// Presses are taken too, so a click that closes the menus goes no
 		// further; the right and other buttons drive menus as the left one
+		/* While scrolling by an arrow, a move where the pointer is when
+		   nothing comes for a moment, so the menu goes on scrolling. */
 		event=[[self window] nextEventMatchingMask:NSLeftMouseDownMask|NSLeftMouseUpMask|
 			NSRightMouseDownMask|NSRightMouseUpMask|NSOtherMouseDownMask|NSOtherMouseUpMask|
 			NSMouseMovedMask|NSLeftMouseDraggedMask|NSRightMouseDraggedMask|NSOtherMouseDraggedMask|
-			NSKeyDownMask|NSAppKitDefinedMask];
+			NSKeyDownMask|NSAppKitDefinedMask|NSScrollWheelMask
+			untilDate:autoscrolling?[NSDate dateWithTimeIntervalSinceNow:0.04]:[NSDate distantFuture]
+			inMode:NSEventTrackingRunLoopMode dequeue:YES];
+		if(event==nil)
+			event=[NSEvent mouseEventWithType:NSMouseMoved location:[lastMouseEvent locationInWindow]
+			    modifierFlags:[lastMouseEvent modifierFlags] timestamp:[NSDate timeIntervalSinceReferenceDate]
+			    windowNumber:[lastMouseEvent windowNumber] context:nil eventNumber:0 clickCount:0 pressure:0];
+		autoscrolling = NO;
+		if([event type]==NSScrollWheel){
+			/* The wheel scrolls the menu under the pointer (else the last
+			   one opened). */
+			NSPoint where=[[event window] convertBaseToScreen:[event locationInWindow]];
+			NSMenuView *wheeled=[viewStack lastObject];
+
+			for(NSMenuView *candidate in [viewStack reverseObjectEnumerator])
+				if(NSPointInRect(where,[[candidate window] frame])){
+					wheeled=candidate;
+					break;
+				}
+			[wheeled _scrollByWheel:[event deltaY]];
+		}
+		else if([event type]!=NSKeyDown && [event type]!=NSAppKitDefined)
+			lastMouseEvent=event;
 		BOOL isMouseUp = ([event type]==NSLeftMouseUp || [event type]==NSRightMouseUp || [event type]==NSOtherMouseUp);
 		BOOL isMouseDown = ([event type]==NSLeftMouseDown || [event type]==NSRightMouseDown || [event type]==NSOtherMouseDown);
 		if (isMouseDown)

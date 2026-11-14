@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -68,18 +69,31 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    NSPoint  topLeft=screenPoint;
    NSUInteger index=positioned?[[menuView visibleItemArray] indexOfObjectIdenticalTo:positioned]:NSNotFound;
 
-   if(index!=NSNotFound)
-    topLeft.y+=[menuView _topOfItemAtIndex:index];
-   else if(!startedOpen){
-    /* Just beside the pointer, not under it: no item is chosen until the
-       pointer moves onto one. */
-    topLeft.x+=1;
-    topLeft.y-=1;
-   }
-   if(topLeft.y-frame.size.height<NSMinY(visible))
-    topLeft.y=(index==NSNotFound)?screenPoint.y+frame.size.height:NSMinY(visible)+frame.size.height;
-   if(topLeft.y>NSMaxY(visible))
+   if(frame.size.height>visible.size.height){
+    /* Taller than the screen's room: as tall as the room, scrolled so the
+       positioned item is at the point (as far as the scroll goes). */
+    [menuView _fitToHeight:visible.size.height];
+    frame=[menuWindow frame];
     topLeft.y=NSMaxY(visible);
+    if(index!=NSNotFound)
+     [menuView _setScrollOffset:[menuView _topOfItemAtIndex:index]-(NSMaxY(visible)-screenPoint.y)];
+    if(!startedOpen && index==NSNotFound)
+     topLeft.x+=1;
+   }
+   else {
+    if(index!=NSNotFound)
+     topLeft.y+=[menuView _topOfItemAtIndex:index];
+    else if(!startedOpen){
+     /* Just beside the pointer, not under it: no item is chosen until the
+        pointer moves onto one. */
+     topLeft.x+=1;
+     topLeft.y-=1;
+    }
+    if(topLeft.y-frame.size.height<NSMinY(visible))
+     topLeft.y=(index==NSNotFound)?screenPoint.y+frame.size.height:NSMinY(visible)+frame.size.height;
+    if(topLeft.y>NSMaxY(visible))
+     topLeft.y=NSMaxY(visible);
+   }
    if(topLeft.x+frame.size.width>NSMaxX(visible))
     topLeft.x=MAX(NSMinX(visible),flips?screenPoint.x-frame.size.width:NSMaxX(visible)-frame.size.width);
    [menuWindow setFrameTopLeftPoint:topLeft];
