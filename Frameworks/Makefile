@@ -127,7 +127,7 @@ AudioToolbox: CoreFoundation
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 Quartz: AppKit QuickLook
-CoreAudio: CoreFoundation
+CoreAudio: CoreFoundation ../Kernel/IOKitUser
 AudioUnit: AudioToolbox
 CoreMedia: CoreFoundation
 VideoToolbox: CoreMedia CoreVideo

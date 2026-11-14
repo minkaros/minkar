@@ -90,7 +90,32 @@ enum {
     kAudioDevicePropertyDataSource = 'ssrc',
     kAudioDevicePropertyStreams = 'stm#',
     kAudioDevicePropertyTransportType = 'tran',
+    kAudioDevicePropertyDeviceManufacturerCFString = kAudioObjectPropertyManufacturer,
+    kAudioDevicePropertyDeviceIsAlive = 'livn',
+    kAudioDevicePropertyDeviceIsRunning = 'goin',
+    kAudioDevicePropertyVolumeScalar = 'volm',
+    kAudioDevicePropertyVolumeDecibels = 'vold',
+    kAudioDevicePropertyVolumeRangeDecibels = 'vdb#',
+    kAudioDevicePropertyVolumeScalarToDecibels = 'v2db',
+    kAudioDevicePropertyVolumeDecibelsToScalar = 'db2v',
+    kAudioDevicePropertyMute = 'mute',
+    kAudioObjectPropertyBaseClass = 'bcls',
 };
+
+enum {
+    kAudioObjectClassID = 'aobj',
+    kAudioSystemObjectClassID = 'asys',
+    kAudioDeviceClassID = 'adev',
+};
+
+enum {
+    kAudioDeviceTransportTypeUnknown = 0,
+    kAudioDeviceTransportTypeBuiltIn = 'bltn',
+    kAudioDeviceTransportTypePCI = 'pci ',
+    kAudioDeviceTransportTypeUSB = 'usb ',
+    kAudioDeviceTransportTypeHDMI = 'hdmi',
+};
+
 
 OSStatus AudioObjectGetPropertyDataSize(AudioObjectID inObjectID, const AudioObjectPropertyAddress *inAddress,
     UInt32 inQualifierDataSize, const void *inQualifierData, UInt32 *outDataSize);

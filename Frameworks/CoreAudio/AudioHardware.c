@@ -3,16 +3,19 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The system object. Until the audio service (AU2) owns devices there are
- * none: the device list is empty and the default devices are unknown.
- * Listeners are kept; nothing changes yet to call them.
+ * The system object and the devices it owns (AudioDevices.c): until the
+ * audio service (AU2) owns them, the kernel's output engines. Listeners
+ * are kept; nothing calls them yet.
  */
 
 #include "AudioHardware.h"
+#include "AudioDevices.h"
 #include <Block.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define kMaxListed 16
 
 static Boolean systemHas(AudioObjectPropertySelector selector) {
     switch (selector) {
@@ -23,6 +26,7 @@ static Boolean systemHas(AudioObjectPropertySelector selector) {
     case kAudioObjectPropertyOwnedObjects:
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
+    case kAudioObjectPropertyClass:
     case kAudioHardwarePropertyTranslateUIDToDevice:
         return true;
     default:
@@ -33,8 +37,11 @@ static Boolean systemHas(AudioObjectPropertySelector selector) {
 static UInt32 systemSize(AudioObjectPropertySelector selector) {
     switch (selector) {
     case kAudioHardwarePropertyDevices:
-    case kAudioObjectPropertyOwnedObjects:
-        return 0;
+    case kAudioObjectPropertyOwnedObjects: {
+        AudioDeviceID ids[kMaxListed];
+        UInt32 n = _AudioDeviceCopyIDs(ids, kMaxListed);
+        return (n < kMaxListed ? n : kMaxListed) * (UInt32)sizeof(AudioDeviceID);
+    }
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
         return sizeof(CFStringRef);
@@ -44,24 +51,36 @@ static UInt32 systemSize(AudioObjectPropertySelector selector) {
 }
 
 Boolean AudioObjectHasProperty(AudioObjectID object, const AudioObjectPropertyAddress *address) {
-    return object == kAudioObjectSystemObject && address != NULL && systemHas(address->mSelector);
+    if (address == NULL)
+        return false;
+    if (object != kAudioObjectSystemObject)
+        return _AudioDeviceHasProperty(object, address);
+    return systemHas(address->mSelector);
 }
 
 OSStatus AudioObjectIsPropertySettable(AudioObjectID object, const AudioObjectPropertyAddress *address,
                                        Boolean *outIsSettable) {
+    if (object != kAudioObjectSystemObject && !_AudioDeviceExists(object))
+        return kAudioHardwareBadObjectError;
     if (!AudioObjectHasProperty(object, address))
-        return object == kAudioObjectSystemObject ? kAudioHardwareUnknownPropertyError : kAudioHardwareBadObjectError;
+        return kAudioHardwareUnknownPropertyError;
     if (outIsSettable != NULL)
-        *outIsSettable = false;
+        *outIsSettable = object != kAudioObjectSystemObject && _AudioDeviceIsPropertySettable(object, address);
     return noErr;
 }
 
 OSStatus AudioObjectGetPropertyDataSize(AudioObjectID object, const AudioObjectPropertyAddress *address,
     UInt32 qualifierSize, const void *qualifier, UInt32 *outDataSize) {
-    if (object != kAudioObjectSystemObject)
-        return kAudioHardwareBadObjectError;
     if (address == NULL || outDataSize == NULL)
         return kAudioHardwareIllegalOperationError;
+    if (object != kAudioObjectSystemObject) {
+        if (!_AudioDeviceExists(object))
+            return kAudioHardwareBadObjectError;
+        if (!_AudioDeviceHasProperty(object, address))
+            return kAudioHardwareUnknownPropertyError;
+        *outDataSize = _AudioDevicePropertySize(object, address);
+        return noErr;
+    }
     if (!systemHas(address->mSelector))
         return kAudioHardwareUnknownPropertyError;
     *outDataSize = systemSize(address->mSelector);
@@ -71,10 +90,17 @@ OSStatus AudioObjectGetPropertyDataSize(AudioObjectID object, const AudioObjectP
 OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPropertyAddress *address,
     UInt32 qualifierSize, const void *qualifier, UInt32 *ioDataSize, void *outData) {
     UInt32 size;
+
+    if (object != kAudioObjectSystemObject) {
+        if (address == NULL)
+            return kAudioHardwareIllegalOperationError;
+        return _AudioDeviceGetProperty(object, address, ioDataSize, outData);
+    }
     OSStatus status = AudioObjectGetPropertyDataSize(object, address, qualifierSize, qualifier, &size);
     if (status != noErr)
         return status;
-    if (ioDataSize == NULL || *ioDataSize < size)
+    if (ioDataSize == NULL || (*ioDataSize < size && address->mSelector != kAudioHardwarePropertyDevices &&
+                               address->mSelector != kAudioObjectPropertyOwnedObjects))
         return kAudioHardwareBadPropertySizeError;
     switch (address->mSelector) {
     case kAudioObjectPropertyName:
@@ -83,8 +109,30 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
     case kAudioObjectPropertyManufacturer:
         *(CFStringRef *)outData = CFSTR("Minkar");
         break;
+    case kAudioObjectPropertyClass:
+        *(AudioClassID *)outData = kAudioSystemObjectClassID;
+        break;
     case kAudioHardwarePropertyDevices:
-    case kAudioObjectPropertyOwnedObjects:
+    case kAudioObjectPropertyOwnedObjects: {
+        /* As many as fit. */
+        AudioDeviceID ids[kMaxListed];
+        UInt32 n = _AudioDeviceCopyIDs(ids, kMaxListed);
+        UInt32 fit = *ioDataSize / (UInt32)sizeof(AudioDeviceID);
+        if (n > kMaxListed)
+            n = kMaxListed;
+        if (n > fit)
+            n = fit;
+        memcpy(outData, ids, n * sizeof(AudioDeviceID));
+        size = n * (UInt32)sizeof(AudioDeviceID);
+        break;
+    }
+    case kAudioHardwarePropertyDefaultOutputDevice:
+    case kAudioHardwarePropertyDefaultSystemOutputDevice:
+        *(AudioObjectID *)outData = _AudioDeviceDefaultOutput();
+        break;
+    case kAudioHardwarePropertyTranslateUIDToDevice:
+        *(AudioObjectID *)outData = qualifierSize >= sizeof(CFStringRef) && qualifier != NULL ?
+            _AudioDeviceWithUID(*(const CFStringRef *)qualifier) : kAudioObjectUnknown;
         break;
     default:
         *(AudioObjectID *)outData = kAudioObjectUnknown;
@@ -96,12 +144,19 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
 
 OSStatus AudioObjectSetPropertyData(AudioObjectID object, const AudioObjectPropertyAddress *address,
     UInt32 qualifierSize, const void *qualifier, UInt32 dataSize, const void *data) {
+    if (address == NULL)
+        return kAudioHardwareIllegalOperationError;
     if (object != kAudioObjectSystemObject)
-        return kAudioHardwareBadObjectError;
-    if (address == NULL || !systemHas(address->mSelector))
+        return _AudioDeviceSetProperty(object, address, dataSize, data);
+    if (!systemHas(address->mSelector))
         return kAudioHardwareUnknownPropertyError;
-    /* The defaults can only be set to a device, and there is none. */
-    return kAudioHardwareBadDeviceError;
+    /* The default output is the first device, the only one for now. */
+    if ((address->mSelector == kAudioHardwarePropertyDefaultOutputDevice ||
+         address->mSelector == kAudioHardwarePropertyDefaultSystemOutputDevice) &&
+        dataSize >= sizeof(AudioObjectID) && data != NULL &&
+        *(const AudioObjectID *)data == _AudioDeviceDefaultOutput())
+        return noErr;
+    return kAudioHardwareIllegalOperationError;
 }
 
 /* Listeners: kept so they can be removed, and called when the service
@@ -120,7 +175,7 @@ static Listener *listeners;
 static size_t listenerCount;
 
 static OSStatus addListener(Listener entry) {
-    if (entry.object != kAudioObjectSystemObject)
+    if (entry.object != kAudioObjectSystemObject && !_AudioDeviceExists(entry.object))
         return kAudioHardwareBadObjectError;
     pthread_mutex_lock(&lock);
     Listener *grown = realloc(listeners, (listenerCount + 1) * sizeof(Listener));
@@ -179,7 +234,7 @@ OSStatus AudioObjectRemovePropertyListenerBlock(AudioObjectID object, const Audi
     return removeListener(object, address, NULL, NULL, block);
 }
 
-/* No device: nothing to duck. */
+/* Ducking comes with the audio service's mixer. */
 OSStatus AudioDeviceDuck(AudioDeviceID device, Float32 level, const AudioTimeStamp *startTime, Float32 rampDuration) {
-    return kAudioHardwareBadDeviceError;
+    return _AudioDeviceExists(device) ? kAudioHardwareUnsupportedOperationError : kAudioHardwareBadDeviceError;
 }
