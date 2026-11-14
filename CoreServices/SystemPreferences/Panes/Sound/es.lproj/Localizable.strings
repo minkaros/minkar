@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Sound pane, in Spanish. The keys are the English texts. */
+
+"Output device:" = "Dispositivo de salida:";
+"Output volume:" = "Volumen de salida:";
+"Low" = "Bajo";
+"High" = "Alto";
+"Mute" = "Silenciar";
+"No output device was found." = "No se ha encontrado ningún dispositivo de salida.";
