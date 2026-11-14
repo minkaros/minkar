@@ -12,6 +12,7 @@
 
 #include <CoreAudio/CoreAudioTypes.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <dispatch/dispatch.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,7 @@ extern "C" {
 
 typedef struct OpaqueAudioQueue *AudioQueueRef;
 typedef struct OpaqueAudioQueueTimeline *AudioQueueTimelineRef;
+typedef struct OpaqueAudioQueueProcessingTap *AudioQueueProcessingTapRef;
 typedef UInt32 AudioQueuePropertyID;
 typedef UInt32 AudioQueueParameterID;
 typedef Float32 AudioQueueParameterValue;
@@ -104,6 +106,25 @@ typedef void (*AudioQueueInputCallback)(void *inUserData, AudioQueueRef inAQ, Au
     const AudioTimeStamp *inStartTime, UInt32 inNumberPacketDescriptions,
     const AudioStreamPacketDescription *inPacketDescs);
 typedef void (*AudioQueuePropertyListenerProc)(void *inUserData, AudioQueueRef inAQ, AudioQueuePropertyID inID);
+#ifdef __BLOCKS__
+typedef void (^AudioQueueOutputCallbackBlock)(AudioQueueRef inAQ, AudioQueueBufferRef inBuffer);
+typedef void (^AudioQueueInputCallbackBlock)(AudioQueueRef inAQ, AudioQueueBufferRef inBuffer,
+    const AudioTimeStamp *inStartTime, UInt32 inNumberPacketDescriptions,
+    const AudioStreamPacketDescription *inPacketDescs);
+#endif
+
+typedef UInt32 AudioQueueProcessingTapFlags;
+enum {
+    kAudioQueueProcessingTap_PreEffects = (1 << 0),
+    kAudioQueueProcessingTap_PostEffects = (1 << 1),
+    kAudioQueueProcessingTap_Siphon = (1 << 2),
+    kAudioQueueProcessingTap_StartOfStream = (1 << 8),
+    kAudioQueueProcessingTap_EndOfStream = (1 << 9),
+};
+
+typedef void (*AudioQueueProcessingTapCallback)(void *inClientData, AudioQueueProcessingTapRef inAQTap,
+    UInt32 inNumberFrames, AudioTimeStamp *ioTimeStamp, AudioQueueProcessingTapFlags *ioFlags,
+    UInt32 *outNumberFrames, AudioBufferList *ioData);
 
 OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *inFormat, AudioQueueOutputCallback inCallbackProc,
     void *inUserData, CFRunLoopRef inCallbackRunLoop, CFStringRef inCallbackRunLoopMode, UInt32 inFlags,
@@ -111,6 +132,12 @@ OSStatus AudioQueueNewOutput(const AudioStreamBasicDescription *inFormat, AudioQ
 OSStatus AudioQueueNewInput(const AudioStreamBasicDescription *inFormat, AudioQueueInputCallback inCallbackProc,
     void *inUserData, CFRunLoopRef inCallbackRunLoop, CFStringRef inCallbackRunLoopMode, UInt32 inFlags,
     AudioQueueRef *outAQ);
+#ifdef __BLOCKS__
+OSStatus AudioQueueNewOutputWithDispatchQueue(AudioQueueRef *outAQ, const AudioStreamBasicDescription *inFormat,
+    UInt32 inFlags, dispatch_queue_t inCallbackDispatchQueue, AudioQueueOutputCallbackBlock inCallbackBlock);
+OSStatus AudioQueueNewInputWithDispatchQueue(AudioQueueRef *outAQ, const AudioStreamBasicDescription *inFormat,
+    UInt32 inFlags, dispatch_queue_t inCallbackDispatchQueue, AudioQueueInputCallbackBlock inCallbackBlock);
+#endif
 OSStatus AudioQueueDispose(AudioQueueRef inAQ, Boolean inImmediate);
 OSStatus AudioQueueAllocateBuffer(AudioQueueRef inAQ, UInt32 inBufferByteSize, AudioQueueBufferRef *outBuffer);
 OSStatus AudioQueueAllocateBufferWithPacketDescriptions(AudioQueueRef inAQ, UInt32 inBufferByteSize,
@@ -145,6 +172,22 @@ OSStatus AudioQueueDisposeTimeline(AudioQueueRef inAQ, AudioQueueTimelineRef inT
 OSStatus AudioQueueGetCurrentTime(AudioQueueRef inAQ, AudioQueueTimelineRef inTimeline, AudioTimeStamp *outTimeStamp,
     Boolean *outTimelineDiscontinuity);
 OSStatus AudioQueueDeviceGetCurrentTime(AudioQueueRef inAQ, AudioTimeStamp *outTimeStamp);
+OSStatus AudioQueueDeviceTranslateTime(AudioQueueRef inAQ, const AudioTimeStamp *inTime, AudioTimeStamp *outTime);
+OSStatus AudioQueueDeviceGetNearestStartTime(AudioQueueRef inAQ, AudioTimeStamp *ioRequestedStartTime,
+    UInt32 inFlags);
+OSStatus AudioQueueSetOfflineRenderFormat(AudioQueueRef inAQ, const AudioStreamBasicDescription *inFormat,
+    const AudioChannelLayout *inLayout);
+OSStatus AudioQueueOfflineRender(AudioQueueRef inAQ, const AudioTimeStamp *inTimestamp,
+    AudioQueueBufferRef ioBuffer, UInt32 inNumberFrames);
+OSStatus AudioQueueProcessingTapNew(AudioQueueRef inAQ, AudioQueueProcessingTapCallback inCallback,
+    void *inClientData, AudioQueueProcessingTapFlags inFlags, UInt32 *outMaxFrames,
+    AudioStreamBasicDescription *outProcessingFormat, AudioQueueProcessingTapRef *outAQTap);
+OSStatus AudioQueueProcessingTapDispose(AudioQueueProcessingTapRef inAQTap);
+OSStatus AudioQueueProcessingTapGetSourceAudio(AudioQueueProcessingTapRef inAQTap, UInt32 inNumberFrames,
+    AudioTimeStamp *ioTimeStamp, AudioQueueProcessingTapFlags *outFlags, UInt32 *outNumberFrames,
+    AudioBufferList *ioData);
+OSStatus AudioQueueProcessingTapGetQueueTime(AudioQueueProcessingTapRef inAQTap, Float64 *outQueueSampleTime,
+    UInt32 *outQueueFrameCount);
 
 #ifdef __cplusplus
 }

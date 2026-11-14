@@ -5,19 +5,24 @@
  *
  * Output audio queues for linear PCM, over a default output unit: the
  * unit's render callback takes samples from the buffers in the order they
- * were enqueued, and each played buffer goes back to the app through its
- * callback, on the run loop it gave or on the queue's own dispatch queue.
+ * were enqueued (through a processing tap when there is one), and each
+ * played buffer goes back to the app through its callback, on the run
+ * loop or dispatch queue it gave or on the queue's own. Offline, the app
+ * pulls the samples itself, converted to a format of its choosing.
  * The unit converts the queue's format and rate to the device's. Input
  * queues come with the device's input (AU2); compressed formats with the
  * codecs (AU4).
  */
 
 #include "AUInternal.h"
+#include <AudioToolbox/AudioConverter.h>
 #include <AudioToolbox/AudioQueue.h>
+#include <Block.h>
 #include <CoreAudio/CoreAudio.h>
 #include <dispatch/dispatch.h>
 #include <mach/mach_time.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -43,6 +48,8 @@ struct OpaqueAudioQueue {
     CFRunLoopRef runLoop;
     CFStringRef mode;
     dispatch_queue_t own;       /* when there is no run loop */
+    dispatch_queue_t userQueue; /* the app's, for its block */
+    AudioQueueOutputCallbackBlock outputBlock;
 
     AudioUnit unit;
     pthread_mutex_t lock;       /* the buffers and state */
@@ -67,6 +74,32 @@ struct OpaqueAudioQueue {
     int listenerCount;
 
     AudioQueueLevelMeterState meters[kMaxMeterChannels];
+
+    struct OpaqueAudioQueueProcessingTap *tap;
+    Boolean offline;            /* rendered by AudioQueueOfflineRender, not the device */
+    AudioStreamBasicDescription offlineFormat;
+    AudioConverterRef offlineConverter;
+    unsigned char *offlineScratch;
+    UInt32 offlineScratchFrames;
+};
+
+/* A processing tap: the queue's samples, as float planar, go through the
+   app's callback between the buffers and the output. */
+struct OpaqueAudioQueueProcessingTap {
+    AudioQueueRef queue;
+    AudioQueueProcessingTapCallback callback;
+    void *clientData;
+    AudioQueueProcessingTapFlags flags;
+    UInt32 maxFrames;
+    AudioStreamBasicDescription format;     /* float, planar, the queue's rate and channels */
+    AudioBufferList *list;      /* the callback's buffers */
+    float *planes;
+    unsigned char *scratch;     /* the queue's samples, in its format */
+    float *interleaved;
+    UInt32 frames;              /* this cycle's */
+    Boolean drained;
+    Boolean siphoned;           /* a siphon's source, already taken */
+    UInt32 siphonFrames;
 };
 
 struct OpaqueAudioQueueTimeline {
@@ -85,6 +118,10 @@ static void release(AudioQueueRef q) {
         }
         if (q->own != NULL)
             dispatch_release(q->own);
+        if (q->userQueue != NULL)
+            dispatch_release(q->userQueue);
+        if (q->outputBlock != NULL)
+            Block_release(q->outputBlock);
         q->magic = 0;
         pthread_mutex_destroy(&q->lock);
         free(q);
@@ -95,7 +132,12 @@ static void release(AudioQueueRef q) {
    until it has run (it looks at disposed first). */
 static void onCallbackThread(AudioQueueRef q, void (^block)(void)) {
     __atomic_add_fetch(&q->refs, 1, __ATOMIC_ACQ_REL);
-    if (q->runLoop != NULL) {
+    if (q->userQueue != NULL) {
+        dispatch_async(q->userQueue, ^{
+            block();
+            release(q);
+        });
+    } else if (q->runLoop != NULL) {
         CFRunLoopPerformBlock(q->runLoop, q->mode, ^{
             block();
             release(q);
@@ -127,7 +169,11 @@ static void notifyListeners(AudioQueueRef q, AudioQueuePropertyID id) {
 
 static void returnBuffer(AudioQueueRef q, QueueBuffer *b) {
     onCallbackThread(q, ^{
-        if (!q->disposed && q->callback != NULL)
+        if (q->disposed)
+            return;
+        if (q->outputBlock != NULL)
+            q->outputBlock(q, &b->buffer);
+        else if (q->callback != NULL)
             q->callback(q->userData, q, &b->buffer);
     });
 }
@@ -176,13 +222,12 @@ static void meter(AudioQueueRef q, const AudioBufferList *data, UInt32 frames) {
     free(f);
 }
 
-static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *time,
-                       UInt32 bus, UInt32 frames, AudioBufferList *data) {
-    AudioQueueRef q = refCon;
+/* Samples from the queued buffers into out (the queue's format), silence
+   after them; buffers used up go back. Returns the frames taken; *drained
+   when a stop that plays out has played out. */
+static UInt32 source(AudioQueueRef q, unsigned char *out, UInt32 frames, Boolean *drained) {
     UInt32 bpf = q->format.mBytesPerFrame, want = frames * bpf, done = 0;
-    unsigned char *out = data->mBuffers[0].mData;
     QueueBuffer *finished = NULL, **finishedTail = &finished;
-    Boolean drained = false;
 
     pthread_mutex_lock(&q->lock);
     if (!q->paused) {
@@ -213,26 +258,110 @@ static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const Au
                speaker: keep the device running until it has played. */
             if (!q->draining) {
                 q->draining = true;
-                q->tailFrames = (SInt64)(q->latency * q->format.mSampleRate) + 2 * (SInt64)frames;
+                q->tailFrames = q->offline ? 0
+                                : (SInt64)(q->latency * q->format.mSampleRate) + 2 * (SInt64)frames;
             }
             q->tailFrames -= frames - done / bpf;
-            drained = q->tailFrames <= 0;
+            *drained = q->tailFrames <= 0;
         }
     }
     pthread_mutex_unlock(&q->lock);
 
     if (done < want)
         memset(out + done, 0, want - done);
-    if (done == 0)
-        *flags |= kAudioUnitRenderAction_OutputIsSilence;
-    if (q->metering)
-        meter(q, data, frames);
     while (finished != NULL) {
         QueueBuffer *next = finished->nextQueued;
         finished->nextQueued = NULL;
         returnBuffer(q, finished);
         finished = next;
     }
+    return done / bpf;
+}
+
+/* The queue's samples, interleaved in its format, to float planes. */
+static void toPlanes(struct OpaqueAudioQueueProcessingTap *t, const unsigned char *in, UInt32 frames,
+                     AudioBufferList *out) {
+    AudioQueueRef q = t->queue;
+    UInt32 ch = q->format.mChannelsPerFrame;
+    AudioBufferList in1 = { 1, { { ch, frames * q->format.mBytesPerFrame, (void *)in } } };
+
+    _AUToFloat(&q->format, &in1, frames, t->interleaved, ch);
+    for (UInt32 c = 0; c < ch && c < out->mNumberBuffers; c++) {
+        float *plane = out->mBuffers[c].mData;
+        for (UInt32 i = 0; i < frames; i++)
+            plane[i] = t->interleaved[i * ch + c];
+        out->mBuffers[c].mDataByteSize = frames * sizeof(float);
+    }
+}
+
+/* Float planes back to the queue's format. */
+static void fromPlanes(struct OpaqueAudioQueueProcessingTap *t, const AudioBufferList *in, UInt32 frames,
+                       unsigned char *out) {
+    AudioQueueRef q = t->queue;
+    UInt32 ch = q->format.mChannelsPerFrame;
+    AudioBufferList out1 = { 1, { { ch, frames * q->format.mBytesPerFrame, out } } };
+
+    for (UInt32 c = 0; c < ch; c++) {
+        const float *plane = c < in->mNumberBuffers ? in->mBuffers[c].mData : NULL;
+        for (UInt32 i = 0; i < frames; i++)
+            t->interleaved[i * ch + c] = plane != NULL ? plane[i] : 0;
+    }
+    _AUFromFloat(&q->format, t->interleaved, frames, &out1, 0);
+}
+
+/* A cycle's frames in the queue's format: from the buffers, through the
+   tap when there is one. Returns the frames that were the app's. */
+static UInt32 produce(AudioQueueRef q, unsigned char *out, UInt32 frames, const AudioTimeStamp *time,
+                      Boolean *drained) {
+    struct OpaqueAudioQueueProcessingTap *t = q->tap;
+    AudioTimeStamp ts;
+    AudioQueueProcessingTapFlags flags = 0;
+    UInt32 got = 0, n;
+
+    if (t == NULL || frames > t->maxFrames)
+        return source(q, out, frames, drained);
+    memset(&ts, 0, sizeof(ts));
+    ts.mSampleTime = q->playedFrames;
+    ts.mHostTime = time != NULL ? time->mHostTime : 0;
+    ts.mFlags = kAudioTimeStampSampleHostTimeValid;
+    t->frames = frames;
+    t->drained = false;
+    t->siphoned = false;
+    for (UInt32 c = 0; c < t->list->mNumberBuffers; c++) {
+        t->list->mBuffers[c].mData = t->planes + (size_t)c * t->maxFrames;
+        t->list->mBuffers[c].mDataByteSize = frames * sizeof(float);
+    }
+    if (t->flags & kAudioQueueProcessingTap_Siphon) {
+        /* The app looks, the samples go on unchanged. */
+        got = source(q, out, frames, drained);
+        toPlanes(t, out, frames, t->list);
+        t->siphoned = true;
+        t->siphonFrames = frames;
+        n = frames;
+        t->callback(t->clientData, t, frames, &ts, &flags, &n, t->list);
+        return got;
+    }
+    n = frames;
+    t->callback(t->clientData, t, frames, &ts, &flags, &n, t->list);
+    if (n > frames)
+        n = frames;
+    fromPlanes(t, t->list, n, out);
+    if (n < frames)
+        memset(out + n * q->format.mBytesPerFrame, 0, (frames - n) * q->format.mBytesPerFrame);
+    *drained = t->drained;
+    return n;
+}
+
+static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *time,
+                       UInt32 bus, UInt32 frames, AudioBufferList *data) {
+    AudioQueueRef q = refCon;
+    Boolean drained = false;
+    UInt32 done = produce(q, data->mBuffers[0].mData, frames, time, &drained);
+
+    if (done == 0)
+        *flags |= kAudioUnitRenderAction_OutputIsSilence;
+    if (q->metering)
+        meter(q, data, frames);
     if (drained) {
         pthread_mutex_lock(&q->lock);
         q->stopping = false;    /* once */
@@ -348,6 +477,18 @@ OSStatus AudioQueueDispose(AudioQueueRef q, Boolean immediate) {
     stopUnit(q);
     AudioComponentInstanceDispose(q->unit);
     q->unit = NULL;
+    if (q->tap != NULL) {
+        struct OpaqueAudioQueueProcessingTap *t = q->tap;
+        q->tap = NULL;
+        free(t->list);
+        free(t->planes);
+        free(t->interleaved);
+        free(t->scratch);
+        free(t);
+    }
+    if (q->offlineConverter != NULL)
+        AudioConverterDispose(q->offlineConverter);
+    free(q->offlineScratch);
 
     /* Blocks on the queue's own dispatch queue are let finish before the
        buffers go; any on the app's run loop find disposed set. */
@@ -500,7 +641,8 @@ OSStatus AudioQueueStart(AudioQueueRef q, const AudioTimeStamp *startTime) {
         if (AudioUnitGetProperty(q->unit, kAudioUnitProperty_Latency, kAudioUnitScope_Global, 0, &q->latency,
                                  &size) != noErr)
             q->latency = 0;
-        status = AudioOutputUnitStart(q->unit);
+        /* Offline, AudioQueueOfflineRender pulls the samples, not the device. */
+        status = q->offline ? noErr : AudioOutputUnitStart(q->unit);
         if (status != noErr)
             return kAudioQueueErr_CannotStart;
         pthread_mutex_lock(&q->lock);
@@ -892,4 +1034,302 @@ OSStatus AudioQueueDeviceGetCurrentTime(AudioQueueRef q, AudioTimeStamp *out) {
     if (!q->running)
         return kAudioQueueErr_InvalidRunState;
     return AudioDeviceGetCurrentTime(queueDevice(q), out);
+}
+
+/* ---- Dispatch queues ------------------------------------------------------------ */
+
+OSStatus AudioQueueNewOutputWithDispatchQueue(AudioQueueRef *outAQ, const AudioStreamBasicDescription *format,
+                                              UInt32 flags, dispatch_queue_t queue,
+                                              AudioQueueOutputCallbackBlock block) {
+    OSStatus status;
+
+    if (outAQ == NULL || queue == NULL || block == NULL)
+        return kAudio_ParamError;
+    status = AudioQueueNewOutput(format, NULL, NULL, NULL, NULL, flags, outAQ);
+    if (status != noErr)
+        return status;
+    dispatch_retain(queue);
+    (*outAQ)->userQueue = queue;
+    (*outAQ)->outputBlock = Block_copy(block);
+    return noErr;
+}
+
+OSStatus AudioQueueNewInputWithDispatchQueue(AudioQueueRef *outAQ, const AudioStreamBasicDescription *format,
+                                             UInt32 flags, dispatch_queue_t queue,
+                                             AudioQueueInputCallbackBlock block) {
+    if (outAQ != NULL)
+        *outAQ = NULL;
+    return kAudioQueueErr_InvalidDevice;    /* no input device yet */
+}
+
+/* ---- The device's time ------------------------------------------------------------ */
+
+/* A time in the device's sample time, its host time, or both, from now's
+   pair and the device's rate. */
+OSStatus AudioQueueDeviceTranslateTime(AudioQueueRef q, const AudioTimeStamp *in, AudioTimeStamp *out) {
+    AudioTimeStamp now;
+    mach_timebase_info_data_t tb;
+    Float64 rate = 0, ticksPerSecond;
+    UInt32 size = sizeof(rate);
+    OSStatus status;
+
+    if (!alive(q) || in == NULL || out == NULL)
+        return kAudio_ParamError;
+    status = AudioQueueDeviceGetCurrentTime(q, &now);
+    if (status != noErr)
+        return status;
+    AudioUnitGetProperty(q->unit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &rate, &size);
+    if (rate <= 0)
+        return kAudioQueueErr_InvalidDevice;
+    mach_timebase_info(&tb);
+    ticksPerSecond = 1e9 * tb.denom / tb.numer;
+    memset(out, 0, sizeof(*out));
+    if (in->mFlags & kAudioTimeStampSampleTimeValid) {
+        out->mSampleTime = in->mSampleTime;
+        out->mHostTime = (UInt64)((Float64)now.mHostTime + (in->mSampleTime - now.mSampleTime) / rate * ticksPerSecond);
+    } else if (in->mFlags & kAudioTimeStampHostTimeValid) {
+        out->mHostTime = in->mHostTime;
+        out->mSampleTime = now.mSampleTime + ((Float64)in->mHostTime - (Float64)now.mHostTime) / ticksPerSecond * rate;
+    } else {
+        return kAudio_ParamError;
+    }
+    out->mRateScalar = 1;
+    out->mFlags = kAudioTimeStampSampleHostTimeValid | kAudioTimeStampRateScalarValid;
+    return noErr;
+}
+
+/* The soonest a start can be heard: no sooner than the output's latency
+   from now. */
+OSStatus AudioQueueDeviceGetNearestStartTime(AudioQueueRef q, AudioTimeStamp *ioRequested, UInt32 flags) {
+    AudioTimeStamp now, asked;
+    Float64 rate = 0, earliest;
+    UInt32 size = sizeof(rate);
+    OSStatus status;
+
+    if (!alive(q) || ioRequested == NULL)
+        return kAudio_ParamError;
+    status = AudioQueueDeviceGetCurrentTime(q, &now);
+    if (status != noErr)
+        return status;
+    AudioUnitGetProperty(q->unit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &rate, &size);
+    earliest = now.mSampleTime + q->latency * rate;
+    if (ioRequested->mFlags & (kAudioTimeStampSampleTimeValid | kAudioTimeStampHostTimeValid)) {
+        status = AudioQueueDeviceTranslateTime(q, ioRequested, &asked);
+        if (status != noErr)
+            return status;
+        if (asked.mSampleTime >= earliest) {
+            *ioRequested = asked;
+            return noErr;
+        }
+    }
+    asked.mSampleTime = earliest;
+    asked.mFlags = kAudioTimeStampSampleTimeValid;
+    return AudioQueueDeviceTranslateTime(q, &asked, ioRequested);
+}
+
+/* ---- Offline rendering ----------------------------------------------------------- */
+
+OSStatus AudioQueueSetOfflineRenderFormat(AudioQueueRef q, const AudioStreamBasicDescription *format,
+                                          const AudioChannelLayout *layout) {
+    AudioConverterRef converter = NULL;
+    OSStatus status;
+
+    if (!alive(q))
+        return kAudio_ParamError;
+    if (q->running && !q->offline)
+        return kAudioQueueErr_InvalidRunState;
+    if (format != NULL) {
+        status = AudioConverterNew(&q->format, format, &converter);
+        if (status != noErr)
+            return kAudioQueueErr_InvalidPropertyValue;
+    }
+    if (q->offlineConverter != NULL)
+        AudioConverterDispose(q->offlineConverter);
+    q->offlineConverter = converter;
+    q->offline = format != NULL;
+    if (format != NULL)
+        q->offlineFormat = *format;
+    return noErr;
+}
+
+static OSStatus offlineInput(AudioConverterRef c, UInt32 *ioPackets, AudioBufferList *data,
+                             AudioStreamPacketDescription **descriptions, void *userData) {
+    AudioQueueRef q = userData;
+    UInt32 frames = *ioPackets;
+    Boolean drained = false;
+
+    if (frames > 4096)
+        frames = 4096;
+    if (frames > q->offlineScratchFrames) {
+        unsigned char *grown = realloc(q->offlineScratch, (size_t)frames * q->format.mBytesPerFrame);
+        if (grown == NULL)
+            return kAudio_MemFullError;
+        q->offlineScratch = grown;
+        q->offlineScratchFrames = frames;
+    }
+    produce(q, q->offlineScratch, frames, NULL, &drained);
+    if (drained) {
+        pthread_mutex_lock(&q->lock);
+        q->stopping = false;
+        q->draining = false;
+        pthread_mutex_unlock(&q->lock);
+        finishStopping(q);
+    }
+    data->mNumberBuffers = 1;
+    data->mBuffers[0].mNumberChannels = q->format.mChannelsPerFrame;
+    data->mBuffers[0].mDataByteSize = frames * q->format.mBytesPerFrame;
+    data->mBuffers[0].mData = q->offlineScratch;
+    *ioPackets = frames;
+    return noErr;
+}
+
+/* The next frames, in the offline format, into a buffer: what the queue
+   would have played. The first call, with a sample time of 0, starts the
+   rendering and gives no frames. */
+OSStatus AudioQueueOfflineRender(AudioQueueRef q, const AudioTimeStamp *timestamp, AudioQueueBufferRef buffer,
+                                 UInt32 frames) {
+    AudioBufferList list;
+    UInt32 n = frames;
+    OSStatus status;
+
+    if (!alive(q) || timestamp == NULL || buffer == NULL)
+        return kAudio_ParamError;
+    if (!q->offline)
+        return kAudioQueueErr_InvalidOfflineMode;
+    if (!q->running)
+        return kAudioQueueErr_InvalidRunState;
+    if ((UInt64)frames * q->offlineFormat.mBytesPerFrame > buffer->mAudioDataBytesCapacity)
+        return kAudioQueueErr_InvalidBuffer;
+    list.mNumberBuffers = 1;
+    list.mBuffers[0].mNumberChannels = q->offlineFormat.mChannelsPerFrame;
+    list.mBuffers[0].mDataByteSize = buffer->mAudioDataBytesCapacity;
+    list.mBuffers[0].mData = buffer->mAudioData;
+    if (frames == 0) {
+        buffer->mAudioDataByteSize = 0;
+        return noErr;
+    }
+    status = AudioConverterFillComplexBuffer(q->offlineConverter, offlineInput, q, &n, &list, NULL);
+    buffer->mAudioDataByteSize = n * q->offlineFormat.mBytesPerFrame;
+    return status;
+}
+
+/* ---- Processing taps --------------------------------------------------------------- */
+
+OSStatus AudioQueueProcessingTapNew(AudioQueueRef q, AudioQueueProcessingTapCallback callback, void *clientData,
+                                    AudioQueueProcessingTapFlags flags, UInt32 *outMaxFrames,
+                                    AudioStreamBasicDescription *outFormat, AudioQueueProcessingTapRef *outTap) {
+    struct OpaqueAudioQueueProcessingTap *t;
+    UInt32 ch, maxFrames = 4096;
+
+    if (!alive(q) || callback == NULL || outMaxFrames == NULL || outFormat == NULL || outTap == NULL)
+        return kAudio_ParamError;
+    if (q->tap != NULL)
+        return kAudioQueueErr_TooManyTaps;
+    if (q->running)
+        return kAudioQueueErr_InvalidRunState;
+    ch = q->format.mChannelsPerFrame;
+    t = calloc(1, sizeof(*t));
+    if (t == NULL)
+        return kAudio_MemFullError;
+    t->queue = q;
+    t->callback = callback;
+    t->clientData = clientData;
+    t->flags = flags;
+    t->maxFrames = maxFrames;
+    t->format.mSampleRate = q->format.mSampleRate;
+    t->format.mFormatID = kAudioFormatLinearPCM;
+    t->format.mFormatFlags = kAudioFormatFlagsNativeFloatPacked | kAudioFormatFlagIsNonInterleaved;
+    t->format.mBytesPerPacket = t->format.mBytesPerFrame = sizeof(float);
+    t->format.mFramesPerPacket = 1;
+    t->format.mChannelsPerFrame = ch;
+    t->format.mBitsPerChannel = 32;
+    t->list = calloc(1, offsetof(AudioBufferList, mBuffers) + ch * sizeof(AudioBuffer));
+    t->planes = calloc((size_t)ch * maxFrames, sizeof(float));
+    t->interleaved = calloc((size_t)ch * maxFrames, sizeof(float));
+    t->scratch = calloc(maxFrames, q->format.mBytesPerFrame);
+    if (t->list == NULL || t->planes == NULL || t->interleaved == NULL || t->scratch == NULL) {
+        free(t->list);
+        free(t->planes);
+        free(t->interleaved);
+        free(t->scratch);
+        free(t);
+        return kAudio_MemFullError;
+    }
+    t->list->mNumberBuffers = ch;
+    for (UInt32 c = 0; c < ch; c++)
+        t->list->mBuffers[c].mNumberChannels = 1;
+    q->tap = t;
+    *outMaxFrames = maxFrames;
+    *outFormat = t->format;
+    *outTap = t;
+    return noErr;
+}
+
+OSStatus AudioQueueProcessingTapDispose(AudioQueueProcessingTapRef t) {
+    AudioQueueRef q;
+
+    if (t == NULL || !alive(t->queue))
+        return kAudio_ParamError;
+    q = t->queue;
+    if (q->running)
+        return kAudioQueueErr_InvalidRunState;
+    q->tap = NULL;
+    free(t->list);
+    free(t->planes);
+    free(t->interleaved);
+    free(t->scratch);
+    free(t);
+    return noErr;
+}
+
+/* Called from the tap's callback: the queue's next frames, as float planes. */
+OSStatus AudioQueueProcessingTapGetSourceAudio(AudioQueueProcessingTapRef t, UInt32 frames, AudioTimeStamp *ioTime,
+                                               AudioQueueProcessingTapFlags *outFlags, UInt32 *outFrames,
+                                               AudioBufferList *data) {
+    AudioQueueRef q;
+    Boolean drained = false;
+    UInt32 got;
+
+    if (t == NULL || data == NULL || outFrames == NULL)
+        return kAudio_ParamError;
+    q = t->queue;
+    if (frames > t->maxFrames)
+        frames = t->maxFrames;
+    if (t->siphoned) {
+        /* A siphon's samples were taken already: the same again. */
+        if (frames > t->siphonFrames)
+            frames = t->siphonFrames;
+        for (UInt32 c = 0; c < data->mNumberBuffers && c < t->list->mNumberBuffers; c++) {
+            if (data->mBuffers[c].mData != t->list->mBuffers[c].mData)
+                memcpy(data->mBuffers[c].mData, t->list->mBuffers[c].mData, frames * sizeof(float));
+            data->mBuffers[c].mDataByteSize = frames * sizeof(float);
+        }
+        *outFrames = frames;
+    } else {
+        got = source(q, t->scratch, frames, &drained);
+        toPlanes(t, t->scratch, frames, data);
+        t->drained = drained;
+        *outFrames = frames;
+        if (got == 0 && outFlags != NULL)
+            *outFlags |= kAudioQueueProcessingTap_EndOfStream;
+    }
+    if (ioTime != NULL) {
+        memset(ioTime, 0, sizeof(*ioTime));
+        ioTime->mSampleTime = q->playedFrames;
+        ioTime->mFlags = kAudioTimeStampSampleTimeValid;
+    }
+    return noErr;
+}
+
+OSStatus AudioQueueProcessingTapGetQueueTime(AudioQueueProcessingTapRef t, Float64 *outSampleTime,
+                                             UInt32 *outFrameCount) {
+    if (t == NULL || !alive(t->queue))
+        return kAudio_ParamError;
+    if (!t->queue->running)
+        return kAudioQueueErr_InvalidRunState;
+    if (outSampleTime != NULL)
+        *outSampleTime = t->queue->playedFrames;
+    if (outFrameCount != NULL)
+        *outFrameCount = t->frames;
+    return noErr;
 }
