@@ -36,6 +36,22 @@ struct OpaqueAudioFileID {
     UInt32 sourceBits;          /* valid bits, when the container's are more */
     void *cookie;
     UInt32 cookieSize;
+
+    /* User data: the chunks that are not the container's own. */
+    struct UserChunk {
+        UInt32 id;
+        SInt64 offset;          /* its body in the file, or -1 when only in memory */
+        UInt32 size;
+        void *data;             /* in memory: set by the app, or read to be moved */
+        Boolean afterData;
+    } *chunks;
+    UInt32 chunkCount;
+    Boolean userDirty;
+
+    /* A file that was opened (not made here) keeps its layout: only its
+       size fields change, where they are (0: none). */
+    Boolean opened;
+    SInt64 dataSizeAt, framesAt;
 };
 
 static Boolean alive(AudioFileID f) {
@@ -131,6 +147,37 @@ static void pcmFormat(AudioStreamBasicDescription *f, Float64 rate, UInt32 chann
     f->mBytesPerFrame = f->mBytesPerPacket = bits / 8 * channels;
 }
 
+/* ---- User data ------------------------------------------------------------------ */
+
+static Boolean structural(AudioFileTypeID type, UInt32 id) {
+    switch (type) {
+    case kAudioFileCAFType:
+        return id == 'desc' || id == 'data' || id == 'pakt' || id == 'kuki' || id == 'free';
+    case kAudioFileAIFFType:
+    case kAudioFileAIFCType:
+        return id == 'COMM' || id == 'SSND' || id == 'FVER' || id == 'JUNK';
+    default:
+        return id == 'fmt ' || id == 'data' || id == 'ds64' || id == 'fact' || id == 'JUNK';
+    }
+}
+
+static void noteChunk(AudioFileID f, UInt32 id, SInt64 offset, SInt64 size, Boolean afterData) {
+    struct UserChunk *grown;
+
+    if (structural(f->type, id) || size < 0 || size > 0x7FFFFFFF)
+        return;
+    grown = realloc(f->chunks, (f->chunkCount + 1) * sizeof(*grown));
+    if (grown == NULL)
+        return;
+    f->chunks = grown;
+    memset(&f->chunks[f->chunkCount], 0, sizeof(*grown));
+    f->chunks[f->chunkCount].id = id;
+    f->chunks[f->chunkCount].offset = offset;
+    f->chunks[f->chunkCount].size = (UInt32)size;
+    f->chunks[f->chunkCount].afterData = afterData;
+    f->chunkCount++;
+}
+
 /* ---- Reading the containers ------------------------------------------------- */
 
 static OSStatus parseWAVE(AudioFileID f, SInt64 size, Boolean rf64) {
@@ -171,15 +218,19 @@ static OSStatus parseWAVE(AudioFileID f, SInt64 size, Boolean rf64) {
         } else if (id == 'data') {
             if (!haveFormat)
                 return kAudioFileInvalidFileError;
+            f->dataSizeAt = rf64 ? 0 : pos + 4;
             f->dataOffset = pos + 8;
             f->dataBytes = rf64 && len == 0xFFFFFFFFu && dataSize64 >= 0 ? dataSize64 : len;
             if (f->dataOffset + f->dataBytes > size)
                 f->dataBytes = size - f->dataOffset;
-            return noErr;
+            pos = f->dataOffset + f->dataBytes + (f->dataBytes & 1);
+            continue;   /* the chunks after it */
+        } else {
+            noteChunk(f, id, pos + 8, len, f->dataOffset > 0);
         }
         pos += 8 + (SInt64)len + (len & 1);
     }
-    return kAudioFileInvalidFileError;
+    return f->dataOffset > 0 ? noErr : kAudioFileInvalidFileError;
 }
 
 static OSStatus parseAIFF(AudioFileID f, SInt64 size, Boolean aifc) {
@@ -195,6 +246,7 @@ static OSStatus parseAIFF(AudioFileID f, SInt64 size, Boolean aifc) {
         id = be32(h);
         len = be32(h + 4);
         if (id == 'COMM') {
+            f->framesAt = pos + 8 + 2;
             UInt32 channels, bits, bytes, flags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsBigEndian;
             if (len < 18 || !readExact(f, pos + 8, len < 22 ? len : 22, h))
                 return kAudioFileInvalidFileError;
@@ -235,17 +287,21 @@ static OSStatus parseAIFF(AudioFileID f, SInt64 size, Boolean aifc) {
             if (!haveFormat || len < 8 || !readExact(f, pos + 8, 8, h))
                 return kAudioFileInvalidFileError;
             offset = be32(h);
+            f->dataSizeAt = pos + 4;
             f->dataOffset = pos + 16 + offset;
             f->dataBytes = (SInt64)len - 8 - offset;
             if ((SInt64)frames * f->format.mBytesPerFrame < f->dataBytes)
                 f->dataBytes = (SInt64)frames * f->format.mBytesPerFrame;
             if (f->dataOffset + f->dataBytes > size)
                 f->dataBytes = size - f->dataOffset;
-            return noErr;
+            pos += 8 + (SInt64)len + (len & 1);
+            continue;   /* the chunks after it */
+        } else {
+            noteChunk(f, id, pos + 8, len, f->dataOffset > 0);
         }
         pos += 8 + (SInt64)len + (len & 1);
     }
-    return kAudioFileInvalidFileError;
+    return f->dataOffset > 0 ? noErr : kAudioFileInvalidFileError;
 }
 
 enum { kCAFFloat = 1, kCAFLittleEndian = 2 };
@@ -290,17 +346,23 @@ static OSStatus parseCAF(AudioFileID f, SInt64 size) {
         } else if (id == 'data') {
             if (!haveFormat)
                 return kAudioFileInvalidFileError;
+            f->dataSizeAt = pos + 4;
             f->dataOffset = pos + 12 + 4;   /* after the edit count */
             f->dataBytes = len < 0 ? size - f->dataOffset : len - 4;
             if (f->dataOffset + f->dataBytes > size)
                 f->dataBytes = size - f->dataOffset;
-            return noErr;
+            if (len < 0)
+                break;
+            pos += 12 + len;
+            continue;   /* the chunks after it */
+        } else {
+            noteChunk(f, id, pos + 12, len, f->dataOffset > 0);
         }
         if (len < 0)
             break;
         pos += 12 + len;
     }
-    return kAudioFileInvalidFileError;
+    return f->dataOffset > 0 ? noErr : kAudioFileInvalidFileError;
 }
 
 static OSStatus parse(AudioFileID f) {
@@ -403,7 +465,40 @@ static Boolean writableFormat(AudioFileTypeID type, const AudioStreamBasicDescri
 }
 
 /* Writes the header with the current sizes. */
+/* An opened file's sizes, in its own fields. */
+static OSStatus patchSizes(AudioFileID f) {
+    unsigned char b[8];
+    SInt64 total = f->dataOffset + f->dataBytes;
+
+    if (f->dataSizeAt <= 0)
+        return kAudioFileOperationNotSupportedError;    /* RF64's are elsewhere */
+    switch (f->type) {
+    case kAudioFileWAVEType:
+        putLE32(b, (UInt32)f->dataBytes);
+        writeAt(f, f->dataSizeAt, 4, b);
+        putLE32(b, (UInt32)(total + (f->dataBytes & 1) - 8));
+        return writeAt(f, 4, 4, b);
+    case kAudioFileAIFFType:
+    case kAudioFileAIFCType:
+        putBE32(b, (UInt32)(f->dataBytes + 8 + (f->dataOffset - f->dataSizeAt - 12)));
+        writeAt(f, f->dataSizeAt, 4, b);
+        if (f->framesAt > 0) {
+            putBE32(b, (UInt32)(f->dataBytes / f->format.mBytesPerFrame));
+            writeAt(f, f->framesAt, 4, b);
+        }
+        putBE32(b, (UInt32)(total + (f->dataBytes & 1) - 8));
+        return writeAt(f, 4, 4, b);
+    case kAudioFileCAFType:
+        putBE64(b, (UInt64)(f->dataBytes + 4));
+        return writeAt(f, f->dataSizeAt, 8, b);
+    default:
+        return kAudioFileUnsupportedFileTypeError;
+    }
+}
+
 static OSStatus writeHeader(AudioFileID f) {
+    if (f->opened)
+        return patchSizes(f);
     unsigned char h[80];
     const AudioStreamBasicDescription *d = &f->format;
     UInt32 frames = (UInt32)(f->dataBytes / d->mBytesPerFrame), n;
@@ -494,6 +589,8 @@ static OSStatus writeHeader(AudioFileID f) {
 
 /* ---- Opening and closing ------------------------------------------------------ */
 
+static void keepChunksAfterData(AudioFileID f);
+
 static AudioFileID newFile(void) {
     AudioFileID f = calloc(1, sizeof(*f));
 
@@ -507,6 +604,9 @@ static AudioFileID newFile(void) {
 static void freeFile(AudioFileID f) {
     if (f->fd >= 0)
         close(f->fd);
+    for (UInt32 i = 0; i < f->chunkCount; i++)
+        free(f->chunks[i].data);
+    free(f->chunks);
     free(f->cookie);
     f->magic = 0;
     free(f);
@@ -594,6 +694,8 @@ OSStatus AudioFileOpenURL(CFURLRef url, AudioFilePermissions permissions, AudioF
         freeFile(f);
         return status;
     }
+    f->opened = true;
+    keepChunksAfterData(f);
     *out = f;
     return noErr;
 }
@@ -650,21 +752,62 @@ OSStatus AudioFileOpenWithCallbacks(void *client, AudioFile_ReadProc readProc, A
         freeFile(f);
         return status;
     }
+    f->opened = true;
+    keepChunksAfterData(f);
     *out = f;
     return noErr;
 }
 
-static OSStatus updateSizes(AudioFileID f) {
-    if (!f->dirty)
+static OSStatus writeUserChunks(AudioFileID f);
+
+/* The header's sizes; when the file is done (closed or optimized), the
+   user data after the audio data too. */
+static OSStatus updateSizesFinal(AudioFileID f, Boolean final) {
+    OSStatus status;
+    Boolean chunksAfter = false;
+
+    for (UInt32 i = 0; i < f->chunkCount; i++)
+        chunksAfter |= f->chunks[i].afterData || f->chunks[i].data != NULL;
+    if (!f->dirty && !f->userDirty)
         return noErr;
-    f->dirty = false;
-    if (f->dataBytes & 1) {
-        /* RIFF and AIFF chunks are padded to an even size. */
-        unsigned char zero = 0;
-        if (f->type != kAudioFileCAFType)
-            writeAt(f, f->dataOffset + f->dataBytes, 1, &zero);
+    if (f->dirty) {
+        if (f->dataBytes & 1) {
+            /* RIFF and AIFF chunks are padded to an even size. */
+            unsigned char zero = 0;
+            if (f->type != kAudioFileCAFType)
+                writeAt(f, f->dataOffset + f->dataBytes, 1, &zero);
+        }
+        status = writeHeader(f);
+        if (status != noErr)
+            return status;
     }
-    return writeHeader(f);
+    f->dirty = false;
+    if (final && (f->userDirty || chunksAfter)) {
+        f->userDirty = false;
+        return writeUserChunks(f);
+    }
+    return noErr;
+}
+
+static OSStatus updateSizes(AudioFileID f) {
+    return updateSizesFinal(f, false);
+}
+
+/* A file opened to write: the chunks after its audio data are read now,
+   before more data is written over them. */
+static void keepChunksAfterData(AudioFileID f) {
+    if (!f->writable)
+        return;
+    for (UInt32 i = 0; i < f->chunkCount; i++) {
+        struct UserChunk *c = &f->chunks[i];
+        if (c->afterData && c->data == NULL && c->offset >= 0) {
+            c->data = malloc(c->size > 0 ? c->size : 1);
+            if (c->data != NULL && !readExact(f, c->offset, c->size, c->data)) {
+                free(c->data);
+                c->data = NULL;
+            }
+        }
+    }
 }
 
 OSStatus AudioFileClose(AudioFileID f) {
@@ -673,7 +816,7 @@ OSStatus AudioFileClose(AudioFileID f) {
     if (!alive(f))
         return kAudio_ParamError;
     if (f->writable)
-        status = updateSizes(f);
+        status = updateSizesFinal(f, true);
     freeFile(f);
     return status;
 }
@@ -681,7 +824,7 @@ OSStatus AudioFileClose(AudioFileID f) {
 OSStatus AudioFileOptimize(AudioFileID f) {
     if (!alive(f))
         return kAudio_ParamError;
-    return f->writable ? updateSizes(f) : noErr;
+    return f->writable ? updateSizesFinal(f, true) : noErr;
 }
 
 /* ---- Data ----------------------------------------------------------------- */
@@ -777,19 +920,176 @@ OSStatus AudioFileWritePackets(AudioFileID f, Boolean useCache, UInt32 bytes,
     return status;
 }
 
+/* The index'th chunk of a type, or NULL. */
+static struct UserChunk *userChunk(AudioFileID f, UInt32 id, UInt32 index) {
+    for (UInt32 i = 0; i < f->chunkCount; i++)
+        if (f->chunks[i].id == id && index-- == 0)
+            return &f->chunks[i];
+    return NULL;
+}
+
 OSStatus AudioFileCountUserData(AudioFileID f, UInt32 id, UInt32 *outCount) {
+    UInt32 n = 0;
+
     if (!alive(f) || outCount == NULL)
         return kAudio_ParamError;
-    *outCount = 0;
+    for (UInt32 i = 0; i < f->chunkCount; i++)
+        n += f->chunks[i].id == id;
+    *outCount = n;
     return noErr;
 }
 
 OSStatus AudioFileGetUserDataSize(AudioFileID f, UInt32 id, UInt32 index, UInt32 *outSize) {
-    return alive(f) ? kAudioFileInvalidChunkError : kAudio_ParamError;
+    struct UserChunk *c;
+
+    if (!alive(f) || outSize == NULL)
+        return kAudio_ParamError;
+    c = userChunk(f, id, index);
+    if (c == NULL)
+        return kAudioFileInvalidChunkError;
+    *outSize = c->size;
+    return noErr;
 }
 
 OSStatus AudioFileGetUserData(AudioFileID f, UInt32 id, UInt32 index, UInt32 *ioSize, void *data) {
-    return alive(f) ? kAudioFileInvalidChunkError : kAudio_ParamError;
+    struct UserChunk *c;
+    UInt32 n;
+
+    if (!alive(f) || ioSize == NULL || data == NULL)
+        return kAudio_ParamError;
+    c = userChunk(f, id, index);
+    if (c == NULL)
+        return kAudioFileInvalidChunkError;
+    n = *ioSize < c->size ? *ioSize : c->size;
+    if (c->data != NULL)
+        memcpy(data, c->data, n);
+    else if (!readExact(f, c->offset, n, data))
+        return kAudioFileInvalidFileError;
+    *ioSize = n;
+    return noErr;
+}
+
+/* Sets the index'th chunk of a type (or adds one, at the next index); it
+   is written after the audio data when the file is closed. */
+OSStatus AudioFileSetUserData(AudioFileID f, UInt32 id, UInt32 index, UInt32 size, const void *data) {
+    struct UserChunk *c;
+    UInt32 count = 0;
+    void *copy;
+
+    if (!alive(f) || (data == NULL && size > 0))
+        return kAudio_ParamError;
+    if (!f->writable)
+        return kAudioFilePermissionsError;
+    if (structural(f->type, id))
+        return kAudioFileInvalidChunkError;
+    AudioFileCountUserData(f, id, &count);
+    if (index > count)
+        return kAudioFileInvalidChunkError;
+    copy = malloc(size > 0 ? size : 1);
+    if (copy == NULL)
+        return kAudio_MemFullError;
+    memcpy(copy, data, size);
+    c = userChunk(f, id, index);
+    if (c == NULL) {
+        noteChunk(f, id, -1, 0, true);
+        c = &f->chunks[f->chunkCount - 1];
+    } else {
+        free(c->data);
+    }
+    c->data = copy;
+    c->size = size;
+    f->userDirty = true;
+    return noErr;
+}
+
+OSStatus AudioFileRemoveUserData(AudioFileID f, UInt32 id, UInt32 index) {
+    struct UserChunk *c;
+
+    if (!alive(f))
+        return kAudio_ParamError;
+    if (!f->writable)
+        return kAudioFilePermissionsError;
+    c = userChunk(f, id, index);
+    if (c == NULL)
+        return kAudioFileInvalidChunkError;
+    if (c->offset >= 0 && !c->afterData) {
+        /* Where it was, before the data, it becomes padding. */
+        unsigned char tag[4];
+        UInt32 pad = f->type == kAudioFileCAFType ? 'free' : 'JUNK';
+        SInt64 at = c->offset - (f->type == kAudioFileCAFType ? 12 : 8);
+        tag[0] = pad >> 24; tag[1] = (pad >> 16) & 0xff; tag[2] = (pad >> 8) & 0xff; tag[3] = pad & 0xff;
+        writeAt(f, at, 4, tag);
+    }
+    free(c->data);
+    memmove(c, c + 1, (f->chunkCount - (UInt32)(c - f->chunks) - 1) * sizeof(*c));
+    f->chunkCount--;
+    f->userDirty = true;
+    return noErr;
+}
+
+/* After the audio data, the chunks that go there: those the app set and
+   those that were there (read first, as the data may have grown over
+   them). The file ends after them, and the container's size says so. */
+static OSStatus writeUserChunks(AudioFileID f) {
+    SInt64 end = f->dataOffset + f->dataBytes + (f->type != kAudioFileCAFType ? (f->dataBytes & 1) : 0);
+    Boolean caf = f->type == kAudioFileCAFType, big = f->type != kAudioFileWAVEType;
+    unsigned char h[12];
+    SInt64 at = end;
+
+    for (UInt32 i = 0; i < f->chunkCount; i++) {
+        struct UserChunk *c = &f->chunks[i];
+        if (c->data == NULL && c->offset >= 0 && c->afterData) {
+            c->data = malloc(c->size > 0 ? c->size : 1);
+            if (c->data == NULL || !readExact(f, c->offset, c->size, c->data))
+                return kAudioFileInvalidFileError;
+        }
+    }
+    for (UInt32 i = 0; i < f->chunkCount; i++) {
+        struct UserChunk *c = &f->chunks[i];
+        UInt32 n;
+        if (c->data == NULL)
+            continue;   /* before the data and unchanged: it stays where it is */
+        if (c->offset >= 0 && !c->afterData) {
+            /* A changed chunk from before the data: padding there now. */
+            UInt32 pad = caf ? 'free' : 'JUNK';
+            unsigned char tag[4] = { pad >> 24, (pad >> 16) & 0xff, (pad >> 8) & 0xff, pad & 0xff };
+            writeAt(f, c->offset - (caf ? 12 : 8), 4, tag);
+        }
+        putBE32(h, c->id);
+        if (caf) {
+            putBE64(h + 4, c->size);
+            n = 12;
+        } else {
+            if (big)
+                putBE32(h + 4, c->size);
+            else
+                putLE32(h + 4, c->size);
+            n = 8;
+        }
+        if (writeAt(f, at, n, h) != noErr || (c->size > 0 && writeAt(f, at + n, c->size, c->data) != noErr))
+            return kAudioFilePositionError;
+        c->offset = at + n;
+        c->afterData = true;
+        at += n + c->size;
+        if (!caf && (c->size & 1)) {
+            unsigned char zero = 0;
+            writeAt(f, at, 1, &zero);
+            at++;
+        }
+    }
+    if (f->fd >= 0)
+        ftruncate(f->fd, at);
+    else if (f->setSizeProc != NULL)
+        f->setSizeProc(f->client, at);
+    if (!caf) {
+        /* RIFF and FORM give the whole file's size, less their header. */
+        if (big)
+            putBE32(h, (UInt32)(at - 8));
+        else
+            putLE32(h, (UInt32)(at - 8));
+        writeAt(f, 4, 4, h);
+    }
+    return noErr;
 }
 
 /* ---- Properties ------------------------------------------------------------- */
