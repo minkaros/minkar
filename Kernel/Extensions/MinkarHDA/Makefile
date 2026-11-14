@@ -11,10 +11,11 @@ INFO_PLIST = Info.plist
 BUNDLE_IDENTIFIER = org.minkar.driver.MinkarHDA
 BUNDLE_VERSION = 1.0.0
 
-SRCS = MinkarHDA.cpp
+SRCS = MinkarHDA.cpp MinkarHDAEngine.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR:H}/IOPCIFamily \
+	-I${.CURDIR:H}/IOAudioFamily \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/iokit \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \

@@ -9,6 +9,9 @@
 
 #include <IOKit/IOService.h>
 #include <IOKit/IOLocks.h>
+#include <IOKit/IOInterruptEventSource.h>
+#include <IOKit/audio/IOAudioDevice.h>
+#include <IOKit/audio/IOAudioEngine.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include "HDA.h"
@@ -50,11 +53,17 @@ struct HDAAudioGroup {
     HDAWidget widgets[HDA_MAX_WIDGETS];
 };
 
-class MinkarHDA : public IOService {
+class MinkarHDAEngine;
+
+/* The controller and its codecs: an audio device with an engine for its
+   first analog output. */
+class MinkarHDA : public IOAudioDevice {
     OSDeclareDefaultStructors(MinkarHDA);
 
+    friend class MinkarHDAEngine;
+
 public:
-    virtual bool start(IOService *provider) override;
+    virtual bool initHardware(IOService *provider) override;
     virtual void stop(IOService *provider) override;
     virtual void free() override;
 
@@ -78,6 +87,14 @@ private:
     void publishOutputs();
     bool verb(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload, uint32_t *response = NULL);
     bool verb4(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload);
+    bool setUpInterrupts();
+    void handleInterrupt(IOInterruptEventSource *source, int count);
+    static void interruptOccurred(OSObject *owner, IOInterruptEventSource *source, int count);
+    HDAWidget *widgetAt(uint8_t cad, uint8_t nid);
+
+    /* The register offset of output stream n (inputs come first). */
+    uint32_t outputStream(unsigned n) { return HDA_SD_BASE + (HDA_GCAP_ISS(fCaps) + n) * HDA_SD_SIZE; }
+    unsigned outputStreamIndex(unsigned n) { return HDA_GCAP_ISS(fCaps) + n; }
 
     uint8_t  read8(uint32_t reg)  { return *(volatile uint8_t *)(fRegs + reg); }
     uint16_t read16(uint32_t reg) { return *(volatile uint16_t *)(fRegs + reg); }
@@ -103,6 +120,44 @@ private:
     HDAAudioGroup            *fGroups[HDA_MAX_CODECS];
     HDAOutput                 fOutputs[HDA_MAX_OUTPUTS];
     int                       fOutputCount;
+
+    IOInterruptEventSource   *fInterruptSource;
+    MinkarHDAEngine          *fEngine;
+};
+
+/* One output stream of the controller, feeding one output's DAC, from a
+   buffer the hardware runs through in a loop. */
+class MinkarHDAEngine : public IOAudioEngine {
+    OSDeclareDefaultStructors(MinkarHDAEngine);
+
+public:
+    bool initWithController(MinkarHDA *controller, int output, unsigned stream);
+    virtual bool initHardware(IOService *provider) override;
+    virtual void free() override;
+    virtual IOReturn performAudioEngineStart() override;
+    virtual IOReturn performAudioEngineStop() override;
+    virtual UInt32 getCurrentSampleFrame() override;
+    virtual IOReturn performFormatChange(IOAudioStream *audioStream,
+        const IOAudioStreamFormat *newFormat, const IOAudioSampleRate *newSampleRate) override;
+
+    /* The buffer wrapped (the controller's interrupt). */
+    void bufferCompleted();
+
+private:
+    bool createControls();
+    static IOReturn volumeChanged(OSObject *target, IOAudioControl *control, SInt32 oldValue, SInt32 newValue);
+    static IOReturn muteChanged(OSObject *target, IOAudioControl *control, SInt32 oldValue, SInt32 newValue);
+    void applyOutputAmp();
+
+    MinkarHDA                *fController;
+    int                       fOutput;          /* index into fOutputs */
+    unsigned                  fStream;          /* output stream number */
+    IOBufferMemoryDescriptor *fBuffer;          /* samples */
+    IOBufferMemoryDescriptor *fBDL;             /* buffer descriptor list */
+    uint32_t                  fBytesPerFrame;
+    uint16_t                  fFormat;          /* SDnFMT */
+    SInt32                    fVolume;          /* amplifier steps */
+    bool                      fMuted;
 };
 
 #endif /* _MINKAR_HDA_DRIVER_H_ */

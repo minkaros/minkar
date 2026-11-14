@@ -183,6 +183,8 @@ struct HDAResponse {
 #define HDA_PARAM_OUT_AMP_CAPS          0x12
 #define  HDA_AMPCAP_OFFSET(r)           ((r) & 0x7F)
 #define  HDA_AMPCAP_STEPS(r)            (((r) >> 8) & 0x7F)
+#define  HDA_AMPCAP_STEP_SIZE(r)         (((r) >> 16) & 0x7F)   /* (n + 1) / 4 dB */
+#define  HDA_AMPCAP_MUTE                 0x80000000
 
 /* Widget types (WIDGET_CAPS bits 23:20). */
 enum {

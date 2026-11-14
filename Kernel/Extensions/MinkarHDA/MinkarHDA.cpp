@@ -6,7 +6,9 @@
  * MinkarHDA: Intel High Definition Audio controllers (PCI class 0x0403).
  * It resets the controller, runs the command rings (CORB and RIRB) and
  * finds the codecs on the link: each codec's vendor, revision and function
- * groups are in the registry (HDACodecs). Playback comes on top of it.
+ * groups are in the registry (HDACodecs), and their analog outputs
+ * (HDAOutputs). It is an IOAudioDevice with an engine for the first output
+ * (MinkarHDAEngine.cpp).
  */
 
 #include "MinkarHDA.h"
@@ -15,10 +17,10 @@
 #include <libkern/c++/OSDictionary.h>
 #include <libkern/c++/OSNumber.h>
 
-#define super IOService
+#define super IOAudioDevice
 #define LOG(fmt, ...) IOLog("MinkarHDA: " fmt "\n", ##__VA_ARGS__)
 
-OSDefineMetaClassAndStructors(MinkarHDA, IOService);
+OSDefineMetaClassAndStructors(MinkarHDA, IOAudioDevice);
 
 static inline void
 barrier(void)
@@ -548,13 +550,79 @@ MinkarHDA::publishOutputs()
     outputs->release();
 }
 
-/* ---- IOService --------------------------------------------------------- */
+/* ---- Interrupts -------------------------------------------------------- */
 
+/* The controller's MSI when the platform gave one, else its line, on the
+   device's work loop. Only stream interrupts are enabled (INTCTL's SIE
+   bits, set when an engine starts); responses are read by polling. */
 bool
-MinkarHDA::start(IOService *provider)
+MinkarHDA::setUpInterrupts()
+{
+    int index = 0, type;
+
+    for (int i = 0; fPCI->getInterruptType(i, &type) == kIOReturnSuccess; i++)
+        if (type & kIOInterruptTypePCIMessaged) {
+            index = i;
+            break;
+        }
+    fInterruptSource = IOInterruptEventSource::interruptEventSource(this,
+        &MinkarHDA::interruptOccurred, fPCI, index);
+    if (fInterruptSource == NULL || getWorkLoop()->addEventSource(fInterruptSource) != kIOReturnSuccess) {
+        OSSafeReleaseNULL(fInterruptSource);
+        return false;
+    }
+    fInterruptSource->enable();
+    write32(HDA_INTCTL, HDA_INTCTL_GIE);
+    LOG("using %s interrupt (source %d)", index > 0 ? "MSI" : "legacy", index);
+    return true;
+}
+
+void
+MinkarHDA::interruptOccurred(OSObject *owner, IOInterruptEventSource *source, int count)
+{
+    MinkarHDA *self = OSDynamicCast(MinkarHDA, owner);
+
+    if (self != NULL)
+        self->handleInterrupt(source, count);
+}
+
+/* Each stream that finished a buffer descriptor with its interrupt bit
+   (the buffer's last: a wrap) tells its engine. */
+void
+MinkarHDA::handleInterrupt(IOInterruptEventSource *source, int count)
+{
+    uint32_t status = read32(HDA_INTSTS);
+
+    if ((status & HDA_INTSTS_GIS) == 0)
+        return;
+    for (unsigned s = 0; s < 30; s++) {
+        if ((status & (1U << s)) == 0)
+            continue;
+        uint32_t sd = HDA_SD_BASE + s * HDA_SD_SIZE;
+        uint8_t sts = read8(sd + HDA_SD_STS);
+
+        write8(sd + HDA_SD_STS, sts & (HDA_SDSTS_BCIS | HDA_SDSTS_FIFOE | HDA_SDSTS_DESE));
+        if ((sts & HDA_SDSTS_BCIS) && fEngine != NULL &&
+            s == outputStreamIndex(0))
+            fEngine->bufferCompleted();
+    }
+}
+
+HDAWidget *
+MinkarHDA::widgetAt(uint8_t cad, uint8_t nid)
+{
+    return cad < HDA_MAX_CODECS && fGroups[cad] != NULL ? widget(fGroups[cad], nid) : NULL;
+}
+
+/* ---- IOAudioDevice ----------------------------------------------------- */
+
+/* The controller set up, its codecs found, their outputs enabled, and an
+   engine for the first one. */
+bool
+MinkarHDA::initHardware(IOService *provider)
 {
     fPCI = OSDynamicCast(IOPCIDevice, provider);
-    if (fPCI == NULL || !super::start(provider))
+    if (fPCI == NULL || !super::initHardware(provider))
         return false;
     fPCI->retain();
     fCommandLock = IOLockAlloc();
@@ -589,17 +657,44 @@ MinkarHDA::start(IOService *provider)
     for (int i = 0; i < fOutputCount; i++)
         enableOutput(fGroups[fOutputs[i].cad], &fOutputs[i]);
     publishOutputs();
-    registerService();
+
+    setDeviceName("High Definition Audio");
+    setDeviceShortName("HDA");
+    setManufacturerName("Intel High Definition Audio");
+    setDeviceTransportType(kIOAudioDeviceTransportTypeBuiltIn);
+    if (fOutputCount == 0 || HDA_GCAP_OSS(fCaps) == 0)
+        return true;            /* nothing to play to */
+    if (!setUpInterrupts()) {
+        LOG("no interrupt for the streams");
+        return true;
+    }
+    fEngine = new MinkarHDAEngine;
+    if (fEngine == NULL || !fEngine->initWithController(this, 0, 0)) {
+        OSSafeReleaseNULL(fEngine);
+        return true;
+    }
+    if (activateAudioEngine(fEngine) != kIOReturnSuccess)
+        LOG("the output's engine does not start");
+    fEngine->release();     /* the device holds it */
     return true;
 }
 
 void
 MinkarHDA::stop(IOService *provider)
 {
+    if (fRegs != NULL)
+        write32(HDA_INTCTL, 0);
+    if (fInterruptSource != NULL) {
+        fInterruptSource->disable();
+        if (getWorkLoop() != NULL)
+            getWorkLoop()->removeEventSource(fInterruptSource);
+        OSSafeReleaseNULL(fInterruptSource);
+    }
+    fEngine = NULL;
+    super::stop(provider);
     stopRings();
     if (fRegs != NULL)
         write32(HDA_GCTL, read32(HDA_GCTL) & ~HDA_GCTL_CRST);
-    super::stop(provider);
 }
 
 void
