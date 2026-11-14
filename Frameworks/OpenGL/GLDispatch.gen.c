@@ -34,12 +34,16 @@ const char *const cgl_gl_names[CGL_GL_COUNT] = {
     "glDisable",
     "glIsEnabled",
     "glEnableClientState",
+    "glDisableClientState",
+    "glGetBooleanv",
     "glGetDoublev",
     "glGetFloatv",
     "glGetIntegerv",
     "glPushAttrib",
     "glPopAttrib",
     "glPushClientAttrib",
+    "glPopClientAttrib",
+    "glRenderMode",
     "glGetError",
     "glGetString",
     "glFinish",
@@ -117,10 +121,12 @@ const char *const cgl_gl_names[CGL_GL_COUNT] = {
     "glIndexi",
     "glIndexs",
     "glIndexub",
+    "glIndexdv",
     "glIndexfv",
     "glIndexiv",
     "glIndexsv",
     "glIndexubv",
+    "glColor3b",
     "glColor3d",
     "glColor3f",
     "glColor3i",
@@ -1117,6 +1123,22 @@ GLAPI void GLAPIENTRY glEnableClientState(GLenum cap)
         ((void (GLAPIENTRY *)(GLenum))cgl_fn_)(cap);
 }
 
+GLAPI void GLAPIENTRY glDisableClientState(GLenum cap)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glDisableClientState);
+
+    if (cgl_fn_ != NULL)
+        ((void (GLAPIENTRY *)(GLenum))cgl_fn_)(cap);
+}
+
+GLAPI void GLAPIENTRY glGetBooleanv(GLenum pname, GLboolean *params)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glGetBooleanv);
+
+    if (cgl_fn_ != NULL)
+        ((void (GLAPIENTRY *)(GLenum, GLboolean *))cgl_fn_)(pname, params);
+}
+
 GLAPI void GLAPIENTRY glGetDoublev(GLenum pname, GLdouble *params)
 {
     CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glGetDoublev);
@@ -1163,6 +1185,23 @@ GLAPI void GLAPIENTRY glPushClientAttrib(GLbitfield mask)
 
     if (cgl_fn_ != NULL)
         ((void (GLAPIENTRY *)(GLbitfield))cgl_fn_)(mask);
+}
+
+GLAPI void GLAPIENTRY glPopClientAttrib(void)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glPopClientAttrib);
+
+    if (cgl_fn_ != NULL)
+        ((void (GLAPIENTRY *)(void))cgl_fn_)();
+}
+
+GLAPI GLint GLAPIENTRY glRenderMode(GLenum mode)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glRenderMode);
+
+    if (cgl_fn_ == NULL)
+        return 0;
+    return ((GLint (GLAPIENTRY *)(GLenum))cgl_fn_)(mode);
 }
 
 GLAPI GLenum GLAPIENTRY glGetError(void)
@@ -1785,6 +1824,14 @@ GLAPI void GLAPIENTRY glIndexub(GLubyte c)
         ((void (GLAPIENTRY *)(GLubyte))cgl_fn_)(c);
 }
 
+GLAPI void GLAPIENTRY glIndexdv(const GLdouble *c)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glIndexdv);
+
+    if (cgl_fn_ != NULL)
+        ((void (GLAPIENTRY *)(const GLdouble *))cgl_fn_)(c);
+}
+
 GLAPI void GLAPIENTRY glIndexfv(const GLfloat *c)
 {
     CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glIndexfv);
@@ -1815,6 +1862,14 @@ GLAPI void GLAPIENTRY glIndexubv(const GLubyte *c)
 
     if (cgl_fn_ != NULL)
         ((void (GLAPIENTRY *)(const GLubyte *))cgl_fn_)(c);
+}
+
+GLAPI void GLAPIENTRY glColor3b(GLbyte red, GLbyte green, GLbyte blue)
+{
+    CGLGLProc cgl_fn_ = cgl_gl_proc(CGL_GL_glColor3b);
+
+    if (cgl_fn_ != NULL)
+        ((void (GLAPIENTRY *)(GLbyte, GLbyte, GLbyte))cgl_fn_)(red, green, blue);
 }
 
 GLAPI void GLAPIENTRY glColor3d(GLdouble red, GLdouble green, GLdouble blue)

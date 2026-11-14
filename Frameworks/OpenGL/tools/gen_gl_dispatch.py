@@ -53,10 +53,16 @@ PARAM_NAME = re.compile(r'(\w+)\s*(\[[^\]]*\])?\s*$')
 MAX_VERSION = (4, 1)
 
 
+COMMENT = re.compile(r'/\*.*?\*/')
+
+
 def statements(lines):
-    """Yield (line, joined statement) pairs, joining GLAPI lines up to ';'."""
+    """Yield (line, joined statement) pairs, joining GLAPI lines up to ';'.
+    A comment after the ';' ("/* 1.1 */") does not hide the statement's
+    end: it made the next declaration part of this one, and lost it."""
     buf = None
     for line in lines:
+        line = COMMENT.sub('', line).rstrip()
         if buf is None:
             if line.lstrip().startswith('GLAPI'):
                 buf = line.strip()
