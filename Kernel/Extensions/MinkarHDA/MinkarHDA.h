@@ -21,6 +21,7 @@
 #define HDA_MAX_CONNECTIONS 32
 #define HDA_MAX_PATH    6
 #define HDA_MAX_OUTPUTS 8
+#define HDA_MAX_INPUTS  8
 
 /* A widget of an audio function group. */
 struct HDAWidget {
@@ -33,6 +34,7 @@ struct HDAWidget {
     uint8_t  connections[HDA_MAX_CONNECTIONS];
     uint8_t  connectionCount;
     bool     used;                  /* on an output path */
+    bool     usedIn;                /* on an input path */
 };
 
 /* An output: a pin, the DAC that feeds it, and the widgets between (from
@@ -40,6 +42,17 @@ struct HDAWidget {
 struct HDAOutput {
     uint8_t cad;
     uint8_t pin, dac;
+    uint8_t path[HDA_MAX_PATH];
+    uint8_t pathInput[HDA_MAX_PATH];  /* connection index into path[i + 1] */
+    uint8_t length;
+    uint8_t device;                 /* HDA_DEVICE_* of the pin */
+};
+
+/* An input: an ADC, the pin it records, and the widgets between (from the
+   ADC to the pin), each with the input it takes from the next. */
+struct HDAInput {
+    uint8_t cad;
+    uint8_t adc, pin;
     uint8_t path[HDA_MAX_PATH];
     uint8_t pathInput[HDA_MAX_PATH];  /* connection index into path[i + 1] */
     uint8_t length;
@@ -85,6 +98,10 @@ private:
     void findOutputs(HDAAudioGroup *group);
     void enableOutput(HDAAudioGroup *group, const HDAOutput *out);
     void publishOutputs();
+    bool findInputPath(HDAAudioGroup *group, HDAInput *in, uint8_t nid, int depth, uint32_t device);
+    void findInputs(HDAAudioGroup *group);
+    void enableInput(HDAAudioGroup *group, const HDAInput *in);
+    void publishInputs();
     bool verb(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload, uint32_t *response = NULL);
     bool verb4(uint8_t cad, uint8_t nid, uint32_t verb, uint32_t payload);
     bool setUpInterrupts();
@@ -95,6 +112,9 @@ private:
     /* The register offset of output stream n (inputs come first). */
     uint32_t outputStream(unsigned n) { return HDA_SD_BASE + (HDA_GCAP_ISS(fCaps) + n) * HDA_SD_SIZE; }
     unsigned outputStreamIndex(unsigned n) { return HDA_GCAP_ISS(fCaps) + n; }
+    /* Input stream n's: they come first. */
+    uint32_t inputStream(unsigned n) { return HDA_SD_BASE + n * HDA_SD_SIZE; }
+    unsigned inputStreamIndex(unsigned n) { return n; }
 
     uint8_t  read8(uint32_t reg)  { return *(volatile uint8_t *)(fRegs + reg); }
     uint16_t read16(uint32_t reg) { return *(volatile uint16_t *)(fRegs + reg); }
@@ -120,18 +140,22 @@ private:
     HDAAudioGroup            *fGroups[HDA_MAX_CODECS];
     HDAOutput                 fOutputs[HDA_MAX_OUTPUTS];
     int                       fOutputCount;
+    HDAInput                  fInputs[HDA_MAX_INPUTS];
+    int                       fInputCount;
 
     IOInterruptEventSource   *fInterruptSource;
     MinkarHDAEngine          *fEngine;
 };
 
-/* One output stream of the controller, feeding one output's DAC, from a
-   buffer the hardware runs through in a loop. */
+/* One output stream of the controller, feeding one output's DAC, and,
+   when the codec has one, an input stream from an input's ADC, each with a
+   buffer the hardware runs through in a loop; both start together, so a
+   frame of one is the same frame of the other. */
 class MinkarHDAEngine : public IOAudioEngine {
     OSDeclareDefaultStructors(MinkarHDAEngine);
 
 public:
-    bool initWithController(MinkarHDA *controller, int output, unsigned stream);
+    bool initWithController(MinkarHDA *controller, int output, unsigned stream, int input);
     virtual bool initHardware(IOService *provider) override;
     virtual void free() override;
     virtual IOReturn performAudioEngineStart() override;
@@ -145,9 +169,14 @@ public:
 
 private:
     bool createControls();
+    void createInputControls();
     static IOReturn volumeChanged(OSObject *target, IOAudioControl *control, SInt32 oldValue, SInt32 newValue);
     static IOReturn muteChanged(OSObject *target, IOAudioControl *control, SInt32 oldValue, SInt32 newValue);
     void applyOutputAmp();
+    void applyInputAmp();
+    static IOReturn inputGainChanged(OSObject *target, IOAudioControl *control, SInt32 oldValue, SInt32 newValue);
+    void resetStream(uint32_t sd);
+    void programStream(uint32_t sd, IOBufferMemoryDescriptor *bdl, uint8_t tag);
 
     MinkarHDA                *fController;
     int                       fOutput;          /* index into fOutputs */
@@ -158,6 +187,11 @@ private:
     uint16_t                  fFormat;          /* SDnFMT */
     SInt32                    fVolume;          /* amplifier steps */
     bool                      fMuted;
+
+    int                       fInput;           /* index into fInputs, or -1 */
+    IOBufferMemoryDescriptor *fInBuffer;        /* recorded samples */
+    IOBufferMemoryDescriptor *fInBDL;
+    SInt32                    fInputGain;       /* the ADC's amplifier steps */
 };
 
 #endif /* _MINKAR_HDA_DRIVER_H_ */

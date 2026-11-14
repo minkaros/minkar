@@ -550,6 +550,133 @@ MinkarHDA::publishOutputs()
     outputs->release();
 }
 
+/* ---- Inputs ------------------------------------------------------------ */
+
+/* A way from the node (an ADC first) to a pin of the device, through
+   selectors and mixers. */
+bool
+MinkarHDA::findInputPath(HDAAudioGroup *group, HDAInput *in, uint8_t nid, int depth, uint32_t device)
+{
+    HDAWidget *w = widget(group, nid);
+
+    if (w == NULL || depth >= HDA_MAX_PATH)
+        return false;
+    in->path[depth] = nid;
+    if (w->type == HDA_WIDGET_PIN) {
+        if (depth == 0 || !(w->pinCaps & HDA_PINCAP_INPUT) || w->usedIn ||
+            HDA_CONFIG_CONNECTIVITY(w->config) == HDA_CONNECT_NONE || HDA_CONFIG_DEVICE(w->config) != device)
+            return false;
+        in->pin = nid;
+        in->device = (uint8_t)device;
+        in->length = (uint8_t)(depth + 1);
+        return true;
+    }
+    if (depth > 0 && w->type != HDA_WIDGET_MIXER && w->type != HDA_WIDGET_SELECTOR)
+        return false;
+    for (uint8_t i = 0; i < w->connectionCount; i++) {
+        in->pathInput[depth] = i;
+        if (findInputPath(group, in, w->connections[i], depth + 1, device))
+            return true;
+    }
+    return false;
+}
+
+/* The analog inputs of a group: for each ADC, the line in it reaches, or
+   else a microphone (best first, as the outputs). */
+void
+MinkarHDA::findInputs(HDAAudioGroup *group)
+{
+    static const uint32_t devices[] = { HDA_DEVICE_LINE_IN, HDA_DEVICE_MIC_IN };
+
+    for (int d = 0; d < 2; d++)
+        for (int i = 0; i < group->widgetCount && fInputCount < HDA_MAX_INPUTS; i++) {
+            HDAWidget *w = &group->widgets[i];
+            HDAInput *in = &fInputs[fInputCount];
+
+            if (w->type != HDA_WIDGET_INPUT || (w->caps & HDA_WCAP_DIGITAL) || w->usedIn)
+                continue;
+            bzero(in, sizeof(*in));
+            in->cad = group->cad;
+            in->adc = w->nid;
+            if (!findInputPath(group, in, w->nid, 0, devices[d]))
+                continue;
+            w->usedIn = true;
+            widget(group, in->pin)->usedIn = true;
+            fInputCount++;
+        }
+}
+
+/* The path set up: inputs chosen, amplifiers open at 0 dB, the pin
+   receiving (a microphone with its bias). */
+void
+MinkarHDA::enableInput(HDAAudioGroup *group, const HDAInput *in)
+{
+    uint8_t cad = in->cad;
+
+    for (int i = 0; i < in->length; i++) {
+        HDAWidget *w = widget(group, in->path[i]);
+        bool hasNext = i + 1 < in->length;
+
+        if (hasNext && w->connectionCount > 1 && w->type != HDA_WIDGET_MIXER)
+            verb(cad, w->nid, HDA_VERB_SET_CONNECTION_SELECT, in->pathInput[i]);
+        if (hasNext && (w->caps & HDA_WCAP_IN_AMP))
+            verb4(cad, w->nid, HDA_VERB_SET_AMP, HDA_AMP_SET_INPUT | HDA_AMP_SET_LEFT |
+                  HDA_AMP_SET_RIGHT | HDA_AMP_SET_INDEX(in->pathInput[i]) | unmuted(w->inAmpCaps));
+        if (w->caps & HDA_WCAP_OUT_AMP && w->type != HDA_WIDGET_PIN)
+            verb4(cad, w->nid, HDA_VERB_SET_AMP, HDA_AMP_SET_OUTPUT | HDA_AMP_SET_LEFT |
+                  HDA_AMP_SET_RIGHT | unmuted(w->outAmpCaps));
+    }
+    HDAWidget *pin = widget(group, in->pin);
+    uint32_t control = HDA_PIN_CONTROL_IN;
+
+    if (in->device == HDA_DEVICE_MIC_IN && (pin->pinCaps & HDA_PINCAP_VREF_80))
+        control |= HDA_PIN_CONTROL_VREF_80;
+    verb(cad, in->pin, HDA_VERB_SET_PIN_CONTROL, control);
+    if (pin->caps & HDA_WCAP_IN_AMP)        /* a microphone's boost, at 0 dB */
+        verb4(cad, in->pin, HDA_VERB_SET_AMP, HDA_AMP_SET_INPUT | HDA_AMP_SET_LEFT |
+              HDA_AMP_SET_RIGHT | unmuted(pin->inAmpCaps));
+}
+
+/* The inputs in the registry (HDAInputs). */
+void
+MinkarHDA::publishInputs()
+{
+    OSArray *inputs = OSArray::withCapacity((unsigned)fInputCount + 1);
+
+    if (inputs == NULL)
+        return;
+    for (int i = 0; i < fInputCount; i++) {
+        const HDAInput *in = &fInputs[i];
+        OSDictionary *d = OSDictionary::withCapacity(5);
+        OSArray *path = OSArray::withCapacity(in->length);
+
+        if (d == NULL || path == NULL) {
+            OSSafeReleaseNULL(d);
+            OSSafeReleaseNULL(path);
+            continue;
+        }
+        for (int j = 0; j < in->length; j++) {
+            OSNumber *n = OSNumber::withNumber(in->path[j], 8);
+            if (n != NULL) {
+                path->setObject(n);
+                n->release();
+            }
+        }
+        setNumber(d, "codec", in->cad, 8);
+        setNumber(d, "adc", in->adc, 8);
+        setNumber(d, "pin", in->pin, 8);
+        setNumber(d, "device", in->device, 8);
+        d->setObject("path", path);
+        path->release();
+        inputs->setObject(d);
+        d->release();
+        LOG("input %d: codec %u ADC %u <- pin %u (device %u), %u widgets", i, in->cad, in->adc,
+            in->pin, in->device, in->length);
+    }
+    setProperty("HDAInputs", inputs);
+    inputs->release();
+}
+
 /* ---- Interrupts -------------------------------------------------------- */
 
 /* The controller's MSI when the platform gave one, else its line, on the
@@ -657,6 +784,12 @@ MinkarHDA::initHardware(IOService *provider)
     for (int i = 0; i < fOutputCount; i++)
         enableOutput(fGroups[fOutputs[i].cad], &fOutputs[i]);
     publishOutputs();
+    for (int cad = 0; cad < HDA_MAX_CODECS; cad++)
+        if (fGroups[cad] != NULL)
+            findInputs(fGroups[cad]);
+    for (int i = 0; i < fInputCount; i++)
+        enableInput(fGroups[fInputs[i].cad], &fInputs[i]);
+    publishInputs();
 
     setDeviceName("High Definition Audio");
     setDeviceShortName("HDA");
@@ -669,7 +802,10 @@ MinkarHDA::initHardware(IOService *provider)
         return true;
     }
     fEngine = new MinkarHDAEngine;
-    if (fEngine == NULL || !fEngine->initWithController(this, 0, 0)) {
+    /* The first output, and the first input when the controller has an
+       input stream: one engine, so they share a clock. */
+    int input = fInputCount > 0 && HDA_GCAP_ISS(fCaps) > 0 ? 0 : -1;
+    if (fEngine == NULL || !fEngine->initWithController(this, 0, 0, input)) {
         OSSafeReleaseNULL(fEngine);
         return true;
     }

@@ -129,6 +129,7 @@ struct HDAResponse {
 #define  HDA_PIN_CONTROL_IN             0x20
 #define  HDA_PIN_CONTROL_OUT            0x40
 #define  HDA_PIN_CONTROL_HP             0x80
+#define  HDA_PIN_CONTROL_VREF_80        0x04
 #define HDA_VERB_GET_EAPD               0xF0C
 #define HDA_VERB_SET_EAPD               0x70C
 #define  HDA_EAPD_ENABLE                0x02
@@ -176,6 +177,7 @@ struct HDAResponse {
 #define  HDA_PINCAP_INPUT               0x00000020
 #define  HDA_PINCAP_HP                  0x00000008
 #define  HDA_PINCAP_EAPD                0x00010000
+#define  HDA_PINCAP_VREF_80             0x00000400  /* VREF 80% (bits 15:8) */
 #define HDA_PARAM_IN_AMP_CAPS           0x0D
 #define HDA_PARAM_CONN_LIST_LENGTH      0x0E
 #define  HDA_CONN_LONG_FORM             0x80
