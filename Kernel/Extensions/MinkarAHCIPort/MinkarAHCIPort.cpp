@@ -403,9 +403,6 @@ bool MinkarAHCIPort::start(IOService *provider)
         portState.valid = true;
         portState.port = (uint32_t)p;
 
-        if (fInterruptsEnabled)
-            portWrite32(p, PORT_IE, 0xFFFFFFFFU);
-
         uint16_t identifyData[256];
         if (!identifyDevice(portState, identifyData)) {
             AHCI_Log("IDENTIFY failed on port %d, skipping", p);
@@ -631,6 +628,14 @@ MinkarAHCIPort::startPortEngine(uint32_t port)
     cmd |= PORT_CMD_ST;
     portWrite32(port, PORT_CMD, cmd);
 
+    /* The port's interrupts, which rebasePort() turned off: set here, once
+     * the port is ready (and again after a recovery), they end a command's
+     * wait when it completes. Left off, every command waited out its 1 ms
+     * deadline. */
+    if (fInterruptsEnabled) {
+        portWrite32(port, PORT_IS, 0xFFFFFFFFU);
+        portWrite32(port, PORT_IE, 0xFFFFFFFFU);
+    }
     return true;
 }
 
@@ -774,17 +779,21 @@ MinkarAHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
     if (!is)
         return;
 
-    /* Ack each port that fired (write-1-to-clear), then the global bits. */
+    /* Ack each port that fired (write-1-to-clear), then the global bits.
+     * The bits are kept for issueCommand(), which would not see them in
+     * PORT_IS any more (a task file error among them). The lock makes the
+     * wakeup reach a command between its check and its sleep: without it
+     * a completion in that window waited out the whole 1 ms deadline. */
+    IOLockLock(fCommandLock);
     for (int p = 0; p < 32; p++) {
         if (!(is & (1U << p))) continue;
-        portWrite32(p, PORT_IS, portRead32(p, PORT_IS));
+        uint32_t portIS = portRead32(p, PORT_IS);
+        portWrite32(p, PORT_IS, portIS);
+        fPortEvents[p] |= portIS;
     }
     hbaWrite32(AHCI_IS, is);
-
-    /* issueCommand() re-checks CI/IS itself on wake, so a plain broadcast
-     * (no lock held here) is sufficient - this only ever shortens the
-     * existing 1ms polling cadence, never changes correctness. */
-    IOLockWakeup(fCommandLock, &fWaitChannel, true);
+    IOLockWakeup(fCommandLock, &fWaitChannel, false);
+    IOLockUnlock(fCommandLock);
 }
 
 /*
@@ -903,12 +912,19 @@ MinkarAHCIPort::issueCommand(PortState &portState,
         return false;
     }
 
+    if (portState.port < 32)
+        fPortEvents[portState.port] = 0;
     portWrite32(portState.port, PORT_CI, 1U);
 
-    for (uint32_t i = 0; i < AHCI_TIMEOUT_MS; i++) {
+    /* Until the deadline, not a count of waits: the ISR ends a wait early. */
+    uint64_t timeout;
+    clock_interval_to_deadline(AHCI_TIMEOUT_MS, kMillisecondScale, &timeout);
+    for (;;) {
         uint32_t is    = portRead32(portState.port, PORT_IS);
         uint32_t ciNow = portRead32(portState.port, PORT_CI);
         uint32_t tfd   = portRead32(portState.port, PORT_TFD);
+        if (portState.port < 32)
+            is |= fPortEvents[portState.port];
 
         if (is & PORT_IS_TFES) {
             AHCI_Log("Command 0x%02x failed port=%u IS=%08x TFD=%08x",
@@ -925,12 +941,13 @@ MinkarAHCIPort::issueCommand(PortState &portState,
             return true;
         }
 
+        if (mach_absolute_time() >= timeout)
+            break;
         if (fInterruptsEnabled) {
             AbsoluteTime deadline;
             clock_interval_to_deadline(1, kMillisecondScale, &deadline);
-            // Lock is already held (see IOLockLock() above); this releases
-            // it while waiting and reacquires before returning, same as the
-            // IOSleep(1) it replaces - just wakeable early by the ISR.
+            // Releases the lock while waiting and takes it again; the ISR
+            // wakes it, under the same lock, when the command completes.
             IOLockSleepDeadline(fCommandLock, &fWaitChannel, deadline, THREAD_UNINT);
         } else {
             IOSleep(1);
