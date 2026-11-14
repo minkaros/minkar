@@ -31,6 +31,7 @@
 #include <mach/semaphore.h>
 #include <mach/task.h>
 #include <mach/thread_policy.h>
+#include <notify.h>
 #include <pthread.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
@@ -51,6 +52,8 @@
 typedef struct Device {
     char            uid[512];
     io_service_t    engine;
+    io_service_t    volume, mute;       /* its output level and toggle, or 0 */
+    int64_t         savedVolume, savedMute;
     io_connect_t    connection;
     const volatile IOAudioEngineStatus *status;
     void           *buffer;             /* the hardware's samples */
@@ -124,6 +127,101 @@ static int hasOutput(io_service_t engine) {
     return output;
 }
 
+/* The engine's output control of a type and subtype, or 0. */
+static io_service_t findControl(io_service_t engine, uint32_t type, uint32_t subType) {
+    io_iterator_t children;
+    io_registry_entry_t child;
+    io_service_t found = 0;
+
+    if (IORegistryEntryGetChildIterator(engine, kIOServicePlane, &children) != KERN_SUCCESS)
+        return 0;
+    while (found == 0 && (child = IOIteratorNext(children)) != 0) {
+        if ((uint32_t)numberProperty(child, CFSTR("IOAudioControlType"), 0) == type &&
+            (uint32_t)numberProperty(child, CFSTR("IOAudioControlSubType"), 0) == subType &&
+            (uint32_t)numberProperty(child, CFSTR("IOAudioControlUsage"), 'outp') == 'outp')
+            found = child;
+        else
+            IOObjectRelease(child);
+    }
+    IOObjectRelease(children);
+    return found;
+}
+
+/* ---- Settings: each device's volume and mute, kept across starts ------- */
+
+#define kSettingsDomain CFSTR("org.minkar.audio")
+#define kVolumeChangedNotification "org.minkar.audio.volume"
+
+static void setControl(io_service_t control, int64_t value) {
+    CFNumberRef number = CFNumberCreate(NULL, kCFNumberSInt64Type, &value);
+    CFStringRef key = CFSTR("IOAudioControlValue");
+    CFDictionaryRef properties = CFDictionaryCreate(NULL, (const void **)&key, (const void **)&number, 1,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    IORegistryEntrySetCFProperties(control, properties);
+    CFRelease(properties);
+    CFRelease(number);
+}
+
+/* What was saved for the device, put back into its controls. */
+static void restoreSettings(Device *d) {
+    CFStringRef uid = CFStringCreateWithCString(NULL, d->uid, kCFStringEncodingUTF8);
+    CFPropertyListRef saved = CFPreferencesCopyValue(uid, kSettingsDomain, kCFPreferencesAnyUser, kCFPreferencesCurrentHost);
+    int64_t n;
+
+    if (saved != NULL && CFGetTypeID(saved) == CFDictionaryGetTypeID()) {
+        CFNumberRef volume = CFDictionaryGetValue(saved, CFSTR("volume"));
+        CFNumberRef mute = CFDictionaryGetValue(saved, CFSTR("mute"));
+        if (d->volume != 0 && volume != NULL && CFGetTypeID(volume) == CFNumberGetTypeID() &&
+            CFNumberGetValue(volume, kCFNumberSInt64Type, &n))
+            setControl(d->volume, n);
+        if (d->mute != 0 && mute != NULL && CFGetTypeID(mute) == CFNumberGetTypeID() &&
+            CFNumberGetValue(mute, kCFNumberSInt64Type, &n))
+            setControl(d->mute, n);
+        syslog(LOG_INFO, "%s: volume and mute restored", d->uid);
+    }
+    if (saved != NULL)
+        CFRelease(saved);
+    CFRelease(uid);
+    d->savedVolume = d->volume != 0 ? numberProperty(d->volume, CFSTR("IOAudioControlValue"), -1) : -1;
+    d->savedMute = d->mute != 0 ? numberProperty(d->mute, CFSTR("IOAudioControlValue"), -1) : -1;
+}
+
+/* A device's volume or mute changed (by any client): saved, and told to
+   CoreAudio's listeners. */
+static void checkSettings(void) {
+    int changed = 0;
+
+    for (int i = 0; i < deviceCount; i++) {
+        Device *d = &devices[i];
+        int64_t volume = d->volume != 0 ? numberProperty(d->volume, CFSTR("IOAudioControlValue"), -1) : -1;
+        int64_t mute = d->mute != 0 ? numberProperty(d->mute, CFSTR("IOAudioControlValue"), -1) : -1;
+
+        if (volume == d->savedVolume && mute == d->savedMute)
+            continue;
+        d->savedVolume = volume;
+        d->savedMute = mute;
+        CFMutableDictionaryRef values = CFDictionaryCreateMutable(NULL, 2, &kCFTypeDictionaryKeyCallBacks,
+                                                                  &kCFTypeDictionaryValueCallBacks);
+        CFNumberRef v = CFNumberCreate(NULL, kCFNumberSInt64Type, &volume);
+        CFNumberRef m = CFNumberCreate(NULL, kCFNumberSInt64Type, &mute);
+        if (volume >= 0)
+            CFDictionarySetValue(values, CFSTR("volume"), v);
+        if (mute >= 0)
+            CFDictionarySetValue(values, CFSTR("mute"), m);
+        CFStringRef uid = CFStringCreateWithCString(NULL, d->uid, kCFStringEncodingUTF8);
+        CFPreferencesSetValue(uid, values, kSettingsDomain, kCFPreferencesAnyUser, kCFPreferencesCurrentHost);
+        CFRelease(uid);
+        CFRelease(values);
+        CFRelease(v);
+        CFRelease(m);
+        changed = 1;
+    }
+    if (changed) {
+        CFPreferencesSynchronize(kSettingsDomain, kCFPreferencesAnyUser, kCFPreferencesCurrentHost);
+        notify_post(kVolumeChangedNotification);
+    }
+}
+
 /* The output engines, by their path in the registry (CoreAudio's UIDs). */
 static void findDevices(void) {
     io_iterator_t engines;
@@ -143,6 +241,9 @@ static void findDevices(void) {
         Device *d = &devices[deviceCount++];
         strlcpy(d->uid, path, sizeof(d->uid));
         d->engine = engine;
+        d->volume = findControl(engine, 'levl', 'vlme');
+        d->mute = findControl(engine, 'togl', 'mute');
+        restoreSettings(d);
         syslog(LOG_INFO, "device %s", d->uid);
     }
     IOObjectRelease(engines);
@@ -529,10 +630,24 @@ int main(int argc, char **argv) {
     mach_port_move_member(mach_task_self(), notifyPort, portSet);
     syslog(LOG_INFO, "ready, %d output devices", deviceCount);
 
+    /* Every two seconds: the devices' volume and mute saved when they
+       changed, and the engines looked for while there are none (the
+       service starts with the system, maybe before the drivers). */
+    uint64_t nextCheck = 0;
     for (;;) {
-        mach_msg_return_t mr = mach_msg(&request.header, MACH_RCV_MSG | MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
+        uint64_t now = mach_absolute_time();
+        if (now >= nextCheck) {
+            pthread_mutex_lock(&lock);
+            if (deviceCount == 0)
+                findDevices();
+            checkSettings();
+            pthread_mutex_unlock(&lock);
+            nextCheck = now + nanosToHost(2e9);
+        }
+        mach_msg_return_t mr = mach_msg(&request.header, MACH_RCV_MSG | MACH_RCV_TIMEOUT |
+                                        MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
                                         MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0),
-                                        0, sizeof(request), portSet, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+                                        0, sizeof(request), portSet, 2000, MACH_PORT_NULL);
         if (mr != MACH_MSG_SUCCESS)
             continue;
         if (request.header.msgh_local_port == notifyPort) {

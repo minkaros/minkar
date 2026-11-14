@@ -6,8 +6,9 @@
  Part of Minkar.
 
  audiod, the audio service (AU2): it owns the output devices and mixes
- its clients into them. Started on demand, by the first use of its
- service; root, as the audio engines open for administrators only.
+ its clients into them. It starts with the system, to put back each
+ device's volume and mute; root, as the audio engines open for
+ administrators only.
 -->
 <plist version="1.0">
 <dict>
@@ -24,7 +25,9 @@
 	</dict>
 	<key>StandardErrorPath</key>
 	<string>/var/log/audiod.log</string>
+	<key>RunAtLoad</key>
+	<true/>
 	<key>KeepAlive</key>
-	<false/>
+	<true/>
 </dict>
 </plist>
