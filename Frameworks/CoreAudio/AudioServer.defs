@@ -1,0 +1,50 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The audio service's interface (audiod, AU2): a client's IO on a device.
+ * Starting IO gives the client a shared area (AudioServerTypes.h) and two
+ * semaphores: the service signals wake at each cycle, the client renders
+ * its samples into the area and signals done; the service mixes every
+ * client's samples in the same cycle. A client's port is watched: when it
+ * dies its IO stops.
+ */
+
+subsystem AudioServer 29400;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix as_;
+serverprefix ass_;
+
+import "AudioServerTypes.h";
+
+type as_name_t = c_string[*:512];
+
+/* The service's interface version (kAudioServerInterfaceVersion). */
+routine hello(
+	server			: mach_port_t;
+	out version		: int32_t);
+
+/* IO on the device of uid (CoreAudio's device UID) for frames a cycle:
+   the shared area (a memory entry of size bytes), the semaphores, and a
+   session number for stop_io. result: 0, or an OSStatus. */
+routine start_io(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	uid			: as_name_t;
+	client			: mach_port_make_send_t;
+	out session		: int32_t;
+	out area		: mach_port_move_send_t;
+	out size		: uint32_t;
+	out wake		: mach_port_move_send_t;
+	out done		: mach_port_move_send_t;
+	out result		: int32_t);
+
+routine stop_io(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	session			: int32_t;
+	out result		: int32_t);

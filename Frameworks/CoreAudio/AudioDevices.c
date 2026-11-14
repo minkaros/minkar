@@ -11,6 +11,7 @@
  */
 
 #include "AudioDevices.h"
+#include "AudioServerTypes.h"
 #include <IOKit/IOKitLib.h>
 #include <math.h>
 #include <pthread.h>
@@ -248,6 +249,11 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
     case kAudioDevicePropertyDeviceIsRunning:
     case kAudioDevicePropertyBufferFrameSize:
         return true;
+    case kAudioDevicePropertyStreamConfiguration:
+    case kAudioDevicePropertyStreamFormat:
+    case kAudioDevicePropertyLatency:
+    case kAudioDevicePropertySafetyOffset:
+        return a->mScope == kAudioObjectPropertyScopeOutput || a->mScope == kAudioObjectPropertyScopeWildcard;
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
     case kAudioDevicePropertyVolumeRangeDecibels:
@@ -287,6 +293,10 @@ UInt32 _AudioDevicePropertySize(AudioObjectID id, const AudioObjectPropertyAddre
         return sizeof(Float32);
     case kAudioDevicePropertyVolumeRangeDecibels:
         return sizeof(AudioValueRange);
+    case kAudioDevicePropertyStreamConfiguration:
+        return sizeof(AudioBufferList);
+    case kAudioDevicePropertyStreamFormat:
+        return sizeof(AudioStreamBasicDescription);
     default:
         return sizeof(UInt32);
     }
@@ -356,8 +366,37 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         *(UInt32 *)out = numberProperty(d->engine, "IOAudioEngineState", 0) == 1;
         break;
     case kAudioDevicePropertyBufferFrameSize:
-        *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineNumSampleFramesPerBuffer", 0) / 2;
+        /* The audio service's cycle. */
+        *(UInt32 *)out = kAudioServerFramesPerCycle;
         break;
+    case kAudioDevicePropertyLatency:
+        *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineOutputSampleLatency", 0);
+        break;
+    case kAudioDevicePropertySafetyOffset:
+        *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineSampleOffset", 0);
+        break;
+    case kAudioDevicePropertyStreamConfiguration: {
+        /* One buffer of interleaved channels, as the IOProc gets it. */
+        AudioBufferList *list = out;
+        list->mNumberBuffers = 1;
+        list->mBuffers[0].mNumberChannels = kAudioServerChannels;
+        list->mBuffers[0].mDataByteSize = kAudioServerFramesPerCycle * kAudioServerChannels * sizeof(Float32);
+        list->mBuffers[0].mData = NULL;
+        break;
+    }
+    case kAudioDevicePropertyStreamFormat: {
+        AudioStreamBasicDescription *f = out;
+        memset(f, 0, sizeof(*f));
+        f->mSampleRate = (Float64)numberProperty(d->engine, "IOAudioEngineSampleRate", 0);
+        f->mFormatID = kAudioFormatLinearPCM;
+        f->mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
+        f->mChannelsPerFrame = kAudioServerChannels;
+        f->mBitsPerChannel = 32;
+        f->mBytesPerFrame = kAudioServerChannels * sizeof(Float32);
+        f->mFramesPerPacket = 1;
+        f->mBytesPerPacket = f->mBytesPerFrame;
+        break;
+    }
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
         if (!readLevel(d, &l))
@@ -449,4 +488,11 @@ OSStatus _AudioDeviceSetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     default:
         return kAudioHardwareUnknownPropertyError;
     }
+}
+
+/* The device's UID as a C string (for the audio service). */
+Boolean _AudioDeviceGetUIDCString(AudioObjectID id, char *buffer, size_t size) {
+    Device *d = deviceWithID(id);
+
+    return d != NULL && CFStringGetCString(d->uid, buffer, (CFIndex)size, kCFStringEncodingUTF8);
 }

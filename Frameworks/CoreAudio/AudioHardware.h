@@ -99,6 +99,9 @@ enum {
     kAudioDevicePropertyVolumeScalarToDecibels = 'v2db',
     kAudioDevicePropertyVolumeDecibelsToScalar = 'db2v',
     kAudioDevicePropertyMute = 'mute',
+    kAudioDevicePropertyStreamFormat = 'sfmt',
+    kAudioDevicePropertySafetyOffset = 'saft',
+    kAudioDevicePropertyIOProcStreamUsage = 'suse',
     kAudioObjectPropertyBaseClass = 'bcls',
 };
 
@@ -136,6 +139,20 @@ OSStatus AudioObjectAddPropertyListenerBlock(AudioObjectID inObjectID, const Aud
 OSStatus AudioObjectRemovePropertyListenerBlock(AudioObjectID inObjectID, const AudioObjectPropertyAddress *inAddress,
     void *inDispatchQueue, AudioObjectPropertyListenerBlock inListener);
 #endif
+
+/* IO: the app's procedure, called once a cycle on the device's real-time
+   thread with the cycle's output buffer to fill. */
+typedef OSStatus (*AudioDeviceIOProc)(AudioObjectID inDevice, const AudioTimeStamp *inNow,
+    const AudioBufferList *inInputData, const AudioTimeStamp *inInputTime,
+    AudioBufferList *outOutputData, const AudioTimeStamp *inOutputTime, void *inClientData);
+typedef AudioDeviceIOProc AudioDeviceIOProcID;
+
+OSStatus AudioDeviceCreateIOProcID(AudioObjectID inDevice, AudioDeviceIOProc inProc,
+    void *inClientData, AudioDeviceIOProcID *outIOProcID);
+OSStatus AudioDeviceDestroyIOProcID(AudioObjectID inDevice, AudioDeviceIOProcID inIOProcID);
+OSStatus AudioDeviceStart(AudioObjectID inDevice, AudioDeviceIOProcID inProcID);
+OSStatus AudioDeviceStop(AudioObjectID inDevice, AudioDeviceIOProcID inProcID);
+OSStatus AudioDeviceGetCurrentTime(AudioObjectID inDevice, AudioTimeStamp *outTime);
 
 /* Lowers other apps' sound while this device plays something important. */
 OSStatus AudioDeviceDuck(AudioDeviceID inDevice, Float32 inDuckedLevel, const AudioTimeStamp *inStartTime,

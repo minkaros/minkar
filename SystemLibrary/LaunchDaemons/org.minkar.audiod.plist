@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ audiod, the audio service (AU2): it owns the output devices and mixes
+ its clients into them. Started on demand, by the first use of its
+ service; root, as the audio engines open for administrators only.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.audiod</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/audiod</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.audiod</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/audiod.log</string>
+	<key>KeepAlive</key>
+	<false/>
+</dict>
+</plist>

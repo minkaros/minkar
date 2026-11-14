@@ -10,13 +10,23 @@ MK_WERROR = no
 FRAMEWORK = CoreAudio
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = AudioHardware.c AudioDevices.c HostTime.c
+SRCS = AudioHardware.c AudioDevices.c AudioDeviceIO.c AudioServerUser.c HostTime.c
 HEADERS = CoreAudio.h CoreAudioTypes.h AudioHardware.h HostTime.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
-CFLAGS += -I${.CURDIR:H} -F${FMWKS}
+CFLAGS += -I${.CURDIR:H} -I${.CURDIR} -I${.OBJDIR} -F${FMWKS}
 LDFLAGS += -F${FMWKS} -framework CoreFoundation -framework IOKit -lobjc
+
+# The audio service's interface, its client side (AudioDeviceIO.c).
+CLEANFILES += AudioServerUser.c AudioServerUser.h
+AudioServerUser.c AudioServerUser.h: ${.CURDIR}/AudioServer.defs
+	${MIG} -cc ${CC} -novouchers -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    -isysroot ${MINKAR_SDKROOT} -I${.CURDIR} \
+	    -user AudioServerUser.c -header AudioServerUser.h \
+	    -server /dev/null -sheader /dev/null ${.ALLSRC}
+
+AudioDeviceIO.o: AudioServerUser.h
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

@@ -21,4 +21,6 @@ __attribute__((visibility("hidden"))) UInt32 _AudioDevicePropertySize(AudioObjec
 __attribute__((visibility("hidden"))) OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddress *a, UInt32 *ioSize, void *out);
 __attribute__((visibility("hidden"))) OSStatus _AudioDeviceSetProperty(AudioObjectID id, const AudioObjectPropertyAddress *a, UInt32 size, const void *data);
 
+__attribute__((visibility("hidden"))) Boolean _AudioDeviceGetUIDCString(AudioObjectID id, char *buffer, size_t size);
+
 #endif
