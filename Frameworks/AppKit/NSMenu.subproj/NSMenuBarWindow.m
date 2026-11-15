@@ -242,6 +242,35 @@ static NSRect barFrame(NSScreen *screen) {
     return self;
 }
 
+- (instancetype)_initBackdropWithScreen:(NSScreen *)screen {
+    NSRect frame = barFrame(screen);
+    NSMenu *empty = [[[NSMenu alloc] initWithTitle:@""] autorelease];
+
+    self = [super initWithContentRect:frame styleMask:NSBorderlessWindowMask
+        backing:NSBackingStoreBuffered defer:NO];
+    if(self == nil)
+        return nil;
+    /* The level below the bars' (the Dock's): above every app's window. */
+    [self setLevel:kCGDockWindowLevelKey];
+    [self setHasShadow:NO];
+    [self setMovable:NO];
+    [self setExcludedFromWindowsMenu:YES];
+    [self setReleasedWhenClosed:NO];
+    [self setHidesOnDeactivate:NO];
+    [self setIgnoresMouseEvents:YES];
+    _view = [[NSMenuBarView alloc] initWithFrame:NSMakeRect(0, 0, frame.size.width,
+        frame.size.height) menu:empty];
+    [_view setFrameSize:NSMakeSize(frame.size.width, frame.size.height)];
+    [_view setAutoresizingMask:NSViewWidthSizable];
+    [_view setLeadingItem:systemMenuItem()];
+    [[self contentView] addSubview:_view];
+    return self;
+}
+
++ (NSWindow *)_backdropForScreen:(NSScreen *)screen {
+    return [[[self alloc] _initBackdropWithScreen:screen] autorelease];
+}
+
 - (void)dealloc {
     [_view release];
     [super dealloc];

@@ -51,5 +51,10 @@
 + (void)_focusMenuBar;
 /* A display changed: the bars follow the screens. */
 + (void)_screensChanged;
+/* The empty bar under the apps' bars on a screen, with the system menu's
+ * mark only, ignoring the mouse: what shows while the front app changes
+ * (one app's bar gone, the next one's not up yet), instead of the desktop.
+ * The Dock keeps one on every screen. */
++ (NSWindow *)_backdropForScreen:(NSScreen *)screen;
 
 @end
