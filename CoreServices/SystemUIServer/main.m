@@ -5,10 +5,11 @@
  *
  * SystemUIServer (Atlas.md, MB1): an agent app (LSUIElement) whose status
  * items are the Menu Extras, laid out by the window server at the right of
- * the menu bar.
+ * the menu bar. It also shows the notification center's banners (5.6, N0).
  */
 
 #import "ClockExtra.h"
+#import "NotificationBanner.h"
 #import "VolumeExtra.h"
 
 @interface SystemUIServer : NSObject <NSApplicationDelegate>
@@ -16,6 +17,7 @@
 
 @implementation SystemUIServer {
     NSMutableArray *_extras;
+    NotificationPresenter *_notifications;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note
@@ -28,6 +30,8 @@
         NSStatusItem *item = [bar statusItemWithLength:NSVariableStatusItemLength];
         [_extras addObject:[[cls alloc] initWithStatusItem:item]];
     }
+    _notifications = [[NotificationPresenter alloc] init];
+    [_notifications start];
 }
 
 @end
