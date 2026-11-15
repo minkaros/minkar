@@ -62,9 +62,11 @@
 #define NS_CLOSED_ENUM(_type, _name) CF_CLOSED_ENUM(_type, _name)
 #endif
 #ifndef NS_ERROR_ENUM
-#define NS_ERROR_ENUM(_type, _name, _domain) \
-    enum __attribute__((ns_error_domain(_domain))) _name : _type _name; \
-    enum _name : _type
+/* typedef NS_ERROR_ENUM(domain, name) { ... }: an NSInteger enumeration of
+   the error codes of a domain (an NSErrorDomain constant). */
+#define NS_ERROR_ENUM(_domain, _name) \
+    enum __attribute__((ns_error_domain(_domain))) _name : NSInteger _name; \
+    enum _name : NSInteger
 #endif
 #ifndef NS_UNAVAILABLE
 #define NS_UNAVAILABLE __attribute__((unavailable))
