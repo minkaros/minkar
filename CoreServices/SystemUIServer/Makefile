@@ -4,7 +4,7 @@
 #
 # SystemUIServer (Atlas.md, MB1): the Menu Extras on the right of the menu
 # bar, as status items of this agent app, and the notification center's
-# banners (5.6, N0). loginwindow starts it (SessionApplications).
+# banners and list (5.6, N0 and N1). loginwindow starts it (SessionApplications).
 #
 # SHORTCUT(MB1): the extras are built in; MB1 moves each one to a .menu
 # bundle that SystemUIServer loads.
@@ -12,7 +12,8 @@
 SUBDIR =
 APP =		SystemUIServer
 APP_INSTALL_DIR = /System/Library/CoreServices
-SRCS =		main.m ClockExtra.m VolumeExtra.m NotificationBanner.m NotificationCenterUser.c
+SRCS =		main.m ClockExtra.m VolumeExtra.m NotificationBanner.m NotificationSettings.m \
+		NotificationCenterExtra.m NotificationCenterUser.c
 FRAMEWORKS =	AppKit Foundation CoreAudio
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \

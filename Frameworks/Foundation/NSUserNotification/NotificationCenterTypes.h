@@ -46,6 +46,23 @@ enum {
 #define kNCKeyAppName		"appName"
 #define kNCKeyAppPath		"appPath"	/* its bundle, for the icon */
 #define kNCKeyPID		"pid"		/* set by notificationd */
+#define kNCKeyDate		"date"		/* set by the presenter: when it came */
+
+/* The settings (N1), in the user's preferences domain kNCSettingsDomain:
+   kNCSettingDoNotDisturb, and for each app that has posted one, under
+   kNCSettingAppPrefix plus its bundle identifier (else its name), a
+   dictionary of the keys below. System Preferences' Notifications pane
+   writes them and posts kNCSettingsChanged (notify(3)); SystemUIServer
+   adds the apps it has not seen, and follows them. */
+#define kNCSettingsDomain	"org.minkar.notificationcenter"
+#define kNCSettingsChanged	"org.minkar.notificationcenter.prefs"
+#define kNCSettingDoNotDisturb	"doNotDisturb"
+#define kNCSettingAppPrefix	"app."
+#define kNCAppName		"name"
+#define kNCAppPath		"path"
+#define kNCAppAllowed		"allowed"	/* no: not even listed */
+#define kNCAppStyle		"style"		/* "none", "banner" (the default), "alert" */
+#define kNCAppSound		"sound"		/* no: never heard */
 
 /* notificationd's messages. */
 enum {

@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Notifications pane, in Spanish. The keys are the English texts. */
+
+"Do Not Disturb" = "No molestar";
+"No banners, alerts or sounds; notifications are still listed." = "Sin avisos, alertas ni sonidos; las notificaciones siguen en la lista.";
+"App:" = "App:";
+"No app has sent a notification yet." = "Ninguna app ha enviado notificaciones todavía.";
+"Allow notifications" = "Permitir notificaciones";
+"Style:" = "Estilo:";
+"None" = "Ninguno";
+"Banners" = "Avisos";
+"Alerts" = "Alertas";
+"Banners go after a few seconds; alerts stay until they are closed." = "Los avisos se van a los pocos segundos; las alertas se quedan hasta cerrarlas.";
+"Play sound for notifications" = "Reproducir sonido con las notificaciones";

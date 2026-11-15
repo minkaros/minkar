@@ -6,9 +6,12 @@
  * The notification banners (Atlas.md, 5.6, N0). notificationd's messages
  * come on a port of the main run loop; each banner is a borderless panel
  * of its own at the status level, newest on top, the others moved down.
+ * N1: the settings (NotificationSettings) decide what shows and sounds;
+ * the delivered notifications are kept for the notification center's panel.
  */
 
 #import "NotificationBanner.h"
+#import "NotificationSettings.h"
 #include <mach/mach.h>
 #include <servers/bootstrap.h>
 #include "NotificationCenterTypes.h"
@@ -17,6 +20,10 @@
 static const CGFloat kWidth = 344, kHeight = 72, kMargin = 12, kGap = 8;
 static const NSTimeInterval kShown = 5;
 static const NSUInteger kMaxBanners = 4;
+static const NSUInteger kMaxDelivered = 50;
+static const CGFloat kCloseWidth = 64;
+
+NSNotificationName const NotificationPresenterListDidChange = @"NotificationPresenterListDidChange";
 
 @class NotificationBannerView;
 
@@ -25,6 +32,7 @@ static const NSUInteger kMaxBanners = 4;
 @property (copy) NSDictionary *notification;
 @property (strong) NSPanel *panel;
 @property (strong) NSTimer *timer;
+@property BOOL alert;		/* stays until closed */
 @end
 
 @implementation NotificationBanner
@@ -32,6 +40,7 @@ static const NSUInteger kMaxBanners = 4;
 
 @interface NotificationPresenter ()
 - (void)clicked:(NotificationBanner *)banner;
+- (void)dismiss:(NotificationBanner *)banner;
 - (void)received:(const NCMessage *)message;
 @end
 
@@ -75,7 +84,8 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     NSString *title = n[@kNCKeyTitle] ?: n[@kNCKeyAppName] ?: @"";
     NSString *subtitle = n[@kNCKeySubtitle];
     NSString *text = n[@kNCKeyText];
-    CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12;
+    BOOL alert = self.banner.alert;
+    CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12 - (alert ? kCloseWidth : 0);
 
     [[NSColor colorWithCalibratedWhite:0.97 alpha:0.98] setFill];
     [path fill];
@@ -91,12 +101,32 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     }
     if (text.length > 0)
         drawLine(text, [NSFont systemFontOfSize:12], [NSColor darkGrayColor], NSMakeRect(x, y, width, 16));
+    if (alert) {
+        /* An alert's close part, on the right. */
+        CGFloat left = NSWidth(self.bounds) - kCloseWidth;
+        NSString *close = NSLocalizedString(@"Close", @"an alert's button");
+        NSFont *font = [NSFont systemFontOfSize:12];
+        NSSize size = [close sizeWithAttributes:@{ NSFontAttributeName : font }];
+
+        [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setFill];
+        NSRectFill(NSMakeRect(left, 1, 1, NSHeight(self.bounds) - 2));
+        [close drawAtPoint:NSMakePoint(left + (kCloseWidth - size.width) / 2, (NSHeight(self.bounds) - size.height) / 2)
+            withAttributes:@{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor blackColor] }];
+    }
 }
 
 - (void)mouseUp:(NSEvent *)event
 {
-    if (NSPointInRect([self convertPoint:event.locationInWindow fromView:nil], self.bounds))
-        [self.presenter clicked:self.banner];
+    NSPoint where = [self convertPoint:event.locationInWindow fromView:nil];
+
+    if (!NSPointInRect(where, self.bounds))
+        return;
+    if (self.banner.alert && where.x >= NSWidth(self.bounds) - kCloseWidth) {
+        fprintf(stderr, "SystemUIServer: alert \"%s\" closed\n", [self.banner.notification[@kNCKeyTitle] ?: @"" UTF8String]);
+        [self.presenter dismiss:self.banner];
+        return;
+    }
+    [self.presenter clicked:self.banner];
 }
 
 @end
@@ -126,6 +156,7 @@ static void serverGone(CFMachPortRef port, void *info);
 
 @implementation NotificationPresenter {
     NSMutableArray<NotificationBanner *> *_banners;  /* newest first */
+    NSMutableArray<NSDictionary *> *_delivered;      /* newest first */
     CFMachPortRef _port;
     CFMachPortRef _server;
 }
@@ -136,6 +167,7 @@ static void serverGone(CFMachPortRef port, void *info);
     CFRunLoopSourceRef source;
 
     _banners = [NSMutableArray array];
+    _delivered = [NSMutableArray array];
     _port = CFMachPortCreate(NULL, received, &context, NULL);
     if (_port == NULL)
         return;
@@ -204,13 +236,16 @@ static void serverGone(CFMachPortRef port, void *info)
     if (message->header.msgh_id == kNCMessageShow) {
         id plist = [NSPropertyListSerialization propertyListWithData:data options:0 format:NULL error:NULL];
         if ([plist isKindOfClass:[NSDictionary class]])
-            [self show:plist];
+            [self deliver:plist];
     } else if (message->header.msgh_id == kNCMessageRemove) {
         NSString *key = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         for (NotificationBanner *banner in [_banners copy])
             if ([banner.notification[@kNCKeyPID] intValue] == message->arg &&
                 (key.length == 0 || [banner.notification[@kNCKey] isEqualToString:key]))
                 [self dismiss:banner];
+        for (NSDictionary *n in [_delivered copy])
+            if ([n[@kNCKeyPID] intValue] == message->arg && (key.length == 0 || [n[@kNCKey] isEqualToString:key]))
+                [self unlist:n];
     }
 }
 
@@ -256,7 +291,68 @@ static void serverGone(CFMachPortRef port, void *info)
     fprintf(stderr, "SystemUIServer: sound %s%s\n", name.UTF8String, sound != nil ? "" : " (not found)");
 }
 
-- (void)show:(NSDictionary *)n
+static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
+{
+    return [a[@kNCKeyPID] isEqual:b[@kNCKeyPID]] && [a[@kNCKey] isEqual:b[@kNCKey]];
+}
+
+- (NSArray<NSDictionary *> *)delivered
+{
+    return [_delivered copy];
+}
+
+- (void)unlist:(NSDictionary *)n
+{
+    NSUInteger before = _delivered.count;
+
+    [_delivered removeObjectsInArray:[_delivered filteredArrayUsingPredicate:
+        [NSPredicate predicateWithBlock:^BOOL(NSDictionary *d, NSDictionary *bindings) {
+            return sameDelivery(d, n);
+        }]]];
+    if (_delivered.count != before)
+        [[NSNotificationCenter defaultCenter] postNotificationName:NotificationPresenterListDidChange object:self];
+}
+
+- (void)clearDelivered
+{
+    [_delivered removeAllObjects];
+    fprintf(stderr, "SystemUIServer: notifications cleared\n");
+    [[NSNotificationCenter defaultCenter] postNotificationName:NotificationPresenterListDidChange object:self];
+}
+
+/* A notification from notificationd: listed if its app is allowed, then
+   shown and heard as its settings and Do Not Disturb say. */
+- (void)deliver:(NSDictionary *)posted
+{
+    NotificationSettings *settings = [NotificationSettings shared];
+    NSMutableDictionary *n = [posted mutableCopy];
+    const char *title = [n[@kNCKeyTitle] ?: @"" UTF8String], *app = [n[@kNCKeyAppName] ?: @"?" UTF8String];
+
+    [settings noteAppOf:n];
+    if (![settings allowsNotification:n]) {
+        fprintf(stderr, "SystemUIServer: \"%s\" from %s not allowed\n", title, app);
+        return;
+    }
+    n[@kNCKeyDate] = [NSDate date];
+    [self unlist:n];
+    [_delivered insertObject:n atIndex:0];
+    while (_delivered.count > kMaxDelivered)
+        [_delivered removeLastObject];
+    [[NSNotificationCenter defaultCenter] postNotificationName:NotificationPresenterListDidChange object:self];
+
+    BOOL quiet = settings.doNotDisturb;
+    NotificationStyle style = quiet ? NotificationStyleNone : [settings styleOfNotification:n];
+    BOOL sound = !quiet && [settings soundsNotification:n];
+    fprintf(stderr, "SystemUIServer: listed \"%s\" from %s: %s, sound %s%s\n", title, app,
+            style == NotificationStyleAlert ? "alert" : style == NotificationStyleBanner ? "banner" : "not shown",
+            sound ? "on" : "off", quiet ? " (do not disturb)" : "");
+    if (style != NotificationStyleNone)
+        [self show:n alert:style == NotificationStyleAlert];
+    if (sound)
+        [self playSoundOf:n];
+}
+
+- (void)show:(NSDictionary *)n alert:(BOOL)alert
 {
     NotificationBanner *banner = [[NotificationBanner alloc] init];
     NSRect frame = NSMakeRect(0, 0, kWidth, kHeight);
@@ -269,10 +365,10 @@ static void serverGone(CFMachPortRef port, void *info)
 
     /* The app's notification of the same key, replaced. */
     for (NotificationBanner *old in [_banners copy])
-        if ([old.notification[@kNCKeyPID] isEqual:n[@kNCKeyPID]] &&
-            [old.notification[@kNCKey] isEqual:n[@kNCKey]])
+        if (sameDelivery(old.notification, n))
             [self dismiss:old];
     banner.notification = n;
+    banner.alert = alert;
     banner.panel = panel;
     view.presenter = self;
     view.banner = banner;
@@ -288,12 +384,12 @@ static void serverGone(CFMachPortRef port, void *info)
         [self dismiss:_banners.lastObject];
     [self layOut];
     [panel orderFrontRegardless];
-    banner.timer = [NSTimer scheduledTimerWithTimeInterval:kShown target:self selector:@selector(expired:)
-                                                  userInfo:banner repeats:NO];
-    fprintf(stderr, "SystemUIServer: banner \"%s\" from %s (%d)\n",
+    if (!alert)
+        banner.timer = [NSTimer scheduledTimerWithTimeInterval:kShown target:self selector:@selector(expired:)
+                                                      userInfo:banner repeats:NO];
+    fprintf(stderr, "SystemUIServer: %s \"%s\" from %s (%d)\n", alert ? "alert" : "banner",
             [n[@kNCKeyTitle] ?: @"" UTF8String], [n[@kNCKeyAppName] ?: @"?" UTF8String],
             [n[@kNCKeyPID] intValue]);
-    [self playSoundOf:n];
 }
 
 - (void)expired:(NSTimer *)timer
@@ -311,10 +407,15 @@ static void serverGone(CFMachPortRef port, void *info)
     [self layOut];
 }
 
-/* The app to the front, and told which notification it was. */
 - (void)clicked:(NotificationBanner *)banner
 {
-    NSDictionary *n = banner.notification;
+    [self dismiss:banner];
+    [self activateDelivered:banner.notification];
+}
+
+/* The app to the front, and told which notification it was. */
+- (void)activateDelivered:(NSDictionary *)n
+{
     pid_t pid = [n[@kNCKeyPID] intValue];
     NSData *key = [n[@kNCKey] ?: @"" dataUsingEncoding:NSUTF8StringEncoding];
     int32_t result = kNCNoService;
@@ -325,7 +426,10 @@ static void serverGone(CFMachPortRef port, void *info)
         ncc_activated(self.server, pid, (char *)key.bytes, (mach_msg_type_number_t)key.length,
                       NSUserNotificationActivationTypeContentsClicked, &result);
     fprintf(stderr, "SystemUIServer: activated \"%s\" of %d (%d)\n", [n[@kNCKeyTitle] ?: @"" UTF8String], pid, result);
-    [self dismiss:banner];
+    for (NotificationBanner *banner in [_banners copy])
+        if (sameDelivery(banner.notification, n))
+            [self dismiss:banner];
+    [self unlist:n];
 }
 
 @end
