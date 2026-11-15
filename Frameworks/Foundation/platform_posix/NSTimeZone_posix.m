@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -111,7 +112,8 @@ NSInteger sortTransitions(id trans1, id trans2, void *context) {
 
     typeIndices = tzData + (numberOfTransitionTimes * 4);
     for (i = 0; i < numberOfTransitionTimes; ++i) {
-        NSDate *d1 = [NSDate dateWithTimeIntervalSince1970:NSSwapBigIntToHost(((int *)tzData)[i])];
+        /* Signed: a transition before 1970 is a negative time. */
+        NSDate *d1 = [NSDate dateWithTimeIntervalSince1970:(int32_t)NSSwapBigIntToHost(((int *)tzData)[i])];
         [transitions addObject:[NSTimeZoneTransition timeZoneTransitionWithTransitionDate:d1
                 typeIndex:typeIndices[i]]];
     }
@@ -128,7 +130,8 @@ NSInteger sortTransitions(id trans1, id trans2, void *context) {
         if (name == nil) {
             name = abb;
         }
-        [types addObject:[NSTimeZoneType timeZoneTypeWithSecondsFromGMT:NSSwapBigIntToHost(tzTypes->offset)
+        /* Signed: a zone behind UTC has a negative offset. */
+        [types addObject:[NSTimeZoneType timeZoneTypeWithSecondsFromGMT:(int32_t)NSSwapBigIntToHost(tzTypes->offset)
                 isDaylightSavingTime:tzTypes->isDST
                 abbreviation:[NSString stringWithCString:abbreviations+tzTypes->abbrevIndex]]];
         tzTypesBytes += sizeof(struct tzType);
@@ -175,9 +178,19 @@ NSInteger sortTransitions(id trans1, id trans2, void *context) {
         NSString *path = [[NSFileManager defaultManager] destinationOfSymbolicLinkAtPath:@"/etc/localtime" error:&error];
 
         if (path != nil) {
-            //localtime is a symlink
-            timeZoneName = [path stringByReplacingOccurrencesOfString:[NSString stringWithFormat:@"%@/", [NSTimeZone_posix _zoneinfoPath]] withString:@""];
+            /* localtime is a link into a zoneinfo directory, not always
+               this one (/var/db/timezone/zoneinfo/<zone>): the zone's
+               name is what follows the last zoneinfo directory. */
+            NSRange zoneinfo = [path rangeOfString:@"/zoneinfo" options:NSBackwardsSearch];
+            NSRange slash = zoneinfo.location == NSNotFound ? zoneinfo :
+                [path rangeOfString:@"/" options:0
+                              range:NSMakeRange(NSMaxRange(zoneinfo), [path length] - NSMaxRange(zoneinfo))];
+            timeZoneName = slash.location != NSNotFound ? [path substringFromIndex:NSMaxRange(slash)] : path;
             systemTimeZone = [self timeZoneWithName:timeZoneName];
+            /* A zone this Foundation does not have by name: the file. */
+            if (systemTimeZone == nil)
+                systemTimeZone = [[[NSTimeZone alloc] initWithName:timeZoneName
+                    data:[NSData dataWithContentsOfFile:@"/etc/localtime"]] autorelease];
         } else {
             //localtime is a file
             systemTimeZone = [[[NSTimeZone alloc] initWithName:nil data:[NSData dataWithContentsOfFile:@"/etc/localtime"]] autorelease];
