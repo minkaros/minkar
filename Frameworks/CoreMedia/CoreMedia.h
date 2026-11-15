@@ -10,3 +10,6 @@
 #include <CoreMedia/CMBlockBuffer.h>
 #include <CoreMedia/CMFormatDescription.h>
 #include <CoreMedia/CMSampleBuffer.h>
+#include <CoreMedia/CMSync.h>
+#include <CoreMedia/CMNotificationCenter.h>
+#include <CoreMedia/CMAudioDeviceClock.h>
