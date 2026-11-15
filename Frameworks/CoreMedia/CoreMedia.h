@@ -13,3 +13,4 @@
 #include <CoreMedia/CMSync.h>
 #include <CoreMedia/CMNotificationCenter.h>
 #include <CoreMedia/CMAudioDeviceClock.h>
+#include <CoreMedia/CMBufferQueue.h>

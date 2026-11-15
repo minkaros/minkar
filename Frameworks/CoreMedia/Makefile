@@ -10,8 +10,8 @@ MK_WERROR = no
 FRAMEWORK = CoreMedia
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = CMTime.c CMTimeRange.c CMConstants.c CMAttachment.c CMBlockBuffer.c CMFormatDescription.c CMFormatDescriptionKeys.c CMSampleBuffer.c CMSync.c CMNotificationCenter.c
-HEADERS = CoreMedia.h CMBase.h CMTime.h CMSampleBuffer.h CMFormatDescription.h CMAttachment.h CMBlockBuffer.h CMSync.h CMNotificationCenter.h CMAudioDeviceClock.h
+SRCS = CMTime.c CMTimeRange.c CMConstants.c CMAttachment.c CMBlockBuffer.c CMFormatDescription.c CMFormatDescriptionKeys.c CMSampleBuffer.c CMSync.c CMNotificationCenter.c CMBufferQueue.c
+HEADERS = CoreMedia.h CMBase.h CMTime.h CMSampleBuffer.h CMFormatDescription.h CMAttachment.h CMBlockBuffer.h CMSync.h CMNotificationCenter.h CMAudioDeviceClock.h CMBufferQueue.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
