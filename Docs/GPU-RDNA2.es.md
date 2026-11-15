@@ -46,7 +46,7 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   principio de la VRAM (0x8000000000 en el espacio del motor; 8 GB). El campo
   del ancho de línea vale 3456, como informa el GOP, mientras que el `dc` de
   amdgpu escribe el ancho menos uno: R1 lo aclara.
-- [ ] **R1 — La pantalla tomada, en el modo del firmware.** Un framebuffer
+- [x] **R1 — La pantalla tomada, en el modo del firmware.** Un framebuffer
   propio del driver en VRAM, dentro de la ventana de la CPU (BAR 0, 256 MB en
   el PC 1), y la dirección del plano llevada a él en un intervalo vertical en
   blanco; el servidor de ventanas dibuja ahí. `IOGOPFramebuffer` sigue de
@@ -54,7 +54,19 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   firmware: el tubo que encendió el GOP sigue funcionando. Criterio: el
   escritorio del PC 1 dibujado desde el búfer del driver, el ancho de línea
   confirmado con un patrón de prueba, cambios de página en el intervalo
-  vertical.
+  vertical. *Hecho (2026-11-15, `603ab40577`):* en el PC 1
+  `MinkarAMDFramebuffer` toma el tubo 0 y muestra su propio framebuffer en
+  la VRAM 0x2000000, con el modo nativo a 49,999 Hz; el servidor de
+  ventanas, el Dock y la ventana de inicio de sesión dibujan ahí, y el
+  mantenedor lo vio sin parpadeos. Al arrancar, el driver cambia 30 veces
+  entre el búfer del firmware y el suyo: los 30 cambios, en el intervalo
+  vertical y a un fotograma (20,0 ms) uno de otro (`MinkarFlipTest`). El
+  ancho de línea: un patrón de prueba a 3520 píxeles por fila, distinto de
+  los 3456 del firmware (`minkaramd_pattern=1`), salió recto, medido con
+  una regla, tanto con el campo igual al ancho como con el ancho menos uno,
+  como lo escribe el `dc` de amdgpu: el motor redondea el ancho de un plano
+  lineal hacia arriba a 64 píxeles, así que las dos convenciones dan la
+  misma imagen. El driver conserva la del firmware.
 - [ ] **R2 — Modos.** El EDID de la pantalla por el AUX y el DDC del motor; el
   PSP arrancado y el firmware del DMCUB cargado; modos fijados programando el
   OTG, el plano, los relojes y la salida (HDMI y DisplayPort, con
@@ -77,6 +89,6 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   relojes completos, y estados de reposo. Después, las mediciones de G4.6 otra
   vez.
 
-R1 es el siguiente paso. R2 y los siguientes esperan al PSP, la pieza más
+R2 es el siguiente paso. R2 y los siguientes esperan al PSP, la pieza más
 grande de esta familia: su arranque se estudia primero, en el `psp_v11_0` de
 amdgpu, antes de empezar R2.

@@ -40,14 +40,25 @@ their SHA-256, as Tahiti's are (ADR 0002).
   the start of VRAM (0x8000000000 in the engine's space; 8 GB). The pitch
   field holds 3456, as the GOP reports, while amdgpu's `dc` writes the pitch
   less one: R1 settles it.
-- [ ] **R1 — The display taken over, in the firmware's mode.** A framebuffer
+- [x] **R1 — The display taken over, in the firmware's mode.** A framebuffer
   of the driver's own in VRAM, inside the CPU's window (BAR 0, 256 MB on
   PC 1), and the plane's address moved to it at a vertical blank; the
   window server draws there. `IOGOPFramebuffer` stays the fallback, as
   `MinkarAMDFramebuffer` does on GCN 1.0. No firmware is needed: the pipe the
   GOP lit keeps running. Gate: PC 1's desktop drawn from the driver's
   buffer, the pitch confirmed by a test pattern, page flips at the vertical
-  blank.
+  blank. *Done (2026-11-15, `603ab40577`):* on PC 1 `MinkarAMDFramebuffer`
+  takes pipe 0 and scans out its own framebuffer at VRAM 0x2000000, with
+  the native mode at 49.999 Hz; the window server, the Dock and the login
+  window draw there, which the maintainer saw without flicker. At start the
+  driver flips 30 times between the firmware's buffer and its own: all 30
+  taken in the vertical blank, a frame (20.0 ms) apart (`MinkarFlipTest`).
+  The pitch: a test pattern at 3520 pixels a row, other than the
+  firmware's 3456 (`minkaramd_pattern=1`), stood straight, measured with a
+  ruler, both with the pitch field at the pitch and at the pitch less one,
+  as amdgpu's `dc` writes it: the engine rounds a linear plane's pitch up
+  to 64 pixels, so the two conventions give the same picture. The driver
+  keeps the firmware's.
 - [ ] **R2 — Modes.** The display's EDID over the engine's AUX and DDC; the
   PSP brought up and the DMCUB's firmware loaded; modes set by programming
   the OTG, the plane, the clocks and the output (HDMI and DisplayPort, with
@@ -66,6 +77,6 @@ their SHA-256, as Tahiti's are (ADR 0002).
 - [ ] **R5 — Clocks and power.** The SMU, through the PSP: the GPU at its
   full clocks, and idle states. Then the measurements of G4.6 again.
 
-R1 is the next step. R2 and later wait for the PSP, the largest piece of
+R2 is the next step. R2 and later wait for the PSP, the largest piece of
 this family: its start is studied first, in amdgpu's `psp_v11_0`, before R2
 is begun.
