@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-15"
-commit  = "65dc948b8f"
+commit  = "482e4aa379"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -290,6 +290,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "AU6: media in WebKit"
+note = "<video>, <audio> and Web Audio in WPE on AVFoundation; frames match, sync within 32 ms · 15 nov"
+line = "webkit"
+
+[[board.done]]
 title = "AU5: video and audio playback"
 note = "CoreMedia, CoreVideo, AVFoundation, AVKit; decoding in its own process; frames match, sync +8 to +12 ms · 15 nov"
 line = "fw"
@@ -313,8 +318,3 @@ line = "webkit"
 title = "W2: WebKit draws a page"
 note = "WPE WebKit on Minkar, IPC over framed stream sockets; 0 pixels off the reference · 10 nov"
 line = "webkit"
-
-[[board.done]]
-title = "Toolchain on LLVM 21"
-note = "swift-6.4.2-RELEASE: clang 21, Swift 6.4 runtime; full suite and M2, M3 pass · 10 nov"
-line = "base"
