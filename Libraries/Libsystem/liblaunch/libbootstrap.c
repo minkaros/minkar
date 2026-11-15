@@ -103,7 +103,20 @@ bootstrap_register(mach_port_t bp, name_t service_name, mach_port_t sp)
 kern_return_t
 bootstrap_register2(mach_port_t bp, name_t service_name, mach_port_t sp, uint64_t flags)
 {
-	kern_return_t kr = vproc_mig_register2(bp, service_name, sp, flags);
+	mach_port_type_t type = 0;
+	boolean_t made = FALSE;
+	kern_return_t kr;
+
+	/* Minkar: the port may be given as a receive right alone (Firefox's
+	 * crash helper registers one so). The message copies a send right,
+	 * so one is made for it and let go after: launchd keeps its own. */
+	if (MACH_PORT_VALID(sp) && mach_port_type(mach_task_self(), sp, &type) == KERN_SUCCESS &&
+	    (type & MACH_PORT_TYPE_RECEIVE) && !(type & MACH_PORT_TYPE_SEND) &&
+	    mach_port_insert_right(mach_task_self(), sp, sp, MACH_MSG_TYPE_MAKE_SEND) == KERN_SUCCESS) {
+		made = TRUE;
+	}
+
+	kr = vproc_mig_register2(bp, service_name, sp, flags);
 
 	if (kr == VPROC_ERR_TRY_PER_USER) {
 		mach_port_t puc;
@@ -114,6 +127,9 @@ bootstrap_register2(mach_port_t bp, name_t service_name, mach_port_t sp, uint64_
 		}
 	}
 
+	if (made) {
+		mach_port_deallocate(mach_task_self(), sp);
+	}
 	return kr;
 }
 
