@@ -71,6 +71,7 @@ SUBDIR += IOBluetooth
 SUBDIR += MediaPlayer
 SUBDIR += AuthenticationServices
 SUBDIR += AVFoundation
+SUBDIR += AVKit
 # WebKit.framework is a stage of its own, after BSD (WPE WebKit): the
 # top Makefile.
 # Uniform types as objects (API 20).
@@ -140,6 +141,7 @@ IOBluetooth: Foundation
 MediaPlayer: Foundation CoreGraphics
 AuthenticationServices: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox
+AVKit: AppKit AVFoundation
 UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics
