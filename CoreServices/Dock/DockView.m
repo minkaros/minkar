@@ -574,6 +574,26 @@ static void drawBarPath(NSRect rect)
                 operation:NSCompositeSourceOver fraction:1];
 }
 
+/* An app's badge (Atlas.md, 5.6, N2): white on a red pill at the icon's
+   top right, a third of the icon high. */
+static void drawBadge(NSString *label, NSRect icon)
+{
+    CGFloat height = MAX(14, round(NSHeight(icon) * 0.36));
+    NSFont *font = [NSFont boldSystemFontOfSize:round(height * 0.62)];
+    NSDictionary *attributes = @{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor whiteColor] };
+    NSSize text = [label sizeWithAttributes:attributes];
+    CGFloat width = MAX(height, ceil(text.width) + height * 0.6);
+    NSRect pill = NSMakeRect(NSMaxX(icon) - width + height * 0.25, NSMaxY(icon) - height + height * 0.15, width, height);
+    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:pill xRadius:height / 2 yRadius:height / 2];
+
+    [[NSColor colorWithCalibratedRed:0.86 green:0.16 blue:0.14 alpha:1] setFill];
+    [path fill];
+    [[NSColor colorWithCalibratedWhite:1 alpha:0.9] setStroke];
+    [path setLineWidth:1];
+    [path stroke];
+    [label drawAtPoint:NSMakePoint(NSMidX(pill) - text.width / 2, NSMidY(pill) - text.height / 2) withAttributes:attributes];
+}
+
 - (void)drawRect:(NSRect)dirty
 {
     DockModel *model = self.model;
@@ -608,6 +628,9 @@ static void drawBarPath(NSRect rect)
         if (!lifted && t.icon != nil)
             [[self drawableIcon:t.icon forSize:sizes[i]] drawInRect:rect fromRect:NSZeroRect
                 operation:NSCompositeSourceOver fraction:(NSInteger)i == _pressed ? 0.6 : 1.0];
+        NSString *badge = lifted ? nil : [model badgeForTile:t];
+        if (badge != nil)
+            drawBadge(badge, rect);
         if (t.application != nil) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
             [[NSColor colorWithCalibratedWhite:0.15 alpha:0.85] setFill];

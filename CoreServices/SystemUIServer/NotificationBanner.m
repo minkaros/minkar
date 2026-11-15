@@ -21,7 +21,7 @@ static const CGFloat kWidth = 344, kHeight = 72, kMargin = 12, kGap = 8;
 static const NSTimeInterval kShown = 5;
 static const NSUInteger kMaxBanners = 4;
 static const NSUInteger kMaxDelivered = 50;
-static const CGFloat kCloseWidth = 64;
+static const CGFloat kColumnWidth = 80, kReplyHeight = 40;
 
 NSNotificationName const NotificationPresenterListDidChange = @"NotificationPresenterListDidChange";
 
@@ -33,6 +33,8 @@ NSNotificationName const NotificationPresenterListDidChange = @"NotificationPres
 @property (strong) NSPanel *panel;
 @property (strong) NSTimer *timer;
 @property BOOL alert;		/* stays until closed */
+@property (strong) NSTextField *reply;		/* a reply being written (N2) */
+@property (copy) NSDictionary *replyAction;
 @end
 
 @implementation NotificationBanner
@@ -41,6 +43,8 @@ NSNotificationName const NotificationPresenterListDidChange = @"NotificationPres
 @interface NotificationPresenter ()
 - (void)clicked:(NotificationBanner *)banner;
 - (void)dismiss:(NotificationBanner *)banner;
+- (void)banner:(NotificationBanner *)banner chose:(NSDictionary *)action;
+- (void)sendReply:(NotificationBanner *)banner;
 - (void)received:(const NCMessage *)message;
 @end
 
@@ -51,6 +55,18 @@ NSNotificationName const NotificationPresenterListDidChange = @"NotificationPres
 @property (weak) NotificationBanner *banner;
 @property (strong) NSImage *icon;
 @end
+
+static void drawCentered(NSString *text, NSFont *font, NSRect rect);
+
+/* The API's own default titles, in the user's language; an app's, as given. */
+static NSString *localizedTitle(NSString *title)
+{
+    if ([title isEqualToString:@"Show"])
+        return NSLocalizedString(@"Show", @"an alert's default action");
+    if ([title isEqualToString:@"Reply"])
+        return NSLocalizedString(@"Reply", @"an alert's reply");
+    return title ?: @"";
+}
 
 @implementation NotificationBannerView
 
@@ -85,13 +101,13 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     NSString *subtitle = n[@kNCKeySubtitle];
     NSString *text = n[@kNCKeyText];
     BOOL alert = self.banner.alert;
-    CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12 - (alert ? kCloseWidth : 0);
+    CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12 - (alert ? kColumnWidth : 0);
 
     [[NSColor colorWithCalibratedWhite:0.97 alpha:0.98] setFill];
     [path fill];
     [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
     [path stroke];
-    [self.icon drawInRect:NSMakeRect(12, (NSHeight(self.bounds) - 36) / 2, 36, 36)
+    [self.icon drawInRect:NSMakeRect(12, (kHeight - 36) / 2, 36, 36)
                  fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
     drawLine(title, [NSFont boldSystemFontOfSize:13], [NSColor blackColor], NSMakeRect(x, y, width, 17));
     y += 18;
@@ -102,17 +118,61 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     if (text.length > 0)
         drawLine(text, [NSFont systemFontOfSize:12], [NSColor darkGrayColor], NSMakeRect(x, y, width, 16));
     if (alert) {
-        /* An alert's close part, on the right. */
-        CGFloat left = NSWidth(self.bounds) - kCloseWidth;
-        NSString *close = NSLocalizedString(@"Close", @"an alert's button");
+        /* An alert's column, on the right: its action (or Options, for
+           several) over Close; Close alone if it has none. */
+        CGFloat left = NSWidth(self.bounds) - kColumnWidth;
+        NSArray *actions = self.actions;
+        NSString *close = n[@kNCKeyCloseTitle];
         NSFont *font = [NSFont systemFontOfSize:12];
-        NSSize size = [close sizeWithAttributes:@{ NSFontAttributeName : font }];
+        NSColor *line = [NSColor colorWithCalibratedWhite:0.72 alpha:1];
 
-        [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setFill];
-        NSRectFill(NSMakeRect(left, 1, 1, NSHeight(self.bounds) - 2));
-        [close drawAtPoint:NSMakePoint(left + (kCloseWidth - size.width) / 2, (NSHeight(self.bounds) - size.height) / 2)
-            withAttributes:@{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor blackColor] }];
+        if (close.length == 0 || [close isEqualToString:@"Close"])
+            close = NSLocalizedString(@"Close", @"an alert's button");
+        [line setFill];
+        NSRectFill(NSMakeRect(left, 1, 1, kHeight - 2));
+        if (actions.count > 0) {
+            NSString *title = actions.count == 1 ? localizedTitle(actions[0][@kNCActionTitle])
+                                                 : NSLocalizedString(@"Options", @"an alert's actions");
+            NSRectFill(NSMakeRect(left, kHeight / 2, kColumnWidth - 1, 1));
+            drawCentered(title, font, NSMakeRect(left, 0, kColumnWidth, kHeight / 2));
+            drawCentered(close, font, NSMakeRect(left, kHeight / 2, kColumnWidth, kHeight / 2));
+        } else
+            drawCentered(close, font, NSMakeRect(left, 0, kColumnWidth, kHeight));
+        if (self.banner.reply != nil) {
+            [line setFill];
+            NSRectFill(NSMakeRect(1, kHeight, NSWidth(self.bounds) - 2, 1));
+        }
     }
+}
+
+static void drawCentered(NSString *text, NSFont *font, NSRect rect)
+{
+    NSMutableParagraphStyle *style = [[NSMutableParagraphStyle alloc] init];
+    NSSize size = [text sizeWithAttributes:@{ NSFontAttributeName : font }];
+
+    style.alignment = NSTextAlignmentCenter;
+    style.lineBreakMode = NSLineBreakByTruncatingTail;
+    [text drawInRect:NSMakeRect(NSMinX(rect) + 4, NSMinY(rect) + (NSHeight(rect) - size.height) / 2,
+                                NSWidth(rect) - 8, size.height)
+      withAttributes:@{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor blackColor],
+                        NSParagraphStyleAttributeName : style }];
+}
+
+- (NSArray<NSDictionary *> *)actions
+{
+    NSArray *actions = self.banner.notification[@kNCKeyActions];
+
+    return [actions isKindOfClass:[NSArray class]] ? actions : @[];
+}
+
+- (void)replySent:(id)sender
+{
+    [self.presenter sendReply:self.banner];
+}
+
+- (void)menuChose:(NSMenuItem *)item
+{
+    [self.presenter banner:self.banner chose:item.representedObject];
 }
 
 - (void)mouseUp:(NSEvent *)event
@@ -121,7 +181,26 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
 
     if (!NSPointInRect(where, self.bounds))
         return;
-    if (self.banner.alert && where.x >= NSWidth(self.bounds) - kCloseWidth) {
+    if (where.y > kHeight)
+        return;		/* the reply's part: its field and button */
+    if (self.banner.alert && where.x >= NSWidth(self.bounds) - kColumnWidth) {
+        NSArray *actions = self.actions;
+        if (actions.count > 0 && where.y < kHeight / 2) {
+            if (actions.count == 1) {
+                [self.presenter banner:self.banner chose:actions[0]];
+                return;
+            }
+            NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+            for (NSDictionary *action in actions) {
+                NSMenuItem *item = [menu addItemWithTitle:localizedTitle(action[@kNCActionTitle]) action:@selector(menuChose:)
+                                            keyEquivalent:@""];
+                item.target = self;
+                item.representedObject = action;
+            }
+            fprintf(stderr, "SystemUIServer: alert options, %lu\n", (unsigned long)actions.count);
+            [NSMenu popUpContextMenu:menu withEvent:event forView:self];
+            return;
+        }
         fprintf(stderr, "SystemUIServer: alert \"%s\" closed\n", [self.banner.notification[@kNCKeyTitle] ?: @"" UTF8String]);
         [self.presenter dismiss:self.banner];
         return;
@@ -131,14 +210,16 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
 
 @end
 
-/* A panel that never takes the keyboard: the app in front keeps it. */
+/* A panel that takes the keyboard only for a reply: otherwise the app in
+   front keeps it. */
 @interface NotificationPanel : NSPanel
+@property BOOL takesKeys;
 @end
 
 @implementation NotificationPanel
 - (BOOL)canBecomeKeyWindow
 {
-    return NO;
+    return self.takesKeys;
 }
 
 - (BOOL)canBecomeMainWindow
@@ -257,9 +338,11 @@ static void serverGone(CFMachPortRef port, void *info)
     CGFloat top = NSMaxY(visible) - kMargin;
 
     for (NotificationBanner *banner in _banners) {
-        NSRect frame = NSMakeRect(NSMaxX(visible) - kMargin - kWidth, top - kHeight, kWidth, kHeight);
+        CGFloat height = kHeight + (banner.reply != nil ? kReplyHeight : 0);
+        NSRect frame = NSMakeRect(NSMaxX(visible) - kMargin - kWidth, top - height, kWidth, height);
         [banner.panel setFrame:frame display:YES];
-        top -= kHeight + kGap;
+        [banner.panel.contentView setFrame:NSMakeRect(0, 0, kWidth, height)];
+        top -= height + kGap;
     }
 }
 
@@ -413,18 +496,96 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
     [self activateDelivered:banner.notification];
 }
 
+/* An alert's action (N2): a reply opens its field; any other is the app's. */
+- (void)banner:(NotificationBanner *)banner chose:(NSDictionary *)action
+{
+    if (![action isKindOfClass:[NSDictionary class]])
+        return;
+    if ([action[@kNCActionReply] boolValue]) {
+        [self openReply:banner action:action];
+        return;
+    }
+    [self dismiss:banner];
+    [self activate:banner.notification action:action text:nil];
+}
+
+/* The alert grows a text field and its button; the panel takes the keys. */
+- (void)openReply:(NotificationBanner *)banner action:(NSDictionary *)action
+{
+    NotificationPanel *panel = (NotificationPanel *)banner.panel;
+    NotificationBannerView *view = (NotificationBannerView *)panel.contentView;
+    NSString *send = action[@kNCActionButton];
+    NSTextField *field;
+    NSButton *button;
+
+    if (banner.reply != nil)
+        return;
+    if (send.length == 0 || [send isEqualToString:@"Send"])
+        send = NSLocalizedString(@"Send", @"a reply's button");
+    field = [[NSTextField alloc] initWithFrame:NSMakeRect(12, kHeight + 8, kWidth - 12 - 12 - 76, 24)];
+    [[field cell] setPlaceholderString:action[@kNCActionPlaceholder] ?: @""];
+    [field setTarget:view];
+    [field setAction:@selector(replySent:)];
+    button = [[NSButton alloc] initWithFrame:NSMakeRect(kWidth - 12 - 70, kHeight + 7, 70, 26)];
+    [button setTitle:send];
+    [button setBezelStyle:NSBezelStyleRounded];
+    [button setTarget:view];
+    [button setAction:@selector(replySent:)];
+    [view addSubview:field];
+    [view addSubview:button];
+    banner.reply = field;
+    banner.replyAction = action;
+    [banner.timer invalidate];
+    banner.timer = nil;
+    [self layOut];
+    panel.takesKeys = YES;
+    [NSApp activateIgnoringOtherApps:YES];
+    [panel makeKeyAndOrderFront:nil];
+    [panel makeFirstResponder:field];
+    [view setNeedsDisplay:YES];
+    fprintf(stderr, "SystemUIServer: reply to \"%s\" open\n", [banner.notification[@kNCKeyTitle] ?: @"" UTF8String]);
+}
+
+- (void)sendReply:(NotificationBanner *)banner
+{
+    NSString *text = banner.reply.stringValue ?: @"";
+
+    [self dismiss:banner];
+    [self activate:banner.notification action:banner.replyAction text:text];
+}
+
 /* The app to the front, and told which notification it was. */
 - (void)activateDelivered:(NSDictionary *)n
 {
+    [self activate:n action:nil text:nil];
+}
+
+/* The app to the front, told of its notification, the action chosen (nil:
+   the notification itself) and a reply's text. */
+- (void)activate:(NSDictionary *)n action:(nullable NSDictionary *)action text:(nullable NSString *)text
+{
     pid_t pid = [n[@kNCKeyPID] intValue];
-    NSData *key = [n[@kNCKey] ?: @"" dataUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *activation = [NSMutableDictionary dictionaryWithObject:n[@kNCKey] ?: @"" forKey:@kNCActivationKey];
     int32_t result = kNCNoService;
+    NSUserNotificationActivationType type = NSUserNotificationActivationTypeContentsClicked;
+
+    if (action[@kNCActionIdentifier] != nil) {
+        activation[@kNCActivationAction] = action[@kNCActionIdentifier];
+        type = text != nil ? NSUserNotificationActivationTypeReplied : NSUserNotificationActivationTypeActionButtonClicked;
+    }
+    if (text != nil)
+        activation[@kNCActivationText] = text;
+    NSData *data = [NSPropertyListSerialization dataWithPropertyList:activation format:NSPropertyListBinaryFormat_v1_0
+                                                             options:0 error:NULL];
 
     [[NSRunningApplication runningApplicationWithProcessIdentifier:pid]
         activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-    if (self.server != MACH_PORT_NULL)
-        ncc_activated(self.server, pid, (char *)key.bytes, (mach_msg_type_number_t)key.length,
-                      NSUserNotificationActivationTypeContentsClicked, &result);
+    if (self.server != MACH_PORT_NULL && data != nil)
+        ncc_activated(self.server, pid, (char *)data.bytes, (mach_msg_type_number_t)data.length, (int32_t)type, &result);
+    if (action != nil)
+        fprintf(stderr, "SystemUIServer: action %s of \"%s\"%s%s (%d)\n", [action[@kNCActionIdentifier] UTF8String],
+                [n[@kNCKeyTitle] ?: @"" UTF8String], text != nil ? ", reply " : "", text != nil ? text.UTF8String : "",
+                result);
     fprintf(stderr, "SystemUIServer: activated \"%s\" of %d (%d)\n", [n[@kNCKeyTitle] ?: @"" UTF8String], pid, result);
     for (NotificationBanner *banner in [_banners copy])
         if (sameDelivery(banner.notification, n))

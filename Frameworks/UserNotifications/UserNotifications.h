@@ -46,6 +46,19 @@ typedef NS_OPTIONS(NSUInteger, UNNotificationPresentationOptions) {
     UNNotificationPresentationOptionAlert = (1 << 2)
 };
 
+typedef NS_OPTIONS(NSUInteger, UNNotificationActionOptions) {
+    UNNotificationActionOptionAuthenticationRequired = (1 << 0),
+    UNNotificationActionOptionDestructive = (1 << 1),
+    UNNotificationActionOptionForeground = (1 << 2),
+};
+
+typedef NS_OPTIONS(NSUInteger, UNNotificationCategoryOptions) {
+    UNNotificationCategoryOptionCustomDismissAction = (1 << 0),
+    UNNotificationCategoryOptionAllowInCarPlay = (1 << 1),
+    UNNotificationCategoryOptionHiddenPreviewsShowTitle = (1 << 2),
+    UNNotificationCategoryOptionHiddenPreviewsShowSubtitle = (1 << 3),
+};
+
 FOUNDATION_EXPORT NSString *const UNErrorDomain;
 FOUNDATION_EXPORT NSString *const UNNotificationDefaultActionIdentifier;
 FOUNDATION_EXPORT NSString *const UNNotificationDismissActionIdentifier;
@@ -124,17 +137,40 @@ FOUNDATION_EXPORT NSString *const UNNotificationDismissActionIdentifier;
 @property (readonly, copy) UNNotification *notification;
 @end
 
+@interface UNTextInputNotificationResponse : UNNotificationResponse
+@property (readonly, copy) NSString *userText;
+@end
+
 @interface UNNotificationAction : NSObject <NSCopying, NSSecureCoding>
 @property (readonly, copy) NSString *identifier;
 @property (readonly, copy) NSString *title;
-+ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title options:(NSUInteger)options;
+@property (readonly) UNNotificationActionOptions options;
++ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title
+                             options:(UNNotificationActionOptions)options;
+@end
+
+@interface UNTextInputNotificationAction : UNNotificationAction
+@property (readonly, copy) NSString *textInputButtonTitle;
+@property (readonly, copy) NSString *textInputPlaceholder;
++ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title
+                             options:(UNNotificationActionOptions)options
+                textInputButtonTitle:(NSString *)textInputButtonTitle
+                textInputPlaceholder:(NSString *)textInputPlaceholder;
 @end
 
 @interface UNNotificationCategory : NSObject <NSCopying, NSSecureCoding>
 @property (readonly, copy) NSString *identifier;
 @property (readonly, copy) NSArray<UNNotificationAction *> *actions;
+@property (readonly, copy) NSArray<NSString *> *intentIdentifiers;
+@property (readonly, copy) NSString *hiddenPreviewsBodyPlaceholder;
+@property (readonly) UNNotificationCategoryOptions options;
 + (instancetype)categoryWithIdentifier:(NSString *)identifier actions:(NSArray<UNNotificationAction *> *)actions
-                     intentIdentifiers:(NSArray<NSString *> *)intentIdentifiers options:(NSUInteger)options;
+                     intentIdentifiers:(NSArray<NSString *> *)intentIdentifiers
+                               options:(UNNotificationCategoryOptions)options;
++ (instancetype)categoryWithIdentifier:(NSString *)identifier actions:(NSArray<UNNotificationAction *> *)actions
+                     intentIdentifiers:(NSArray<NSString *> *)intentIdentifiers
+         hiddenPreviewsBodyPlaceholder:(NSString *)hiddenPreviewsBodyPlaceholder
+                               options:(UNNotificationCategoryOptions)options;
 @end
 
 @interface UNNotificationSettings : NSObject <NSCopying, NSSecureCoding>

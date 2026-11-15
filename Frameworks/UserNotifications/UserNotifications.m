@@ -17,6 +17,15 @@
 @interface NSUserNotificationCenter (UserNotificationsSPI)
 @property (copy) void (^_activationHandler)(NSUserNotification *);
 - (void)_deliverNotification:(NSUserNotification *)notification present:(NSInteger)present;
+- (BOOL)_setBadgeLabel:(NSString *)label;
+@end
+
+/* And its alert's actions (N2): a category's, as the notification center
+   takes them; the one chosen and a reply's text come back. */
+@interface NSUserNotification (UserNotificationsSPI)
+@property (nullable, copy) NSArray<NSDictionary *> *_centerActions;
+@property (nullable, copy) NSString *_activatedAction;
+@property (nullable, copy) NSString *_replyText;
 @end
 
 static BOOL appIsActive(void) {
@@ -298,6 +307,10 @@ SECURE_CODING
 @property (readwrite, copy) UNNotification *notification;
 @end
 
+@interface UNTextInputNotificationResponse ()
+@property (readwrite, copy) NSString *userText;
+@end
+
 @implementation UNNotificationResponse
 SECURE_CODING
 - (void)encodeWithCoder:(NSCoder *)coder { [coder encodeObject:self.actionIdentifier forKey:@"action"]; }
@@ -308,45 +321,140 @@ SECURE_CODING
 }
 @end
 
+@implementation UNTextInputNotificationResponse
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [super encodeWithCoder:coder];
+    [coder encodeObject:self.userText forKey:@"userText"];
+}
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    if ((self = [super initWithCoder:coder]))
+        _userText = [coder decodeObjectOfClass:[NSString class] forKey:@"userText"];
+    return self;
+}
+@end
+
 @interface UNNotificationAction ()
 @property (readwrite, copy) NSString *identifier;
 @property (readwrite, copy) NSString *title;
+@property (readwrite) UNNotificationActionOptions options;
 @end
 
 @implementation UNNotificationAction
 SECURE_CODING
-+ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title options:(NSUInteger)options {
++ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title
+                             options:(UNNotificationActionOptions)options {
     UNNotificationAction *a = [self new];
     a.identifier = identifier;
     a.title = title;
+    a.options = options;
     return a;
 }
-- (void)encodeWithCoder:(NSCoder *)coder { [coder encodeObject:self.identifier forKey:@"identifier"]; }
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [coder encodeObject:self.identifier forKey:@"identifier"];
+    [coder encodeObject:self.title forKey:@"title"];
+    [coder encodeInteger:(NSInteger)self.options forKey:@"options"];
+}
 - (instancetype)initWithCoder:(NSCoder *)coder {
-    if ((self = [super init]))
+    if ((self = [super init])) {
         _identifier = [coder decodeObjectOfClass:[NSString class] forKey:@"identifier"];
+        _title = [coder decodeObjectOfClass:[NSString class] forKey:@"title"];
+        _options = (UNNotificationActionOptions)[coder decodeIntegerForKey:@"options"];
+    }
     return self;
+}
+- (NSUInteger)hash { return self.identifier.hash; }
+- (BOOL)isEqual:(id)other {
+    return [other isKindOfClass:[UNNotificationAction class]] && [self.identifier isEqual:[other identifier]];
+}
+/* As the notification center takes it (NotificationCenterTypes.h's kNCAction keys). */
+- (NSDictionary *)_centerAction {
+    return @{ @"identifier" : self.identifier ?: @"", @"title" : self.title ?: @"" };
+}
+@end
+
+@interface UNTextInputNotificationAction ()
+@property (readwrite, copy) NSString *textInputButtonTitle;
+@property (readwrite, copy) NSString *textInputPlaceholder;
+@end
+
+@implementation UNTextInputNotificationAction
++ (instancetype)actionWithIdentifier:(NSString *)identifier title:(NSString *)title
+                             options:(UNNotificationActionOptions)options
+                textInputButtonTitle:(NSString *)textInputButtonTitle
+                textInputPlaceholder:(NSString *)textInputPlaceholder {
+    UNTextInputNotificationAction *a = [self actionWithIdentifier:identifier title:title options:options];
+    a.textInputButtonTitle = textInputButtonTitle;
+    a.textInputPlaceholder = textInputPlaceholder;
+    return a;
+}
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [super encodeWithCoder:coder];
+    [coder encodeObject:self.textInputButtonTitle forKey:@"textInputButtonTitle"];
+    [coder encodeObject:self.textInputPlaceholder forKey:@"textInputPlaceholder"];
+}
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    if ((self = [super initWithCoder:coder])) {
+        _textInputButtonTitle = [coder decodeObjectOfClass:[NSString class] forKey:@"textInputButtonTitle"];
+        _textInputPlaceholder = [coder decodeObjectOfClass:[NSString class] forKey:@"textInputPlaceholder"];
+    }
+    return self;
+}
+- (NSDictionary *)_centerAction {
+    return @{
+        @"identifier" : self.identifier ?: @"",
+        @"title" : self.title ?: @"",
+        @"reply" : @YES,
+        @"placeholder" : self.textInputPlaceholder ?: @"",
+        @"button" : self.textInputButtonTitle ?: @"",
+    };
 }
 @end
 
 @interface UNNotificationCategory ()
 @property (readwrite, copy) NSString *identifier;
 @property (readwrite, copy) NSArray *actions;
+@property (readwrite, copy) NSArray *intentIdentifiers;
+@property (readwrite, copy) NSString *hiddenPreviewsBodyPlaceholder;
+@property (readwrite) UNNotificationCategoryOptions options;
 @end
 
 @implementation UNNotificationCategory
 SECURE_CODING
 + (instancetype)categoryWithIdentifier:(NSString *)identifier actions:(NSArray *)actions
-                     intentIdentifiers:(NSArray *)intentIdentifiers options:(NSUInteger)options {
+                     intentIdentifiers:(NSArray *)intentIdentifiers options:(UNNotificationCategoryOptions)options {
     UNNotificationCategory *c = [self new];
     c.identifier = identifier;
-    c.actions = actions;
+    c.actions = actions ?: @[];
+    c.intentIdentifiers = intentIdentifiers ?: @[];
+    c.options = options;
     return c;
 }
-- (void)encodeWithCoder:(NSCoder *)coder { [coder encodeObject:self.identifier forKey:@"identifier"]; }
++ (instancetype)categoryWithIdentifier:(NSString *)identifier actions:(NSArray *)actions
+                     intentIdentifiers:(NSArray *)intentIdentifiers
+         hiddenPreviewsBodyPlaceholder:(NSString *)hiddenPreviewsBodyPlaceholder
+                               options:(UNNotificationCategoryOptions)options {
+    UNNotificationCategory *c = [self categoryWithIdentifier:identifier actions:actions
+                                           intentIdentifiers:intentIdentifiers options:options];
+    c.hiddenPreviewsBodyPlaceholder = hiddenPreviewsBodyPlaceholder;
+    return c;
+}
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [coder encodeObject:self.identifier forKey:@"identifier"];
+    [coder encodeObject:self.actions forKey:@"actions"];
+    [coder encodeObject:self.intentIdentifiers forKey:@"intentIdentifiers"];
+    [coder encodeObject:self.hiddenPreviewsBodyPlaceholder forKey:@"hiddenPreviewsBodyPlaceholder"];
+    [coder encodeInteger:(NSInteger)self.options forKey:@"options"];
+}
 - (instancetype)initWithCoder:(NSCoder *)coder {
-    if ((self = [super init]))
+    if ((self = [super init])) {
+        NSSet *classes = [NSSet setWithObjects:[NSArray class], [UNNotificationAction class],
+                                               [UNTextInputNotificationAction class], [NSString class], nil];
         _identifier = [coder decodeObjectOfClass:[NSString class] forKey:@"identifier"];
+        _actions = [coder decodeObjectOfClasses:classes forKey:@"actions"] ?: @[];
+        _intentIdentifiers = [coder decodeObjectOfClasses:classes forKey:@"intentIdentifiers"] ?: @[];
+        _hiddenPreviewsBodyPlaceholder = [coder decodeObjectOfClass:[NSString class] forKey:@"hiddenPreviewsBodyPlaceholder"];
+        _options = (UNNotificationCategoryOptions)[coder decodeIntegerForKey:@"options"];
+    }
     return self;
 }
 - (NSUInteger)hash { return self.identifier.hash; }
@@ -415,9 +523,16 @@ SECURE_CODING
     if (notification == nil ||
         ![delegate respondsToSelector:@selector(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:)])
         return;
-    UNNotificationResponse *response = [UNNotificationResponse new];
+    /* An action's identifier, and a reply's text (N2). */
+    UNNotificationResponse *response;
+    if (legacy._replyText != nil) {
+        UNTextInputNotificationResponse *reply = [UNTextInputNotificationResponse new];
+        reply.userText = legacy._replyText;
+        response = reply;
+    } else
+        response = [UNNotificationResponse new];
     response.notification = notification;
-    response.actionIdentifier = UNNotificationDefaultActionIdentifier;
+    response.actionIdentifier = legacy._activatedAction ?: UNNotificationDefaultActionIdentifier;
     [delegate userNotificationCenter:self didReceiveNotificationResponse:response withCompletionHandler:^{}];
 }
 
@@ -464,6 +579,20 @@ SECURE_CODING
     legacy.informativeText = request.content.body;
     legacy.userInfo = request.content.userInfo;
     legacy.soundName = request.content.sound.name;
+    /* Its category's actions for the alert; none if it has no category. */
+    NSMutableArray *actions = [NSMutableArray array];
+    @synchronized (self) {
+        for (UNNotificationCategory *category in _categories)
+            if ([category.identifier isEqualToString:request.content.categoryIdentifier])
+                for (UNNotificationAction *action in category.actions)
+                    [actions addObject:[action _centerAction]];
+    }
+    legacy._centerActions = actions;
+    /* The content's badge on the app's Dock tile (N2): 0 takes it away. */
+    if (request.content.badge != nil) {
+        NSInteger badge = request.content.badge.integerValue;
+        [[NSUserNotificationCenter defaultUserNotificationCenter] _setBadgeLabel:badge > 0 ? [NSString stringWithFormat:@"%ld", (long)badge] : nil];
+    }
     NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
     id<UNUserNotificationCenterDelegate> delegate = self.delegate;
     if (!appIsActive()) {

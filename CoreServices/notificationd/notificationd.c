@@ -13,6 +13,9 @@
  * One session, the console's: the daemon runs as root, as launchservicesd
  * does, until sessions per user come with the login window. Notifications
  * posted before the presenter checks in wait for it (the last few).
+ *
+ * N2: the apps' badges are kept here too, for the Dock, and go with the
+ * app.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -20,6 +23,7 @@
 #include <dispatch/dispatch.h>
 #include <libproc.h>
 #include <mach/mach.h>
+#include <notify.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +46,26 @@ static struct {
 static mach_port_t presenter = MACH_PORT_NULL;
 static pid_t presenterPID;
 static mach_port_t notifyPort = MACH_PORT_NULL;
+
+/* The apps' badges (N2): process identifier (a CFString) to label. */
+static CFMutableDictionaryRef badges;
+
+static void setBadge(pid_t pid, CFStringRef label)
+{
+	CFStringRef key = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), pid);
+	CFStringRef old = CFDictionaryGetValue(badges, key);
+
+	if (label != NULL && CFStringGetLength(label) > 0) {
+		if (old == NULL || !CFEqual(old, label)) {
+			CFDictionarySetValue(badges, key, label);
+			notify_post(kNCBadgesChanged);
+		}
+	} else if (old != NULL) {
+		CFDictionaryRemoveValue(badges, key);
+		notify_post(kNCBadgesChanged);
+	}
+	CFRelease(key);
+}
 
 /* Posted while there was no presenter: given to it when it checks in. */
 static CFDataRef waiting[kMaxWaiting];
@@ -85,6 +109,7 @@ portDied(mach_port_t port)
 
 	for (int i = 0; i < kMaxApps; i++)
 		if (apps[i].port == port) {
+			setBadge(apps[i].pid, NULL);
 			apps[i].port = MACH_PORT_NULL;
 			apps[i].pid = 0;
 			ours = 1;
@@ -203,6 +228,47 @@ ncd_remove(mach_port_t server, audit_token_t token, nc_bytes_t key,
 }
 
 kern_return_t
+ncd_set_badge(mach_port_t server, audit_token_t token, nc_bytes_t label,
+    mach_msg_type_number_t length, int32_t *result)
+{
+	pid_t pid = audit_token_to_pid(token);
+	CFStringRef text = CFStringCreateWithBytes(NULL, (const UInt8 *)label, length, kCFStringEncodingUTF8, false);
+	int known = 0;
+
+	/* Only an app that checked in: its badge goes when it does. */
+	for (int i = 0; i < kMaxApps; i++)
+		if (apps[i].pid == pid && apps[i].port != MACH_PORT_NULL)
+			known = 1;
+	if (!known || text == NULL) {
+		if (text != NULL)
+			CFRelease(text);
+		*result = known ? kNCIllegalArgument : kNCNotAllowed;
+		return KERN_SUCCESS;
+	}
+	setBadge(pid, text);
+	CFRelease(text);
+	*result = kNCSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+ncd_copy_badges(mach_port_t server, nc_bytes_t out, mach_msg_type_number_t *length, int32_t *result)
+{
+	CFDataRef data = CFPropertyListCreateData(NULL, badges, kCFPropertyListBinaryFormat_v1_0, 0, NULL);
+
+	*length = 0;
+	*result = kNCIllegalArgument;
+	if (data != NULL && CFDataGetLength(data) <= kNCMaxPayload) {
+		memcpy(out, CFDataGetBytePtr(data), (size_t)CFDataGetLength(data));
+		*length = (mach_msg_type_number_t)CFDataGetLength(data);
+		*result = kNCSuccess;
+	}
+	if (data != NULL)
+		CFRelease(data);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
 ncd_presenter_check_in(mach_port_t server, audit_token_t token, mach_port_t port, int32_t *result)
 {
 	pid_t pid = audit_token_to_pid(token);
@@ -226,8 +292,8 @@ ncd_presenter_check_in(mach_port_t server, audit_token_t token, mach_port_t port
 }
 
 kern_return_t
-ncd_activated(mach_port_t server, audit_token_t token, int32_t pid, nc_bytes_t key,
-    mach_msg_type_number_t length, int32_t activation, int32_t *result)
+ncd_activated(mach_port_t server, audit_token_t token, int32_t pid, nc_bytes_t activation,
+    mach_msg_type_number_t length, int32_t activationType, int32_t *result)
 {
 	if (presenter == MACH_PORT_NULL || audit_token_to_pid(token) != presenterPID) {
 		*result = kNCNotAllowed;
@@ -236,7 +302,7 @@ ncd_activated(mach_port_t server, audit_token_t token, int32_t pid, nc_bytes_t k
 	*result = kNCIllegalArgument;
 	for (int i = 0; i < kMaxApps; i++)
 		if (apps[i].pid == pid && apps[i].port != MACH_PORT_NULL) {
-			*result = sendMessage(apps[i].port, kNCMessageActivated, activation, key, length) ==
+			*result = sendMessage(apps[i].port, kNCMessageActivated, activationType, activation, length) ==
 			    KERN_SUCCESS ? kNCSuccess : kNCNoService;
 			break;
 		}
@@ -250,6 +316,7 @@ main(int argc, char *argv[])
 	kern_return_t kr;
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
+	badges = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 	kr = bootstrap_check_in(bootstrap_port, kNCServiceName, &service);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "notificationd: cannot check in %s: 0x%x\n", kNCServiceName, kr);

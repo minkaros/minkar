@@ -70,6 +70,8 @@ extern NSNotificationName const DockModelDidChangeNotification;
 - (void)reloadPreferences;
 /* Erases what the Trash holds. */
 - (void)emptyTrash;
+/* The badge an app put on its tile (N2), from notificationd; nil if none. */
+- (nullable NSString *)badgeForTile:(DockTile *)tile;
 @end
 
 /* The persistent-apps preference, in the reference format: tile-data with

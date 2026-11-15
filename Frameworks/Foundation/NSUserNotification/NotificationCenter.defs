@@ -52,6 +52,20 @@ routine activated(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
 	pid			: int32_t;
-	key			: nc_bytes_t;
-	activation		: int32_t;
+	activation		: nc_bytes_t;
+	activationType		: int32_t;
+	out result		: int32_t);
+
+/* N2: the app's badge on its Dock tile; empty takes it away. */
+routine set_badge(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	label			: nc_bytes_t;
+	out result		: int32_t);
+
+/* Every app's badge, for the Dock: a binary property list, each running
+   app's process identifier (a string) to its label. */
+routine copy_badges(
+	server			: mach_port_t;
+	out badges		: nc_bytes_t;
 	out result		: int32_t);

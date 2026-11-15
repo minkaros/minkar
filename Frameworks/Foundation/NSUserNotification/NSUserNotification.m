@@ -47,12 +47,21 @@ NSString *const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefault
 @property (readwrite, getter=isPresented) BOOL presented;
 @property (readwrite) NSUserNotificationActivationType activationType;
 @property (copy) NSString *_centerKey;         /* its delivery's, for notificationd */
+@property (nullable, readwrite, copy) NSAttributedString *response;
+@property (nullable, readwrite, copy) NSUserNotificationAction *additionalActivationAction;
+/* UserNotifications' (N2): its category's actions, as the presenter takes
+   them (kNCKeyActions), instead of this class's buttons; and, once one is
+   chosen, its identifier and a reply's text. */
+@property (nullable, copy) NSArray<NSDictionary *> *_centerActions;
+@property (nullable, copy) NSString *_activatedAction;
+@property (nullable, copy) NSString *_replyText;
 @end
 
 /* UserNotifications' hook: activations of the notifications it delivered. */
 @interface NSUserNotificationCenter (UserNotificationsSPI)
 @property (copy) void (^_activationHandler)(NSUserNotification *);
 - (void)_deliverNotification:(NSUserNotification *)notification present:(NSInteger)present;
+- (BOOL)_setBadgeLabel:(NSString *)label;
 @end
 
 @implementation NSUserNotification
@@ -87,6 +96,7 @@ NSString *const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefault
     copy.hasReplyButton = _hasReplyButton;
     copy.responsePlaceholder = _responsePlaceholder;
     copy.additionalActions = _additionalActions;
+    copy._centerActions = __centerActions;
     return copy;
 }
 
@@ -320,6 +330,34 @@ static BOOL appIsActive(void)
     }
 }
 
+/* An alert's buttons (N2): Reply, which takes the place of the action
+   button, or the action button; then the additional actions. Their
+   identifiers are this class's own (kReply, kAction, kAdditional...). */
+static NSString *const kReply = @"_reply", *const kAction = @"_action", *const kAdditional = @"_additional.";
+
+static NSArray<NSDictionary *> *actionsOf(NSUserNotification *n)
+{
+    NSMutableArray *actions = [NSMutableArray array];
+
+    if (n.hasReplyButton)
+        [actions addObject:@{
+            @kNCActionIdentifier : kReply,
+            @kNCActionTitle : @"Reply",
+            @kNCActionReply : @YES,
+            @kNCActionPlaceholder : n.responsePlaceholder ?: @"",
+            @kNCActionButton : @"Send",
+        }];
+    else if (n.hasActionButton && n.actionButtonTitle.length > 0)
+        [actions addObject:@{ @kNCActionIdentifier : kAction, @kNCActionTitle : n.actionButtonTitle }];
+    for (NSUserNotificationAction *a in n.additionalActions)
+        if (a.identifier != nil && a.title.length > 0)
+            [actions addObject:@{
+                @kNCActionIdentifier : [kAdditional stringByAppendingString:a.identifier],
+                @kNCActionTitle : a.title,
+            }];
+    return actions;
+}
+
 /* The notification to notificationd, to be shown. */
 - (BOOL)presentNotification:(NSUserNotification *)notification
 {
@@ -347,6 +385,9 @@ static BOOL appIsActive(void)
         dict[@kNCKeyAppName] = name;
     if ([bundle.bundlePath.pathExtension isEqualToString:@"app"])
         dict[@kNCKeyAppPath] = bundle.bundlePath;
+    dict[@kNCKeyActions] = notification._centerActions ?: actionsOf(notification);
+    if (notification.otherButtonTitle.length > 0)
+        dict[@kNCKeyCloseTitle] = notification.otherButtonTitle;
 
     NSData *data = [NSPropertyListSerialization dataWithPropertyList:dict
                                                               format:NSPropertyListBinaryFormat_v1_0
@@ -374,8 +415,10 @@ static BOOL appIsActive(void)
     });
 }
 
-/* A click on a banner of the app's (on the main run loop). */
+/* A click on a banner of the app's, or on one of its actions (on the main
+   run loop): action, the action's identifier; text, a reply's. */
 - (void)activatedKey:(NSString *)key type:(NSUserNotificationActivationType)type
+              action:(NSString *)action text:(NSString *)text
 {
     NSUserNotification *notification = nil;
     void (^handler)(NSUserNotification *);
@@ -389,6 +432,23 @@ static BOOL appIsActive(void)
         handler = _activationHandler;
     }
     if (notification == nil)
+        return;
+    notification._activatedAction = action;
+    notification._replyText = text;
+    notification.response = nil;
+    notification.additionalActivationAction = nil;
+    if ([action isEqualToString:kReply]) {
+        type = NSUserNotificationActivationTypeReplied;
+        notification.response = [[NSAttributedString alloc] initWithString:text ?: @""];
+    } else if ([action isEqualToString:kAction])
+        type = NSUserNotificationActivationTypeActionButtonClicked;
+    else if ([action hasPrefix:kAdditional]) {
+        NSString *identifier = [action substringFromIndex:kAdditional.length];
+        type = NSUserNotificationActivationTypeAdditionalActionClicked;
+        for (NSUserNotificationAction *a in notification.additionalActions)
+            if ([a.identifier isEqualToString:identifier])
+                notification.additionalActivationAction = a;
+    } else if (action != nil && notification._centerActions == nil)
         return;
     notification.activationType = type;
     id<NSUserNotificationCenterDelegate> delegate = self.delegate;
@@ -437,6 +497,20 @@ static BOOL appIsActive(void)
         [self removePresented:notification];
 }
 
+/* The app's badge on its Dock tile (N2), for NSDockTile and
+   UserNotifications: nil or empty takes it away. */
+- (BOOL)_setBadgeLabel:(NSString *)label
+{
+    NSData *bytes = [label ?: @"" dataUsingEncoding:NSUTF8StringEncoding];
+
+    if (bytes.length > 256)
+        return NO;
+    return callServer(^kern_return_t(mach_port_t server) {
+        int32_t result = kNCSuccess;
+        return ncc_set_badge(server, (char *)bytes.bytes, (mach_msg_type_number_t)bytes.length, &result);
+    });
+}
+
 - (void)removeAllDeliveredNotifications
 {
     @synchronized(self) {
@@ -455,7 +529,13 @@ static void received(CFMachPortRef port, void *message, CFIndex size, void *info
     if (msg->header.msgh_id != kNCMessageActivated || msg->header.msgh_size < offsetof(NCMessage, payload) ||
         msg->length > kNCMaxPayload || offsetof(NCMessage, payload) + msg->length > msg->header.msgh_size)
         return;
-    NSString *key = [[NSString alloc] initWithBytes:msg->payload length:msg->length encoding:NSUTF8StringEncoding];
-    if (key != nil)
-        [[NSUserNotificationCenter defaultUserNotificationCenter] activatedKey:key type:msg->arg];
+    NSData *data = [NSData dataWithBytes:msg->payload length:msg->length];
+    NSDictionary *activation = [NSPropertyListSerialization propertyListWithData:data options:0 format:NULL error:NULL];
+    if (![activation isKindOfClass:[NSDictionary class]] || ![activation[@kNCActivationKey] isKindOfClass:[NSString class]])
+        return;
+    NSString *action = activation[@kNCActivationAction], *text = activation[@kNCActivationText];
+    [[NSUserNotificationCenter defaultUserNotificationCenter]
+        activatedKey:activation[@kNCActivationKey] type:msg->arg
+              action:[action isKindOfClass:[NSString class]] ? action : nil
+                text:[text isKindOfClass:[NSString class]] ? text : nil];
 }

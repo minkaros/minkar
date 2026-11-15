@@ -13,6 +13,10 @@
 #include <notify.h>
 #include <dispatch/dispatch.h>
 #include <unistd.h>
+#include <mach/mach.h>
+#include <servers/bootstrap.h>
+#include "NotificationCenterTypes.h"
+#include "NotificationCenterUser.h"     /* MIG, generated */
 
 NSNotificationName const DockModelDidChangeNotification = @"DockModelDidChangeNotification";
 
@@ -138,6 +142,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 }
 
 @implementation DockModel {
+    NSDictionary<NSString *, NSString *> *_badges;   /* process identifier to label */
     NSArray<DockTile *> *_persistent;
     NSArray<DockTile *> *_tiles;
     dispatch_source_t _trashWatch;
@@ -174,6 +179,54 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
         while (read(fd, &value, sizeof(value)) == sizeof(value))
             [self performSelectorOnMainThread:@selector(preferencesChanged) withObject:nil waitUntilDone:NO];
     }];
+}
+
+/* The apps' badges (Atlas.md, 5.6, N2): notificationd keeps them and
+   posts kNCBadgesChanged; they are asked for again then. */
+- (void)watchBadges
+{
+    int fd = -1, token;
+
+    [self badgesChanged];
+    if (notify_register_file_descriptor(kNCBadgesChanged, &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(badgesChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+- (void)badgesChanged
+{
+    mach_port_t server = MACH_PORT_NULL;
+    char bytes[kNCMaxPayload];
+    mach_msg_type_number_t length = 0;
+    int32_t result = kNCNoService;
+    NSDictionary *badges = nil;
+
+    if (bootstrap_look_up(bootstrap_port, kNCServiceName, &server) == KERN_SUCCESS &&
+        ncc_copy_badges(server, bytes, &length, &result) == KERN_SUCCESS && result == kNCSuccess) {
+        id plist = [NSPropertyListSerialization propertyListWithData:[NSData dataWithBytes:bytes length:length]
+                                                             options:0 format:NULL error:NULL];
+        if ([plist isKindOfClass:[NSDictionary class]])
+            badges = plist;
+    }
+    if (server != MACH_PORT_NULL)
+        mach_port_deallocate(mach_task_self(), server);
+    if (badges == nil || [badges isEqual:_badges])
+        return;
+    _badges = [badges copy];
+    fprintf(stderr, "Dock: %lu badges\n", (unsigned long)_badges.count);
+    [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
+}
+
+- (NSString *)badgeForTile:(DockTile *)tile
+{
+    if (tile.application == nil)
+        return nil;
+    NSString *label = _badges[[NSString stringWithFormat:@"%d", tile.application.processIdentifier]];
+    return label.length > 0 ? label : nil;
 }
 
 - (void)preferencesChanged
@@ -232,6 +285,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
         return nil;
     [self reloadPreferences];
     [self watchPreferences];
+    [self watchBadges];
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSArray *preference = [defaults arrayForKey:kPersistentApps];
