@@ -56,7 +56,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
-| Notifications | 5.6 | N0–N2 | N0 | N1 (after AU4–AU6) |
+| Notifications | 5.6 | N0–N2 | N0, N1 (N2 partial) | N2's rest (19.6.x) |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -803,12 +803,29 @@ with sound need a place that shows them; nothing in Atlas had one.
   window with another style bit set got a title bar. Local test
   `notifications`: 12 checks, the banner's place, Notice and Tink heard,
   the click's activation.
-- [ ] N1 — The list and the settings: delivered notifications in a panel
+- [x] N1 — The list and the settings: delivered notifications in a panel
   from the menu bar, a Notifications pane in System Preferences (allowed,
   banner or alert, sound, per app) and Do Not Disturb. Gate: a muted app's
-  notification is listed but neither shown nor heard.
+  notification is listed but neither shown nor heard. *Done (15 Nov
+  2026, `2910fb0cb8`):* each app that posts is added to the settings
+  (`org.minkar.notificationcenter`); SystemUIServer follows them and Do
+  Not Disturb. An allowed app's notifications are always listed; an app
+  that is not allowed is not. Alerts stay until Close. The list is the
+  rightmost Menu Extra, with Clear and Do Not Disturb, and the pane lists
+  the apps. Local test `notifications`: the gate met (listed, no banner,
+  Notice not in the recording), the panel's click, Do Not Disturb, alerts.
 - [ ] N2 — Alerts with actions and replies, scheduled notifications (time
-  and calendar triggers) and badges on the Dock.
+  and calendar triggers) and badges on the Dock. *Partial (15 Nov 2026,
+  `7b55914d9a`):* an alert's actions (one, or an Options menu) and replies
+  (a text field and its send button), through NSUserNotification (the
+  action button, Reply, additional actions) and UserNotifications (a
+  category's actions, `UNTextInputNotificationAction` and its response);
+  badges from `NSDockTile` and from a content's badge, kept by
+  notificationd until the app exits and drawn by the Dock. Scheduled
+  notifications (both APIs' time and calendar triggers) are delivered
+  while their app runs. Local test `notifications`, 41 checks. Left: Close
+  as a category's custom dismiss action, and scheduled notifications
+  delivered when their app is not running (notificationd keeping them).
 
 N0 and N1 are part of Minkar 19.6.0; N2 follows in 19.6.x.
 

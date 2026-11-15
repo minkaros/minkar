@@ -59,7 +59,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
-| Notificaciones | 5.6 | N0–N2 | N0 | N1 (tras AU4–AU6) |
+| Notificaciones | 5.6 | N0–N2 | N0, N1 (N2 parcial) | El resto de N2 (19.6.x) |
 
 Las demás piezas de la sesión (LoginWindow, Preferencias del Sistema, el
 lenguaje visual) son puntos de la Fase 5 en [ROADMAP.es.md](ROADMAP.es.md).
@@ -852,13 +852,31 @@ no tenía ninguno.
   bit de estilo recibía barra de título. Prueba local `notifications`: 12
   comprobaciones, el sitio del aviso, Notice y Tink oídos, la activación
   del clic.
-- [ ] N1 — La lista y los ajustes: las notificaciones entregadas en un panel
+- [x] N1 — La lista y los ajustes: las notificaciones entregadas en un panel
   desde la barra de menús, un panel Notificaciones en Preferencias del Sistema
   (permitidas, aviso o alerta, sonido, por app) y No molestar. Criterio: la
   notificación de una app silenciada aparece en la lista pero ni se muestra ni
-  suena.
+  suena. *Hecho (15 nov 2026, `2910fb0cb8`):* cada app que publica se añade a
+  los ajustes (`org.minkar.notificationcenter`); SystemUIServer los sigue, y
+  también No molestar. Las notificaciones de una app permitida siempre van a
+  la lista; las de una no permitida, no. Las alertas se quedan hasta Cerrar.
+  La lista es el Menu Extra de más a la derecha, con Borrar y No molestar, y
+  el panel de Preferencias lista las apps. Prueba local `notifications`: el
+  criterio cumplido (en la lista, sin aviso, Notice no está en la grabación),
+  el clic en el panel, No molestar y las alertas.
 - [ ] N2 — Alertas con acciones y respuestas, notificaciones programadas
-  (disparadores de tiempo y de calendario) y globos en el Dock.
+  (disparadores de tiempo y de calendario) y globos en el Dock. *Parcial (15
+  nov 2026, `7b55914d9a`):* las acciones de una alerta (una, o un menú
+  Opciones) y las respuestas (un campo de texto y su botón de envío), por
+  NSUserNotification (el botón de acción, Responder, las acciones adicionales)
+  y por UserNotifications (las acciones de una categoría,
+  `UNTextInputNotificationAction` y su respuesta); globos desde `NSDockTile` y
+  desde el badge del contenido, que notificationd guarda hasta que la app
+  termina y el Dock dibuja. Las notificaciones programadas (disparadores de
+  tiempo y de calendario de las dos API) se entregan mientras su app está
+  abierta. Prueba local `notifications`, 41 comprobaciones. Falta: Cerrar como
+  acción de descarte propia de una categoría, y entregar las programadas con
+  la app cerrada (que las guarde notificationd).
 
 N0 y N1 forman parte de Minkar 19.6.0; N2 sigue en 19.6.x.
 
