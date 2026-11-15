@@ -98,6 +98,10 @@ public:
 	IOReturn recoverDisplay();
 	IOReturn recoverGated(void *, void *, void *, void *) { return recoverDisplay(); }
 
+	/* DCN: an I2C exchange on a DDC line (0 is DDC1); 0 or an errno. */
+	int i2cDCN(unsigned line, uint8_t slave, const uint8_t *w, unsigned wlen,
+	    uint8_t *r, unsigned rlen);
+
 	uint32_t readReg(uint32_t reg) { return MinkarAMDRead(&fRegs, reg); }
 	void writeReg(uint32_t reg, uint32_t value) { MinkarAMDWrite(&fRegs, reg, value); }
 
@@ -139,6 +143,8 @@ private:
 	void measureRefreshDCN();
 	void publishTimingsDCN();
 	void showPitchPatternDCN();
+	bool readEDIDDCN(unsigned line, uint8_t *edid, unsigned *bytes);
+	void readSinkDCN();
 	void flipTestDCN();
 	const Mode *modeFor(IODisplayModeID id);
 	UInt32 pitchFor(UInt32 width) { return (width + 63) & ~63U; }
@@ -171,6 +177,7 @@ private:
 	/* The display's connector (from the VBIOS's objects) and what it says
 	 * of itself over AUX: its DPCD and its EDID. */
 	int			fConnector;	/* -1: not found */
+	int			fDDC;		/* DCN: the display's DDC line, -1 none */
 	uint8_t			fAUX, fHPD;
 	uint16_t		fEncoder;
 	uint8_t			fDPCD[16];

@@ -48,6 +48,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DRM = os.path.join(HERE, '..', '..', 'Kernel', 'Extensions', 'MinkarDRM')
 OUT = os.path.join(DRM, 'amdgpu', 'amd_dcn302_regs.h')
 PIPES = 4
+DDCS = 5
 
 # Registers of each pipe: the name with N for its number.
 PIPE_REGS = [
@@ -62,8 +63,13 @@ PIPE_REGS = [
     'HUBPREQN_DCSURF_SURFACE_EARLIEST_INUSE_HIGH',
     'OTGN_OTG_STATUS', 'OTGN_OTG_STATUS_POSITION', 'OTGN_OTG_STATUS_FRAME_COUNT',
 ]
+# Registers of each DDC line (1 to 5): the name with DDCN for its number.
+DDC_REGS = ['DC_I2C_DDCN_SETUP', 'DC_I2C_DDCN_SPEED', 'DC_I2C_DDCN_HW_STATUS', 'DC_GPIO_DDCN_MASK']
 # Registers of the engine as a whole.
-REGS = ['DCN_VM_FB_LOCATION_BASE', 'DCN_VM_FB_LOCATION_TOP', 'DCN_VM_FB_OFFSET']
+REGS = ['DCN_VM_FB_LOCATION_BASE', 'DCN_VM_FB_LOCATION_TOP', 'DCN_VM_FB_OFFSET',
+        'DC_I2C_CONTROL', 'DC_I2C_ARBITRATION', 'DC_I2C_SW_STATUS', 'DC_I2C_TRANSACTION0',
+        'DC_I2C_TRANSACTION1', 'DC_I2C_TRANSACTION2', 'DC_I2C_TRANSACTION3', 'DC_I2C_DATA',
+        'MICROSECOND_TIME_BASE_DIV']
 # Fields, by pipe 0's register (the same in every pipe).
 FIELDS = [
     'OTG0_OTG_CONTROL__OTG_MASTER_EN',
@@ -87,6 +93,49 @@ FIELDS = [
     'OTG0_OTG_STATUS__OTG_V_BLANK',
     'OTG0_OTG_STATUS_POSITION__OTG_VERT_COUNT',
     'OTG0_OTG_STATUS_FRAME_COUNT__OTG_FRAME_COUNT',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_ENABLE',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_TIME_LIMIT',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_DATA_DRIVE_EN',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_CLK_DRIVE_EN',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_DATA_DRIVE_SEL',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_INTRA_TRANSACTION_DELAY',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_INTRA_BYTE_DELAY',
+    'DC_I2C_DDC1_SETUP__DC_I2C_DDC1_SEND_RESET_LENGTH',
+    'DC_I2C_DDC1_SPEED__DC_I2C_DDC1_PRESCALE',
+    'DC_I2C_DDC1_SPEED__DC_I2C_DDC1_THRESHOLD',
+    'DC_I2C_DDC1_SPEED__DC_I2C_DDC1_START_STOP_TIMING_CNTL',
+    'DC_I2C_DDC1_HW_STATUS__DC_I2C_DDC1_HW_STATUS',
+    'DC_GPIO_DDC1_MASK__DC_GPIO_DDC1CLK_MASK',
+    'DC_GPIO_DDC1_MASK__DC_GPIO_DDC1DATA_MASK',
+    'DC_GPIO_DDC1_MASK__DC_GPIO_DDC1CLK_PD_EN',
+    'DC_GPIO_DDC1_MASK__DC_GPIO_DDC1DATA_PD_EN',
+    'DC_GPIO_DDC1_MASK__AUX_PAD1_MODE',
+    'DC_I2C_CONTROL__DC_I2C_GO',
+    'DC_I2C_CONTROL__DC_I2C_SOFT_RESET',
+    'DC_I2C_CONTROL__DC_I2C_SEND_RESET',
+    'DC_I2C_CONTROL__DC_I2C_SW_STATUS_RESET',
+    'DC_I2C_CONTROL__DC_I2C_DDC_SELECT',
+    'DC_I2C_CONTROL__DC_I2C_TRANSACTION_COUNT',
+    'DC_I2C_ARBITRATION__DC_I2C_REG_RW_CNTL_STATUS',
+    'DC_I2C_ARBITRATION__DC_I2C_NO_QUEUED_SW_GO',
+    'DC_I2C_ARBITRATION__DC_I2C_SW_USE_I2C_REG_REQ',
+    'DC_I2C_ARBITRATION__DC_I2C_SW_DONE_USING_I2C_REG',
+    'DC_I2C_SW_STATUS__DC_I2C_SW_STATUS',
+    'DC_I2C_SW_STATUS__DC_I2C_SW_DONE',
+    'DC_I2C_SW_STATUS__DC_I2C_SW_ABORTED',
+    'DC_I2C_SW_STATUS__DC_I2C_SW_TIMEOUT',
+    'DC_I2C_SW_STATUS__DC_I2C_SW_STOPPED_ON_NACK',
+    'DC_I2C_TRANSACTION0__DC_I2C_RW0',
+    'DC_I2C_TRANSACTION0__DC_I2C_STOP_ON_NACK0',
+    'DC_I2C_TRANSACTION0__DC_I2C_START0',
+    'DC_I2C_TRANSACTION0__DC_I2C_STOP0',
+    'DC_I2C_TRANSACTION0__DC_I2C_COUNT0',
+    'DC_I2C_DATA__DC_I2C_DATA_RW',
+    'DC_I2C_DATA__DC_I2C_DATA',
+    'DC_I2C_DATA__DC_I2C_INDEX',
+    'DC_I2C_DATA__DC_I2C_INDEX_WRITE',
+    'MICROSECOND_TIME_BASE_DIV__MICROSECOND_TIME_BASE_DIV',
+    'MICROSECOND_TIME_BASE_DIV__XTAL_REF_DIV',
     'DCN_VM_FB_LOCATION_BASE__FB_BASE',
     'DCN_VM_FB_LOCATION_TOP__FB_TOP',
     'DCN_VM_FB_OFFSET__FB_OFFSET',
@@ -118,6 +167,9 @@ def run(source):
     for r in PIPE_REGS:
         values.append(('pipe', r.replace('N_', '_'), [index(r.replace('N_', '%d_' % p))
                                                       for p in range(PIPES)]))
+    for r in DDC_REGS:
+        values.append(('ddc', r.replace('DDCN_', 'DDC_'), [index(r.replace('DDCN_', 'DDC%d_' % d))
+                                                         for d in range(1, DDCS + 1)]))
     for r in REGS:
         values.append(('reg', r, index(r)))
     for f in FIELDS:
@@ -139,11 +191,17 @@ def header(values, notice, version):
            '#ifndef _MINKAR_AMD_DCN302_REGS_H',
            '#define _MINKAR_AMD_DCN302_REGS_H', '',
            '#include <stdint.h>', '',
-           '#define DCN302_PIPES\t%d' % PIPES, '',
+           '#define DCN302_PIPES\t%d' % PIPES,
+           '#define DCN302_DDCS\t%d' % DDCS, '',
            '/* A pipe\'s registers, by pipe. */']
     for kind, name, v in values:
         if kind == 'pipe':
             out.append('static const uint32_t dcn302_%s[DCN302_PIPES] = { %s };'
+                       % (name, ', '.join('0x%05x' % x for x in v)))
+    out += ['', '/* A DDC line\'s registers, by line (DDC1 first). */']
+    for kind, name, v in values:
+        if kind == 'ddc':
+            out.append('static const uint32_t dcn302_%s[DCN302_DDCS] = { %s };'
                        % (name, ', '.join('0x%05x' % x for x in v)))
     out += ['', '/* The engine\'s. */']
     for kind, name, v in values:

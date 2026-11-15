@@ -1000,8 +1000,10 @@ MinkarAMDFramebuffer::start(IOService *provider)
 
 	/* The VBIOS, for the scaled modes (DCN: with R2). */
 	const char *source = "none";
-	if (fDCN)
+	if (fDCN) {
+		readSinkDCN();
 		LOG("DCN 3.0.2: the native mode only");
+	}
 	else if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
 		fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
 	if (fAtom != NULL)
