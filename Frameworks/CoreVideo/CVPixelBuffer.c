@@ -11,6 +11,7 @@
  */
 
 #include "CVPixelBuffer.h"
+#include "CVInternal.h"
 #include <CoreFoundation/CFRuntime.h>
 #include <dispatch/dispatch.h>
 #include <pthread.h>
@@ -109,37 +110,7 @@ static struct __CVBuffer *createBuffer(CFAllocatorRef allocator, size_t width, s
     return b;
 }
 
-/* -- Formats: planes, their subsampling and bytes per element -- */
-
-typedef struct {
-    OSType format;
-    int planes;
-    struct { int bytesPerElement, xShift, yShift; } plane[MAX_PLANES];
-} FormatInfo;
-
-static const FormatInfo formats[] = {
-    { kCVPixelFormatType_32ARGB, 0, { { 4, 0, 0 } } },
-    { kCVPixelFormatType_32BGRA, 0, { { 4, 0, 0 } } },
-    { kCVPixelFormatType_32RGBA, 0, { { 4, 0, 0 } } },
-    { kCVPixelFormatType_24RGB, 0, { { 3, 0, 0 } } },
-    { kCVPixelFormatType_OneComponent8, 0, { { 1, 0, 0 } } },
-    { kCVPixelFormatType_422YpCbCr8, 0, { { 2, 0, 0 } } },
-    { kCVPixelFormatType_422YpCbCr8_yuvs, 0, { { 2, 0, 0 } } },
-    { kCVPixelFormatType_64RGBAHalf, 0, { { 8, 0, 0 } } },
-    { kCVPixelFormatType_420YpCbCr8Planar, 3, { { 1, 0, 0 }, { 1, 1, 1 }, { 1, 1, 1 } } },
-    { kCVPixelFormatType_420YpCbCr8PlanarFullRange, 3, { { 1, 0, 0 }, { 1, 1, 1 }, { 1, 1, 1 } } },
-    { kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, 2, { { 1, 0, 0 }, { 2, 1, 1 } } },
-    { kCVPixelFormatType_420YpCbCr8BiPlanarFullRange, 2, { { 1, 0, 0 }, { 2, 1, 1 } } },
-    { kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, 2, { { 2, 0, 0 }, { 4, 1, 1 } } },
-    { kCVPixelFormatType_420YpCbCr10BiPlanarFullRange, 2, { { 2, 0, 0 }, { 4, 1, 1 } } },
-};
-
-static const FormatInfo *formatInfo(OSType format) {
-    for (size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++)
-        if (formats[i].format == format)
-            return &formats[i];
-    return NULL;
-}
+/* -- Formats: their layout comes from their descriptions -- */
 
 static size_t alignTo(size_t n, size_t a) {
     return (n + a - 1) / a * a;
@@ -159,21 +130,26 @@ static void setNumber(CFMutableDictionaryRef d, CFStringRef key, long long v) {
     CFRelease(n);
 }
 
-/* The planes' sizes and rows of a format at a size, with rows aligned. */
-static void layoutPlanes(const FormatInfo *info, size_t width, size_t height, size_t alignment,
+/* The planes' sizes and rows of a format at a size, with rows aligned:
+   each plane its subsampled size, in blocks of its bits. */
+static void layoutPlanes(const CVFormatLayout *layout, size_t width, size_t height, size_t alignment,
                          Plane *planes, size_t *count, size_t *total) {
-    size_t n = info->planes > 0 ? (size_t)info->planes : 1;
+    size_t n = layout->planes > 1 ? (size_t)layout->planes : 1;
     size_t offset = 0;
     for (size_t i = 0; i < n; i++) {
-        size_t w = (width + ((1u << info->plane[i].xShift) - 1)) >> info->plane[i].xShift;
-        size_t h = (height + ((1u << info->plane[i].yShift) - 1)) >> info->plane[i].yShift;
+        const CVFormatPlane *f = &layout->plane[i];
+        size_t hs = f->horizontalSubsampling > 0 ? (size_t)f->horizontalSubsampling : 1;
+        size_t vs = f->verticalSubsampling > 0 ? (size_t)f->verticalSubsampling : 1;
+        size_t bw = f->blockWidth > 0 ? (size_t)f->blockWidth : 1, bh = f->blockHeight > 0 ? (size_t)f->blockHeight : 1;
+        size_t w = (width + hs - 1) / hs, h = (height + vs - 1) / vs;
+        size_t blocks = (w + bw - 1) / bw;
         planes[i].width = w;
         planes[i].height = h;
-        planes[i].bytesPerRow = alignTo(w * info->plane[i].bytesPerElement, alignment);
+        planes[i].bytesPerRow = alignTo((blocks * (size_t)f->bitsPerBlock + 7) / 8, alignment);
         planes[i].base = (void *)offset;	/* an offset until placed */
-        offset += planes[i].bytesPerRow * h;
+        offset += planes[i].bytesPerRow * ((h + bh - 1) / bh);
     }
-    *count = info->planes > 0 ? n : 0;
+    *count = layout->planes > 1 ? n : 0;
     *total = offset;
 }
 
@@ -206,19 +182,24 @@ CVReturn CVPixelBufferCreate(CFAllocatorRef allocator, size_t width, size_t heig
     *out = NULL;
     if (width == 0 || height == 0)
         return kCVReturnInvalidSize;
-    const FormatInfo *info = formatInfo(pixelFormatType);
-    if (info == NULL)
+    CVFormatLayout layout;
+    if (!_CVPixelFormatGetLayout(pixelFormatType, &layout))
         return kCVReturnInvalidPixelFormat;
     size_t alignment = numberAttribute(attributes, kCVPixelBufferBytesPerRowAlignmentKey, 64);
     Plane planes[MAX_PLANES];
     size_t count, total;
-    layoutPlanes(info, width, height, alignment, planes, &count, &total);
+    layoutPlanes(&layout, width, height, alignment, planes, &count, &total);
+    /* An IOSurface's elements are whole bytes. */
+    Boolean wholeBytes = true;
+    for (int i = 0; i < (layout.planes > 1 ? layout.planes : 1); i++)
+        if (layout.plane[i].bitsPerBlock % 8 != 0)
+            wholeBytes = false;
 
     struct __CVBuffer *b = createBuffer(allocator, width, height, pixelFormatType);
     if (b == NULL)
         return kCVReturnAllocationFailed;
 
-    if (attributes != NULL && CFDictionaryContainsKey(attributes, kCVPixelBufferIOSurfacePropertiesKey)) {
+    if (wholeBytes && attributes != NULL && CFDictionaryContainsKey(attributes, kCVPixelBufferIOSurfacePropertiesKey)) {
         CFMutableDictionaryRef props = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks,
             &kCFTypeDictionaryValueCallBacks);
         setNumber(props, kIOSurfaceWidth, (long long)width);
@@ -226,7 +207,9 @@ CVReturn CVPixelBufferCreate(CFAllocatorRef allocator, size_t width, size_t heig
         setNumber(props, kIOSurfacePixelFormat, pixelFormatType);
         setNumber(props, kIOSurfaceAllocSize, (long long)total);
         if (count == 0) {
-            setNumber(props, kIOSurfaceBytesPerElement, info->plane[0].bytesPerElement);
+            setNumber(props, kIOSurfaceBytesPerElement, layout.plane[0].bitsPerBlock / 8);
+            setNumber(props, kIOSurfaceElementWidth, layout.plane[0].blockWidth);
+            setNumber(props, kIOSurfaceElementHeight, layout.plane[0].blockHeight);
             setNumber(props, kIOSurfaceBytesPerRow, (long long)planes[0].bytesPerRow);
         } else {
             CFMutableArrayRef infos = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
@@ -238,7 +221,9 @@ CVReturn CVPixelBufferCreate(CFAllocatorRef allocator, size_t width, size_t heig
                 setNumber(p, kIOSurfacePlaneBytesPerRow, (long long)planes[i].bytesPerRow);
                 setNumber(p, kIOSurfacePlaneOffset, (long long)(uintptr_t)planes[i].base);
                 setNumber(p, kIOSurfacePlaneSize, (long long)(planes[i].bytesPerRow * planes[i].height));
-                setNumber(p, kIOSurfacePlaneBytesPerElement, info->plane[i].bytesPerElement);
+                setNumber(p, kIOSurfacePlaneBytesPerElement, layout.plane[i].bitsPerBlock / 8);
+                setNumber(p, kIOSurfacePlaneElementWidth, layout.plane[i].blockWidth);
+                setNumber(p, kIOSurfacePlaneElementHeight, layout.plane[i].blockHeight);
                 CFArrayAppendValue(infos, p);
                 CFRelease(p);
             }
@@ -277,8 +262,8 @@ CVReturn CVPixelBufferCreateWithBytes(CFAllocatorRef allocator, size_t width, si
     if (out == NULL || baseAddress == NULL)
         return kCVReturnInvalidArgument;
     *out = NULL;
-    const FormatInfo *info = formatInfo(pixelFormatType);
-    if (info != NULL && info->planes > 0)
+    CVFormatLayout layout;
+    if (_CVPixelFormatGetLayout(pixelFormatType, &layout) && layout.planes > 1)
         return kCVReturnInvalidPixelFormat;
     struct __CVBuffer *b = createBuffer(allocator, width, height, pixelFormatType);
     if (b == NULL)

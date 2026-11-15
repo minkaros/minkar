@@ -16,7 +16,7 @@
 #include <CoreMedia/CMTime.h>
 #include <CoreAudio/CoreAudioTypes.h>
 #include <AudioToolbox/AudioFormat.h>
-#include <CoreGraphics/CGGeometry.h>
+#import <CoreGraphics/CGGeometry.h>
 #include <CoreVideo/CVPixelBuffer.h>
 
 enum {
