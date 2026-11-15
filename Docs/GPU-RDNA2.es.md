@@ -76,6 +76,29 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   encuentra, activados con el ELD de la pantalla. Criterio: `wsctl mode`
   cambia el modo del PC 1, la pantalla se duerme y despierta, y un seno se
   oye por la pantalla.
+  *En curso (2026-11-15), sin el PSP (decidido ese día con el mantenedor:
+  primero las partes HDMI de R2):* la VBIOS de DCN 3.0.2 no guarda ninguna
+  de las tablas de comandos de la pantalla salvo la de apagado de bloques;
+  las ejecuta el microcontrolador de pantalla (DMCUB), y el GOP del
+  firmware lo deja funcionando con su buzón listo (en VRAM más allá de la
+  ventana de la CPU, escrito por MM_INDEX/MM_DATA). Hecho en el PC 1: el
+  EDID por DDC con el I2C del motor (`a19fcb683a`); la pantalla se duerme y
+  despierta con el gestor de pantalla, con su transmisor HDMI apagado y
+  encendido por el microcontrolador (`4e462ab890`); al volver un KVM o un
+  cable, la línea de conexión lo detecta y el transmisor se enciende de
+  nuevo (`7541ea2c93`); el firmware enciende la pantalla como DVI, y el
+  driver pasa el enlace a HDMI (con un infoframe AVI) y prepara el audio:
+  el ELD al endpoint del códec, el DTO, N/CTS y los paquetes de audio, y
+  las salidas digitales de MinkarHDA, un dispositivo propio en Sound con
+  el nombre de la pantalla; un seno se oyó por la pantalla (`1d2ea76c1f`,
+  `688e101c2a`). Falta: los modos. Un refresco se fija por el
+  microcontrolador (SetPixelClock entre el apagado y el encendido del
+  transmisor, `a00c2b2ae8`), pero 60 Hz necesita subir DISPCLK por encima
+  de los 304 MHz que deja el firmware, y eso lo hace el SMU, que no
+  contesta hasta que el PSP carga su firmware: esos modos aún no se
+  ofrecen. Encender una pantalla que el firmware no encendió (el PC 1
+  arrancado con el KVM en otro equipo) necesita los mismos relojes.
+  DisplayPort espera a una pantalla DisplayPort.
 - [ ] **R3 — Memoria y DMA.** La traducción de direcciones de los hubs de
   memoria (la GART y los espacios de direcciones de GPU por proceso), SDMA 5.2
   con su firmware, las interrupciones (IH) y el cliente de usuario; el
@@ -89,6 +112,6 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   relojes completos, y estados de reposo. Después, las mediciones de G4.6 otra
   vez.
 
-R2 es el siguiente paso. R2 y los siguientes esperan al PSP, la pieza más
-grande de esta familia: su arranque se estudia primero, en el `psp_v11_0` de
-amdgpu, antes de empezar R2.
+Los modos de R2, y R3 y los siguientes, esperan al PSP, la pieza más
+grande de esta familia: su arranque se estudia primero, en el `psp_v11_0`
+de amdgpu.

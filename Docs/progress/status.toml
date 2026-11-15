@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-15"
-commit  = "603ab40577"
+commit  = "688e101c2a"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -271,8 +271,8 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "GPU: PC 1's RX 6600 (R2)"
-note = "Navi 23's modes: EDID, the PSP and DMCUB, HDMI and DisplayPort, sleep and hot plug"
+title = "GPU: PC 1's RX 6600 (R2 modes)"
+note = "60 Hz and lighting a display need DISPCLK from the SMU: the PSP first"
 line = "gpu"
 
 [[board.later]]
@@ -288,6 +288,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "R2: HDMI on the RX 6600"
+note = "EDID, sleep and wake, hot plug after a KVM, HDMI audio heard; through the display microcontroller · 15 nov"
+line = "gpu"
 
 [[board.done]]
 title = "R1: the RX 6600's display taken over"
@@ -312,9 +317,4 @@ line = "webkit"
 [[board.done]]
 title = "W4: the older WebView on WPE"
 note = "frame load, policy and UI delegates, WebScriptObject, synchronous scripts from delegates · 10 nov"
-line = "webkit"
-
-[[board.done]]
-title = "W3: WKWebView on WPE WebKit"
-note = "pages drawn in AppKit views, JavaScript, mouse, keys, copy and paste, the UI delegate · 10 nov"
 line = "webkit"
