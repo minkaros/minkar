@@ -41,7 +41,7 @@ static NSTextField *label(NSString *text, NSRect frame, CGFloat size, NSTextAlig
     return field;
 }
 
-/* The zones by region: "America" -> ("Argentina/Buenos_Aires", ...). */
+/* The zones by area: "Area" -> ("Location", "Region/Location", ...). */
 static NSDictionary<NSString *, NSArray<NSString *> *> *zonesByRegion(void)
 {
     NSMutableDictionary *regions = [NSMutableDictionary dictionary];
@@ -170,7 +170,8 @@ static NSString *currentZone(void)
     [_now setStringValue:[f stringFromDate:[NSDate date]]];
 }
 
-/* The menus on a zone ("America/Argentina/Buenos_Aires"). */
+/* The menus on a zone (an area, then a location, which may have its own
+   part: "Area/Location" or "Area/Region/Location"). */
 - (void)showZone:(NSString *)zone
 {
     NSRange slash = [zone rangeOfString:@"/"];
