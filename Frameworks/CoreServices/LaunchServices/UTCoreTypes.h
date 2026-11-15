@@ -78,6 +78,15 @@ extern const CFStringRef kUTTypeQuickTimeMovie;	/* com.apple.quicktime-movie */
 extern const CFStringRef kUTTypeMPEG;	/* public.mpeg */
 extern const CFStringRef kUTTypeMPEG4;	/* public.mpeg-4 */
 extern const CFStringRef kUTTypeMP3;	/* public.mp3 */
+extern const CFStringRef kUTTypeMPEG2Video;	/* public.mpeg-2-video */
+extern const CFStringRef kUTTypeMPEG2TransportStream;	/* public.mpeg-2-transport-stream */
+extern const CFStringRef kUTTypeAppleProtectedMPEG4Audio;	/* com.apple.protected-mpeg-4-audio */
+extern const CFStringRef kUTTypeAppleProtectedMPEG4Video;	/* com.apple.protected-mpeg-4-video */
+extern const CFStringRef kUTTypeAVIMovie;	/* public.avi */
+extern const CFStringRef kUTTypeAudioInterchangeFileFormat;	/* public.aiff-audio */
+extern const CFStringRef kUTTypeMIDIAudio;	/* public.midi-audio */
+extern const CFStringRef kUTTypePlaylist;	/* public.playlist */
+extern const CFStringRef kUTTypeM3UPlaylist;	/* public.m3u-playlist */
 extern const CFStringRef kUTTypeMPEG4Audio;	/* public.mpeg-4-audio */
 extern const CFStringRef kUTTypeWaveformAudio;	/* com.microsoft.waveform-audio */
 extern const CFStringRef kUTTypeFolder;	/* public.folder */
