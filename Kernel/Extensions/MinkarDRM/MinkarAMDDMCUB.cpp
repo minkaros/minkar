@@ -200,3 +200,28 @@ MinkarAMDFramebuffer::dmcubTransmitter(const struct minkar_atom_fw_transmitter_a
 	return dmcubSend(cmd);
 }
 
+
+/* SetPixelClock v1.7, as the microcontroller runs it for the VBIOS
+ * (DMUB_CMD__VBIOS_SET_PIXEL_CLOCK): the pipe's clock from the first
+ * combo PHY PLL, for an HDMI or DVI encoder, 8 bits a component. */
+bool
+MinkarAMDFramebuffer::dmcubPixelClock(uint32_t khz)
+{
+	uint32_t cmd[16];
+	uint8_t *p = (uint8_t *)&cmd[1];
+	uint32_t hz100 = khz * 10;
+
+	bzero(cmd, sizeof(cmd));
+	cmd[0] = 128 | (2 << 8) | (16u << 24);		/* type, sub type, payload bytes */
+	p[0] = (uint8_t)hz100;
+	p[1] = (uint8_t)(hz100 >> 8);
+	p[2] = (uint8_t)(hz100 >> 16);
+	p[3] = (uint8_t)(hz100 >> 24);
+	p[4] = 20;				/* ATOM_COMBOPHY_PLL0 */
+	p[5] = fEncoderID;			/* the encoder object's id */
+	p[6] = fDIGMode == 2 ? 3 : 2;		/* ATOM_ENCODER_MODE_HDMI, DVI */
+	p[7] = 0;				/* misc: the crystal as reference */
+	p[8] = (uint8_t)fCRTC;			/* ATOM_CRTC1 + pipe */
+	p[9] = 0;				/* deep color: none */
+	return dmcubSend(cmd);
+}

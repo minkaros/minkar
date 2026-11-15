@@ -39,6 +39,7 @@
 #include "amd_atom_objects.h"
 #include "edid.h"
 #include "amd_pll.h"
+#include "amd_dcn302_regs.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDFramebuffer: " fmt "\n", ##__VA_ARGS__)
 
@@ -661,6 +662,8 @@ MinkarAMDFramebuffer::addScaledModes()
 IOReturn
 MinkarAMDFramebuffer::setTiming(const struct edid_mode *m, uint32_t stage, uint64_t *out)
 {
+	if (fDCN)
+		return stage == 3 ? setTimingDCN(m) : kIOReturnUnsupported;
 	struct amd_pll_limits l;
 	struct amd_pll_dividers d;
 
@@ -821,10 +824,29 @@ MinkarAMDFramebuffer::addTimedModes()
 	unsigned rates[kMaxTimings];
 	int firmware = -1;
 
-	if (fConnector < 0 || fDPCD[0] != 0 || n == 0)
+	if (fDCN ? (fDIGMode != 2 && fDIGMode != 1) : (fConnector < 0 || fDPCD[0] != 0))
 		return;		/* DisplayPort needs link training: not yet */
+	if (n == 0)
+		return;
 	unsigned count = edid_rates(modes, n, fModes[0].width, fModes[0].height,
 	    fEDIDBytes > 128 ? 340000u : 165000u, rates, kMaxTimings);
+	if (fDCN) {
+		/* Until the timing generator is programmed: the rates at the
+		 * totals it runs. */
+		uint32_t htotal = (readReg(dcn302_OTG_OTG_H_TOTAL[fCRTC]) & 0x7FFF) + 1;
+		uint32_t vtotal = (readReg(dcn302_OTG_OTG_V_TOTAL[fCRTC]) & 0x7FFF) + 1;
+		/* And, until the SMU answers (its firmware is the PSP's to
+		 * load), the rates the display clocks already carry. */
+		unsigned kept = 0;
+		for (unsigned k = 0; k < count; k++) {
+			const struct edid_mode &m = modes[rates[k]];
+			if ((uint32_t)(m.hactive + m.hfront + m.hsync + m.hback) == htotal &&
+			    (uint32_t)(m.vactive + m.vfront + m.vsync + m.vback) == vtotal &&
+			    (fSMUDALBase != 0 || displayClocksCarryDCN(m.clock)))
+				rates[kept++] = rates[k];
+		}
+		count = kept;
+	}
 	for (unsigned k = 0; k < count; k++) {
 		uint32_t hz = edid_refresh_mhz(&modes[rates[k]]);
 		/* Measured, it is off by a few tenths of a hertz. */
@@ -862,10 +884,13 @@ MinkarAMDFramebuffer::addTimedModes()
 void
 MinkarAMDFramebuffer::setBestNativeMode()
 {
-	UInt32 enabled = 1;
+	/* On DCN only when asked ("minkaramd_native=1"): its mode set is
+	 * still being brought up, and a failure there leaves no display. */
+	UInt32 enabled = fDCN ? 0 : 1;
 	int best = -1;
 
-	if (PE_parse_boot_argn("minkaramd_native", &enabled, sizeof(enabled)) && enabled == 0)
+	PE_parse_boot_argn("minkaramd_native", &enabled, sizeof(enabled));
+	if (enabled == 0)
 		return;
 	for (unsigned i = 0; i < fModeCount; i++)
 		if (fModes[i].timing >= 0 &&
@@ -1008,7 +1033,11 @@ MinkarAMDFramebuffer::start(IOService *provider)
 			fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
 		describeOutputDCN();
 		describeDMCUB();
+		probeSMU();
 		fDisplayOn = true;
+		fPixelKHz = pixelClockDCN();
+		if (fPixelKHz != 0 && fDMCUBMail != ~0ULL)
+			addTimedModes();
 		/* The display sleeps with the system's display sleep;
 		 * "minkaramd_dpms=0" keeps it lit. */
 		UInt32 dpms = 1;
@@ -1058,11 +1087,13 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		return false;
 	}
 	fCurrent = 0;
-	if (fDCN)
+	/* "minkaramd_fliptest=1": R1's flip test (the console, still on the
+	 * firmware's buffer meanwhile, shows two pictures while it runs). */
+	UInt32 flipTest = 0;
+	if (fDCN && PE_parse_boot_argn("minkaramd_fliptest", &flipTest, sizeof(flipTest)) && flipTest != 0)
 		flipTestDCN();
 	setConsole();
-	if (!fDCN)
-		setBestNativeMode();
+	setBestNativeMode();
 	publishTimings();
 
 	setProperty(fDCN ? "MinkarDisplayPipe" : "MinkarDisplayCRTC", fCRTC, 32);
@@ -1330,10 +1361,17 @@ MinkarAMDFramebuffer::setProperties(OSObject *properties)
 {
 	OSDictionary *d = OSDynamicCast(OSDictionary, properties);
 	OSBoolean *power = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarDisplayPower")) : NULL;
+	OSBoolean *measure = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarMeasureRefresh")) : NULL;
 
-	if (power == NULL)
+	if (power == NULL && measure == NULL)
 		return super::setProperties(properties);
 	if (IOUserClient::clientHasPrivilege(current_task(), kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return kIOReturnNotPrivileged;
+	if (measure != NULL) {
+		measureRefresh();
+		setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
+		publishTimings();
+		return kIOReturnSuccess;
+	}
 	return fDCN ? setDisplayPowerDCN(power->isTrue()) : kIOReturnUnsupported;
 }

@@ -345,6 +345,7 @@ MinkarAMDFramebuffer::describeOutputDCN()
 			if (base >= 0 && (link == 1 || link == 2)) {
 				fPHY = base + (int)link - 1;
 				fConnectorID = (uint8_t)(p.connector & 0xFF);
+				fEncoderID = (uint8_t)id;
 			}
 		}
 	}
@@ -428,8 +429,9 @@ MinkarAMDFramebuffer::describeOutputDCN()
 	    fDIGFE, fDIGBE, fDIGMode, fHPDSelect, fPHY, fConnectorID);
 }
 
-/* The pixel clock of the mode on screen, from the EDID's detailed timing
- * of the timing generator's totals; 0 if none matches. kHz. */
+/* The pixel clock of the mode on screen: the EDID's detailed timing of
+ * the timing generator's totals whose rate is the measured one; 0 if
+ * none. kHz. */
 uint32_t
 MinkarAMDFramebuffer::pixelClockDCN()
 {
@@ -440,12 +442,73 @@ MinkarAMDFramebuffer::pixelClockDCN()
 
 	for (unsigned i = 0; i < n; i++) {
 		const struct edid_mode &m = modes[i];
+		uint32_t hz = edid_refresh_mhz(&m);
 		if (m.hactive == fModes[0].width && m.vactive == fModes[0].height &&
 		    (uint32_t)(m.hactive + m.hfront + m.hsync + m.hback) == htotal &&
-		    (uint32_t)(m.vactive + m.vfront + m.vsync + m.vback) == vtotal)
+		    (uint32_t)(m.vactive + m.vfront + m.vsync + m.vback) == vtotal &&
+		    (hz > fRefreshMilliHz ? hz - fRefreshMilliHz : fRefreshMilliHz - hz) <= 1000)
 			return m.clock;
 	}
 	return 0;
+}
+
+/* DIG1TransmitterControl for the display's HDMI or DVI transmitter, on (at
+ * khz) or off: the VBIOS's table if it has one, else the microcontroller,
+ * which runs it for the VBIOS on DCN 3. */
+IOReturn
+MinkarAMDFramebuffer::transmitterDCN(bool on, uint32_t khz)
+{
+	struct minkar_atom_fw_transmitter_args t;
+
+	bzero(&t, sizeof(t));
+	t.phy = (uint8_t)fPHY;
+	t.action = on ? 1 : 0;		/* ATOM_TRANSMITTER_ACTION_ENABLE, DISABLE */
+	t.digmode = fDIGMode == 2 ? 3 : 2;	/* ATOM_ENCODER_MODE_HDMI, DVI */
+	t.lanes = 4;
+	t.symclk_10khz = khz / 10;
+	t.hpdsel = (uint8_t)(fHPDSelect + 1);
+	t.digfe_sel = (uint8_t)(1U << fDIGFE);
+	t.connobj_id = fConnectorID;
+	int rc = fAtom != NULL ? minkar_atom_fw_transmitter(fAtom, &t) : -1;
+	if (rc == -1)
+		rc = dmcubTransmitter(&t) ? 0 : -3;
+	return rc == 0 ? kIOReturnSuccess : kIOReturnIOError;
+}
+
+/*
+ * Another refresh rate at the same totals: the transmitter off, the
+ * pixel clock set, the transmitter on at it (amdgpu's order for HDMI:
+ * the clock source's program_pix_clk between the link's disable and
+ * enable). The timing generator keeps its timing. Other totals wait for
+ * the timing generator's programming.
+ */
+IOReturn
+MinkarAMDFramebuffer::setTimingDCN(const struct edid_mode *m)
+{
+	uint32_t htotal = (readReg(dcn302_OTG_OTG_H_TOTAL[fCRTC]) & DCN302_OTG_OTG_H_TOTAL__OTG_H_TOTAL_MASK) + 1;
+	uint32_t vtotal = (readReg(dcn302_OTG_OTG_V_TOTAL[fCRTC]) & DCN302_OTG_OTG_V_TOTAL__OTG_V_TOTAL_MASK) + 1;
+
+	if (fPHY < 0 || fDIGFE < 0 || (fDIGMode != 2 && fDIGMode != 1))
+		return kIOReturnUnsupported;
+	if ((uint32_t)(m->hactive + m->hfront + m->hsync + m->hback) != htotal ||
+	    (uint32_t)(m->vactive + m->vfront + m->vsync + m->vback) != vtotal)
+		return kIOReturnUnsupported;
+	uint32_t before = fPixelKHz;
+	if (!raiseDisplayClocksDCN(m->clock))
+		return kIOReturnNoResources;
+	if (transmitterDCN(false, before) != kIOReturnSuccess)
+		return kIOReturnIOError;
+	bool clock = dmcubPixelClock(m->clock);
+	IOReturn rc = transmitterDCN(true, clock ? m->clock : before);
+	if (!clock || rc != kIOReturnSuccess) {
+		LOG("%u kHz: not set", m->clock);
+		return kIOReturnIOError;
+	}
+	fPixelKHz = m->clock;
+	fDisplayOn = true;
+	measureRefresh();
+	LOG("pixel clock %u kHz: %u.%03u Hz", m->clock, fRefreshMilliHz / 1000, fRefreshMilliHz % 1000);
+	return kIOReturnSuccess;
 }
 
 /*
@@ -463,27 +526,12 @@ MinkarAMDFramebuffer::setDisplayPowerDCN(bool on)
 		return kIOReturnUnsupported;
 	if (on == fDisplayOn)
 		return kIOReturnSuccess;
-	uint32_t clock = pixelClockDCN();
-	if (on && clock == 0)
+	if (on && fPixelKHz == 0)
 		return kIOReturnNotReady;
-	struct minkar_atom_fw_transmitter_args t;
-	bzero(&t, sizeof(t));
-	t.phy = (uint8_t)fPHY;
-	t.action = on ? 1 : 0;		/* ATOM_TRANSMITTER_ACTION_ENABLE, DISABLE */
-	t.digmode = fDIGMode == 2 ? 3 : 2;	/* ATOM_ENCODER_MODE_HDMI, DVI */
-	t.lanes = 4;
-	t.symclk_10khz = clock / 10;
-	t.hpdsel = (uint8_t)(fHPDSelect + 1);
-	t.digfe_sel = (uint8_t)(1U << fDIGFE);
-	t.connobj_id = fConnectorID;
-	/* The VBIOS's table if it has one; else the microcontroller, which
-	 * runs it for the VBIOS on DCN 3. */
-	int rc = minkar_atom_fw_transmitter(fAtom, &t);
-	if (rc == -1)
-		rc = dmcubTransmitter(&t) ? 0 : -3;
-	LOG("display %s: transmitter %d, %u kHz: %d", on ? "on" : "off", fPHY, clock, rc);
-	if (rc != 0)
-		return kIOReturnIOError;
+	IOReturn rc = transmitterDCN(on, fPixelKHz);
+	LOG("display %s: transmitter %d, %u kHz: 0x%x", on ? "on" : "off", fPHY, fPixelKHz, rc);
+	if (rc != kIOReturnSuccess)
+		return rc;
 	fDisplayOn = on;
 	setProperty("MinkarDisplayPowered", on);
 	return kIOReturnSuccess;

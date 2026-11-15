@@ -154,6 +154,14 @@ private:
 	void describeDMCUB();
 	bool dmcubSend(const uint32_t cmd[16]);
 	bool dmcubTransmitter(const struct minkar_atom_fw_transmitter_args *t);
+	bool dmcubPixelClock(uint32_t khz);
+	IOReturn transmitterDCN(bool on, uint32_t khz);
+	IOReturn setTimingDCN(const struct edid_mode *m);
+	bool smuDAL(uint32_t message, uint32_t argument, uint32_t *reply);
+	void probeSMU();
+	bool displayClocksCarryDCN(uint32_t pixelKHz);
+	uint32_t		fSMUDALBase;	/* the DAL mailbox that answers; 0 none */
+	bool raiseDisplayClocksDCN(uint32_t pixelKHz);
 	uint32_t pixelClockDCN();
 	IOReturn setDisplayPowerDCN(bool on);
 	void flipTestDCN();
@@ -192,7 +200,8 @@ private:
 	/* DCN: the output (-1: not found), from its registers and the VBIOS. */
 	int			fDIGFE, fDIGBE, fPHY;
 	unsigned		fDIGMode, fHPDSelect;
-	uint8_t			fConnectorID;
+	uint8_t			fConnectorID, fEncoderID;
+	uint32_t		fPixelKHz;	/* the mode's pixel clock */
 	bool			fDisplayOn;
 	bool			fDPMS;		/* follow the wrangler (minkaramd_dpms) */
 	uint64_t		fDMCUBMail;	/* its mailbox in VRAM; ~0: none */

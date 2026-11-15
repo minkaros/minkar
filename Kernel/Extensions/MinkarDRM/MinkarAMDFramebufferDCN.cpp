@@ -235,6 +235,27 @@ MinkarAMDFramebuffer::publishTimingsDCN()
 			n->release();
 		}
 	}
+	/* The clocks (DCCG), the engine's: pipe 0's where they are a pipe's. */
+	static const struct { const char *name; uint32_t reg; } clocks[] = {
+		{ "OTG0_PIXEL_RATE_CNTL", dcn302_OTG0_PIXEL_RATE_CNTL },
+		{ "OTG0_PHYPLL_PIXEL_RATE_CNTL", dcn302_OTG0_PHYPLL_PIXEL_RATE_CNTL },
+		{ "DP_DTO0_PHASE", dcn302_DP_DTO0_PHASE }, { "DP_DTO0_MODULO", dcn302_DP_DTO0_MODULO },
+		{ "PHYASYMCLK_CLOCK_CNTL", dcn302_PHYASYMCLK_CLOCK_CNTL },
+		{ "DENTIST_DISPCLK_CNTL", dcn302_DENTIST_DISPCLK_CNTL },
+		{ "DPPCLK0_DTO_PARAM", dcn302_DPPCLK0_DTO_PARAM }, { "DPPCLK_DTO_CTRL", dcn302_DPPCLK_DTO_CTRL },
+		{ "DCCG_GATE_DISABLE_CNTL", dcn302_DCCG_GATE_DISABLE_CNTL },
+		{ "DCCG_GATE_DISABLE_CNTL2", dcn302_DCCG_GATE_DISABLE_CNTL2 },
+		{ "DISPCLK_FREQ_CHANGE_CNTL", dcn302_DISPCLK_FREQ_CHANGE_CNTL },
+		{ "SYMCLK_CGTT_BLK_CTRL_REG", dcn302_SYMCLK_CGTT_BLK_CTRL_REG },
+		{ "DCHUBP_CNTL", dcn302_HUBP_DCHUBP_CNTL[0] },
+	};
+	for (unsigned i = 0; i < sizeof(clocks) / sizeof(clocks[0]); i++) {
+		OSNumber *n = OSNumber::withNumber(readReg(clocks[i].reg), 32);
+		if (n != NULL) {
+			d->setObject(clocks[i].name, n);
+			n->release();
+		}
+	}
 	setProperty("MinkarDisplayRegisters", d);
 	d->release();
 }

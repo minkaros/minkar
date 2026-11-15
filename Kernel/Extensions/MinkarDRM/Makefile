@@ -21,7 +21,8 @@ AMD = ${.CURDIR}/dist/drm-kmod/drivers/gpu/drm/amd
 SRCS = lkpi_xnu.cpp atom_glue.c atom_glue_fw.c atom.c MinkarAMDDevice.cpp MinkarAMDGPU.cpp \
 	MinkarAMDFramebuffer.cpp MinkarAMDDMA.cpp MinkarAMDGART.cpp MinkarAMDUserClient.cpp minkar_vram.c \
 	MinkarAMDFirmware.cpp MinkarAMDGFX.cpp MinkarAMDNode.cpp MinkarAMDDCN.cpp \
-	MinkarAMDFramebufferDCN.cpp MinkarAMDDCNI2C.cpp MinkarAMDDMCUB.cpp
+	MinkarAMDFramebufferDCN.cpp MinkarAMDDCNI2C.cpp MinkarAMDDMCUB.cpp \
+	MinkarAMDDCNClocks.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-format-zero-length \
 	-Wno-pointer-sign -Wno-unused-parameter -Wno-missing-prototypes \
