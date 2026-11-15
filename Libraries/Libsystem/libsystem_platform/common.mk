@@ -46,7 +46,10 @@ SRCS = \
         atomics/init.c \
         introspection/introspection.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+# Optimised (it was built at -O0: every memmove word by word through the
+# stack). No builtins: the compiler must not turn memmove's or memset's
+# own loops into calls to themselves.
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -fno-builtin \
         -w -Wno-implicit-function-declaration -Wno-int-conversion \
         -Wno-implicit-int -fno-stack-protector -fdollars-in-identifiers \
         -fno-common -fverbose-asm -momit-leaf-frame-pointer -DPRIVATE \
