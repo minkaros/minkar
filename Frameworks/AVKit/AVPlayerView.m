@@ -4,9 +4,11 @@
  * Part of Minkar.
  *
  * The player view: a layer tree it hosts (black, the player's layer over
- * it), the content overlay view, and the controls: a bar along the bottom
- * (inline and floating styles: play and pause, the time, a position
+ * it), the content overlay view, and the controls: a bar floating over
+ * the bottom of the video, rounded (play and pause, the time, a position
  * slider, the time left, mute), a play button alone (minimal), or none.
+ * Atlas draws the inline (default) style as the floating one: the API's
+ * styles keep their values, the look is one.
  * Space plays and pauses; the arrow keys step a frame when paused.
  */
 
@@ -217,14 +219,12 @@ static const CGFloat kBarHeight = 34;
     BOOL bar = _controlsStyle == AVPlayerViewControlsStyleInline || _controlsStyle == AVPlayerViewControlsStyleFloating;
     _bar.hidden = !bar;
     _bigPlayButton.hidden = _controlsStyle != AVPlayerViewControlsStyleMinimal;
-    if (_controlsStyle == AVPlayerViewControlsStyleFloating) {
-        CGFloat w = MIN(460, b.size.width - 40);
-        _bar.frame = NSMakeRect(NSMidX(b) - w / 2, 16, w, kBarHeight);
-        _bar.cornerRadius = 8;
-    } else {
-        _bar.frame = NSMakeRect(0, 0, b.size.width, kBarHeight);
-        _bar.cornerRadius = 0;
-    }
+    /* Floating over the video, rounded; a narrow view gets it its whole
+       width less a margin. */
+    CGFloat margin = b.size.width < 200 ? 6 : 20;
+    CGFloat w = MIN(460, b.size.width - 2 * margin);
+    _bar.frame = NSMakeRect(NSMidX(b) - w / 2, b.size.height < 120 ? 6 : 16, w, kBarHeight);
+    _bar.cornerRadius = 8;
     [_bar setNeedsDisplay:YES];
     NSRect r = _bar.bounds;
     CGFloat x = 6, h = r.size.height;
