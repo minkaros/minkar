@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <pthread.h>
 #import <CoreText/CTFont.h>
 #import "KTFont.h"
 #include <stdlib.h>
@@ -494,6 +495,44 @@ CFDictionaryRef CTFontCopyVariation(CTFontRef font) {
 
 extern CFStringRef _CTFontCopyPostScriptNameForCharacter(UTF32Char character,CFStringRef language);
 
+/* The fallback fonts made lately, by name and size. A browser asks for a
+   fallback for every run of text it lays out: making the font each time
+   opened and parsed its file again (megabytes for a CJK face), so a page
+   in Japanese kept a processor busy. A font is immutable; the same one is
+   given again, as an app that kept it would use it. */
+#define kFallbackFonts 32
+
+static pthread_mutex_t fallbackLock=PTHREAD_MUTEX_INITIALIZER;
+static struct { CFStringRef name; CGFloat size; CTFontRef font; } fallbackFonts[kFallbackFonts];
+static unsigned fallbackNext;
+
+static CTFontRef copyFallbackFont(CFStringRef name,CGFloat size) {
+   CTFontRef font=NULL;
+
+   pthread_mutex_lock(&fallbackLock);
+   for(unsigned i=0;i<kFallbackFonts && font==NULL;i++)
+    if(fallbackFonts[i].font!=NULL && fallbackFonts[i].size==size && CFEqual(fallbackFonts[i].name,name))
+     font=CFRetain(fallbackFonts[i].font);
+   pthread_mutex_unlock(&fallbackLock);
+   if(font!=NULL)
+    return font;
+
+   font=CTFontCreateWithName(name,size,NULL);
+   if(font==NULL)
+    return NULL;
+   pthread_mutex_lock(&fallbackLock);
+   unsigned i=fallbackNext++%kFallbackFonts;
+   if(fallbackFonts[i].font!=NULL){
+    CFRelease(fallbackFonts[i].name);
+    CFRelease(fallbackFonts[i].font);
+   }
+   fallbackFonts[i].name=CFStringCreateCopy(NULL,name);
+   fallbackFonts[i].size=size;
+   fallbackFonts[i].font=CFRetain(font);
+   pthread_mutex_unlock(&fallbackLock);
+   return font;
+}
+
 /* The font itself when it has the characters, else the face fontconfig
    finds for the first one it lacks, at the same size. */
 CTFontRef CTFontCreateForString(CTFontRef font,CFStringRef string,CFRange range) {
@@ -534,7 +573,7 @@ CTFontRef CTFontCreateForString(CTFontRef font,CFStringRef string,CFRange range)
     CTFontRef   result=NULL;
 
     if(name!=NULL){
-     result=CTFontCreateWithName(name,[self pointSize],NULL);
+     result=copyFallbackFont(name,[self pointSize]);
      CFRelease(name);
     }
     return (result!=NULL)?result:CFRetain(font);
