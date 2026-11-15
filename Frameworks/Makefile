@@ -139,7 +139,7 @@ Vision: Foundation CoreGraphics
 IOBluetooth: Foundation
 MediaPlayer: Foundation CoreGraphics
 AuthenticationServices: Foundation
-AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics
+AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox
 UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics

@@ -15,5 +15,8 @@
 #import <AVFoundation/AVVideoSettings.h>
 #import <AVFoundation/AVAsset.h>
 #import <AVFoundation/AVAssetReader.h>
+#import <AVFoundation/AVPlayerItem.h>
+#import <AVFoundation/AVPlayer.h>
+#import <AVFoundation/AVPlayerLayer.h>
 #import <AVFoundation/AVSpeech.h>
 #import <AVFoundation/AVSampleBufferDisplayLayer.h>

@@ -12,17 +12,19 @@ MK_WERROR = no
 FRAMEWORK = AVFoundation
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = AVCapture.m AVAsset.m AVAssetReader.m AVMetadataItem.m AVError.m AVSettings.m AVTime.m AVSpeech.m \
+SRCS = AVCapture.m AVAsset.m AVAssetReader.m AVMetadataItem.m AVError.m AVSettings.m AVTime.m AVPlaybackEngine.m AVPlayerItem.m AVPlayer.m \
+	AVPlayerLayer.m AVSpeech.m \
 	AVSampleBufferDisplayLayer.m AVMediaFormat.m MDClient.c MediaDecoderUser.c
 HEADERS = AVFoundation.h AVMediaFormat.h AVCapture.h AVAsset.h AVAssetReader.h AVAsynchronousKeyValueLoading.h \
-	AVMetadataFormat.h AVMetadataItem.h AVError.h AVTime.h AVAudioSettings.h AVVideoSettings.h AVSpeech.h \
+	AVMetadataFormat.h AVMetadataItem.h AVError.h AVTime.h AVPlayer.h AVPlayerItem.h AVPlayerItemOutput.h AVPlayerLayer.h \
+	AVAudioSettings.h AVVideoSettings.h AVSpeech.h \
 	AVSampleBufferDisplayLayer.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} -fobjc-arc -I${.CURDIR}/MediaDecoder -I${.OBJDIR}
 LDFLAGS += -F${FMWKS} -framework Foundation -framework CoreMedia -framework CoreVideo -framework QuartzCore \
-	-framework IOSurface -framework CoreServices -framework CoreGraphics -lobjc
+	-framework IOSurface -framework CoreServices -framework CoreGraphics -framework AudioToolbox -lobjc
 .PATH: ${.CURDIR}/MediaDecoder
 
 # The client side of the media decoder's MIG interface (MDClient.c; the
