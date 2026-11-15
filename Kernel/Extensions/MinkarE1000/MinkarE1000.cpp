@@ -347,10 +347,63 @@ MinkarE1000::checkLink()
 	if (getLinkStatus() == (kIONetworkLinkValid | kIONetworkLinkActive) &&
 	    getLinkSpeed() == mbps * 1000000ULL)
 		return;
+	setTSOForSpeed(mbps);
 	setLinkStatus(kIONetworkLinkValid | kIONetworkLinkActive,
 	    IONetworkMedium::getMediumWithType(fMedia, type), mbps * 1000000ULL);
 	LOG("link up, %llu Mb/s, %s duplex", mbps,
 	    (status & E1000_STATUS_FD) ? "full" : "half");
+}
+
+/*
+ * TSO only at 1000 Mb/s: at 10 and 100 the PCH controllers (I217, I218,
+ * I219...) stop transmitting under TSO, and do not get going again (a long
+ * upload at 100 Mb/s took the whole network down); other drivers for the
+ * family turn it off there too. The interface's offload flags follow the
+ * link, so the stack stops asking for it.
+ */
+void
+MinkarE1000::setTSOForSpeed(UInt64 mbps)
+{
+	if (fFamily == kE1000FamilyIGB || fNetif == NULL)
+		return;
+	bool allowed = mbps == 1000;
+	ifnet_t ifp = fNetif->getIfnet();
+
+	if (allowed == fTSOAllowed || ifp == NULL)
+		return;
+	ifnet_offload_t offload = ifnet_offload(ifp);
+	offload = allowed ? (offload | IFNET_TSO_IPV4) : (offload & ~IFNET_TSO_IPV4);
+	if (ifnet_set_offload(ifp, offload) == 0) {
+		fTSOAllowed = allowed;
+		LOG("TSO %s at %llu Mb/s", allowed ? "on" : "off", mbps);
+	}
+}
+
+/*
+ * The watchdog's check of the transmit unit: descriptors handed to the
+ * hardware that it has not moved past in two seconds mean it hung; the
+ * ring is set up again (what was in it is lost, and TCP sends it again)
+ * and the queue goes on.
+ */
+void
+MinkarE1000::watchTx()
+{
+	uint32_t tdh = readReg(E1000_TDH);
+
+	if (fTxInUse == 0 || fTxClean != fTxWatchClean || tdh != fTxWatchTDH) {
+		fTxHungTicks = 0;
+	} else if (++fTxHungTicks >= 2) {
+		LOG("transmit unit hung (%u descriptors pending, TDH %u, TDT %u); resetting it",
+		    (unsigned)fTxInUse, (unsigned)tdh, (unsigned)readReg(E1000_TDT));
+		writeReg(E1000_TCTL, readReg(E1000_TCTL) & ~E1000_TCTL_EN);
+		initTx();
+		fTxHungTicks = 0;
+		fTxQueue->service(kServiceAsync);
+		if (fNetStats != NULL)
+			fNetStats->outputErrors++;
+	}
+	fTxWatchClean = fTxClean;
+	fTxWatchTDH = readReg(E1000_TDH);
 }
 
 bool
@@ -561,6 +614,13 @@ MinkarE1000::outputPacket(mbuf_t m, void *)
 	getChecksumDemand(m, kChecksumFamilyTCPIP, &demand);
 	tso = mbuf_get_tso_requested(m, &tsoRequest, &mss) == 0 &&
 	    (tsoRequest & MBUF_TSO_IPV4) && mss != 0;
+	if (tso && !fTSOAllowed && fFamily != kE1000FamilyIGB) {
+		/* Asked for before the link went to 10/100: TCP sends it again. */
+		freePacket(m);
+		if (fNetStats != NULL)
+			fNetStats->outputErrors++;
+		return kIOReturnOutputDropped;
+	}
 	offload = tso || (demand & (kChecksumIP | kChecksumTCP | kChecksumUDP));
 
 	if (!fEnabled || len == 0 || len > (tso ? kMaxTSOSize : kBufferSize)) {
@@ -760,8 +820,10 @@ MinkarE1000::timerFired(IOTimerEventSource *)
 		if (icr != 0)
 			writeReg(E1000_ICR, icr);
 		serviceInterrupt(icr);
-		if (++fPollCount % (kWatchdogMS / kPollMS) == 0)
+		if (++fPollCount % (kWatchdogMS / kPollMS) == 0) {
+			watchTx();
 			updateStats();
+		}
 		fTimer->setTimeoutMS(kPollMS);
 		return;
 	}
@@ -775,6 +837,7 @@ MinkarE1000::timerFired(IOTimerEventSource *)
 		writeReg(E1000_ICR, icr);
 	receivePackets();
 	reclaimTx();
+	watchTx();
 	checkLink();
 	updateStats();
 	fTimer->setTimeoutMS(kWatchdogMS);
@@ -913,6 +976,8 @@ MinkarE1000::start(IOService *provider)
 		model->release();
 	}
 
+	/* The interface starts with the features getFeatures() gives. */
+	fTSOAllowed = fFamily != kE1000FamilyIGB;
 	if (!attachInterface((IONetworkInterface **)&fNetif, false))
 		return false;
 	fNetStats = fNetif->getNetworkStats();

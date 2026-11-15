@@ -101,6 +101,10 @@ class MinkarE1000 : public IOEthernetController
 	UInt32				fTxClean;	/* oldest descriptor in use */
 	UInt32				fTxInUse;
 	bool				fTxStalled;
+	bool				fTSOAllowed;	/* TSO at this link speed */
+	UInt32				fTxWatchClean;	/* fTxClean at the last watchdog */
+	UInt32				fTxWatchTDH;	/* TDH at the last watchdog */
+	UInt32				fTxHungTicks;	/* watchdogs without progress */
 
 	uint32_t readReg(uint32_t reg) const;
 	void writeReg(uint32_t reg, uint32_t value);
@@ -119,6 +123,8 @@ class MinkarE1000 : public IOEthernetController
 	bool writePHY(uint32_t reg, uint16_t value);
 	bool advertiseMedium(IOMediumType type);
 	void checkLink();
+	void setTSOForSpeed(UInt64 mbps);
+	void watchTx();
 
 	void receivePackets();
 	void reclaimTx();
