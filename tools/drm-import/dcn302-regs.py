@@ -75,7 +75,11 @@ DIG_REGS = ['DIGN_DIG_FE_CNTL', 'DIGN_DIG_BE_CNTL', 'DIGN_AFMT_CNTL',
             'DIGN_HDMI_INFOFRAME_CONTROL0', 'DIGN_HDMI_INFOFRAME_CONTROL1', 'DIGN_HDMI_GC',
             'AFMTN_AFMT_AUDIO_PACKET_CONTROL', 'AFMTN_AFMT_AUDIO_PACKET_CONTROL2',
             'AFMTN_AFMT_60958_0', 'AFMTN_AFMT_60958_1', 'AFMTN_AFMT_60958_2',
-            'AFMTN_AFMT_AUDIO_SRC_CONTROL', 'AFMTN_AFMT_INFOFRAME_CONTROL0', 'AFMTN_AFMT_MEM_PWR']
+            'AFMTN_AFMT_AUDIO_SRC_CONTROL', 'AFMTN_AFMT_INFOFRAME_CONTROL0', 'AFMTN_AFMT_MEM_PWR',
+            'DIGN_HDMI_CONTROL', 'DIGN_DIG_CLOCK_PATTERN', 'DIGN_HDMI_GENERIC_PACKET_CONTROL0',
+            'DIGN_HDMI_GENERIC_PACKET_CONTROL1',
+            'VPGN_VPG_GENERIC_STATUS', 'VPGN_VPG_GENERIC_PACKET_ACCESS_CTRL',
+            'VPGN_VPG_GENERIC_PACKET_DATA', 'VPGN_VPG_GSP_IMMEDIATE_UPDATE_CTRL']
 # The display's audio endpoints (0 to 7), as the HD audio codec sees them.
 AZ_REGS = ['AZF0ENDPOINTN_AZALIA_F0_CODEC_ENDPOINT_INDEX', 'AZF0ENDPOINTN_AZALIA_F0_CODEC_ENDPOINT_DATA']
 AZS = 8
@@ -214,6 +218,18 @@ FIELDS = [
     'DCCG_AUDIO_DTO_SOURCE__DCCG_AUDIO_DTO0_SOURCE_SEL',
     'DCCG_AUDIO_DTO_SOURCE__DCCG_AUDIO_DTO_SEL',
     'AZALIA_F0_CODEC_FUNCTION_PARAMETER_SUPPORTED_SIZE_RATES__AUDIO_RATE_CAPABILITIES',
+    'VPG0_VPG_GENERIC_STATUS__VPG_GENERIC_CONFLICT_OCCURED',
+    'VPG0_VPG_GENERIC_STATUS__VPG_GENERIC_CONFLICT_CLR',
+    'VPG0_VPG_GENERIC_PACKET_ACCESS_CTRL__VPG_GENERIC_DATA_INDEX',
+    'VPG0_VPG_GSP_IMMEDIATE_UPDATE_CTRL__VPG_GENERIC0_IMMEDIATE_UPDATE',
+    'DIG0_HDMI_GENERIC_PACKET_CONTROL0__HDMI_GENERIC0_SEND',
+    'DIG0_HDMI_GENERIC_PACKET_CONTROL0__HDMI_GENERIC0_CONT',
+    'DIG0_HDMI_GENERIC_PACKET_CONTROL1__HDMI_GENERIC0_LINE',
+    'DIG0_HDMI_CONTROL__HDMI_PACKET_GEN_VERSION', 'DIG0_HDMI_CONTROL__HDMI_KEEPOUT_MODE',
+    'DIG0_HDMI_CONTROL__HDMI_DEEP_COLOR_ENABLE', 'DIG0_HDMI_CONTROL__HDMI_DATA_SCRAMBLE_EN',
+    'DIG0_HDMI_CONTROL__HDMI_NO_EXTRA_NULL_PACKET_FILLED',
+    'DIG0_HDMI_CONTROL__HDMI_CLOCK_CHANNEL_RATE', 'DIG0_HDMI_CONTROL__HDMI_DEEP_COLOR_DEPTH',
+    'DIG0_DIG_CLOCK_PATTERN__DIG_CLOCK_PATTERN', 'DIG0_DIG_FE_CNTL__DIG_START',
     'DCN_VM_FB_LOCATION_BASE__FB_BASE',
     'DCN_VM_FB_LOCATION_TOP__FB_TOP',
     'DCN_VM_FB_OFFSET__FB_OFFSET',
@@ -249,7 +265,7 @@ def run(source):
         values.append(('ddc', r.replace('DDCN_', 'DDC_'), [index(r.replace('DDCN_', 'DDC%d_' % d))
                                                          for d in range(1, DDCS + 1)]))
     for r in DIG_REGS:
-        p = 'DIGN_' if r.startswith('DIGN_') else 'AFMTN_'
+        p = r[:r.index('N_') + 2]
         values.append(('dig', r.replace(p, p[:-2] + '_', 1), [index(r.replace(p, p[:-2] + '%d_' % d, 1))
                                                              for d in range(DIGS)]))
     for r in AZ_REGS:
@@ -307,7 +323,7 @@ def header(values, notice, version):
     out += ['', '/* Fields: shift and mask. */']
     for kind, name, v in values:
         if kind == 'field':
-            short = name.replace('0_', '_', 1) if re.match(r'^(OTG|HUBP|HUBPREQ|DIG|AFMT)0_', name) else name
+            short = name.replace('0_', '_', 1) if re.match(r'^(OTG|HUBP|HUBPREQ|DIG|AFMT|VPG)0_', name) else name
             out.append('#define DCN302_%s__SHIFT\t%d' % (short, v[0]))
             out.append('#define DCN302_%s_MASK\t0x%08x' % (short, v[1]))
     out += ['', '#endif', '']

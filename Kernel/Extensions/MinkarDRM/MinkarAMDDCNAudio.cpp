@@ -283,3 +283,102 @@ MinkarAMDFramebuffer::setupAudioDCN()
 	setProperty("MinkarHDMIAudioEndpoint", ep, 32);
 	return true;
 }
+
+/* Whether the sink is an HDMI one: the EDID's CEA extension has the HDMI
+ * vendor block (IEEE OUI 00-0C-03). */
+static bool
+edidHDMI(const uint8_t *e, unsigned bytes)
+{
+	for (unsigned b = 128; b + 128 <= bytes; b += 128) {
+		const uint8_t *x = e + b;
+		if (x[0] != 0x02 || x[2] < 4 || x[2] > 127)
+			continue;
+		for (unsigned p = 4; p < x[2]; ) {
+			unsigned tag = x[p] >> 5, len = x[p] & 0x1f;
+			if (p + 1 + len > x[2])
+				break;
+			if (tag == 3 && len >= 3 && x[p + 1] == 0x03 && x[p + 2] == 0x0c && x[p + 3] == 0x00)
+				return true;
+			p += 1 + len;
+		}
+	}
+	return false;
+}
+
+/*
+ * The link from DVI to HDMI, as amdgpu sets an HDMI stream up (the link
+ * encoder's setup, enc3_stream_encoder_hdmi_set_stream_attribute with
+ * avoid_vbios_exec_table, enc3_update_hdmi_info_packet and vpg3): the
+ * transmitter off, the back end in TMDS-HDMI mode, the front end's FIFO
+ * reset, the HDMI engine set for 8 bits a component, the AVI InfoFrame
+ * (RGB, full range) sent every frame, the audio set up, the transmitter
+ * on in HDMI mode.
+ */
+IOReturn
+MinkarAMDFramebuffer::switchToHDMIDCN()
+{
+	unsigned d = (unsigned)fDIGFE, be = (unsigned)fDIGBE;
+
+	if (fDIGFE < 0 || fDIGBE < 0 || fPixelKHz == 0)
+		return kIOReturnNotReady;
+	if (fDIGMode == 3)
+		return kIOReturnSuccess;
+	if (fDIGMode != 2 || !edidHDMI(fEDID, fEDIDBytes))
+		return kIOReturnUnsupported;
+	if (fDisplayOn && transmitterDCN(false, fPixelKHz) != kIOReturnSuccess)
+		return kIOReturnIOError;
+
+	update(this, dcn302_DIG_DIG_BE_CNTL[be], M(DIG_DIG_BE_CNTL, DIG_MODE), PUT(DIG_DIG_BE_CNTL, DIG_MODE, 3));
+	update(this, dcn302_DIG_DIG_CLOCK_PATTERN[be], M(DIG_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN),
+	    PUT(DIG_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F));
+	update(this, dcn302_DIG_DIG_FE_CNTL[d], M(DIG_DIG_FE_CNTL, DIG_START), M(DIG_DIG_FE_CNTL, DIG_START));
+	IODelay(1);
+	update(this, dcn302_DIG_DIG_FE_CNTL[d], M(DIG_DIG_FE_CNTL, DIG_START), 0);
+	IODelay(1);
+	update(this, dcn302_DIG_HDMI_CONTROL[d],
+	    M(DIG_HDMI_CONTROL, HDMI_PACKET_GEN_VERSION) | M(DIG_HDMI_CONTROL, HDMI_KEEPOUT_MODE) |
+	    M(DIG_HDMI_CONTROL, HDMI_DEEP_COLOR_ENABLE) | M(DIG_HDMI_CONTROL, HDMI_DATA_SCRAMBLE_EN) |
+	    M(DIG_HDMI_CONTROL, HDMI_NO_EXTRA_NULL_PACKET_FILLED) | M(DIG_HDMI_CONTROL, HDMI_CLOCK_CHANNEL_RATE) |
+	    M(DIG_HDMI_CONTROL, HDMI_DEEP_COLOR_DEPTH),
+	    PUT(DIG_HDMI_CONTROL, HDMI_PACKET_GEN_VERSION, 1) | PUT(DIG_HDMI_CONTROL, HDMI_KEEPOUT_MODE, 1) |
+	    PUT(DIG_HDMI_CONTROL, HDMI_NO_EXTRA_NULL_PACKET_FILLED, 1));
+
+	/* The AVI InfoFrame (CEA-861: version 2, 13 bytes): RGB, the active
+	 * format the picture's, full range; no CEA video code (3440x1440 has
+	 * none). Generic packet 0 of the stream's packet generator. */
+	uint8_t avi[32];
+	bzero(avi, sizeof(avi));
+	avi[0] = 0x82; avi[1] = 0x02; avi[2] = 0x0D;		/* header */
+	avi[5] = 0x10;		/* SB1: RGB, active format present */
+	avi[6] = 0x08;		/* SB2: active format as the picture */
+	avi[7] = 0x08;		/* SB3: full range RGB */
+	uint8_t sum = (uint8_t)(avi[0] + avi[1] + avi[2]);
+	for (unsigned i = 5; i < 4 + 14; i++)
+		sum = (uint8_t)(sum + avi[i]);
+	avi[4] = (uint8_t)(0x100 - sum);			/* SB0: checksum */
+	for (int i = 0; i < 50 && (readReg(dcn302_VPG_VPG_GENERIC_STATUS[d]) &
+	    M(VPG_VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_OCCURED)); i++)
+		IODelay(10);
+	update(this, dcn302_VPG_VPG_GENERIC_STATUS[d], M(VPG_VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_CLR),
+	    M(VPG_VPG_GENERIC_STATUS, VPG_GENERIC_CONFLICT_CLR));
+	update(this, dcn302_VPG_VPG_GENERIC_PACKET_ACCESS_CTRL[d],
+	    M(VPG_VPG_GENERIC_PACKET_ACCESS_CTRL, VPG_GENERIC_DATA_INDEX), 0);
+	for (unsigned i = 0; i < 9; i++)	/* the header, then the contents */
+		writeReg(dcn302_VPG_VPG_GENERIC_PACKET_DATA[d], (uint32_t)avi[4 * i] | (uint32_t)avi[4 * i + 1] << 8 |
+		    (uint32_t)avi[4 * i + 2] << 16 | (uint32_t)avi[4 * i + 3] << 24);
+	update(this, dcn302_VPG_VPG_GSP_IMMEDIATE_UPDATE_CTRL[d],
+	    M(VPG_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC0_IMMEDIATE_UPDATE),
+	    M(VPG_VPG_GSP_IMMEDIATE_UPDATE_CTRL, VPG_GENERIC0_IMMEDIATE_UPDATE));
+	update(this, dcn302_DIG_HDMI_GENERIC_PACKET_CONTROL0[d],
+	    M(DIG_HDMI_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_SEND) | M(DIG_HDMI_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_CONT),
+	    M(DIG_HDMI_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_SEND) | M(DIG_HDMI_GENERIC_PACKET_CONTROL0, HDMI_GENERIC0_CONT));
+	update(this, dcn302_DIG_HDMI_GENERIC_PACKET_CONTROL1[d], M(DIG_HDMI_GENERIC_PACKET_CONTROL1, HDMI_GENERIC0_LINE),
+	    PUT(DIG_HDMI_GENERIC_PACKET_CONTROL1, HDMI_GENERIC0_LINE, 2));
+
+	fDIGMode = 3;
+	setupAudioDCN();
+	if (fDisplayOn && transmitterDCN(true, fPixelKHz) != kIOReturnSuccess)
+		return kIOReturnIOError;
+	LOG("the link is HDMI now");
+	return kIOReturnSuccess;
+}

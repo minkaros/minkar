@@ -163,6 +163,7 @@ private:
 	void azWrite(unsigned endpoint, uint32_t index, uint32_t value);
 	bool configureAudioEndpointDCN(unsigned endpoint, unsigned *channels);
 	bool setupAudioDCN();
+	IOReturn switchToHDMIDCN();
 	bool displayClocksCarryDCN(uint32_t pixelKHz);
 	uint32_t		fSMUDALBase;	/* the DAL mailbox that answers; 0 none */
 	bool raiseDisplayClocksDCN(uint32_t pixelKHz);

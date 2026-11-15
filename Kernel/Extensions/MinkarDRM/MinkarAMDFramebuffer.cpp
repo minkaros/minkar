@@ -577,6 +577,7 @@ MinkarAMDFramebuffer::recoverDisplay()
 			setProperty("MinkarEDID", fEDID, fEDIDBytes);
 			LOG("another display: the mode in use stays");
 		}
+		setupAudioDCN();	/* the sink may be another */
 		if (!fDisplayOn)
 			return kIOReturnSuccess;	/* asleep: it comes back on waking */
 		if (transmitterDCN(false, fPixelKHz) != kIOReturnSuccess ||
@@ -1059,7 +1060,14 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		fPixelKHz = pixelClockDCN();
 		if (fPixelKHz != 0 && fDMCUBMail != ~0ULL)
 			addTimedModes();
-		setupAudioDCN();
+		/* An HDMI sink the firmware lit as DVI: HDMI, for its audio
+		 * ("minkaramd_hdmi=0" keeps DVI). */
+		UInt32 hdmi = 1;
+		PE_parse_boot_argn("minkaramd_hdmi", &hdmi, sizeof(hdmi));
+		if (hdmi != 0 && fDIGMode == 2 && switchToHDMIDCN() == kIOReturnSuccess)
+			;
+		else
+			setupAudioDCN();
 		/* The display sleeps with the system's display sleep;
 		 * "minkaramd_dpms=0" keeps it lit. */
 		UInt32 dpms = 1;
@@ -1385,11 +1393,14 @@ MinkarAMDFramebuffer::setProperties(OSObject *properties)
 	OSDictionary *d = OSDynamicCast(OSDictionary, properties);
 	OSBoolean *power = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarDisplayPower")) : NULL;
 	OSBoolean *measure = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarMeasureRefresh")) : NULL;
+	OSBoolean *hdmi = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarSwitchToHDMI")) : NULL;
 
-	if (power == NULL && measure == NULL)
+	if (power == NULL && measure == NULL && hdmi == NULL)
 		return super::setProperties(properties);
 	if (IOUserClient::clientHasPrivilege(current_task(), kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return kIOReturnNotPrivileged;
+	if (hdmi != NULL)
+		return fDCN ? switchToHDMIDCN() : kIOReturnUnsupported;
 	if (measure != NULL) {
 		measureRefresh();
 		setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
