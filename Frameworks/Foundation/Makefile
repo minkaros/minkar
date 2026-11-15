@@ -303,6 +303,7 @@ SRCS = 	NSFormatter.m \
 	NSDistributedLock.m \
 	NSMetadata/NSMetadata.m \
 	NSUserNotification/NSUserNotification.m \
+	NotificationCenterUser.c \
 	NSPlatform.m \
 	NSPropertyList/NSOldXMLAttribute.m \
 	NSPropertyList/NSOldXMLElement.m \
@@ -418,7 +419,7 @@ CFLAGS.NSDistantObject.m = -fobjc-arc
 CFLAGS.NSConnection.m = -fobjc-arc
 CFLAGS.NSSubscripting.m = -fobjc-arc
 CFLAGS.NSCollectionBlocks.m = -fobjc-arc
-CFLAGS.NSUserNotification.m = -fobjc-arc
+CFLAGS.NSUserNotification.m = -fobjc-arc -I${.OBJDIR} -I${.CURDIR}/NSUserNotification
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
@@ -461,6 +462,16 @@ CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
         -include${.CURDIR:H}/CoreFoundation/ForFoundationOnly.h
 SUBDIR =
+
+# The client side of notificationd's MIG interface (NSUserNotificationCenter).
+CLEANFILES += NotificationCenterUser.c NotificationCenterUser.h
+NotificationCenterUser.c NotificationCenterUser.h: ${.CURDIR}/NSUserNotification/NotificationCenter.defs
+	${MIG} -cc ${CC} -novouchers -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    -isysroot ${MINKAR_SDKROOT} -I${.CURDIR}/NSUserNotification \
+	    -user NotificationCenterUser.c -header NotificationCenterUser.h \
+	    -server /dev/null -sheader /dev/null ${.ALLSRC}
+NSUserNotification.o NotificationCenterUser.o: NotificationCenterUser.h
+CFLAGS.NotificationCenterUser.c = -I${.CURDIR}/NSUserNotification -fvisibility=hidden
 
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

@@ -1,0 +1,57 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The notification center: the MIG interface of notificationd (Atlas.md,
+ * 5.6, N0), see NotificationCenterTypes.h. Subsystem 29600.
+ */
+
+subsystem NotificationCenter 29600;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix ncc_;
+serverprefix ncd_;
+
+import "NotificationCenterTypes.h";
+
+type nc_bytes_t = array[*:16384] of char;
+
+/* An app's port, for what is done with its notifications (activations). */
+routine check_in(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	port			: mach_port_make_send_t;
+	out result		: int32_t);
+
+/* A notification delivered: a binary property list (NCKey...). */
+routine post(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	notification		: nc_bytes_t;
+	out result		: int32_t);
+
+/* The app's notification of that key gone (an empty key: all of them). */
+routine remove(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	key			: nc_bytes_t;
+	out result		: int32_t);
+
+/* The presenter's port (SystemUIServer), for the notifications to show. */
+routine presenter_check_in(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	port			: mach_port_make_send_t;
+	out result		: int32_t);
+
+/* The presenter: the user clicked an app's notification. */
+routine activated(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	key			: nc_bytes_t;
+	activation		: int32_t;
+	out result		: int32_t);

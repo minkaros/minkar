@@ -26,6 +26,8 @@ SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 # The pasteboard server (Phase 4).
 SUBDIR += pboard pboard/tests
 SUBDIR += audiod
+# The notification center's session service (Atlas.md, 5.6, N0).
+SUBDIR += notificationd
 # os_log's messages kept (Phase 3).
 SUBDIR += logd
 # The file system's events for FSEvents (Atlas.md, K0).

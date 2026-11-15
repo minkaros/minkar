@@ -1,0 +1,70 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The notification center (Atlas.md, 5.6, N0): notificationd, a session
+ * service, takes the notifications apps deliver (NSUserNotificationCenter,
+ * and UserNotifications through it) and hands them to the presenter,
+ * SystemUIServer, which shows a banner and plays the sound; a click on it
+ * goes back through notificationd to the app.
+ *
+ * A notification is a binary property list, a dictionary with the NCKey
+ * keys below. notificationd adds the app's process (NCKeyPID). Its
+ * messages to an app and to the presenter are plain Mach messages, an
+ * NCMessage with a byte payload.
+ */
+
+#ifndef _NOTIFICATIONCENTERTYPES_H_
+#define _NOTIFICATIONCENTERTYPES_H_
+
+#include <mach/message.h>
+#include <stdint.h>
+
+/* MIG's byte arrays. */
+typedef char *nc_bytes_t;
+
+#define kNCServiceName		"org.minkar.notificationd"
+#define kNCMaxPayload		16384
+
+enum {
+	kNCSuccess = 0,
+	kNCNoService = -1,
+	kNCIllegalArgument = -2,
+	kNCNotAllowed = -3,
+	kNCNoPresenter = -4,
+};
+
+/* The dictionary's keys. */
+#define kNCKey			"key"		/* the delivery's own, unique in the app */
+#define kNCKeyIdentifier	"identifier"	/* the app's, may be absent */
+#define kNCKeyTitle		"title"
+#define kNCKeySubtitle		"subtitle"
+#define kNCKeyText		"informativeText"
+#define kNCKeySound		"sound"		/* a sound's name, "default", or absent */
+#define kNCKeyBundleIdentifier	"bundleIdentifier"
+#define kNCKeyAppName		"appName"
+#define kNCKeyAppPath		"appPath"	/* its bundle, for the icon */
+#define kNCKeyPID		"pid"		/* set by notificationd */
+
+/* notificationd's messages. */
+enum {
+	kNCMessageActivated = 29650,	/* to an app: payload, the key; arg, the activation type */
+	kNCMessageShow = 29651,		/* to the presenter: payload, the notification */
+	kNCMessageRemove = 29652,	/* to the presenter: payload, the key; arg, the pid */
+};
+
+typedef struct {
+	mach_msg_header_t header;
+	int32_t arg;
+	uint32_t length;
+	char payload[kNCMaxPayload];
+} NCMessage;
+
+/* A message received: room for the trailer. */
+typedef struct {
+	NCMessage message;
+	mach_msg_max_trailer_t trailer;
+} NCReceivedMessage;
+
+#endif
