@@ -109,6 +109,13 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 @property (readonly, getter=isPersistent) BOOL persistent;
 @end
 
+typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
+    WKAudiovisualMediaTypeNone = 0,
+    WKAudiovisualMediaTypeAudio = 1 << 0,
+    WKAudiovisualMediaTypeVideo = 1 << 1,
+    WKAudiovisualMediaTypeAll = NSUIntegerMax,
+};
+
 @interface WKWebViewConfiguration : NSObject <NSCopying, NSSecureCoding>
 @property (strong) WKProcessPool *processPool;
 @property (strong) WKPreferences *preferences;
@@ -116,6 +123,9 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 @property (strong) WKWebsiteDataStore *websiteDataStore;
 @property (nullable, copy) NSString *applicationNameForUserAgent;
 @property BOOL suppressesIncrementalRendering;
+/* Media a page may play only after the user acts (None by default). */
+@property WKAudiovisualMediaTypes mediaTypesRequiringUserActionForPlayback;
+@property BOOL allowsAirPlayForMediaPlayback;
 @end
 
 @interface WKNavigation : NSObject

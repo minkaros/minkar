@@ -484,6 +484,8 @@ SECURE
     copy.websiteDataStore = self.websiteDataStore;
     copy.applicationNameForUserAgent = self.applicationNameForUserAgent;
     copy.suppressesIncrementalRendering = self.suppressesIncrementalRendering;
+    copy.mediaTypesRequiringUserActionForPlayback = self.mediaTypesRequiringUserActionForPlayback;
+    copy.allowsAirPlayForMediaPlayback = self.allowsAirPlayForMediaPlayback;
     copy._relatedWebView = self._relatedWebView;
     return copy;
 }
@@ -691,6 +693,9 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         webkit_settings_set_javascript_can_open_windows_automatically(settings,
             preferences.javaScriptCanOpenWindowsAutomatically);
         webkit_settings_set_minimum_font_size(settings, (guint32)preferences.minimumFontSize);
+        /* WebKit's one switch: a gesture for any media, when any is asked. */
+        webkit_settings_set_media_playback_requires_user_gesture(settings,
+            _configuration.mediaTypesRequiringUserActionForPlayback != WKAudiovisualMediaTypeNone);
         if (_configuration.applicationNameForUserAgent.length)
             webkit_settings_set_user_agent_with_application_details(settings,
                 _configuration.applicationNameForUserAgent.UTF8String, NULL);
@@ -699,6 +704,13 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         [controller _addWebView:self];
         WKWebView *related = _configuration._relatedWebView;
         _configuration._relatedWebView = nil;
+        /* Autoplay as the configuration says: with sound when no media
+           needs the user's action (WPE's own default plays muted only),
+           muted when audio does, not at all when video does. */
+        WKAudiovisualMediaTypes needAction = _configuration.mediaTypesRequiringUserActionForPlayback;
+        WebKitWebsitePolicies *policies = webkit_website_policies_new_with_policies("autoplay",
+            needAction == WKAudiovisualMediaTypeNone ? WEBKIT_AUTOPLAY_ALLOW :
+            (needAction & WKAudiovisualMediaTypeVideo) ? WEBKIT_AUTOPLAY_DENY : WEBKIT_AUTOPLAY_ALLOW_WITHOUT_SOUND, NULL);
         if (related != nil) {
             /* Opened by related's page: in its web process, session and
                display. */
@@ -706,6 +718,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
                 "related-view", related->_webView,
                 "settings", settings,
                 "user-content-manager", [controller _manager],
+                "website-policies", policies,
                 NULL));
             _openedByPage = YES;
         } else {
@@ -714,9 +727,11 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
                 "settings", settings,
                 "user-content-manager", [controller _manager],
                 "network-session", [_configuration.websiteDataStore _session],
+                "website-policies", policies,
                 NULL));
         }
         g_object_unref(settings);
+        g_object_unref(policies);
         g_object_ref_sink(_webView);
 
         void *me = (__bridge void *)self;
