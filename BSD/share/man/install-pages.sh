@@ -15,7 +15,9 @@
 # Then the other names of a command (a link to it, hard or symbolic, such
 # as egrep for grep) get a link to its page, as FreeBSD's MLINKS do, and
 # so does a command a page names in its NAME section (.Nm basename ,
-# dirname: dirname(1) is basename(1)).
+# dirname: dirname(1) is basename(1)), and a command's versioned name
+# (perl5.40.5 for perl). The pages a language's library carries for its
+# commands (Ruby's bundler) are installed too.
 
 set -eu
 src=$1
@@ -51,6 +53,20 @@ for top in bin sbin usr.bin usr.sbin libexec; do
 	done
 done | tee /dev/stderr | wc -l | awk '{ print "install-pages: " $1 " pages" }'
 
+# Pages a language's library carries for its commands: Ruby's bundler
+# (bundle(1) and its subcommands'; bundler is bundle).
+for lib in "$root"/usr/lib/ruby/*/bundler/man; do
+	[ -d "$lib" ] || continue
+	mkdir -p "$root/usr/share/man/man1"
+	for page in "$lib"/*.1; do
+		[ -f "$page" ] || continue
+		cmp -s "$page" "$root/usr/share/man/man1/${page##*/}" ||
+		    install -m 0444 "$page" "$root/usr/share/man/man1/${page##*/}"
+	done
+	[ -f "$root/usr/share/man/man1/bundle.1" ] && [ -f "$root/usr/bin/bundler" ] &&
+	    ln -f "$root/usr/share/man/man1/bundle.1" "$root/usr/share/man/man1/bundler.1"
+done
+
 # The other names: NAME is a symbolic link to a command, or a hard link
 # with another name in the same directory, and that command has a page.
 page_of() {
@@ -78,6 +94,8 @@ for d in bin sbin usr/bin usr/sbin; do
 				page_of "${t##*/}" >/dev/null && { echo "${t##*/}"; break; }
 			done || true)
 		fi
+		# A versioned name: the command without its version.
+		[ -n "$target" ] || target=$(echo "$name" | sed -n 's/[0-9][0-9.]*$//p')
 		[ -n "$target" ] || continue
 		page=$(page_of "$target") || continue
 		file=${page##*/}
