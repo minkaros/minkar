@@ -6,8 +6,9 @@
 # commit (MANIFEST): WebCore, the web content and network processes and
 # the WPE platform's headless display, in /usr/lib/webkit (private: W3
 # builds WebKit.framework on it). Its processes talk over Unix sockets, not
-# Mach and XPC; it draws with Skia on Mesa's EGL. Media (GStreamer) is left
-# out until the system's own media stack (AU6). The patches make it build
+# Mach and XPC; it draws with Skia on Mesa's EGL. Media is not GStreamer's:
+# <audio>, <video> and Web Audio play on the system's AVFoundation and
+# AudioToolbox (patch 0012, AU6). The patches make it build
 # for API 19 (10.15) on Minkar's toolchain, on top of JavaScriptCore's.
 
 SUBDIR =
@@ -30,7 +31,8 @@ EXTLIB_PATCHES = ${JSC_PATCHES:@p@../../javascriptcore/patches/${p}@} \
 		0008-wpe-backing-store-without-libdrm.patch \
 		0009-skia-sources-the-library-uses.patch \
 		0010-webkit-ipc-glib-stream-sockets-on-darwin.patch \
-		0011-webkit-glib-content-types-as-mime-types.patch
+		0011-webkit-glib-content-types-as-mime-types.patch \
+		0012-webcore-media-on-minkar-avfoundation.patch
 # Libraries of WebKit's own (BSD/lib, private) are in the SDK's
 # usr/local/webkit and /usr/lib/webkit.
 EXTLIB_OPTIONS = -DPORT=WPE -DDEVELOPER_MODE=OFF \
@@ -42,8 +44,11 @@ EXTLIB_OPTIONS = -DPORT=WPE -DDEVELOPER_MODE=OFF \
 		-DENABLE_WPE_LEGACY_API=OFF -DENABLE_WPE_QT_API=OFF \
 		-DUSE_ATK=OFF -DUSE_FLITE=OFF -DUSE_GBM=OFF -DUSE_LIBDRM=OFF \
 		-DUSE_LIBBACKTRACE=OFF -DUSE_LIBHYPHEN=OFF -DUSE_AVIF=OFF -DUSE_LCMS=OFF \
-		-DUSE_JPEGXL=OFF -DUSE_WOFF2=ON -DUSE_GSTREAMER=OFF \
-		-DENABLE_VIDEO=OFF -DENABLE_WEB_AUDIO=OFF -DENABLE_MEDIA_STREAM=OFF \
+		-DUSE_JPEGXL=OFF -DUSE_WOFF2=ON -DUSE_GSTREAMER=OFF -DUSE_GSTREAMER_GL=OFF \
+		-DENABLE_VIDEO=ON -DENABLE_WEB_AUDIO=ON -DUSE_MINKAR_MEDIA=ON \
+		-DMINKAR_MEDIA_INCLUDE_DIR=${MINKAR_SDKROOT}/usr/local/media/include \
+		-DMINKAR_MEDIA_LIBRARY_DIR=${MINKAR_SDKROOT}/usr/lib/media \
+		-DENABLE_MEDIA_SOURCE=OFF -DENABLE_MEDIA_STREAM=OFF \
 		-DENABLE_MEDIA_RECORDER=OFF -DENABLE_WEB_CODECS=OFF -DENABLE_ENCRYPTED_MEDIA=OFF \
 		-DENABLE_SPEECH_SYNTHESIS=OFF -DENABLE_GAMEPAD=OFF -DENABLE_WEBDRIVER=OFF \
 		-DENABLE_PDFJS=OFF -DENABLE_SPELLCHECK=OFF -DENABLE_BUBBLEWRAP_SANDBOX=OFF \

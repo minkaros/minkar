@@ -1,0 +1,1276 @@
+diff -ruN a/Source/cmake/GStreamerDependencies.cmake b/Source/cmake/GStreamerDependencies.cmake
+--- a/Source/cmake/GStreamerDependencies.cmake	2026-11-15 08:51:34.112878280 -0500
++++ b/Source/cmake/GStreamerDependencies.cmake	2026-11-15 08:51:34.137877166 -0500
+@@ -1,6 +1,9 @@
+ WEBKIT_OPTION_DEPEND(ENABLE_SPEECH_SYNTHESIS USE_GSTREAMER)
+-WEBKIT_OPTION_DEPEND(ENABLE_VIDEO USE_GSTREAMER)
+-WEBKIT_OPTION_DEPEND(ENABLE_WEB_AUDIO USE_GSTREAMER)
++# Minkar: video and Web Audio on the system's AVFoundation, not GStreamer.
++if (NOT USE_MINKAR_MEDIA)
++    WEBKIT_OPTION_DEPEND(ENABLE_VIDEO USE_GSTREAMER)
++    WEBKIT_OPTION_DEPEND(ENABLE_WEB_AUDIO USE_GSTREAMER)
++endif ()
+ WEBKIT_OPTION_DEPEND(ENABLE_WEB_CODECS USE_GSTREAMER)
+ WEBKIT_OPTION_DEPEND(USE_GSTREAMER_GL ENABLE_VIDEO)
+ WEBKIT_OPTION_DEPEND(USE_GSTREAMER_MPEGTS ENABLE_VIDEO)
+diff -ruN a/Source/cmake/OptionsWPE.cmake b/Source/cmake/OptionsWPE.cmake
+--- a/Source/cmake/OptionsWPE.cmake	2026-11-15 08:39:35.026394172 -0500
++++ b/Source/cmake/OptionsWPE.cmake	2026-11-15 08:40:19.577270253 -0500
+@@ -442,6 +442,11 @@
+ endif ()
+ 
+ SET_AND_EXPOSE_TO_BUILD(USE_ATSPI TRUE)
++
++# Minkar: the media engine on the system's AVFoundation (-DUSE_MINKAR_MEDIA=ON).
++if (USE_MINKAR_MEDIA)
++    SET_AND_EXPOSE_TO_BUILD(USE_MINKAR_MEDIA ON)
++endif ()
+ SET_AND_EXPOSE_TO_BUILD(USE_GCRYPT TRUE)
+ SET_AND_EXPOSE_TO_BUILD(USE_LIBEPOXY TRUE)
+ SET_AND_EXPOSE_TO_BUILD(USE_XDGMIME TRUE)
+diff -ruN a/Source/WebCore/platform/audio/DirectConvolver.cpp b/Source/WebCore/platform/audio/DirectConvolver.cpp
+--- a/Source/WebCore/platform/audio/DirectConvolver.cpp	2026-11-15 09:07:53.312865160 -0500
++++ b/Source/WebCore/platform/audio/DirectConvolver.cpp	2026-11-15 09:07:53.337863992 -0500
+@@ -32,7 +32,7 @@
+ 
+ #include "DirectConvolver.h"
+ 
+-#if OS(DARWIN)
++#if USE(ACCELERATE)
+ #include <Accelerate/Accelerate.h>
+ #endif
+ 
+diff -ruN a/Source/WebCore/platform/audio/FFTFrame.h b/Source/WebCore/platform/audio/FFTFrame.h
+--- a/Source/WebCore/platform/audio/FFTFrame.h	2026-11-15 08:39:34.999395460 -0500
++++ b/Source/WebCore/platform/audio/FFTFrame.h	2026-11-15 08:40:19.576270301 -0500
+@@ -35,6 +35,12 @@
+ #include "GUniquePtrGStreamer.h"
+ #endif // USE(GSTREAMER)
+ 
++#if USE(MINKAR_MEDIA)
++extern "C" {
++#include <libavutil/tx.h>
++}
++#endif
++
+ #if USE(ACCELERATE)
+ #include <Accelerate/Accelerate.h>
+ #endif
+@@ -105,6 +111,16 @@
+     DSPSplitComplex m_frame;
+ #endif
+ 
++#if USE(MINKAR_MEDIA)
++    void setUpTransforms();
++    AVTXContext* m_forward { nullptr };
++    AVTXContext* m_inverse { nullptr };
++    av_tx_fn m_forwardFunction { nullptr };
++    av_tx_fn m_inverseFunction { nullptr };
++    Vector<AVComplexFloat> m_complexData;
++    Vector<float> m_samples;
++#endif
++
+ #if USE(GSTREAMER)
+     GUniquePtr<GstFFTF32> m_fft;
+     GUniquePtr<GstFFTF32> m_inverseFft;
+diff -ruN a/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.cpp b/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.cpp
+--- a/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.cpp	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.cpp	2026-11-15 08:40:19.590269633 -0500
+@@ -0,0 +1,142 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++#include "config.h"
++#include "AudioDestinationMinkar.h"
++
++#if ENABLE(WEB_AUDIO) && USE(MINKAR_MEDIA)
++
++#include "AudioBus.h"
++#include "AudioUtilities.h"
++#include <AudioToolbox/AudioQueue.h>
++#include <mach/mach_time.h>
++#include <wtf/MainThread.h>
++
++namespace WebCore {
++
++static constexpr float kDeviceSampleRate = 48000;
++static constexpr unsigned kBufferFrames = 512;
++static constexpr unsigned kBufferCount = 3;
++
++Ref<AudioDestination> AudioDestination::create(const CreationOptions& options)
++{
++    return adoptRef(*new AudioDestinationMinkar(options));
++}
++
++float AudioDestination::hardwareSampleRate()
++{
++    return kDeviceSampleRate;
++}
++
++unsigned long AudioDestination::maxChannelCount()
++{
++    return 2;
++}
++
++static void queueCallback(void* refcon, AudioQueueRef, AudioQueueBufferRef buffer)
++{
++    static_cast<AudioDestinationMinkar*>(refcon)->fill(buffer);
++}
++
++AudioDestinationMinkar::AudioDestinationMinkar(const CreationOptions& options)
++    : AudioDestinationResampler(options, kDeviceSampleRate)
++    , m_channels(std::min(2u, std::max(1u, options.numberOfOutputChannels)))
++{
++    AudioStreamBasicDescription format { };
++    format.mSampleRate = kDeviceSampleRate;
++    format.mFormatID = kAudioFormatLinearPCM;
++    format.mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked;
++    format.mChannelsPerFrame = m_channels;
++    format.mBitsPerChannel = 32;
++    format.mBytesPerFrame = format.mBytesPerPacket = 4 * m_channels;
++    format.mFramesPerPacket = 1;
++    if (AudioQueueNewOutput(&format, queueCallback, this, nullptr, nullptr, 0, &m_queue) != noErr) {
++        m_queue = nullptr;
++        return;
++    }
++    for (unsigned i = 0; i < kBufferCount; ++i) {
++        AudioQueueBufferRef buffer = nullptr;
++        if (AudioQueueAllocateBuffer(m_queue, kBufferFrames * format.mBytesPerFrame, &buffer) == noErr)
++            m_buffers.append(buffer);
++    }
++    m_planes.resize(m_outputBus->numberOfChannels());
++    for (auto& plane : m_planes)
++        plane.resize(kBufferFrames);
++}
++
++AudioDestinationMinkar::~AudioDestinationMinkar()
++{
++    if (m_queue)
++        AudioQueueDispose(m_queue, true);
++}
++
++/* The graph's next frames into the buffer, queued again; silence when
++   stopped (the buffer then waits). */
++void AudioDestinationMinkar::fill(AudioQueueBufferRef buffer)
++{
++    if (!isPlaying())
++        return;
++    for (unsigned c = 0; c < m_planes.size(); ++c)
++        m_outputBus->setChannelMemory(c, m_planes[c].mutableSpan());
++    size_t frames = pullRendered(kBufferFrames);
++    render(m_sampleTime, MonotonicTime::fromMachAbsoluteTime(mach_absolute_time()), frames);
++    m_sampleTime += kBufferFrames;
++    float* out = static_cast<float*>(buffer->mAudioData);
++    for (unsigned i = 0; i < kBufferFrames; ++i) {
++        for (unsigned c = 0; c < m_channels; ++c) {
++            unsigned source = std::min<unsigned>(c, m_planes.size() - 1);
++            out[i * m_channels + c] = m_planes[source][i];
++        }
++    }
++    buffer->mAudioDataByteSize = kBufferFrames * 4 * m_channels;
++    AudioQueueEnqueueBuffer(m_queue, buffer, 0, nullptr);
++}
++
++void AudioDestinationMinkar::startRendering(CompletionHandler<void(bool)>&& completionHandler)
++{
++    if (!m_queue) {
++        callOnMainThread([completionHandler = WTF::move(completionHandler)]() mutable { completionHandler(false); });
++        return;
++    }
++    setIsPlaying(true);
++    for (auto buffer : m_buffers)
++        fill(buffer);
++    bool started = AudioQueueStart(m_queue, nullptr) == noErr;
++    if (!started)
++        setIsPlaying(false);
++    callOnMainThread([completionHandler = WTF::move(completionHandler), started]() mutable { completionHandler(started); });
++}
++
++void AudioDestinationMinkar::stopRendering(CompletionHandler<void(bool)>&& completionHandler)
++{
++    setIsPlaying(false);
++    if (m_queue)
++        AudioQueueStop(m_queue, true);
++    callOnMainThread([completionHandler = WTF::move(completionHandler)]() mutable { completionHandler(true); });
++}
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.h b/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.h
+--- a/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.h	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/audio/minkar/AudioDestinationMinkar.h	2026-11-15 09:03:24.273401250 -0500
+@@ -0,0 +1,66 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++/* Web Audio's output on an audio queue: the graph's frames, resampled to
++   the device's rate (AudioDestinationResampler), interleaved into the
++   queue's buffers as it asks for them. */
++
++#pragma once
++
++#if ENABLE(WEB_AUDIO) && USE(MINKAR_MEDIA)
++
++#include "AudioDestinationResampler.h"
++#include <wtf/ThreadSafeRefCounted.h>
++#include <wtf/Vector.h>
++
++typedef struct OpaqueAudioQueue* AudioQueueRef;
++typedef struct AudioQueueBuffer* AudioQueueBufferRef;
++
++namespace WebCore {
++
++class AudioDestinationMinkar final : public AudioDestinationResampler, public ThreadSafeRefCounted<AudioDestinationMinkar, WTF::DestructionThread::Main> {
++public:
++    void ref() const final { ThreadSafeRefCounted<AudioDestinationMinkar, WTF::DestructionThread::Main>::ref(); }
++    void deref() const final { ThreadSafeRefCounted<AudioDestinationMinkar, WTF::DestructionThread::Main>::deref(); }
++
++    explicit AudioDestinationMinkar(const CreationOptions&);
++    ~AudioDestinationMinkar();
++
++    void fill(AudioQueueBufferRef);
++
++private:
++    void startRendering(CompletionHandler<void(bool)>&&) final;
++    void stopRendering(CompletionHandler<void(bool)>&&) final;
++
++    AudioQueueRef m_queue { nullptr };
++    Vector<AudioQueueBufferRef> m_buffers;
++    Vector<Vector<float>> m_planes;
++    unsigned m_channels { 2 };
++    double m_sampleTime { 0 };
++};
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/platform/audio/minkar/AudioFileReaderMinkar.cpp b/Source/WebCore/platform/audio/minkar/AudioFileReaderMinkar.cpp
+--- a/Source/WebCore/platform/audio/minkar/AudioFileReaderMinkar.cpp	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/audio/minkar/AudioFileReaderMinkar.cpp	2026-11-15 08:40:19.590269633 -0500
+@@ -0,0 +1,60 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++/* decodeAudioData's files: decoded by the media decoder (FFmpeg) through
++   AVFoundation, at the context's rate, into an audio bus. */
++
++#include "config.h"
++#include "AudioFileReader.h"
++
++#if ENABLE(WEB_AUDIO) && USE(MINKAR_MEDIA)
++
++#include "AudioBus.h"
++#include <AVFoundation/AVMinkarPlayback.h>
++#include <wtf/StdLibExtras.h>
++
++namespace WebCore {
++
++RefPtr<AudioBus> createBusFromInMemoryAudioFile(std::span<const uint8_t> data, bool mixToMono, float sampleRate)
++{
++    float* samples = nullptr;
++    int channels = 0;
++    size_t frames = 0;
++    if (!AVMinkarDecodeAudio(data.data(), data.size(), sampleRate, mixToMono, &channels, &frames, &samples))
++        return nullptr;
++    auto bus = AudioBus::create(channels, frames);
++    bus->setSampleRate(sampleRate);
++    for (int c = 0; c < channels; ++c) {
++        auto destination = bus->channel(c)->mutableSpan();
++        for (size_t i = 0; i < frames; ++i)
++            destination[i] = samples[i * channels + c];
++    }
++    free(samples);
++    return bus;
++}
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/platform/audio/minkar/FFTFrameMinkar.cpp b/Source/WebCore/platform/audio/minkar/FFTFrameMinkar.cpp
+--- a/Source/WebCore/platform/audio/minkar/FFTFrameMinkar.cpp	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/audio/minkar/FFTFrameMinkar.cpp	2026-11-15 08:40:19.590269633 -0500
+@@ -0,0 +1,139 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++/* Web Audio's FFT on FFmpeg's real transforms (libavutil's av_tx, in
++   /usr/lib/media): N real samples to N/2+1 complex values, not normalized
++   forward, scaled by 1/N back, as the other platforms' frames are. */
++
++#include "config.h"
++#include "FFTFrame.h"
++
++#if ENABLE(WEB_AUDIO) && USE(MINKAR_MEDIA)
++
++#include "VectorMath.h"
++#include <wtf/StdLibExtras.h>
++
++extern "C" {
++#include <libavutil/mem.h>
++#include <libavutil/tx.h>
++}
++
++namespace WebCore {
++
++namespace {
++const int kMinFFTPow2Size = 2;
++const int kMaxFFTPow2Size = 24;
++
++size_t unpackedFFTDataSize(unsigned fftSize)
++{
++    return fftSize / 2 + 1;
++}
++}
++
++void FFTFrame::setUpTransforms()
++{
++    if (!m_FFTSize)
++        return;
++    float scale = 1;
++    float inverseScale = 1.0f / m_FFTSize;
++    av_tx_init(&m_forward, &m_forwardFunction, AV_TX_FLOAT_RDFT, 0, m_FFTSize, &scale, 0);
++    av_tx_init(&m_inverse, &m_inverseFunction, AV_TX_FLOAT_RDFT, 1, m_FFTSize, &inverseScale, 0);
++    m_complexData.resize(unpackedFFTDataSize(m_FFTSize));
++    m_samples.resize(m_FFTSize);
++}
++
++FFTFrame::FFTFrame(unsigned fftSize)
++    : m_FFTSize(fftSize)
++    , m_log2FFTSize(static_cast<unsigned>(log2(fftSize)))
++    , m_realData(unpackedFFTDataSize(m_FFTSize))
++    , m_imagData(unpackedFFTDataSize(m_FFTSize))
++{
++    setUpTransforms();
++}
++
++FFTFrame::FFTFrame()
++    : m_FFTSize(0)
++    , m_log2FFTSize(0)
++{
++}
++
++FFTFrame::FFTFrame(const FFTFrame& frame)
++    : m_FFTSize(frame.m_FFTSize)
++    , m_log2FFTSize(frame.m_log2FFTSize)
++    , m_realData(unpackedFFTDataSize(frame.m_FFTSize))
++    , m_imagData(unpackedFFTDataSize(frame.m_FFTSize))
++{
++    setUpTransforms();
++    memcpySpan(m_realData.span(), frame.realData().span());
++    memcpySpan(m_imagData.span(), frame.imagData().span());
++}
++
++void FFTFrame::initialize()
++{
++}
++
++FFTFrame::~FFTFrame()
++{
++    av_tx_uninit(&m_forward);
++    av_tx_uninit(&m_inverse);
++}
++
++void FFTFrame::doFFT(std::span<const float> data)
++{
++    /* The transform may use its input as scratch: a copy. */
++    memcpySpan(m_samples.mutableSpan(), data.first(m_FFTSize));
++    m_forwardFunction(m_forward, m_complexData.mutableSpan().data(), m_samples.mutableSpan().data(), sizeof(float));
++    auto realData = m_realData.span();
++    auto imagData = m_imagData.span();
++    for (size_t i = 0; i < unpackedFFTDataSize(m_FFTSize); ++i) {
++        realData[i] = m_complexData[i].re;
++        imagData[i] = m_complexData[i].im;
++    }
++}
++
++void FFTFrame::doInverseFFT(std::span<float> data)
++{
++    auto realData = m_realData.span();
++    auto imagData = m_imagData.span();
++    for (size_t i = 0; i < unpackedFFTDataSize(m_FFTSize); ++i) {
++        m_complexData[i].re = realData[i];
++        m_complexData[i].im = imagData[i];
++    }
++    m_inverseFunction(m_inverse, data.data(), m_complexData.mutableSpan().data(), sizeof(AVComplexFloat));
++}
++
++int FFTFrame::minFFTSize()
++{
++    return 1 << kMinFFTPow2Size;
++}
++
++int FFTFrame::maxFFTSize()
++{
++    return 1 << kMaxFFTPow2Size;
++}
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/platform/graphics/MediaPlayer.cpp b/Source/WebCore/platform/graphics/MediaPlayer.cpp
+--- a/Source/WebCore/platform/graphics/MediaPlayer.cpp	2026-11-15 08:39:34.985396127 -0500
++++ b/Source/WebCore/platform/graphics/MediaPlayer.cpp	2026-11-15 08:40:19.575270348 -0500
+@@ -113,6 +113,10 @@
+ #include "MediaPlayerPrivateHolePunch.h"
+ #endif
+ 
++#if USE(MINKAR_MEDIA)
++#include "MediaPlayerPrivateMinkar.h"
++#endif
++
+ #if ENABLE(WIRELESS_PLAYBACK_MEDIA_PLAYER)
+ #include "MediaPlayerPrivateWirelessPlayback.h"
+ #endif
+@@ -356,6 +360,10 @@
+     MediaPlayerPrivateHolePunch::registerMediaEngine(addMediaEngine);
+ #endif
+ 
++#if USE(MINKAR_MEDIA)
++    MediaPlayerPrivateMinkar::registerMediaEngine(addMediaEngine);
++#endif
++
+ #if ENABLE(WIRELESS_PLAYBACK_MEDIA_PLAYER)
+     MediaPlayerPrivateWirelessPlayback::registerMediaEngine(addMediaEngine);
+ #endif
+diff -ruN a/Source/WebCore/platform/graphics/MediaPlayerEnums.h b/Source/WebCore/platform/graphics/MediaPlayerEnums.h
+--- a/Source/WebCore/platform/graphics/MediaPlayerEnums.h	2026-11-15 08:39:34.963397176 -0500
++++ b/Source/WebCore/platform/graphics/MediaPlayerEnums.h	2026-11-15 08:40:19.573270444 -0500
+@@ -95,6 +95,7 @@
+     MockMSE,
+     CocoaWebM,
+     WirelessPlayback,
++    Minkar,
+ };
+ 
+ enum class MediaPlayerWirelessPlaybackTargetType : uint8_t {
+diff -ruN a/Source/WebCore/platform/graphics/MediaPlayer.h b/Source/WebCore/platform/graphics/MediaPlayer.h
+--- a/Source/WebCore/platform/graphics/MediaPlayer.h	2026-11-15 08:39:34.953397653 -0500
++++ b/Source/WebCore/platform/graphics/MediaPlayer.h	2026-11-15 08:40:19.572270491 -0500
+@@ -178,7 +178,8 @@
+     GStreamerMSE,
+     HolePunch,
+     WirelessPlayback,
+-    Remote
++    Remote,
++    Minkar
+ };
+ 
+ using TrackID = uint64_t;
+diff -ruN a/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.cpp b/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.cpp
+--- a/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.cpp	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.cpp	2026-11-15 10:07:05.855935448 -0500
+@@ -0,0 +1,521 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++#include "config.h"
++#include "MediaPlayerPrivateMinkar.h"
++
++#if ENABLE(VIDEO) && USE(MINKAR_MEDIA)
++
++#include "GraphicsContext.h"
++#include "PlatformMediaDecodingType.h"
++#include "PlatformMediaResourceLoader.h"
++#include "ResourceError.h"
++#include "ResourceRequest.h"
++#include "ResourceResponse.h"
++#include "SharedBuffer.h"
++#include <AVFoundation/AVMinkarPlayback.h>
++#include <skia/core/SkImage.h>
++#include <skia/core/SkPixmap.h>
++#include <wtf/MainThread.h>
++#include <wtf/text/MakeString.h>
++
++namespace WebCore {
++
++WTF_MAKE_TZONE_ALLOCATED_IMPL(MediaPlayerPrivateMinkar);
++
++/* What the playback says, carried to the main thread: the bridge outlives
++   the player (the playback holds it as its callback's context). */
++class MediaPlayerPrivateMinkarBridge : public ThreadSafeRefCounted<MediaPlayerPrivateMinkarBridge> {
++public:
++    static Ref<MediaPlayerPrivateMinkarBridge> create(MediaPlayerPrivateMinkar& owner) { return adoptRef(*new MediaPlayerPrivateMinkarBridge(owner)); }
++    static void callback(void* context, int event)
++    {
++        Ref bridge = *static_cast<MediaPlayerPrivateMinkarBridge*>(context);
++        callOnMainThread([bridge = WTF::move(bridge), event] {
++            if (RefPtr owner = bridge->m_owner.get())
++                owner->playbackEvent(event);
++        });
++    }
++    void detach() { m_owner = nullptr; }
++private:
++    explicit MediaPlayerPrivateMinkarBridge(MediaPlayerPrivateMinkar& owner) : m_owner(owner) { }
++    WeakPtr<MediaPlayerPrivateMinkar> m_owner;
++};
++
++/* The loader's client: the download into the stream (on the main thread). */
++class MediaPlayerPrivateMinkarClient final : public PlatformMediaResourceClient {
++public:
++    static Ref<MediaPlayerPrivateMinkarClient> create(MediaPlayerPrivateMinkar& owner) { return adoptRef(*new MediaPlayerPrivateMinkarClient(owner)); }
++private:
++    explicit MediaPlayerPrivateMinkarClient(MediaPlayerPrivateMinkar& owner) : m_owner(owner) { }
++
++    void responseReceived(PlatformMediaResource&, const ResourceResponse& response, CompletionHandler<void(ShouldContinuePolicyCheck)>&& completionHandler) final
++    {
++        RefPtr owner = m_owner.get();
++        if (owner) {
++            if (response.httpStatusCode() >= 400)
++                owner->loaderFinished(true);
++            else
++                owner->loaderResponse(response.expectedContentLength());
++        }
++        completionHandler(ShouldContinuePolicyCheck::Yes);
++    }
++    void dataReceived(PlatformMediaResource&, const SharedBuffer& buffer) final
++    {
++        RefPtr owner = m_owner.get();
++        if (!owner)
++            return;
++        buffer.forEachSegment([&](std::span<const uint8_t> segment) {
++            owner->loaderData(segment);
++        });
++    }
++    void accessControlCheckFailed(PlatformMediaResource&, const ResourceError&) final
++    {
++        if (RefPtr owner = m_owner.get())
++            owner->loaderFinished(true);
++    }
++    void loadFailed(PlatformMediaResource&, const ResourceError&) final
++    {
++        if (RefPtr owner = m_owner.get())
++            owner->loaderFinished(true);
++    }
++    void loadFinished(PlatformMediaResource&, const NetworkLoadMetrics&) final
++    {
++        if (RefPtr owner = m_owner.get())
++            owner->loaderFinished(false);
++    }
++
++    WeakPtr<MediaPlayerPrivateMinkar> m_owner;
++};
++
++MediaPlayerPrivateMinkar::MediaPlayerPrivateMinkar(MediaPlayer& player)
++    : m_player(player)
++    , m_timer(RunLoop::mainSingleton(), "MediaPlayerPrivateMinkar::Timer"_s, this, &MediaPlayerPrivateMinkar::tick)
++{
++}
++
++MediaPlayerPrivateMinkar::~MediaPlayerPrivateMinkar()
++{
++    cancelLoad();
++}
++
++void MediaPlayerPrivateMinkar::setNetworkState(MediaPlayer::NetworkState state)
++{
++    if (m_networkState == state)
++        return;
++    m_networkState = state;
++    if (RefPtr player = m_player.get())
++        player->networkStateChanged();
++}
++
++void MediaPlayerPrivateMinkar::setReadyState(MediaPlayer::ReadyState state)
++{
++    if (m_readyState == state)
++        return;
++    m_readyState = state;
++    if (RefPtr player = m_player.get())
++        player->readyStateChanged();
++}
++
++void MediaPlayerPrivateMinkar::load(const String& urlString)
++{
++    cancelLoad();
++    URL url { urlString };
++    setNetworkState(MediaPlayer::NetworkState::Loading);
++    setReadyState(MediaPlayer::ReadyState::HaveNothing);
++    m_bridge = MediaPlayerPrivateMinkarBridge::create(*this);
++
++    if (url.protocolIsFile()) {
++        m_playback = AVMinkarPlaybackCreateWithPath(url.fileSystemPath().utf8().data(), MediaPlayerPrivateMinkarBridge::callback, m_bridge.get());
++        if (!m_playback)
++            setNetworkState(MediaPlayer::NetworkState::FormatError);
++        return;
++    }
++
++    RefPtr player = m_player.get();
++    if (!player)
++        return;
++    m_stream = AVMinkarStreamCreate(-1);
++    if (!m_stream) {
++        setNetworkState(MediaPlayer::NetworkState::NetworkError);
++        return;
++    }
++    m_resource = player->mediaResourceLoader()->requestResource(ResourceRequest { URL { url } }, PlatformMediaResourceLoader::LoadOption::DisallowCaching);
++    if (!m_resource) {
++        setNetworkState(MediaPlayer::NetworkState::NetworkError);
++        return;
++    }
++    m_resource->setClient(MediaPlayerPrivateMinkarClient::create(*this));
++    startPlayback(url.lastPathComponent().toString());
++}
++
++void MediaPlayerPrivateMinkar::startPlayback(const String& name)
++{
++    m_playback = AVMinkarPlaybackCreateWithStream(m_stream, name.utf8().data(), MediaPlayerPrivateMinkarBridge::callback, m_bridge.get());
++    if (!m_playback)
++        setNetworkState(MediaPlayer::NetworkState::FormatError);
++}
++
++void MediaPlayerPrivateMinkar::cancelLoad()
++{
++    m_timer.stop();
++    if (m_resource) {
++        m_resource->shutdown();
++        m_resource = nullptr;
++    }
++    if (m_bridge) {
++        m_bridge->detach();
++        m_bridge = nullptr;
++    }
++    if (m_playback) {
++        AVMinkarPlaybackRelease(m_playback);
++        m_playback = nullptr;
++    }
++    if (m_stream) {
++        AVMinkarStreamFinish(m_stream);
++        AVMinkarStreamRelease(m_stream);
++        m_stream = nullptr;
++    }
++    if (m_seekPromise)
++        std::exchange(m_seekPromise, std::nullopt)->reject(PlatformMediaError::Cancelled);
++    m_ready = false;
++    m_frame = nullptr;
++    m_frameTime = -1;
++}
++
++void MediaPlayerPrivateMinkar::loaderResponse(long long expectedLength)
++{
++    /* The stream was made before the length was known: the decoder learns
++       the end when the download is over. */
++    UNUSED_PARAM(expectedLength);
++}
++
++void MediaPlayerPrivateMinkar::loaderData(std::span<const uint8_t> bytes)
++{
++    if (m_stream && !AVMinkarStreamAppend(m_stream, bytes.data(), bytes.size()))
++        loaderFinished(true);
++}
++
++void MediaPlayerPrivateMinkar::loaderFinished(bool failed)
++{
++    if (m_stream)
++        AVMinkarStreamFinish(m_stream);
++    m_loadFailed = failed;
++    if (failed && !m_ready)
++        setNetworkState(MediaPlayer::NetworkState::NetworkError);
++    else if (!failed && m_ready)
++        setNetworkState(MediaPlayer::NetworkState::Idle);
++}
++
++void MediaPlayerPrivateMinkar::playbackEvent(int event)
++{
++    RefPtr player = m_player.get();
++    switch (event) {
++    case kAVMinkarPlaybackReady: {
++        m_ready = true;
++        m_hasVideo = AVMinkarPlaybackHasVideo(m_playback);
++        m_hasAudio = AVMinkarPlaybackHasAudio(m_playback);
++        double w = 0, h = 0;
++        AVMinkarPlaybackGetNaturalSize(m_playback, &w, &h);
++        m_naturalSize = FloatSize(w, h);
++        AVMinkarPlaybackSetVolume(m_playback, m_muted ? 0 : m_volume);
++        if (player) {
++            player->characteristicChanged();
++            player->durationChanged();
++            player->sizeChanged();
++        }
++        setReadyState(MediaPlayer::ReadyState::HaveMetadata);
++        updateFrame();
++        setReadyState(MediaPlayer::ReadyState::HaveEnoughData);
++        if (!m_stream || AVMinkarStreamIsFinished(m_stream))
++            setNetworkState(MediaPlayer::NetworkState::Idle);
++        if (!m_paused)
++            applyRate();
++        m_timer.startRepeating(16_ms);
++        break;
++    }
++    case kAVMinkarPlaybackFailed:
++        setNetworkState(m_loadFailed ? MediaPlayer::NetworkState::NetworkError : MediaPlayer::NetworkState::FormatError);
++        break;
++    case kAVMinkarPlaybackEnded:
++        /* At the end the element pauses itself, seeing the time at the
++           duration. */
++        updateFrame();
++        if (player)
++            player->timeChanged();
++        break;
++    case kAVMinkarPlaybackSeeked:
++        m_frameTime = -1;
++        updateFrame();
++        if (m_seekPromise)
++            std::exchange(m_seekPromise, std::nullopt)->resolve(currentTime());
++        if (player)
++            player->timeChanged();
++        if (!m_paused)
++            applyRate();
++        break;
++    }
++}
++
++void MediaPlayerPrivateMinkar::applyRate()
++{
++    if (m_playback && m_ready)
++        AVMinkarPlaybackSetRate(m_playback, m_paused ? 0 : m_rate);
++}
++
++void MediaPlayerPrivateMinkar::play()
++{
++    m_paused = false;
++    applyRate();
++    if (RefPtr player = m_player.get())
++        player->playbackStateChanged();
++}
++
++void MediaPlayerPrivateMinkar::pause()
++{
++    m_paused = true;
++    applyRate();
++    if (RefPtr player = m_player.get())
++        player->playbackStateChanged();
++}
++
++void MediaPlayerPrivateMinkar::setRate(float rate)
++{
++    m_rate = rate > 0 ? rate : 1;
++    applyRate();
++}
++
++MediaTime MediaPlayerPrivateMinkar::duration() const
++{
++    if (!m_playback || !m_ready)
++        return MediaTime::invalidTime();
++    double d = AVMinkarPlaybackGetDuration(m_playback);
++    return std::isnan(d) ? MediaTime::positiveInfiniteTime() : MediaTime::createWithDouble(d);
++}
++
++MediaTime MediaPlayerPrivateMinkar::currentTime() const
++{
++    if (m_seekPromise && m_seekTarget)
++        return *m_seekTarget;
++    if (!m_playback || !m_ready)
++        return MediaTime::zeroTime();
++    return MediaTime::createWithDouble(AVMinkarPlaybackGetCurrentTime(m_playback));
++}
++
++Ref<MediaTimePromise> MediaPlayerPrivateMinkar::seekToTarget(const SeekTarget& target)
++{
++    if (m_seekPromise)
++        std::exchange(m_seekPromise, std::nullopt)->reject(PlatformMediaError::Cancelled);
++    if (!m_playback || !m_ready)
++        return MediaTimePromise::createAndReject(PlatformMediaError::Cancelled);
++    m_seekTarget = target.time;
++    m_seekPromise.emplace(PlatformMediaError::Cancelled);
++    Ref promise = m_seekPromise->promise();
++    AVMinkarPlaybackSetRate(m_playback, 0);
++    AVMinkarPlaybackSeek(m_playback, target.time.toDouble());
++    return promise;
++}
++
++void MediaPlayerPrivateMinkar::setVolume(float volume)
++{
++    m_volume = volume;
++    if (m_playback && m_ready)
++        AVMinkarPlaybackSetVolume(m_playback, m_muted ? 0 : m_volume);
++}
++
++void MediaPlayerPrivateMinkar::setMuted(bool muted)
++{
++    m_muted = muted;
++    setVolume(m_volume);
++}
++
++const PlatformTimeRanges& MediaPlayerPrivateMinkar::buffered() const
++{
++    m_buffered.clear();
++    MediaTime d = duration();
++    if (!d.isValid() || !d.isFinite())
++        return m_buffered;
++    double fraction = 1;
++    if (m_stream && !AVMinkarStreamIsFinished(m_stream)) {
++        long long expected = AVMinkarStreamGetExpectedLength(m_stream);
++        fraction = expected > 0 ? std::min(1.0, static_cast<double>(AVMinkarStreamGetLength(m_stream)) / expected) : 0;
++    }
++    if (fraction > 0)
++        m_buffered.add(MediaTime::zeroTime(), MediaTime::createWithDouble(d.toDouble() * fraction));
++    return m_buffered;
++}
++
++bool MediaPlayerPrivateMinkar::didLoadingProgress() const
++{
++    long long length = m_stream ? AVMinkarStreamGetLength(m_stream) : 0;
++    bool progressed = length != m_lastProgressLength;
++    m_lastProgressLength = length;
++    return progressed;
++}
++
++unsigned long long MediaPlayerPrivateMinkar::totalBytes() const
++{
++    if (!m_stream)
++        return 0;
++    long long expected = AVMinkarStreamGetExpectedLength(m_stream);
++    return expected > 0 ? expected : AVMinkarStreamGetLength(m_stream);
++}
++
++/* A frame painted now reaches the screen some refreshes later: the web
++   process paints the page, the UI process takes it and its view draws it
++   (about four refreshes at 60 Hz, measured against the sound card). While
++   playing, the frame painted is the one due then, so picture and sound
++   meet. */
++static constexpr double kPaintToScreenSeconds = 0.066;
++
++/* The frame due, as an image, when it is a new one. */
++void MediaPlayerPrivateMinkar::updateFrame()
++{
++    if (!m_playback || !m_ready || !m_hasVideo)
++        return;
++    double frameTime = -1;
++    double time = AVMinkarPlaybackGetCurrentTime(m_playback);
++    if (!m_paused)
++        time += kPaintToScreenSeconds;
++    CVPixelBufferRef buffer = AVMinkarPlaybackCopyFrame(m_playback, time, &frameTime);
++    if (!buffer)
++        return;
++    if (frameTime == m_frameTime && m_frame) {
++        CVPixelBufferRelease(buffer);
++        return;
++    }
++    CVPixelBufferLockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
++    size_t width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer);
++    SkPixmap pixmap(SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kOpaque_SkAlphaType),
++        CVPixelBufferGetBaseAddress(buffer), CVPixelBufferGetBytesPerRow(buffer));
++    m_frame = NativeImage::create(SkImages::RasterFromPixmapCopy(pixmap));
++    CVPixelBufferUnlockBaseAddress(buffer, kCVPixelBufferLock_ReadOnly);
++    CVPixelBufferRelease(buffer);
++    m_frameTime = frameTime;
++    if (RefPtr player = m_player.get()) {
++        player->repaint();
++        player->firstVideoFrameAvailable();
++    }
++}
++
++/* At the page's pace: the frame due, the time going on, the end. Paused,
++   only until a frame is shown (the first one, or the one a seek lands
++   on: the decoder brings it a moment later). */
++void MediaPlayerPrivateMinkar::tick()
++{
++    if (!m_playback || !m_ready)
++        return;
++    if (m_paused) {
++        if (m_frameTime < 0)
++            updateFrame();
++        return;
++    }
++    updateFrame();
++    AVMinkarPlaybackIsAtEnd(m_playback);
++}
++
++void MediaPlayerPrivateMinkar::paint(GraphicsContext& context, const FloatRect& rect)
++{
++    if (context.paintingDisabled() || !m_frame)
++        return;
++    auto size = m_frame->size();
++    context.drawNativeImage(*m_frame, rect, FloatRect(0, 0, size.width(), size.height()));
++}
++
++RefPtr<NativeImage> MediaPlayerPrivateMinkar::nativeImageForCurrentTime()
++{
++    updateFrame();
++    return m_frame;
++}
++
++/* ---- Types ------------------------------------------------------------------- */
++
++static const HashSet<String>& mimeTypes()
++{
++    static NeverDestroyed<HashSet<String>> types = [] {
++        HashSet<String> set;
++        for (auto type : { "video/mp4"_s, "video/x-m4v"_s, "video/quicktime"_s, "video/webm"_s, "video/ogg"_s,
++            "video/x-matroska"_s, "video/mpeg"_s, "video/x-msvideo"_s, "audio/mp4"_s, "audio/x-m4a"_s,
++            "audio/aac"_s, "audio/mpeg"_s, "audio/mp3"_s, "audio/ogg"_s, "audio/opus"_s, "audio/webm"_s,
++            "audio/flac"_s, "audio/x-flac"_s, "audio/wav"_s, "audio/x-wav"_s, "audio/wave"_s, "audio/aiff"_s,
++            "audio/x-aiff"_s })
++            set.add(type);
++        return set;
++    }();
++    return types;
++}
++
++void MediaPlayerPrivateMinkar::getSupportedTypes(HashSet<String>& types)
++{
++    types = mimeTypes();
++}
++
++/* The codecs FFmpeg decodes here (RFC 6381 names, before their first dot). */
++static bool codecSupported(const String& codec)
++{
++    auto name = codec.left(codec.find('.')).convertToASCIILowercase();
++    for (auto known : { "avc1"_s, "avc3"_s, "hvc1"_s, "hev1"_s, "vp8"_s, "vp08"_s, "vp9"_s, "vp09"_s, "av01"_s,
++        "mp4v"_s, "mp4a"_s, "opus"_s, "vorbis"_s, "flac"_s, "alac"_s, "mp3"_s, "theora"_s, "pcm"_s, "1"_s }) {
++        if (name == known)
++            return true;
++    }
++    return false;
++}
++
++MediaPlayer::SupportsType MediaPlayerPrivateMinkar::supportsType(const MediaEngineSupportParameters& parameters)
++{
++    if (parameters.platformType != PlatformMediaDecodingType::FileOrHLS)
++        return MediaPlayer::SupportsType::IsNotSupported;
++    auto container = parameters.type.containerType().convertToASCIILowercase();
++    if (container.isEmpty() || !mimeTypes().contains(container))
++        return MediaPlayer::SupportsType::IsNotSupported;
++    auto codecs = parameters.type.codecs();
++    if (codecs.isEmpty())
++        return MediaPlayer::SupportsType::MayBeSupported;
++    for (auto& codec : codecs) {
++        if (!codecSupported(codec))
++            return MediaPlayer::SupportsType::IsNotSupported;
++    }
++    return MediaPlayer::SupportsType::IsSupported;
++}
++
++class MediaPlayerFactoryMinkar final : public MediaPlayerFactory {
++    WTF_MAKE_TZONE_ALLOCATED_INLINE(MediaPlayerFactoryMinkar);
++    WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(MediaPlayerFactoryMinkar);
++private:
++    MediaPlayerEnums::MediaEngineIdentifier identifier() const final { return MediaPlayerEnums::MediaEngineIdentifier::Minkar; }
++    Ref<MediaPlayerPrivateInterface> createMediaEnginePlayer(MediaPlayer& player) const final { return adoptRef(*new MediaPlayerPrivateMinkar(player)); }
++    void getSupportedTypes(HashSet<String>& types) const final { MediaPlayerPrivateMinkar::getSupportedTypes(types); }
++    MediaPlayer::SupportsType supportsTypeAndCodecs(const MediaEngineSupportParameters& parameters) const final { return MediaPlayerPrivateMinkar::supportsType(parameters); }
++};
++
++void MediaPlayerPrivateMinkar::registerMediaEngine(MediaEngineRegistrar registrar)
++{
++    registrar(makeUnique<MediaPlayerFactoryMinkar>());
++}
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.h b/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.h
+--- a/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.h	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/WebCore/platform/graphics/minkar/MediaPlayerPrivateMinkar.h	2026-11-15 08:40:42.420181432 -0500
+@@ -0,0 +1,149 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++/* Minkar's media engine: <audio> and <video> played by the system's
++   AVFoundation (its playback engine, through AVMinkarPlayback.h), the
++   media fetched by WebKit's own loader into a file the decoder reads as
++   it comes. Frames are painted into the page. */
++
++#pragma once
++
++#if ENABLE(VIDEO) && USE(MINKAR_MEDIA)
++
++#include "MediaPlayerPrivate.h"
++#include "NativeImage.h"
++#include "PlatformTimeRanges.h"
++#include <wtf/RefCounted.h>
++#include <wtf/RunLoop.h>
++#include <wtf/TZoneMalloc.h>
++#include <wtf/WeakPtr.h>
++
++typedef struct AVMinkarStream *AVMinkarStreamRef;
++typedef struct AVMinkarPlayback *AVMinkarPlaybackRef;
++
++namespace WebCore {
++
++class PlatformMediaResource;
++class MediaPlayerPrivateMinkarBridge;
++class MediaPlayerPrivateMinkarClient;
++
++class MediaPlayerPrivateMinkar final
++    : public MediaPlayerPrivateInterface
++    , public CanMakeWeakPtr<MediaPlayerPrivateMinkar>
++    , public RefCounted<MediaPlayerPrivateMinkar> {
++    WTF_MAKE_TZONE_ALLOCATED(MediaPlayerPrivateMinkar);
++public:
++    void ref() const final { RefCounted::ref(); }
++    void deref() const final { RefCounted::deref(); }
++
++    explicit MediaPlayerPrivateMinkar(MediaPlayer&);
++    ~MediaPlayerPrivateMinkar();
++
++    constexpr MediaPlayerType mediaPlayerType() const final { return MediaPlayerType::Minkar; }
++    static void registerMediaEngine(MediaEngineRegistrar);
++    static void getSupportedTypes(HashSet<String>&);
++    static MediaPlayer::SupportsType supportsType(const MediaEngineSupportParameters&);
++
++    void load(const String&) final;
++#if ENABLE(MEDIA_SOURCE)
++    void load(const URL&, const LoadOptions&, MediaSourcePrivateClient&) final { setNetworkState(MediaPlayer::NetworkState::FormatError); }
++#endif
++#if ENABLE(MEDIA_STREAM)
++    void load(MediaStreamPrivate&) final { setNetworkState(MediaPlayer::NetworkState::FormatError); }
++#endif
++    void cancelLoad() final;
++
++    void play() final;
++    void pause() final;
++    bool paused() const final { return m_paused; }
++    void setRate(float) final;
++    double rate() const final { return m_rate; }
++
++    FloatSize naturalSize() const final { return m_naturalSize; }
++    bool hasVideo() const final { return m_hasVideo; }
++    bool hasAudio() const final { return m_hasAudio; }
++    void setPageIsVisible(bool) final { }
++
++    MediaTime duration() const final;
++    MediaTime currentTime() const final;
++    Ref<MediaTimePromise> seekToTarget(const SeekTarget&) final;
++
++    void setVolume(float) final;
++    void setMuted(bool) final;
++
++    MediaPlayer::NetworkState networkState() const final { return m_networkState; }
++    MediaPlayer::ReadyState readyState() const final { return m_readyState; }
++    MediaTime maxTimeSeekable() const final { return duration(); }
++    const PlatformTimeRanges& buffered() const final;
++    bool didLoadingProgress() const final;
++    unsigned long long totalBytes() const final;
++
++    void paint(GraphicsContext&, const FloatRect&) final;
++    RefPtr<NativeImage> nativeImageForCurrentTime() final;
++    DestinationColorSpace colorSpace() final { return DestinationColorSpace::SRGB(); }
++
++    /* From the playback, on the main thread. */
++    void playbackEvent(int);
++    /* From the loader. */
++    void loaderResponse(long long expectedLength);
++    void loaderData(std::span<const uint8_t>);
++    void loaderFinished(bool failed);
++
++private:
++    void setNetworkState(MediaPlayer::NetworkState);
++    void setReadyState(MediaPlayer::ReadyState);
++    void startPlayback(const String& name);
++    void tick();
++    void updateFrame();
++    void applyRate();
++
++    ThreadSafeWeakPtr<MediaPlayer> m_player;
++    RefPtr<MediaPlayerPrivateMinkarBridge> m_bridge;
++    RefPtr<PlatformMediaResource> m_resource;
++    AVMinkarStreamRef m_stream { nullptr };
++    AVMinkarPlaybackRef m_playback { nullptr };
++    RunLoop::Timer m_timer;
++    MediaPlayer::NetworkState m_networkState { MediaPlayer::NetworkState::Empty };
++    MediaPlayer::ReadyState m_readyState { MediaPlayer::ReadyState::HaveNothing };
++    FloatSize m_naturalSize;
++    bool m_hasVideo { false };
++    bool m_hasAudio { false };
++    bool m_paused { true };
++    bool m_ready { false };
++    bool m_loadFailed { false };
++    bool m_muted { false };
++    float m_volume { 1 };
++    float m_rate { 1 };
++    double m_frameTime { -1 };
++    RefPtr<NativeImage> m_frame;
++    mutable PlatformTimeRanges m_buffered;
++    mutable long long m_lastProgressLength { 0 };
++    std::optional<MediaTime> m_seekTarget;
++    std::optional<MediaTimePromise::AutoRejectProducer> m_seekPromise;
++};
++
++} // namespace WebCore
++
++#endif
+diff -ruN a/Source/WebCore/PlatformWPE.cmake b/Source/WebCore/PlatformWPE.cmake
+--- a/Source/WebCore/PlatformWPE.cmake	2026-11-15 08:39:35.015394697 -0500
++++ b/Source/WebCore/PlatformWPE.cmake	2026-11-15 09:09:38.407952271 -0500
+@@ -1,6 +1,9 @@
+ include(platform/Adwaita.cmake)
+ include(platform/GCrypt.cmake)
+-include(platform/GStreamer.cmake)
++# Minkar: media on the system's AVFoundation, not GStreamer (USE_MINKAR_MEDIA).
++if (NOT USE_MINKAR_MEDIA)
++    include(platform/GStreamer.cmake)
++endif ()
+ include(platform/ImageDecoders.cmake)
+ include(platform/Skia.cmake)
+ include(platform/Soup.cmake)
+@@ -180,3 +183,23 @@
+ list(APPEND WebCore_PRIVATE_DEFINITIONS
+      BITMAP_TEXTURE_POOL_MAX_SIZE_IN_MB=80
+ )
++
++# Minkar: <audio>, <video> and Web Audio on the system's AVFoundation and
++# AudioToolbox, the FFT on FFmpeg's libavutil (/usr/lib/media).
++if (USE_MINKAR_MEDIA)
++    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
++        "${WEBCORE_DIR}/platform/graphics/minkar"
++        "${WEBCORE_DIR}/platform/audio/minkar"
++        "${MINKAR_MEDIA_INCLUDE_DIR}"
++    )
++    list(APPEND WebCore_SOURCES
++        platform/graphics/minkar/MediaPlayerPrivateMinkar.cpp
++        platform/audio/minkar/AudioDestinationMinkar.cpp
++        platform/audio/minkar/AudioFileReaderMinkar.cpp
++        platform/audio/minkar/FFTFrameMinkar.cpp
++    )
++    list(APPEND WebCore_LIBRARIES
++        "-framework AVFoundation" "-framework AudioToolbox" "-framework CoreVideo" "-framework CoreFoundation"
++        "-L${MINKAR_MEDIA_LIBRARY_DIR}" avutil
++    )
++endif ()
+diff -ruN a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+--- a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in	2026-11-15 08:39:34.975396604 -0500
++++ b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in	2026-11-15 08:40:19.574270396 -0500
+@@ -3091,7 +3091,8 @@
+     MediaFoundation,
+     MockMSE,
+     CocoaWebM,
+-    WirelessPlayback
++    WirelessPlayback,
++    Minkar
+ };
+ 
+ enum class WebCore::MediaPlayerWirelessPlaybackTargetType : uint8_t {
