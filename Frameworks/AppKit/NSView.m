@@ -390,6 +390,11 @@ static inline void configureLayerGeometry(NSView *self){
   window, with or without layer-backed views: it is told the window and the
   rectangle (pixels from the window's top left) whenever they change.
  */
+/* Whether the view's class draws (overrides drawRect:). */
+static BOOL drawsItself(NSView *view) {
+   return [view methodForSelector:@selector(drawRect:)]!=[NSView instanceMethodForSelector:@selector(drawRect:)];
+}
+
 static BOOL isSurfaceLayer(CALayer *layer) {
    return [layer isKindOfClass:[CAMetalLayer class]];
 }
@@ -1938,9 +1943,11 @@ static char inputContextKey;
      CALayer *layer=[self makeBackingLayer];
      if(isSurfaceLayer(layer))
       [self setLayer:layer];
-     /* Minkar: a view that fills its layer itself (wantsUpdateLayer) gets
-        a layer tree it hosts, flipped as the view is. */
-     else if([self wantsUpdateLayer]){
+     /* Minkar: a view that fills its layer itself (wantsUpdateLayer), or
+        one that draws nothing of its own (no drawRect:, as a view that
+        holds a player's or other layers), gets a layer tree it hosts,
+        flipped as the view is. */
+     else if([self wantsUpdateLayer] || !drawsItself(self)){
       if([layer isKindOfClass:[NSViewBackingLayer class]])
        layer=[CALayer layer];
       [layer setGeometryFlipped:[self isFlipped]];
