@@ -3,11 +3,28 @@
 // Part of Minkar.
 //
 // Built with ARC. Requests wait for their trigger on the main queue; when
-// it fires the notification is delivered: kept in the delivered list,
-// handed to NSUserNotificationCenter (which shows nothing yet), and the
-// delegate is asked how to present it.
+// it fires the notification is delivered: kept in the delivered list and
+// handed to NSUserNotificationCenter, which has the notification center
+// show it (Atlas.md, 5.6, N0). An app in front is asked how to present
+// it (the delegate's willPresent; without one, it is not shown); a click
+// on its banner comes back as the delegate's response.
 
 #import <UserNotifications/UserNotifications.h>
+#include <dlfcn.h>
+#include <objc/message.h>
+
+/* Foundation's hook for the notifications delivered through it. */
+@interface NSUserNotificationCenter (UserNotificationsSPI)
+@property (copy) void (^_activationHandler)(NSUserNotification *);
+- (void)_deliverNotification:(NSUserNotification *)notification present:(NSInteger)present;
+@end
+
+static BOOL appIsActive(void) {
+    __unsafe_unretained id *app = (__unsafe_unretained id *)dlsym(RTLD_DEFAULT, "NSApp");
+    if (app == NULL || *app == nil || ![*app respondsToSelector:@selector(isActive)])
+        return NO;
+    return ((BOOL (*)(id, SEL))objc_msgSend)(*app, @selector(isActive));
+}
 
 NSString *const UNErrorDomain = @"UNErrorDomain";
 NSString *const UNNotificationDefaultActionIdentifier = @"com.apple.UNNotificationDefaultActionIdentifier";
@@ -378,8 +395,30 @@ SECURE_CODING
         _pending = [NSMutableDictionary dictionary];
         _delivered = [NSMutableArray array];
         _categories = [NSSet set];
+        __weak UNUserNotificationCenter *weakSelf = self;
+        [NSUserNotificationCenter defaultUserNotificationCenter]._activationHandler = ^(NSUserNotification *n) {
+            [weakSelf _activated:n];
+        };
     }
     return self;
+}
+
+/* A click on one of its banners: the delegate's response, by default. */
+- (void)_activated:(NSUserNotification *)legacy {
+    UNNotification *notification = nil;
+    @synchronized (self) {
+        for (UNNotification *n in _delivered)
+            if ([n.request.identifier isEqualToString:legacy.identifier])
+                notification = n;
+    }
+    id<UNUserNotificationCenterDelegate> delegate = self.delegate;
+    if (notification == nil ||
+        ![delegate respondsToSelector:@selector(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:)])
+        return;
+    UNNotificationResponse *response = [UNNotificationResponse new];
+    response.notification = notification;
+    response.actionIdentifier = UNNotificationDefaultActionIdentifier;
+    [delegate userNotificationCenter:self didReceiveNotificationResponse:response withCompletionHandler:^{}];
 }
 
 - (BOOL)supportsContentExtensions { return NO; }
@@ -424,10 +463,25 @@ SECURE_CODING
     legacy.subtitle = request.content.subtitle;
     legacy.informativeText = request.content.body;
     legacy.userInfo = request.content.userInfo;
-    [[NSUserNotificationCenter defaultUserNotificationCenter] deliverNotification:legacy];
+    legacy.soundName = request.content.sound.name;
+    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
     id<UNUserNotificationCenterDelegate> delegate = self.delegate;
-    if ([delegate respondsToSelector:@selector(userNotificationCenter:willPresentNotification:withCompletionHandler:)])
-        [delegate userNotificationCenter:self willPresentNotification:notification withCompletionHandler:^(UNNotificationPresentationOptions o) {}];
+    if (!appIsActive()) {
+        [center _deliverNotification:legacy present:1];
+        return;
+    }
+    /* The app in front: as its delegate says (nothing without one). */
+    if (![delegate respondsToSelector:@selector(userNotificationCenter:willPresentNotification:withCompletionHandler:)]) {
+        [center _deliverNotification:legacy present:0];
+        return;
+    }
+    [delegate userNotificationCenter:self willPresentNotification:notification withCompletionHandler:^(UNNotificationPresentationOptions o) {
+        if (!(o & UNNotificationPresentationOptionSound))
+            legacy.soundName = nil;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [center _deliverNotification:legacy present:(o & (UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionSound)) ? 1 : 0];
+        });
+    }];
 }
 
 - (void)_schedule:(UNNotificationRequest *)request generation:(NSUInteger)generation {
