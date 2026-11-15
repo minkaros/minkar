@@ -12,9 +12,18 @@
  * running as root, and not sandboxed (it could not read them), gets
  * password hashes; others get "*". Other routines
  * get an error, and libinfo asks the next module.
+ *
+ * libinfo keeps what this service answers in each process's cache until
+ * told it is out of date: when the account files change (written in
+ * place or replaced), directoryd says so (pwd_mkdb says so too, before
+ * the tools that change them return).
  */
 
+#include <dispatch/dispatch.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <notify.h>
+#include <sys/stat.h>
 #include <grp.h>
 #include <pwd.h>
 #include <sandbox.h>
@@ -28,6 +37,12 @@
 #include <bsm/audit.h>
 
 #define SERVICE		"com.apple.system.opendirectoryd.libinfo"
+
+/* libinfo's own cache, off in this process (as notifyd turns it off): the
+   files' times are whole seconds, so a change in the same second as the
+   last lookup would go unseen, and the answers are cached by the asking
+   processes anyway. */
+extern uint32_t gL1CacheEnabled;
 #define OD_RPC_NAME	"rpc_name"
 #define OD_RPC_RESULT	"result"
 #define OD_RPC_ERROR	"error"
@@ -168,9 +183,85 @@ static int answer(xpc_object_t request, xpc_object_t reply) {
 	return 0;
 }
 
+/* ---- The account files watched ------------------------------------------ */
+
+static const char *const watched[] = { "/etc/master.passwd", "/etc/passwd", "/etc/group" };
+static struct timespec seen[3];
+static dispatch_source_t fileSources[3];
+
+static void invalidate(void) {
+	notify_post("com.apple.system.DirectoryService.InvalidateCache");
+	notify_post("com.apple.system.DirectoryService.InvalidateCache.user");
+	notify_post("com.apple.system.DirectoryService.InvalidateCache.group");
+}
+
+static void watchFile(int i);
+
+/* Any file whose time changed: the caches are out of date. A file
+   replaced (renamed over) is watched anew. */
+static void check(void) {
+	int changed = 0;
+	for (int i = 0; i < 3; i++) {
+		struct stat st;
+		struct timespec t = { 0, 0 };
+		if (stat(watched[i], &st) == 0)
+			t = st.st_mtimespec;
+		if (t.tv_sec != seen[i].tv_sec || t.tv_nsec != seen[i].tv_nsec)
+			changed = 1;
+		seen[i] = t;
+	}
+	if (changed)
+		invalidate();
+}
+
+static void watchFile(int i) {
+	if (fileSources[i] != NULL) {
+		dispatch_source_cancel(fileSources[i]);
+		fileSources[i] = NULL;
+	}
+	int fd = open(watched[i], O_EVTONLY);
+	if (fd < 0)
+		return;
+	dispatch_source_t s = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, (uintptr_t)fd,
+	    DISPATCH_VNODE_WRITE | DISPATCH_VNODE_EXTEND | DISPATCH_VNODE_DELETE | DISPATCH_VNODE_RENAME,
+	    dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+	dispatch_source_set_event_handler(s, ^{
+		unsigned long what = dispatch_source_get_data(s);
+		check();
+		if (what & (DISPATCH_VNODE_DELETE | DISPATCH_VNODE_RENAME))
+			watchFile(i);
+	});
+	dispatch_source_set_cancel_handler(s, ^{ close(fd); });
+	fileSources[i] = s;
+	dispatch_resume(s);
+}
+
+/* /etc itself: a file replaced by a rename shows there. */
+static void watchAccounts(void) {
+	dispatch_queue_t q = dispatch_queue_create("org.minkar.directoryd.watch", DISPATCH_QUEUE_SERIAL);
+	dispatch_async(q, ^{
+		check();
+		for (int i = 0; i < 3; i++)
+			watchFile(i);
+	});
+	int dir = open("/etc/", O_EVTONLY);
+	if (dir < 0)
+		return;
+	dispatch_source_t s = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, (uintptr_t)dir,
+	    DISPATCH_VNODE_WRITE, q);
+	dispatch_source_set_event_handler(s, ^{
+		check();
+		for (int i = 0; i < 3; i++)
+			watchFile(i);
+	});
+	dispatch_resume(s);
+}
+
 int main(void) {
-	/* libinfo asks the files, not this service, for this process. */
+	/* libinfo asks the files, not this service, for this process, and
+	   keeps nothing: each answer is read from the files. */
 	setenv("XBS_DISABLE_LIBINFO", "YES", 1);
+	gL1CacheEnabled = 0;
 
 	mach_port_t port = MACH_PORT_NULL;
 	kern_return_t kr = bootstrap_check_in(bootstrap_port, SERVICE, &port);
@@ -178,6 +269,7 @@ int main(void) {
 		fprintf(stderr, "directoryd: no %s service (0x%x)\n", SERVICE, kr);
 		return 1;
 	}
+	watchAccounts();
 	for (;;) {
 		xpc_object_t request = NULL;
 		mach_port_t reply_port = MACH_PORT_NULL;

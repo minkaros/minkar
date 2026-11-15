@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <notify.h>	/* Minkar: the directory caches told */
 
 #include "pw_scan.h"
 
@@ -520,6 +522,17 @@ main(int argc, char *argv[])
 	 */
 	if (fclose(fp) == EOF)
 		error("close fp");
+
+	/*
+	 * Minkar: the users' cache of every process (libinfo's directory
+	 * module) is out of date now: say so, before vipw, chpass and the
+	 * others return.
+	 */
+	if (strcmp(prefix, _PATH_PWD) == 0) {
+		notify_post("com.apple.system.DirectoryService.InvalidateCache");
+		notify_post("com.apple.system.DirectoryService.InvalidateCache.user");
+		notify_post("com.apple.system.DirectoryService.InvalidateCache.group");
+	}
 
 	exit(0);
 }
