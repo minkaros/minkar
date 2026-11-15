@@ -116,6 +116,7 @@
 - (const SLSDisplayMode *)modeAtIndex:(uint32_t)index;
 - (const SLSDisplayMode *)modeWithID:(uint32_t)modeID;
 - (const SLSDisplayMode *)currentMode;
+- (void)refreshModes;
 
 /* Switches the framebuffer to a mode of modeWithID:. */
 - (int)setModeID:(uint32_t)modeID;

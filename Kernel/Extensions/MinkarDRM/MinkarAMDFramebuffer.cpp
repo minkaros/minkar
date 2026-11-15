@@ -906,9 +906,9 @@ MinkarAMDFramebuffer::addTimedModes()
 void
 MinkarAMDFramebuffer::setBestNativeMode()
 {
-	/* On DCN only when asked ("minkaramd_native=1"): its mode set is
-	 * still being brought up, and a failure there leaves no display. */
-	UInt32 enabled = fDCN ? 0 : 1;
+	/* On DCN once the SMU gives the display clocks ("minkaramd_native=0"
+	 * keeps the firmware's rate). */
+	UInt32 enabled = fDCN ? (fSMUDALBase != 0) : 1;
 	int best = -1;
 
 	PE_parse_boot_argn("minkaramd_native", &enabled, sizeof(enabled));
@@ -1182,6 +1182,39 @@ MinkarAMDFramebuffer::wranglerPublished(void *target, void *, IOService *wrangle
 	wrangler->registerInterestedDriver(self);
 	LOG("the display follows the display wrangler's power");
 	return true;
+}
+
+void
+MinkarAMDFramebuffer::displayClocksReady()
+{
+	IOWorkLoop *wl = getWorkLoop();
+
+	if (wl != NULL)
+		wl->runAction(OSMemberFunctionCast(IOWorkLoop::Action, this,
+		    &MinkarAMDFramebuffer::displayClocksReadyGated), this);
+	else
+		displayClocksReadyGated(NULL, NULL, NULL, NULL);
+}
+
+IOReturn
+MinkarAMDFramebuffer::displayClocksReadyGated(void *, void *, void *, void *)
+{
+	if (!fDCN)
+		return kIOReturnUnsupported;
+	fSMUDALBase = 0;
+	probeSMU();
+	if (fSMUDALBase == 0)
+		return kIOReturnNotResponding;
+	/* The modes again, the firmware's first. */
+	unsigned before = fModeCount;
+	fModeCount = 1;
+	fTimingCount = 0;
+	fModes[0].timing = -1;
+	if (fPixelKHz != 0 && fDMCUBMail != ~0ULL)
+		addTimedModes();
+	LOG("the display clocks are the SMU's: %u modes (were %u)", fModeCount, before);
+	setBestNativeMode();
+	return kIOReturnSuccess;
 }
 
 /* The wrangler's states: 4 on, 3 dimmed, below that dark. */

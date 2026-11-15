@@ -88,6 +88,11 @@ public:
 	/* The framebuffer being shown: its VRAM offset and size (the current
 	 * mode's rows). */
 	bool scanout(uint64_t *offset, uint64_t *bytes);
+	/* Navi 23: the SMU set up (MinkarAMDGPU's PSP thread); the modes
+	 * faster display clocks carry are offered, and the fastest native
+	 * one set. */
+	void displayClocksReady();
+	IOReturn displayClocksReadyGated(void *, void *, void *, void *);
 	/* A page flip: the display shows bytes of VRAM at offset, of the
 	 * current mode's size and the framebuffer's pitch, from the next
 	 * vertical blank; true once it does. flip(0, 0) shows the framebuffer

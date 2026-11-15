@@ -159,6 +159,10 @@ private:
 	IOReturn pspLoadSMU();
 	uint32_t smuMessage(uint32_t box, uint32_t message, uint32_t argument, uint32_t *reply);
 	IOReturn smuProbe();
+	bool smuSend(uint32_t message, uint32_t argument, uint32_t *reply, const char *name);
+	IOReturn smuSetUp();
+	void pspStart();
+	static void pspThread(void *gpu, wait_result_t);
 	uint32_t		fPSPFence;
 	bool			fNavi23;
 	IOMemoryMap *		fPSPMap;	/* its region of VRAM */

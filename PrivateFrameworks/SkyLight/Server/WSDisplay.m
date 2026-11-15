@@ -292,6 +292,20 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 		_modeCount++;
 }
 
+/* The modes and the current one as the framebuffer has them now: its
+ * driver may add modes after the server started (the RX 6600's, once its
+ * SMU gives faster display clocks) and switch to one of the same size. */
+- (void)refreshModes
+{
+	uint64_t current[2] = { 0, 0 };
+	uint32_t count = 2;
+
+	if (IOConnectCallScalarMethod(_connect, kFBMethodGetCurrentDisplayMode, NULL, 0,
+	    current, &count) == KERN_SUCCESS)
+		_currentModeID = (uint32_t)current[0];
+	[self loadModes];
+}
+
 - (const SLSDisplayMode *)modeAtIndex:(uint32_t)index
 {
 	return index < _modeCount ? &_modes[index] : NULL;

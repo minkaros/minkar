@@ -37,6 +37,7 @@
  *	+0	the firmware buffer (1 MB), for what the bootloader loads
  *	+1 MB	the ring (4 KB), its fence (4 KB), its command buffer (4 KB)
  *	+2 MB	an IP's firmware for LOAD_IP_FW (up to 2 MB)
+ *	+4 MB	the SMU's driver table (64 KB), where tables pass to it
  *	+16 MB	the trusted memory region (up to 16 MB; 10 MB on Navi 23, from
  *		its TOC), 1 MB aligned as amdgpu's PSP_TMR_ALIGNMENT
  */
@@ -54,6 +55,7 @@ enum {
 	AMD_PSP_FENCE_OFFSET = (1 << 20) + 4096,
 	AMD_PSP_CMD_OFFSET = (1 << 20) + 8192, AMD_PSP_CMD_BYTES = 4096,
 	AMD_PSP_IP_FW_OFFSET = 2 << 20, AMD_PSP_IP_FW_BYTES = 2 << 20,
+	AMD_PSP_SMU_TABLE_OFFSET = 4 << 20, AMD_PSP_SMU_TABLE_BYTES = 64 << 10,
 	AMD_PSP_TMR_OFFSET = 16 << 20, AMD_PSP_TMR_BYTES = 16 << 20,
 };
 

@@ -117,6 +117,8 @@ MinkarAMDGPU::start(IOService *provider)
 			fNavi23 = true;
 			if (!pspMap())
 				LOG("no VRAM window for the PSP");
+			else
+				pspStart();
 		}
 	} else
 		LOG("cannot map the register window");

@@ -219,6 +219,7 @@ wss_display_modes(mach_port_t server, uint32_t display, int32_t *result,
 		*result = kSLSErrorIllegalArgument;
 		return KERN_SUCCESS;
 	}
+	[d refreshModes];
 	for (uint32_t i = 0; i < d.modeCount && i < kSLSMaxDisplayModes; i++)
 		modes[(*count)++] = *[d modeAtIndex:i];
 	*result = kSLSErrorSuccess;
@@ -230,6 +231,7 @@ wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
     SLSDisplayMode *mode)
 {
 	WSDisplay *d = WSDisplayWithID(display);
+	[d refreshModes];
 	const SLSDisplayMode *current = [d currentMode];
 
 	memset(mode, 0, sizeof(*mode));

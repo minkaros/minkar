@@ -38,10 +38,14 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOUserClient.h>
+#include <pexpert/pexpert.h>
 #include <libkern/c++/OSNumber.h>
 #include "MinkarAMDGPU.h"
+#include "MinkarAMDFramebuffer.h"
 #include "MinkarAMDFirmware.h"
 #include "amd_psp.h"
+#include "amd_smu11_layout.h"
+#include "atom_glue.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDGPU: PSP: " fmt "\n", ##__VA_ARGS__)
 
@@ -328,14 +332,16 @@ MinkarAMDGPU::smuMessage(uint32_t box, uint32_t message, uint32_t argument, uint
 		{ 0x1628a, 0x16273, 0x16274 },	/* C2PMSG_74/51/52: the display's (DAL) */
 	};
 	const auto &b = boxes[box & 1];
-	for (int i = 0; i < 1000 && readReg(b.resp) == 0; i++)
-		IODelay(10);
+	/* The last message done (up to 2 s, amdgpu's wait), then this one
+	 * (up to 5 s: the DC calibration takes its time). */
+	for (int i = 0; i < 2000 && readReg(b.resp) == 0; i++)
+		IODelay(1000);
 	writeReg(b.resp, 0);
 	writeReg(b.arg, argument);
 	writeReg(b.msg, message);
 	uint32_t result = 0;
-	for (int i = 0; i < 100000 && (result = readReg(b.resp)) == 0; i++)
-		IODelay(10);
+	for (int i = 0; i < 5000 && (result = readReg(b.resp)) == 0; i++)
+		IODelay(1000);
 	if (reply != NULL)
 		*reply = readReg(b.arg);
 	return result;
@@ -354,6 +360,109 @@ MinkarAMDGPU::smuProbe()
 	return r == 1 ? kIOReturnSuccess : kIOReturnNotResponding;
 }
 
+/*
+ * Step 5: the SMU set up as amdgpu's smu_smc_hw_setup does for SMU 11.0.7
+ * (sienna_cichlid_ppt.c, smu_v11_0.c): the driver table's place in VRAM,
+ * the power play table (the VBIOS's powerplayinfo, its board part from
+ * smc_dpm_info) passed through it, the features allowed, and all of
+ * them enabled. The features: amdgpu's that need no
+ * other block, and the SOC and display clocks' DPM. Not, until the
+ * graphics block runs (R4): its clocks, GFXOFF, its spread spectrum, the
+ * DFLL, the D-states, the power and current limits (EnableAllSmuFeatures
+ * never answers with them and no RLC); nor BACO, power gating, or the
+ * memory clock's DPM (the display's watermarks are not set).
+ */
+enum {
+	kSMUGetDriverIfVersion = 0x3, kSMUSetAllowedFeaturesMaskLow = 0x4,
+	kSMUSetAllowedFeaturesMaskHigh = 0x5, kSMUEnableAllSmuFeatures = 0x6,
+	kSMUSetDriverDramAddrHigh = 0xE, kSMUSetDriverDramAddrLow = 0xF,
+	kSMUTransferTableDram2Smu = 0x13, kSMURunDcBtc = 0x36,
+	kSMUEnableSmuFeaturesLow = 0x8, kSMUGetRunningSmuFeaturesLow = 0xC,
+	kSMUEnabledNow = (1U << 5) | (1U << 8),	/* DPM_SOCCLK, DPM_DCEFCLK */
+	kTablePPTable = 0,
+};
+
+static const uint64_t kSMUFeatures =
+    (1ULL << 0) |	/* DPM_PREFETCHER */
+    (1ULL << 4) |	/* DPM_FCLK */
+    (1ULL << 5) |	/* DPM_SOCCLK */
+    (1ULL << 6) |	/* DPM_MP0CLK */
+    (1ULL << 7) |	/* DPM_LINK */
+    (1ULL << 8) |	/* DPM_DCEFCLK: the display's clocks */
+    (1ULL << 13) |	/* DS_SOCCLK */
+    (1ULL << 14) |	/* DS_FCLK */
+    (1ULL << 16) |	/* DS_DCEFCLK */
+    (1ULL << 31) |	/* FW_CTF */
+    (1ULL << 32) |	/* FAN_CONTROL */
+    (1ULL << 33) |	/* THERMAL */
+    (1ULL << 44);	/* RSMU_SMN_CG */
+
+bool
+MinkarAMDGPU::smuSend(uint32_t message, uint32_t argument, uint32_t *reply, const char *name)
+{
+	uint32_t r = smuMessage(0, message, argument, reply);
+	if (r != 1)
+		LOG("SMU: %s (0x%08x): response 0x%x", name, argument, r);
+	return r == 1;
+}
+
+IOReturn
+MinkarAMDGPU::smuSetUp()
+{
+	uint32_t version = 0;
+	uint16_t size, offset, dpmSize, dpmOffset;
+	uint8_t frev, crev;
+
+	if (fAtom == NULL)
+		return kIOReturnNotReady;
+	if (!smuSend(kSMUGetDriverIfVersion, 0, &version, "GetDriverIfVersion"))
+		return kIOReturnNotResponding;
+	LOG("SMU: driver interface version 0x%x (amdgpu's 0x%x)", version, AMD_SMU11_DRIVER_IF_VERSION);
+
+	/* The power play table from the VBIOS. */
+	if (!minkar_atom_data_header(fAtom, AMD_ATOM_DATA_POWERPLAYINFO, &size, &frev, &crev, &offset) ||
+	    size < AMD_SMU11_PPTABLE_IN_POWERPLAY + AMD_SMU11_PPTABLE_BYTES ||
+	    !minkar_atom_data_header(fAtom, AMD_ATOM_DATA_SMC_DPM_INFO, &dpmSize, &frev, &crev, &dpmOffset) ||
+	    dpmSize < AMD_SMU11_DPM_INFO_BOARD_OFFSET + AMD_SMU11_BOARD_BYTES) {
+		LOG("SMU: no power play table in the VBIOS (%u bytes)", size);
+		return kIOReturnUnsupported;
+	}
+	const uint8_t *bios = minkar_atom_bios(fAtom);
+	uint8_t table[AMD_SMU11_PPTABLE_BYTES];
+	bcopy(bios + offset + AMD_SMU11_PPTABLE_IN_POWERPLAY, table, sizeof(table));
+	bcopy(bios + dpmOffset + AMD_SMU11_DPM_INFO_BOARD_OFFSET, table + AMD_SMU11_BOARD_OFFSET,
+	    AMD_SMU11_BOARD_BYTES);
+	copyWords(pspWords(AMD_PSP_SMU_TABLE_OFFSET), table, sizeof(table), AMD_PSP_SMU_TABLE_BYTES);
+	OSSynchronizeIO();
+
+	uint64_t at = gpuAddress(fPSPOffset + AMD_PSP_SMU_TABLE_OFFSET);
+	if (!smuSend(kSMUSetDriverDramAddrHigh, (uint32_t)(at >> 32), NULL, "SetDriverDramAddrHigh") ||
+	    !smuSend(kSMUSetDriverDramAddrLow, (uint32_t)at, NULL, "SetDriverDramAddrLow") ||
+	    !smuSend(kSMUTransferTableDram2Smu, kTablePPTable, NULL, "TransferTableDram2Smu"))
+		return kIOReturnIOError;
+	LOG("SMU: power play table given (%u bytes, VBIOS table %u bytes)", (unsigned)sizeof(table), size);
+	/* RunDcBtc, the graphics block's calibration, is left for when that
+	 * block is started (R4): without the RLC's firmware it never answers. */
+	(void)kSMURunDcBtc;
+	if (!smuSend(kSMUSetAllowedFeaturesMaskLow, (uint32_t)kSMUFeatures, NULL, "SetAllowedFeaturesMaskLow") ||
+	    !smuSend(kSMUSetAllowedFeaturesMaskHigh, (uint32_t)(kSMUFeatures >> 32), NULL,
+	    "SetAllowedFeaturesMaskHigh"))
+		return kIOReturnIOError;
+	uint32_t running = 0;
+	smuSend(kSMUGetRunningSmuFeaturesLow, 0, &running, "GetRunningSmuFeaturesLow");
+	LOG("SMU: features running 0x%08x", running);
+	/* Enabled one by one, the SOC's and the display's clocks: with every
+	 * allowed feature, EnableAllSmuFeatures never answers while the
+	 * graphics block has no firmware. */
+	(void)kSMUEnableAllSmuFeatures;
+	if (!smuSend(kSMUEnableSmuFeaturesLow, kSMUEnabledNow, NULL, "EnableSmuFeaturesLow"))
+		return kIOReturnIOError;
+	smuSend(kSMUGetRunningSmuFeaturesLow, 0, &running, "GetRunningSmuFeaturesLow");
+	LOG("SMU: features running 0x%08x", running);
+	setProperty("MinkarSMUFeatures", running, 32);
+	return (running & kSMUEnabledNow) == kSMUEnabledNow ? kIOReturnSuccess : kIOReturnIOError;
+}
+
 /* The PSP's region of VRAM, mapped. */
 bool
 MinkarAMDGPU::pspMap()
@@ -367,6 +476,71 @@ MinkarAMDGPU::pspMap()
 	fPSPMap = range != NULL ? range->map(kIOMapInhibitCache) : NULL;
 	OSSafeReleaseNULL(range);
 	return fPSPMap != NULL;
+}
+
+/*
+ * At start: once AMD's files can be read (the root file system up), the
+ * PSP started, the SMU's firmware loaded and set up, and the display
+ * driver told, which may then offer modes faster clocks carry. On a
+ * thread of its own; a failure leaves the display as the firmware set
+ * it. "minkaramd_psp=0" leaves the PSP alone.
+ */
+void
+MinkarAMDGPU::pspStart()
+{
+	UInt32 enabled = 1;
+	thread_t thread;
+
+	PE_parse_boot_argn("minkaramd_psp", &enabled, sizeof(enabled));
+	if (enabled == 0 || fPSPMap == NULL)
+		return;
+	retain();
+	if (kernel_thread_start(&MinkarAMDGPU::pspThread, this, &thread) != KERN_SUCCESS) {
+		release();
+		return;
+	}
+	thread_deallocate(thread);
+}
+
+void
+MinkarAMDGPU::pspThread(void *gpu, wait_result_t)
+{
+	MinkarAMDGPU *self = (MinkarAMDGPU *)gpu;
+	uint8_t *file = NULL;
+	size_t bytes = 0;
+	int tries = 0;
+
+	/* The root file system: up to two minutes. */
+	while (!MinkarAMDReadFirmware("dimgrey_cavefish_sos.bin", &file, &bytes) && ++tries < 120)
+		IOSleep(1000);
+	if (file == NULL) {
+		LOG("AMD's files cannot be read: the PSP is left alone");
+		self->release();
+		return;
+	}
+	MinkarAMDFreeFirmware(file, bytes);
+	IOReturn err = self->pspStartSOS();
+	if (err == kIOReturnSuccess)
+		err = self->pspStartRing();
+	if (err == kIOReturnSuccess)
+		err = self->pspLoadSMU();
+	if (err == kIOReturnSuccess)
+		err = self->smuProbe();
+	if (err == kIOReturnSuccess)
+		err = self->smuSetUp();
+	self->setProperty("MinkarSMUReady", err == kIOReturnSuccess);
+	LOG("%s (0x%x)", err == kIOReturnSuccess ? "the SMU is set up" : "the SMU is not set up", err);
+	if (err == kIOReturnSuccess) {
+		OSIterator *it = self->fPCI->getClientIterator();
+		OSObject *o;
+		while (it != NULL && (o = it->getNextObject()) != NULL) {
+			MinkarAMDFramebuffer *f = OSDynamicCast(MinkarAMDFramebuffer, o);
+			if (f != NULL)
+				f->displayClocksReady();
+		}
+		OSSafeReleaseNULL(it);
+	}
+	self->release();
 }
 
 IOReturn
@@ -390,6 +564,8 @@ MinkarAMDGPU::setProperties(OSObject *properties)
 		return pspLoadSMU();
 	case 4:
 		return smuProbe();
+	case 5:
+		return smuSetUp();
 	default:
 		return kIOReturnBadArgument;
 	}
