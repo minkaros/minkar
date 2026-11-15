@@ -13,12 +13,13 @@ FRAMEWORK = AVFoundation
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = AVCapture.m AVAsset.m AVAssetReader.m AVMetadataItem.m AVError.m AVSettings.m AVTime.m AVPlaybackEngine.m AVPlayerItem.m AVPlayer.m \
-	AVPlayerLayer.m AVAudioPlayer.m AVSpeech.m \
+	AVPlayerLayer.m AVAudioPlayer.m AVMinkarPlayback.m AVSpeech.m \
 	AVSampleBufferDisplayLayer.m AVMediaFormat.m MDClient.c MediaDecoderUser.c
 HEADERS = AVFoundation.h AVMediaFormat.h AVCapture.h AVAsset.h AVAssetReader.h AVAsynchronousKeyValueLoading.h \
 	AVMetadataFormat.h AVMetadataItem.h AVError.h AVTime.h AVPlayer.h AVPlayerItem.h AVPlayerItemOutput.h AVPlayerLayer.h \
 	AVAudioPlayer.h AVAudioSettings.h AVVideoSettings.h AVSpeech.h \
 	AVSampleBufferDisplayLayer.h
+PRIVATE_HEADERS = AVMinkarPlayback.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks

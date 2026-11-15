@@ -64,3 +64,16 @@ routine read(
 	out surface		: mach_port_move_send_t;
 	out frames		: int32_t;
 	out samples		: md_data_t, dealloc);
+
+/* A file still being downloaded (into the file the app hands over): reads
+   past what is there wait for more, until the app closes its end of the
+   pipe given (the download is over) or the expected length (-1: not
+   known) is reached. Otherwise as open. */
+routine open_stream(
+	server			: mach_port_t;
+	file			: mach_port_move_send_t;
+	done			: mach_port_move_send_t;
+	name			: md_bytes_t;
+	expected_length		: int64_t;
+	out result		: int32_t;
+	out info		: md_data_t, dealloc);

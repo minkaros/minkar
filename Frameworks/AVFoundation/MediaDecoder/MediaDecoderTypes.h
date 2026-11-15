@@ -48,6 +48,7 @@ enum {
 	kMDErrorBadOptions = -5,
 	kMDErrorNoBuffers = -6,		/* every surface still in the app's use */
 	kMDErrorNotOpen = -7,
+	kMDErrorStalled = -8,		/* a download gave nothing for a minute */
 };
 
 enum {

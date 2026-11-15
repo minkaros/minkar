@@ -83,10 +83,19 @@ static mach_port_t startDecoder(pid_t *pidOut)
 	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &hello) != KERN_SUCCESS)
 		return MACH_PORT_NULL;
 	mach_port_insert_right(mach_task_self(), hello, hello, MACH_MSG_TYPE_MAKE_SEND);
+	/* The decoder inherits none of the app's descriptors but standard
+	   input, output and error: the file comes as a fileport. (A pipe
+	   end it inherited would keep a download from ever looking over.) */
+	posix_spawn_file_actions_t actions;
+	posix_spawn_file_actions_init(&actions);
+	for (int fd = 0; fd <= 2; fd++)
+		posix_spawn_file_actions_addinherit_np(&actions, fd);
 	posix_spawnattr_init(&attr);
+	posix_spawnattr_setflags(&attr, POSIX_SPAWN_CLOEXEC_DEFAULT);
 	posix_spawnattr_setspecialport_np(&attr, hello, TASK_BOOTSTRAP_PORT);
-	int r = posix_spawn(&pid, kMDDecoderPath, NULL, &attr, argv, environ);
+	int r = posix_spawn(&pid, kMDDecoderPath, &actions, &attr, argv, environ);
 	posix_spawnattr_destroy(&attr);
+	posix_spawn_file_actions_destroy(&actions);
 	mach_port_deallocate(mach_task_self(), hello);	/* our send right */
 	if (r != 0) {
 		mach_port_mod_refs(mach_task_self(), hello, MACH_PORT_RIGHT_RECEIVE, -1);
@@ -188,26 +197,33 @@ static CFDictionaryRef colorAttachments(CFDictionaryRef track)
 	return a;
 }
 
-MDSessionRef _MDSessionCreate(int fd, const char *name, int32_t *error)
+static MDSessionRef createSession(int fd, int doneFd, const char *name, int64_t expected, int32_t *error)
 {
 	pid_t pid = 0;
 	int32_t result = kMDErrorNoService;
-	mach_port_t file = MACH_PORT_NULL;
+	mach_port_t file = MACH_PORT_NULL, done = MACH_PORT_NULL;
 	md_data_t info = NULL;
 	mach_msg_type_number_t infoCount = 0;
+	kern_return_t kr;
 
 	mach_port_t service = startDecoder(&pid);
 	if (service == MACH_PORT_NULL)
 		goto fail;
-	if (fileport_makeport(fd, &file) != 0) {
+	if (fileport_makeport(fd, &file) != 0 || (doneFd >= 0 && fileport_makeport(doneFd, &done) != 0)) {
+		if (file != MACH_PORT_NULL)
+			mach_port_deallocate(mach_task_self(), file);
 		result = kMDErrorCannotOpen;
 		goto fail;
 	}
 	size_t nameLength = name != NULL ? strlen(name) : 0;
 	if (nameLength > 4095)
 		nameLength = 4095;
-	kern_return_t kr = mdc_open(service, file, (md_bytes_t)(name != NULL ? name : ""),
-	    (mach_msg_type_number_t)nameLength, &result, &info, &infoCount);
+	if (doneFd >= 0)
+		kr = mdc_open_stream(service, file, done, (md_bytes_t)(name != NULL ? name : ""),
+		    (mach_msg_type_number_t)nameLength, expected, &result, &info, &infoCount);
+	else
+		kr = mdc_open(service, file, (md_bytes_t)(name != NULL ? name : ""),
+		    (mach_msg_type_number_t)nameLength, &result, &info, &infoCount);
 	if (kr != KERN_SUCCESS) {
 		result = kMDErrorNoService;
 		goto fail;
@@ -256,6 +272,16 @@ fail:
 	if (error != NULL)
 		*error = result;
 	return NULL;
+}
+
+MDSessionRef _MDSessionCreate(int fd, const char *name, int32_t *error)
+{
+	return createSession(fd, -1, name, -1, error);
+}
+
+MDSessionRef _MDSessionCreateStreaming(int fd, int doneFd, const char *name, int64_t expectedLength, int32_t *error)
+{
+	return createSession(fd, doneFd, name, expectedLength, error);
 }
 
 CFDictionaryRef _MDSessionGetInfo(MDSessionRef s)

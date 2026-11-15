@@ -37,6 +37,10 @@ NSError *_AVErrorForDecoderResult(int32_t result, NSURL *URL) {
         code = AVErrorUnsupportedOutputSettings;
         what = @"The output settings are not supported.";
         break;
+    case kMDErrorStalled:
+        code = AVErrorFailedToLoadMediaData;
+        what = @"The media's data stopped coming.";
+        break;
     case kMDErrorNoService:
         code = AVErrorUnknown;
         what = @"The media decoder stopped.";

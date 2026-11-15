@@ -23,6 +23,12 @@ typedef struct MDSession *MDSessionRef;
 /* The file (read through its descriptor, which the session dups) and its
    description (MediaDecoderTypes.h's kMDKey...), or NULL and the error. */
 MDSessionRef _MDSessionCreate(int fd, const char *name, int32_t *error);
+/* A file still being downloaded into: reads past its end wait for more
+   until doneFd (the read end of a pipe whose write end the downloader
+   closes when it is over) says so, or the expected length (-1: not
+   known) is reached. */
+MDSessionRef _MDSessionCreateStreaming(int fd, int doneFd, const char *name, int64_t expectedLength,
+    int32_t *error);
 CFDictionaryRef _MDSessionGetInfo(MDSessionRef session);
 pid_t _MDSessionGetProcessID(MDSessionRef session);
 

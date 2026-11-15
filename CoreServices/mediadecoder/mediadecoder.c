@@ -26,6 +26,7 @@
 #include <mach/notify.h>
 #include <servers/bootstrap.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +73,23 @@ typedef struct {
 
 static AVFormatContext *fmt;
 static int fileDescriptor = -1;
+
+/* A download still under way (open_stream): its pipe, readable or hung up
+   once the app has closed its end, and the length it will have (-1 when
+   not known). */
+static int doneDescriptor = -1;
+static bool streaming;
+static int64_t expectedLength = -1;
+static bool stalled;
+
+#define STREAM_WAIT_MS	5
+#define STREAM_STALL_MS	60000
+
+static bool downloadOver(void)
+{
+	struct pollfd p = { doneDescriptor, POLLIN, 0 };
+	return poll(&p, 1, 0) > 0;
+}
 static Track tracks[MAX_TRACKS];
 static int trackCount;
 static bool demuxEnded;
@@ -79,21 +97,54 @@ static AVFrame *frame;
 
 /* ---- The file, through the descriptor --------------------------------- */
 
+/* Reads; at the file's end while it is still being downloaded, waits for
+   more (the app's download goes on in the file), until it is over. */
 static int readFile(void *opaque, uint8_t *buf, int size)
 {
-	ssize_t n = read(fileDescriptor, buf, size);
-	if (n < 0)
-		return AVERROR(errno);
-	return n == 0 ? AVERROR_EOF : (int)n;
+	int waited = 0;
+	for (;;) {
+		ssize_t n = read(fileDescriptor, buf, size);
+		if (n < 0)
+			return AVERROR(errno);
+		if (n > 0)
+			return (int)n;
+		if (!streaming)
+			return AVERROR_EOF;
+		off_t at = lseek(fileDescriptor, 0, SEEK_CUR);
+		if (expectedLength >= 0 && at >= expectedLength)
+			return AVERROR_EOF;
+		if (downloadOver()) {
+			/* What came last, then the end. */
+			streaming = false;
+			continue;
+		}
+		if (waited >= STREAM_STALL_MS) {
+			stalled = true;
+			return AVERROR(ETIMEDOUT);
+		}
+		poll(NULL, 0, STREAM_WAIT_MS);
+		waited += STREAM_WAIT_MS;
+	}
 }
 
 static int64_t seekFile(void *opaque, int64_t offset, int whence)
 {
 	if (whence & AVSEEK_SIZE) {
 		struct stat st;
+		if (streaming)
+			return expectedLength >= 0 ? expectedLength : AVERROR(ENOSYS);
 		return fstat(fileDescriptor, &st) == 0 ? st.st_size : AVERROR(errno);
 	}
-	off_t r = lseek(fileDescriptor, offset, whence & ~AVSEEK_FORCE);
+	whence &= ~AVSEEK_FORCE;
+	/* Still downloading, the file's end is not where it is now: from the
+	   end only with the length expected. */
+	if (whence == SEEK_END && streaming) {
+		if (expectedLength < 0)
+			return AVERROR(ENOSYS);
+		offset += expectedLength;
+		whence = SEEK_SET;
+	}
+	off_t r = lseek(fileDescriptor, offset, whence);
 	return r < 0 ? AVERROR(errno) : r;
 }
 
@@ -256,6 +307,19 @@ static CFDictionaryRef describeTrack(int id, AVStream *st)
 	return t;
 }
 
+kern_return_t mds_open_stream(mach_port_t server, mach_port_t file, mach_port_t done, md_bytes_t name,
+    mach_msg_type_number_t nameCount, int64_t expected, int32_t *result, md_data_t *info,
+    mach_msg_type_number_t *infoCount)
+{
+	if (fmt == NULL && doneDescriptor < 0) {
+		doneDescriptor = fileport_makefd(done);
+		streaming = doneDescriptor >= 0;
+		expectedLength = expected >= 0 ? expected : -1;
+	}
+	mach_port_deallocate(mach_task_self(), done);
+	return mds_open(server, file, name, nameCount, result, info, infoCount);
+}
+
 kern_return_t mds_open(mach_port_t server, mach_port_t file, md_bytes_t name, mach_msg_type_number_t nameCount,
     int32_t *result, md_data_t *info, mach_msg_type_number_t *infoCount)
 {
@@ -277,7 +341,7 @@ kern_return_t mds_open(mach_port_t server, mach_port_t file, md_bytes_t name, ma
 	    avformat_open_input(&fmt, path, NULL, NULL) < 0 || avformat_find_stream_info(fmt, NULL) < 0) {
 		/* avformat_open_input frees the context when it fails. */
 		fmt = NULL;
-		*result = kMDErrorCannotOpen;
+		*result = stalled ? kMDErrorStalled : kMDErrorCannotOpen;
 		return KERN_SUCCESS;
 	}
 
@@ -639,6 +703,10 @@ kern_return_t mds_read(mach_port_t server, int32_t id, int32_t *result, int32_t 
 		return KERN_SUCCESS;
 	}
 	int r = nextFrame(t);
+	if (stalled) {
+		*result = kMDErrorStalled;
+		return KERN_SUCCESS;
+	}
 	/* At the end, the samples the resampler still holds. */
 	if (r == 0 && t->ctx->codec_type == AVMEDIA_TYPE_AUDIO && t->swr != NULL && !t->drained) {
 		t->drained = true;
@@ -762,7 +830,9 @@ static boolean_t demux(mach_msg_header_t *in, mach_msg_header_t *out)
 
 int main(void)
 {
-	av_log_set_level(AV_LOG_QUIET);
+	/* MEDIADECODER_LOG=1 (in the app's environment, which the decoder
+	   inherits): FFmpeg's messages on the app's standard error. */
+	av_log_set_level(getenv("MEDIADECODER_LOG") != NULL ? AV_LOG_VERBOSE : AV_LOG_QUIET);
 	mach_port_t service = checkIn();
 	if (service == MACH_PORT_NULL) {
 		syslog(LOG_ERR, "mediadecoder: started by no app");

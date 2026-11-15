@@ -13,6 +13,9 @@
 @interface AVAsset (Internal)
 /* Loads the description once; NO, and the error, when it cannot be read. */
 - (BOOL)_loadReturningError:(NSError **)outError;
+/* The file's description, from a session of its own (subclasses read
+   other sources). */
+- (NSDictionary *)_copyInfoReturningError:(NSError **)outError;
 /* A new decoding session on the asset's file, or nil and the error. */
 - (MDSessionRef)_createSessionReturningError:(NSError **)outError;
 @end
