@@ -66,7 +66,7 @@ typedef struct {
 	/* Audio. */
 	SwrContext *swr;
 	int sampleRate, channels;
-	bool isFloat;
+	bool isFloat, drained;		/* drained: the resampler's last samples given */
 	int64_t nextOutputFrame;	/* in the output rate: when no time is known */
 } Track;
 
@@ -459,7 +459,7 @@ kern_return_t mds_seek(mach_port_t server, int64_t value, int32_t scale, int32_t
 			avcodec_flush_buffers(t->ctx);
 		if (t->swr != NULL)
 			swr_free(&t->swr);
-		t->flushed = t->ended = false;
+		t->flushed = t->ended = t->drained = false;
 		t->skipBefore = av_rescale_q(target, AV_TIME_BASE_Q, fmt->streams[t->stream]->time_base);
 		t->nextOutputFrame = av_rescale(value, t->sampleRate > 0 ? t->sampleRate : 1, scale);
 	}
@@ -478,7 +478,11 @@ static int nextFrame(Track *t)
 			int64_t pts = frame->best_effort_timestamp;
 			/* After a seek: the frames that end before the time
 			   (or, with no duration, start before it). */
-			int64_t end = pts + (frame->duration > 0 ? frame->duration : 1);
+			int64_t duration = frame->duration;
+			if (duration <= 0 && t->ctx->codec_type == AVMEDIA_TYPE_AUDIO && frame->sample_rate > 0)
+				duration = av_rescale_q(frame->nb_samples, (AVRational){ 1, frame->sample_rate },
+				    fmt->streams[t->stream]->time_base);
+			int64_t end = pts + (duration > 0 ? duration : 1);
 			if (t->skipBefore != AV_NOPTS_VALUE && pts != AV_NOPTS_VALUE) {
 				if (end <= t->skipBefore) {
 					av_frame_unref(frame);
@@ -635,6 +639,29 @@ kern_return_t mds_read(mach_port_t server, int32_t id, int32_t *result, int32_t 
 		return KERN_SUCCESS;
 	}
 	int r = nextFrame(t);
+	/* At the end, the samples the resampler still holds. */
+	if (r == 0 && t->ctx->codec_type == AVMEDIA_TYPE_AUDIO && t->swr != NULL && !t->drained) {
+		t->drained = true;
+		size_t bytesPerFrame = (size_t)t->channels * (t->isFloat ? 4 : 2);
+		int room = swr_get_out_samples(t->swr, 0);
+		if (room > 0) {
+			uint8_t *buf = malloc(room * bytesPerFrame);
+			uint8_t *dst[1] = { buf };
+			int got = swr_convert(t->swr, dst, room, NULL, 0);
+			if (got > 0) {
+				*frames = got;
+				*result = outOfLine(buf, got * bytesPerFrame, samples, samplesCount) == KERN_SUCCESS ?
+				    kMDSuccess : kMDErrorDecode;
+				*ptsValue = t->nextOutputFrame;
+				*ptsScale = *durationScale = t->sampleRate;
+				*durationValue = got;
+				t->nextOutputFrame += got;
+				free(buf);
+				return KERN_SUCCESS;
+			}
+			free(buf);
+		}
+	}
 	if (r <= 0) {
 		t->ended = r == 0;
 		*flags = r == 0 ? kMDFlagEndOfTrack : 0;
