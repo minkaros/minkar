@@ -129,7 +129,7 @@ Carbon: CoreServices ApplicationServices
 Quartz: AppKit QuickLook
 CoreAudio: CoreFoundation ../Kernel/IOKitUser
 AudioUnit: AudioToolbox
-CoreMedia: CoreFoundation CoreVideo
+CoreMedia: CoreFoundation CoreVideo CoreAudio AudioToolbox
 VideoToolbox: CoreMedia CoreVideo
 CoreMIDI: CoreFoundation
 Metal: Foundation

@@ -20,8 +20,3 @@ KEY(kCMSampleAttachmentKey_EarlierDisplayTimesAllowed, "EarlierDisplayTimesAllow
 KEY(kCMSampleAttachmentKey_DisplayImmediately, "DisplayImmediately");
 KEY(kCMSampleAttachmentKey_DoNotDisplay, "DoNotDisplay");
 
-KEY(kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, "SampleDescriptionExtensionAtoms");
-KEY(kCMFormatDescriptionExtension_ColorPrimaries, "CVImageBufferColorPrimaries");
-KEY(kCMFormatDescriptionExtension_TransferFunction, "CVImageBufferTransferFunction");
-KEY(kCMFormatDescriptionExtension_YCbCrMatrix, "CVImageBufferYCbCrMatrix");
-KEY(kCMFormatDescriptionExtension_FullRangeVideo, "FullRangeVideo");
