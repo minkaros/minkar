@@ -517,7 +517,10 @@ MinkarAMDFramebuffer::hpdTimer(OSObject *owner, IOTimerEventSource *)
 void
 MinkarAMDFramebuffer::pollHPD()
 {
-	int sense = (readReg(mmDC_HPD1_INT_STATUS + 3 * fHPD) & DC_HPD_SENSE) != 0;
+	static const uint32_t dcnHPD[5] = { dcn302_HPD0_DC_HPD_INT_STATUS, dcn302_HPD1_DC_HPD_INT_STATUS,
+	    dcn302_HPD2_DC_HPD_INT_STATUS, dcn302_HPD3_DC_HPD_INT_STATUS, dcn302_HPD4_DC_HPD_INT_STATUS };
+	int sense = fDCN ? (fHPDSelect < 5 && (readReg(dcnHPD[fHPDSelect]) & 0x2) != 0) :
+	    (readReg(mmDC_HPD1_INT_STATUS + 3 * fHPD) & DC_HPD_SENSE) != 0;
 
 	switch (amd_hpd_sample(&fHPDState, sense, kHPDSettle)) {
 	case AMD_HPD_UNPLUGGED:
@@ -562,8 +565,26 @@ MinkarAMDFramebuffer::recoverDisplay()
 	uint8_t edid[256];
 	unsigned bytes;
 
-	if (fDCN)
-		return kIOReturnUnsupported;	/* R2 */
+	if (fDCN) {
+		/* The display answers on its DDC line; then its transmitter is
+		 * turned off and on again at the mode's clock, which a sink
+		 * that came back (a KVM switched to this computer) locks to. */
+		if (fDDC < 0 || !readEDIDDCN((unsigned)fDDC, edid, &bytes))
+			return kIOReturnNotReady;
+		if (bytes != fEDIDBytes || memcmp(edid, fEDID, bytes) != 0) {
+			bcopy(edid, fEDID, bytes);
+			fEDIDBytes = bytes;
+			setProperty("MinkarEDID", fEDID, fEDIDBytes);
+			LOG("another display: the mode in use stays");
+		}
+		if (!fDisplayOn)
+			return kIOReturnSuccess;	/* asleep: it comes back on waking */
+		if (transmitterDCN(false, fPixelKHz) != kIOReturnSuccess ||
+		    transmitterDCN(true, fPixelKHz) != kIOReturnSuccess)
+			return kIOReturnIOError;
+		LOG("the display is back: its transmitter on again at %u kHz", fPixelKHz);
+		return kIOReturnSuccess;
+	}
 	if (fAtom == NULL || fConnector < 0)
 		return kIOReturnNotFound;
 	if (fDPCD[0] != 0)
@@ -1122,7 +1143,8 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	/* Watch the display's HPD line (an HDMI or DVI sink: DisplayPort
 	 * would need link training after a plug), on a work loop of its own:
 	 * the framebuffer's comes later, when it is opened. */
-	if (fConnector >= 0 && fDPCD[0] == 0) {
+	if (fDCN ? (fDDC >= 0 && fPHY >= 0 && (fDIGMode == 2 || fDIGMode == 1)) :
+	    (fConnector >= 0 && fDPCD[0] == 0)) {
 		fHPDLoop = IOWorkLoop::workLoop();
 		fHPDTimer = fHPDLoop != NULL ?
 		    IOTimerEventSource::timerEventSource(this, &MinkarAMDFramebuffer::hpdTimer) : NULL;
