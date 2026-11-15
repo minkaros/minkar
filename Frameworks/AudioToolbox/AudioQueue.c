@@ -1248,7 +1248,15 @@ OSStatus AudioQueueGetCurrentTime(AudioQueueRef q, AudioQueueTimelineRef t, Audi
     if (!q->running)
         return kAudioQueueErr_InvalidRunState;
     memset(out, 0, sizeof(*out));
-    out->mSampleTime = q->isInput ? q->recordedFrames : q->playedFrames;
+    /* An output's time is the sample being heard: what was handed to the
+       device less what is still on its way to the speaker. */
+    Float64 sample = q->recordedFrames;
+    if (!q->isInput) {
+        sample = q->playedFrames - q->latency * q->format.mSampleRate;
+        if (sample < 0)
+            sample = 0;
+    }
+    out->mSampleTime = sample;
     out->mHostTime = mach_absolute_time();
     out->mRateScalar = 1;
     out->mFlags = kAudioTimeStampSampleHostTimeValid | kAudioTimeStampRateScalarValid;
