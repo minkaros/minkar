@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-11"
-commit  = "3bfb3d775f"
+updated = "2026-11-15"
+commit  = "65dc948b8f"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -290,6 +290,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "AU5: video and audio playback"
+note = "CoreMedia, CoreVideo, AVFoundation, AVKit; decoding in its own process; frames match, sync +8 to +12 ms · 15 nov"
+line = "fw"
+
+[[board.done]]
 title = "NSRunLoop on CFRunLoop; W5 under way"
 note = "CF sources and observers run under AppKit; Sparkle's and TextMate's web views reproduced · 10 nov"
 line = "webkit"
@@ -313,9 +318,3 @@ line = "webkit"
 title = "Toolchain on LLVM 21"
 note = "swift-6.4.2-RELEASE: clang 21, Swift 6.4 runtime; full suite and M2, M3 pass · 10 nov"
 line = "base"
-
-[[board.done]]
-title = "Cocoa coverage met"
-note = "imported symbols 99.9 %, selectors 97.6 %; nine frameworks at 100 % · 9 nov"
-line = "fw"
-
