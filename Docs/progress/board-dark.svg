@@ -1,52 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1043" viewBox="0 0 1120 1043" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-15">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1064" viewBox="0 0 1120 1064" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-15">
 <title>Minkar work board, 2026-11-15</title>
-<rect width="1120" height="1043" fill="#0d1117"/>
+<rect width="1120" height="1064" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-15 · devel 688e101c2a</text>
-<rect x="16" y="70" width="261.5" height="965" rx="10" fill="#151b23"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-15 · devel 1120783e0c</text>
+<rect x="16" y="70" width="261.5" height="986" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#f85149"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">R2: HDMI on the RX 6600</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">EDID, sleep and wake, hot</text>
-<text x="42" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">plug after a KVM, HDMI audio</text>
-<text x="42" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">heard; through the display</text>
-<text x="42" y="216" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">microcontroller · 15 nov</text>
-<rect x="26" y="249" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="249" width="5" height="146" rx="2" fill="#f85149"/>
-<text x="42" y="273" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">R1: the RX 6600&#x27;s display</text>
-<text x="42" y="294" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">taken over</text>
-<text x="42" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">its own framebuffer in VRAM;</text>
-<text x="42" y="334" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">30 of 30 flips in the</text>
-<text x="42" y="353" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">vertical blank; pitch checked</text>
-<text x="42" y="372" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">with a pattern · 15 nov</text>
-<rect x="26" y="405" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="405" width="5" height="125" rx="2" fill="#4493f8"/>
-<text x="42" y="429" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">AU6: media in WebKit</text>
-<text x="42" y="450" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">&lt;video&gt;, &lt;audio&gt; and Web</text>
-<text x="42" y="469" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Audio in WPE on AVFoundation;</text>
-<text x="42" y="488" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frames match, sync within 32</text>
-<text x="42" y="507" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">ms · 15 nov</text>
-<rect x="26" y="540" width="241.5" height="165" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="540" width="5" height="165" rx="2" fill="#d29922"/>
-<text x="42" y="564" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">AU5: video and audio</text>
-<text x="42" y="585" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">playback</text>
-<text x="42" y="606" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CoreMedia, CoreVideo,</text>
-<text x="42" y="625" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">AVFoundation, AVKit; decoding</text>
-<text x="42" y="644" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">in its own process; frames</text>
-<text x="42" y="663" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">match, sync +8 to +12 ms · 15</text>
-<text x="42" y="682" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
-<rect x="26" y="715" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="715" width="5" height="146" rx="2" fill="#4493f8"/>
-<text x="42" y="739" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">NSRunLoop on CFRunLoop;</text>
-<text x="42" y="760" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W5 under way</text>
-<text x="42" y="781" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CF sources and observers run</text>
-<text x="42" y="800" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">under AppKit; Sparkle&#x27;s and</text>
-<text x="42" y="819" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">TextMate&#x27;s web views</text>
-<text x="42" y="838" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">reproduced · 10 nov</text>
-<rect x="26" y="871" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="871" width="5" height="146" rx="2" fill="#4493f8"/>
-<text x="42" y="895" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W4: the older WebView on</text>
-<text x="42" y="916" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WPE</text>
-<text x="42" y="937" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frame load, policy and UI</text>
-<text x="42" y="956" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates, WebScriptObject,</text>
-<text x="42" y="975" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">synchronous scripts from</text>
-<text x="42" y="994" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates · 10 nov</text>
-<rect x="291.5" y="70" width="261.5" height="965" rx="10" fill="#151b23"/>
+<rect x="26" y="114" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="146" rx="2" fill="#f85149"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">R2: the RX 6600&#x27;s modes</text>
+<text x="42" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">and HDMI</text>
+<text x="42" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">EDID, sleep, hot plug, HDMI</text>
+<text x="42" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">audio; the PSP and SMU</text>
+<text x="42" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">started, 60 Hz from start ·</text>
+<text x="42" y="237" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">15 nov</text>
+<rect x="26" y="270" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="270" width="5" height="146" rx="2" fill="#f85149"/>
+<text x="42" y="294" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">R1: the RX 6600&#x27;s display</text>
+<text x="42" y="315" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">taken over</text>
+<text x="42" y="336" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">its own framebuffer in VRAM;</text>
+<text x="42" y="355" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">30 of 30 flips in the</text>
+<text x="42" y="374" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">vertical blank; pitch checked</text>
+<text x="42" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">with a pattern · 15 nov</text>
+<rect x="26" y="426" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="426" width="5" height="125" rx="2" fill="#4493f8"/>
+<text x="42" y="450" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">AU6: media in WebKit</text>
+<text x="42" y="471" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">&lt;video&gt;, &lt;audio&gt; and Web</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Audio in WPE on AVFoundation;</text>
+<text x="42" y="509" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frames match, sync within 32</text>
+<text x="42" y="528" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">ms · 15 nov</text>
+<rect x="26" y="561" width="241.5" height="165" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="561" width="5" height="165" rx="2" fill="#d29922"/>
+<text x="42" y="585" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">AU5: video and audio</text>
+<text x="42" y="606" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">playback</text>
+<text x="42" y="627" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CoreMedia, CoreVideo,</text>
+<text x="42" y="646" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">AVFoundation, AVKit; decoding</text>
+<text x="42" y="665" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">in its own process; frames</text>
+<text x="42" y="684" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">match, sync +8 to +12 ms · 15</text>
+<text x="42" y="703" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
+<rect x="26" y="736" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="736" width="5" height="146" rx="2" fill="#4493f8"/>
+<text x="42" y="760" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">NSRunLoop on CFRunLoop;</text>
+<text x="42" y="781" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W5 under way</text>
+<text x="42" y="802" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CF sources and observers run</text>
+<text x="42" y="821" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">under AppKit; Sparkle&#x27;s and</text>
+<text x="42" y="840" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">TextMate&#x27;s web views</text>
+<text x="42" y="859" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">reproduced · 10 nov</text>
+<rect x="26" y="892" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="892" width="5" height="146" rx="2" fill="#4493f8"/>
+<text x="42" y="916" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W4: the older WebView on</text>
+<text x="42" y="937" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WPE</text>
+<text x="42" y="958" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frame load, policy and UI</text>
+<text x="42" y="977" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates, WebScriptObject,</text>
+<text x="42" y="996" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">synchronous scripts from</text>
+<text x="42" y="1015" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates · 10 nov</text>
+<rect x="291.5" y="70" width="261.5" height="986" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#4493f8" stroke-width="2"/><rect x="301.5" y="114" width="5" height="106" rx="2" fill="#4493f8"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WebKit: WPE as the engine</text>
@@ -58,7 +59,7 @@
 <text x="317.5" y="275" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">G4 measured on PC 2; its</text>
 <text x="317.5" y="294" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">clocks, then the 3D path, for</text>
 <text x="317.5" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">21.0&#x27;s performance gate</text>
-<rect x="567" y="70" width="261.5" height="965" rx="10" fill="#151b23"/>
+<rect x="567" y="70" width="261.5" height="986" rx="10" fill="#151b23"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#f778ba"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Desktop design and icons</text>
@@ -70,13 +71,13 @@
 <text x="593" y="277" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Menu Extras as bundles, Dock</text>
 <text x="593" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">dragging, file operations,</text>
 <text x="593" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the full login</text>
-<rect x="577" y="348" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="348" width="5" height="127" rx="2" fill="#f85149"/>
-<text x="593" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2</text>
-<text x="593" y="393" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">modes)</text>
-<text x="593" y="414" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">60 Hz and lighting a display</text>
-<text x="593" y="433" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">need DISPCLK from the SMU:</text>
-<text x="593" y="452" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the PSP first</text>
-<rect x="842.5" y="70" width="261.5" height="965" rx="10" fill="#151b23"/>
+<rect x="577" y="348" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="348" width="5" height="125" rx="2" fill="#f85149"/>
+<text x="593" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2b)</text>
+<text x="593" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">lighting a display the</text>
+<text x="593" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">firmware did not (KVM</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">elsewhere at start); smaller</text>
+<text x="593" y="450" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">sizes</text>
+<rect x="842.5" y="70" width="261.5" height="986" rx="10" fill="#151b23"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 19.6.0</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#3fb950"/>

@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-15"
-commit  = "688e101c2a"
+commit  = "1120783e0c"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -271,8 +271,8 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "GPU: PC 1's RX 6600 (R2 modes)"
-note = "60 Hz and lighting a display need DISPCLK from the SMU: the PSP first"
+title = "GPU: PC 1's RX 6600 (R2b)"
+note = "lighting a display the firmware did not (KVM elsewhere at start); smaller sizes"
 line = "gpu"
 
 [[board.later]]
@@ -290,8 +290,8 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
-title = "R2: HDMI on the RX 6600"
-note = "EDID, sleep and wake, hot plug after a KVM, HDMI audio heard; through the display microcontroller · 15 nov"
+title = "R2: the RX 6600's modes and HDMI"
+note = "EDID, sleep, hot plug, HDMI audio; the PSP and SMU started, 60 Hz from start · 15 nov"
 line = "gpu"
 
 [[board.done]]

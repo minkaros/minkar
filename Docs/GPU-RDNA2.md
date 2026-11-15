@@ -59,7 +59,7 @@ their SHA-256, as Tahiti's are (ADR 0002).
   as amdgpu's `dc` writes it: the engine rounds a linear plane's pitch up
   to 64 pixels, so the two conventions give the same picture. The driver
   keeps the firmware's.
-- [ ] **R2 — Modes.** The display's EDID over the engine's AUX and DDC; the
+- [x] **R2 — Modes.** The display's EDID over the engine's AUX and DDC; the
   PSP brought up and the DMCUB's firmware loaded; modes set by programming
   the OTG, the plane, the clocks and the output (HDMI and DisplayPort, with
   link training); the display turned off and back on; hot plug. Then the
@@ -67,8 +67,8 @@ their SHA-256, as Tahiti's are (ADR 0002).
   the digital pins MinkarHDA already finds, enabled with the display's ELD.
   Gate: `wsctl mode` changes PC 1's mode, the display sleeps and wakes,
   and a sine is heard through the display.
-  *Under way (2026-11-15), without the PSP (decided that day with the
-  maintainer: R2's HDMI parts first):* the VBIOS of DCN 3.0.2 keeps none
+  *Done (2026-11-15), its gate met on PC 1; R2's HDMI parts first, without
+  the PSP (decided that day with the maintainer):* the VBIOS of DCN 3.0.2 keeps none
   of the display's command tables but the power gating one; the display
   microcontroller (DMCUB) runs them, and the firmware's GOP leaves it
   running with its mailbox ready (in VRAM past the CPU's window, written
@@ -82,14 +82,27 @@ their SHA-256, as Tahiti's are (ADR 0002).
   ELD to the codec's endpoint, DTO, N/CTS and audio packets, and
   MinkarHDA's digital outputs, a device of its own in Sound named as the
   display; a sine was heard through the display (`1d2ea76c1f`,
-  `688e101c2a`). Left: modes. A refresh rate is set through the
+  `688e101c2a`). Then the modes: a refresh rate is set through the
   microcontroller (SetPixelClock between the transmitter's off and on,
   `a00c2b2ae8`), but 60 Hz needs DISPCLK raised past the 304 MHz the
-  firmware leaves, which the SMU sets and it does not answer until the
-  PSP loads its firmware: such modes are not offered yet. Lighting a
-  display the firmware did not (PC 1 started with the KVM on another
-  computer) needs the same clocks. DisplayPort waits for a DisplayPort
-  display.
+  firmware leaves, which the SMU gives once it has its firmware. So the
+  PSP is started (`7fb2d83841`): its bootloader takes the key database,
+  the SPL table, the system driver and the secure OS from AMD's sos file;
+  its ring takes LOAD_TOC, SETUP_TMR (10 MB) and the SMU's firmware. The
+  SMU is then set up (`1120783e0c`): its driver table, the power play
+  table from the VBIOS, the SOC's and the display's clock DPM; the
+  graphics block's features and its calibration wait for R4 (they never
+  answer while that block has no firmware). It all runs at start, once
+  the root file system is up; the display then goes to 60.000 Hz, and
+  `wsctl mode` and Displays switch between 50 and 60 Hz. Left for R2b.
+- [ ] **R2b — The rest of the modes.** Lighting a display the firmware
+  did not (PC 1 started with its KVM on another computer): the timing
+  generator, the plane, the clocks and the output set from nothing; the
+  modes with other totals; the smaller sizes through the plane's scaler,
+  as G1's on GCN 1.0. HDMI 2.0 rates (above 340 MHz, scrambled) stay out,
+  as on GCN 1.0; DisplayPort waits for a DisplayPort display. Gate: PC 1
+  started with its KVM elsewhere shows its desktop when the KVM comes
+  back, and `wsctl mode` sets a smaller size.
 - [ ] **R3 — Memory and DMA.** The memory hubs' address translation (the
   GART and per-process GPU address spaces), SDMA 5.2 with its firmware,
   interrupts (IH), and the user client; the window server presents its
@@ -100,5 +113,5 @@ their SHA-256, as Tahiti's are (ADR 0002).
 - [ ] **R5 — Clocks and power.** The SMU, through the PSP: the GPU at its
   full clocks, and idle states. Then the measurements of G4.6 again.
 
-R2's modes, and R3 and later, wait for the PSP, the largest piece of this
-family: its start is studied first, in amdgpu's `psp_v11_0`.
+R2b is the next step. The PSP starts (R2): R3 and R4 load SDMA's and the
+graphics block's firmware through it.

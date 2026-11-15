@@ -67,7 +67,7 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   como lo escribe el `dc` de amdgpu: el motor redondea el ancho de un plano
   lineal hacia arriba a 64 píxeles, así que las dos convenciones dan la
   misma imagen. El driver conserva la del firmware.
-- [ ] **R2 — Modos.** El EDID de la pantalla por el AUX y el DDC del motor; el
+- [x] **R2 — Modos.** El EDID de la pantalla por el AUX y el DDC del motor; el
   PSP arrancado y el firmware del DMCUB cargado; modos fijados programando el
   OTG, el plano, los relojes y la salida (HDMI y DisplayPort, con
   entrenamiento del enlace); la pantalla apagada y encendida de nuevo;
@@ -76,8 +76,8 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   encuentra, activados con el ELD de la pantalla. Criterio: `wsctl mode`
   cambia el modo del PC 1, la pantalla se duerme y despierta, y un seno se
   oye por la pantalla.
-  *En curso (2026-11-15), sin el PSP (decidido ese día con el mantenedor:
-  primero las partes HDMI de R2):* la VBIOS de DCN 3.0.2 no guarda ninguna
+  *Hecho (2026-11-15), su criterio cumplido en el PC 1; primero las partes
+  HDMI de R2, sin el PSP (decidido ese día con el mantenedor):* la VBIOS de DCN 3.0.2 no guarda ninguna
   de las tablas de comandos de la pantalla salvo la de apagado de bloques;
   las ejecuta el microcontrolador de pantalla (DMCUB), y el GOP del
   firmware lo deja funcionando con su buzón listo (en VRAM más allá de la
@@ -91,14 +91,29 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   el ELD al endpoint del códec, el DTO, N/CTS y los paquetes de audio, y
   las salidas digitales de MinkarHDA, un dispositivo propio en Sound con
   el nombre de la pantalla; un seno se oyó por la pantalla (`1d2ea76c1f`,
-  `688e101c2a`). Falta: los modos. Un refresco se fija por el
+  `688e101c2a`). Después los modos: un refresco se fija por el
   microcontrolador (SetPixelClock entre el apagado y el encendido del
   transmisor, `a00c2b2ae8`), pero 60 Hz necesita subir DISPCLK por encima
-  de los 304 MHz que deja el firmware, y eso lo hace el SMU, que no
-  contesta hasta que el PSP carga su firmware: esos modos aún no se
-  ofrecen. Encender una pantalla que el firmware no encendió (el PC 1
-  arrancado con el KVM en otro equipo) necesita los mismos relojes.
-  DisplayPort espera a una pantalla DisplayPort.
+  de los 304 MHz que deja el firmware, y eso lo da el SMU una vez tiene su
+  firmware. Así que se arranca el PSP (`7fb2d83841`): su cargador recibe
+  la base de claves, la tabla SPL, el driver del sistema y el sistema
+  operativo seguro del fichero sos de AMD; su cola recibe LOAD_TOC,
+  SETUP_TMR (10 MB) y el firmware del SMU. Después se prepara el SMU
+  (`1120783e0c`): su tabla del driver, la tabla de energía de la VBIOS y el
+  DPM de los relojes del SOC y de la pantalla; las funciones del bloque
+  gráfico y su calibración esperan a R4 (no contestan mientras ese bloque
+  no tiene firmware). Todo corre al arrancar, cuando la raíz está montada;
+  la pantalla pasa entonces a 60,000 Hz, y `wsctl mode` y Displays cambian
+  entre 50 y 60 Hz. Lo demás queda para R2b.
+- [ ] **R2b — El resto de los modos.** Encender una pantalla que el
+  firmware no encendió (el PC 1 arrancado con su KVM en otro equipo): el
+  generador de tiempos, el plano, los relojes y la salida fijados desde
+  cero; los modos con otros totales; los tamaños menores con el escalador
+  del plano, como los de G1 en GCN 1.0. Las tasas de HDMI 2.0 (más de
+  340 MHz, con scrambling) quedan fuera, como en GCN 1.0; DisplayPort
+  espera a una pantalla DisplayPort. Criterio: el PC 1 arrancado con su
+  KVM en otro equipo muestra su escritorio cuando vuelve el KVM, y
+  `wsctl mode` fija un tamaño menor.
 - [ ] **R3 — Memoria y DMA.** La traducción de direcciones de los hubs de
   memoria (la GART y los espacios de direcciones de GPU por proceso), SDMA 5.2
   con su firmware, las interrupciones (IH) y el cliente de usuario; el
@@ -112,6 +127,5 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   relojes completos, y estados de reposo. Después, las mediciones de G4.6 otra
   vez.
 
-Los modos de R2, y R3 y los siguientes, esperan al PSP, la pieza más
-grande de esta familia: su arranque se estudia primero, en el `psp_v11_0`
-de amdgpu.
+R2b es el siguiente paso. El PSP ya arranca (R2): R3 y R4 cargan con él el
+firmware de SDMA y del bloque gráfico.
