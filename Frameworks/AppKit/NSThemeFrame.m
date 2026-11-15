@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2006-2007 Christopher J. W. Lloyd
  * Copyright (C) 2024 Zoe Knox <zoe@ravynsoft.com>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -258,7 +259,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     } else
         O2ContextFillRect(_context, bounds);
 
-    if([[self window] styleMask] == NSBorderlessWindowMask)
+    if(!([[self window] styleMask] & NSWindowStyleMaskTitled))
         return;
 
     if([[self window] isSheet])
@@ -352,7 +353,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    buttons and title above a full-size content view. */
 -(void)_updateTitlebarOverlay {
     /* Every window with a frame (its corners), not only full-size ones. */
-    BOOL framed = [[self window] styleMask] != NSBorderlessWindowMask && ![[self window] isSheet];
+    BOOL framed = ([[self window] styleMask] & NSWindowStyleMaskTitled) && ![[self window] isSheet];
 
     if(framed && _titlebarOverlay == nil) {
         _titlebarOverlay = [[NSTitlebarOverlayView alloc] initWithFrame:[self bounds]];

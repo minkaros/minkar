@@ -2522,8 +2522,10 @@ static void sendAppearance(NSView *view,SEL selector) {
    [self postNotificationName:NSWindowDidMoveNotification];
 }
 
+/* In front even when the app is not active (an agent's panels, the
+   notification banners): ordering does not depend on the active app here. */
 -(void)orderFrontRegardless {
-   NSUnimplementedMethod();
+   [self orderWindow:NSWindowAbove relativeTo:0];
 }
 
 -(NSPoint)mouseLocationOutsideOfEventStream {
@@ -3969,21 +3971,20 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
         *right=1;
         return;
     }
-    switch(styleMask & 0x0FFF) {
-        case NSBorderlessWindowMask:
-            *top=0;
-            *left=0;
-            *bottom=0;
-            *right=0;
-            break;
-        // FIXME: tool window style?
-        default:
-            /* As the reference platform: the title bar, no other border. */
-            *top=22;
-            *left=0;
-            *bottom=0;
-            *right=0;
+    /* Without a title, no border at all, whatever the other bits (a
+       borderless non-activating panel has one of them set). */
+    if(!(styleMask & NSWindowStyleMaskTitled)) {
+        *top=0;
+        *left=0;
+        *bottom=0;
+        *right=0;
+        return;
     }
+    /* As the reference platform: the title bar, no other border. */
+    *top=22;
+    *left=0;
+    *bottom=0;
+    *right=0;
 }
 
 @implementation NSWindow (MinkarWindowExtras)
