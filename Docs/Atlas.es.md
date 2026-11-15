@@ -59,7 +59,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
-| Notificaciones | 5.6 | N0–N2 | — | N0 (tras AU3) |
+| Notificaciones | 5.6 | N0–N2 | N0 | N1 (tras AU4–AU6) |
 
 Las demás piezas de la sesión (LoginWindow, Preferencias del Sistema, el
 lenguaje visual) son puntos de la Fase 5 en [ROADMAP.es.md](ROADMAP.es.md).
@@ -833,14 +833,25 @@ Decidido el 14 nov 2026: justo después de cerrar AU3 y antes de AU4. Las
 notificaciones de las apps con sonido necesitan un sitio que las muestre; Atlas
 no tenía ninguno.
 
-- [ ] N0 — Entrega y avisos: `NSUserNotificationCenter` y
+- [x] N0 — Entrega y avisos: `NSUserNotificationCenter` y
   `NSUserNotification` (las apps de API 19 aún los usan) y `UserNotifications`
   (`UNUserNotificationCenter`, peticiones, contenido, sonidos) entregan las
   notificaciones a un servicio de la sesión, `notificationd`, por Mach;
   SystemUIServer dibuja el aviso arriba a la derecha y suena el sonido de la
   notificación (Notice por omisión, uno con nombre o ninguno). Criterio: la
   notificación de una app muestra su aviso y suena; al pulsarla, la app pasa
-  al frente con la notificación.
+  al frente con la notificación. *Hecho (15 nov 2026):* `notificationd` recibe
+  las notificaciones de las apps (una lista de propiedades binaria por su
+  interfaz MIG) y se las pasa a SystemUIServer, que se registra como quien
+  las muestra; los avisos se apilan arriba a la derecha, se van a los cinco
+  segundos, y un clic activa la app y le llega como
+  `didActivateNotification:` (o como la respuesta por defecto de
+  UserNotifications). A una app solo se le muestran sus notificaciones
+  cuando no está al frente, salvo que su delegado lo pida. Encontrado por el
+  camino: faltaba `orderFrontRegardless`, y una ventana sin borde con otro
+  bit de estilo recibía barra de título. Prueba local `notifications`: 12
+  comprobaciones, el sitio del aviso, Notice y Tink oídos, la activación
+  del clic.
 - [ ] N1 — La lista y los ajustes: las notificaciones entregadas en un panel
   desde la barra de menús, un panel Notificaciones en Preferencias del Sistema
   (permitidas, aviso o alerta, sonido, por app) y No molestar. Criterio: la

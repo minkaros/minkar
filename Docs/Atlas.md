@@ -56,7 +56,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
-| Notifications | 5.6 | N0–N2 | — | N0 (after AU3) |
+| Notifications | 5.6 | N0–N2 | N0 | N1 (after AU4–AU6) |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -785,14 +785,24 @@ by the M6 gate.
 Decided 14 Nov 2026: right after AU3 closes and before AU4. Apps' notifications
 with sound need a place that shows them; nothing in Atlas had one.
 
-- [ ] N0 — Delivery and banners: `NSUserNotificationCenter` and
+- [x] N0 — Delivery and banners: `NSUserNotificationCenter` and
   `NSUserNotification` (API 19 apps still use them) and `UserNotifications`
   (`UNUserNotificationCenter`, requests, content, sounds) hand notifications
   to a session service, `notificationd`, over Mach; SystemUIServer draws
   the banner at the top right, and the notification's sound plays (the
   default is Notice, a named sound, or none). Gate: an app's notification
   shows its banner and plays its sound; clicking it brings the app to the
-  front with the notification.
+  front with the notification. *Done (15 Nov 2026):* `notificationd` takes
+  the apps' notifications (a binary property list over its MIG interface)
+  and hands them to SystemUIServer, which checks in as their presenter;
+  banners stack at the top right, go after five seconds, and a click
+  activates the app and comes back to it as `didActivateNotification:`
+  (or UserNotifications' default response). An app is shown its own
+  notifications only when it is not in front, unless its delegate asks.
+  Found on the way: `orderFrontRegardless` was missing, and a borderless
+  window with another style bit set got a title bar. Local test
+  `notifications`: 12 checks, the banner's place, Notice and Tink heard,
+  the click's activation.
 - [ ] N1 — The list and the settings: delivered notifications in a panel
   from the menu bar, a Notifications pane in System Preferences (allowed,
   banner or alert, sound, per app) and Do Not Disturb. Gate: a muted app's
