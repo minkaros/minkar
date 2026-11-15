@@ -49,6 +49,7 @@ DRM = os.path.join(HERE, '..', '..', 'Kernel', 'Extensions', 'MinkarDRM')
 OUT = os.path.join(DRM, 'amdgpu', 'amd_dcn302_regs.h')
 PIPES = 4
 DDCS = 5
+DIGS = 6
 
 # Registers of each pipe: the name with N for its number.
 PIPE_REGS = [
@@ -65,11 +66,28 @@ PIPE_REGS = [
 ]
 # Registers of each DDC line (1 to 5): the name with DDCN for its number.
 DDC_REGS = ['DC_I2C_DDCN_SETUP', 'DC_I2C_DDCN_SPEED', 'DC_I2C_DDCN_HW_STATUS', 'DC_GPIO_DDCN_MASK']
+# Registers of each DIG (0 to 5), the stream (front end) and link (back
+# end) encoders: the name with DIGN for its number.
+DIG_REGS = ['DIGN_DIG_FE_CNTL', 'DIGN_DIG_BE_CNTL']
 # Registers of the engine as a whole.
 REGS = ['DCN_VM_FB_LOCATION_BASE', 'DCN_VM_FB_LOCATION_TOP', 'DCN_VM_FB_OFFSET',
         'DC_I2C_CONTROL', 'DC_I2C_ARBITRATION', 'DC_I2C_SW_STATUS', 'DC_I2C_TRANSACTION0',
         'DC_I2C_TRANSACTION1', 'DC_I2C_TRANSACTION2', 'DC_I2C_TRANSACTION3', 'DC_I2C_DATA',
-        'MICROSECOND_TIME_BASE_DIV']
+        'MICROSECOND_TIME_BASE_DIV',
+        'DMCUB_CNTL', 'DMCUB_SEC_CNTL', 'DMCUB_MEM_CNTL', 'DMCUB_SCRATCH0', 'DMCUB_SCRATCH7',
+        'DMCUB_TIMER_CURRENT', 'DMCUB_INBOX1_BASE_ADDRESS', 'DMCUB_INBOX1_SIZE',
+        'DMCUB_INBOX1_RPTR', 'DMCUB_INBOX1_WPTR', 'DMCUB_OUTBOX1_RPTR', 'DMCUB_OUTBOX1_WPTR',
+        'DMCUB_REGION3_CW0_BASE_ADDRESS', 'DMCUB_INST_FETCH_FAULT_ADDR',
+        'DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR',
+        'DMCUB_REGION4_OFFSET', 'DMCUB_REGION4_OFFSET_HIGH', 'DMCUB_REGION4_TOP_ADDRESS',
+        'DMCUB_REGION3_CW0_OFFSET', 'DMCUB_REGION3_CW0_OFFSET_HIGH', 'DMCUB_REGION3_CW0_BASE_ADDRESS', 'DMCUB_REGION3_CW0_TOP_ADDRESS',
+        'DMCUB_REGION3_CW1_OFFSET', 'DMCUB_REGION3_CW1_OFFSET_HIGH', 'DMCUB_REGION3_CW1_BASE_ADDRESS', 'DMCUB_REGION3_CW1_TOP_ADDRESS',
+        'DMCUB_REGION3_CW2_OFFSET', 'DMCUB_REGION3_CW2_OFFSET_HIGH', 'DMCUB_REGION3_CW2_BASE_ADDRESS', 'DMCUB_REGION3_CW2_TOP_ADDRESS',
+        'DMCUB_REGION3_CW3_OFFSET', 'DMCUB_REGION3_CW3_OFFSET_HIGH', 'DMCUB_REGION3_CW3_BASE_ADDRESS', 'DMCUB_REGION3_CW3_TOP_ADDRESS',
+        'DMCUB_REGION3_CW4_OFFSET', 'DMCUB_REGION3_CW4_OFFSET_HIGH', 'DMCUB_REGION3_CW4_BASE_ADDRESS', 'DMCUB_REGION3_CW4_TOP_ADDRESS',
+        'DMCUB_REGION3_CW5_OFFSET', 'DMCUB_REGION3_CW5_OFFSET_HIGH', 'DMCUB_REGION3_CW5_BASE_ADDRESS', 'DMCUB_REGION3_CW5_TOP_ADDRESS',
+        'DMCUB_REGION3_CW6_OFFSET', 'DMCUB_REGION3_CW6_OFFSET_HIGH', 'DMCUB_REGION3_CW6_BASE_ADDRESS', 'DMCUB_REGION3_CW6_TOP_ADDRESS',
+        'DMCUB_REGION3_CW7_OFFSET', 'DMCUB_REGION3_CW7_OFFSET_HIGH', 'DMCUB_REGION3_CW7_BASE_ADDRESS', 'DMCUB_REGION3_CW7_TOP_ADDRESS']
 # Fields, by pipe 0's register (the same in every pipe).
 FIELDS = [
     'OTG0_OTG_CONTROL__OTG_MASTER_EN',
@@ -136,6 +154,11 @@ FIELDS = [
     'DC_I2C_DATA__DC_I2C_INDEX_WRITE',
     'MICROSECOND_TIME_BASE_DIV__MICROSECOND_TIME_BASE_DIV',
     'MICROSECOND_TIME_BASE_DIV__XTAL_REF_DIV',
+    'DIG0_DIG_FE_CNTL__DIG_SOURCE_SELECT',
+    'DIG0_DIG_FE_CNTL__DIG_SYMCLK_FE_ON',
+    'DIG0_DIG_BE_CNTL__DIG_FE_SOURCE_SELECT',
+    'DIG0_DIG_BE_CNTL__DIG_MODE',
+    'DIG0_DIG_BE_CNTL__DIG_HPD_SELECT',
     'DCN_VM_FB_LOCATION_BASE__FB_BASE',
     'DCN_VM_FB_LOCATION_TOP__FB_TOP',
     'DCN_VM_FB_OFFSET__FB_OFFSET',
@@ -170,6 +193,9 @@ def run(source):
     for r in DDC_REGS:
         values.append(('ddc', r.replace('DDCN_', 'DDC_'), [index(r.replace('DDCN_', 'DDC%d_' % d))
                                                          for d in range(1, DDCS + 1)]))
+    for r in DIG_REGS:
+        values.append(('dig', r.replace('DIGN_', 'DIG_', 1), [index(r.replace('DIGN_', 'DIG%d_' % d, 1))
+                                                             for d in range(DIGS)]))
     for r in REGS:
         values.append(('reg', r, index(r)))
     for f in FIELDS:
@@ -192,7 +218,8 @@ def header(values, notice, version):
            '#define _MINKAR_AMD_DCN302_REGS_H', '',
            '#include <stdint.h>', '',
            '#define DCN302_PIPES\t%d' % PIPES,
-           '#define DCN302_DDCS\t%d' % DDCS, '',
+           '#define DCN302_DDCS\t%d' % DDCS,
+           '#define DCN302_DIGS\t%d' % DIGS, '',
            '/* A pipe\'s registers, by pipe. */']
     for kind, name, v in values:
         if kind == 'pipe':
@@ -203,6 +230,11 @@ def header(values, notice, version):
         if kind == 'ddc':
             out.append('static const uint32_t dcn302_%s[DCN302_DDCS] = { %s };'
                        % (name, ', '.join('0x%05x' % x for x in v)))
+    out += ['', '/* A DIG\'s registers, by DIG. */']
+    for kind, name, v in values:
+        if kind == 'dig':
+            out.append('static const uint32_t dcn302_%s[DCN302_DIGS] = { %s };'
+                       % (name, ', '.join('0x%05x' % x for x in v)))
     out += ['', '/* The engine\'s. */']
     for kind, name, v in values:
         if kind == 'reg':
@@ -210,7 +242,7 @@ def header(values, notice, version):
     out += ['', '/* Fields: shift and mask. */']
     for kind, name, v in values:
         if kind == 'field':
-            short = name.replace('0_', '_', 1) if re.match(r'^(OTG|HUBP|HUBPREQ)0_', name) else name
+            short = name.replace('0_', '_', 1) if re.match(r'^(OTG|HUBP|HUBPREQ|DIG)0_', name) else name
             out.append('#define DCN302_%s__SHIFT\t%d' % (short, v[0]))
             out.append('#define DCN302_%s_MASK\t0x%08x' % (short, v[1]))
     out += ['', '#endif', '']

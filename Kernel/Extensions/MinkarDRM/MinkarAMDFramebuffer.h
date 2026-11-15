@@ -49,6 +49,7 @@
 class IOTimerEventSource;
 
 struct minkar_atom;
+struct minkar_atom_fw_transmitter_args;
 
 class MinkarAMDFramebuffer : public IOFramebuffer
 {
@@ -74,6 +75,10 @@ public:
 	virtual IOReturn setDisplayMode(IODisplayModeID displayMode, IOIndex depth) APPLE_KEXT_OVERRIDE;
 	virtual IODeviceMemory *getApertureRange(IOPixelAperture aperture) APPLE_KEXT_OVERRIDE;
 	virtual bool isConsoleDevice(void) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn setAttribute(IOSelect attribute, uintptr_t value) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn setProperties(OSObject *properties) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn powerStateDidChangeTo(IOPMPowerFlags capabilities, unsigned long state,
+	    IOService *whom) APPLE_KEXT_OVERRIDE;
 	virtual bool hasDDCConnect(IOIndex connectIndex) APPLE_KEXT_OVERRIDE;
 	virtual IOReturn getAttributeForConnection(IOIndex connectIndex, IOSelect attribute,
 	    uintptr_t *value) APPLE_KEXT_OVERRIDE;
@@ -145,6 +150,12 @@ private:
 	void showPitchPatternDCN();
 	bool readEDIDDCN(unsigned line, uint8_t *edid, unsigned *bytes);
 	void readSinkDCN();
+	void describeOutputDCN();
+	void describeDMCUB();
+	bool dmcubSend(const uint32_t cmd[16]);
+	bool dmcubTransmitter(const struct minkar_atom_fw_transmitter_args *t);
+	uint32_t pixelClockDCN();
+	IOReturn setDisplayPowerDCN(bool on);
 	void flipTestDCN();
 	const Mode *modeFor(IODisplayModeID id);
 	UInt32 pitchFor(UInt32 width) { return (width + 63) & ~63U; }
@@ -178,6 +189,18 @@ private:
 	 * of itself over AUX: its DPCD and its EDID. */
 	int			fConnector;	/* -1: not found */
 	int			fDDC;		/* DCN: the display's DDC line, -1 none */
+	/* DCN: the output (-1: not found), from its registers and the VBIOS. */
+	int			fDIGFE, fDIGBE, fPHY;
+	unsigned		fDIGMode, fHPDSelect;
+	uint8_t			fConnectorID;
+	bool			fDisplayOn;
+	bool			fDPMS;		/* follow the wrangler (minkaramd_dpms) */
+	uint64_t		fDMCUBMail;	/* its mailbox in VRAM; ~0: none */
+	/* DCN: the display wrangler, whose power the display follows. */
+	IOService *		fWrangler;
+	IONotifier *		fWranglerNotifier;
+	static bool wranglerPublished(void *target, void *ref, IOService *wrangler,
+	    IONotifier *notifier);
 	uint8_t			fAUX, fHPD;
 	uint16_t		fEncoder;
 	uint8_t			fDPCD[16];

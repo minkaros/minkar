@@ -114,6 +114,27 @@ struct minkar_atom_timing {
 };
 
 /* The DIG front end Linux picks for an encoder (dce_v6_0_pick_dig_encoder). */
+/* The newer format's tables (Navi 23; atom_glue_fw.c). A display path:
+ * its connector and encoder objects, the DDC's I2C id (0: none) and the
+ * hot-plug pin (0xff: none). */
+struct minkar_atom_fw_path {
+	uint16_t connector, encoder, device_tag;
+	uint8_t i2c_id, hpd_pin;
+};
+int minkar_atom_fw_paths(struct minkar_atom *a, struct minkar_atom_fw_path *out, int max);
+/* DIG1TransmitterControl v1.6: action 0 disables, 1 enables; digmode 3 is
+ * HDMI (atom_encode_mode_def). */
+struct minkar_atom_fw_transmitter_args {
+	uint8_t phy, action, digmode, lanes;
+	uint32_t symclk_10khz;
+	uint8_t hpdsel, digfe_sel, connobj_id;
+};
+int minkar_atom_fw_transmitter(struct minkar_atom *a, const struct minkar_atom_fw_transmitter_args *t);
+const uint8_t *minkar_atom_bios(struct minkar_atom *a);
+int minkar_atom_data_header(struct minkar_atom *a, int index, uint16_t *size, uint8_t *frev,
+    uint8_t *crev, uint16_t *offset);
+int minkar_atom_cmd_header(struct minkar_atom *a, int index, uint8_t *frev, uint8_t *crev);
+
 int minkar_atom_dig_for(const struct minkar_atom_output *o);
 int minkar_atom_crtc_blank(struct minkar_atom *a, int crtc, int blank);
 int minkar_atom_crtc_enable(struct minkar_atom *a, int crtc, int enable);

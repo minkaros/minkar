@@ -65,6 +65,9 @@ void MinkarAMDUnmapRegisters(struct MinkarAMDRegs *regs);
 /* By dword index, through the window or MM_INDEX/MM_DATA. */
 uint32_t MinkarAMDRead(struct MinkarAMDRegs *regs, uint32_t reg);
 void MinkarAMDWrite(struct MinkarAMDRegs *regs, uint32_t reg, uint32_t value);
+/* VRAM by offset through the same index pair, beyond the CPU's window. */
+void MinkarAMDVRAMAccess(struct MinkarAMDRegs *regs, uint64_t offset, uint32_t *data,
+    unsigned dwords, bool write);
 
 /*
  * A copy of the VBIOS: the one the firmware read at boot (loader patch

@@ -39,7 +39,11 @@
 #include <kern/clock.h>
 #include <sys/errno.h>
 #include "MinkarAMDFramebuffer.h"
+#include <libkern/c++/OSArray.h>
+#include <libkern/c++/OSDictionary.h>
+#include <libkern/c++/OSNumber.h>
 #include "amd_dcn302_regs.h"
+#include "atom_glue.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDFramebuffer: " fmt "\n", ##__VA_ARGS__)
 
@@ -273,4 +277,214 @@ MinkarAMDFramebuffer::readSinkDCN()
 	LOG("EDID on DDC%d: %u bytes, vendor %c%c%c, product 0x%04x", fDDC + 1, fEDIDBytes,
 	    '@' + ((fEDID[8] >> 2) & 0x1f), '@' + (((fEDID[8] & 3) << 3) | (fEDID[9] >> 5)),
 	    '@' + (fEDID[9] & 0x1f), fEDID[10] | (fEDID[11] << 8));
+}
+
+/* ---- The output ------------------------------------------------------ */
+
+/*
+ * The output that carries the pipe: the stream encoder (DIG front end)
+ * fed by its timing generator, the link encoder (back end) fed by that,
+ * and the VBIOS's display path on the DDC line that answered, which names
+ * the transmitter (PHY) and the connector. Published as MinkarDisplayOutput.
+ */
+void
+MinkarAMDFramebuffer::describeOutputDCN()
+{
+	struct minkar_atom_fw_path paths[8];
+	int n = fAtom != NULL ? minkar_atom_fw_paths(fAtom, paths, 8) : -1;
+
+	fDIGFE = fDIGBE = fPHY = -1;
+	fDIGMode = fHPDSelect = 0;
+	fConnectorID = 0;
+	for (unsigned d = 0; d < DCN302_DIGS; d++) {
+		uint32_t fe = readReg(dcn302_DIG_DIG_FE_CNTL[d]);
+		if (GET(fe, DIG_DIG_FE_CNTL, DIG_SYMCLK_FE_ON) &&
+		    GET(fe, DIG_DIG_FE_CNTL, DIG_SOURCE_SELECT) == fCRTC) {
+			fDIGFE = (int)d;
+			break;
+		}
+	}
+	for (unsigned d = 0; fDIGFE >= 0 && d < DCN302_DIGS; d++) {
+		uint32_t be = readReg(dcn302_DIG_DIG_BE_CNTL[d]);
+		if (GET(be, DIG_DIG_BE_CNTL, DIG_FE_SOURCE_SELECT) & (1U << fDIGFE)) {
+			fDIGBE = (int)d;
+			fDIGMode = GET(be, DIG_DIG_BE_CNTL, DIG_MODE);
+			fHPDSelect = GET(be, DIG_DIG_BE_CNTL, DIG_HPD_SELECT);
+			break;
+		}
+	}
+
+	OSArray *list = OSArray::withCapacity(n > 0 ? (unsigned)n : 1);
+	for (int i = 0; i < n; i++) {
+		const struct minkar_atom_fw_path &p = paths[i];
+		OSDictionary *d = OSDictionary::withCapacity(6);
+		if (d == NULL)
+			continue;
+		const struct { const char *key; unsigned value; } v[] = {
+			{ "Connector", p.connector }, { "Encoder", p.encoder },
+			{ "DeviceTag", p.device_tag }, { "I2CID", p.i2c_id }, { "HPDPin", p.hpd_pin },
+		};
+		for (unsigned k = 0; k < sizeof(v) / sizeof(v[0]); k++) {
+			OSNumber *num = OSNumber::withNumber(v[k].value, 32);
+			if (num != NULL) {
+				d->setObject(v[k].key, num);
+				num->release();
+			}
+		}
+		if (list != NULL)
+			list->setObject(d);
+		d->release();
+		LOG("VBIOS path %d: connector 0x%04x, encoder 0x%04x, device 0x%04x, I2C 0x%02x, HPD pin %u",
+		    i, p.connector, p.encoder, p.device_tag, p.i2c_id, p.hpd_pin);
+		/* The display's: its DDC is the line that answered (the I2C id's
+		 * low bits, when the hardware engine serves it). */
+		if (fDDC >= 0 && (p.i2c_id & 0x80) && (p.i2c_id & 0x0F) == (unsigned)fDDC &&
+		    ((p.encoder >> 12) & 0xF) == 2 /* GRAPH_OBJECT_TYPE_ENCODER */) {
+			unsigned id = p.encoder & 0xFF, link = (p.encoder >> 8) & 0x7;
+			int base = id == 0x1E ? 0 : id == 0x20 ? 2 : id == 0x21 ? 4 : -1;
+			if (base >= 0 && (link == 1 || link == 2)) {
+				fPHY = base + (int)link - 1;
+				fConnectorID = (uint8_t)(p.connector & 0xFF);
+			}
+		}
+	}
+	if (list != NULL) {
+		setProperty("MinkarVBIOSDisplayPaths", list);
+		list->release();
+	}
+	/* The display's command tables the VBIOS has, by name: their content
+	 * revision (absent: the display microcontroller runs it, or none). */
+	static const struct { const char *name; int index; } tables[] = {
+		{ "digxencodercontrol", 4 }, { "setpixelclock", 12 }, { "enabledisppowergating", 13 },
+		{ "blankcrtc", 34 }, { "enablecrtc", 35 }, { "selectcrtc_source", 42 },
+		{ "setdceclock", 46 }, { "setcrtc_usingdtdtiming", 49 },
+		{ "processi2cchanneltransaction", 54 }, { "dig1transmittercontrol", 76 },
+		{ "processauxchanneltransaction", 78 },
+	};
+	OSDictionary *td = OSDictionary::withCapacity(sizeof(tables) / sizeof(tables[0]));
+	for (unsigned k = 0; td != NULL && fAtom != NULL && k < sizeof(tables) / sizeof(tables[0]); k++) {
+		uint8_t frev, crev;
+		if (!minkar_atom_cmd_header(fAtom, tables[k].index, &frev, &crev))
+			continue;
+		OSNumber *num = OSNumber::withNumber((unsigned long long)(frev << 8 | crev), 32);
+		if (num != NULL) {
+			td->setObject(tables[k].name, num);
+			num->release();
+		}
+	}
+	if (td != NULL) {
+		setProperty("MinkarVBIOSCommandTables", td);
+		td->release();
+	}
+	/* The display microcontroller, as the firmware left it: whether it
+	 * runs (its timer moves) and its mailbox. */
+	static const struct { const char *name; uint32_t reg; } dmcub[] = {
+		{ "CNTL", dcn302_DMCUB_CNTL }, { "SEC_CNTL", dcn302_DMCUB_SEC_CNTL },
+		{ "MEM_CNTL", dcn302_DMCUB_MEM_CNTL }, { "SCRATCH0", dcn302_DMCUB_SCRATCH0 },
+		{ "SCRATCH7", dcn302_DMCUB_SCRATCH7 }, { "TIMER_CURRENT", dcn302_DMCUB_TIMER_CURRENT },
+		{ "INBOX1_BASE_ADDRESS", dcn302_DMCUB_INBOX1_BASE_ADDRESS },
+		{ "INBOX1_SIZE", dcn302_DMCUB_INBOX1_SIZE }, { "INBOX1_RPTR", dcn302_DMCUB_INBOX1_RPTR },
+		{ "INBOX1_WPTR", dcn302_DMCUB_INBOX1_WPTR }, { "OUTBOX1_RPTR", dcn302_DMCUB_OUTBOX1_RPTR },
+		{ "OUTBOX1_WPTR", dcn302_DMCUB_OUTBOX1_WPTR },
+		{ "REGION3_CW0_BASE_ADDRESS", dcn302_DMCUB_REGION3_CW0_BASE_ADDRESS },
+		{ "INST_FETCH_FAULT_ADDR", dcn302_DMCUB_INST_FETCH_FAULT_ADDR },
+		{ "UNDEFINED_ADDRESS_FAULT_ADDR", dcn302_DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR },
+	};
+	OSDictionary *md = OSDictionary::withCapacity(sizeof(dmcub) / sizeof(dmcub[0]) + 1);
+	uint32_t t0 = readReg(dcn302_DMCUB_TIMER_CURRENT);
+	IODelay(100);
+	uint32_t t1 = readReg(dcn302_DMCUB_TIMER_CURRENT);
+	for (unsigned k = 0; md != NULL && k < sizeof(dmcub) / sizeof(dmcub[0]); k++) {
+		OSNumber *num = OSNumber::withNumber(readReg(dmcub[k].reg), 32);
+		if (num != NULL) {
+			md->setObject(dmcub[k].name, num);
+			num->release();
+		}
+	}
+	if (md != NULL) {
+		md->setObject("Running", t1 != t0 ? kOSBooleanTrue : kOSBooleanFalse);
+		setProperty("MinkarDMCUB", md);
+		md->release();
+	}
+	LOG("display microcontroller: CNTL 0x%08x, SCRATCH0 0x%08x, timer %s", readReg(dcn302_DMCUB_CNTL),
+	    readReg(dcn302_DMCUB_SCRATCH0), t1 != t0 ? "running" : "stopped");
+	OSDictionary *d = OSDictionary::withCapacity(6);
+	if (d != NULL) {
+		const struct { const char *key; int value; } v[] = {
+			{ "DIGFrontEnd", fDIGFE }, { "DIGBackEnd", fDIGBE }, { "DIGMode", (int)fDIGMode },
+			{ "HPDSelect", (int)fHPDSelect }, { "PHY", fPHY }, { "ConnectorID", fConnectorID },
+		};
+		for (unsigned k = 0; k < sizeof(v) / sizeof(v[0]); k++) {
+			OSNumber *num = OSNumber::withNumber((unsigned long long)(long long)v[k].value, 32);
+			if (num != NULL) {
+				d->setObject(v[k].key, num);
+				num->release();
+			}
+		}
+		setProperty("MinkarDisplayOutput", d);
+		d->release();
+	}
+	LOG("output: DIG front end %d, back end %d (mode %u, HPD %u), PHY %d, connector 0x%02x",
+	    fDIGFE, fDIGBE, fDIGMode, fHPDSelect, fPHY, fConnectorID);
+}
+
+/* The pixel clock of the mode on screen, from the EDID's detailed timing
+ * of the timing generator's totals; 0 if none matches. kHz. */
+uint32_t
+MinkarAMDFramebuffer::pixelClockDCN()
+{
+	uint32_t htotal = (readReg(dcn302_OTG_OTG_H_TOTAL[fCRTC]) & DCN302_OTG_OTG_H_TOTAL__OTG_H_TOTAL_MASK) + 1;
+	uint32_t vtotal = (readReg(dcn302_OTG_OTG_V_TOTAL[fCRTC]) & DCN302_OTG_OTG_V_TOTAL__OTG_V_TOTAL_MASK) + 1;
+	struct edid_mode modes[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+
+	for (unsigned i = 0; i < n; i++) {
+		const struct edid_mode &m = modes[i];
+		if (m.hactive == fModes[0].width && m.vactive == fModes[0].height &&
+		    (uint32_t)(m.hactive + m.hfront + m.hsync + m.hback) == htotal &&
+		    (uint32_t)(m.vactive + m.vfront + m.vsync + m.vback) == vtotal)
+			return m.clock;
+	}
+	return 0;
+}
+
+/*
+ * The display's power: its transmitter turned off (an HDMI or DVI sink
+ * sees no signal and sleeps) or on again at the mode's pixel clock,
+ * through the VBIOS's DIG1TransmitterControl. DisplayPort waits for its
+ * link training.
+ */
+IOReturn
+MinkarAMDFramebuffer::setDisplayPowerDCN(bool on)
+{
+	if (fPHY < 0 || fDIGFE < 0)
+		return kIOReturnUnsupported;
+	if (fDIGMode != 2 /* DIG_MODE: HDMI */ && fDIGMode != 1 /* DVI */)
+		return kIOReturnUnsupported;
+	if (on == fDisplayOn)
+		return kIOReturnSuccess;
+	uint32_t clock = pixelClockDCN();
+	if (on && clock == 0)
+		return kIOReturnNotReady;
+	struct minkar_atom_fw_transmitter_args t;
+	bzero(&t, sizeof(t));
+	t.phy = (uint8_t)fPHY;
+	t.action = on ? 1 : 0;		/* ATOM_TRANSMITTER_ACTION_ENABLE, DISABLE */
+	t.digmode = fDIGMode == 2 ? 3 : 2;	/* ATOM_ENCODER_MODE_HDMI, DVI */
+	t.lanes = 4;
+	t.symclk_10khz = clock / 10;
+	t.hpdsel = (uint8_t)(fHPDSelect + 1);
+	t.digfe_sel = (uint8_t)(1U << fDIGFE);
+	t.connobj_id = fConnectorID;
+	/* The VBIOS's table if it has one; else the microcontroller, which
+	 * runs it for the VBIOS on DCN 3. */
+	int rc = minkar_atom_fw_transmitter(fAtom, &t);
+	if (rc == -1)
+		rc = dmcubTransmitter(&t) ? 0 : -3;
+	LOG("display %s: transmitter %d, %u kHz: %d", on ? "on" : "off", fPHY, clock, rc);
+	if (rc != 0)
+		return kIOReturnIOError;
+	fDisplayOn = on;
+	setProperty("MinkarDisplayPowered", on);
+	return kIOReturnSuccess;
 }

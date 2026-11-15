@@ -456,3 +456,24 @@ minkar_atom_close(struct minkar_atom *a)
 	amdgpu_atom_destroy(a->ctx);
 	kfree(a);
 }
+
+/* For atom_glue_fw.c, which takes the newer format's headers in place of
+ * atombios.h: the image, and the tables' headers by index. */
+const uint8_t *
+minkar_atom_bios(struct minkar_atom *a)
+{
+	return a != NULL ? (const uint8_t *)a->ctx->bios : NULL;
+}
+
+int
+minkar_atom_data_header(struct minkar_atom *a, int index, uint16_t *size, uint8_t *frev,
+    uint8_t *crev, uint16_t *offset)
+{
+	return a != NULL && amdgpu_atom_parse_data_header(a->ctx, index, size, frev, crev, offset);
+}
+
+int
+minkar_atom_cmd_header(struct minkar_atom *a, int index, uint8_t *frev, uint8_t *crev)
+{
+	return a != NULL && amdgpu_atom_parse_cmd_header(a->ctx, index, frev, crev);
+}

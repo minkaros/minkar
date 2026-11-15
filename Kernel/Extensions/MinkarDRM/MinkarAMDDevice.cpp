@@ -37,6 +37,7 @@
 /* Register dword indices (asic_reg/bif). */
 #define mmMM_INDEX		0x0000
 #define mmMM_DATA		0x0001
+#define mmMM_INDEX_HI		0x0006
 
 /* An expansion ROM is at most this big (PCI: a 16-bit count of 512-byte
  * blocks; AMD's are 64 KB or 128 KB). */
@@ -146,6 +147,25 @@ MinkarAMDWrite(struct MinkarAMDRegs *regs, uint32_t reg, uint32_t value)
 	IOLockLock(regs->indexLock);
 	OSWriteLittleInt32(regs->base, mmMM_INDEX * 4, reg * 4);
 	OSWriteLittleInt32(regs->base, mmMM_DATA * 4, value);
+	IOLockUnlock(regs->indexLock);
+}
+
+/* VRAM through MM_INDEX/MM_DATA (amdgpu_device_mm_access): any of it,
+ * past the CPU's window too, a dword at a time. */
+void
+MinkarAMDVRAMAccess(struct MinkarAMDRegs *regs, uint64_t offset, uint32_t *data, unsigned dwords,
+    bool write)
+{
+	IOLockLock(regs->indexLock);
+	for (unsigned i = 0; i < dwords; i++, offset += 4) {
+		OSWriteLittleInt32(regs->base, mmMM_INDEX * 4, (uint32_t)offset | 0x80000000);
+		OSWriteLittleInt32(regs->base, mmMM_INDEX_HI * 4, (uint32_t)(offset >> 31));
+		if (write)
+			OSWriteLittleInt32(regs->base, mmMM_DATA * 4, data[i]);
+		else
+			data[i] = OSReadLittleInt32(regs->base, mmMM_DATA * 4);
+	}
+	OSWriteLittleInt32(regs->base, mmMM_INDEX_HI * 4, 0);
 	IOLockUnlock(regs->indexLock);
 }
 

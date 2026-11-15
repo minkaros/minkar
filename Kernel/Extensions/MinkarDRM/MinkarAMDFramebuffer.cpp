@@ -30,6 +30,7 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOPlatformExpert.h>
 #include <IOKit/IOTimerEventSource.h>
+#include <IOKit/IOUserClient.h>
 #include <kern/clock.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDFramebuffer.h"
@@ -1002,13 +1003,24 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	const char *source = "none";
 	if (fDCN) {
 		readSinkDCN();
+		/* The VBIOS, for the display path and its transmitter. */
+		if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
+			fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
+		describeOutputDCN();
+		describeDMCUB();
+		fDisplayOn = true;
+		/* The display sleeps with the system's display sleep;
+		 * "minkaramd_dpms=0" keeps it lit. */
+		UInt32 dpms = 1;
+		PE_parse_boot_argn("minkaramd_dpms", &dpms, sizeof(dpms));
+		fDPMS = dpms != 0;
 		LOG("DCN 3.0.2: the native mode only");
 	}
 	else if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
 		fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
-	if (fAtom != NULL)
+	if (!fDCN && fAtom != NULL)
 		readSink();
-	if (fAtom != NULL && minkar_atom_has_table(fAtom, MINKAR_ATOM_ENABLE_SCALER) &&
+	if (!fDCN && fAtom != NULL && minkar_atom_has_table(fAtom, MINKAR_ATOM_ENABLE_SCALER) &&
 	    minkar_atom_has_table(fAtom, MINKAR_ATOM_SET_CRTC_OVERSCAN) &&
 	    minkar_atom_has_table(fAtom, MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER)) {
 		addTimedModes();
@@ -1070,6 +1082,12 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	setupForCurrentConfig();
 	registerService();
 
+	/* DCN: the display sleeps and wakes with the display wrangler (the
+	 * framebuffer's own power states are not driven here). */
+	if (fDCN && fDPMS)
+		fWranglerNotifier = addMatchingNotification(gIOFirstPublishNotification,
+		    serviceMatching("IODisplayWrangler"), &MinkarAMDFramebuffer::wranglerPublished, this);
+
 	/* Watch the display's HPD line (an HDMI or DVI sink: DisplayPort
 	 * would need link training after a plug), on a work loop of its own:
 	 * the framebuffer's comes later, when it is opened. */
@@ -1090,9 +1108,40 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	return true;
 }
 
+bool
+MinkarAMDFramebuffer::wranglerPublished(void *target, void *, IOService *wrangler, IONotifier *)
+{
+	MinkarAMDFramebuffer *self = (MinkarAMDFramebuffer *)target;
+
+	if (self->fWrangler != NULL)
+		return true;
+	wrangler->retain();
+	self->fWrangler = wrangler;
+	wrangler->registerInterestedDriver(self);
+	LOG("the display follows the display wrangler's power");
+	return true;
+}
+
+/* The wrangler's states: 4 on, 3 dimmed, below that dark. */
+IOReturn
+MinkarAMDFramebuffer::powerStateDidChangeTo(IOPMPowerFlags capabilities, unsigned long state,
+    IOService *whom)
+{
+	(void)capabilities;
+	if (whom != NULL && whom == fWrangler && fDPMS)
+		setDisplayPowerDCN(state >= 3);
+	return IOPMAckImplied;
+}
+
 void
 MinkarAMDFramebuffer::free()
 {
+	if (fWranglerNotifier != NULL)
+		fWranglerNotifier->remove();
+	if (fWrangler != NULL) {
+		fWrangler->deRegisterInterestedDriver(this);
+		OSSafeReleaseNULL(fWrangler);
+	}
 	if (fHPDTimer != NULL) {
 		fHPDTimer->cancelTimeout();
 		if (fHPDTimer->getWorkLoop() != NULL)
@@ -1263,4 +1312,28 @@ bool
 MinkarAMDFramebuffer::isConsoleDevice(void)
 {
 	return true;
+}
+
+/* The display's power, as the display wrangler sets it (0: asleep). */
+IOReturn
+MinkarAMDFramebuffer::setAttribute(IOSelect attribute, uintptr_t value)
+{
+	if (fDCN && fDPMS && attribute == kIOPowerAttribute)
+		setDisplayPowerDCN(value != 0);
+	return super::setAttribute(attribute, value);
+}
+
+/* "MinkarDisplayPower" (a boolean, administrators only): the display's
+ * power by hand, for bring-up. */
+IOReturn
+MinkarAMDFramebuffer::setProperties(OSObject *properties)
+{
+	OSDictionary *d = OSDynamicCast(OSDictionary, properties);
+	OSBoolean *power = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarDisplayPower")) : NULL;
+
+	if (power == NULL)
+		return super::setProperties(properties);
+	if (IOUserClient::clientHasPrivilege(current_task(), kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+		return kIOReturnNotPrivileged;
+	return fDCN ? setDisplayPowerDCN(power->isTrue()) : kIOReturnUnsupported;
 }
