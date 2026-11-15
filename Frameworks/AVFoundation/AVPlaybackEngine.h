@@ -39,5 +39,10 @@
 - (CVPixelBufferRef)copyFrameForTime:(CMTime)time frameTime:(CMTime *)frameTime CF_RETURNS_RETAINED;
 /* The frame due at the time without letting any go. */
 - (CVPixelBufferRef)copyFrameAtTime:(CMTime)time frameTime:(CMTime *)frameTime CF_RETURNS_RETAINED;
+/* The audio's output channels; with metering, each channel's peak and
+   mean square since the last call (both 0..1), taken and reset. */
+@property (readonly) int audioChannels;
+@property (nonatomic) BOOL metering;
+- (void)takeLevelsPeak:(float *)peak meanSquare:(float *)meanSquare count:(int)count;
 - (void)invalidate;
 @end

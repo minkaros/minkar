@@ -18,5 +18,6 @@
 #import <AVFoundation/AVPlayerItem.h>
 #import <AVFoundation/AVPlayer.h>
 #import <AVFoundation/AVPlayerLayer.h>
+#import <AVFoundation/AVAudioPlayer.h>
 #import <AVFoundation/AVSpeech.h>
 #import <AVFoundation/AVSampleBufferDisplayLayer.h>

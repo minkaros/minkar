@@ -56,6 +56,11 @@ static double hostSeconds(void) {
     double _lastAudioClock, _lastAudioClockHost;
     BOOL _audioClockDone;		/* the last samples heard: the host clock goes on */
 
+    /* Levels, while metering. */
+    float _peak[2];
+    double _sumSquares[2];
+    long _levelFrames;
+
     /* The clock. */
     float _rate;
     double _anchorTime, _anchorHost;
@@ -303,6 +308,8 @@ static void audioCallback(void *refcon, AudioQueueRef queue, AudioQueueBufferRef
                               CMTimeMake((int64_t)(_pendingOffset / bpf), _sampleRate));
         size_t n = MIN(length - _pendingOffset, (size_t)(cap - bytes));
         CMBlockBufferCopyDataBytes(block, _pendingOffset, n, (char *)buffer->mAudioData + bytes);
+        if (_metering)
+            [self _measure:(const float *)((char *)buffer->mAudioData + bytes) frames:n / bpf];
         bytes += (UInt32)n;
         _pendingOffset += n;
         if (_pendingOffset >= length) {
@@ -335,6 +342,36 @@ static void audioCallback(void *refcon, AudioQueueRef queue, AudioQueueBufferRef
         return;
     }
     [_freeBuffers addObject:[NSValue valueWithPointer:buffer]];
+    [_lock unlock];
+}
+
+- (void)_measure:(const float *)samples frames:(size_t)frames {
+    [_lock lock];
+    for (size_t i = 0; i < frames; i++)
+        for (int c = 0; c < _channels; c++) {
+            float v = fabsf(samples[i * _channels + c]);
+            if (v > _peak[c])
+                _peak[c] = v;
+            _sumSquares[c] += (double)v * v;
+        }
+    _levelFrames += frames;
+    [_lock unlock];
+}
+
+- (int)audioChannels {
+    return _hasAudio ? _channels : 0;
+}
+
+- (void)takeLevelsPeak:(float *)peak meanSquare:(float *)meanSquare count:(int)count {
+    [_lock lock];
+    for (int c = 0; c < count; c++) {
+        int k = c < _channels ? c : _channels - 1;
+        peak[c] = k >= 0 ? _peak[k] : 0;
+        meanSquare[c] = k >= 0 && _levelFrames > 0 ? (float)(_sumSquares[k] / _levelFrames) : 0;
+    }
+    memset(_peak, 0, sizeof(_peak));
+    memset(_sumSquares, 0, sizeof(_sumSquares));
+    _levelFrames = 0;
     [_lock unlock];
 }
 
