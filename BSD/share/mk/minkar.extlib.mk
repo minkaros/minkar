@@ -14,7 +14,10 @@
 #   EXTLIB_SOURCE       a source tree already in the repository, instead of
 #                       a fetched one (no manifest)
 #   EXTLIB_PATCHES      patches in ${EXTLIB_DIR}/patches, applied in order
-#   EXTLIB_SYSTEM       meson, cmake or autotools (required)
+#   EXTLIB_SYSTEM       meson, cmake, autotools or configure (required;
+#                       configure: a project's own configure script, which
+#                       takes no --host or --build, as FFmpeg's: given
+#                       --prefix, --libdir and EXTLIB_OPTIONS only)
 #   EXTLIB_OPTIONS      options for its configure step
 #   EXTLIB_TARGETS      what to build (default: everything)
 #   EXTLIB_STAGE_CMD    how to install into ${STAGE} (default: the whole
@@ -25,9 +28,12 @@
 #   EXTLIB_PUBLIC       yes: a library the reference platform has in
 #                       /usr/lib too (libxml2, libxslt, Expat), installed
 #                       there with its headers and pkg-config file in the
-#                       SDK's usr. Otherwise it is WebKit's alone: in
+#                       SDK's usr. Otherwise it is private: WebKit's, in
 #                       /usr/lib/webkit, its headers and pkg-config file in
 #                       the SDK's usr/local/webkit, out of the public API
+#   EXTLIB_PRIVATE      whose a private library is: webkit (the default) or
+#                       media (the decoders Minkar's media frameworks use,
+#                       in /usr/lib/media and the SDK's usr/local/media)
 #   EXTLIB_MODULES      loadable modules to install, relative to the staging
 #                       prefix (lib/gio/modules/libgioopenssl.so), at the
 #                       same place in the sysroot
@@ -95,10 +101,16 @@ EXTLIB_SUBPROJECTS_DIR ?= subprojects
 # directory (a test build in Tests/W0 names it).
 EXTLIB_DIR ?=		${.CURDIR}
 
-# Where a library goes: /usr/lib and the SDK's usr (public), or WebKit's
-# private /usr/lib/webkit and usr/local/webkit.
-PRIVATE_LIB =		/usr/lib/webkit
-PRIVATE_DEV =		/usr/local/webkit
+# Where a library goes: /usr/lib and the SDK's usr (public), or a private
+# place: WebKit's /usr/lib/webkit and usr/local/webkit, or the media
+# frameworks' /usr/lib/media and usr/local/media.
+EXTLIB_PRIVATE ?=	webkit
+.if ${EXTLIB_PRIVATE} != "webkit" && ${EXTLIB_PRIVATE} != "media"
+.error minkar.extlib.mk: EXTLIB_PRIVATE ${EXTLIB_PRIVATE}: webkit or media
+.endif
+PRIVATE_LIB =		/usr/lib/${EXTLIB_PRIVATE}
+PRIVATE_DEV =		/usr/local/${EXTLIB_PRIVATE}
+MEDIA_DEV =		/usr/local/media
 .if defined(EXTLIB_PUBLIC) && ${EXTLIB_PUBLIC} == "yes"
 LIB_DEST =		/usr/lib
 DEV_DEST =		/usr
@@ -146,7 +158,7 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
 		PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
-		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig:${SDK}${PRIVATE_DEV}/lib/pkgconfig \
+		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig:${SDK}${PRIVATE_DEV}/lib/pkgconfig:${SDK}${MEDIA_DEV}/lib/pkgconfig \
 		PKG_CONFIG_PATH= \
 		PKG_CONFIG_SYSROOT_DIR=${SDK} PKG_CONFIG_FDO_SYSROOT_RULES=1 ${EXTLIB_ENV}
 .if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
@@ -308,8 +320,15 @@ SETUP_CMD =	mkdir -p ${BUILD} && cd ${BUILD} && ${AUTOTOOLS_ENV} ${EXTLIB_TOP}/c
 		--prefix=/usr --libdir=/usr/lib --enable-shared --disable-static ${EXTLIB_OPTIONS}
 BUILD_CMD =	gmake -C ${BUILD} ${EXTLIB_TARGETS}
 STAGE_CMD =	gmake -C ${BUILD} DESTDIR=${STAGE} install
+.elif ${EXTLIB_SYSTEM} == "configure"
+# The project's own script: the compilers and the target in EXTLIB_OPTIONS.
+SETUP_DEPS =
+SETUP_CMD =	mkdir -p ${BUILD} && cd ${BUILD} && ${EXTLIB_TOP}/configure \
+		--prefix=/usr --libdir=/usr/lib ${EXTLIB_OPTIONS}
+BUILD_CMD =	gmake -C ${BUILD} -j${.MAKE.JOBS:U1} ${EXTLIB_TARGETS}
+STAGE_CMD =	gmake -C ${BUILD} DESTDIR=${STAGE} install
 .else
-.error minkar.extlib.mk: EXTLIB_SYSTEM ${EXTLIB_SYSTEM}: meson, cmake or autotools
+.error minkar.extlib.mk: EXTLIB_SYSTEM ${EXTLIB_SYSTEM}: meson, cmake, autotools or configure
 .endif
 .if ${EXTLIB_SYSTEM} == "autotools" && !(defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes")
 BUILD_CMD =	gmake -C ${BUILD} -j${.MAKE.JOBS:U1} ${EXTLIB_TARGETS}
