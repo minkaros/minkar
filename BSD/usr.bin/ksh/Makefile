@@ -67,6 +67,9 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	    echo "ksh: probes with no recorded result (make record with the dev VM up):"; \
 	    sort -u ${.OBJDIR}/kx/missing | head -20; exit 1; fi
 	rsync -cL ${B}/arch/darwin.i386-64/bin/ksh ${.TARGET}
+	# rsync -c leaves an unchanged file's date: without this, a Makefile
+	# newer than the last ksh that differed rebuilds it every time.
+	touch ${.TARGET}
 
 record: .PHONY
 	rm -f ${.CURDIR}/iffe-results ${.OBJDIR}/ksh
