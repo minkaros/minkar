@@ -845,7 +845,7 @@ MinkarAMDFramebuffer::addTimedModes()
 	unsigned rates[kMaxTimings];
 	int firmware = -1;
 
-	if (fDCN ? (fDIGMode != 2 && fDIGMode != 1) : (fConnector < 0 || fDPCD[0] != 0))
+	if (fDCN ? (fDIGMode != 2 && fDIGMode != 3) : (fConnector < 0 || fDPCD[0] != 0))
 		return;		/* DisplayPort needs link training: not yet */
 	if (n == 0)
 		return;
@@ -1059,6 +1059,7 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		fPixelKHz = pixelClockDCN();
 		if (fPixelKHz != 0 && fDMCUBMail != ~0ULL)
 			addTimedModes();
+		setupAudioDCN();
 		/* The display sleeps with the system's display sleep;
 		 * "minkaramd_dpms=0" keeps it lit. */
 		UInt32 dpms = 1;
@@ -1143,7 +1144,7 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	/* Watch the display's HPD line (an HDMI or DVI sink: DisplayPort
 	 * would need link training after a plug), on a work loop of its own:
 	 * the framebuffer's comes later, when it is opened. */
-	if (fDCN ? (fDDC >= 0 && fPHY >= 0 && (fDIGMode == 2 || fDIGMode == 1)) :
+	if (fDCN ? (fDDC >= 0 && fPHY >= 0 && (fDIGMode == 2 || fDIGMode == 3)) :
 	    (fConnector >= 0 && fDPCD[0] == 0)) {
 		fHPDLoop = IOWorkLoop::workLoop();
 		fHPDTimer = fHPDLoop != NULL ?

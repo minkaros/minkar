@@ -134,6 +134,9 @@ struct HDAResponse {
 #define HDA_VERB_SET_EAPD               0x70C
 #define  HDA_EAPD_ENABLE                0x02
 #define HDA_VERB_GET_CONFIG_DEFAULT     0xF1C
+#define HDA_VERB_SET_DIGITAL_CONVERT_1  0x70D
+#define HDA_VERB_GET_ELD                0xF2F   /* byte n: bit 31 valid, bits 7:0 */
+#define  HDA_DIGITAL_ENABLE             0x01
 #define HDA_VERB_FUNCTION_RESET         0x7FF
 /* 4-bit verbs. */
 #define HDA_VERB_SET_CONVERTER_FORMAT   0x2

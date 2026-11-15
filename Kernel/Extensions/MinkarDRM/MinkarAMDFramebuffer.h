@@ -159,6 +159,10 @@ private:
 	IOReturn setTimingDCN(const struct edid_mode *m);
 	bool smuDAL(uint32_t message, uint32_t argument, uint32_t *reply);
 	void probeSMU();
+	uint32_t azRead(unsigned endpoint, uint32_t index);
+	void azWrite(unsigned endpoint, uint32_t index, uint32_t value);
+	bool configureAudioEndpointDCN(unsigned endpoint, unsigned *channels);
+	bool setupAudioDCN();
 	bool displayClocksCarryDCN(uint32_t pixelKHz);
 	uint32_t		fSMUDALBase;	/* the DAL mailbox that answers; 0 none */
 	bool raiseDisplayClocksDCN(uint32_t pixelKHz);

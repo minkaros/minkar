@@ -219,7 +219,7 @@ MinkarAMDFramebuffer::dmcubPixelClock(uint32_t khz)
 	p[3] = (uint8_t)(hz100 >> 24);
 	p[4] = 20;				/* ATOM_COMBOPHY_PLL0 */
 	p[5] = fEncoderID;			/* the encoder object's id */
-	p[6] = fDIGMode == 2 ? 3 : 2;		/* ATOM_ENCODER_MODE_HDMI, DVI */
+	p[6] = fDIGMode == 3 ? 3 : 2;		/* ATOM_ENCODER_MODE_HDMI, DVI */
 	p[7] = 0;				/* misc: the crystal as reference */
 	p[8] = (uint8_t)fCRTC;			/* ATOM_CRTC1 + pipe */
 	p[9] = 0;				/* deep color: none */

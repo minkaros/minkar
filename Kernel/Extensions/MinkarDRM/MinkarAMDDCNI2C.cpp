@@ -463,7 +463,7 @@ MinkarAMDFramebuffer::transmitterDCN(bool on, uint32_t khz)
 	bzero(&t, sizeof(t));
 	t.phy = (uint8_t)fPHY;
 	t.action = on ? 1 : 0;		/* ATOM_TRANSMITTER_ACTION_ENABLE, DISABLE */
-	t.digmode = fDIGMode == 2 ? 3 : 2;	/* ATOM_ENCODER_MODE_HDMI, DVI */
+	t.digmode = fDIGMode == 3 ? 3 : 2;	/* ATOM_ENCODER_MODE_HDMI, DVI */
 	t.lanes = 4;
 	t.symclk_10khz = khz / 10;
 	t.hpdsel = (uint8_t)(fHPDSelect + 1);
@@ -488,7 +488,7 @@ MinkarAMDFramebuffer::setTimingDCN(const struct edid_mode *m)
 	uint32_t htotal = (readReg(dcn302_OTG_OTG_H_TOTAL[fCRTC]) & DCN302_OTG_OTG_H_TOTAL__OTG_H_TOTAL_MASK) + 1;
 	uint32_t vtotal = (readReg(dcn302_OTG_OTG_V_TOTAL[fCRTC]) & DCN302_OTG_OTG_V_TOTAL__OTG_V_TOTAL_MASK) + 1;
 
-	if (fPHY < 0 || fDIGFE < 0 || (fDIGMode != 2 && fDIGMode != 1))
+	if (fPHY < 0 || fDIGFE < 0 || (fDIGMode != 2 && fDIGMode != 3))
 		return kIOReturnUnsupported;
 	if ((uint32_t)(m->hactive + m->hfront + m->hsync + m->hback) != htotal ||
 	    (uint32_t)(m->vactive + m->vfront + m->vsync + m->vback) != vtotal)
@@ -522,7 +522,7 @@ MinkarAMDFramebuffer::setDisplayPowerDCN(bool on)
 {
 	if (fPHY < 0 || fDIGFE < 0)
 		return kIOReturnUnsupported;
-	if (fDIGMode != 2 /* DIG_MODE: HDMI */ && fDIGMode != 1 /* DVI */)
+	if (fDIGMode != 3 /* DIG_MODE: HDMI */ && fDIGMode != 2 /* DVI */)
 		return kIOReturnUnsupported;
 	if (on == fDisplayOn)
 		return kIOReturnSuccess;

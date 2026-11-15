@@ -409,7 +409,9 @@ MinkarHDA::findPath(HDAAudioGroup *group, HDAOutput *out, uint8_t nid, int depth
         return false;
     out->path[depth] = nid;
     if (w->type == HDA_WIDGET_OUTPUT) {
-        if (w->caps & HDA_WCAP_DIGITAL)
+        /* A digital converter for a digital pin (HDMI, DisplayPort), an
+           analog one for the others. */
+        if (((w->caps & HDA_WCAP_DIGITAL) != 0) != (out->device == HDA_DEVICE_DIGITAL_OUT))
             return false;
         out->dac = nid;
         out->length = (uint8_t)(depth + 1);
@@ -426,19 +428,25 @@ MinkarHDA::findPath(HDAAudioGroup *group, HDAOutput *out, uint8_t nid, int depth
 }
 
 /* Rank of an output pin: its association, then its sequence, as the
-   board's maker set them (association 15 last). */
+   board's maker set them (association 15 last); digital pins after the
+   analog ones, in the order of their nodes, which is their endpoints'
+   on a display's codec (endpoint 0 first). */
 static uint32_t
 outputRank(const HDAWidget *w)
 {
     uint32_t association = HDA_CONFIG_ASSOCIATION(w->config);
+
+    if (HDA_CONFIG_DEVICE(w->config) == HDA_DEVICE_DIGITAL_OUT)
+        return 0x10000 + w->nid;
 
     if (association == 0 || association == 15)
         association = 16;
     return association * 16 + HDA_CONFIG_SEQUENCE(w->config);
 }
 
-/* The analog outputs of a group, best first: each connected output pin
-   (line out, speaker, headphones) with its own DAC. */
+/* The outputs of a group, best first: each connected output pin (line
+   out, speaker, headphones; then digital, HDMI or DisplayPort) with its
+   own converter. */
 void
 MinkarHDA::findOutputs(HDAAudioGroup *group)
 {
@@ -452,7 +460,7 @@ MinkarHDA::findOutputs(HDAAudioGroup *group)
             if (w->type != HDA_WIDGET_PIN || w->used || !(w->pinCaps & HDA_PINCAP_OUTPUT) ||
                 HDA_CONFIG_CONNECTIVITY(w->config) == HDA_CONNECT_NONE ||
                 (device != HDA_DEVICE_LINE_OUT && device != HDA_DEVICE_SPEAKER &&
-                 device != HDA_DEVICE_HP_OUT))
+                 device != HDA_DEVICE_HP_OUT && device != HDA_DEVICE_DIGITAL_OUT))
                 continue;
             if (best == NULL || outputRank(w) < outputRank(best))
                 best = w;
@@ -500,6 +508,10 @@ MinkarHDA::enableOutput(HDAAudioGroup *group, const HDAOutput *out)
             verb4(cad, w->nid, HDA_VERB_SET_AMP, HDA_AMP_SET_INPUT | HDA_AMP_SET_LEFT |
                   HDA_AMP_SET_RIGHT | HDA_AMP_SET_INDEX(out->pathInput[i]) | unmuted(w->inAmpCaps));
     }
+    /* A digital converter sends only once enabled. */
+    HDAWidget *dac = widget(group, out->dac);
+    if (dac != NULL && (dac->caps & HDA_WCAP_DIGITAL))
+        verb(cad, out->dac, HDA_VERB_SET_DIGITAL_CONVERT_1, HDA_DIGITAL_ENABLE);
     HDAWidget *pin = widget(group, out->pin);
     uint32_t control = HDA_PIN_CONTROL_OUT;
 
@@ -791,10 +803,33 @@ MinkarHDA::initHardware(IOService *provider)
         enableInput(fGroups[fInputs[i].cad], &fInputs[i]);
     publishInputs();
 
-    setDeviceName("High Definition Audio");
-    setDeviceShortName("HDA");
+    /* A display's codec (only digital outputs): named as its display is,
+       from the ELD the display driver gives the pin, as HDMI otherwise. */
+    char name[20] = "HDMI";
+    bool display = fOutputCount > 0;
+    for (int i = 0; i < fOutputCount; i++)
+        if (fOutputs[i].device != HDA_DEVICE_DIGITAL_OUT)
+            display = false;
+    if (display) {
+        uint32_t b4 = 0;
+        if (verb(fOutputs[0].cad, fOutputs[0].pin, HDA_VERB_GET_ELD, 4, &b4) && (b4 & 0x80000000)) {
+            unsigned length = b4 & 0x1f, n = 0;
+            for (unsigned k = 0; k < length && n + 1 < sizeof(name); k++) {
+                uint32_t c = 0;
+                if (!verb(fOutputs[0].cad, fOutputs[0].pin, HDA_VERB_GET_ELD, 20 + k, &c) ||
+                    !(c & 0x80000000))
+                    break;
+                name[n++] = (char)(c & 0xff);
+            }
+            if (n > 0)
+                name[n] = 0;
+        }
+        LOG("a display's audio: \"%s\"", name);
+    }
+    setDeviceName(display ? name : "High Definition Audio");
+    setDeviceShortName(display ? "HDMI" : "HDA");
     setManufacturerName("Intel High Definition Audio");
-    setDeviceTransportType(kIOAudioDeviceTransportTypeBuiltIn);
+    setDeviceTransportType(display ? kIOAudioDeviceTransportTypeHdmi : kIOAudioDeviceTransportTypeBuiltIn);
     if (fOutputCount == 0 || HDA_GCAP_OSS(fCaps) == 0)
         return true;            /* nothing to play to */
     if (!setUpInterrupts()) {
