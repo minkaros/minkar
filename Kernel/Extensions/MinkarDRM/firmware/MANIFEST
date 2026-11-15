@@ -14,4 +14,10 @@ amdgpu/pitcairn_pfp.bin aabdb871219fe135cb125c4e38adababdd27a02519324f5534abc00f
 amdgpu/pitcairn_me.bin 87617358bb876187786c422c3456fef1d072e6532382ecace0847259045131cb
 amdgpu/pitcairn_ce.bin 04027c3a7c875aaf581ca438ae5ff93ec90002e0e057dc107e7b47048331ee3c
 amdgpu/pitcairn_rlc.bin 929f722b65558862b24569f1397ba1f9db2ef301b66440533ebed0a2195ee92c
+# Navi 23 (RX 6600, PC 1): the security processor's secure OS and its
+# loader parts (sos), its trusted applications (ta), and the SMU's
+# firmware (smc), which the PSP loads (Docs/GPU-RDNA2.md, R2's modes).
+amdgpu/dimgrey_cavefish_sos.bin ec4ac3c065b814ad164eb6d19f2009c225baed0eb52a7bcbaae324c4b0be11b2
+amdgpu/dimgrey_cavefish_ta.bin 744d1a60888e23af672ce13923dadfe21d35c122e64d4a0629f9bfc26eae832b
+amdgpu/dimgrey_cavefish_smc.bin cc822ff5d95b8f8fbc0856138c08e462027dcd90c0ac6cf33d5ce34888731d00
 LICENSES/LICENSE.amdgpu 572872598565dc3513470de971a32bf9db301f47afeef3636345eadae33b2eee

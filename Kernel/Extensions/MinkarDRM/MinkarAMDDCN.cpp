@@ -68,6 +68,7 @@ MinkarAMDGPU::describeDisplayDCN302()
 
 	if (pipes == NULL)
 		return;
+	fVRAMStart = fbBase;	/* the GPU's address of VRAM, which the PSP's buffers use */
 	setProperty("MinkarDisplayVRAMBase", (unsigned long long)fbBase, 64);
 	setProperty("MinkarDisplayVRAMTop", (unsigned long long)fbTop, 64);
 	for (unsigned p = 0; p < DCN302_PIPES; p++) {

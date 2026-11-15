@@ -112,8 +112,12 @@ MinkarAMDGPU::start(IOService *provider)
 			LOG("register window %llu KB, VRAM %u MB",
 			    (unsigned long long)fRegs.size / 1024, mb);
 		}
-		if (MinkarAMDIsNavi23(device))
+		if (MinkarAMDIsNavi23(device)) {
 			describeDisplayDCN302();
+			fNavi23 = true;
+			if (!pspMap())
+				LOG("no VRAM window for the PSP");
+		}
 	} else
 		LOG("cannot map the register window");
 
@@ -1514,6 +1518,7 @@ MinkarAMDGPU::stop(IOService *provider)
 void
 MinkarAMDGPU::free()
 {
+	OSSafeReleaseNULL(fPSPMap);
 	minkar_atom_close(fAtom);
 	MinkarAMDFreeVBIOS(fBIOS);
 	if (fDMAStarted)

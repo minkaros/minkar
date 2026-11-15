@@ -59,6 +59,7 @@ public:
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual void free() APPLE_KEXT_OVERRIDE;
+	virtual IOReturn setProperties(OSObject *properties) APPLE_KEXT_OVERRIDE;
 
 	/* Registers by dword index, through the window or MM_INDEX/MM_DATA. */
 	uint32_t readReg(uint32_t reg);
@@ -144,6 +145,24 @@ private:
 		uint32_t holders;	/* 0: the slot is empty */
 		uint64_t offset, size;
 	};
+
+	/* Navi 23's security processor (MinkarAMDPSP.cpp). */
+	bool pspMap();
+	bool pspWait(uint32_t reg, uint32_t value, uint32_t mask, unsigned ms);
+	bool pspSOSAlive();
+	bool pspLoadPart(const uint8_t *data, uint32_t bytes, uint32_t command, const char *name);
+	IOReturn pspStartSOS();
+	volatile uint32_t *pspWords(uint32_t offset);
+	bool pspCreateRing();
+	int64_t pspCommand(uint32_t id, const uint32_t *args, unsigned words, uint32_t reply[5]);
+	IOReturn pspStartRing();
+	IOReturn pspLoadSMU();
+	uint32_t smuMessage(uint32_t box, uint32_t message, uint32_t argument, uint32_t *reply);
+	IOReturn smuProbe();
+	uint32_t		fPSPFence;
+	bool			fNavi23;
+	IOMemoryMap *		fPSPMap;	/* its region of VRAM */
+	uint64_t		fPSPOffset;
 
 	IOPCIDevice *		fPCI;
 	struct MinkarAMDRegs	fRegs;

@@ -1394,13 +1394,40 @@ MinkarAMDFramebuffer::setProperties(OSObject *properties)
 	OSBoolean *power = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarDisplayPower")) : NULL;
 	OSBoolean *measure = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarMeasureRefresh")) : NULL;
 	OSBoolean *hdmi = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarSwitchToHDMI")) : NULL;
+	OSNumber *refresh = d != NULL ? OSDynamicCast(OSNumber, d->getObject("MinkarSetRefresh")) : NULL;
 
-	if (power == NULL && measure == NULL && hdmi == NULL)
+	if (power == NULL && measure == NULL && hdmi == NULL && refresh == NULL)
 		return super::setProperties(properties);
 	if (IOUserClient::clientHasPrivilege(current_task(), kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return kIOReturnNotPrivileged;
 	if (hdmi != NULL)
 		return fDCN ? switchToHDMIDCN() : kIOReturnUnsupported;
+	/* Bring-up: the native size at the EDID's rate nearest refresh (Hz),
+	 * the SMU asked again first. */
+	if (refresh != NULL && fDCN) {
+		struct edid_mode modes[32];
+		unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+		int best = -1;
+		uint32_t want = refresh->unsigned32BitValue() * 1000;
+		for (unsigned i = 0; i < n; i++) {
+			if (modes[i].hactive != fModes[0].width || modes[i].vactive != fModes[0].height ||
+			    modes[i].clock > 340000)
+				continue;
+			uint32_t hz = edid_refresh_mhz(&modes[i]);
+			if (best < 0 || (hz > want ? hz - want : want - hz) <
+			    (edid_refresh_mhz(&modes[best]) > want ? edid_refresh_mhz(&modes[best]) - want :
+			    want - edid_refresh_mhz(&modes[best])))
+				best = (int)i;
+		}
+		if (best < 0)
+			return kIOReturnNotFound;
+		fSMUDALBase = 0;
+		probeSMU();
+		IOReturn err = setTimingDCN(&modes[best]);
+		setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
+		publishTimings();
+		return err;
+	}
 	if (measure != NULL) {
 		measureRefresh();
 		setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
