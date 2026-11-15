@@ -1,0 +1,23 @@
+Only the decoders, apart from the system they run on: the media
+frameworks CoreFoundation, CoreMedia, CoreVideo and CoreAudio are looked
+for (and linked into libavutil) only with VideoToolbox or AudioToolbox,
+which Minkar does not enable. Otherwise libavcodec would link Minkar's
+CoreMedia, which uses it.
+
+--- a/configure
++++ b/configure
+@@ -7114,10 +7114,10 @@
+ enabled metal        && check_apple_framework Metal
+ enabled videotoolbox && check_apple_framework VideoToolbox
+ 
+-check_apple_framework CoreFoundation
+-check_apple_framework CoreMedia
+-check_apple_framework CoreVideo
+-check_apple_framework CoreAudio
++enabled videotoolbox && check_apple_framework CoreFoundation
++enabled videotoolbox && check_apple_framework CoreMedia
++enabled videotoolbox && check_apple_framework CoreVideo
++enabled audiotoolbox && check_apple_framework CoreAudio
+ 
+ enabled audiotoolbox && {
+     check_type AudioToolbox/AudioToolbox.h AudioObjectPropertyAddress

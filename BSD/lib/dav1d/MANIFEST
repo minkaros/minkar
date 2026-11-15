@@ -1,0 +1,5 @@
+# dav1d (BSD-2-Clause), the AV1 decoder, fetched at build time and checked
+# against this SHA-256: VideoLAN's published one, the same as the first fetch.
+url https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz
+sha256 686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5
+version 1.5.4
