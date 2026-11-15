@@ -110,7 +110,8 @@ static void atomWrite(void *fb, uint32_t reg, uint32_t value)
 
 /*
  * The GPU whose VRAM window (BAR 0) holds the firmware's framebuffer, a
- * GCN 1.0 one; "minkaramd_fb=0" leaves every display to IOGOPFramebuffer.
+ * GCN 1.0 one or a Navi 23; "minkaramd_fb=0" leaves every display to
+ * IOGOPFramebuffer.
  */
 IOService *
 MinkarAMDFramebuffer::probe(IOService *provider, SInt32 *score)
@@ -125,8 +126,9 @@ MinkarAMDFramebuffer::probe(IOService *provider, SInt32 *score)
 	if (pci == NULL || getPlatform() == NULL ||
 	    getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess || boot.v_baseAddr == 0)
 		return NULL;
-	MinkarAMDFamily(pci->configRead16(kIOPCIConfigDeviceID), &gcn1);
-	if (!gcn1)
+	UInt16 device = pci->configRead16(kIOPCIConfigDeviceID);
+	MinkarAMDFamily(device, &gcn1);
+	if (!gcn1 && !MinkarAMDIsNavi23(device))
 		return NULL;
 	IODeviceMemory *vram = MinkarAMDBARRange(pci, kIOPCIConfigBaseAddress0);
 	uint64_t fb = boot.v_baseAddr & ~(uint64_t)0xFFF;
@@ -171,6 +173,10 @@ MinkarAMDFramebuffer::findDisplay(uint64_t bootAddress)
 void
 MinkarAMDFramebuffer::measureRefresh()
 {
+	if (fDCN) {
+		measureRefreshDCN();
+		return;
+	}
 	uint32_t reg = mmCRTC_STATUS_FRAME_COUNT + fCRTCOffset;
 	uint64_t t0, t1, ns;
 	uint32_t f;
@@ -208,6 +214,10 @@ MinkarAMDFramebuffer::publishTimings()
 		{ "EXT_OVERSCAN_TOP_BOTTOM", mmEXT_OVERSCAN_TOP_BOTTOM },
 		{ "GRPH_PRIMARY_SURFACE_ADDRESS", mmGRPH_PRIMARY_SURFACE_ADDRESS },
 	};
+	if (fDCN) {
+		publishTimingsDCN();
+		return;
+	}
 	OSDictionary *d = OSDictionary::withCapacity(sizeof(regs) / sizeof(regs[0]));
 
 	if (d == NULL)
@@ -232,6 +242,8 @@ bool
 MinkarAMDFramebuffer::scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels,
     bool wait)
 {
+	if (fDCN)
+		return scanOutDCN(offset, pitchPixels, wait);
 	uint32_t off = fCRTCOffset;
 	uint64_t address = fVRAMStart + offset;
 	uint32_t control = readReg(mmGRPH_CONTROL + off);
@@ -267,6 +279,8 @@ MinkarAMDFramebuffer::scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt
 bool
 MinkarAMDFramebuffer::surfaceTaken(uint64_t offset)
 {
+	if (fDCN)
+		return surfaceTakenDCN(offset, false);
 	uint32_t off = fCRTCOffset;
 	uint32_t address = (uint32_t)(fVRAMStart + offset) & ~0xFFU;
 
@@ -546,6 +560,8 @@ MinkarAMDFramebuffer::recoverDisplay()
 	uint8_t edid[256];
 	unsigned bytes;
 
+	if (fDCN)
+		return kIOReturnUnsupported;	/* R2 */
 	if (fAtom == NULL || fConnector < 0)
 		return kIOReturnNotFound;
 	if (fDPCD[0] != 0)
@@ -751,6 +767,8 @@ MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_
 	struct edid_mode modes[32];
 	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
 
+	if (fDCN)
+		return kIOReturnUnsupported;	/* R2 */
 	if (stage == 4) {	/* as after a plug */
 		IOWorkLoop *wl = getWorkLoop();
 		if (wl == NULL)
@@ -932,23 +950,28 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	    getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess)
 		return false;
 	fPCI->retain();
-	MinkarAMDFamily(fPCI->configRead16(kIOPCIConfigDeviceID), &gcn1);
+	UInt16 device = fPCI->configRead16(kIOPCIConfigDeviceID);
+	MinkarAMDFamily(device, &gcn1);
+	fDCN = !gcn1 && MinkarAMDIsNavi23(device);
+	fConnector = -1;
 	fVRAM = MinkarAMDBARRange(fPCI, kIOPCIConfigBaseAddress0);
 	if (fVRAM == NULL || !MinkarAMDMapRegisters(fPCI, gcn1, &fRegs)) {
 		LOG("cannot map the registers or VRAM");
 		return false;
 	}
-	if (!findDisplay(boot.v_baseAddr)) {
+	if (fDCN ? !findDisplayDCN(boot.v_baseAddr, (UInt32)boot.v_rowBytes) :
+	    !findDisplay(boot.v_baseAddr)) {
 		LOG("no crtc scans out the firmware's framebuffer at 0x%llx",
 		    (unsigned long long)boot.v_baseAddr);
 		return false;
 	}
 
 	/* The native mode: the firmware's, which is the display's. */
-	uint32_t viewport = readReg(mmVIEWPORT_SIZE + fCRTCOffset);
+	uint32_t viewport = fDCN ? 0 : readReg(mmVIEWPORT_SIZE + fCRTCOffset);
 	fModes[0].width = boot.v_width;
 	fModes[0].height = boot.v_height;
-	if ((viewport >> 16) != boot.v_width || ((viewport & 0x1FFF) & ~1U) != (boot.v_height & ~1U))
+	if (!fDCN && ((viewport >> 16) != boot.v_width ||
+	    ((viewport & 0x1FFF) & ~1U) != (boot.v_height & ~1U)))
 		LOG("viewport %ux%u, firmware mode %ux%u", viewport >> 16, viewport & 0x1FFF,
 		    (unsigned)boot.v_width, (unsigned)boot.v_height);
 	fModes[0].refreshMilliHz = 0;
@@ -975,9 +998,11 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		return false;
 	}
 
-	/* The VBIOS, for the scaled modes. */
-	const char *source;
-	if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
+	/* The VBIOS, for the scaled modes (DCN: with R2). */
+	const char *source = "none";
+	if (fDCN)
+		LOG("DCN 3.0.2: the native mode only");
+	else if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
 		fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
 	if (fAtom != NULL)
 		readSink();
@@ -987,11 +1012,15 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		addTimedModes();
 		addScaledModes();
 	}
-	else
+	else if (!fDCN)
 		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
 
 	if (!super::start(provider))
 		return false;
+
+	UInt32 pattern = 0;
+	if (fDCN && PE_parse_boot_argn("minkaramd_pattern", &pattern, sizeof(pattern)) && pattern != 0)
+		showPitchPatternDCN();
 
 	/* Take the display: the firmware's picture copied over, then ours
 	 * scanned out at the native mode. */
@@ -1015,18 +1044,24 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		return false;
 	}
 	fCurrent = 0;
+	if (fDCN)
+		flipTestDCN();
 	setConsole();
-	setBestNativeMode();
+	if (!fDCN)
+		setBestNativeMode();
 	publishTimings();
 
-	setProperty("MinkarDisplayCRTC", fCRTC, 32);
+	setProperty(fDCN ? "MinkarDisplayPipe" : "MinkarDisplayCRTC", fCRTC, 32);
 	setProperty("MinkarFirmwareScanoutOffset", (unsigned long long)fFirmwareOffset, 64);
 	setProperty("MinkarScanoutOffset", (unsigned long long)fOffset, 64);
 	setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
 	setProperty("MinkarScaledModes", fModeCount > 1);
-	/* The window server presents through this GPU's user client. */
-	setProperty("MinkarAcceleratorClass", "MinkarAMDGPU");
-	LOG("crtc %u, %ux%u at %u.%03u Hz, framebuffer at VRAM 0x%llx, %u modes", fCRTC,
+	/* The window server presents through this GPU's user client (GCN
+	 * 1.0; on Navi 23 it draws in the framebuffer until R3). */
+	if (!fDCN)
+		setProperty("MinkarAcceleratorClass", "MinkarAMDGPU");
+	LOG("%s %u, %ux%u at %u.%03u Hz, framebuffer at VRAM 0x%llx, %u modes",
+	    fDCN ? "pipe" : "crtc", fCRTC,
 	    fModes[0].width, fModes[0].height, fRefreshMilliHz / 1000, fRefreshMilliHz % 1000,
 	    (unsigned long long)fOffset, fModeCount);
 

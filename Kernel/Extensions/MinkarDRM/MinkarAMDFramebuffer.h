@@ -131,6 +131,15 @@ private:
 	static void hpdTimer(OSObject *owner, IOTimerEventSource *sender);
 	void pollHPD();
 	void setConsole();
+	/* Navi 23's display engine (DCN 3.0.2, MinkarAMDFramebufferDCN.cpp):
+	 * the firmware's mode only, until R2. */
+	bool findDisplayDCN(uint64_t bootAddress, UInt32 bootRowBytes);
+	bool scanOutDCN(uint64_t offset, UInt32 pitchPixels, bool wait);
+	bool surfaceTakenDCN(uint64_t offset, bool timed);
+	void measureRefreshDCN();
+	void publishTimingsDCN();
+	void showPitchPatternDCN();
+	void flipTestDCN();
 	const Mode *modeFor(IODisplayModeID id);
 	UInt32 pitchFor(UInt32 width) { return (width + 63) & ~63U; }
 
@@ -140,12 +149,20 @@ private:
 	IOByteCount		fBIOSSize;
 	struct minkar_atom *	fAtom;
 
-	unsigned		fCRTC;		/* the lit display's crtc */
+	bool			fDCN;		/* Navi 23: DCN, not DCE */
+	unsigned		fCRTC;		/* the lit display's crtc (DCN: pipe) */
 	uint32_t		fCRTCOffset;
 	uint64_t		fVRAMStart;	/* VRAM in the GPU's address space */
 	IODeviceMemory *	fVRAM;		/* its CPU window (BAR 0) */
 	uint64_t		fFirmwareOffset;	/* the firmware's framebuffer */
 	UInt32			fFirmwarePitch;	/* in pixels */
+	/* DCN: the plane's pitch field less the pitch in pixels, as the
+	 * firmware left them (amdgpu's dc writes the pitch less one). */
+	int			fPitchBias;
+	/* DCN: where the last surface was taken, for the flip test. */
+	uint32_t		fTakeLine;
+	bool			fTakeInBlank;
+	uint64_t		fTakeNs;
 	uint64_t		fOffset;	/* ours, in VRAM */
 	IOByteCount		fSize;
 	IOMemoryMap *		fMap;		/* ours, for the driver */
