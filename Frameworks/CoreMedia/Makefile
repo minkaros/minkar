@@ -10,13 +10,13 @@ MK_WERROR = no
 FRAMEWORK = CoreMedia
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = CMTime.c CMTimeRange.c CMConstants.c
-HEADERS = CoreMedia.h CMBase.h CMTime.h CMSampleBuffer.h CMFormatDescription.h
+SRCS = CMTime.c CMTimeRange.c CMConstants.c CMAttachment.c CMBlockBuffer.c
+HEADERS = CoreMedia.h CMBase.h CMTime.h CMSampleBuffer.h CMFormatDescription.h CMAttachment.h CMBlockBuffer.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS}
-LDFLAGS += -F${FMWKS} -framework CoreFoundation -lobjc
+LDFLAGS += -F${FMWKS} -framework CoreFoundation -framework CoreVideo -lobjc
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

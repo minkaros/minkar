@@ -6,5 +6,7 @@
 
 #include <CoreMedia/CMBase.h>
 #include <CoreMedia/CMTime.h>
+#include <CoreMedia/CMAttachment.h>
+#include <CoreMedia/CMBlockBuffer.h>
 #include <CoreMedia/CMFormatDescription.h>
 #include <CoreMedia/CMSampleBuffer.h>
