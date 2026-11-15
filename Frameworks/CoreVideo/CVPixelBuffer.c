@@ -83,8 +83,9 @@ static const CFRuntimeClass pixelBufferClass = {
     0, "CVPixelBuffer", NULL, NULL, finalize, NULL, NULL, NULL, describe
 };
 
-/* CVPixelBufferPool's: called when the buffer is freed. */
-__attribute__((visibility("hidden"))) void _CVPixelBufferSetFinalizeHook(CVPixelBufferRef buffer,
+/* Called when the buffer is freed: CVPixelBufferPool's, and AVFoundation's
+   for the media decoder's frames (private to the system's frameworks). */
+void _CVPixelBufferSetFinalizeHook(CVPixelBufferRef buffer,
     void (*hook)(void *refcon), void *refcon) {
     struct __CVBuffer *b = (struct __CVBuffer *)buffer;
     b->finalizeHook = hook;

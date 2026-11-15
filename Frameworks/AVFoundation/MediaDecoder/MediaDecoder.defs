@@ -1,0 +1,66 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The media decoder's interface (AU5): a process of its own per session,
+ * which opens a file with FFmpeg and gives back its tracks' samples,
+ * decoded (MediaDecoderTypes.h). Subsystem 29700.
+ */
+
+subsystem MediaDecoder 29700;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix mdc_;
+serverprefix mds_;
+
+import "MediaDecoderTypes.h";
+
+type md_bytes_t = array[*:4096] of char;
+type md_data_t = ^array[] of char
+	ctype: md_data_t;
+
+/* The file, opened by the app (a fileport: the decoder reads only what
+   the app could), and its name, for the format's extension; gives back
+   its tracks, as a binary property list (MDKey...). */
+routine open(
+	server			: mach_port_t;
+	file			: mach_port_move_send_t;
+	name			: md_bytes_t;
+	out result		: int32_t;
+	out info		: md_data_t, dealloc);
+
+/* A track's output, a binary property list (MDKeyOutput...): a track
+   is read only once configured; the others' packets are dropped. */
+routine configure(
+	server			: mach_port_t;
+	track			: int32_t;
+	options			: md_bytes_t;
+	out result		: int32_t);
+
+/* Every track from the last sync point at or before the time. */
+routine seek(
+	server			: mach_port_t;
+	time_value		: int64_t;
+	time_scale		: int32_t;
+	out result		: int32_t);
+
+/* The track's next sample: a video frame in an IOSurface (its port; the
+   surface's use count is raised for the app, which lowers it when done,
+   and the decoder writes only to surfaces not in use), or audio samples
+   (their bytes, interleaved, and their number of frames); its times;
+   kMDFlagEndOfTrack after the last. */
+routine read(
+	server			: mach_port_t;
+	track			: int32_t;
+	out result		: int32_t;
+	out flags		: int32_t;
+	out pts_value		: int64_t;
+	out pts_scale		: int32_t;
+	out duration_value	: int64_t;
+	out duration_scale	: int32_t;
+	out surface		: mach_port_move_send_t;
+	out frames		: int32_t;
+	out samples		: md_data_t, dealloc);
