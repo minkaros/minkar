@@ -6,6 +6,14 @@
 
 #import <AVFoundation/AVMediaFormat.h>
 #import <AVFoundation/AVCapture.h>
+#import <AVFoundation/AVError.h>
+#import <AVFoundation/AVTime.h>
+#import <AVFoundation/AVAsynchronousKeyValueLoading.h>
+#import <AVFoundation/AVMetadataFormat.h>
+#import <AVFoundation/AVMetadataItem.h>
+#import <AVFoundation/AVAudioSettings.h>
+#import <AVFoundation/AVVideoSettings.h>
 #import <AVFoundation/AVAsset.h>
+#import <AVFoundation/AVAssetReader.h>
 #import <AVFoundation/AVSpeech.h>
 #import <AVFoundation/AVSampleBufferDisplayLayer.h>
