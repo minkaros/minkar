@@ -43,12 +43,16 @@ struct __CVBuffer {
     void *releaseRefCon;
     void *releaseData;
     int lockCount;
+    void (*finalizeHook)(void *refcon);   /* a pool's: the buffer came back */
+    void *finalizeRefcon;
 };
 
 static CFTypeID pixelBufferTypeID;
 
 static void finalize(CFTypeRef cf) {
     struct __CVBuffer *b = (struct __CVBuffer *)cf;
+    if (b->finalizeHook != NULL)
+        b->finalizeHook(b->finalizeRefcon);
     if (b->releaseBytes != NULL)
         b->releaseBytes(b->releaseRefCon, b->data);
     if (b->releasePlanar != NULL) {
@@ -77,6 +81,14 @@ static CFStringRef describe(CFTypeRef cf) {
 static const CFRuntimeClass pixelBufferClass = {
     0, "CVPixelBuffer", NULL, NULL, finalize, NULL, NULL, NULL, describe
 };
+
+/* CVPixelBufferPool's: called when the buffer is freed. */
+__attribute__((visibility("hidden"))) void _CVPixelBufferSetFinalizeHook(CVPixelBufferRef buffer,
+    void (*hook)(void *refcon), void *refcon) {
+    struct __CVBuffer *b = (struct __CVBuffer *)buffer;
+    b->finalizeHook = hook;
+    b->finalizeRefcon = refcon;
+}
 
 CFTypeID CVPixelBufferGetTypeID(void) {
     static dispatch_once_t once;

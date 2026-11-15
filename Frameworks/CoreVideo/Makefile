@@ -9,8 +9,8 @@ SUBDIR =
 MK_INSTALLLIB = no
 MK_WERROR = no
 
-SRCS =		CVDisplayLink.m CVConstants.c CVPixelBuffer.c
-HEADERS =	CVBase.h CVDisplayLink.h CVPixelBuffer.h CVReturn.h CoreVideo.h
+SRCS =		CVDisplayLink.m CVConstants.c CVPixelBuffer.c CVPixelBufferPool.c
+HEADERS =	CVBase.h CVDisplayLink.h CVPixelBuffer.h CVPixelBufferPool.h CVReturn.h CoreVideo.h
 RESOURCES =	Info.plist
 
 # <CoreVideo/...> resolves to these sources.

@@ -14,8 +14,11 @@ enum {
     kCVReturnInvalidSize = -6681,
     kCVReturnInvalidPixelBufferAttributes = -6682,
     kCVReturnPixelBufferNotOpenGLCompatible = -6683,
+    kCVReturnUnsupported = -6684,
+    kCVReturnWouldExceedAllocationThreshold = -6689,
     kCVReturnPoolAllocationFailed = -6690,
     kCVReturnInvalidPoolAttributes = -6691,
+    kCVReturnRetry = -6692,
     kCVReturnLast = -6699
 };
 
