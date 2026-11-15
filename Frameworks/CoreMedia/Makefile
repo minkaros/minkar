@@ -10,7 +10,7 @@ MK_WERROR = no
 FRAMEWORK = CoreMedia
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = CMTime.c CMConstants.c
+SRCS = CMTime.c CMTimeRange.c CMConstants.c
 HEADERS = CoreMedia.h CMBase.h CMTime.h CMSampleBuffer.h CMFormatDescription.h
 SUBDIR =
 
