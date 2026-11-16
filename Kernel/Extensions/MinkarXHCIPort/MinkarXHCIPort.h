@@ -220,6 +220,7 @@ private:
     };
     SlotResources fSlots[64]; /* index by slot ID, 0 unused */
     UInt8 fSlotRootPort[64];  /* 0-based root hub port for each slot */
+    IOService * fUSBDevices[64]; /* the generic IOUSBDevice published for a slot (ours, retained) */
 
     MSCDevice fMSC[16];
     MinkarXHCIMassStorageDisk * fDiskNubs[16];

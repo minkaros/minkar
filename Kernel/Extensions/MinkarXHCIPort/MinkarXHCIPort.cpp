@@ -434,6 +434,11 @@ void MinkarXHCIPort::stop(IOService *provider)
 
 void MinkarXHCIPort::free()
 {
+    for (int i = 0; i < 64; i++)
+        if (fUSBDevices[i] != NULL) {
+            fUSBDevices[i]->release();
+            fUSBDevices[i] = NULL;
+        }
     for (int i = 0; i < 16; i++) {
         if (fDiskNubs[i]) { fDiskNubs[i]->release(); fDiskNubs[i] = NULL; }
     }
@@ -1025,6 +1030,22 @@ void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
 {
     XHCI_Log("hotplug: Port %u disconnected, portsc=%08x", port0based, portsc);
 
+    /* The devices published for this port (and for those behind a hub on
+     * it) taken away: IOKit's termination thread stops their drivers.
+     * Not waited for here (that deadlocks against this thread); their
+     * endpoints are released below, so they read nothing more. Left in
+     * place, they stayed attached to dead slots, and the devices of the
+     * next plug never got a driver. */
+    for (int slot = 1; slot < 64; slot++) {
+        if (fUSBDevices[slot] == NULL || fSlotRootPort[slot] != port0based)
+            continue;
+        IOService *dev = fUSBDevices[slot];
+        fUSBDevices[slot] = NULL;
+        XHCI_Log("hotplug: Port %u: slot %d's device taken away", port0based, slot);
+        dev->terminate();
+        dev->release();
+    }
+
     for (int slot = 1; slot < 64; slot++) {
         bool slotOnPort = false;
         for (int ep = 1; ep < 16; ep++) {
@@ -1033,10 +1054,14 @@ void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
                 releaseInterruptEndpoint(fIntrIn[slot][ep]);
             }
         }
+        /* Every slot on the port, a hub's and its devices' too, not
+         * only those with an interrupt endpoint. */
+        if (!slotOnPort && fSlotRootPort[slot] == port0based && fSlots[slot].deviceCtxMem != NULL)
+            slotOnPort = true;
         if (slotOnPort) {
             disableSlot((UInt32)slot);
             freeSlotResources((UInt32)slot);
-            XHCI_Log("hotplug: Port %u removed generic interrupt slot=%u",
+            XHCI_Log("hotplug: Port %u removed slot=%u",
                     port0based, slot);
         }
     }
@@ -2183,6 +2208,14 @@ bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, U
          * observed as every USB HID device (keyboard, mouse) starting
          * twice and producing doubled/stuck-feeling input. */
         dev->registerService();
+        /* Kept, to be taken away when its device goes (our reference). */
+        if (slotId < 64) {
+            if (fUSBDevices[slotId] != NULL)
+                fUSBDevices[slotId]->release();
+            fUSBDevices[slotId] = dev;
+        } else {
+            dev->release();
+        }
 
         return true;
     }
