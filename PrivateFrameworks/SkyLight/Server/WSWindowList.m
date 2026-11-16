@@ -1017,6 +1017,48 @@ damageUnderLayers(WSWindow *w)
 	}
 }
 
+static BOOL
+sameUnderLayer(WSUnderLayer *a, WSUnderLayer *b)
+{
+	SLSIntRect ca = a.clip, cb = b.clip;
+
+	return [(WSIOSurfaceBacking *)a.surface surfaceID] == [(WSIOSurfaceBacking *)b.surface surfaceID] &&
+	    a.x == b.x && a.y == b.y && ca.x == cb.x && ca.y == cb.y && ca.width == cb.width &&
+	    ca.height == cb.height;
+}
+
+/* Every layer of one list the same, in order, as the other's. */
+static BOOL
+sameUnderLayers(NSArray *a, NSArray *b)
+{
+	if (a.count != b.count)
+		return NO;
+	for (NSUInteger i = 0; i < a.count; i++)
+		if (!sameUnderLayer(a[i], b[i]))
+			return NO;
+	return YES;
+}
+
+/* The parts seen of the layers in list that other does not have. */
+static void
+damageUnderLayersNotIn(WSWindow *w, NSArray *list, NSArray *other)
+{
+	if (!w.onScreen)
+		return;
+	for (WSUnderLayer *under in list) {
+		BOOL kept = NO;
+		for (WSUnderLayer *o in other)
+			if (sameUnderLayer(under, o)) {
+				kept = YES;
+				break;
+			}
+		if (kept)
+			continue;
+		SLSIntRect c = under.clip;
+		WSDamageGlobalRect((SLSRect){ w.frame.x + c.x, w.frame.y + c.y, c.width, c.height });
+	}
+}
+
 kern_return_t
 wss_window_set_layers(mach_port_t server, audit_token_t token, uint32_t window,
     SLSWindowLayer *layers, mach_msg_type_number_t count, int32_t *result)
@@ -1048,9 +1090,20 @@ wss_window_set_layers(mach_port_t server, audit_token_t token, uint32_t window,
 		under.clip = (SLSIntRect){ x0, y0, x1 - x0, y1 - y0 };
 		[list addObject:under];
 	}
-	damageUnderLayers(w);		/* where they were */
-	w.underLayers = list.count > 0 ? list : nil;
-	damageUnderLayers(w);
+	NSArray *old = w.underLayers;
+	if (!sameUnderLayers(old, list)) {
+		/* Some changed (a tile given a new surface, moved or clipped
+		   anew): only those, where they were and where they are. A
+		   browser updates a few tiles of many; damaging them all made
+		   the server compose the whole window for a blinking dot. */
+		damageUnderLayersNotIn(w, old, list);
+		w.underLayers = list.count > 0 ? list : nil;
+		damageUnderLayersNotIn(w, list, old);
+	} else {
+		/* The same surfaces again: their pixels changed in place. */
+		w.underLayers = list.count > 0 ? list : nil;
+		damageUnderLayers(w);
+	}
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
