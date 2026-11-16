@@ -470,6 +470,27 @@ static OSStatus outputRender(AudioUnit unit, AudioUnitRenderActionFlags *flags, 
 
 /* ---- Properties ------------------------------------------------------------ */
 
+/* A layout of n channels, each described (left and right for two): the
+   form an app reading the device's layout takes most easily. */
+static UInt32 layoutSize(UInt32 n) {
+    return (UInt32)(offsetof(AudioChannelLayout, mChannelDescriptions) + n * sizeof(AudioChannelDescription));
+}
+
+static OSStatus putLayout(void *data, UInt32 *ioSize, UInt32 n) {
+    AudioChannelLayout *l = data;
+
+    if (*ioSize < layoutSize(n))
+        return kAudioUnitErr_InvalidPropertyValue;
+    memset(l, 0, layoutSize(n));
+    l->mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelDescriptions;
+    l->mNumberChannelDescriptions = n;
+    for (UInt32 i = 0; i < n; i++)
+        l->mChannelDescriptions[i].mChannelLabel = n == 2 ? (i == 0 ? kAudioChannelLabel_Left : kAudioChannelLabel_Right)
+                                                          : kAudioChannelLabel_Discrete_0 + i;
+    *ioSize = layoutSize(n);
+    return noErr;
+}
+
 static OSStatus outputGetPropertyInfo(AudioUnit unit, AudioUnitPropertyID id, AudioUnitScope scope,
                                       AudioUnitElement element, UInt32 *size, Boolean *writable) {
     switch (id) {
@@ -510,6 +531,15 @@ static OSStatus outputGetPropertyInfo(AudioUnit unit, AudioUnitPropertyID id, Au
     case kAudioOutputUnitProperty_CurrentDevice:
         *size = sizeof(AudioDeviceID);
         *writable = true;
+        return noErr;
+    case kAudioDevicePropertyBufferFrameSize:
+        *size = sizeof(UInt32);
+        *writable = true;
+        return noErr;
+    case kAudioUnitProperty_AudioChannelLayout:
+    case kAudioDevicePropertyPreferredChannelLayout:
+        *size = layoutSize(kOutChannels);
+        *writable = id == kAudioUnitProperty_AudioChannelLayout && scope == kAudioUnitScope_Input;
         return noErr;
     default:
         return kAudioUnitErr_InvalidProperty;
@@ -576,6 +606,13 @@ static OSStatus outputGetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
         PUT(AURenderCallbackStruct, s->callback);
     case kAudioOutputUnitProperty_CurrentDevice:
         PUT(AudioDeviceID, s->device);
+    case kAudioDevicePropertyBufferFrameSize:
+        /* The device's, as a HAL output unit passes it through. */
+        PUT(UInt32, deviceUInt32(s->device, kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal));
+    case kAudioUnitProperty_AudioChannelLayout:
+    case kAudioDevicePropertyPreferredChannelLayout:
+        /* The unit plays interleaved stereo to the device. */
+        return putLayout(data, ioSize, kOutChannels);
     default:
         return kAudioUnitErr_InvalidProperty;
     }
@@ -691,6 +728,31 @@ static OSStatus outputSetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioU
             s->device = d;
             s->deviceRate = rateOf(d);
         }
+        break;
+    }
+    case kAudioDevicePropertyBufferFrameSize: {
+        /* Set on the device; the unit's listeners hear of it. */
+        AudioObjectPropertyAddress a = { kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal,
+                                         kAudioObjectPropertyElementMain };
+        if (size < sizeof(UInt32))
+            status = kAudioUnitErr_InvalidPropertyValue;
+        else
+            status = AudioObjectSetPropertyData(s->device, &a, 0, NULL, sizeof(UInt32), data);
+        break;
+    }
+    case kAudioUnitProperty_AudioChannelLayout: {
+        /* The client's layout: stereo, or two channels described, is
+           what the unit plays; anything else it would only mix wrongly. */
+        const AudioChannelLayout *l = data;
+        if (scope != kAudioUnitScope_Input || size < offsetof(AudioChannelLayout, mChannelDescriptions))
+            status = kAudioUnitErr_InvalidProperty;
+        else if (l->mChannelLayoutTag == kAudioChannelLayoutTag_Stereo ||
+                 l->mChannelLayoutTag == kAudioChannelLayoutTag_StereoHeadphones ||
+                 (l->mChannelLayoutTag == kAudioChannelLayoutTag_UseChannelDescriptions &&
+                  l->mNumberChannelDescriptions == kOutChannels))
+            status = noErr;
+        else
+            status = kAudioUnitErr_FormatNotSupported;
         break;
     }
     default:

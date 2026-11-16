@@ -90,6 +90,7 @@ enum {
     kAudioDevicePropertyLatency = 'ltnc',
     kAudioDevicePropertyDataSource = 'ssrc',
     kAudioDevicePropertyStreams = 'stm#',
+    kAudioDevicePropertyPreferredChannelLayout = 'srnd',
     kAudioDevicePropertyTransportType = 'tran',
     kAudioDevicePropertyDeviceManufacturerCFString = kAudioObjectPropertyManufacturer,
     kAudioDevicePropertyDeviceIsAlive = 'livn',
