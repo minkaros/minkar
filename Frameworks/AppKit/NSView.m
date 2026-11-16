@@ -49,6 +49,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSString * const NSViewFrameDidChangeNotification=@"NSViewFrameDidChangeNotification";
 NSString * const NSViewBoundsDidChangeNotification=@"NSViewBoundsDidChangeNotification";
+NSString * const NSViewGlobalFrameDidChangeNotification=@"NSViewGlobalFrameDidChangeNotification";
+
+/* The views with OpenGL surfaces (not retained: a view leaves as it goes). */
+static NSHashTable *surfaceViews;
 NSString * const NSViewFocusDidChangeNotification=@"NSViewFocusDidChangeNotification";
 
 @interface NSView(NSView_forward)
@@ -248,6 +252,10 @@ static BOOL NSViewLayersEnabled=NO;
 
     // Do this first?
     [self _unbindAllBindings];
+
+   @synchronized([NSView class]){
+    [surfaceViews removeObject:self];
+   }
 
    _window=nil;
    [_menu release];
@@ -510,6 +518,9 @@ static NSData *serverLayersForView(NSView *self) {
    NSMutableData *out=[NSMutableData data];
    BOOL           flat;
 
+   /* Layers marked to display (an OpenGL layer's frame) first. */
+   [root _minkarDisplayTreeIfNeeded];
+
    /* The root's space runs up (a flipped view is turned back for it),
       unless the root flips it. The app changes the tree from its own
       threads: it is read under the tree's lock. */
@@ -521,6 +532,90 @@ static NSData *serverLayersForView(NSView *self) {
    return out;
 }
 
+/* Every view's surfaces in a window, by owner (a view's layer tree, an
+   OpenGL context's surface): the server takes one list a window, so the
+   window's is all its owners' together, in the order they were given (an
+   owner's list replaces its own). Owners on any thread (an OpenGL context
+   presents on its own) change it under the window's lock. */
+static char windowServerLayersKey;
+
+static void sendWindowServerLayers(NSWindow *window,const void *owner,NSData *list) {
+   if(window==nil || ![window respondsToSelector:@selector(_skyLightWindowID)])
+    return;
+   @synchronized(window){
+    NSMutableArray *all=objc_getAssociatedObject(window,&windowServerLayersKey);
+    NSValue        *key=[NSValue valueWithPointer:owner];
+    NSUInteger      i;
+
+    if(all==nil){
+     all=[NSMutableArray array];
+     objc_setAssociatedObject(window,&windowServerLayersKey,all,OBJC_ASSOCIATION_RETAIN);
+    }
+    for(i=0;i<[all count];i+=2)
+     if([[all objectAtIndex:i] isEqual:key])
+      break;
+    if(list!=nil && [list length]>0){
+     if(i<[all count])
+      [all replaceObjectAtIndex:i+1 withObject:list];
+     else {
+      [all addObject:key];
+      [all addObject:list];
+     }
+    }
+    else if(i<[all count])
+     [all removeObjectsInRange:NSMakeRange(i,2)];
+
+    NSMutableData *joined=[NSMutableData data];
+    for(i=1;i<[all count];i+=2){
+     NSData *part=[all objectAtIndex:i];
+     NSUInteger room=kSLSMaxWindowLayers*sizeof(SLSWindowLayer)-[joined length];
+     [joined appendBytes:[part bytes] length:MIN([part length],room)];
+    }
+    /* The same surfaces again: their pixels changed, the server shows
+       them again only when told. */
+    SLSWindowSetLayers([(id)window _skyLightWindowID],(const SLSWindowLayer *)[joined bytes],
+       (uint32_t)([joined length]/sizeof(SLSWindowLayer)));
+   }
+}
+
+/* For NSOpenGLContext: its surface in the window's list (nil takes it). */
+void _NSWindowSetServerLayers(NSWindow *window,const void *owner,NSData *list) {
+   sendWindowServerLayers(window,owner,list);
+}
+
+/* A view whose OpenGL surface the server shows under the window: the
+   view leaves its rectangle of the window clear for it. */
+static char clearsForSurfaceKey;
+
+void _NSViewSetClearsForSurface(NSView *view,BOOL clears) {
+   objc_setAssociatedObject(view,&clearsForSurfaceKey,clears?@YES:nil,OBJC_ASSOCIATION_RETAIN);
+   @synchronized([NSView class]){
+    if(surfaceViews==nil)
+     surfaceViews=[[NSHashTable alloc] initWithOptions:NSPointerFunctionsOpaqueMemory|NSPointerFunctionsOpaquePersonality capacity:4];
+    if(clears)
+     [surfaceViews addObject:view];
+    else
+     [surfaceViews removeObject:view];
+   }
+   [view setNeedsDisplay:YES];
+}
+
+/* A view's place in its window changed: the views with surfaces in it (or
+   it) are told (NSViewGlobalFrameDidChangeNotification), so that their
+   OpenGL contexts follow. */
+static void globalFrameChanged(NSView *changed) {
+   NSArray *views;
+
+   @synchronized([NSView class]){
+    if([surfaceViews count]==0)
+     return;
+    views=[surfaceViews allObjects];
+   }
+   for(NSView *view in views)
+    if(view==changed || [view isDescendantOf:changed])
+     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewGlobalFrameDidChangeNotification object:view];
+}
+
 /* Sends the list when it changed (an empty one takes the layers away). */
 static void sendServerLayers(NSView *self,NSWindow *window,NSData *list) {
    NSData *last=objc_getAssociatedObject(self,&serverLayersKey);
@@ -529,10 +624,7 @@ static void sendServerLayers(NSView *self,NSWindow *window,NSData *list) {
     return;
    if(list==nil && last==nil)
     return;
-   /* The same surfaces again: their pixels changed, the server shows them
-      again only when told. */
-   SLSWindowSetLayers([(id)window _skyLightWindowID],(const SLSWindowLayer *)[list bytes],
-      (uint32_t)([list length]/sizeof(SLSWindowLayer)));
+   sendWindowServerLayers(window,self,list);
    objc_setAssociatedObject(self,&serverLayersKey,list,OBJC_ASSOCIATION_RETAIN);
 }
 
@@ -1133,6 +1225,8 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
 
    if(_postsNotificationOnFrameChange)
     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:self];
+   if(!NSEqualRects(oldFrame,_frame))
+    globalFrameChanged(self);
 }
 
 -(void)setFrameSize:(NSSize)size {
@@ -1227,6 +1321,9 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
 
         [_subviews makeObjectsPerformSelector:_cmd withObject:window];
         _validTrackingAreas=NO;
+        /* A view with a surface moved to another window. */
+        if(objc_getAssociatedObject(self,&clearsForSurfaceKey)!=nil)
+         [[NSNotificationCenter defaultCenter] postNotificationName:NSViewGlobalFrameDidChangeNotification object:self];
         [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
 
         if (windowRecalulatesKeyViewLoop)
@@ -2566,8 +2663,12 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
        }
       else if(!NSViewLayersEnabled && _layer!=nil && !isSurfaceLayer(_layer))
            drawHostedLayerTree(self,graphicsPort);
-      else
+      else {
+           /* An OpenGL surface shows here from under the window. */
+           if(objc_getAssociatedObject(self,&clearsForSurfaceKey)!=nil)
+            CGContextClearRect(graphicsPort,NSRectToCGRect(rect));
            [self drawRect:rect];
+      }
 
       [self unlockFocus];
 

@@ -67,6 +67,7 @@ typedef NSInteger NSViewLayerContentsRedrawPolicy;
 
 APPKIT_EXPORT NSString *const NSViewFrameDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewBoundsDidChangeNotification;
+APPKIT_EXPORT NSString *const NSViewGlobalFrameDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 
 /* A name for a view, menu item, window... that state restoration and
