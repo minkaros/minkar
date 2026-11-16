@@ -126,7 +126,7 @@ static NSUInteger separatorCount(DockModel *model)
         _view = [[DockLabelView alloc] initWithFrame:NSMakeRect(0, 0, 10, 10)];
         [_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         [self setContentView:_view];
-        [self setLevel:kCGDockWindowLevelKey];
+        [self setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey)];
         [self setOpaque:NO];
         [self setBackgroundColor:[NSColor clearColor]];
         [self setHasShadow:NO];
@@ -216,7 +216,7 @@ static NSUInteger separatorCount(DockModel *model)
         _view = [[DockDragView alloc] initWithFrame:NSMakeRect(0, 0, 48, 48)];
         [_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         [self setContentView:_view];
-        [self setLevel:kCGDraggingWindowLevelKey];
+        [self setLevel:CGWindowLevelForKey(kCGDraggingWindowLevelKey)];
         [self setOpaque:NO];
         [self setBackgroundColor:[NSColor clearColor]];
         [self setHasShadow:NO];
@@ -1262,7 +1262,7 @@ static const NSTimeInterval kEffectTime = 0.3;
     [w setHasShadow:NO];
     [w setIgnoresMouseEvents:YES];
     [w setReleasedWhenClosed:NO];
-    [w setLevel:kCGDockWindowLevelKey + 1];
+    [w setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey) + 1];
     [w orderFront:nil];
     [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 repeats:YES block:^(NSTimer *timer) {
         double t = MIN(1.0, (CFAbsoluteTimeGetCurrent() - start) / kEffectTime);
@@ -1355,7 +1355,7 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     _view.dockWindow = self;
     [_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [self setContentView:_view];
-    [self setLevel:kCGDockWindowLevelKey];
+    [self setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey)];
     [self setOpaque:NO];
     [self setBackgroundColor:[NSColor clearColor]];
     [self setHasShadow:NO];
@@ -1552,7 +1552,7 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
             view.dockWindow = self;
             [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
             [_trigger setContentView:view];
-            [_trigger setLevel:kCGDockWindowLevelKey];
+            [_trigger setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey)];
             [_trigger setOpaque:NO];
             [_trigger setBackgroundColor:[NSColor clearColor]];
             [_trigger setHasShadow:NO];

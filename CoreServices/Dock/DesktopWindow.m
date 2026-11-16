@@ -84,7 +84,7 @@ NSRect DesktopImageRect(NSSize image, NSRect bounds, NSImageScaling scaling, BOO
     _view = [[DesktopView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth([screen frame]), NSHeight([screen frame]))];
     [_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [self setContentView:_view];
-    [self setLevel:kCGDesktopWindowLevelKey];
+    [self setLevel:CGWindowLevelForKey(kCGDesktopWindowLevelKey)];
     [self setBackgroundColor:DesktopDefaultColor()];
     [self setOpaque:YES];
     [self setHasShadow:NO];

@@ -81,16 +81,20 @@ enum {
 };
 typedef NSUInteger NSWindowBackingLocation;
 
+/* Window levels, the values CoreGraphics' levels have (kCGNormalWindowLevel
+   and the rest): what -setLevel: takes and the window server orders by. */
+typedef NSInteger NSWindowLevel;
 enum {
-    NSNormalWindowLevel = kCGNormalWindowLevelKey,
-    NSFloatingWindowLevel = kCGFloatingWindowLevelKey,
-    NSSubmenuWindowLevel = kCGTornOffMenuWindowLevelKey,
-    NSTornOffMenuWindowLevel = kCGTornOffMenuWindowLevelKey,
-    NSMainMenuWindowLevel = kCGMainMenuWindowLevelKey,
-    NSStatusWindowLevel = kCGStatusWindowLevelKey,
-    NSModalPanelWindowLevel = kCGModalPanelWindowLevelKey,
-    NSPopUpMenuWindowLevel = kCGPopUpMenuWindowLevelKey,
-    NSScreenSaverWindowLevel = kCGScreenSaverWindowLevelKey,
+    NSNormalWindowLevel = 0,
+    NSFloatingWindowLevel = 3,
+    NSSubmenuWindowLevel = 3,
+    NSTornOffMenuWindowLevel = 3,
+    NSDockWindowLevel = 20,
+    NSMainMenuWindowLevel = 24,
+    NSStatusWindowLevel = 25,
+    NSModalPanelWindowLevel = 8,
+    NSPopUpMenuWindowLevel = 101,
+    NSScreenSaverWindowLevel = 1000,
 };
 
 enum {

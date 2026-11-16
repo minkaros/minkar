@@ -23,6 +23,7 @@
  */
 
 #include <stdint.h>
+#include <CoreGraphics/CoreGraphicsExport.h>
 
 #define kCGNumReservedWindowLevels 16 // tested on Sonoma
 typedef int32_t CGWindowLevel;
@@ -50,3 +51,33 @@ typedef enum CGWindowLevelKey : int32_t {
     kCGAssistiveTechHighWindowLevelKey,
     kCGNumberOfWindowLevelKeys,
 } CGWindowLevelKey;
+
+/* The levels themselves, as the API names them; what CGWindowLevelForKey
+ * returns for each key. The base levels sit kCGNumReservedBaseWindowLevels
+ * above INT32_MIN, the top ones kCGNumReservedWindowLevels below
+ * INT32_MAX. */
+#define kCGNumReservedBaseWindowLevels 5
+
+COREGRAPHICS_EXPORT CGWindowLevel CGWindowLevelForKey(CGWindowLevelKey key);
+
+#define kCGBaseWindowLevel          CGWindowLevelForKey(kCGBaseWindowLevelKey)
+#define kCGMinimumWindowLevel       CGWindowLevelForKey(kCGMinimumWindowLevelKey)
+#define kCGDesktopWindowLevel       CGWindowLevelForKey(kCGDesktopWindowLevelKey)
+#define kCGDesktopIconWindowLevel   CGWindowLevelForKey(kCGDesktopIconWindowLevelKey)
+#define kCGBackstopMenuLevel        CGWindowLevelForKey(kCGBackstopMenuLevelKey)
+#define kCGNormalWindowLevel        CGWindowLevelForKey(kCGNormalWindowLevelKey)
+#define kCGFloatingWindowLevel      CGWindowLevelForKey(kCGFloatingWindowLevelKey)
+#define kCGTornOffMenuWindowLevel   CGWindowLevelForKey(kCGTornOffMenuWindowLevelKey)
+#define kCGModalPanelWindowLevel    CGWindowLevelForKey(kCGModalPanelWindowLevelKey)
+#define kCGUtilityWindowLevel       CGWindowLevelForKey(kCGUtilityWindowLevelKey)
+#define kCGDockWindowLevel          CGWindowLevelForKey(kCGDockWindowLevelKey)
+#define kCGMainMenuWindowLevel      CGWindowLevelForKey(kCGMainMenuWindowLevelKey)
+#define kCGStatusWindowLevel        CGWindowLevelForKey(kCGStatusWindowLevelKey)
+#define kCGPopUpMenuWindowLevel     CGWindowLevelForKey(kCGPopUpMenuWindowLevelKey)
+#define kCGOverlayWindowLevel       CGWindowLevelForKey(kCGOverlayWindowLevelKey)
+#define kCGHelpWindowLevel          CGWindowLevelForKey(kCGHelpWindowLevelKey)
+#define kCGDraggingWindowLevel      CGWindowLevelForKey(kCGDraggingWindowLevelKey)
+#define kCGScreenSaverWindowLevel   CGWindowLevelForKey(kCGScreenSaverWindowLevelKey)
+#define kCGAssistiveTechHighWindowLevel CGWindowLevelForKey(kCGAssistiveTechHighWindowLevelKey)
+#define kCGCursorWindowLevel        CGWindowLevelForKey(kCGCursorWindowLevelKey)
+#define kCGMaximumWindowLevel       CGWindowLevelForKey(kCGMaximumWindowLevelKey)

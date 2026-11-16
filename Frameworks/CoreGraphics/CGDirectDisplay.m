@@ -947,12 +947,18 @@ CFMachPortRef CGWindowServerCFMachPort(void) {
 
 // The values below were obtained by testing macOS Sonoma
 CGWindowLevel CGWindowLevelForKey(CGWindowLevelKey key) {
+    /* The API's values: the base at INT32_MIN, the minimum
+       kCGNumReservedBaseWindowLevels above it, the desktop 20 above that
+       and its icons 20 higher; the maximum kCGNumReservedWindowLevels
+       below INT32_MAX, the cursor just under it. */
+    const int32_t base = INT32_MIN, minimum = base + kCGNumReservedBaseWindowLevels;
+    const int32_t maximum = INT32_MAX - kCGNumReservedWindowLevels;
     if(key < 0 || key >= kCGNumberOfWindowLevelKeys)
-        return -INT_MAX;
+        return minimum;
     const int32_t levels[kCGNumberOfWindowLevelKeys] = {
-        -INT_MAX, -INT_MAX, -INT_MAX, -20, 0,
+        base, minimum, minimum + 20, -20, 0,
         3, 3, 20, 24, 25, 8, 101, 500, 1000,
-        INT_MAX, 102, 200, 19, -INT_MAX, INT_MAX, 1500
+        maximum, 102, 200, 19, minimum + 40, maximum - 1, 1500
     };
     return levels[key];
 }

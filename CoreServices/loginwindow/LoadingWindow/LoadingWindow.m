@@ -31,7 +31,7 @@ NSTimer *timer;
     NSScreen *screen = [NSScreen mainScreen];
     self = [super initWithContentRect:[screen frame] styleMask:NSBorderlessWindowMask
         backing:NSBackingStoreBuffered defer:NO];
-    [self setLevel:kCGMaximumWindowLevelKey];
+    [self setLevel:CGWindowLevelForKey(kCGMaximumWindowLevelKey)];
     return self;
 }
 

@@ -421,7 +421,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _level=NSNormalWindowLevel;
     _hasShadow=YES;
     SLSWindowID window = 0;
-    if(SLSNewWindow(CGWindowLevelForKey(_level), slsFrame(_frame), &window) != kSLSErrorSuccess)
+    if(SLSNewWindow((int32_t)_level, slsFrame(_frame), &window) != kSLSErrorSuccess)
         return nil;
     @synchronized([NSWindow class]) {
         if(slsWindows == nil) {
@@ -3754,8 +3754,7 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
        handled first, with the old frame. */
     if(!slsFrameIsKnown(_number, slsFrame(_frame)))
         SLSSetWindowFrame(window, slsFrame(_frame));
-    /* This AppKit's levels are CGWindowLevelKeys; the server takes levels. */
-    SLSSetWindowLevel(window, CGWindowLevelForKey((CGWindowLevelKey)_level));
+    SLSSetWindowLevel(window, (int32_t)_level);
     /* Ordering in is orderWindow:relativeTo:'s; this only takes out. */
     if((_isVisible == NO || _isMiniaturized == YES) && [slsShown containsObject:key]) {
         SLSOrderWindow(window, kSLSOrderOut, 0);

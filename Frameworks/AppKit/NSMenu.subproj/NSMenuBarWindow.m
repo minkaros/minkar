@@ -251,7 +251,7 @@ static NSRect barFrame(NSScreen *screen) {
     if(self == nil)
         return nil;
     /* The level below the bars' (the Dock's): above every app's window. */
-    [self setLevel:kCGDockWindowLevelKey];
+    [self setLevel:NSDockWindowLevel];
     [self setHasShadow:NO];
     [self setMovable:NO];
     [self setExcludedFromWindowsMenu:YES];
