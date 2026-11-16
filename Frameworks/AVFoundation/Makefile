@@ -24,7 +24,7 @@ SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} -fobjc-arc -I${.CURDIR}/MediaDecoder -I${.OBJDIR}
-LDFLAGS += -F${FMWKS} -framework Foundation -framework CoreMedia -framework CoreVideo -framework QuartzCore \
+LDFLAGS += -F${FMWKS} -framework Foundation -framework CoreMedia -framework CoreVideo -framework QuartzCore -framework VideoToolbox -framework IOKit \
 	-framework IOSurface -framework CoreServices -framework CoreGraphics -framework AudioToolbox -lobjc
 .PATH: ${.CURDIR}/MediaDecoder
 
