@@ -449,6 +449,16 @@ static void layerChanged(CALayer *layer);
    size_t width=(size_t)ceil(_bounds.size.width*_contentsScale),height=(size_t)ceil(_bounds.size.height*_contentsScale);
 
    _needsDisplay=NO;
+   /* Nothing draws the layer (no delegate drawing, drawInContext: not
+      overridden): its new backing store would stay clear, so it has no
+      contents, as clear, without an empty image the window would have to
+      draw (an app marks such layers: Firefox's). */
+   if(![_delegate respondsToSelector:@selector(drawLayer:inContext:)] &&
+      [self methodForSelector:@selector(drawInContext:)]==[CALayer instanceMethodForSelector:@selector(drawInContext:)]){
+    if(_contents!=nil)
+     [self setContents:nil];
+    return;
+   }
    if(width==0 || height==0){
     [self setContents:nil];
     return;
