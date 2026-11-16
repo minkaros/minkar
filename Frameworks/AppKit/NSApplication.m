@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSocket_bsd.h>
 #import <Foundation/NSSelectInputSource.h>
 #import <AppKit/NSApplication.h>
+#import <Foundation/NSDistributedNotificationCenter.h>
 #include <SkyLight/SkyLight.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSPanel.h>
@@ -884,7 +885,21 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return opened;
 }
 
+/* Distributed notifications wait while a regular app is inactive (each
+   observer's suspension behavior), as on the reference platform; an agent
+   or accessory app, seldom active, gets them as they come. */
+-(void)_activeForDistributedNotifications:(NSNotification *)note {
+   if(_activationPolicy!=NSApplicationActivationPolicyRegular)
+    return;
+   [[NSDistributedNotificationCenter defaultCenter] setSuspended:
+    [[note name] isEqualToString:NSApplicationDidResignActiveNotification]];
+}
+
 -(void)finishLaunching {
+   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_activeForDistributedNotifications:)
+      name:NSApplicationDidBecomeActiveNotification object:self];
+   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_activeForDistributedNotifications:)
+      name:NSApplicationDidResignActiveNotification object:self];
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    BOOL               needsUntitled=YES;
 
