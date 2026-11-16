@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -15,22 +16,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSOpenGLPixelFormat *_pixelFormat;
     NSOpenGLContext *_context;
     BOOL _needsReshape;
+    BOOL _wantsBestResolution;
+    BOOL _wantsExtendedDynamicRange;
 }
 
 + (NSOpenGLPixelFormat *)defaultPixelFormat;
 
-- (id)initWithFrame:(NSRect)frame pixelFormat:(NSOpenGLPixelFormat *)pixelFormat;
+- (instancetype)initWithFrame:(NSRect)frame pixelFormat:(NSOpenGLPixelFormat *)format;
 
-- (NSOpenGLPixelFormat *)pixelFormat;
-- (NSOpenGLContext *)openGLContext;
+@property (retain) NSOpenGLContext *openGLContext;
+@property (retain) NSOpenGLPixelFormat *pixelFormat;
+@property BOOL wantsBestResolutionOpenGLSurface;
+@property BOOL wantsExtendedDynamicRangeOpenGLSurface;
 
-- (void)setPixelFormat:(NSOpenGLPixelFormat *)pixelFormat;
-- (void)setOpenGLContext:(NSOpenGLContext *)context;
-
+- (void)clearGLContext;
 - (void)update;
 - (void)reshape;
-
 - (void)prepareOpenGL;
-- (void)clearGLContext;
 
 @end

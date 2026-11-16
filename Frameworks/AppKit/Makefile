@@ -135,7 +135,7 @@ SRCS = \
     NSMutableAttributedString.m \
     NSMutableParagraphStyle.m \
     NSOpenGL/NSOpenGLContext.m \
-    NSOpenGL/NSOpenGLDrawable.m \
+    NSOpenGL/NSOpenGLLayer.m \
     NSOpenGL/NSOpenGLPixelBuffer.m \
     NSOpenGL/NSOpenGLPixelFormat.m \
     NSOpenGL/NSOpenGLView.m \
@@ -434,7 +434,7 @@ HEADERS = \
     NSMutableParagraphStyle.h \
     NSOpenGL/NSOpenGL.h \
     NSOpenGL/NSOpenGLContext.h \
-    NSOpenGL/NSOpenGLDrawable.h \
+    NSOpenGL/NSOpenGLLayer.h \
     NSOpenGL/NSOpenGLPixelBuffer.h \
     NSOpenGL/NSOpenGLPixelFormat.h \
     NSOpenGL/NSOpenGLView.h \
