@@ -10,6 +10,7 @@ SRCS= \
 	CABase.m \
 	CABasicAnimation.m \
 	CALayer.m \
+	CAYUVImage.c \
 	CAShapeLayer.m \
 	CALayerContext.m \
 	CAMetalLayer.m \
@@ -71,6 +72,8 @@ RESOURCES_FILES = Info.plist
 RESOURCES_DIRS = English.lproj
 
 CFLAGS = -I${.CURDIR:H} -fblocks -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+# The YCbCr conversion runs for every pixel of every video frame shown.
+CFLAGS.CAYUVImage.c = -O2
 LDFLAGS = -framework IOSurface \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
 	-framework OpenGL -framework Onyx2D -framework CoreGraphics \

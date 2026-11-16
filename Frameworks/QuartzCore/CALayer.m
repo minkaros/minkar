@@ -736,6 +736,10 @@ static void releaseSurfaceImage(void *info,const void *data,size_t size) {
    CFRelease(surface);
 }
 
+/* CAYUVImage.c: a video decoder's YCbCr surface, converted. */
+extern int        _CAIsYCbCrSurfaceFormat(OSType format);
+extern CGImageRef _CACreateImageFromYCbCrSurface(IOSurfaceRef surface);
+
 static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
    size_t   width=IOSurfaceGetWidth(surface),height=IOSurfaceGetHeight(surface);
    size_t   rowBytes=IOSurfaceGetBytesPerRow(surface);
@@ -746,6 +750,8 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
     info=(opaque?kCGImageAlphaNoneSkipFirst:kCGImageAlphaPremultipliedFirst)|kCGBitmapByteOrder32Little;
    else if(format=='RGBA')
     info=(opaque?kCGImageAlphaNoneSkipLast:kCGImageAlphaPremultipliedLast)|kCGBitmapByteOrder32Big;
+   else if(_CAIsYCbCrSurfaceFormat(format))
+    return _CACreateImageFromYCbCrSurface(surface);
    else
     return NULL;
    if(width==0 || height==0 || rowBytes<width*4)
