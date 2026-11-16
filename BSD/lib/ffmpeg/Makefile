@@ -16,7 +16,8 @@ EXTLIB =	ffmpeg
 EXTLIB_SYSTEM =	configure
 EXTLIB_PRIVATE = media
 # The system's media frameworks only with VideoToolbox or AudioToolbox.
-EXTLIB_PATCHES = 0001-apple-frameworks-only-with-toolbox.patch
+EXTLIB_PATCHES = 0001-apple-frameworks-only-with-toolbox.patch \
+		 0002-h264-decode-order-with-low-delay.patch
 EXTLIB_OPTIONS = --enable-cross-compile --target-os=darwin --arch=x86_64 \
 		--cc="${TC}/clang ${TARGET_FLAGS}" --cxx="${TC}/clang++ ${TARGET_FLAGS}" \
 		--ld="${TC}/clang ${TARGET_FLAGS} -fuse-ld=${TC}/ld64" \

@@ -1,0 +1,30 @@
+H.264 in decode order with AV_CODEC_FLAG_LOW_DELAY: each picture is
+output as soon as it is decoded, with no reordering delay. VideoToolbox's
+decompression session (Frameworks/VideoToolbox/VTDecoder.c) answers each
+frame given with its own image, in decode order, as the reference
+platform's does; its callers (Firefox) put frames in presentation order
+themselves and give the next frame only once the last one is answered.
+
+--- a/libavcodec/h264_slice.c	2026-11-15 20:23:34.592131572 -0500
++++ b/libavcodec/h264_slice.c	2026-11-15 20:23:34.619130309 -0500
+@@ -1302,6 +1302,20 @@
+     cur->mmco_reset = h->mmco_reset;
+     h->mmco_reset = 0;
+ 
++    /* With AV_CODEC_FLAG_LOW_DELAY, each picture is output as soon as it
++     * is decoded, in decode order, for a caller that puts frames in
++     * presentation order itself (as a VideoToolbox session's does). */
++    if (h->avctx->flags & AV_CODEC_FLAG_LOW_DELAY) {
++        h->avctx->has_b_frames = 0;
++        h->frame_recovered |= cur->recovered;
++        cur->recovered |= h->frame_recovered & FRAME_RECOVERED_SEI;
++        h->next_output_pic = cur;
++        if (!cur->recovered && !(h->avctx->flags & AV_CODEC_FLAG_OUTPUT_CORRUPT) &&
++            !(h->avctx->flags2 & AV_CODEC_FLAG2_SHOW_ALL))
++            h->next_output_pic = NULL;
++        return 0;
++    }
++
+     if (sps->bitstream_restriction_flag ||
+         h->avctx->strict_std_compliance >= FF_COMPLIANCE_STRICT) {
+         h->avctx->has_b_frames = FFMAX(h->avctx->has_b_frames, sps->num_reorder_frames);

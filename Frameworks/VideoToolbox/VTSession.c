@@ -43,25 +43,7 @@ Boolean VTIsHardwareDecodeSupported(CMVideoCodecType codecType) {
 void VTRegisterSupplementalVideoDecoderIfAvailable(CMVideoCodecType codecType) {
 }
 
-OSStatus VTDecompressionSessionCreate(CFAllocatorRef allocator, CMVideoFormatDescriptionRef format,
-    CFDictionaryRef decoderSpecification, CFDictionaryRef imageBufferAttributes,
-    const VTDecompressionOutputCallbackRecord *outputCallback, VTDecompressionSessionRef *sessionOut) {
-    if (sessionOut != NULL)
-        *sessionOut = NULL;
-    return kVTCouldNotFindVideoDecoderErr;
-}
-
-OSStatus VTDecompressionSessionDecodeFrame(VTDecompressionSessionRef session, CMSampleBufferRef sampleBuffer,
-    VTDecodeFrameFlags flags, void *refCon, VTDecodeInfoFlags *infoFlagsOut) {
-    return kVTInvalidSessionErr;
-}
-
-OSStatus VTDecompressionSessionWaitForAsynchronousFrames(VTDecompressionSessionRef session) {
-    return kVTInvalidSessionErr;
-}
-
-void VTDecompressionSessionInvalidate(VTDecompressionSessionRef session) {
-}
+/* The decompression session is VTDecoder.c's. */
 
 OSStatus VTCompressionSessionCreate(CFAllocatorRef allocator, int32_t width, int32_t height, CMVideoCodecType codecType,
     CFDictionaryRef encoderSpecification, CFDictionaryRef sourceImageBufferAttributes,
@@ -84,12 +66,31 @@ OSStatus VTCompressionSessionCompleteFrames(VTCompressionSessionRef session, CMT
 void VTCompressionSessionInvalidate(VTCompressionSessionRef session) {
 }
 
+extern Boolean _VTIsDecompressionSession(CFTypeRef cf);
+
+/* A decompression session's properties: decoding is FFmpeg's, on the
+   processor; the rest are taken and have no effect. */
 OSStatus VTSessionSetProperty(VTSessionRef session, CFStringRef key, CFTypeRef value) {
-    return kVTInvalidSessionErr;
+    if (!_VTIsDecompressionSession(session))
+        return kVTInvalidSessionErr;
+    if (key == NULL)
+        return kVTParameterErr;
+    if (CFEqual(key, kVTDecompressionPropertyKey_UsingHardwareAcceleratedVideoDecoder))
+        return kVTPropertyReadOnlyErr;
+    return noErr;
 }
 
 OSStatus VTSessionCopyProperty(VTSessionRef session, CFStringRef key, CFAllocatorRef allocator, void *valueOut) {
-    return kVTInvalidSessionErr;
+    if (!_VTIsDecompressionSession(session))
+        return kVTInvalidSessionErr;
+    if (key == NULL || valueOut == NULL)
+        return kVTParameterErr;
+    if (CFEqual(key, kVTDecompressionPropertyKey_UsingHardwareAcceleratedVideoDecoder)) {
+        *(CFTypeRef *)valueOut = CFRetain(kCFBooleanFalse);
+        return noErr;
+    }
+    *(CFTypeRef *)valueOut = NULL;
+    return kVTPropertyNotSupportedErr;
 }
 
 OSStatus VTSessionCopySupportedPropertyDictionary(VTSessionRef session, CFDictionaryRef *dictionaryOut) {

@@ -10,12 +10,15 @@ MK_WERROR = no
 FRAMEWORK = VideoToolbox
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = VTSession.c
+SRCS = VTSession.c VTDecoder.c
 HEADERS = VideoToolbox.h VTSession.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS}
+# FFmpeg's headers for the decoder (VTDecoder.c); the libraries are loaded
+# with dlopen when a session is first made, not linked.
+CFLAGS += -I${MINKAR_SDKROOT}/usr/local/media/include
 LDFLAGS += -F${FMWKS} -framework CoreFoundation -framework CoreMedia -framework CoreVideo -lobjc
 
 fmwk-install-hook:

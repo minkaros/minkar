@@ -22,6 +22,19 @@ typedef UInt32 VTDecodeInfoFlags;
 typedef UInt32 VTEncodeInfoFlags;
 
 enum {
+    kVTDecodeFrame_EnableAsynchronousDecompression = 1 << 0,
+    kVTDecodeFrame_DoNotOutputFrame = 1 << 1,
+    kVTDecodeFrame_1xRealTimePlayback = 1 << 2,
+    kVTDecodeFrame_EnableTemporalProcessing = 1 << 3,
+};
+
+enum {
+    kVTDecodeInfo_Asynchronous = 1UL << 0,
+    kVTDecodeInfo_FrameDropped = 1UL << 1,
+    kVTDecodeInfo_ImageBufferModifiable = 1UL << 2,
+};
+
+enum {
     kVTPropertyNotSupportedErr = -12900,
     kVTPropertyReadOnlyErr = -12901,
     kVTParameterErr = -12902,
@@ -87,7 +100,11 @@ OSStatus VTDecompressionSessionCreate(CFAllocatorRef allocator, CMVideoFormatDes
 OSStatus VTDecompressionSessionDecodeFrame(VTDecompressionSessionRef session, CMSampleBufferRef sampleBuffer,
     VTDecodeFrameFlags decodeFlags, void *sourceFrameRefCon, VTDecodeInfoFlags *infoFlagsOut);
 OSStatus VTDecompressionSessionWaitForAsynchronousFrames(VTDecompressionSessionRef session);
+OSStatus VTDecompressionSessionFinishDelayedFrames(VTDecompressionSessionRef session);
+Boolean VTDecompressionSessionCanAcceptFormatDescription(VTDecompressionSessionRef session,
+    CMFormatDescriptionRef newFormatDesc);
 void VTDecompressionSessionInvalidate(VTDecompressionSessionRef session);
+CFTypeID VTDecompressionSessionGetTypeID(void);
 
 OSStatus VTCompressionSessionCreate(CFAllocatorRef allocator, int32_t width, int32_t height, CMVideoCodecType codecType,
     CFDictionaryRef encoderSpecification, CFDictionaryRef sourceImageBufferAttributes,
