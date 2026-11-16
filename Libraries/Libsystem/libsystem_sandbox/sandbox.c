@@ -170,6 +170,30 @@ static const char *const service_aliases[][4] = {
 	{ "org.minkar.fseventsd", "com.apple.FSEvents", NULL, NULL },
 };
 
+/*
+ * Minkar's services that do what an IOKit user client does on the
+ * reference platform: a profile that lets the process open the user
+ * client lets it look the service up.
+ */
+static const struct {
+	const char *service;
+	const char *userClientClass;
+} user_client_services[] = {
+	{ "org.minkar.iosurfaced", "IOSurfaceRootUserClient" },
+};
+
+static int check_one(pid_t pid, const char *operation, int kind, const char *name, int *denied);
+
+/* Whether a denied lookup of a service is allowed as its user client. */
+static int check_user_client(pid_t pid, const char *service, int *denied) {
+	for (size_t i = 0; i < sizeof(user_client_services) / sizeof(user_client_services[0]) && *denied; i++)
+		if (strcmp(user_client_services[i].service, service) == 0 &&
+		    check_one(pid, "iokit-open", SBN_IOKIT_USER_CLIENT_CLASS, user_client_services[i].userClientClass,
+		    denied) != 0)
+			return -1;
+	return 0;
+}
+
 static int check_one(pid_t pid, const char *operation, int kind, const char *name, int *denied) {
 	struct sb_check_args args;
 	memset(&args, 0, sizeof(args));
@@ -238,5 +262,8 @@ int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type typ
 				if (check_one(pid, operation, kind, service_aliases[i][j], &denied) != 0)
 					return -1;
 		}
+	if (denied && kind == SBN_GLOBAL_NAME && name != NULL && strcmp(operation, "mach-lookup") == 0 &&
+	    check_user_client(pid, name, &denied) != 0)
+		return -1;
 	return denied ? 1 : 0;
 }
