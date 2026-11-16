@@ -4,6 +4,7 @@ The commands of Minkar's base system: where each comes from, what was
 added for the reference system compatibility, and what was found and fixed while porting
 it. The [roadmap](ROADMAP.md) (Phase 2) tracks this work as a whole;
 [Commands.md](Commands.md) counts the image's commands against the reference system's.
+In Spanish: [Userland.es.md](Userland.es.md).
 
 ## Policy
 
@@ -171,7 +172,7 @@ too: it has line characters, blocks and Braille dots.
   `nfsd` (XNU has the NFS client and server).
 - exFAT: `fsck_exfat`, `newfs_exfat`, `mount_exfat` and our own kernel
   driver (reading and writing) are there.
-- Left out until 1.0, with no driver under a usable license: SMB
+- Left out until after Minkar 19.6.0, with no driver under a usable license: SMB
   (`mount_smbfs`; Samba is GPL and FreeBSD's smbfs is gone) and APFS
   (`fsck_apfs`, `mount_apfs`, `newfs_apfs`; no open implementation).
   Minkar's file system is HFS+. Also `fdesctl`.

@@ -1,7 +1,7 @@
 # Kernel command line arguments reference
 
 These arguments can be specified in `org.minkar.boot.plist` and on the booter
-(`efiloader`) command line.
+(`efiloader`) command line. In Spanish: [BootArgs.es.md](BootArgs.es.md).
 
 ## Loader keys in `org.minkar.boot.plist`
 

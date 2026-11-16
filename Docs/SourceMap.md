@@ -9,7 +9,7 @@ top-level `Makefile` builds these stages in turn (`bmake ONLY_STAGE=<stage>
 `SystemLibrary`; then `bmake image` makes the disk image.
 
 [BUILDING.md](BUILDING.md) says how to build; [ROADMAP.md](ROADMAP.md) what
-is done and what comes next.
+is done and what comes next. In Spanish: [SourceMap.es.md](SourceMap.es.md).
 
 ## Kernel
 

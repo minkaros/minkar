@@ -8,6 +8,7 @@ build the rest of the system for the same CPU architecture.
 The source tree is `/work/minkar` and the build directory is `../build`
 next to it (`ROOT_BINARY_DIR`); adjust the paths below to your checkout.
 Building LLVM the first time takes a __long__ time.
+In Spanish: [BUILDING.es.md](BUILDING.es.md).
 
 ## Host requirements
 
