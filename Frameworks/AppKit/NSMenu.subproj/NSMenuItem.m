@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Original - Christopher Lloyd <cjwl@objc.net>
 #import <objc/runtime.h>
+#import <AppKit/NSAccessibility.h>
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSImage.h>
@@ -433,6 +434,54 @@ static char toolTipKey, viewKey;
     if([item submenu]==[self menu])
      return item;
    return nil;
+}
+
+@end
+
+/* Accessibility (MB2): a menu item is an AXMenuItem with its title,
+   enabled state, its submenu as its child and its menu as its parent;
+   pressing it does what choosing it does. What the app set its own
+   comes first. */
+@implementation NSMenuItem (NSMenuItemAccessibility)
+
+-(BOOL)isAccessibilityElement {
+   return ![self isSeparatorItem] && ![self isHidden];
+}
+
+-(NSString *)accessibilityRole {
+   NSString *own=[super accessibilityRole];
+   return own!=nil?own:([self isSeparatorItem]?NSAccessibilitySplitterRole:NSAccessibilityMenuItemRole);
+}
+
+-(NSString *)accessibilityTitle {
+   NSString *own=[super accessibilityTitle];
+   return own!=nil?own:[self title];
+}
+
+-(BOOL)isAccessibilityEnabled {
+   return [self isEnabled];
+}
+
+-(NSArray *)accessibilityChildren {
+   NSArray *own=[super accessibilityChildren];
+   if(own!=nil)
+    return own;
+   return [self hasSubmenu]?[NSArray arrayWithObject:[self submenu]]:[NSArray array];
+}
+
+-(id)accessibilityParent {
+   id own=[super accessibilityParent];
+   return own!=nil?own:[self menu];
+}
+
+-(BOOL)accessibilityPerformPress {
+   NSMenu *menu=[self menu];
+   NSInteger index=[menu indexOfItem:self];
+
+   if(menu==nil || index<0 || ![self isEnabled] || [self hasSubmenu])
+    return NO;
+   [menu performActionForItemAtIndex:index];
+   return YES;
 }
 
 @end

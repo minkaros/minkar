@@ -45,8 +45,15 @@ enum {
 	kNSMenuKeyboardNavigationLeft,
 	kNSMenuKeyboardNavigationRight,
 	kNSMenuKeyboardNavigationLetter,
-	kNSMenuKeyboardNavigationStart	// tracking begun from the keyboard
+	kNSMenuKeyboardNavigationStart,	// tracking begun from the keyboard
+	kNSMenuKeyboardNavigationSearch	// a key the Help search took
 };
+
+@interface NSMenuView (NSMenuViewAlternatesAndSearch)
+-(void)_modifiersChanged;
+-(void)_showHelpSearch;
+-(BOOL)_helpSearchKey:(NSEvent *)event;
+@end
 
 @implementation NSMenuView
 
@@ -70,12 +77,107 @@ enum {
 }
 
 
+/* ---- Searching from the Help menu (MB2) ----
+   The Help menu opens with a Search line at its top; what is typed while
+   it is open looks through the app's other menus, the items whose titles
+   hold it listed below as items of the Help menu that do what the
+   originals do. */
+enum { kHelpSearchTag = 0x48534552, kHelpResultTag = 0x48524553 };
+static NSMutableString *helpSearchText;
+
+static NSMenu *appHelpMenu(void) {
+    return [NSApp helpMenu];
+}
+
+static void collectHelpResults(NSMenu *menu, NSString *path, NSString *text, NSMutableArray *found) {
+    for(NSMenuItem *item in [menu itemArray]) {
+        if([found count] >= 12)
+            return;
+        if([item isSeparatorItem] || [item isHidden] || [[item title] length] == 0)
+            continue;
+        NSString *here = [path length] ? [path stringByAppendingFormat:@" \u25B8 %@", [item title]] : [item title];
+        if([item hasSubmenu]) {
+            if([item submenu] != appHelpMenu())
+                collectHelpResults([item submenu], [path length] ? here : [item title], text, found);
+            continue;
+        }
+        if([[item title] rangeOfString:text options:NSCaseInsensitiveSearch].location != NSNotFound)
+            [found addObject:[NSArray arrayWithObjects:here, item, nil]];
+    }
+}
+
+static void resetHelpMenu(NSMenu *menu) {
+    for(NSInteger i = [menu numberOfItems] - 1; i >= 0; i--) {
+        NSInteger tag = [[menu itemAtIndex:i] tag];
+        if(tag == kHelpSearchTag || tag == kHelpResultTag)
+            [menu removeItemAtIndex:i];
+    }
+}
+
+-(void)_showHelpSearch {
+    NSMenu *menu = [self menu];
+    NSString *prompt = [[NSBundle bundleForClass:[NSMenuView class]] localizedStringForKey:@"Search"
+        value:@"Search" table:nil];
+    NSString *title = [helpSearchText length] ? [NSString stringWithFormat:@"%@: %@", prompt, helpSearchText] : prompt;
+
+    resetHelpMenu(menu);
+    NSMenuItem *search = [[[NSMenuItem alloc] initWithTitle:title action:NULL keyEquivalent:@""] autorelease];
+    [search setTag:kHelpSearchTag];
+    [search setEnabled:NO];
+    [menu insertItem:search atIndex:0];
+    NSMenuItem *separator = [NSMenuItem separatorItem];
+    [separator setTag:kHelpSearchTag];
+    [menu insertItem:separator atIndex:1];
+    if([helpSearchText length] == 0)
+        return;
+    NSMutableArray *found = [NSMutableArray array];
+    collectHelpResults([NSApp mainMenu], @"", helpSearchText, found);
+    NSInteger at = 2;
+    for(NSArray *pair in found) {
+        NSMenuItem *original = [pair objectAtIndex:1];
+        NSMenuItem *result = [[[NSMenuItem alloc] initWithTitle:[pair objectAtIndex:0] action:[original action]
+            keyEquivalent:@""] autorelease];
+        [result setTarget:[original target]];
+        [result setRepresentedObject:[original representedObject]];
+        [result setTag:kHelpResultTag];
+        [menu insertItem:result atIndex:at++];
+    }
+}
+
+/* A key typed in the Help menu: the search grows or shrinks, and the
+   first result is selected. Arrows, Return and Escape go on as usual. */
+-(BOOL)_helpSearchKey:(NSEvent *)event {
+    NSString *chars = [event characters];
+    unichar c = [chars length] ? [chars characterAtIndex:0] : 0;
+
+    if([self menu] == nil || [self menu] != appHelpMenu() || [self _isMenuBar])
+        return NO;
+    if(c == NSDeleteCharacter || c == NSBackspaceCharacter) {
+        if([helpSearchText length] > 0)
+            [helpSearchText deleteCharactersInRange:NSMakeRange([helpSearchText length] - 1, 1)];
+    } else if(c >= ' ' && c < NSUpArrowFunctionKey && !([event modifierFlags] & (NSCommandKeyMask | NSControlKeyMask)))
+        [helpSearchText appendString:chars];
+    else
+        return NO;
+    [self _showHelpSearch];
+    [self _modifiersChanged];
+    [self setSelectedItemIndex:[[self visibleItemArray] count] > 2 ? 2 : NSNotFound];
+    return YES;
+}
+
 -initWithMenu:(NSMenu *)menu {
     NSRect frame = NSZeroRect;
     self = [self initWithFrame:frame];
 
     _menu = menu;
     _selectedItemIndex = NSNotFound;
+    /* The Help menu opens with its Search line and no results. */
+    if(menu != nil && menu == appHelpMenu()) {
+        if(helpSearchText == nil)
+            helpSearchText = [[NSMutableString alloc] init];
+        [helpSearchText setString:@""];
+        [self _showHelpSearch];
+    }
 
     frame.size = [self sizeForMenuItems:[self visibleItemArray]];
     [self setFrame:frame];
@@ -116,13 +218,57 @@ enum {
         _visibleArray = [NSMutableArray new];
     [_visibleArray removeAllObjects];
    
-    for(int i = 0; i < [items count]; ++i) {
+    /* An item and the alternates that follow it (same key, other
+       modifiers) show as one: the one whose modifiers are held now, else
+       the first, as on the reference platform. */
+    NSUInteger held = [NSEvent modifierFlags] &
+        (NSCommandKeyMask | NSAlternateKeyMask | NSControlKeyMask | NSShiftKeyMask);
+    NSUInteger count = [items count];
+    for(NSUInteger i = 0; i < count; ++i) {
         NSMenuItem *item = [items objectAtIndex:i];
-        if(![item isHidden])
-	     [_visibleArray addObject:item];
+        if([item isHidden])
+            continue;
+        NSUInteger end = i + 1;
+        while(end < count && [[items objectAtIndex:end] isAlternate] &&
+              [[[items objectAtIndex:end] keyEquivalent] isEqualToString:[item keyEquivalent]])
+            end++;
+        NSMenuItem *shown = item;
+        NSUInteger primary = [item keyEquivalentModifierMask] &
+            (NSCommandKeyMask | NSAlternateKeyMask | NSControlKeyMask | NSShiftKeyMask);
+        for(NSUInteger j = i; j < end; j++) {
+            NSMenuItem *candidate = [items objectAtIndex:j];
+            NSUInteger mask = [candidate keyEquivalentModifierMask] &
+                (NSCommandKeyMask | NSAlternateKeyMask | NSControlKeyMask | NSShiftKeyMask);
+            /* The modifiers that set it apart from the primary are held
+               (Option for Option-Command after Command), or all of its. */
+            if(j > i && (held == (mask & ~primary) || held == mask) && held != 0 && ![candidate isHidden]) {
+                shown = candidate;
+                break;
+            }
+        }
+        [_visibleArray addObject:shown];
+        i = end - 1;
     }
 
     return _visibleArray;
+}
+
+/* The modifiers changed while open: the alternates that show now, the
+   menu sized to them. */
+-(void)_modifiersChanged {
+    NSArray *items = [self visibleItemArray];
+    NSSize size = [self sizeForMenuItems:items];
+    NSWindow *window = [self window];
+
+    if(![self _isMenuBar] && window != nil && !NSEqualSizes(size, [self frame].size)) {
+        NSRect frame = [window frame];
+        CGFloat top = NSMaxY(frame);
+        frame.size = [window frameRectForContentRect:NSMakeRect(0, 0, size.width, size.height)].size;
+        frame.origin.y = top - frame.size.height;
+        [window setFrame:frame display:NO];
+        [self setFrameSize:size];
+    }
+    [self setNeedsDisplay:YES];
 }
 
 -(CGFloat)heightOfMenuItem:(NSMenuItem *)item {
@@ -783,6 +929,9 @@ const float kMouseMovementThreshold = .001f;
 	
 	// Start tracking the mouse movements and clicks
 	do {
+		/* As this turn starts: a change of the modifiers alone repeats it. */
+		NSPoint            turnPoint=point;
+		NSEvent           *turnEvent=event;
 		int                count=[viewStack count];
 		NSScreen          *screen=[self _screenForPoint:[[event window] convertBaseToScreen:point]];
 		
@@ -877,7 +1026,7 @@ const float kMouseMovementThreshold = .001f;
 		event=[[self window] nextEventMatchingMask:NSLeftMouseDownMask|NSLeftMouseUpMask|
 			NSRightMouseDownMask|NSRightMouseUpMask|NSOtherMouseDownMask|NSOtherMouseUpMask|
 			NSMouseMovedMask|NSLeftMouseDraggedMask|NSRightMouseDraggedMask|NSOtherMouseDraggedMask|
-			NSKeyDownMask|NSAppKitDefinedMask|NSScrollWheelMask
+			NSKeyDownMask|NSAppKitDefinedMask|NSScrollWheelMask|NSFlagsChangedMask
 			untilDate:autoscrolling?[NSDate dateWithTimeIntervalSinceNow:0.04]:[NSDate distantFuture]
 			inMode:NSEventTrackingRunLoopMode dequeue:YES];
 		if(event==nil)
@@ -885,6 +1034,15 @@ const float kMouseMovementThreshold = .001f;
 			    modifierFlags:[lastMouseEvent modifierFlags] timestamp:[NSDate timeIntervalSinceReferenceDate]
 			    windowNumber:[lastMouseEvent windowNumber] context:nil eventNumber:0 clickCount:0 pressure:0];
 		autoscrolling = NO;
+		if([event type]==NSFlagsChanged){
+			/* Option and the other modifiers swap alternates in place;
+			   then this turn again, as it was, so nothing moves. */
+			for(NSMenuView *open in viewStack)
+				[open _modifiersChanged];
+			point=turnPoint;
+			event=turnEvent;
+			continue;
+		}
 		if([event type]==NSScrollWheel){
 			/* The wheel scrolls the menu under the pointer (else the last
 			   one opened). */
@@ -914,7 +1072,13 @@ const float kMouseMovementThreshold = .001f;
 		
         // Sometimes we can get key events with no characters (if the user
         // has invoked an accelerator while the menu is open for example)
-		if ([event type] == NSKeyDown && [[event characters] length] > 0) {
+		/* A key the Help search takes: the keyboard keeps the menus (the
+		   pointer does not take the selection back on the next turn). */
+		if ([event type] == NSKeyDown && [[event characters] length] > 0 &&
+		    [[viewStack lastObject] _helpSearchKey:event]) {
+			keyboardNavigationAction = kNSMenuKeyboardNavigationSearch;
+		}
+		else if ([event type] == NSKeyDown && [[event characters] length] > 0) {
 
 			NSString* chars = [event characters];
 			unichar ch = [chars characterAtIndex: 0];

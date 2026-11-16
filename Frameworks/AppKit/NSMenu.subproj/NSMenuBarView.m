@@ -323,6 +323,13 @@ static const CGFloat firstTitleInset=20;
    topLeft=[self convertPoint:topLeft toView:nil];
    topLeft=[[self window] convertBaseToScreen:topLeft];
 
+   /* A menu taller than the room below the bar fits it and scrolls, as
+      on the reference platform (it never goes above the bar). */
+   if(topLeft.y-branchFrame.size.height<NSMinY(screenVisible)){
+    [[branch menuView] _fitToHeight:topLeft.y-NSMinY(screenVisible)];
+    branchFrame=[branch frame];
+   }
+
    if(topLeft.y-branchFrame.size.height<NSMinY(screenVisible)){
     topLeft=NSMakePoint(itemRect.origin.x,NSMinY(itemRect));
 

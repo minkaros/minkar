@@ -55,7 +55,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 
 | Parte | Capítulo | Hitos | Hechos | Siguiente |
 | --- | --- | --- | --- | --- |
-| Menús | 3 | MB0–MB4 | MB0, MB1 | MB2, MB3 |
+| Menús | 3 | MB0–MB4 | MB0, MB1, MB2 | MB3 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 en parte) | K0, K4 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
@@ -349,11 +349,25 @@ distinguirlos de los gates M*n*.
   un item y el servidor de ventanas le hace sitio (versión 24 de la
   interfaz), y todos los items de la app guardan su sitio, así que el
   orden se mantiene tras reiniciar. Prueba local `menubar-extras`.
-- [ ] **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
+- [x] **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
   búsqueda del menú Ayuda sobre los elementos de menú, alternativos con
   Opción, desplazamiento de menús largos, búsqueda por escritura,
   Control-F2, el elemento de pantalla completa del menú Visualización, roles
   de accesibilidad.
+  *Hecho (16 nov 2026):* un alternativo aparece en lugar de su principal
+  mientras se pulsan los modificadores que lo distinguen, y cambia con el
+  menú abierto; el menú Ayuda se abre con una línea Buscar y lo que se
+  escribe lista los elementos de los demás menús de la app que coinciden
+  («Test ▸ More ▸ Gamma»), y Return elige el primero; un menú más alto que
+  el espacio bajo la barra se ajusta a él y se desplaza (antes subía por
+  encima de la barra); AppKit añade Entrar en pantalla completa
+  (Control-Comando-F) al menú Visualización de la app, con el título según
+  la ventana principal; NSMenu y NSMenuItem dan sus roles de accesibilidad
+  (AXMenuBar, AXMenu, AXMenuItem), títulos, estado, hijos y padres, y un
+  elemento se puede pulsar. El menú Ventana, Abrir recientes
+  (`_setMenuName:` nombra un menú hecho en código), la búsqueda por
+  escritura y Control-F2 ya estaban y ahora tienen prueba. Pruebas locales
+  `menus-mb2` y `menus`.
 - [ ] **MB3 — El menú del sistema completo.** Con el LoginWindow y Preferencias
   del Sistema de la Fase 5: Reposo, ventana de Forzar salida, Bloquear
   pantalla, Preferencias del Sistema…, Ítems recientes. Pruebas: Reiniciar

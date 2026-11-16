@@ -99,14 +99,14 @@
 <text x="1060" y="279" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">WS6</text>
 <text x="20" y="319" font-size="15" font-weight="700" fill="#8250df" text-anchor="start">Menus</text>
 <line x1="650" y1="314" x2="1025" y2="314" stroke="#8250df" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="650" y1="314" x2="760" y2="314" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="650" y1="314" x2="760" y2="314" stroke="#8250df" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="314" x2="865" y2="314" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="314" x2="865" y2="314" stroke="#8250df" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="650" cy="314" r="10" fill="#8250df" stroke="#ffffff" stroke-width="3"/><path d="M645.5 314 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="650" y="343" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">MB0</text>
 <circle cx="760" cy="314" r="10" fill="#8250df" stroke="#ffffff" stroke-width="3"/><path d="M755.5 314 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="760" y="343" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">MB1</text>
-<circle cx="865" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="865" y="343" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">MB2</text>
+<circle cx="865" cy="314" r="10" fill="#8250df" stroke="#ffffff" stroke-width="3"/><path d="M860.5 314 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="865" y="343" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">MB2</text>
 <circle cx="970" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="970" y="343" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">MB3</text>
 <circle cx="1025" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>

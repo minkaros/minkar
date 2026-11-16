@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <AppKit/NSAccessibility.h>
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSApplication.h>
@@ -555,6 +556,14 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
    return _name;
 }
 
+/* A menu made in code named as a nib's special menus are
+   (_NSRecentDocumentsMenu, _NSWindowsMenu...), as the reference
+   platform's private call does. */
+-(void)_setMenuName:(NSString *)name {
+   [_name autorelease];
+   _name=[name copy];
+}
+
 -(NSMenu *)_menuWithName:(NSString *)name {
    if([_name isEqual:name])
     return self;
@@ -679,6 +688,49 @@ static char fontKey, minimumWidthKey, stateColumnKey, contextPlugInsKey, layoutD
 
 -(void)setUserInterfaceLayoutDirection:(NSUserInterfaceLayoutDirection)direction {
    objc_setAssociatedObject(self,&layoutDirectionKey,[NSNumber numberWithInteger:direction],OBJC_ASSOCIATION_RETAIN);
+}
+
+@end
+
+/* Accessibility (MB2): the main menu is the AXMenuBar, any other an AXMenu;
+   their visible items are their children. */
+@implementation NSMenu (NSMenuAccessibility)
+
+-(BOOL)isAccessibilityElement {
+   return YES;
+}
+
+-(NSString *)accessibilityRole {
+   NSString *own=[super accessibilityRole];
+   return own!=nil?own:(self==[NSApp mainMenu]?NSAccessibilityMenuBarRole:NSAccessibilityMenuRole);
+}
+
+-(NSString *)accessibilityTitle {
+   NSString *own=[super accessibilityTitle];
+   return own!=nil?own:[self title];
+}
+
+-(NSArray *)accessibilityChildren {
+   NSArray        *own=[super accessibilityChildren];
+   NSMutableArray *items;
+
+   if(own!=nil)
+    return own;
+   items=[NSMutableArray array];
+   for(NSMenuItem *item in [self itemArray])
+    if(![item isHidden] && ![item isSeparatorItem])
+     [items addObject:item];
+   return items;
+}
+
+-(id)accessibilityParent {
+   id own=[super accessibilityParent];
+   if(own!=nil)
+    return own;
+   for(NSMenuItem *item in [[self supermenu] itemArray])
+    if([item submenu]==self)
+     return item;
+   return nil;
 }
 
 @end

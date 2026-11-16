@@ -343,6 +343,60 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
 }
 
 - (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
+- (void)menuAlphaAll:(id)sender { printf("menu alpha all\n"); fflush(stdout); }
+- (void)longItem:(NSMenuItem *)sender { printf("menu long %ld\n", (long)[sender tag]); fflush(stdout); }
+
+/* MB2's parts on the Test menu (added first): Alpha All, Alpha's
+   alternate with Option; and a Help menu, where the Help search looks
+   through the others. */
+- (void)addStandardMenuParts {
+    NSMenu *test = nil;
+    for (NSMenuItem *item in [[NSApp mainMenu] itemArray])
+        if ([[item title] isEqualToString:@"Test"])
+            test = [item submenu];
+    NSMenuItem *all = [[NSMenuItem alloc] initWithTitle:@"Alpha All" action:@selector(menuAlphaAll:) keyEquivalent:@"a"];
+    [all setKeyEquivalentModifierMask:NSCommandKeyMask | NSAlternateKeyMask];
+    [all setAlternate:YES];
+    [all setTarget:self];
+    [test insertItem:all atIndex:1];
+    /* A Window menu AppKit keeps the windows in; File > Open Recent, the
+       documents NSDocumentController noted; a Long menu of 60 items. */
+    NSMenu *window = [[NSMenu alloc] initWithTitle:@"Window"];
+    [window addItemWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
+    NSMenuItem *windowItem = [[NSMenuItem alloc] initWithTitle:@"Window" action:NULL keyEquivalent:@""];
+    [windowItem setSubmenu:window];
+    [[NSApp mainMenu] addItem:windowItem];
+    [NSApp setWindowsMenu:window];
+    [NSApp addWindowsItem:self.window title:[self.window title] filename:NO];
+    NSMenu *file = [[NSMenu alloc] initWithTitle:@"File"];
+    NSMenu *recent = [[NSMenu alloc] initWithTitle:@"Open Recent"];
+    [recent performSelector:@selector(_setMenuName:) withObject:@"_NSRecentDocumentsMenu"];
+    [recent addItemWithTitle:@"Clear Menu" action:@selector(clearRecentDocuments:) keyEquivalent:@""];
+    [[file addItemWithTitle:@"Open Recent" action:NULL keyEquivalent:@""] setSubmenu:recent];
+    NSMenuItem *fileItem = [[NSMenuItem alloc] initWithTitle:@"File" action:NULL keyEquivalent:@""];
+    [fileItem setSubmenu:file];
+    [[NSApp mainMenu] insertItem:fileItem atIndex:1];
+    NSDocumentController *documents = [NSDocumentController sharedDocumentController];
+    [documents noteNewRecentDocumentURL:[NSURL fileURLWithPath:@"/tmp/first.txt"]];
+    [documents noteNewRecentDocumentURL:[NSURL fileURLWithPath:@"/tmp/second.txt"]];
+    NSMenu *longMenu = [[NSMenu alloc] initWithTitle:@"Long"];
+    for (int i = 1; i <= 60; i++) {
+        NSMenuItem *item = [longMenu addItemWithTitle:[NSString stringWithFormat:@"Item %d", i]
+                                               action:@selector(longItem:) keyEquivalent:@""];
+        [item setTarget:self];
+        [item setTag:i];
+    }
+    NSMenuItem *longItem = [[NSMenuItem alloc] initWithTitle:@"Long" action:NULL keyEquivalent:@""];
+    [longItem setSubmenu:longMenu];
+    [[NSApp mainMenu] addItem:longItem];
+    NSMenu *help = [[NSMenu alloc] initWithTitle:@"Help"];
+    [[help addItemWithTitle:@"Demo Help" action:NULL keyEquivalent:@""] setEnabled:NO];
+    NSMenuItem *helpItem = [[NSMenuItem alloc] initWithTitle:@"Help" action:NULL keyEquivalent:@""];
+    [helpItem setSubmenu:help];
+    [[NSApp mainMenu] addItem:helpItem];
+    printf("standard menu parts added\n");
+    fflush(stdout);
+}
 - (void)menuBeta:(id)sender { printf("menu beta\n"); }
 - (void)menuGamma:(id)sender { printf("menu gamma\n"); }
 
@@ -435,6 +489,38 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
         printf("menu bar height=%.0f status bar thickness=%.0f\n",
             [[NSApp mainMenu] menuBarHeight], [[NSStatusBar systemStatusBar] thickness]);
     }
+    else if (strncmp(line, "menuinfo", 8) == 0) {
+        /* What the Window and Open Recent menus hold now (MB2). */
+        NSMutableArray *titles = [NSMutableArray array];
+        for (NSMenuItem *item in [[NSApp windowsMenu] itemArray])
+            if (![item isSeparatorItem])
+                [titles addObject:[item title]];
+        printf("window menu: %s\n", [[titles componentsJoinedByString:@" | "] UTF8String]);
+        [titles removeAllObjects];
+        for (NSMenuItem *top in [[NSApp mainMenu] itemArray])
+            if ([[top title] isEqualToString:@"File"])
+                for (NSMenuItem *item in [[[[top submenu] itemAtIndex:0] submenu] itemArray])
+                    if (![item isSeparatorItem])
+                        [titles addObject:[item title]];
+        printf("recent menu: %s\n", [[titles componentsJoinedByString:@" | "] UTF8String]);
+        fflush(stdout);
+    }
+    else if (strncmp(line, "axmenus", 7) == 0) {
+        /* The menus as accessibility sees them (MB2). */
+        NSMenu *main = [NSApp mainMenu];
+        printf("ax menubar=%s\n", [[main accessibilityRole] UTF8String]);
+        for (NSMenuItem *top in [main itemArray])
+            if ([[top title] isEqualToString:@"Test"]) {
+                NSMenu *test = [top submenu];
+                NSMenuItem *alpha = [test itemAtIndex:0];
+                printf("ax test=%s alpha=%s title=%s enabled=%d parent=%d\n", [[test accessibilityRole] UTF8String],
+                       [[alpha accessibilityRole] UTF8String], [[alpha accessibilityTitle] UTF8String],
+                       [alpha isAccessibilityEnabled], [alpha accessibilityParent] == test);
+            }
+        fflush(stdout);
+    }
+    else if (strncmp(line, "menus-mb2", 9) == 0)
+        [self addStandardMenuParts];
     else if (strncmp(line, "menus", 5) == 0)
         [self addTestMenu];
     else if (strncmp(line, "smallredraw", 11) == 0) {

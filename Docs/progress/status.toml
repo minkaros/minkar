@@ -151,7 +151,7 @@ color = "purple"
 doc = "Atlas.md#3-menus"
 doc_es = "Atlas.es.md#3-menús"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -266,8 +266,8 @@ note = "the maintainer's review, the weekend of 7–8 Nov"
 line = "atlas"
 
 [[board.next]]
-title = "M5: MB2, MB3, D3, LoginWindow"
-note = "standard menus, the full system menu, the Dock tile service and switcher, the full login"
+title = "M5: MB3, D3, LoginWindow"
+note = "the full system menu, the Dock tile service and switcher, the full login"
 line = "mb"
 
 [[board.next]]
@@ -288,6 +288,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "MB2: standard menus"
+note = "alternates with Option, Help search, long menus fit, Enter Full Screen, menu accessibility · 16 nov"
+line = "mb"
 
 [[board.done]]
 title = "MB1: Menu Extras and status items"
@@ -313,8 +318,3 @@ line = "dock"
 title = "Firefox: media, OpenGL views, printing"
 note = "MP4 video seen, OpenGL in views and layers, PrintCore and Save to PDF, distributed notifications; its battery 25/25 · 16 nov"
 line = "fw"
-
-[[board.done]]
-title = "N1, N2: the notification center"
-note = "the list and the settings, alerts' actions and replies, badges, scheduled notifications · 15 nov"
-line = "atlas"

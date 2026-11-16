@@ -52,7 +52,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 
 | Part | Chapter | Milestones | Done | Next |
 | --- | --- | --- | --- | --- |
-| Menus | 3 | MB0–MB4 | MB0, MB1 | MB2, MB3 |
+| Menus | 3 | MB0–MB4 | MB0, MB1, MB2 | MB3 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
@@ -330,10 +330,23 @@ them apart from the gates M*n*.
   the window server making room (interface version 24), and every item of
   the app keeps its place, so the order survives a restart. Local test
   `menubar-extras`.
-- [ ] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
+- [x] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
   search over menu items, alternates with Option, long menus scrolling,
   type-select, Control-F2, the View menu's full screen item, accessibility
   roles.
+  *Done (16 Nov 2026):* an alternate shows in its primary's place while
+  the modifiers that set it apart are held, swapping as they change with
+  the menu open; the Help menu opens with a Search line and what is typed
+  there lists the app's other menu items that match ("Test ▸ More ▸
+  Gamma"), Return choosing the first; a menu taller than the room below
+  the bar fits it and scrolls (it went above the bar); AppKit adds Enter
+  Full Screen (Control-Command-F) to an app's View menu, its title
+  following the key window; NSMenu and NSMenuItem give their
+  accessibility roles (AXMenuBar, AXMenu, AXMenuItem), titles, state,
+  children and parents, and an item can be pressed. The Window menu,
+  Open Recent (`_setMenuName:` names a menu made in code), type-select and
+  Control-F2 were there and are now tested. Local tests `menus-mb2`,
+  `menus`.
 - [ ] **MB3 — The full system menu.** With the Phase 5 LoginWindow and System
   Preferences: Sleep, Force Quit window, Lock Screen, System Preferences…,
   Recent Items. Tests: Restart asks apps to quit before rebooting the VM;

@@ -197,6 +197,9 @@ static BOOL slsFrameIsKnown(int number, SLSRect frame) {
     return NO;
 }
 
+/* A window in full screen keeps its frame from before under this key. */
+static char fullScreenFrameKey;
+
 static SLSWindowID slsWindowFor(int number) {
     @synchronized([NSWindow class]) {
         return [[slsWindows objectForKey:[NSNumber numberWithInt:number]] unsignedIntValue];
@@ -3591,6 +3594,11 @@ static NSMutableSet *hiddenByHide;
 }
 
 -(BOOL)validateMenuItem:(NSMenuItem *)item {
+    if ([item action] == @selector(toggleFullScreen:)) {
+        NSString *key = objc_getAssociatedObject(self, &fullScreenFrameKey) != nil ? @"Exit Full Screen" : @"Enter Full Screen";
+        [item setTitle:[[NSBundle bundleForClass:[NSWindow class]] localizedStringForKey:key value:key table:nil]];
+        return YES;
+    }
     if ([item action] == @selector(undo:))
         return [[self undoManager] canUndo];
     if ([item action] == @selector(redo:))
@@ -3896,7 +3904,6 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
    return [self convertScreenToBase:point];
 }
 
-static char fullScreenFrameKey;
 
 /* Full screen: the window takes its screen's visible frame, and gets its
    frame back when toggled again (there are no full screen spaces). */

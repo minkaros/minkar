@@ -467,6 +467,20 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
   return [self mainMenu];
 }
 
+@synthesize helpMenu=_helpMenu;
+
+/* The Help menu: the one set, else the main menu's menu titled Help (in
+   the app's language), where the Help search lives (MB2). */
+-(NSMenu *)helpMenu {
+   if(_helpMenu!=nil)
+    return _helpMenu;
+   NSString *localized=[[NSBundle mainBundle] localizedStringForKey:@"Help" value:@"Help" table:nil];
+   for(NSMenuItem *item in [[self mainMenu] itemArray])
+    if([item hasSubmenu] && ([[item title] isEqualToString:@"Help"] || [[item title] isEqualToString:localized]))
+     return [item submenu];
+   return nil;
+}
+
 -(NSMenu *)windowsMenu {
    if(_windowsMenu==nil) {
     _windowsMenu=[[NSApp mainMenu] _menuWithName:@"_NSWindowsMenu"];
@@ -1008,7 +1022,33 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     [self reportException:localException];
    NS_ENDHANDLER
 
+   [self _addFullScreenItem];
    [pool release];
+}
+
+/* The View menu gets Enter Full Screen (Control-Command-F) unless the app
+   has an item for it, as AppKit adds it on the reference platform; its
+   title follows the key window (NSWindow's validateMenuItem:). */
+-(void)_addFullScreenItem {
+   NSString *localized=[[NSBundle mainBundle] localizedStringForKey:@"View" value:@"View" table:nil];
+   NSMenu   *view=nil;
+
+   for(NSMenuItem *item in [[self mainMenu] itemArray])
+    if([item hasSubmenu] && ([[item title] isEqualToString:@"View"] || [[item title] isEqualToString:localized]))
+     view=[item submenu];
+   if(view==nil || [view indexOfItemWithTarget:nil andAction:@selector(toggleFullScreen:)]>=0)
+    return;
+   for(NSMenuItem *item in [view itemArray])
+    if([item action]==@selector(toggleFullScreen:))
+     return;
+   NSString *title=[[NSBundle bundleForClass:[NSApplication class]] localizedStringForKey:@"Enter Full Screen"
+      value:@"Enter Full Screen" table:nil];
+   NSMenuItem *full=[[[NSMenuItem alloc] initWithTitle:title action:@selector(toggleFullScreen:) keyEquivalent:@"f"] autorelease];
+
+   [full setKeyEquivalentModifierMask:NSCommandKeyMask|NSControlKeyMask];
+   if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
+    [view addItem:[NSMenuItem separatorItem]];
+   [view addItem:full];
 }
 
 -(void)_checkForReleasedWindows {
