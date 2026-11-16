@@ -44,6 +44,7 @@ NSNotificationName const NotificationPresenterListDidChange = @"NotificationPres
 - (void)clicked:(NotificationBanner *)banner;
 - (void)dismiss:(NotificationBanner *)banner;
 - (void)banner:(NotificationBanner *)banner chose:(NSDictionary *)action;
+- (void)closed:(NotificationBanner *)banner;
 - (void)sendReply:(NotificationBanner *)banner;
 - (void)received:(const NCMessage *)message;
 @end
@@ -202,7 +203,7 @@ static void drawCentered(NSString *text, NSFont *font, NSRect rect)
             return;
         }
         fprintf(stderr, "SystemUIServer: alert \"%s\" closed\n", [self.banner.notification[@kNCKeyTitle] ?: @"" UTF8String]);
-        [self.presenter dismiss:self.banner];
+        [self.presenter closed:self.banner];
         return;
     }
     [self.presenter clicked:self.banner];
@@ -496,6 +497,17 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
     [self activateDelivered:banner.notification];
 }
 
+/* An alert closed by the user: gone, and, when its category asks for it
+   (N2), the app told with the dismiss action, staying where it is. */
+- (void)closed:(NotificationBanner *)banner
+{
+    NSDictionary *n = banner.notification;
+
+    [self dismiss:banner];
+    if ([n[@kNCKeyReportsDismiss] boolValue])
+        [self activate:n action:@{ @kNCActionIdentifier : @kNCDismissAction } text:nil];
+}
+
 /* An alert's action (N2): a reply opens its field; any other is the app's. */
 - (void)banner:(NotificationBanner *)banner chose:(NSDictionary *)action
 {
@@ -578,8 +590,10 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
     NSData *data = [NSPropertyListSerialization dataWithPropertyList:activation format:NSPropertyListBinaryFormat_v1_0
                                                              options:0 error:NULL];
 
-    [[NSRunningApplication runningApplicationWithProcessIdentifier:pid]
-        activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    /* The app to the front, unless the notification was only dismissed. */
+    if (![action[@kNCActionIdentifier] isEqual:@kNCDismissAction])
+        [[NSRunningApplication runningApplicationWithProcessIdentifier:pid]
+            activateWithOptions:NSApplicationActivateIgnoringOtherApps];
     if (self.server != MACH_PORT_NULL && data != nil)
         ncc_activated(self.server, pid, (char *)data.bytes, (mach_msg_type_number_t)data.length, (int32_t)type, &result);
     if (action != nil)
@@ -590,7 +604,9 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
     for (NotificationBanner *banner in [_banners copy])
         if (sameDelivery(banner.notification, n))
             [self dismiss:banner];
-    [self unlist:n];
+    /* Dismissed, it stays in the notification center's list. */
+    if (![action[@kNCActionIdentifier] isEqual:@kNCDismissAction])
+        [self unlist:n];
 }
 
 @end

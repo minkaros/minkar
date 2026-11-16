@@ -18,12 +18,16 @@
 @property (copy) void (^_activationHandler)(NSUserNotification *);
 - (void)_deliverNotification:(NSUserNotification *)notification present:(NSInteger)present;
 - (BOOL)_setBadgeLabel:(NSString *)label;
+- (BOOL)_scheduleWithCenter:(NSUserNotification *)notification identifier:(NSString *)identifier
+                      dates:(NSArray<NSDate *> *)dates;
+- (void)_unscheduleWithCenter:(NSString *)identifier;
 @end
 
 /* And its alert's actions (N2): a category's, as the notification center
    takes them; the one chosen and a reply's text come back. */
 @interface NSUserNotification (UserNotificationsSPI)
 @property (nullable, copy) NSArray<NSDictionary *> *_centerActions;
+@property BOOL _reportsDismiss;
 @property (nullable, copy) NSString *_activatedAction;
 @property (nullable, copy) NSString *_replyText;
 @end
@@ -572,22 +576,7 @@ SECURE_CODING
                 [_delivered removeObjectIdenticalTo:old];
         [_delivered addObject:notification];
     }
-    NSUserNotification *legacy = [NSUserNotification new];
-    legacy.identifier = request.identifier;
-    legacy.title = request.content.title;
-    legacy.subtitle = request.content.subtitle;
-    legacy.informativeText = request.content.body;
-    legacy.userInfo = request.content.userInfo;
-    legacy.soundName = request.content.sound.name;
-    /* Its category's actions for the alert; none if it has no category. */
-    NSMutableArray *actions = [NSMutableArray array];
-    @synchronized (self) {
-        for (UNNotificationCategory *category in _categories)
-            if ([category.identifier isEqualToString:request.content.categoryIdentifier])
-                for (UNNotificationAction *action in category.actions)
-                    [actions addObject:[action _centerAction]];
-    }
-    legacy._centerActions = actions;
+    NSUserNotification *legacy = [self _legacyFor:request];
     /* The content's badge on the app's Dock tile (N2): 0 takes it away. */
     if (request.content.badge != nil) {
         NSInteger badge = request.content.badge.integerValue;
@@ -611,6 +600,50 @@ SECURE_CODING
             [center _deliverNotification:legacy present:(o & (UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionSound)) ? 1 : 0];
         });
     }];
+}
+
+/* The request as the notification center shows it: its content, and its
+   category's actions for the alert (none without a category). */
+- (NSUserNotification *)_legacyFor:(UNNotificationRequest *)request {
+    NSUserNotification *legacy = [NSUserNotification new];
+    legacy.identifier = request.identifier;
+    legacy.title = request.content.title;
+    legacy.subtitle = request.content.subtitle;
+    legacy.informativeText = request.content.body;
+    legacy.userInfo = request.content.userInfo;
+    legacy.soundName = request.content.sound.name;
+    NSMutableArray *actions = [NSMutableArray array];
+    @synchronized (self) {
+        for (UNNotificationCategory *category in _categories)
+            if ([category.identifier isEqualToString:request.content.categoryIdentifier]) {
+                for (UNNotificationAction *action in category.actions)
+                    [actions addObject:[action _centerAction]];
+                /* Close answered as UNNotificationDismissActionIdentifier. */
+                legacy._reportsDismiss = (category.options & UNNotificationCategoryOptionCustomDismissAction) != 0;
+            }
+    }
+    legacy._centerActions = actions;
+    return legacy;
+}
+
+/* A triggered request kept by notificationd too (N2): shown at its dates
+   if this app has quit by then; a repeat's next dates, as many as kept. */
+- (void)_scheduleWithCenter:(UNNotificationRequest *)request {
+    NSMutableArray<NSDate *> *dates = [NSMutableArray array];
+    NSDate *next = [request.trigger _fireDateAfter:[NSDate date]];
+    /* A calendar trigger's dates are searched minute by minute: fewer. */
+    NSUInteger keep = !request.trigger.repeats ? 1 :
+                      [request.trigger isKindOfClass:[UNCalendarNotificationTrigger class]] ? 8 : 32;
+    while (next != nil && dates.count < keep) {
+        [dates addObject:next];
+        NSDate *after = [request.trigger _fireDateAfter:[next dateByAddingTimeInterval:0.001]];
+        if (after == nil || [after compare:next] != NSOrderedDescending)
+            break;
+        next = after;
+    }
+    if (dates.count > 0)
+        [[NSUserNotificationCenter defaultUserNotificationCenter] _scheduleWithCenter:[self _legacyFor:request]
+                                                                           identifier:request.identifier dates:dates];
 }
 
 - (void)_schedule:(UNNotificationRequest *)request generation:(NSUInteger)generation {
@@ -646,6 +679,8 @@ SECURE_CODING
         generation = _generation;
     }
     [self _schedule:request generation:generation];
+    if (request.trigger != nil)
+        [self _scheduleWithCenter:request];
     if (completionHandler)
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{ completionHandler(nil); });
 }
@@ -658,6 +693,8 @@ SECURE_CODING
 
 - (void)removePendingNotificationRequestsWithIdentifiers:(NSArray *)identifiers {
     @synchronized (self) { [_pending removeObjectsForKeys:identifiers]; }
+    for (NSString *identifier in identifiers)
+        [[NSUserNotificationCenter defaultUserNotificationCenter] _unscheduleWithCenter:identifier];
 }
 
 - (void)removeAllPendingNotificationRequests {
@@ -665,6 +702,7 @@ SECURE_CODING
         [_pending removeAllObjects];
         _generation++;
     }
+    [[NSUserNotificationCenter defaultUserNotificationCenter] _unscheduleWithCenter:nil];
 }
 
 - (void)getDeliveredNotificationsWithCompletionHandler:(void (^)(NSArray *))completionHandler {

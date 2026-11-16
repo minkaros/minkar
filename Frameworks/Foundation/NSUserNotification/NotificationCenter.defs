@@ -69,3 +69,20 @@ routine copy_badges(
 	server			: mach_port_t;
 	out badges		: nc_bytes_t;
 	out result		: int32_t);
+
+/* N2: a notification scheduled, kept by notificationd too: delivered at
+   its dates when the app is no longer running (a binary property list,
+   kNCSchedule... keys). The same identifier from the same app replaces. */
+routine schedule(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	request			: nc_bytes_t;
+	out result		: int32_t);
+
+/* The app's scheduled notification of that identifier taken away (empty:
+   all of the app's). */
+routine unschedule(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	identifier		: nc_bytes_t;
+	out result		: int32_t);

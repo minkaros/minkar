@@ -53,6 +53,8 @@ NSString *const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefault
    them (kNCKeyActions), instead of this class's buttons; and, once one is
    chosen, its identifier and a reply's text. */
 @property (nullable, copy) NSArray<NSDictionary *> *_centerActions;
+@property BOOL _reportsDismiss;    /* a category's custom dismiss action */
+@property (nullable, copy) NSString *_scheduleID;   /* kept by notificationd too (N2) */
 @property (nullable, copy) NSString *_activatedAction;
 @property (nullable, copy) NSString *_replyText;
 @end
@@ -62,6 +64,9 @@ NSString *const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefault
 @property (copy) void (^_activationHandler)(NSUserNotification *);
 - (void)_deliverNotification:(NSUserNotification *)notification present:(NSInteger)present;
 - (BOOL)_setBadgeLabel:(NSString *)label;
+- (BOOL)_scheduleWithCenter:(NSUserNotification *)notification identifier:(NSString *)identifier
+                      dates:(NSArray<NSDate *> *)dates;
+- (void)_unscheduleWithCenter:(nullable NSString *)identifier;
 @end
 
 @implementation NSUserNotification
@@ -97,6 +102,7 @@ NSString *const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefault
     copy.responsePlaceholder = _responsePlaceholder;
     copy.additionalActions = _additionalActions;
     copy._centerActions = __centerActions;
+    copy._reportsDismiss = __reportsDismiss;
     return copy;
 }
 
@@ -279,11 +285,68 @@ static BOOL appIsActive(void)
     else
         [self performSelectorOnMainThread:@selector(startTimerFor:) withObject:notification
                             waitUntilDone:NO];
+    /* notificationd keeps it too: shown at its dates if this app has
+       quit by then. A repeat: its next dates, as many as it keeps. */
+    NSMutableArray<NSDate *> *dates = [NSMutableArray arrayWithObject:notification.deliveryDate];
+    NSDateComponents *repeat = notification.deliveryRepeatInterval;
+    if (repeat != nil) {
+        NSCalendar *calendar = [NSCalendar currentCalendar];
+        if (notification.deliveryTimeZone != nil)
+            calendar.timeZone = notification.deliveryTimeZone;
+        while (dates.count < kNCMaxScheduleDates) {
+            NSDate *next = [calendar dateByAddingComponents:repeat toDate:dates.lastObject options:0];
+            if (next == nil || [next compare:dates.lastObject] != NSOrderedDescending)
+                break;
+            [dates addObject:next];
+        }
+    }
+    if (notification._scheduleID == nil)
+        notification._scheduleID = notification.identifier ?: [[NSUUID UUID] UUIDString];
+    [self _scheduleWithCenter:notification identifier:notification._scheduleID dates:dates];
+}
+
+- (BOOL)_scheduleWithCenter:(NSUserNotification *)notification identifier:(NSString *)identifier
+                      dates:(NSArray<NSDate *> *)dates
+{
+    NSMutableDictionary *n = centerDictionary(notification);
+    NSDate *now = [NSDate date];
+    NSMutableArray *future = [NSMutableArray array];
+
+    for (NSDate *d in dates)
+        if ([d compare:now] == NSOrderedDescending && future.count < kNCMaxScheduleDates)
+            [future addObject:d];
+    if (identifier == nil || future.count == 0)
+        return NO;
+    n[@kNCKey] = identifier;
+    NSData *data = [NSPropertyListSerialization dataWithPropertyList:@{
+        @kNCScheduleIdentifier : identifier,
+        @kNCScheduleDates : future,
+        @kNCScheduleNotification : n,
+    } format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
+    if (data == nil || data.length > kNCMaxPayload)
+        return NO;
+    return callServer(^kern_return_t(mach_port_t server) {
+        int32_t result = kNCSuccess;
+        return ncc_schedule(server, (char *)data.bytes, (mach_msg_type_number_t)data.length, &result);
+    });
+}
+
+- (void)_unscheduleWithCenter:(NSString *)identifier
+{
+    NSData *bytes = [identifier ?: @"" dataUsingEncoding:NSUTF8StringEncoding];
+
+    callServer(^kern_return_t(mach_port_t server) {
+        int32_t result = kNCSuccess;
+        return ncc_unschedule(server, (char *)bytes.bytes, (mach_msg_type_number_t)bytes.length, &result);
+    });
 }
 
 - (void)removeScheduledNotification:(NSUserNotification *)notification
 {
     NSTimer *timer;
+
+    if (notification._scheduleID != nil)
+        [self _unscheduleWithCenter:notification._scheduleID];
 
     @synchronized(self) {
         [_scheduled removeObjectIdenticalTo:notification];
@@ -358,8 +421,8 @@ static NSArray<NSDictionary *> *actionsOf(NSUserNotification *n)
     return actions;
 }
 
-/* The notification to notificationd, to be shown. */
-- (BOOL)presentNotification:(NSUserNotification *)notification
+/* The notification as notificationd takes it. */
+static NSMutableDictionary *centerDictionary(NSUserNotification *notification)
 {
     NSMutableDictionary *dict = [NSMutableDictionary dictionary];
     NSBundle *bundle = [NSBundle mainBundle];
@@ -367,7 +430,8 @@ static NSArray<NSDictionary *> *actionsOf(NSUserNotification *n)
                      [bundle objectForInfoDictionaryKey:@"CFBundleName"] ?:
                      [[NSProcessInfo processInfo] processName];
 
-    dict[@kNCKey] = notification._centerKey;
+    if (notification._centerKey != nil)
+        dict[@kNCKey] = notification._centerKey;
     if (notification.identifier != nil)
         dict[@kNCKeyIdentifier] = notification.identifier;
     if (notification.title != nil)
@@ -388,6 +452,15 @@ static NSArray<NSDictionary *> *actionsOf(NSUserNotification *n)
     dict[@kNCKeyActions] = notification._centerActions ?: actionsOf(notification);
     if (notification.otherButtonTitle.length > 0)
         dict[@kNCKeyCloseTitle] = notification.otherButtonTitle;
+    if (notification._reportsDismiss)
+        dict[@kNCKeyReportsDismiss] = @YES;
+    return dict;
+}
+
+/* The notification to notificationd, to be shown. */
+- (BOOL)presentNotification:(NSUserNotification *)notification
+{
+    NSMutableDictionary *dict = centerDictionary(notification);
 
     NSData *data = [NSPropertyListSerialization dataWithPropertyList:dict
                                                               format:NSPropertyListBinaryFormat_v1_0

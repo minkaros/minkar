@@ -15,7 +15,9 @@
  * posted before the presenter checks in wait for it (the last few).
  *
  * N2: the apps' badges are kept here too, for the Dock, and go with the
- * app.
+ * app. So are their scheduled notifications (on disk, kSchedulesPath):
+ * at each date, one whose app is no longer running is shown from here;
+ * a running app's own timer shows it.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -29,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "NotificationCenterTypes.h"
@@ -42,6 +45,8 @@ static struct {
 	pid_t pid;
 	mach_port_t port;
 } apps[kMaxApps];
+
+#define kSchedulesPath	"/private/var/db/notificationd/schedules.plist"
 
 static mach_port_t presenter = MACH_PORT_NULL;
 static pid_t presenterPID;
@@ -137,6 +142,243 @@ showWaiting(void)
 	waitingCount = 0;
 }
 
+/* A notification (a binary property list) to the presenter, or kept for
+   it when there is none yet. */
+static int present(CFDataRef out)
+{
+	if (presenter != MACH_PORT_NULL &&
+	    sendMessage(presenter, kNCMessageShow, 0, CFDataGetBytePtr(out),
+	    (uint32_t)CFDataGetLength(out)) == KERN_SUCCESS)
+		return 1;
+	if (waitingCount == kMaxWaiting) {
+		CFRelease(waiting[0]);
+		memmove(waiting, waiting + 1, (kMaxWaiting - 1) * sizeof(waiting[0]));
+		waitingCount--;
+	}
+	waiting[waitingCount++] = CFRetain(out);
+	return 0;
+}
+
+/* ---- Scheduled notifications (N2) ---------------------------------------
+ * Each: the app's pid and bundle (its identity), its identifier, its dates
+ * still to come and the notification. */
+static CFMutableArrayRef schedules;
+static dispatch_source_t scheduleTimer;
+
+static int appRunning(pid_t pid)
+{
+	for (int i = 0; i < kMaxApps; i++)
+		if (apps[i].pid == pid && apps[i].port != MACH_PORT_NULL)
+			return 1;
+	return 0;
+}
+
+static CFStringRef bundleOf(CFDictionaryRef notification)
+{
+	CFStringRef b = CFDictionaryGetValue(notification, CFSTR(kNCKeyBundleIdentifier));
+
+	if (b == NULL)
+		b = CFDictionaryGetValue(notification, CFSTR(kNCKeyAppName));
+	return b != NULL && CFGetTypeID(b) == CFStringGetTypeID() ? b : CFSTR("");
+}
+
+static void saveSchedules(void)
+{
+	CFDataRef data = CFPropertyListCreateData(NULL, schedules, kCFPropertyListBinaryFormat_v1_0, 0, NULL);
+
+	if (data == NULL)
+		return;
+	mkdir("/private/var/db/notificationd", 0700);
+	FILE *f = fopen(kSchedulesPath ".new", "w");
+	if (f != NULL) {
+		fwrite(CFDataGetBytePtr(data), 1, (size_t)CFDataGetLength(data), f);
+		if (fclose(f) == 0)
+			rename(kSchedulesPath ".new", kSchedulesPath);
+	}
+	CFRelease(data);
+}
+
+static void loadSchedules(void)
+{
+	FILE *f = fopen(kSchedulesPath, "r");
+	CFMutableDataRef data = CFDataCreateMutable(NULL, 0);
+	UInt8 buf[4096];
+	size_t n;
+
+	schedules = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	if (f == NULL) {
+		CFRelease(data);
+		return;
+	}
+	while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+		CFDataAppendBytes(data, buf, (CFIndex)n);
+	fclose(f);
+	CFPropertyListRef plist = CFPropertyListCreateWithData(NULL, data, kCFPropertyListMutableContainersAndLeaves,
+	    NULL, NULL);
+	CFRelease(data);
+	if (plist != NULL && CFGetTypeID(plist) == CFArrayGetTypeID())
+		CFArrayAppendArray(schedules, plist, CFRangeMake(0, CFArrayGetCount(plist)));
+	if (plist != NULL)
+		CFRelease(plist);
+}
+
+static void armScheduleTimer(void);
+
+/* What is due: shown when its app is gone; its date dropped either way. */
+static void fireSchedules(void)
+{
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	int changed = 0;
+
+	for (CFIndex i = CFArrayGetCount(schedules) - 1; i >= 0; i--) {
+		CFMutableDictionaryRef e = (CFMutableDictionaryRef)CFArrayGetValueAtIndex(schedules, i);
+		CFMutableArrayRef dates = (CFMutableArrayRef)CFDictionaryGetValue(e, CFSTR(kNCScheduleDates));
+		CFDictionaryRef n = CFDictionaryGetValue(e, CFSTR(kNCScheduleNotification));
+		CFNumberRef pidNumber = CFDictionaryGetValue(e, CFSTR(kNCKeyPID));
+		int pid = 0, due = 0;
+
+		if (pidNumber != NULL)
+			CFNumberGetValue(pidNumber, kCFNumberIntType, &pid);
+		while (dates != NULL && CFArrayGetCount(dates) > 0 &&
+		    CFDateGetAbsoluteTime(CFArrayGetValueAtIndex(dates, 0)) <= now + 0.5) {
+			CFArrayRemoveValueAtIndex(dates, 0);
+			due = 1;
+			changed = 1;
+		}
+		if (due && n != NULL && !appRunning(pid)) {
+			CFMutableDictionaryRef shown = CFDictionaryCreateMutableCopy(NULL, 0, n);
+			int none = 0;
+			CFNumberRef zero = CFNumberCreate(NULL, kCFNumberIntType, &none);
+			CFDictionarySetValue(shown, CFSTR(kNCKeyPID), zero);	/* no process to tell */
+			CFRelease(zero);
+			CFDataRef out = CFPropertyListCreateData(NULL, shown, kCFPropertyListBinaryFormat_v1_0, 0, NULL);
+			CFRelease(shown);
+			if (out != NULL) {
+				present(out);
+				CFRelease(out);
+			}
+			char bundle[256] = "";
+			CFStringGetCString(bundleOf(n), bundle, sizeof(bundle), kCFStringEncodingUTF8);
+			fprintf(stderr, "notificationd: scheduled notification of %s shown (its app is not running)\n", bundle);
+		}
+		if (dates == NULL || CFArrayGetCount(dates) == 0)
+			CFArrayRemoveValueAtIndex(schedules, i);
+	}
+	if (changed)
+		saveSchedules();
+	armScheduleTimer();
+}
+
+static void armScheduleTimer(void)
+{
+	CFAbsoluteTime next = 0;
+
+	for (CFIndex i = 0; i < CFArrayGetCount(schedules); i++) {
+		CFArrayRef dates = CFDictionaryGetValue(CFArrayGetValueAtIndex(schedules, i), CFSTR(kNCScheduleDates));
+		if (dates != NULL && CFArrayGetCount(dates) > 0) {
+			CFAbsoluteTime t = CFDateGetAbsoluteTime(CFArrayGetValueAtIndex(dates, 0));
+			if (next == 0 || t < next)
+				next = t;
+		}
+	}
+	if (next == 0) {
+		dispatch_source_set_timer(scheduleTimer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
+		return;
+	}
+	double wait = next - CFAbsoluteTimeGetCurrent();
+	if (wait < 0)
+		wait = 0;
+	dispatch_source_set_timer(scheduleTimer, dispatch_walltime(NULL, (int64_t)(wait * NSEC_PER_SEC)),
+	    DISPATCH_TIME_FOREVER, NSEC_PER_SEC / 10);
+}
+
+/* The app's entry of that identifier taken away (NULL: all the app's). */
+static void dropSchedules(CFStringRef bundle, CFStringRef identifier)
+{
+	for (CFIndex i = CFArrayGetCount(schedules) - 1; i >= 0; i--) {
+		CFDictionaryRef e = CFArrayGetValueAtIndex(schedules, i);
+		CFStringRef b = CFDictionaryGetValue(e, CFSTR(kNCKeyBundleIdentifier));
+		CFStringRef id = CFDictionaryGetValue(e, CFSTR(kNCScheduleIdentifier));
+		if (b != NULL && CFEqual(b, bundle) && (identifier == NULL || (id != NULL && CFEqual(id, identifier))))
+			CFArrayRemoveValueAtIndex(schedules, i);
+	}
+}
+
+/* An app's bundle, from its last scheduled notification (unschedule
+   carries none). */
+static CFStringRef bundleOfPID(pid_t pid)
+{
+	for (CFIndex i = 0; i < CFArrayGetCount(schedules); i++) {
+		CFDictionaryRef e = CFArrayGetValueAtIndex(schedules, i);
+		CFNumberRef p = CFDictionaryGetValue(e, CFSTR(kNCKeyPID));
+		int v = 0;
+		if (p != NULL && CFNumberGetValue(p, kCFNumberIntType, &v) && v == pid)
+			return CFDictionaryGetValue(e, CFSTR(kNCKeyBundleIdentifier));
+	}
+	return NULL;
+}
+
+kern_return_t
+ncd_schedule(mach_port_t server, audit_token_t token, nc_bytes_t request, mach_msg_type_number_t length,
+    int32_t *result)
+{
+	pid_t pid = audit_token_to_pid(token);
+	CFDataRef data = CFDataCreateWithBytesNoCopy(NULL, (const UInt8 *)request, length, kCFAllocatorNull);
+	CFPropertyListRef plist = CFPropertyListCreateWithData(NULL, data, kCFPropertyListMutableContainersAndLeaves,
+	    NULL, NULL);
+
+	CFRelease(data);
+	*result = kNCIllegalArgument;
+	if (plist == NULL || CFGetTypeID(plist) != CFDictionaryGetTypeID()) {
+		if (plist != NULL)
+			CFRelease(plist);
+		return KERN_SUCCESS;
+	}
+	CFMutableDictionaryRef e = (CFMutableDictionaryRef)plist;
+	CFDictionaryRef n = CFDictionaryGetValue(e, CFSTR(kNCScheduleNotification));
+	CFStringRef id = CFDictionaryGetValue(e, CFSTR(kNCScheduleIdentifier));
+	CFArrayRef dates = CFDictionaryGetValue(e, CFSTR(kNCScheduleDates));
+	if (n == NULL || CFGetTypeID(n) != CFDictionaryGetTypeID() || id == NULL ||
+	    CFGetTypeID(id) != CFStringGetTypeID() || dates == NULL || CFGetTypeID(dates) != CFArrayGetTypeID() ||
+	    CFArrayGetCount(dates) > kNCMaxScheduleDates) {
+		CFRelease(plist);
+		return KERN_SUCCESS;
+	}
+	CFStringRef bundle = bundleOf(n);
+	CFNumberRef pidNumber = CFNumberCreate(NULL, kCFNumberIntType, &pid);
+	CFDictionarySetValue(e, CFSTR(kNCKeyPID), pidNumber);
+	CFDictionarySetValue(e, CFSTR(kNCKeyBundleIdentifier), bundle);
+	CFRelease(pidNumber);
+	dropSchedules(bundle, id);
+	CFArrayAppendValue(schedules, e);
+	CFRelease(plist);
+	saveSchedules();
+	armScheduleTimer();
+	*result = kNCSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+ncd_unschedule(mach_port_t server, audit_token_t token, nc_bytes_t identifier, mach_msg_type_number_t length,
+    int32_t *result)
+{
+	CFStringRef bundle = bundleOfPID(audit_token_to_pid(token));
+	CFStringRef id = length > 0 ? CFStringCreateWithBytes(NULL, (const UInt8 *)identifier, length,
+	    kCFStringEncodingUTF8, false) : NULL;
+
+	if (bundle != NULL) {
+		CFRetain(bundle);
+		dropSchedules(bundle, id);
+		CFRelease(bundle);
+		saveSchedules();
+		armScheduleTimer();
+	}
+	if (id != NULL)
+		CFRelease(id);
+	*result = kNCSuccess;
+	return KERN_SUCCESS;
+}
+
 kern_return_t
 ncd_check_in(mach_port_t server, audit_token_t token, mach_port_t port, int32_t *result)
 {
@@ -200,20 +442,8 @@ ncd_post(mach_port_t server, audit_token_t token, nc_bytes_t notification,
 		*result = kNCIllegalArgument;
 		return KERN_SUCCESS;
 	}
-	if (presenter != MACH_PORT_NULL &&
-	    sendMessage(presenter, kNCMessageShow, 0, CFDataGetBytePtr(out),
-	    (uint32_t)CFDataGetLength(out)) == KERN_SUCCESS) {
-		CFRelease(out);
-		*result = kNCSuccess;
-		return KERN_SUCCESS;
-	}
-	if (waitingCount == kMaxWaiting) {
-		CFRelease(waiting[0]);
-		memmove(waiting, waiting + 1, (kMaxWaiting - 1) * sizeof(waiting[0]));
-		waitingCount--;
-	}
-	waiting[waitingCount++] = out;
-	*result = kNCNoPresenter;
+	*result = present(out) ? kNCSuccess : kNCNoPresenter;
+	CFRelease(out);
 	return KERN_SUCCESS;
 }
 
@@ -329,6 +559,13 @@ main(int argc, char *argv[])
 
 	/* One queue: requests and port deaths are served in order. */
 	dispatch_queue_t queue = dispatch_queue_create("org.minkar.notificationd", DISPATCH_QUEUE_SERIAL);
+
+	/* The scheduled notifications kept from before. */
+	loadSchedules();
+	scheduleTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+	dispatch_source_set_event_handler(scheduleTimer, ^{ fireSchedules(); });
+	dispatch_resume(scheduleTimer);
+	dispatch_async(queue, ^{ fireSchedules(); });
 	dispatch_source_t notifySource = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV,
 	    notifyPort, 0, queue);
 	dispatch_source_set_event_handler(notifySource, ^{

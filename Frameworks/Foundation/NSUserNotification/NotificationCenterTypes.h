@@ -49,9 +49,18 @@ enum {
 #define kNCKeyDate		"date"		/* set by the presenter: when it came */
 #define kNCKeyActions		"actions"	/* N2: an alert's buttons, in order */
 #define kNCKeyCloseTitle	"closeTitle"	/* its Close button's title */
+#define kNCKeyReportsDismiss	"reportsDismiss"	/* Close is told to the app (N2) */
+#define kNCDismissAction	"com.apple.UNNotificationDismissActionIdentifier"
 
 /* The badges changed (N2), for the Dock (notify(3)); it asks copy_badges. */
 #define kNCBadgesChanged	"org.minkar.notificationcenter.badges"
+
+/* A scheduled notification (N2): its identifier in the app, the dates it
+   is due (CFDates, soonest first), and the notification as posted. */
+#define kNCScheduleIdentifier	"scheduleID"
+#define kNCScheduleDates	"dates"
+#define kNCScheduleNotification	"notification"
+#define kNCMaxScheduleDates	32
 
 /* An action (N2): a button, or a reply's text field and its button. */
 #define kNCActionIdentifier	"identifier"
