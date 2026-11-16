@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ distnoted, distributed notifications (Foundation's
+ NSDistributedNotificationCenter): what a process posts goes to the
+ processes of the same user observing it. Started on demand, by the first
+ lookup of its service. As root, serving every user.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.distnoted</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/distnoted</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.distnoted</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/distnoted.log</string>
+	<key>KeepAlive</key>
+	<false/>
+</dict>
+</plist>

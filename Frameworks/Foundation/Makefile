@@ -304,6 +304,7 @@ SRCS = 	NSFormatter.m \
 	NSMetadata/NSMetadata.m \
 	NSUserNotification/NSUserNotification.m \
 	NotificationCenterUser.c \
+	DistributedNotificationsUser.c \
 	NSPlatform.m \
 	NSPropertyList/NSOldXMLAttribute.m \
 	NSPropertyList/NSOldXMLElement.m \
@@ -472,6 +473,17 @@ NotificationCenterUser.c NotificationCenterUser.h: ${.CURDIR}/NSUserNotification
 	    -server /dev/null -sheader /dev/null ${.ALLSRC}
 NSUserNotification.o NotificationCenterUser.o: NotificationCenterUser.h
 CFLAGS.NotificationCenterUser.c = -I${.CURDIR}/NSUserNotification -fvisibility=hidden
+
+# The client side of distnoted's MIG interface (NSDistributedNotificationCenter).
+CLEANFILES += DistributedNotificationsUser.c DistributedNotificationsUser.h
+DistributedNotificationsUser.c DistributedNotificationsUser.h: ${.CURDIR}/NSNotificationCenter/DistributedNotifications.defs
+	${MIG} -cc ${CC} -novouchers -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    -isysroot ${MINKAR_SDKROOT} -I${.CURDIR}/NSNotificationCenter \
+	    -user DistributedNotificationsUser.c -header DistributedNotificationsUser.h \
+	    -server /dev/null -sheader /dev/null ${.ALLSRC}
+NSDistributedNotificationCenter.o DistributedNotificationsUser.o: DistributedNotificationsUser.h
+CFLAGS.DistributedNotificationsUser.c = -I${.CURDIR}/NSNotificationCenter -fvisibility=hidden
+CFLAGS.NSDistributedNotificationCenter.m = -fobjc-arc -I${.OBJDIR} -I${.CURDIR}/NSNotificationCenter
 
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

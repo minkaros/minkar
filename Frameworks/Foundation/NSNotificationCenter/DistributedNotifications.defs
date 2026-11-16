@@ -1,0 +1,55 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * distnoted's interface: a process checks in with its port, says which
+ * notifications it observes (a name and an object, empty for any), and
+ * posts; distnoted sends each matching process the notification on its
+ * port (DistributedNotificationTypes.h).
+ */
+
+subsystem DistributedNotifications 29800;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix dnc_;
+serverprefix dnd_;
+
+import "DistributedNotificationTypes.h";
+
+type dn_string_t = array[*:1024] of char;
+type dn_bytes_t = ^array[] of char;
+
+/* The process's port, where its notifications come. */
+routine check_in(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	port			: mach_port_make_send_t;
+	out result		: int32_t);
+
+/* Notifications of this name and object come (empty: any). */
+routine observe(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: dn_string_t;
+	object			: dn_string_t;
+	out result		: int32_t);
+
+/* They no longer do. */
+routine unobserve(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: dn_string_t;
+	object			: dn_string_t;
+	out result		: int32_t);
+
+/* A notification: a binary property list (kDNKey...), and the options
+   (kDNPost...). */
+routine post(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	notification		: dn_bytes_t;
+	options			: int32_t;
+	out result		: int32_t);
