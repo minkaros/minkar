@@ -15,13 +15,17 @@ HEADERS = ApplicationServices.h Processes.h UniversalAccess.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
+# PrintCore (built before this one) lives in this framework's Frameworks
+# directory; ApplicationServices re-exports it.
+PC_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/PrintCore.framework/Versions/A/PrintCore
+CFLAGS += -F${MINKAR_SDKROOT}/System/Library/Frameworks/ApplicationServices.framework/Frameworks
 LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreServices -Wl,-reexport_framework,CoreGraphics \
-	-Wl,-reexport_framework,CoreText -framework CoreFoundation -lobjc
+	-Wl,-reexport_framework,CoreText -Wl,-reexport_library,${PC_DYLIB} -framework CoreFoundation -lobjc
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
-	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <minkar.framework.mk>

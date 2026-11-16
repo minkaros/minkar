@@ -36,6 +36,7 @@ SUBDIR += OpenGL
 SUBDIR += CoreGraphics
 SUBDIR += CoreText
 # The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
+SUBDIR += ApplicationServices/PrintCore
 SUBDIR += ApplicationServices
 SUBDIR += ImageIO
 SUBDIR += CoreData
@@ -143,7 +144,8 @@ AuthenticationServices: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
 UniformTypeIdentifiers: Foundation CoreServices
-ApplicationServices: CoreGraphics CoreText
+ApplicationServices/PrintCore: CoreGraphics CoreServices
+ApplicationServices: CoreGraphics CoreText ApplicationServices/PrintCore
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
