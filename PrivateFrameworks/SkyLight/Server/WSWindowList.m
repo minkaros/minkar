@@ -1225,3 +1225,29 @@ WSWindowSnapshot(void)
 	}
 	return items;
 }
+
+/* ---- Drags between applications ---- */
+
+/* A drag event to a window's owner (SLSPostDragEvent): only drag events,
+ * stamped with the window and the time here. */
+kern_return_t
+wss_drag_post(mach_port_t server, audit_token_t token, uint32_t window, SLSEvent event,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = windowWithID(window);
+
+	(void)server;
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (w == nil || w.owner == nil || event.type != kSLSEventDrag ||
+	    event.clickCount < kSLSDragEntered || event.clickCount > kSLSDragReply)
+		*result = kSLSErrorIllegalArgument;
+	else {
+		event.window = window;
+		event.timestamp = WSNanoseconds();
+		WSEventsEnqueue(w.owner, &event);
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}

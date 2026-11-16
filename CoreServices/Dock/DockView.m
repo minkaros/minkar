@@ -267,6 +267,7 @@ static NSUInteger separatorCount(DockModel *model)
 
 @implementation DockView {
     NSInteger _pressed;       /* the tile under a pressed button, or -1 */
+    NSInteger _dropTile;      /* the tile files dragged from elsewhere would go to, or -1 */
     NSPoint _downPoint;
     BOOL _dragging;
     NSInteger _dropIndex;     /* where a dragged tile goes among the kept ones */
@@ -289,7 +290,9 @@ static NSUInteger separatorCount(DockModel *model)
 {
     if ((self = [super initWithFrame:frame]) != nil) {
         _pressed = -1;
+        _dropTile = -1;
         _labelled = -1;
+        [self registerForDraggedTypes:@[ NSFilenamesPboardType, NSPasteboardTypeFileURL ]];
         _pointerMain = NAN;
         _drawnMain = NAN;
         _icons = [NSMutableDictionary dictionary];
@@ -633,7 +636,7 @@ static void drawBadge(NSString *label, NSRect icon)
             continue;
         if (!lifted && t.icon != nil)
             [[self drawableIcon:t.icon forSize:sizes[i]] drawInRect:rect fromRect:NSZeroRect
-                operation:NSCompositeSourceOver fraction:(NSInteger)i == _pressed ? 0.6 : 1.0];
+                operation:NSCompositeSourceOver fraction:(NSInteger)i == _pressed || (NSInteger)i == _dropTile ? 0.6 : 1.0];
         NSString *badge = lifted ? nil : [model badgeForTile:t];
         if (badge != nil)
             drawBadge(badge, rect);
@@ -886,6 +889,112 @@ static void drawBadge(NSString *label, NSRect icon)
     _dragging = NO;
     _dropRemoves = NO;
     [self setNeedsDisplay:YES];
+}
+
+/* -- Files dragged onto the Dock (from Files or another app) -- */
+
+static NSArray<NSURL *> *DraggedFileURLs(id<NSDraggingInfo> info)
+{
+    NSMutableArray *urls = [NSMutableArray array];
+    id paths = [[info draggingPasteboard] propertyListForType:NSFilenamesPboardType];
+    if ([paths isKindOfClass:[NSArray class]])
+        for (id p in paths)
+            if ([p isKindOfClass:[NSString class]])
+                [urls addObject:[NSURL fileURLWithPath:p]];
+    return urls;
+}
+
+static BOOL AllApplications(NSArray<NSURL *> *urls)
+{
+    for (NSURL *u in urls)
+        if (![[u pathExtension] isEqualToString:@"app"])
+            return NO;
+    return [urls count] > 0;
+}
+
+/* What a drop at the pointer would do: onto the Trash, to the Trash; onto
+ * an app's tile, open the files with it; applications onto the kept
+ * part, kept in the Dock. The tile it would go to is shown dimmed. */
+- (NSDragOperation)dropOperationFor:(id<NSDraggingInfo>)info
+{
+    DockModel *model = self.model;
+    NSArray<NSURL *> *urls = DraggedFileURLs(info);
+    NSInteger index = [self tileIndexAtPoint:[self convertPoint:[info draggingLocation] fromView:nil]];
+    NSDragOperation operation = NSDragOperationNone;
+    NSInteger tile = -1;
+
+    if ([urls count] > 0 && index >= 0) {
+        DockTile *t = model.tiles[(NSUInteger)index];
+        if (t.kind == DockTileKindTrash) {
+            operation = NSDragOperationMove | NSDragOperationDelete;
+            tile = index;
+        } else if (t.kind != DockTileKindMinimizedWindow && !AllApplications(urls)) {
+            operation = NSDragOperationGeneric;
+            tile = index;
+        } else if (AllApplications(urls) && (NSUInteger)index < model.firstRunningIndex)
+            operation = NSDragOperationGeneric;
+    } else if (AllApplications(urls))
+        operation = NSDragOperationGeneric;     /* onto the bar */
+    if (tile != _dropTile) {
+        _dropTile = tile;
+        [self setNeedsDisplay:YES];
+    }
+    return operation & [info draggingSourceOperationMask];
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)info
+{
+    return [self dropOperationFor:info];
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)info
+{
+    return [self dropOperationFor:info];
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)info
+{
+    _dropTile = -1;
+    [self setNeedsDisplay:YES];
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)info
+{
+    DockModel *model = self.model;
+    NSArray<NSURL *> *urls = DraggedFileURLs(info);
+    NSInteger index = [self tileIndexAtPoint:[self convertPoint:[info draggingLocation] fromView:nil]];
+    NSDragOperation operation = [self dropOperationFor:info];
+
+    _dropTile = -1;
+    [self setNeedsDisplay:YES];
+    if (operation == NSDragOperationNone)
+        return NO;
+    DockTile *t = index >= 0 ? model.tiles[(NSUInteger)index] : nil;
+    if (t.kind == DockTileKindTrash) {
+        BOOL all = YES;
+        for (NSURL *u in urls)
+            all &= [[NSFileManager defaultManager] trashItemAtURL:u resultingItemURL:NULL error:NULL];
+        NSLog(@"drop to the Trash: %lu item(s)", (unsigned long)[urls count]);
+        return all;
+    }
+    if (t != nil && !AllApplications(urls)) {
+        NSLog(@"drop on %@: open %lu item(s)", t.label, (unsigned long)[urls count]);
+        return [[NSWorkspace sharedWorkspace] openURLs:urls withApplicationAtURL:t.URL
+                                               options:NSWorkspaceLaunchDefault configuration:@{} error:NULL] != nil;
+    }
+    /* Applications: kept, where they were dropped among the kept ones. */
+    NSUInteger at = index >= 0 ? (NSUInteger)index : model.firstRunningIndex;
+    for (NSURL *u in urls) {
+        DockTile *existing = nil;
+        for (DockTile *k in model.tiles)
+            if ([[k.URL URLByStandardizingPath] isEqual:[u URLByStandardizingPath]])
+                existing = k;
+        if (existing == nil)
+            existing = [model tileForApplicationURL:u];
+        [model keepTile:existing atIndex:MIN(at, model.firstRunningIndex)];
+    }
+    NSLog(@"drop of %lu application(s) kept", (unsigned long)[urls count]);
+    return YES;
 }
 
 /* -- The tile's menu -- */

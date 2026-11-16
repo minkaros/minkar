@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	22
+#define kSLSInterfaceVersion	23
 
 typedef int32_t SLSConnectionID;
 
@@ -624,6 +624,11 @@ enum {
 	 * CGDisplayChangeSummaryFlags of the change (never the begin flag);
 	 * x, y is its new origin and dx, dy its new size, global. */
 	kSLSEventDisplayReconfigured	= 0x1005,
+	/* A drag between applications (SLSPostDragEvent): clickCount the
+	 * phase (kSLSDrag*), buttonNumber the drag's sequence number, flags
+	 * the operations (the source's mask; in a reply, the one chosen), x,
+	 * y the pointer (global), dx the other side's window. */
+	kSLSEventDrag			= 0x1006,
 };
 
 /*
@@ -827,6 +832,24 @@ int SLSGetFrontProcess(pid_t *pid);
  * app goes away.
  */
 int SLSCapturePointer(SLSWindowID window);
+
+/*
+ * Drags between applications (interface version 23). The source of a drag
+ * over another app's window sends it kSLSDragEntered, kSLSDragUpdated,
+ * kSLSDragExited and kSLSDragPerform events; the destination answers each
+ * but Exited with kSLSDragReply to the source's window (in dx), flags the
+ * operation it would do (NSDragOperation), buttonNumber the sequence
+ * number it answers. What is dragged is on the drag pasteboard. The server
+ * only passes kSLSEventDrag events to the window's owner.
+ */
+enum {
+	kSLSDragEntered		= 1,
+	kSLSDragUpdated		= 2,
+	kSLSDragExited		= 3,
+	kSLSDragPerform		= 4,
+	kSLSDragReply		= 5,
+};
+int SLSPostDragEvent(SLSWindowID window, const SLSEvent *event);
 /* The window holding the pointer, or 0. */
 SLSWindowID SLSGetPointerCapture(void);
 

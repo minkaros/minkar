@@ -20,6 +20,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSPasteboard.h>
 #import <AppKit/NSDraggingItem.h>
 #import <AppKit/NSColor.h>
+#include <SkyLight/SkyLight.h>
+#include <CoreGraphics/CoreGraphics.h>
+#include <unistd.h>
+
+extern SLSWindowID _NSSLSWindowForWindowNumber(NSInteger number);
+extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
 
 /* What a destination is told about the drag in progress. */
 @interface NSDraggingInfoImpl : NSObject <NSDraggingInfo> {
@@ -124,6 +130,67 @@ static NSDraggingManager *sharedManager;
 
 static id localSource;
 
+/* ---- Drags between applications (through the window server) ---- */
+
+/* The source's view of a drag over another application's window: the
+   operation its last reply chose, and whether the drop was answered. */
+static NSDragOperation remoteOperation;
+static NSInteger       remoteSequence, performSequence;
+static BOOL            performAnswered;
+static NSDragOperation performOperation;
+
+/* The destination's: the drag over one of its windows from elsewhere. */
+static NSDraggingInfoImpl *remoteInfo;
+static id                  remoteDestination;
+
+/* The topmost window at a screen point below the drag image, of any
+   application: its server window and its owner. */
+static SLSWindowID serverWindowAtPoint(NSPoint point,NSWindow *dragWindow,pid_t *owner){
+   CFArrayRef  list=CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID);
+   CGFloat     height=CGDisplayBounds(CGMainDisplayID()).size.height;
+   CGPoint     top=CGPointMake(point.x,height-point.y);
+   SLSWindowID drag=_NSSLSWindowForWindowNumber([dragWindow windowNumber]), found=0;
+
+   *owner=0;
+   if(list==NULL)
+    return 0;
+   for(CFIndex i=0;i<CFArrayGetCount(list) && found==0;i++){
+    CFDictionaryRef entry=CFArrayGetValueAtIndex(list,i);
+    CFNumberRef     number=CFDictionaryGetValue(entry,kCGWindowNumber);
+    CFNumberRef     pid=CFDictionaryGetValue(entry,kCGWindowOwnerPID);
+    CFDictionaryRef boundsDict=CFDictionaryGetValue(entry,kCGWindowBounds);
+    int32_t         windowNumber=0,ownerPID=0;
+    CGRect          bounds;
+
+    if(number==NULL || pid==NULL || boundsDict==NULL || !CGRectMakeWithDictionaryRepresentation(boundsDict,&bounds))
+     continue;
+    CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
+    CFNumberGetValue(pid,kCFNumberSInt32Type,&ownerPID);
+    if((SLSWindowID)windowNumber==drag || !CGRectContainsPoint(bounds,top))
+     continue;
+    found=(SLSWindowID)windowNumber;
+    *owner=ownerPID;
+   }
+   CFRelease(list);
+   return found;
+}
+
+static void postDragEvent(SLSWindowID to,uint32_t phase,NSInteger sequence,NSDragOperation operation,
+                          NSPoint screen,SLSWindowID from){
+   SLSEvent e;
+   CGFloat  height=CGDisplayBounds(CGMainDisplayID()).size.height;
+
+   memset(&e,0,sizeof(e));
+   e.type=kSLSEventDrag;
+   e.clickCount=(int32_t)phase;
+   e.buttonNumber=(uint32_t)sequence;
+   e.flags=(uint32_t)operation;
+   e.x=screen.x;
+   e.y=height-screen.y;
+   e.dx=from;
+   SLSPostDragEvent(to,&e);
+}
+
 -(id)localDraggingSource {
    return localSource;
 }
@@ -217,6 +284,9 @@ static BOOL overridesDraggingUpdated(id destination){
    if([source respondsToSelector:@selector(draggedImage:beganAt:)])
     [source draggedImage:image beganAt:start];
 
+   SLSWindowID remote=0, dragServerWindow=_NSSLSWindowForWindowNumber([dragWindow windowNumber]);
+
+   remoteOperation=NSDragOperationNone;
    for(;;){
     NSEvent *next=[NSApp nextEventMatchingMask:NSEventMaskLeftMouseDragged|NSEventMaskLeftMouseUp|NSEventMaskMouseMoved|NSEventMaskFlagsChanged
        untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES];
@@ -231,6 +301,24 @@ static BOOL overridesDraggingUpdated(id destination){
      [source draggedImage:image movedTo:info->_imageLocation];
 
     window=destinationWindowAtPoint(point,dragWindow);
+
+    /* Another application's window: told through the window server; the
+       operation is what it last answered. */
+    pid_t       owner=0;
+    SLSWindowID under=(window==nil)?serverWindowAtPoint(point,dragWindow,&owner):0;
+    if(under!=0 && owner==getpid())
+     under=0;
+    if(under!=remote){
+     if(remote!=0)
+      postDragEvent(remote,kSLSDragExited,++remoteSequence,info->_sourceMask,point,dragServerWindow);
+     remote=under;
+     remoteOperation=NSDragOperationNone;
+     if(remote!=0)
+      postDragEvent(remote,kSLSDragEntered,++remoteSequence,info->_sourceMask,point,dragServerWindow);
+    }
+    else if(remote!=0)
+     postDragEvent(remote,kSLSDragUpdated,++remoteSequence,info->_sourceMask,point,dragServerWindow);
+
     info->_destinationWindow=window;
     receiver=(window!=nil)?[window _receiverForDragSession:info]:nil;
     if(receiver!=destination){
@@ -252,7 +340,25 @@ static BOOL overridesDraggingUpdated(id destination){
 
    BOOL dropped=NO;
 
-   if(destination!=nil && operation!=NSDragOperationNone){
+   if(remote!=0){
+    /* The drop on another application: asked to perform, its answer
+       waited for a moment. */
+    NSDate *limit=[NSDate dateWithTimeIntervalSinceNow:2.0];
+
+    performAnswered=NO;
+    performOperation=NSDragOperationNone;
+    performSequence=++remoteSequence;
+    if(remoteOperation!=NSDragOperationNone){
+     postDragEvent(remote,kSLSDragPerform,performSequence,info->_sourceMask,info->_screenLocation,dragServerWindow);
+     while(!performAnswered && [limit timeIntervalSinceNow]>0)
+      [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+    else
+     postDragEvent(remote,kSLSDragExited,performSequence,info->_sourceMask,info->_screenLocation,dragServerWindow);
+    dropped=performAnswered && performOperation!=NSDragOperationNone;
+    operation=performOperation;
+   }
+   else if(destination!=nil && operation!=NSDragOperationNone){
     BOOL prepared=![destination respondsToSelector:@selector(prepareForDragOperation:)] || [destination prepareForDragOperation:info];
 
     if(prepared && [destination respondsToSelector:@selector(performDragOperation:)] && [destination performDragOperation:info]){
@@ -271,6 +377,85 @@ static BOOL overridesDraggingUpdated(id destination){
    if([source respondsToSelector:@selector(draggedImage:endedAt:operation:)])
     [source draggedImage:image endedAt:info->_imageLocation operation:dropped?operation:NSDragOperationNone];
    localSource=nil;
+}
+
+/* A drag event from the window server: a reply to this application's
+   drag, or a drag from elsewhere over one of its windows. */
+-(void)_skyLightDragEvent:(NSData *)data {
+   SLSEvent e;
+
+   if([data length]!=sizeof(e))
+    return;
+   memcpy(&e,[data bytes],sizeof(e));
+
+   if(e.clickCount==kSLSDragReply){
+    if((NSInteger)e.buttonNumber==performSequence && performSequence!=0){
+     performOperation=(NSDragOperation)e.flags;
+     performAnswered=YES;
+    }
+    else
+     remoteOperation=(NSDragOperation)e.flags;
+    return;
+   }
+
+   NSWindow       *window=_NSWindowForSLSWindow(e.window);
+   CGFloat         height=CGDisplayBounds(CGMainDisplayID()).size.height;
+   NSDragOperation answer=NSDragOperationNone;
+
+   if(remoteInfo==nil || e.clickCount==kSLSDragEntered){
+    [remoteInfo release];
+    remoteInfo=[[NSDraggingInfoImpl alloc] init];
+    remoteInfo->_pasteboard=[[NSPasteboard pasteboardWithName:NSDragPboard] retain];
+    remoteInfo->_sequenceNumber=++dragSequence;
+    remoteDestination=nil;
+   }
+   remoteInfo->_sourceMask=(NSDragOperation)e.flags;
+   remoteInfo->_screenLocation=NSMakePoint(e.x,height-e.y);
+   remoteInfo->_imageLocation=remoteInfo->_screenLocation;
+   remoteInfo->_destinationWindow=window;
+
+   id receiver=(window!=nil)?[window _receiverForDragSession:remoteInfo]:nil;
+
+   if(e.clickCount==kSLSDragExited){
+    if([remoteDestination respondsToSelector:@selector(draggingExited:)])
+     [remoteDestination draggingExited:remoteInfo];
+    remoteDestination=nil;
+    [remoteInfo release];
+    remoteInfo=nil;
+    return;
+   }
+   if(receiver!=remoteDestination){
+    if([remoteDestination respondsToSelector:@selector(draggingExited:)])
+     [remoteDestination draggingExited:remoteInfo];
+    remoteDestination=receiver;
+    answer=(receiver!=nil)?[self _operationForDestination:receiver info:remoteInfo entered:YES]:NSDragOperationNone;
+   }
+   else if(receiver!=nil)
+    answer=[self _operationForDestination:receiver info:remoteInfo entered:NO];
+
+   if(e.clickCount==kSLSDragPerform){
+    BOOL done=NO;
+
+    if(receiver!=nil && answer!=NSDragOperationNone){
+     BOOL prepared=![receiver respondsToSelector:@selector(prepareForDragOperation:)] || [receiver prepareForDragOperation:remoteInfo];
+
+     if(prepared && [receiver respondsToSelector:@selector(performDragOperation:)] && [receiver performDragOperation:remoteInfo]){
+      done=YES;
+      if([receiver respondsToSelector:@selector(concludeDragOperation:)])
+       [receiver concludeDragOperation:remoteInfo];
+     }
+    }
+    else if([receiver respondsToSelector:@selector(draggingExited:)])
+     [receiver draggingExited:remoteInfo];
+    if(!done)
+     answer=NSDragOperationNone;
+    remoteDestination=nil;
+   }
+   postDragEvent((SLSWindowID)e.dx,kSLSDragReply,e.buttonNumber,answer,remoteInfo->_screenLocation,e.window);
+   if(e.clickCount==kSLSDragPerform){
+    [remoteInfo release];
+    remoteInfo=nil;
+   }
 }
 
 @end

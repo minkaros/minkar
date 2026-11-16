@@ -71,6 +71,8 @@ extern NSNotificationName const DockModelDidChangeNotification;
 /* Kept in the Dock or not (Keep in Dock, Remove from Dock). */
 - (BOOL)isKept:(DockTile *)tile;
 - (void)keepTile:(DockTile *)tile atIndex:(NSUInteger)index;
+/* A tile for an application not in the Dock, to keep it (a drop). */
+- (DockTile *)tileForApplicationURL:(NSURL *)url;
 - (void)removeTile:(DockTile *)tile;
 /* The preferences again, from the domain. */
 - (void)reloadPreferences;

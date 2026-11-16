@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSocket_bsd.h>
 #import <Foundation/NSSelectInputSource.h>
 #import <AppKit/NSApplication.h>
+#import <AppKit/NSDraggingManager.h>
 #import <Foundation/NSDistributedNotificationCenter.h>
 #include <SkyLight/SkyLight.h>
 #import <AppKit/NSWindow-Private.h>
@@ -196,6 +197,16 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
             modifierFlags:0 timestamp:0 windowNumber:0 context:nil
             subtype:kNSDisplayReconfiguredEventSubtype data1:e->buttonNumber data2:e->flags]
             atStart:NO];
+        return;
+    }
+
+    /* A drag between applications: the dragging manager, on the main
+       thread, in the modes a drag's own tracking loop runs too. */
+    if(e->type == kSLSEventDrag) {
+        [[NSDraggingManager draggingManager] performSelectorOnMainThread:@selector(_skyLightDragEvent:)
+            withObject:[NSData dataWithBytes:e length:sizeof(*e)] waitUntilDone:NO
+            modes:[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSEventTrackingRunLoopMode,
+                   NSModalPanelRunLoopMode, nil]];
         return;
     }
 

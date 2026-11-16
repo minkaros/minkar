@@ -696,3 +696,14 @@ routine window_set_layers(
 	window			: uint32_t;
 	layers			: ws_window_layer_list_t;
 	out result		: int32_t);
+
+/* ---- Drags between applications (interface version 23) ---- */
+
+/* A drag event (kSLSEventDrag) to the owner of window: see
+ * SLSPostDragEvent. */
+routine drag_post(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	event			: ws_event_t;
+	out result		: int32_t);

@@ -203,6 +203,11 @@ static SLSWindowID slsWindowFor(int number) {
     }
 }
 
+/* A window's SkyLight window (0 when it has none yet). */
+SLSWindowID _NSSLSWindowForWindowNumber(NSInteger number) {
+    return slsWindowFor((int)number);
+}
+
 /* The NSWindow of a SkyLight window, for events (any thread). */
 NSWindow *_NSWindowForSLSWindow(SLSWindowID window) {
     int number = 0;

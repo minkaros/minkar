@@ -623,8 +623,12 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   `NSFileManager`'s `trashItemAtURL:`, so any app's trashed items can be put
   back). Items dragged between Files' windows, or onto a folder, move on
   the same volume and copy across or with Option, and can be undone.
-  Local test `files-ops`. Missing: drag and drop to and from other apps and
-  the Dock (a drag between processes through the window server), renaming
+  Drags between applications go through the window server
+  (`SLSPostDragEvent`: entered, updated, exited and perform events to the
+  window's owner, which answers with the operation; what is dragged is on
+  the shared drag pasteboard): files dragged onto the Dock's Trash go to
+  the Trash, onto an app's tile open in it, applications onto its kept part
+  stay in the Dock. Local tests `files-ops`, `drag-apps`. Missing: renaming
   in place, several items selected.
 - [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow; DMG double-click (Phase 6,

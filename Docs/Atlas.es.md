@@ -659,10 +659,14 @@ evidencia.
   `NSFileManager`, así que se puede devolver lo que tire cualquier app).
   Los ítems arrastrados entre ventanas de Files, o sobre una carpeta, se
   trasladan en el mismo volumen y se copian entre volúmenes o con Opción, y
-  se pueden deshacer. Prueba local `files-ops`. Faltan arrastrar y soltar
-  desde y hacia otras apps y el Dock (un arrastre entre procesos a través
-  del servidor de ventanas), renombrar en el sitio y seleccionar varios
-  ítems.
+  se pueden deshacer. Los arrastres entre aplicaciones pasan por el
+  servidor de ventanas (`SLSPostDragEvent`: eventos de entrar, mover, salir
+  y soltar al dueño de la ventana, que contesta con la operación; lo
+  arrastrado va en el portapapeles de arrastre compartido): los archivos
+  soltados en la papelera del Dock van a la papelera, en el tile de una app
+  se abren con ella, y las aplicaciones soltadas en su parte fija se quedan
+  en el Dock. Pruebas locales `files-ops` y `drag-apps`. Faltan renombrar
+  en el sitio y seleccionar varios ítems.
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Files; arranque y rearranque por loginwindow;
   doble clic en un DMG (Fase 6, paso 3 de DMG).

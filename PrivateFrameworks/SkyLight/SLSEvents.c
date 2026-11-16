@@ -311,3 +311,17 @@ SLSGetHIDState(uint32_t which, SLSHIDState *state)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSPostDragEvent(SLSWindowID window, const SLSEvent *event)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (event == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_drag_post(server, window, *event, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

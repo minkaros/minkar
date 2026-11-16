@@ -270,6 +270,11 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     return [_persistent indexOfObjectIdenticalTo:tile] != NSNotFound;
 }
 
+- (DockTile *)tileForApplicationURL:(NSURL *)url
+{
+    return [[DockTile alloc] initWithKind:DockTileKindRunningApp URL:url];
+}
+
 - (void)keepTile:(DockTile *)tile atIndex:(NSUInteger)index
 {
     NSMutableArray *persistent = [_persistent mutableCopy];
