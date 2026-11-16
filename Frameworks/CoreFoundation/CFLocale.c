@@ -992,7 +992,8 @@ static bool __CFLocaleCopyCollatorID(CFLocaleRef locale, bool user, CFTypeRef *c
 static bool __CFLocaleCopyUsesMetric(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
     bool us = false;    // Default is Metric
     bool done = false;
-    if (user) {
+    /* Minkar: a current locale without preferences (none saved) has none. */
+    if (user && locale->_prefs) {
 	CFTypeRef pref = CFDictionaryGetValue(locale->_prefs, CFSTR("AppleMetricUnits"));
 	if (pref) {
 	    us = (kCFBooleanFalse == pref);
