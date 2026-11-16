@@ -55,7 +55,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 
 | Parte | Capítulo | Hitos | Hechos | Siguiente |
 | --- | --- | --- | --- | --- |
-| Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
+| Menús | 3 | MB0–MB4 | MB0, MB1 | MB2, MB3 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 en parte) | K0, K4 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
@@ -326,15 +326,29 @@ distinguirlos de los gates M*n*.
   Control-clic; una app que usa tags los conserva; al cambiar de app cambia
   la barra de menús; el status item de una app de prueba aparece y abre su
   menú; Cerrar sesión termina la sesión; `screendump`.
-- [ ] **MB1 — Menu Extras y la API completa de status items.** SystemUIServer
+- [x] **MB1 — Menu Extras y la API completa de status items.** SystemUIServer
   compilado y alojando bundles `.menu`: reloj, volumen, pantallas, red,
   notificaciones (Fase 5, punto 3); `visible`, `autosaveName`, `behavior`;
   Comando-arrastrar los reordena y el orden se conserva. Pruebas: dos apps y
   el reloj aparecen en orden y abren sus menús; el orden se mantiene tras
   reiniciar. El gate M5 necesita MB1. *Parcial (4 nov 2026):* un
   SystemUIServer nuevo con el reloj integrado, que sigue al momento el
-  formato de 24 horas y la zona horaria (`0fa453aa16`, `61f9c7ae99`); faltan
-  los bundles `.menu` y el resto de la API de status items.
+  formato de 24 horas y la zona horaria (`0fa453aa16`, `61f9c7ae99`).
+  *Hecho (16 nov 2026):* los extras de reloj, volumen, pantallas (los modos
+  de cada pantalla, que se eligen desde el menú) y red (las interfaces
+  activas con sus direcciones, al día por SystemConfiguration) son bundles
+  `.menu` en /System/Library/CoreServices/Menu Extras, cargados desde la
+  lista `menuExtras` de SystemUIServer; un `.menu` abierto se añade o se
+  vuelve a mostrar; sus opciones «Preferencias…» abren su panel
+  (Preferencias del Sistema abre ahora archivos `.prefPane`). El centro de
+  notificaciones sigue integrado, porque comparte el servicio de avisos.
+  Status items: `autosaveName` (Item-N mientras no se nombran), `visible` y
+  la posición guardados en las preferencias de la app con las claves de la
+  plataforma de referencia, `behavior` (Comando-arrastrar fuera de la barra
+  quita un item que lo permite, o cierra su app); Comando-arrastrar mueve
+  un item y el servidor de ventanas le hace sitio (versión 24 de la
+  interfaz), y todos los items de la app guardan su sitio, así que el
+  orden se mantiene tras reiniciar. Prueba local `menubar-extras`.
 - [ ] **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
   búsqueda del menú Ayuda sobre los elementos de menú, alternativos con
   Opción, desplazamiento de menús largos, búsqueda por escritura,

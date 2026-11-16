@@ -1,0 +1,8 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Displays Menu Extra, in Spanish. The keys are the English texts. */
+
+"Displays" = "Pantallas";
+"%u × %u, %.0f Hz" = "%u × %u, %.0f Hz";
+"Display %u" = "Pantalla %u";
+"Displays Preferences…" = "Preferencias de Pantallas…";

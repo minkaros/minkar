@@ -151,7 +151,7 @@ color = "purple"
 doc = "Atlas.md#3-menus"
 doc_es = "Atlas.es.md#3-menús"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "partial"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -266,8 +266,8 @@ note = "the maintainer's review, the weekend of 7–8 Nov"
 line = "atlas"
 
 [[board.next]]
-title = "M5: MB1, D2, K2, LoginWindow"
-note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
+title = "M5: MB2, MB3, D3, LoginWindow"
+note = "standard menus, the full system menu, the Dock tile service and switcher, the full login"
 line = "mb"
 
 [[board.next]]
@@ -288,6 +288,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "MB1: Menu Extras and status items"
+note = ".menu bundles (clock, volume, displays, network), Command-drag with the order kept, removal · 16 nov"
+line = "mb"
 
 [[board.done]]
 title = "K3: the desktop's icons"
@@ -313,8 +318,3 @@ line = "fw"
 title = "N1, N2: the notification center"
 note = "the list and the settings, alerts' actions and replies, badges, scheduled notifications · 15 nov"
 line = "atlas"
-
-[[board.done]]
-title = "R2: the RX 6600's modes and HDMI"
-note = "EDID, sleep, hot plug, HDMI audio; the PSP and SMU started, 60 Hz from start · 15 nov"
-line = "gpu"

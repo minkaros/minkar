@@ -15,6 +15,7 @@
 
 @implementation PrefsApplication {
     PrefsWindowController *_controller;
+    NSArray<NSURL *> *_pending;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note
@@ -37,6 +38,26 @@
     if ([pane length])
         [_controller showPaneWithIdentifier:pane];
     [[_controller window] makeKeyAndOrderFront:nil];
+    if (_pending != nil) {
+        NSArray *urls = _pending;
+        _pending = nil;
+        [self application:NSApp openURLs:urls];
+    }
+}
+
+/* A .prefPane opened (a Menu Extra's "Preferences…", open(1), a double
+   click): its pane shown, as on the reference platform. */
+- (void)application:(NSApplication *)app openURLs:(NSArray<NSURL *> *)urls
+{
+    if (_controller == nil) {   /* launched to open them: once it is up */
+        _pending = [(_pending ?: @[]) arrayByAddingObjectsFromArray:urls];
+        return;
+    }
+    for (NSURL *url in urls) {
+        NSString *identifier = [[NSBundle bundleWithURL:url] bundleIdentifier];
+        if (identifier != nil && [_controller showPaneWithIdentifier:identifier])
+            [[_controller window] makeKeyAndOrderFront:nil];
+    }
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app

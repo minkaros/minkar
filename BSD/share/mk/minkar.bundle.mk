@@ -63,8 +63,8 @@ bundle-layout: .PHONY
 	${CODESIGN} -f -s - ${BUNDLE_DIR}/Contents/MacOS/${BUNDLE}
 
 bundle-install-hook: .PHONY
-	mkdir -p ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}
+	mkdir -p "${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}"
 	# By content: unchanged files keep their dates, files it no longer has go.
-	rsync -rlc --delete ${BUNDLE_DIR}/ ${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}/${BUNDLE_DIR:T}/
+	rsync -rlc --delete ${BUNDLE_DIR}/ "${SYSROOT_DIR}${BUNDLE_INSTALL_DIR}/${BUNDLE_DIR:T}/"
 
 .include <bsd.prog.mk>

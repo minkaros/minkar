@@ -100,10 +100,10 @@
 <text x="20" y="319" font-size="15" font-weight="700" fill="#ab7df8" text-anchor="start">Menus</text>
 <line x1="650" y1="314" x2="1025" y2="314" stroke="#ab7df8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="650" y1="314" x2="760" y2="314" stroke="#ab7df8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="650" y1="314" x2="650" y2="314" stroke="#ab7df8" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="314" x2="760" y2="314" stroke="#ab7df8" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="650" cy="314" r="10" fill="#ab7df8" stroke="#0d1117" stroke-width="3"/><path d="M645.5 314 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="650" y="343" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">MB0</text>
-<circle cx="760" cy="314" r="9" fill="#0d1117" stroke="#ab7df8" stroke-width="3"/><path d="M760 308 A6 6 0 0 0 760 320 Z" fill="#ab7df8"/>
+<circle cx="760" cy="314" r="10" fill="#ab7df8" stroke="#0d1117" stroke-width="3"/><path d="M755.5 314 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="760" y="343" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">MB1</text>
 <circle cx="865" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="865" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB2</text>

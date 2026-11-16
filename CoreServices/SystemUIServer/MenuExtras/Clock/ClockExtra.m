@@ -8,6 +8,11 @@
  */
 
 #import "ClockExtra.h"
+
+/* A .menu bundle's texts are its own (Resources/es.lproj). */
+#undef NSLocalizedString
+#define NSLocalizedString(key, comment) \
+    [[NSBundle bundleForClass:[ClockExtra class]] localizedStringForKey:(key) value:@"" table:nil]
 #include <notify.h>
 #include <unistd.h>
 
@@ -55,8 +60,8 @@ static NSString *clockFormat(void)
     [menu addItem:_dateItem];
     [menu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *prefs = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Open Date & Time Preferences…", nil)
-                                                   action:NULL keyEquivalent:@""];
-    [prefs setEnabled:NO];   /* with System Preferences (MB3) */
+                                                   action:@selector(openPreferences:) keyEquivalent:@""];
+    [prefs setTarget:self];
     [menu addItem:prefs];
     [menu setAutoenablesItems:NO];
     [_item setMenu:menu];
@@ -103,6 +108,13 @@ static NSString *clockFormat(void)
     [full setDateFormat:NSLocalizedString(@"EEEE d MMMM yyyy", @"the date in the clock's menu")];
     [_item setTitle:[ClockExtra titleForDate:now]];
     [_dateItem setTitle:[full stringFromDate:now]];
+}
+
+/* System Preferences on its Date & Time pane. */
+- (void)openPreferences:(id)sender
+{
+    [[NSWorkspace sharedWorkspace] openURL:
+        [NSURL fileURLWithPath:@"/System/Library/PreferencePanes/DateTime.prefPane"]];
 }
 
 @end

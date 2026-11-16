@@ -62,6 +62,11 @@
     return [item autorelease];
 }
 
+/* The app's items, for the place every one keeps after a Command-drag. */
+- (NSArray *)_statusItems {
+    return [[_statusItems copy] autorelease];
+}
+
 - (void)removeStatusItem:(NSStatusItem *)item {
     [item _remove];
     [_statusItems removeObjectIdenticalTo:item];

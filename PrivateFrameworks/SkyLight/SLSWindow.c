@@ -335,3 +335,45 @@ SLSKeyboardTranslate(uint16_t keyCode, uint32_t modifierFlags, SLSKeyCharacters 
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSSetStatusItemPosition(SLSWindowID window, double position)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_status_item_set_position(server, window, position, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSMoveStatusItem(SLSWindowID window, double x, double *position)
+{
+	int32_t result = kSLSErrorFailure;
+	double placed = 0;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_status_item_move(server, window, x, &result, &placed) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (position != NULL)
+		*position = placed;
+	return result;
+}
+
+int
+SLSGetStatusItemPosition(SLSWindowID window, double *position)
+{
+	int32_t result = kSLSErrorFailure;
+	double placed = 0;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_status_item_get_position(server, window, &result, &placed) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (position != NULL)
+		*position = placed;
+	return result;
+}

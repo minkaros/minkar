@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Volume Menu Extra, in Spanish. The keys are the English texts. */
+
+"Sound" = "Sonido";
+"Mute" = "Silenciar";
+"Sound Preferences…" = "Preferencias de Sonido…";

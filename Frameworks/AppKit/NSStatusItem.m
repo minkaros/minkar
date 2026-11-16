@@ -43,14 +43,21 @@
 #import <AppKit/NSAttributedString.h>
 #import "NSMenu.subproj/NSMenuView.h"
 #include <SkyLight/SkyLight.h>
+#include <math.h>
 
 extern int _CGUsesSkyLight(void);
 
 /* Space around a variable-length item's title or image. */
 static const CGFloat kItemPadding = 8;
 
+@interface NSStatusBar (NSStatusItemPlaces)
+- (NSArray *)_statusItems;
+@end
+
 @interface NSStatusItem ()
 - (NSInteger)_actionMask;
+- (void)_commandDrag:(NSEvent *)event;
+- (void)_applySaved;
 - (void)_updateLength;
 - (void)_showMenu:(NSMenu *)menu;
 @end
@@ -93,6 +100,11 @@ static const CGFloat kItemPadding = 8;
 /* With a menu, a press opens it below the item; otherwise the button
    tracks and sends its action. */
 - (void)mouseDown:(NSEvent *)event {
+    /* Command-drag moves the item along the menu bar (MB1). */
+    if([event modifierFlags] & NSCommandKeyMask) {
+        [_statusItem _commandDrag:event];
+        return;
+    }
     if([_statusItem menu] != nil)
         [_statusItem _showMenu:[_statusItem menu]];
     else if([_statusItem _actionMask] & NSLeftMouseDownMask)
@@ -159,7 +171,11 @@ static const CGFloat kItemPadding = 8;
     NSInteger _actionMask;
 }
 
-@synthesize statusBar = _statusBar, behavior = _behavior, autosaveName = _autosaveName;
+@synthesize statusBar = _statusBar, behavior = _behavior;
+
+- (NSStatusItemAutosaveName)autosaveName {
+    return _autosaveName;
+}
 @synthesize highlightMode = _highlightMode, doubleAction = _doubleAction;
 
 - (instancetype)_initWithStatusBar:(NSStatusBar *)bar length:(CGFloat)length {
@@ -198,7 +214,90 @@ static const CGFloat kItemPadding = 8;
     /* The window server lays it out in the menu bar from now on. */
     if(_CGUsesSkyLight())
         SLSSetWindowStatusItem([_window _skyLightWindowID], 1);
+    /* Named Item-0, Item-1... in the app until it names it, as on the
+       reference platform: its place and visibility are kept under it. */
+    static NSInteger made;
+    _autosaveName = [[NSString alloc] initWithFormat:@"Item-%ld", (long)made++];
+    [self _applySaved];
     return self;
+}
+
+/* The app's defaults keep an item's place and visibility by autosave name,
+   under the reference platform's keys. */
+static NSString *positionKey(NSString *name) {
+    return [@"NSStatusItem Preferred Position " stringByAppendingString:name];
+}
+
+static NSString *visibleKey(NSString *name) {
+    return [@"NSStatusItem Visible " stringByAppendingString:name];
+}
+
+- (void)_applySaved {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    id position = [defaults objectForKey:positionKey(_autosaveName)];
+    id visible = [defaults objectForKey:visibleKey(_autosaveName)];
+
+    if(position != nil && _CGUsesSkyLight())
+        SLSSetStatusItemPosition([_window _skyLightWindowID], [position doubleValue]);
+    if(visible != nil && [visible boolValue] != _visible) {
+        _visible = [visible boolValue];
+        if(_visible)
+            [_window orderFront:nil];
+        else
+            [_window orderOut:nil];
+    }
+}
+
+- (void)setAutosaveName:(NSStatusItemAutosaveName)name {
+    if(name == nil || [name isEqualToString:_autosaveName])
+        return;
+    [_autosaveName release];
+    _autosaveName = [name copy];
+    [self _applySaved];
+}
+
+/* Command-drag: the item follows the pointer along the menu bar, the
+   others making room; its new place is kept. Dragged off the bar, an item
+   whose behavior allows it is removed (hidden, or its app quits). */
+- (void)_commandDrag:(NSEvent *)event {
+    SLSWindowID window = [_window _skyLightWindowID];
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    NSPoint start = [NSEvent mouseLocation];
+    CGFloat grab = start.x - NSMinX([_window frame]);
+    double position = 0;
+    BOOL moved = NO;
+
+    for(;;) {
+        NSEvent *next = [NSApp nextEventMatchingMask:NSEventMaskLeftMouseDragged | NSEventMaskLeftMouseUp
+            untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+        NSPoint p = [NSEvent mouseLocation];
+
+        if([next type] == NSEventTypeLeftMouseUp) {
+            BOOL off = (height - p.y) > [_statusBar thickness] + 30;
+            if(off && (_behavior & NSStatusItemBehaviorRemovalAllowed)) {
+                [self setVisible:NO];
+                if(_behavior & NSStatusItemBehaviorTerminationOnRemoval)
+                    [NSApp terminate:nil];
+            } else if(moved && position > 0) {
+                /* Every item of the app keeps its place, so that they all
+                   come back in this order. */
+                NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+                for(NSStatusItem *item in [_statusBar _statusItems]) {
+                    double p = 0;
+                    if(item->_autosaveName != nil &&
+                       SLSGetStatusItemPosition([item->_window _skyLightWindowID], &p) == kSLSErrorSuccess && p > 0)
+                        [defaults setDouble:p forKey:positionKey(item->_autosaveName)];
+                }
+                [defaults synchronize];
+            }
+            return;
+        }
+        if(fabs(p.x - start.x) < 3 && !moved)
+            continue;
+        moved = YES;
+        if(_CGUsesSkyLight())
+            SLSMoveStatusItem(window, p.x - grab, &position);
+    }
 }
 
 - (void)_remove {
@@ -268,6 +367,11 @@ static const CGFloat kItemPadding = 8;
 
 - (void)setVisible:(BOOL)visible {
     _visible = visible;
+    if(_autosaveName != nil)
+    {
+        [[NSUserDefaults standardUserDefaults] setBool:visible forKey:visibleKey(_autosaveName)];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    }
     if(visible)
         [_window orderFront:nil];
     else

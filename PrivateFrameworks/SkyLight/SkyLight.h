@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	23
+#define kSLSInterfaceVersion	24
 
 typedef int32_t SLSConnectionID;
 
@@ -420,6 +420,20 @@ int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
  * left where its app puts it.
  */
 int SLSSetWindowStatusItem(SLSWindowID window, int isItem);
+
+/*
+ * Status items' places (interface version 24): each has a position, the
+ * smaller the further right; one that has none when it comes goes left of
+ * the others. SLSSetStatusItemPosition gives it a position (its app's
+ * saved one); SLSMoveStatusItem moves it to global x as a Command-drag
+ * does, the others making room, and gives the position it now has, for
+ * its app to keep.
+ */
+int SLSSetStatusItemPosition(SLSWindowID window, double position);
+int SLSMoveStatusItem(SLSWindowID window, double x, double *position);
+/* Its position now: an app keeps all its items' after a move, so they
+ * come back in the same order. */
+int SLSGetStatusItemPosition(SLSWindowID window, double *position);
 
 /*
  * Minimized windows (interface version 9), for the Dock, which keeps them

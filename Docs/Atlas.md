@@ -52,7 +52,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 
 | Part | Chapter | Milestones | Done | Next |
 | --- | --- | --- | --- | --- |
-| Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
+| Menus | 3 | MB0–MB4 | MB0, MB1 | MB2, MB3 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
@@ -308,15 +308,28 @@ them apart from the gates M*n*.
   Control-click; an app that uses tags keeps them; switching apps swaps the
   menu bar; a test app's status item appears and opens its menu; Log Out
   ends the session; `screendump`.
-- [ ] **MB1 — Menu Extras and the full status item API.** SystemUIServer built
+- [x] **MB1 — Menu Extras and the full status item API.** SystemUIServer built
   and hosting `.menu` bundles: clock, volume, displays, network,
   notifications (Phase 5, item 3); `visible`, `autosaveName`, `behavior`;
   Command-drag reorders and the order is kept. Tests: two apps and the
   clock appear in order and open their menus; the order survives a
   restart. Gate M5 needs MB1. *Partial (4 Nov 2026):* a new SystemUIServer
   with the clock, built in, which follows the 24-hour setting and the time
-  zone at once (`0fa453aa16`, `61f9c7ae99`); the `.menu` bundles and the
-  rest of the status item API are missing.
+  zone at once (`0fa453aa16`, `61f9c7ae99`). *Done (16 Nov 2026):* the
+  clock, volume, displays (each display's modes, set from the menu) and
+  network (the interfaces up with their addresses, followed through
+  SystemConfiguration) extras are `.menu` bundles in
+  /System/Library/CoreServices/Menu Extras, loaded from SystemUIServer's
+  `menuExtras` list; a `.menu` opened is added or shown again; their
+  "Preferences…" items open their panes (System Preferences now opens
+  `.prefPane` files). The notification center stays built in, sharing
+  the banners' service. Status items: `autosaveName` (Item-N until named),
+  `visible` and the position kept in the app's defaults under the
+  reference platform's keys, `behavior` (Command-drag off the bar removes
+  an item that allows it, or quits its app); Command-drag moves an item,
+  the window server making room (interface version 24), and every item of
+  the app keeps its place, so the order survives a restart. Local test
+  `menubar-extras`.
 - [ ] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
   search over menu items, alternates with Option, long menus scrolling,
   type-select, Control-F2, the View menu's full screen item, accessibility

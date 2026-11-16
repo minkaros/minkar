@@ -8,6 +8,11 @@
  */
 
 #import "VolumeExtra.h"
+
+/* A .menu bundle's texts are its own (Resources/es.lproj). */
+#undef NSLocalizedString
+#define NSLocalizedString(key, comment) \
+    [[NSBundle bundleForClass:[VolumeExtra class]] localizedStringForKey:(key) value:@"" table:nil]
 #include <CoreAudio/CoreAudio.h>
 
 static NSString *const kIcons = @"/System/Library/Icons/menubar";
@@ -235,7 +240,8 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
 {
     _previous = nil;
     [_panel orderOut:nil];
-    [[NSWorkspace sharedWorkspace] launchApplication:@"System Preferences"];
+    [[NSWorkspace sharedWorkspace] openURL:
+        [NSURL fileURLWithPath:@"/System/Library/PreferencePanes/Sound.prefPane"]];
 }
 
 @end

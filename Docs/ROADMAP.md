@@ -489,7 +489,7 @@ Goal after Minkar 19.6.0: run x86-64 binaries built for the reference platform w
 
 Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0); Phase 7 (M7) and Minkar 21.0's performance run apart.
 
-M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05), and Phase 2 is closed (2026-10-31). Active work is in Phase 5, Atlas ([Atlas.md](Atlas.md): MB0, D0–D2, K1–K3, A0, A1, A3, A4 and the notification center N0–N2 done), and in what Minkar 19.6.0 needs besides (WebKit W2–W4 and audio and media AU1–AU6 done). The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05), and Phase 2 is closed (2026-10-31). Active work is in Phase 5, Atlas ([Atlas.md](Atlas.md): MB0–MB1, D0–D2, K1–K3, A0, A1, A3, A4 and the notification center N0–N2 done), and in what Minkar 19.6.0 needs besides (WebKit W2–W4 and audio and media AU1–AU6 done). The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
 
 - [x] M0 — Build, toolchain, CI
 - [x] M1 — Darwin boot
@@ -508,7 +508,7 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Met (5 Nov 2026): the Swift toolchain, runtime, overlays, Combine and XCTest; gate M3 passes with all seven tools (swift-argument-parser; Rainbow and Files; Yams; xcbeautify; mogenerator; tag; SwiftFormat) |
 | M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
-| M5 | Atlas desktop | Under way: MB0, D0–D2, K1–K3, A0, A1, A3, A4 and the notification center (N0–N2) done ([Atlas.md](Atlas.md)) |
+| M5 | Atlas desktop | Under way: MB0–MB1, D0–D2, K1–K3, A0, A1, A3, A4 and the notification center (N0–N2) done ([Atlas.md](Atlas.md)) |
 | M6 (Minkar 19.6.0) | Apps and distribution, the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5), and audio and media (AU1–AU6) | Under way: WebKit W2–W4 and audio and media AU1–AU6 done; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
 | M7 | Binary compatibility, arm64 | After Minkar 19.6.0 |

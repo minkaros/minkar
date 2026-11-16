@@ -3,8 +3,8 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * What SystemUIServer asks of a Menu Extra: built in for now, the
- * principal class of a .menu bundle with MB1.
+ * What SystemUIServer asks of a Menu Extra: the principal class of a
+ * .menu bundle in /System/Library/CoreServices/Menu Extras (MB1).
  */
 
 #import <AppKit/AppKit.h>

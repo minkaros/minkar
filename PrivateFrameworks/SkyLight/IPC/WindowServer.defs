@@ -707,3 +707,30 @@ routine drag_post(
 	window			: uint32_t;
 	event			: ws_event_t;
 	out result		: int32_t);
+
+/* ---- Status items' places (interface version 24) ---- */
+
+/* Its place among the status items: see SLSSetStatusItemPosition. */
+routine status_item_set_position(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	position		: double;
+	out result		: int32_t);
+
+/* Moved to x (a Command-drag): see SLSMoveStatusItem. */
+routine status_item_move(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	x			: double;
+	out result		: int32_t;
+	out position		: double);
+
+/* Its position now: see SLSGetStatusItemPosition. */
+routine status_item_get_position(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out position		: double);

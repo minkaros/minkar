@@ -188,9 +188,25 @@ frameIsValid(SLSRect f)
 
 /* ---- The status area ---- */
 
-/* Status items, right to left in the order they came (WS4a). Their order
- * kept across sessions and Command-drag come with MB1. */
+/* Status items, right to left by position (MB1): each one's position is
+ * its app's saved one, or past the others' when it came. */
 static NSMutableArray<WSWindow *> *statusItems;
+static NSMapTable<WSWindow *, NSNumber *> *statusPositions;
+
+static double
+statusPosition(WSWindow *w)
+{
+	return [[statusPositions objectForKey:w] doubleValue];
+}
+
+static void
+sortStatusItems(void)
+{
+	[statusItems sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(WSWindow *a, WSWindow *b) {
+		double pa = statusPosition(a), pb = statusPosition(b);
+		return pa < pb ? NSOrderedAscending : pa > pb ? NSOrderedDescending : NSOrderedSame;
+	}];
+}
 
 static void
 layoutStatusArea(void)
@@ -200,6 +216,7 @@ layoutStatusArea(void)
 
 	if (d == nil)
 		return;
+	sortStatusItems();
 	right = d.x + d.width;
 	for (WSWindow *w in statusItems) {
 		if (!w.onScreen)
@@ -232,6 +249,7 @@ statusItemGone(WSWindow *w)
 	if (![statusItems containsObject:w])
 		return;
 	[statusItems removeObject:w];
+	[statusPositions removeObjectForKey:w];
 	layoutStatusArea();
 }
 
@@ -546,10 +564,17 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 
 	if (w == nil)
 		return KERN_SUCCESS;
-	if (statusItems == nil)
+	if (statusItems == nil) {
 		statusItems = [NSMutableArray array];
+		statusPositions = [NSMapTable strongToStrongObjectsMapTable];
+	}
 	if (item && !isStatusItem(w)) {
+		/* Left of the others until its app gives its saved place. */
+		double last = 0;
+		for (WSWindow *o in statusItems)
+			last = MAX(last, statusPosition(o));
 		[statusItems addObject:w];
+		[statusPositions setObject:@(last + 1) forKey:w];
 		layoutStatusArea();
 	} else if (!item)
 		statusItemGone(w);
@@ -1249,5 +1274,83 @@ wss_drag_post(mach_port_t server, audit_token_t token, uint32_t window, SLSEvent
 		WSEventsEnqueue(w.owner, &event);
 		*result = kSLSErrorSuccess;
 	}
+	return KERN_SUCCESS;
+}
+
+/* ---- Status items' places ---- */
+
+kern_return_t
+wss_status_item_set_position(mach_port_t server, audit_token_t token, uint32_t window,
+    double position, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	(void)server;
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (!isStatusItem(w) || !(position > 0)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	[statusPositions setObject:@(position) forKey:w];
+	layoutStatusArea();
+	return KERN_SUCCESS;
+}
+
+/* Moved to x: its position between those of the shown items it now sits
+ * between (the average of theirs; past the last, or before the first, by
+ * one), the others staying where their positions put them. */
+kern_return_t
+wss_status_item_move(mach_port_t server, audit_token_t token, uint32_t window, double x,
+    int32_t *result, double *position)
+{
+	WSWindow *w = ownWindow(token, window, result);
+	WSDisplay *d = WSDisplays.firstObject;
+
+	(void)server;
+	*position = 0;
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (!isStatusItem(w) || d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	sortStatusItems();
+	/* The others, right to left, where they are now: it goes right of
+	 * the first one whose middle its own middle is right of. */
+	NSMutableArray<WSWindow *> *others = [NSMutableArray array];
+	for (WSWindow *o in statusItems)
+		if (o != w && o.onScreen)
+			[others addObject:o];
+	double middle = x + w.frame.width / 2, before = 0, after = 0;
+	NSUInteger at = others.count;
+	for (NSUInteger i = 0; i < others.count; i++)
+		if (middle > others[i].frame.x + others[i].frame.width / 2) {
+			at = i;
+			break;
+		}
+	before = at > 0 ? statusPosition(others[at - 1]) : 0;
+	after = at < others.count ? statusPosition(others[at]) : before + 2;
+	double placed = (before + after) / 2;
+	if (!(placed > before && placed < after))
+		placed = before + 0.5;
+	[statusPositions setObject:@(placed) forKey:w];
+	layoutStatusArea();
+	*position = placed;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_status_item_get_position(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t *result, double *position)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	(void)server;
+	*position = 0;
+	if (w != nil && !isStatusItem(w))
+		*result = kSLSErrorIllegalArgument;
+	else if (w != nil)
+		*position = statusPosition(w);
 	return KERN_SUCCESS;
 }
