@@ -16,10 +16,25 @@ CF_IMPLICIT_BRIDGING_ENABLED
 typedef struct O2PDFContext *CGPDFContextRef;
 
 COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextTitle;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextAuthor;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextSubject;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextKeywords;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextCreator;
+
+/* A page's boxes (CGPDFContextBeginPage's dictionary): CFData of a CGRect. */
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextMediaBox;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextCropBox;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextBleedBox;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextTrimBox;
+COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextArtBox;
 
 COREGRAPHICS_EXPORT CGContextRef CGPDFContextCreate(CGDataConsumerRef consumer, const CGRect *mediaBox, CFDictionaryRef auxiliaryInfo);
 
+COREGRAPHICS_EXPORT CGContextRef CGPDFContextCreateWithURL(CFURLRef url, const CGRect *mediaBox, CFDictionaryRef auxiliaryInfo);
 COREGRAPHICS_EXPORT void CGPDFContextClose(CGContextRef self);
+COREGRAPHICS_EXPORT void CGPDFContextBeginPage(CGContextRef context, CFDictionaryRef pageInfo);
+COREGRAPHICS_EXPORT void CGPDFContextEndPage(CGContextRef context);
+COREGRAPHICS_EXPORT void CGPDFContextAddDocumentMetadata(CGContextRef context, CFDataRef metadata);
 
 /* Links on the current page, and named destinations they can go to. */
 COREGRAPHICS_EXPORT void CGPDFContextSetURLForRect(CGContextRef context, CFURLRef url, CGRect rect);

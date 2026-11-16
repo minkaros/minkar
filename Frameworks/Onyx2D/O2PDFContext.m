@@ -58,9 +58,24 @@ const NSString *kO2PDFContextTitle=@"kO2PDFContextTitle";
    [self appendCString:"%PDF-1.3\n"];
 
    _info=[[O2PDFDictionary pdfDictionary] retain];
-   [_info setObjectForKey:"Author" value:[O2PDFString pdfObjectWithString:NSFullUserName()]];
-   [_info setObjectForKey:"Creator" value:[O2PDFString pdfObjectWithString:[[NSProcessInfo processInfo] processName]]];
-   [_info setObjectForKey:"Producer" value:[O2PDFString pdfObjectWithCString:"THE COCOTRON http://www.cocotron.org O2PDFContext"]];
+   /* The document's information: the auxiliary dictionary's (CGPDFContext's
+      keys), else the user and the process. */
+   NSString *author=[auxiliaryInfo objectForKey:@"kCGPDFContextAuthor"];
+   NSString *creator=[auxiliaryInfo objectForKey:@"kCGPDFContextCreator"];
+   NSString *subject=[auxiliaryInfo objectForKey:@"kCGPDFContextSubject"];
+   id        keywords=[auxiliaryInfo objectForKey:@"kCGPDFContextKeywords"];
+
+   [_info setObjectForKey:"Author" value:[O2PDFString pdfObjectWithString:author!=nil?author:NSFullUserName()]];
+   [_info setObjectForKey:"Creator" value:[O2PDFString pdfObjectWithString:creator!=nil?creator:[[NSProcessInfo processInfo] processName]]];
+   [_info setObjectForKey:"Producer" value:[O2PDFString pdfObjectWithCString:"Minkar PDF context"]];
+   if(subject!=nil)
+    [_info setObjectForKey:"Subject" value:[O2PDFString pdfObjectWithString:subject]];
+   if([keywords isKindOfClass:[NSArray class]])
+    keywords=[keywords componentsJoinedByString:@", "];
+   if([keywords isKindOfClass:[NSString class]])
+    [_info setObjectForKey:"Keywords" value:[O2PDFString pdfObjectWithString:keywords]];
+   /* The page size when a page gives none: the one given, else Letter. */
+   _mediaBox=mediaBox!=NULL?*mediaBox:O2RectMake(0,0,612,792);
    [[_xref trailer] setObjectForKey:"Info" value:_info];
 
    _catalog=[[O2PDFDictionary pdfDictionary] retain];
@@ -80,6 +95,9 @@ const NSString *kO2PDFContextTitle=@"kO2PDFContextTitle";
    _contentStreamStack=[NSMutableArray new];
 
    NSString *title=[auxiliaryInfo objectForKey:kO2PDFContextTitle];
+
+   if(title==nil)
+    title=[auxiliaryInfo objectForKey:@"kCGPDFContextTitle"];
 
    if(title==nil)
     title=@"Untitled";
@@ -583,7 +601,7 @@ const NSString *kO2PDFContextTitle=@"kO2PDFContextTitle";
     _page=[[O2PDFDictionary pdfDictionary] retain];
 
     [_page setNameForKey:"Type" value:"Page"];
-    [_page setObjectForKey:"MediaBox" value:[O2PDFArray pdfArrayWithRect:*mediaBox]];
+    [_page setObjectForKey:"MediaBox" value:[O2PDFArray pdfArrayWithRect:mediaBox!=NULL?*mediaBox:_mediaBox]];
 
     stream=[O2PDFStream pdfStream];
     [_page setObjectForKey:"Contents" value:stream];
@@ -592,6 +610,38 @@ const NSString *kO2PDFContextTitle=@"kO2PDFContextTitle";
     [_page setObjectForKey:"Parent" value:[self referenceForObject:_pages]];
 
     [self referenceForObject:_page];
+}
+
+/* A box of the page dictionary: CFData holding a CGRect. */
+static BOOL boxFromInfo(NSDictionary *info,NSString *key,O2Rect *box) {
+   NSData *data=[info objectForKey:key];
+
+   if(![data isKindOfClass:[NSData class]] || [data length]<sizeof(O2Rect))
+    return NO;
+   memcpy(box,[data bytes],sizeof(O2Rect));
+   return YES;
+}
+
+-(void)beginPageWithInfo:(NSDictionary *)info {
+   O2Rect media=_mediaBox,box;
+
+   boxFromInfo(info,@"kCGPDFContextMediaBox",&media);
+   O2ContextBeginPage(self,&media);
+   static const struct { NSString *key; const char *name; } boxes[]={
+    { @"kCGPDFContextCropBox","CropBox" }, { @"kCGPDFContextBleedBox","BleedBox" },
+    { @"kCGPDFContextTrimBox","TrimBox" }, { @"kCGPDFContextArtBox","ArtBox" },
+   };
+   for(unsigned i=0;i<sizeof(boxes)/sizeof(boxes[0]);i++)
+    if(boxFromInfo(info,boxes[i].key,&box))
+     [_page setObjectForKey:boxes[i].name value:[O2PDFArray pdfArrayWithRect:box]];
+}
+
+-(void)addDocumentMetadata:(NSData *)metadata {
+   O2PDFStream *stream=[O2PDFStream pdfStreamWithData:metadata];
+
+   [[stream dictionary] setNameForKey:"Type" value:"Metadata"];
+   [[stream dictionary] setNameForKey:"Subtype" value:"XML"];
+   [_catalog setObjectForKey:"Metadata" value:[self referenceForObject:stream]];
 }
 
 -(void)internIndirectObjects {

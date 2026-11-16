@@ -20,6 +20,10 @@ CGDataConsumerRef CGDataConsumerCreateWithCFData(CFMutableDataRef data) {
    return O2DataConsumerCreateWithCFData(data);
 }
 
+CGDataConsumerRef CGDataConsumerRetain(CGDataConsumerRef self){
+   return O2DataConsumerRetain(self);
+}
+
 void CGDataConsumerRelease(CGDataConsumerRef self){
    O2DataConsumerRelease(self);
 }

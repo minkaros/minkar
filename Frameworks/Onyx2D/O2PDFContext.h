@@ -31,11 +31,17 @@ extern const NSString *kO2PDFContextTitle;
     NSMutableArray *_textStateStack;
     NSMutableArray *_contentStreamStack;
     size_t _length;
+    O2Rect _mediaBox;
 }
 
 - initWithConsumer:(O2DataConsumer *)consumer mediaBox:(const O2Rect *)mediaBox auxiliaryInfo:(NSDictionary *)auxiliaryInfo;
 
 - (unsigned)length;
+
+/* Minkar: a page with its boxes (CGPDFContextBeginPage's dictionary), and
+   the document's XMP metadata. */
+- (void)beginPageWithInfo:(NSDictionary *)info;
+- (void)addDocumentMetadata:(NSData *)metadata;
 
 - (void)appendData:(NSData *)data;
 - (void)appendBytes:(const void *)ptr length:(unsigned)length;

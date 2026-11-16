@@ -29,6 +29,7 @@ COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreateWithCFData(CFMutableDa
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreate(void *info, const CGDataConsumerCallbacks *callbacks);
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreateWithURL(CFURLRef url);
 
+COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerRetain(CGDataConsumerRef self);
 COREGRAPHICS_EXPORT void CGDataConsumerRelease(CGDataConsumerRef self);
 
 
