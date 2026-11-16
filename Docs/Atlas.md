@@ -54,7 +54,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
-| Files | 4 | K0–K4 | K1, K2 (K0 partial) | K3, K0 |
+| Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 | Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -632,9 +632,21 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   (Command-click, Shift-click, Select All) for every operation and drag;
   Return renames in place, the name's stem selected, Escape cancelling.
   Local tests `files-ops`, `drag-apps`.
-- [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
+- [x] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
-  DMG step 3).
+  DMG step 3). *Done (16 Nov 2026):* Files draws the desktop's icons in a
+  window at the desktop icon level over the Dock's picture: the volumes
+  mounted under /Volumes, then ~/Desktop's items, in columns from the top
+  right, followed through FSEvents and NSWorkspace's volume notifications;
+  they open, take drops and drag, go to the Trash (Command-Delete) and
+  eject (Command-E, the context menu, or dropped on the Dock's Trash);
+  a click there makes Files the front app. NSWorkspace's
+  `mountedLocalVolumePaths`, `mountedRemovableMedia` and
+  `unmountAndEjectDeviceAtURL:error:` on DiskArbitration (they were stubs).
+  A disk image double-clicked is attached and its volume opened (one
+  already attached shows its volume). The reveal APIs (`LSRevealInFiles`,
+  `open -R`, NSWorkspace's) and loginwindow's start and restart of Files
+  came with K1. Local test `desktop-icons`.
 - [ ] **K4 — Later work.** Search on the metadata index, tags, previews.
 
 Gate M5 ("a graphical session starts, an app opens from the Dock, Files

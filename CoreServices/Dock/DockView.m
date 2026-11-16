@@ -972,8 +972,13 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
     DockTile *t = index >= 0 ? model.tiles[(NSUInteger)index] : nil;
     if (t.kind == DockTileKindTrash) {
         BOOL all = YES;
+        /* A volume dropped on the Trash is ejected, as on the reference
+           platform; anything else goes to the Trash. */
         for (NSURL *u in urls)
-            all &= [[NSFileManager defaultManager] trashItemAtURL:u resultingItemURL:NULL error:NULL];
+            if ([[[u URLByDeletingLastPathComponent] path] isEqualToString:@"/Volumes"])
+                all &= [[NSWorkspace sharedWorkspace] unmountAndEjectDeviceAtURL:u error:NULL];
+            else
+                all &= [[NSFileManager defaultManager] trashItemAtURL:u resultingItemURL:NULL error:NULL];
         NSLog(@"drop to the Trash: %lu item(s)", (unsigned long)[urls count]);
         return all;
     }

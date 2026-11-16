@@ -127,16 +127,16 @@
 <text x="1025" y="407" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">D4</text>
 <text x="20" y="447" font-size="15" font-weight="700" fill="#3bc4b5" text-anchor="start">Files</text>
 <line x1="700" y1="442" x2="1025" y2="442" stroke="#3bc4b5" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="442" x2="865" y2="442" stroke="#3bc4b5" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="442" x2="865" y2="442" stroke="#3bc4b5" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="442" x2="970" y2="442" stroke="#3bc4b5" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="442" x2="970" y2="442" stroke="#3bc4b5" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="442" r="9" fill="#0d1117" stroke="#3bc4b5" stroke-width="3"/><path d="M700 436 A6 6 0 0 0 700 448 Z" fill="#3bc4b5"/>
 <text x="700" y="471" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">K0</text>
 <circle cx="760" cy="442" r="10" fill="#3bc4b5" stroke="#0d1117" stroke-width="3"/><path d="M755.5 442 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="760" y="471" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">K1</text>
 <circle cx="865" cy="442" r="10" fill="#3bc4b5" stroke="#0d1117" stroke-width="3"/><path d="M860.5 442 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="865" y="471" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">K2</text>
-<circle cx="970" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K3</text>
+<circle cx="970" cy="442" r="10" fill="#3bc4b5" stroke="#0d1117" stroke-width="3"/><path d="M965.5 442 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="970" y="471" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">K3</text>
 <circle cx="1025" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1025" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K4</text>
 <text x="20" y="511" font-size="15" font-weight="700" fill="#f778ba" text-anchor="start">Atlas</text>

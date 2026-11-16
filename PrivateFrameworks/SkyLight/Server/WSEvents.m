@@ -614,11 +614,13 @@ routeMouse(WSInputModel *m, SLSEvent *e)
 		target = windowWithID(m, captureID);
 		/* A click makes its window key; not a menu bar's, a menu's or a
 		 * status item's (the menu levels and above), nor the Dock's or
-		 * the desktop's (the Dock level, the desktop levels): the front
-		 * app keeps its key window and menu bar, as on the reference
-		 * platform. */
+		 * the desktop picture's (the Dock level, the desktop level): the
+		 * front app keeps its key window and menu bar, as on the
+		 * reference platform. The desktop's icons (the file manager's
+		 * window at the desktop icon level) take the click and the
+		 * keyboard, as there. */
 		if (target != nil && e->buttonNumber == 0 && target.level < kSLSMainMenuWindowLevel &&
-		    target.level != kSLSDockWindowLevel && target.level > kSLSDesktopIconWindowLevel)
+		    target.level != kSLSDockWindowLevel && target.level >= kSLSDesktopIconWindowLevel)
 			makeKey(m, target);
 		/* A left click in a drag region moves the window from now on,
 		 * whether or not its app answers (it still gets this click). */

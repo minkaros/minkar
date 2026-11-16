@@ -22,6 +22,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <unistd.h>
 #include <LaunchServices/LaunchServices.h>
 #include <DiskArbitration/DiskArbitration.h>
+#include <sys/mount.h>
+#include <dispatch/dispatch.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
 NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
@@ -530,19 +532,103 @@ static CFArrayRef copyCFURLs(NSArray *urls) {
    return 0;
 }
 
--(NSArray *)mountedRemovableMedia {
-   NSInvalidAbstractInvocation();
-   return 0;
+/* The local file systems mounted now (getmntinfo), the root first. */
+-(NSArray *)mountedLocalVolumePaths {
+   struct statfs *mounts=NULL;
+   int            count=getmntinfo(&mounts,MNT_NOWAIT);
+   NSMutableArray *paths=[NSMutableArray array];
+
+   for(int i=0;i<count;i++)
+    if((mounts[i].f_flags&MNT_LOCAL) && !(mounts[i].f_flags&MNT_DONTBROWSE))
+     [paths addObject:[NSString stringWithUTF8String:mounts[i].f_mntonname]];
+   return paths;
 }
 
--(NSArray *)mountedLocalVolumePaths {
-   NSInvalidAbstractInvocation();
-   return 0;
+/* Those on removable or ejectable media, as DiskArbitration describes
+   their disks (disk images included). */
+-(NSArray *)mountedRemovableMedia {
+   NSMutableArray *paths=[NSMutableArray array];
+   DASessionRef    session=DASessionCreate(NULL);
+
+   if(session==NULL)
+    return paths;
+   for(NSString *path in [self mountedLocalVolumePaths]){
+    NSURL     *url=[NSURL fileURLWithPath:path isDirectory:YES];
+    DADiskRef  disk=DADiskCreateFromVolumePath(NULL,session,(CFURLRef)url);
+    NSDictionary *description=(disk!=NULL)?[(NSDictionary *)DADiskCopyDescription(disk) autorelease]:nil;
+
+    if([[description objectForKey:(NSString *)kDADiskDescriptionMediaRemovableKey] boolValue] ||
+       [[description objectForKey:(NSString *)kDADiskDescriptionMediaEjectableKey] boolValue])
+     [paths addObject:path];
+    if(disk!=NULL)
+     CFRelease(disk);
+   }
+   CFRelease(session);
+   return paths;
+}
+
+typedef struct {
+   dispatch_semaphore_t done;
+   DADissenterRef       dissenter;
+} NSWorkspaceDAWait;
+
+static void daOperationDone(DADiskRef disk,DADissenterRef dissenter,void *context){
+   NSWorkspaceDAWait *wait=context;
+
+   wait->dissenter=(dissenter!=NULL)?(DADissenterRef)CFRetain(dissenter):NULL;
+   dispatch_semaphore_signal(wait->done);
+}
+
+/* The volume's whole disk unmounted (all its volumes), then ejected, as
+   the Eject command does; waits for DiskArbitration's answers. */
+-(BOOL)unmountAndEjectDeviceAtURL:(NSURL *)url error:(NSError **)error {
+   DASessionRef      session=DASessionCreate(NULL);
+   dispatch_queue_t  queue=dispatch_queue_create("org.minkar.workspace.eject",NULL);
+   DADiskRef         disk=(session!=NULL)?DADiskCreateFromVolumePath(NULL,session,(CFURLRef)url):NULL;
+   DADiskRef         whole=(disk!=NULL)?DADiskCopyWholeDisk(disk):NULL;
+   NSWorkspaceDAWait wait={ dispatch_semaphore_create(0), NULL };
+   int               status=0;
+
+   if(session!=NULL)
+    DASessionSetDispatchQueue(session,queue);
+   if(whole==NULL)
+    status=ENOENT;
+   else {
+    DADiskUnmount(whole,kDADiskUnmountOptionWhole,daOperationDone,&wait);
+    if(dispatch_semaphore_wait(wait.done,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC))!=0)
+     status=ETIMEDOUT;
+    else if(wait.dissenter!=NULL)
+     status=DADissenterGetStatus(wait.dissenter)==kDAReturnBusy?EBUSY:EIO;
+    if(wait.dissenter!=NULL){
+     CFRelease(wait.dissenter);
+     wait.dissenter=NULL;
+    }
+    if(status==0){
+     DADiskEject(whole,kDADiskEjectOptionDefault,daOperationDone,&wait);
+     /* A disk with nothing to eject (a fixed one, an image) refuses:
+        unmounted is what was asked for. */
+     dispatch_semaphore_wait(wait.done,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC));
+     if(wait.dissenter!=NULL)
+      CFRelease(wait.dissenter);
+    }
+   }
+   if(whole!=NULL)
+    CFRelease(whole);
+   if(disk!=NULL)
+    CFRelease(disk);
+   if(session!=NULL){
+    DASessionSetDispatchQueue(session,NULL);
+    CFRelease(session);
+   }
+   dispatch_release(queue);
+   dispatch_release(wait.done);
+   if(status!=0 && error!=NULL)
+    *error=[NSError errorWithDomain:NSPOSIXErrorDomain code:status userInfo:nil];
+   return status==0;
 }
 
 -(BOOL)unmountAndEjectDeviceAtPath:(NSString *)path {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [self unmountAndEjectDeviceAtURL:[NSURL fileURLWithPath:path isDirectory:YES] error:NULL];
 }
 
 -(BOOL)fileSystemChanged {

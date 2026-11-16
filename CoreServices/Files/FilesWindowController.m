@@ -404,6 +404,12 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         [_window makeFirstResponder:_columns];
     } else if (item.isFolder)
         [self goToFolder:item.URL];
+    else if ([[[item.URL pathExtension] lowercaseString] isEqualToString:@"dmg"])
+        /* A disk image: attached, its volume shown (DMG step 3). */
+        [[FilesOperations shared] attachDiskImage:item.URL done:^(NSURL *volume) {
+            if (volume != nil)
+                [self goToFolder:volume];
+        }];
     else if (![[NSWorkspace sharedWorkspace] openFile:[item.URL path]])
         NSBeep();   /* documents open with LaunchServices' open code (Phase 3, item 4) */
 }

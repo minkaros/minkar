@@ -429,6 +429,92 @@ static NSString *labelFor(NSString *one, NSString *many, NSArray<NSURL *> *items
         [self registerUndoMoving:trashed backTo:from name:NSLocalizedString(@"Move to Trash", nil)];
 }
 
+/* The volume of an image already attached (hdiutil info: its block, then
+   the first mount point under /Volumes), or nil. */
+static NSURL *attachedVolumeOf(NSURL *image)
+{
+    NSTask *task = [[NSTask alloc] init];
+    NSPipe *pipe = [NSPipe pipe];
+    NSString *wanted = [[image path] stringByStandardizingPath];
+
+    [task setLaunchPath:@"/usr/bin/hdiutil"];
+    [task setArguments:@[ @"info" ]];
+    [task setStandardOutput:pipe];
+    @try {
+        [task launch];
+    } @catch (NSException *e) {
+        return nil;
+    }
+    NSData *out = [[pipe fileHandleForReading] readDataToEndOfFile];
+    [task waitUntilExit];
+    NSString *text = [[NSString alloc] initWithData:out encoding:NSUTF8StringEncoding];
+    for (NSString *block in [text componentsSeparatedByString:@"================================================"]) {
+        BOOL ours = NO;
+        for (NSString *line in [block componentsSeparatedByString:@"\n"]) {
+            if ([line hasPrefix:@"image-path"]) {
+                NSRange colon = [line rangeOfString:@": "];
+                ours = colon.location != NSNotFound &&
+                    [[[line substringFromIndex:NSMaxRange(colon)] stringByStandardizingPath] isEqualToString:wanted];
+            }
+            NSRange volumes = [line rangeOfString:@"/Volumes/"];
+            if (ours && volumes.location != NSNotFound)
+                return [NSURL fileURLWithPath:[line substringFromIndex:volumes.location] isDirectory:YES];
+        }
+    }
+    return nil;
+}
+
+/* One attach at a time per image: a second open while the first runs is
+   the same request. An image already attached shows its volume. */
+- (void)attachDiskImage:(NSURL *)image done:(void (^)(NSURL *))done
+{
+    static NSMutableSet<NSString *> *attaching;
+    NSString *key = [[image path] stringByStandardizingPath];
+
+    if (attaching == nil)
+        attaching = [NSMutableSet set];
+    if ([attaching containsObject:key])
+        return;
+    [attaching addObject:key];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSURL *already = attachedVolumeOf(image);
+        if (already != nil) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [attaching removeObject:key];
+                done(already);
+            });
+            return;
+        }
+        NSTask *task = [[NSTask alloc] init];
+        NSPipe *pipe = [NSPipe pipe];
+        [task setLaunchPath:@"/usr/bin/hdiutil"];
+        [task setArguments:@[ @"attach", @"-plist", [image path] ]];
+        [task setStandardOutput:pipe];
+        NSURL *volume = nil;
+        @try {
+            [task launch];
+            NSData *out = [[pipe fileHandleForReading] readDataToEndOfFile];
+            [task waitUntilExit];
+            NSDictionary *plist = [NSPropertyListSerialization propertyListWithData:out options:0 format:NULL error:NULL];
+            for (NSDictionary *entity in plist[@"system-entities"])
+                if (volume == nil && [entity[@"mount-point"] length] > 0)
+                    volume = [NSURL fileURLWithPath:entity[@"mount-point"] isDirectory:YES];
+        } @catch (NSException *e) {
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [attaching removeObject:key];
+            if (volume == nil) {
+                NSAlert *alert = [[NSAlert alloc] init];
+                [alert setMessageText:[NSString stringWithFormat:
+                    NSLocalizedString(@"The disk image “%@” could not be opened.", nil), [image lastPathComponent]]];
+                [alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+                [alert runModal];
+            }
+            done(volume);
+        });
+    });
+}
+
 + (NSURL *)putBackLocationOf:(NSURL *)trashed
 {
     char path[PATH_MAX];

@@ -12,6 +12,7 @@
 #import "FilesWindowController.h"
 #import "FilesInfoWindow.h"
 #import "FilesOperations.h"
+#import "FilesDesktop.h"
 #include <CoreServices/CoreServices.h>
 #include <os/log.h>
 
@@ -21,6 +22,7 @@
 @implementation FilesApplication {
     NSMutableArray<FilesWindowController *> *_windows;
     NSMenu *_openWithMenu;
+    FilesDesktop *_desktop;
 }
 
 - (FilesWindowController *)front
@@ -168,6 +170,23 @@ static void addMenu(NSString *title, NSMenu *menu)
 - (void)applicationDidFinishLaunching:(NSNotification *)note
 {
     [self buildMenus];
+    /* The desktop's icons (K3): folders and volumes open in a window here,
+       disk images are attached, the rest goes to its application. */
+    __weak FilesApplication *weakSelf = self;
+    _desktop = [[FilesDesktop alloc] initWithOpener:^(NSURL *url) {
+        BOOL dir = NO;
+        [[NSFileManager defaultManager] fileExistsAtPath:[url path] isDirectory:&dir];
+        if (dir && ![[url pathExtension] isEqualToString:@"app"])
+            [weakSelf windowFor:url];
+        else if ([[[url pathExtension] lowercaseString] isEqualToString:@"dmg"])
+            [[FilesOperations shared] attachDiskImage:url done:^(NSURL *volume) {
+                if (volume != nil)
+                    [weakSelf windowFor:volume];
+            }];
+        else
+            [[NSWorkspace sharedWorkspace] openURL:url];
+    }];
+    [_desktop show];
     /* Launched to open or show something: those windows only. */
     if ([_windows count] == 0)
         [self openWindowAt:[NSURL fileURLWithPath:NSHomeDirectory()]];

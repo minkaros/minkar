@@ -96,3 +96,6 @@
 "The folder “%@” could not be made." = "No se ha podido crear la carpeta «%@».";
 "The name “%@” is already taken. Please choose a different name." = "El nombre «%@» ya está en uso. Elige otro nombre.";
 "Select All" = "Seleccionar todo";
+"Eject “%@”" = "Expulsar «%@»";
+"The disk “%@” wasn’t ejected because one or more programs may be using it." = "El disco «%@» no se ha expulsado porque es posible que uno o varios programas lo estén usando.";
+"The disk image “%@” could not be opened." = "No se ha podido abrir la imagen de disco «%@».";

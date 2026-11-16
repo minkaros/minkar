@@ -57,7 +57,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | --- | --- | --- | --- | --- |
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
-| Files | 4 | K0–K4 | K1, K2 (K0 en parte) | K3, K0 |
+| Files | 4 | K0–K4 | K1, K2, K3 (K0 en parte) | K0, K4 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 | Notificaciones | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -670,9 +670,22 @@ evidencia.
   arrastres; Return renombra en el sitio con la raíz del nombre
   seleccionada, y Escape cancela. Pruebas locales `files-ops` y
   `drag-apps`.
-- [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
+- [x] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Files; arranque y rearranque por loginwindow;
-  doble clic en un DMG (Fase 6, paso 3 de DMG).
+  doble clic en un DMG (Fase 6, paso 3 de DMG). *Hecho (16 nov 2026):* Files
+  dibuja los iconos del escritorio en una ventana al nivel de iconos del
+  escritorio, sobre la imagen del Dock: los volúmenes montados bajo
+  /Volumes y después los ítems de ~/Desktop, en columnas desde arriba a la
+  derecha, al día por FSEvents y los avisos de volúmenes de NSWorkspace; se
+  abren, aceptan lo que se suelta y se arrastran, van a la papelera
+  (Comando-Supr) y se expulsan (Comando-E, el menú contextual, o soltados en
+  la papelera del Dock); un clic ahí pone Files delante. NSWorkspace
+  gana `mountedLocalVolumePaths`, `mountedRemovableMedia` y
+  `unmountAndEjectDeviceAtURL:error:` sobre DiskArbitration (eran stubs).
+  Una imagen de disco con doble clic se monta y se abre su volumen (si ya
+  está montada, se muestra). Las API para mostrar en Files (`LSRevealInFiles`,
+  `open -R`, las de NSWorkspace) y el arranque y rearranque de Files por
+  loginwindow llegaron con K1. Prueba local `desktop-icons`.
 - [ ] **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos,
   etiquetas, vistas previas.
 

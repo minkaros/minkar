@@ -151,6 +151,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (NSArray *)mountedLocalVolumePaths;
 
 - (BOOL)unmountAndEjectDeviceAtPath:(NSString *)path;
+- (BOOL)unmountAndEjectDeviceAtURL:(NSURL *)url error:(NSError **)error;
 
 - (BOOL)fileSystemChanged;
 - (BOOL)userDefaultsChanged;

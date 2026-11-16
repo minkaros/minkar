@@ -36,6 +36,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSURL *)newFolderIn:(NSURL *)folder;
 - (void)trashItems:(NSArray<NSURL *> *)items;
 
+/* A disk image attached (hdiutil attach), off the main thread; done gets
+   its first mounted volume, or nil after telling the user why. */
+- (void)attachDiskImage:(NSURL *)image done:(void (^)(NSURL *_Nullable volume))done;
+
 /* Items in the Trash go back where they were (Put Back). */
 + (nullable NSURL *)putBackLocationOf:(NSURL *)trashed;
 - (void)putBackItems:(NSArray<NSURL *> *)items;
