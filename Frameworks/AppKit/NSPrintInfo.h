@@ -13,12 +13,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSDictionary, NSMutableDictionary, NSPrinter;
 
-typedef int NSPrintingPaginationMode;
+typedef NSUInteger NSPrintingPaginationMode;
+enum {
+    NSAutoPagination = 0,
+    NSFitPagination = 1,
+    NSClipPagination = 2,
+};
 
 typedef enum {
     NSPortraitOrientation,
     NSLandscapeOrientation,
 } NSPrintingOrientation;
+
+typedef NSInteger NSPaperOrientation;
+enum {
+    NSPaperOrientationPortrait = 0,
+    NSPaperOrientationLandscape = 1,
+};
 
 APPKIT_EXPORT NSString *const NSPrintPrinter;
 APPKIT_EXPORT NSString *const NSPrintPrinterName;
@@ -52,12 +63,29 @@ APPKIT_EXPORT NSString *const NSPrintHorizontallyCentered;
 APPKIT_EXPORT NSString *const NSPrintVerticallyCentered;
 
 APPKIT_EXPORT NSString *const NSPrintHeaderAndFooter;
+APPKIT_EXPORT NSString *const NSPrintScalingFactor;
+APPKIT_EXPORT NSString *const NSPrintMustCollate;
+APPKIT_EXPORT NSString *const NSPrintReversePageOrder;
+APPKIT_EXPORT NSString *const NSPrintSelectionOnly;
+APPKIT_EXPORT NSString *const NSPrintPagesAcross;
+APPKIT_EXPORT NSString *const NSPrintPagesDown;
+APPKIT_EXPORT NSString *const NSPrintTime;
+APPKIT_EXPORT NSString *const NSPrintFaxNumber;
 APPKIT_EXPORT NSString *const NSPrintJobSavingURL;
 APPKIT_EXPORT NSString *const NSPrintJobSavingFileNameExtensionHidden;
 
-@interface NSPrintInfo : NSObject <NSCopying> {
+@interface NSPrintInfo : NSObject <NSCopying, NSCoding> {
     NSMutableDictionary *_attributes;
+    /* PrintCore's objects (PMPrintSession, PMPageFormat, PMPrintSettings),
+       made when first asked for, kept in step with the dictionary. */
+    void *_session;
+    void *_pageFormat;
+    void *_printSettings;
+    NSMutableDictionary *_printSettingsDictionary;
 }
+
++ (void)setSharedPrintInfo:(NSPrintInfo *)printInfo;
++ (NSPrinter *)defaultPrinter;
 
 + (NSPrintInfo *)sharedPrintInfo;
 
@@ -105,6 +133,16 @@ APPKIT_EXPORT NSString *const NSPrintJobSavingFileNameExtensionHidden;
 - (void)setVerticallyCentered:(BOOL)value;
 
 - (void)setUpPrintOperationDefaultValues;
+
+@property CGFloat scalingFactor;
+@property (getter=isSelectionOnly) BOOL selectionOnly;
+@property (readonly, strong) NSMutableDictionary *printSettings;
+
+- (void *)PMPrintSession;
+- (void *)PMPageFormat;
+- (void *)PMPrintSettings;
+- (void)updateFromPMPageFormat;
+- (void)updateFromPMPrintSettings;
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isHorizontallyCentered) BOOL horizontallyCentered;
