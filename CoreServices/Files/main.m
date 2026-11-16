@@ -11,13 +11,16 @@
 
 #import "FilesWindowController.h"
 #import "FilesInfoWindow.h"
+#import "FilesOperations.h"
+#include <CoreServices/CoreServices.h>
 #include <os/log.h>
 
-@interface FilesApplication : NSObject <NSApplicationDelegate>
+@interface FilesApplication : NSObject <NSApplicationDelegate, NSMenuDelegate>
 @end
 
 @implementation FilesApplication {
     NSMutableArray<FilesWindowController *> *_windows;
+    NSMenu *_openWithMenu;
 }
 
 - (FilesWindowController *)front
@@ -114,10 +117,32 @@ static void addMenu(NSString *title, NSMenu *menu)
     NSMenu *file = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"File", nil)];
     item(file, NSLocalizedString(@"New Window", nil), self, @selector(newWindow:), @"n", cmd);
     item(file, NSLocalizedString(@"Open", nil), self, @selector(openSelection:), @"o", cmd);
+    NSMenuItem *openWith = item(file, NSLocalizedString(@"Open With", nil), nil, NULL, @"", 0);
+    _openWithMenu = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Open With", nil)];
+    [_openWithMenu setDelegate:self];
+    [file setSubmenu:_openWithMenu forItem:openWith];
+    item(file, NSLocalizedString(@"New Folder", nil), self, @selector(newFolder:), @"n", shift);
+    [file addItem:[NSMenuItem separatorItem]];
     item(file, NSLocalizedString(@"Get Info", nil), self, @selector(getInfo:), @"i", cmd);
+    item(file, NSLocalizedString(@"Rename", nil), self, @selector(rename:), @"", 0);
+    item(file, NSLocalizedString(@"Duplicate", nil), self, @selector(duplicate:), @"d", cmd);
+    [file addItem:[NSMenuItem separatorItem]];
+    NSString *backspace = [NSString stringWithFormat:@"%C", (unichar)NSBackspaceCharacter];
+    item(file, NSLocalizedString(@"Move to Trash", nil), self, @selector(moveToTrash:), backspace, cmd);
+    item(file, NSLocalizedString(@"Put Back", nil), self, @selector(putBack:), @"", 0);
     [file addItem:[NSMenuItem separatorItem]];
     item(file, NSLocalizedString(@"Close Window", nil), self, @selector(closeWindow:), @"w", cmd);
     addMenu(NSLocalizedString(@"File", nil), file);
+
+    NSMenu *edit = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Edit", nil)];
+    item(edit, NSLocalizedString(@"Undo", nil), self, @selector(undo:), @"z", cmd);
+    item(edit, NSLocalizedString(@"Redo", nil), self, @selector(redo:), @"z", shift);
+    [edit addItem:[NSMenuItem separatorItem]];
+    item(edit, NSLocalizedString(@"Copy", nil), self, @selector(copy:), @"c", cmd);
+    item(edit, NSLocalizedString(@"Paste Item", nil), self, @selector(paste:), @"v", cmd);
+    item(edit, NSLocalizedString(@"Move Item Here", nil), self, @selector(moveItemsHere:), @"v",
+         NSCommandKeyMask | NSAlternateKeyMask);
+    addMenu(NSLocalizedString(@"Edit", nil), edit);
 
     NSMenu *view = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"View", nil)];
     item(view, NSLocalizedString(@"as Icons", nil), self, @selector(showAsIcons:), @"1", cmd);
@@ -178,6 +203,103 @@ static void addMenu(NSString *title, NSMenu *menu)
 }
 
 - (void)openSelection:(id)sender { [[self front] openSelection:sender]; }
+
+/* -- File operations (K2) -- */
+
+- (void)copy:(id)sender { [[self front] copy:sender]; }
+- (void)paste:(id)sender { [[self front] paste:sender]; }
+- (void)moveItemsHere:(id)sender { [[self front] moveItemsHere:sender]; }
+- (void)duplicate:(id)sender { [[self front] duplicate:sender]; }
+- (void)newFolder:(id)sender { [[self front] newFolder:sender]; }
+- (void)rename:(id)sender { [[self front] rename:sender]; }
+- (void)moveToTrash:(id)sender { [[self front] moveToTrash:sender]; }
+- (void)putBack:(id)sender { [[self front] putBack:sender]; }
+
+- (void)undo:(id)sender
+{
+    [[FilesOperations shared].undoManager undo];
+    [[self front] reloadSelecting:nil];
+}
+
+- (void)redo:(id)sender
+{
+    [[FilesOperations shared].undoManager redo];
+    [[self front] reloadSelecting:nil];
+}
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem
+{
+    SEL action = [menuItem action];
+    FilesWindowController *front = [self front];
+    NSArray<NSURL *> *selected = front != nil ? front.selectedURLs : @[];
+    NSUndoManager *undo = [FilesOperations shared].undoManager;
+    BOOL inTrash = [selected count] > 0 && [FilesOperations isInTrash:selected[0]];
+
+    if (action == @selector(undo:)) {
+        [menuItem setTitle:[undo undoMenuItemTitle]];
+        return [undo canUndo];
+    }
+    if (action == @selector(redo:)) {
+        [menuItem setTitle:[undo redoMenuItemTitle]];
+        return [undo canRedo];
+    }
+    if (action == @selector(paste:) || action == @selector(moveItemsHere:))
+        return front != nil && [[FilesWindowController pasteboardURLs] count] > 0;
+    if (action == @selector(newFolder:))
+        return front != nil;
+    if (action == @selector(putBack:))
+        return inTrash;
+    if (action == @selector(moveToTrash:))
+        return [selected count] > 0 && !inTrash;
+    if (action == @selector(copy:) || action == @selector(duplicate:) || action == @selector(rename:))
+        return [selected count] > 0;
+    return YES;
+}
+
+/* Open With: the applications LaunchServices has for the selection, its
+   default first. */
+- (void)menuNeedsUpdate:(NSMenu *)menu
+{
+    NSURL *url = [[[self front] selectedURLs] firstObject];
+
+    if (menu != _openWithMenu)
+        return;
+    [menu removeAllItems];
+    if (url == nil)
+        return;
+    NSURL *preferred = [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url];
+    NSMutableArray<NSURL *> *apps = [NSMutableArray array];
+    if (preferred != nil)
+        [apps addObject:preferred];
+    for (NSURL *app in CFBridgingRelease(LSCopyApplicationURLsForURL((__bridge CFURLRef)url, kLSRolesAll)) ?: @[])
+        if (![apps containsObject:app])
+            [apps addObject:app];
+    for (NSURL *app in apps) {
+        NSString *name = [[NSFileManager defaultManager] displayNameAtPath:[app path]];
+        if ([app isEqual:preferred])
+            name = [NSString stringWithFormat:NSLocalizedString(@"%@ (default)", nil), name];
+        NSMenuItem *i = [menu addItemWithTitle:name action:@selector(openWithApplication:) keyEquivalent:@""];
+        [i setTarget:self];
+        [i setRepresentedObject:app];
+        NSImage *icon = [[NSWorkspace sharedWorkspace] iconForFile:[app path]];
+        [icon setSize:NSMakeSize(16, 16)];
+        [i setImage:icon];
+    }
+    if ([apps count] == 0)
+        [[menu addItemWithTitle:NSLocalizedString(@"No Applications", nil) action:NULL keyEquivalent:@""] setEnabled:NO];
+}
+
+- (void)openWithApplication:(NSMenuItem *)sender
+{
+    NSArray<NSURL *> *urls = [[self front] selectedURLs];
+    NSError *error = nil;
+
+    if ([urls count] == 0)
+        return;
+    if ([[NSWorkspace sharedWorkspace] openURLs:urls withApplicationAtURL:[sender representedObject]
+                                        options:NSWorkspaceLaunchDefault configuration:@{} error:&error] == nil)
+        NSBeep();
+}
 - (void)getInfo:(id)sender
 {
     FilesItem *item = [[self front] selectedItem];

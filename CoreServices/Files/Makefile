@@ -9,7 +9,7 @@
 SUBDIR =
 APP =		Files
 APP_INSTALL_DIR = /System/Library/CoreServices
-SRCS =		main.m FilesItem.m FilesIcons.m FilesBrowserView.m FilesColumnView.m FilesSidebarView.m \
+SRCS =		main.m FilesOperations.m FilesItem.m FilesIcons.m FilesBrowserView.m FilesColumnView.m FilesSidebarView.m \
 		FilesWindowController.m FilesInfoWindow.m FilesSegmentedControl.m
 FRAMEWORKS =	Cocoa CoreServices
 MK_WERROR =	no

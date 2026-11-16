@@ -453,6 +453,10 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 
     if([key length]==0 || [item isHidden])
         return NO;
+    /* Backspace (\b) as a key equivalent is the Delete key, which types
+       DEL (0x7F), as on the reference platform. */
+    if([key length]==1 && [key characterAtIndex:0]==NSBackspaceCharacter)
+        key=[NSString stringWithFormat:@"%C",(unichar)NSDeleteCharacter];
     if(![key isEqualToString:[key lowercaseString]])
         itemModifiers|=NSShiftKeyMask;
     modifiers&=relevant;

@@ -54,7 +54,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
-| Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
+| Files | 4 | K0–K4 | K1 (K0, K2 partial) | K2, K0 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 | Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -613,7 +613,16 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   `argos` (16) and `launchservices` (24).
 - [ ] **K2 — File operations.** Copy, move, rename, duplicate with progress and
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
-  "Open With".
+  "Open With". *Partial (16 Nov 2026):* Copy and Paste Item (and Move Item
+  Here, with Option), Duplicate, Rename, New Folder, Move to Trash and Put
+  Back, each undone and redone from the Edit menu; copies and moves off the
+  main thread, a block at a time, with a progress window and Stop when they
+  take longer than half a second; Open With lists LaunchServices'
+  applications for the item, its default first. The Trash keeps where an
+  item was on the item (`org.minkar.trash.put-back`, set by
+  `NSFileManager`'s `trashItemAtURL:`, so any app's trashed items can be put
+  back). Local test `files-ops`. Missing: drag and drop, renaming in place,
+  several items selected.
 - [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
   DMG step 3).

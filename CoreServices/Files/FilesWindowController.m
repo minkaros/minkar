@@ -12,6 +12,7 @@
 #import "FilesSegmentedControl.h"
 #import "FilesSidebarView.h"
 #import "FilesColumnView.h"
+#import "FilesOperations.h"
 
 /* AppKit's (Minkar): the window's buttons centered in a full-size content
    view's own bar, until unified toolbars exist. */
@@ -405,6 +406,156 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         [self goToFolder:item.URL];
     else if (![[NSWorkspace sharedWorkspace] openFile:[item.URL path]])
         NSBeep();   /* documents open with LaunchServices' open code (Phase 3, item 4) */
+}
+
+/* -- File operations (K2) -- */
+
+- (NSArray<NSURL *> *)selectedURLs
+{
+    FilesItem *item = self.selectedItem;
+    return item != nil ? @[ item.URL ] : @[];
+}
+
+- (void)reloadSelecting:(NSString *)name
+{
+    [self folderChanged];
+    if (name != nil)
+        [self selectItemNamed:name];
+}
+
+- (void)selectFirstOf:(NSArray<NSURL *> *)urls
+{
+    if ([urls count] > 0 && [[[urls[0] URLByDeletingLastPathComponent] path] isEqual:[_folder path]])
+        [self reloadSelecting:[urls[0] lastPathComponent]];
+    else
+        [self reloadSelecting:nil];
+}
+
+/* Paths (NSFilenamesPboardType) for apps that read the older type, and
+   file URLs. */
+- (IBAction)copy:(id)sender
+{
+    NSArray<NSURL *> *urls = self.selectedURLs;
+    NSPasteboard *pb = [NSPasteboard generalPasteboard];
+
+    if ([urls count] == 0) {
+        NSBeep();
+        return;
+    }
+    [pb clearContents];
+    [pb writeObjects:urls];
+    [pb setPropertyList:[urls valueForKey:@"path"] forType:NSFilenamesPboardType];
+}
+
++ (NSArray<NSURL *> *)pasteboardURLs
+{
+    NSPasteboard *pb = [NSPasteboard generalPasteboard];
+    NSMutableArray *urls = [NSMutableArray array];
+    id paths = [pb propertyListForType:NSFilenamesPboardType];
+
+    if ([paths isKindOfClass:[NSArray class]])
+        for (id p in paths)
+            if ([p isKindOfClass:[NSString class]])
+                [urls addObject:[NSURL fileURLWithPath:p]];
+    if ([urls count] == 0)
+        for (id u in [pb readObjectsForClasses:@[ [NSURL class] ] options:nil] ?: @[])
+            if ([u isFileURL])
+                [urls addObject:u];
+    return urls;
+}
+
+- (void)pasteMoving:(BOOL)moving
+{
+    NSArray<NSURL *> *urls = [FilesWindowController pasteboardURLs];
+    FilesOperations *ops = [FilesOperations shared];
+    void (^done)(NSArray<NSURL *> *) = ^(NSArray<NSURL *> *made) { [self selectFirstOf:made]; };
+
+    if ([urls count] == 0) {
+        NSBeep();
+        return;
+    }
+    if (moving)
+        [ops moveItems:urls toFolder:_folder done:done];
+    else
+        [ops copyItems:urls toFolder:_folder done:done];
+}
+
+- (IBAction)paste:(id)sender
+{
+    [self pasteMoving:NO];
+}
+
+- (IBAction)moveItemsHere:(id)sender
+{
+    [self pasteMoving:YES];
+}
+
+- (IBAction)duplicate:(id)sender
+{
+    if ([self.selectedURLs count] == 0) {
+        NSBeep();
+        return;
+    }
+    [[FilesOperations shared] duplicateItems:self.selectedURLs done:^(NSArray<NSURL *> *made) {
+        [self selectFirstOf:made];
+    }];
+}
+
+- (IBAction)newFolder:(id)sender
+{
+    NSURL *made = [[FilesOperations shared] newFolderIn:_folder];
+    if (made == nil)
+        return;
+    [self reloadSelecting:[made lastPathComponent]];
+    [self rename:nil];
+}
+
+/* The new name asked in a small window (in place, over the item's name,
+   later). */
+- (IBAction)rename:(id)sender
+{
+    NSURL *url = [self.selectedURLs firstObject];
+    if (url == nil) {
+        NSBeep();
+        return;
+    }
+    NSAlert *alert = [[NSAlert alloc] init];
+    NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 260, 24)];
+    [field setStringValue:[url lastPathComponent]];
+    [alert setMessageText:NSLocalizedString(@"Rename", nil)];
+    [alert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"A new name for “%@”:", nil),
+                               [url lastPathComponent]]];
+    [alert setAccessoryView:field];
+    [alert addButtonWithTitle:NSLocalizedString(@"Rename", nil)];
+    [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+    [[alert window] setInitialFirstResponder:field];
+    if ([alert runModal] != NSAlertFirstButtonReturn)
+        return;
+    NSURL *renamed = [[FilesOperations shared] renameItem:url to:[field stringValue]];
+    if (renamed != nil)
+        [self reloadSelecting:[renamed lastPathComponent]];
+}
+
+- (IBAction)moveToTrash:(id)sender
+{
+    NSArray<NSURL *> *urls = self.selectedURLs;
+    if ([urls count] == 0) {
+        NSBeep();
+        return;
+    }
+    [[FilesOperations shared] trashItems:urls];
+    [self reloadSelecting:nil];
+}
+
+- (IBAction)putBack:(id)sender
+{
+    NSArray<NSURL *> *urls = self.selectedURLs;
+    if ([urls count] == 0 || ![FilesOperations isInTrash:urls[0]]) {
+        NSBeep();
+        return;
+    }
+    [[FilesOperations shared] putBackItems:urls];
+    [self reloadSelecting:nil];
 }
 
 /* -- Delegates -- */

@@ -173,7 +173,7 @@ color = "teal"
 doc = "Atlas.md#4-dock-and-files"
 doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
-  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "todo"], ["K3", 970, "todo"],
+  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "partial"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
 ]
 

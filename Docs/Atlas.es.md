@@ -57,7 +57,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | --- | --- | --- | --- | --- |
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
-| Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
+| Files | 4 | K0–K4 | K1 (K0 y K2 en parte) | K2, K0 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 | Notificaciones | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -648,7 +648,17 @@ evidencia.
   pruebas locales `argos` (16) y `launchservices` (24).
 - [ ] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
-  papelera con «Devolver»; «Abrir con».
+  papelera con «Devolver»; «Abrir con». *Parcial (16 nov 2026):* Copiar y
+  Pegar ítem (y Trasladar ítem aquí, con Opción), Duplicar, Renombrar, Nueva
+  carpeta, Trasladar a la papelera y Devolver, cada una deshecha y rehecha
+  desde el menú Edición; copias y traslados fuera del hilo principal, por
+  bloques, con ventana de progreso y Detener cuando pasan de medio segundo;
+  Abrir con lista las aplicaciones de LaunchServices para el ítem, la
+  predeterminada primero. La papelera guarda dónde estaba cada ítem en el
+  propio ítem (`org.minkar.trash.put-back`, que pone `trashItemAtURL:` de
+  `NSFileManager`, así que se puede devolver lo que tire cualquier app).
+  Prueba local `files-ops`. Faltan arrastrar y soltar, renombrar en el
+  sitio y seleccionar varios ítems.
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Files; arranque y rearranque por loginwindow;
   doble clic en un DMG (Fase 6, paso 3 de DMG).

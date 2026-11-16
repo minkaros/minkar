@@ -1179,6 +1179,10 @@ static NSDictionary *readBookmark(NSData *data) {
             return NO;
         }
     }
+    /* Where it was, for the file manager's Put Back (the reference
+       platform keeps it in the Trash's .DS_Store; Minkar on the item). */
+    const char *from = [[[url path] stringByStandardizingPath] fileSystemRepresentation];
+    setxattr([target fileSystemRepresentation], "org.minkar.trash.put-back", from, strlen(from), 0, XATTR_NOFOLLOW);
     if (outResultingURL)
         *outResultingURL = [NSURL fileURLWithPath:target];
     return YES;
