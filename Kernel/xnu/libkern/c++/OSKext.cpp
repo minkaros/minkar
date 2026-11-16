@@ -7143,7 +7143,11 @@ _OSKextConsiderUnloads(
 	IORecursiveLockLock(sKextLock);
 	IORecursiveLockLock(sKextInnerLock);
 
-	OSKext::flushNonloadedKexts(/* flushPrelinkedKexts */ true);
+	/* Minkar: prelinked kexts nothing loaded yet stay while no kextd can
+	 * send them down again, or a device that comes after boot (USB behind
+	 * a KVM switch) never gets its driver.
+	 */
+	OSKext::flushNonloadedKexts(/* flushPrelinkedKexts */ sKextdActive);
 
 	/* If the system is powering down, don't try to unload anything.
 	 */
