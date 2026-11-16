@@ -42,7 +42,7 @@ Minkar separates three layers that go together on the reference platform. The ke
 
 | Minkar | Delivers | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, the Atlas desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5), audio and media (AU1–AU6) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, the Atlas desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5), audio and media (AU1–AU6), DMG and the system installer; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
 | 19.6.x | Fixes, and MB4, D4 and K4, and professional audio (AU7–AU10); may carry parts of API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 complete and tested | 19.6.0 | 11.0 |
 | 21.0 | API 21 complete and tested, plus the performance gates | 19.6.0 | 12.0 |
@@ -439,6 +439,16 @@ Goal: install software by dragging the app from a disk image to `/Applications`,
 4. HFS+ compression (decmpfs) in the hfs kext: the reference platform stores many apps' and the system's files compressed, and Minkar's hfs (Darwin 20's hfs-556.60.1, adapted to Darwin 19's xnu) is built without it, so those files read as empty. Gate: an app copied from a reference-platform DMG runs.
 5. The rest of hfs's adaptation (found on 2026-11-10, see `Kernel/_PROVENANCE`): the loop that `hfs_vfsutils.c` breaks out of by spotting duplicates (a hack by its own comment) found and fixed, and `panic_on_assert` taken from the kernel's configuration again instead of always on.
 
+**System installer** (required for Minkar 19.6.0; added 16 Nov 2026)
+
+Minkar's first release installs from its own medium, without the build tree or a developer's machine. Today the disk image is written to a disk by hand and the test accounts come with it.
+
+1. Installation medium: a bootable USB image (EFI) that starts a live session with the installer, and the same image for QEMU.
+2. The installer app (AppKit, Atlas's look): choose the disk, partition it (GPT with an EFI system partition and an HFS+ volume), copy the system, install the EFI loader and the kernelcache, set the boot entry.
+3. First start: the language, the keyboard layout, the time zone, the computer's name and the first administrator account, made in OpenDirectory; no fixed test accounts or passwords in the released image.
+4. A log of the installation and a clear message when the disk or the firmware is not supported (no AVX, no UEFI).
+5. Gate: on PC 1 and PC 2, from the USB medium to the Atlas desktop with the new account, with no other machine involved; and in QEMU as part of the CI.
+
 **Applications**
 
 The everyday apps are planned in [Atlas.md](Atlas.md), chapter 5: an app foundation (A0), then Terminal, Text Editor, System Monitor, Logs, Screenshot, Image Viewer and Document Viewer, Disks, System Information, Calculator and Archive Manager (A1–A10), required for Minkar 19.6.0; Fonts, Passwords and Keys, Color Picker, Script Editor, Help and Characters in 19.6.x; the browser (Firefox) and an IDE in the long term.
@@ -454,7 +464,7 @@ Commands that come with this phase (moved from Phase 2):
 
 Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
 
-**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; and the Atlas desktop is complete for daily use, as section 6 of [Atlas.md](Atlas.md) sets it: MB2 and MB3, D2 and D3, K2 and K3, and the essential apps A0–A10, used daily on the development machine itself; WebKit through W5, the reference apps' web views working; and audio and media through AU6, sound in the system and `<video>` in WebKit. MB4, D4, K4, the other apps and professional audio (AU7–AU10) follow in 19.6.x; the web browser is not required.
+**Exit gate (M6):** Minkar is installed on a physical machine from its own USB medium by the system installer; a DMG is downloaded, mounted, the app copied to `/Applications` and run; and the Atlas desktop is complete for daily use, as section 6 of [Atlas.md](Atlas.md) sets it: MB2 and MB3, D2 and D3, K2 and K3, and the essential apps A0–A10, used daily on the development machine itself; WebKit through W5, the reference apps' web views working; and audio and media through AU6, sound in the system and `<video>` in WebKit. MB4, D4, K4, the other apps and professional audio (AU7–AU10) follow in 19.6.x; the web browser is not required.
 
 ## Phase 7 — Binary compatibility and arm64
 

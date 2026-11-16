@@ -92,13 +92,16 @@
 <text x="874.5" y="260" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">replace the subset</text>
 <circle cx="862.5" cy="279" r="4.5" fill="#3fb950"/>
 <text x="874.5" y="284" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">DMG installs</text>
-<text x="856.5" y="322" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 21.0</text>
-<circle cx="862.5" cy="341" r="4.5" fill="#d29922"/>
-<text x="874.5" y="346" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">API 20 and 21</text>
-<circle cx="862.5" cy="365" r="4.5" fill="#f85149"/>
-<text x="874.5" y="370" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
-<text x="874.5" y="390" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
-<text x="856.5" y="428" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.0</text>
-<circle cx="862.5" cy="447" r="4.5" fill="#8b949e"/>
-<text x="874.5" y="452" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">x86-64 binaries, arm64</text>
+<circle cx="862.5" cy="303" r="4.5" fill="#3fb950"/>
+<text x="874.5" y="308" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">The system installer: USB</text>
+<text x="874.5" y="328" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">medium, first start</text>
+<text x="856.5" y="366" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 21.0</text>
+<circle cx="862.5" cy="385" r="4.5" fill="#d29922"/>
+<text x="874.5" y="390" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">API 20 and 21</text>
+<circle cx="862.5" cy="409" r="4.5" fill="#f85149"/>
+<text x="874.5" y="414" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
+<text x="874.5" y="434" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
+<text x="856.5" y="472" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.0</text>
+<circle cx="862.5" cy="491" r="4.5" fill="#8b949e"/>
+<text x="874.5" y="496" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">x86-64 binaries, arm64</text>
 </svg>

@@ -279,7 +279,7 @@ line = "gpu"
 group = "Minkar 19.6.0"
 items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
   ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: the APSL sources replace the subset", "fw"],
-  ["DMG installs", "apps"]]
+  ["DMG installs", "apps"], ["The system installer: USB medium, first start", "apps"]]
 
 [[board.later]]
 group = "Minkar 21.0"
