@@ -31,11 +31,17 @@ static Boolean systemHas(AudioObjectPropertySelector selector) {
     case kAudioObjectPropertyManufacturer:
     case kAudioObjectPropertyClass:
     case kAudioHardwarePropertyTranslateUIDToDevice:
+    case kAudioHardwarePropertyRunLoop:
         return true;
     default:
         return false;
     }
 }
+
+/* The run loop the app asked notifications on. They come on this
+   library's own thread whatever it is (as with NULL, the reference's
+   choice for apps that ask it): kept to be read back. */
+static CFRunLoopRef notificationRunLoop;
 
 static UInt32 systemSize(AudioObjectPropertySelector selector) {
     switch (selector) {
@@ -48,6 +54,8 @@ static UInt32 systemSize(AudioObjectPropertySelector selector) {
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
         return sizeof(CFStringRef);
+    case kAudioHardwarePropertyRunLoop:
+        return sizeof(CFRunLoopRef);
     default:
         return sizeof(AudioObjectID);
     }
@@ -68,7 +76,8 @@ OSStatus AudioObjectIsPropertySettable(AudioObjectID object, const AudioObjectPr
     if (!AudioObjectHasProperty(object, address))
         return kAudioHardwareUnknownPropertyError;
     if (outIsSettable != NULL)
-        *outIsSettable = object != kAudioObjectSystemObject && _AudioDeviceIsPropertySettable(object, address);
+        *outIsSettable = object != kAudioObjectSystemObject ? _AudioDeviceIsPropertySettable(object, address)
+                                                            : address->mSelector == kAudioHardwarePropertyRunLoop;
     return noErr;
 }
 
@@ -140,6 +149,9 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
         *(AudioObjectID *)outData = qualifierSize >= sizeof(CFStringRef) && qualifier != NULL ?
             _AudioDeviceWithUID(*(const CFStringRef *)qualifier) : kAudioObjectUnknown;
         break;
+    case kAudioHardwarePropertyRunLoop:
+        *(CFRunLoopRef *)outData = notificationRunLoop;
+        break;
     default:
         *(AudioObjectID *)outData = kAudioObjectUnknown;
         break;
@@ -156,6 +168,12 @@ OSStatus AudioObjectSetPropertyData(AudioObjectID object, const AudioObjectPrope
         return _AudioDeviceSetProperty(object, address, dataSize, data);
     if (!systemHas(address->mSelector))
         return kAudioHardwareUnknownPropertyError;
+    if (address->mSelector == kAudioHardwarePropertyRunLoop) {
+        if (dataSize < sizeof(CFRunLoopRef) || data == NULL)
+            return kAudioHardwareBadPropertySizeError;
+        notificationRunLoop = *(const CFRunLoopRef *)data;
+        return noErr;
+    }
     /* The default output is the first device, the only one for now. */
     if ((address->mSelector == kAudioHardwarePropertyDefaultOutputDevice ||
          address->mSelector == kAudioHardwarePropertyDefaultSystemOutputDevice) &&

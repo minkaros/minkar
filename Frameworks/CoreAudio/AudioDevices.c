@@ -14,6 +14,7 @@
 #include "AudioServerTypes.h"
 #include <IOKit/IOKitLib.h>
 #include <math.h>
+#include <stddef.h>
 #include <pthread.h>
 #include <string.h>
 
@@ -195,8 +196,147 @@ AudioDeviceID _AudioDeviceWithUID(CFStringRef uid) {
     return id;
 }
 
+/* ---- Streams ------------------------------------------------------------ */
+
+/* Each device's streams, objects of their own: its output, and its input
+   when it has one. IDs from kFirstStreamID, two a device (even: output). */
+#define kFirstStreamID 0x200
+
+static AudioStreamID streamID(const Device *d, Boolean input) {
+    return kFirstStreamID + (AudioStreamID)(d - devices) * 2 + (input ? 1 : 0);
+}
+
+/* The device a stream ID is of, and the stream's direction; NULL if none. */
+static Device *streamOwner(AudioObjectID id, Boolean *input) {
+    Device *found = NULL;
+
+    pthread_mutex_lock(&devicesLock);
+    findDevices();
+    if (id >= kFirstStreamID && id < kFirstStreamID + deviceCount * 2) {
+        found = &devices[(id - kFirstStreamID) / 2];
+        *input = ((id - kFirstStreamID) & 1) != 0;
+        if (*input && !found->hasInput)
+            found = NULL;
+    }
+    pthread_mutex_unlock(&devicesLock);
+    return found;
+}
+
+/* The format the IOProc and the hardware use: interleaved float. */
+static void deviceFormat(Device *d, AudioStreamBasicDescription *f) {
+    memset(f, 0, sizeof(*f));
+    f->mSampleRate = (Float64)numberProperty(d->engine, "IOAudioEngineSampleRate", 0);
+    f->mFormatID = kAudioFormatLinearPCM;
+    f->mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
+    f->mChannelsPerFrame = kAudioServerChannels;
+    f->mBitsPerChannel = 32;
+    f->mBytesPerFrame = kAudioServerChannels * sizeof(Float32);
+    f->mFramesPerPacket = 1;
+    f->mBytesPerPacket = f->mBytesPerFrame;
+}
+
+static Boolean streamHas(AudioObjectPropertySelector selector) {
+    switch (selector) {
+    case kAudioObjectPropertyClass:
+    case kAudioObjectPropertyBaseClass:
+    case kAudioObjectPropertyOwner:
+    case kAudioStreamPropertyIsActive:
+    case kAudioStreamPropertyDirection:
+    case kAudioStreamPropertyTerminalType:
+    case kAudioStreamPropertyStartingChannel:
+    case kAudioStreamPropertyLatency:
+    case kAudioStreamPropertyVirtualFormat:
+    case kAudioStreamPropertyPhysicalFormat:
+    case kAudioStreamPropertyAvailableVirtualFormats:
+    case kAudioStreamPropertyAvailablePhysicalFormats:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static UInt32 streamSize(AudioObjectPropertySelector selector) {
+    switch (selector) {
+    case kAudioStreamPropertyVirtualFormat:
+    case kAudioStreamPropertyPhysicalFormat:
+        return sizeof(AudioStreamBasicDescription);
+    case kAudioStreamPropertyAvailableVirtualFormats:
+    case kAudioStreamPropertyAvailablePhysicalFormats:
+        return sizeof(AudioStreamRangedDescription);
+    default:
+        return sizeof(UInt32);
+    }
+}
+
+static OSStatus streamGet(Device *d, Boolean input, const AudioObjectPropertyAddress *a, UInt32 *ioSize, void *out) {
+    UInt32 size = streamSize(a->mSelector);
+
+    if (!streamHas(a->mSelector))
+        return kAudioHardwareUnknownPropertyError;
+    if (ioSize == NULL || *ioSize < size || out == NULL)
+        return kAudioHardwareBadPropertySizeError;
+    switch (a->mSelector) {
+    case kAudioObjectPropertyClass:
+        *(UInt32 *)out = kAudioStreamClassID;
+        break;
+    case kAudioObjectPropertyBaseClass:
+        *(UInt32 *)out = kAudioObjectClassID;
+        break;
+    case kAudioObjectPropertyOwner:
+        *(AudioObjectID *)out = d->id;
+        break;
+    case kAudioStreamPropertyIsActive:
+        *(UInt32 *)out = 1;
+        break;
+    case kAudioStreamPropertyDirection:
+        *(UInt32 *)out = input ? 1 : 0;
+        break;
+    case kAudioStreamPropertyTerminalType:
+        *(UInt32 *)out = input ? kAudioStreamTerminalTypeMicrophone : kAudioStreamTerminalTypeSpeaker;
+        break;
+    case kAudioStreamPropertyStartingChannel:
+        *(UInt32 *)out = 1;
+        break;
+    case kAudioStreamPropertyLatency:
+        *(UInt32 *)out = 0;     /* the device's own latency holds it all */
+        break;
+    case kAudioStreamPropertyVirtualFormat:
+    case kAudioStreamPropertyPhysicalFormat:
+        deviceFormat(d, out);
+        break;
+    case kAudioStreamPropertyAvailableVirtualFormats:
+    case kAudioStreamPropertyAvailablePhysicalFormats: {
+        AudioStreamRangedDescription *r = out;
+        deviceFormat(d, &r->mFormat);
+        r->mSampleRateRange.mMinimum = r->mSampleRateRange.mMaximum = r->mFormat.mSampleRate;
+        break;
+    }
+    }
+    *ioSize = size;
+    return noErr;
+}
+
+/* A device's streams in a scope: output, input, or both (global). */
+static UInt32 streamsIn(Device *d, AudioObjectPropertyScope scope, AudioStreamID *ids) {
+    UInt32 n = 0;
+
+    if (scope != kAudioObjectPropertyScopeInput) {
+        if (ids)
+            ids[n] = streamID(d, false);
+        n++;
+    }
+    if (d->hasInput && scope != kAudioObjectPropertyScopeOutput) {
+        if (ids)
+            ids[n] = streamID(d, true);
+        n++;
+    }
+    return n;
+}
+
 Boolean _AudioDeviceExists(AudioObjectID id) {
-    return deviceWithID(id) != NULL;
+    Boolean input;
+
+    return deviceWithID(id) != NULL || streamOwner(id, &input) != NULL;
 }
 
 /* ---- Volume ------------------------------------------------------------ */
@@ -272,10 +412,18 @@ static Boolean isVolumeElement(const AudioObjectPropertyAddress *a) {
 
 Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddress *a) {
     Device *d = deviceWithID(id);
+    Boolean input;
 
-    if (d == NULL || a == NULL)
+    if (a == NULL)
         return false;
+    if (d == NULL)
+        return streamOwner(id, &input) != NULL && streamHas(a->mSelector);
     switch (a->mSelector) {
+    case kAudioDevicePropertyStreams:
+    case kAudioObjectPropertyOwnedObjects:
+    case kAudioDevicePropertyPreferredChannelsForStereo:
+    case kAudioDevicePropertyPreferredChannelLayout:
+        return true;
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
     case kAudioObjectPropertyClass:
@@ -322,7 +470,21 @@ Boolean _AudioDeviceIsPropertySettable(AudioObjectID id, const AudioObjectProper
 }
 
 UInt32 _AudioDevicePropertySize(AudioObjectID id, const AudioObjectPropertyAddress *a) {
+    Device *d = deviceWithID(id);
+    Boolean input;
+
+    if (d == NULL && streamOwner(id, &input) != NULL)
+        return streamSize(a->mSelector);
     switch (a->mSelector) {
+    case kAudioDevicePropertyStreams:
+    case kAudioObjectPropertyOwnedObjects:
+        return d != NULL ? streamsIn(d, a->mSelector == kAudioObjectPropertyOwnedObjects ?
+                                     kAudioObjectPropertyScopeGlobal : a->mScope, NULL) * sizeof(AudioStreamID) : 0;
+    case kAudioDevicePropertyPreferredChannelsForStereo:
+        return 2 * sizeof(UInt32);
+    case kAudioDevicePropertyPreferredChannelLayout:
+        return (UInt32)(offsetof(AudioChannelLayout, mChannelDescriptions) +
+                        kAudioServerChannels * sizeof(AudioChannelDescription));
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
     case kAudioDevicePropertyDeviceUID:
@@ -356,9 +518,12 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     Device *d = deviceWithID(id);
     UInt32 size;
     Level l;
+    Boolean input;
 
-    if (d == NULL)
-        return kAudioHardwareBadObjectError;
+    if (d == NULL) {
+        Device *owner = streamOwner(id, &input);
+        return owner != NULL ? streamGet(owner, input, a, ioSize, out) : kAudioHardwareBadObjectError;
+    }
     if (!_AudioDeviceHasProperty(id, a))
         return kAudioHardwareUnknownPropertyError;
     size = _AudioDevicePropertySize(id, a);
@@ -366,6 +531,25 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         return kAudioHardwareBadPropertySizeError;
     io_registry_entry_t parent = 0;
     switch (a->mSelector) {
+    case kAudioDevicePropertyStreams:
+    case kAudioObjectPropertyOwnedObjects:
+        streamsIn(d, a->mSelector == kAudioObjectPropertyOwnedObjects ? kAudioObjectPropertyScopeGlobal : a->mScope,
+                  out);
+        break;
+    case kAudioDevicePropertyPreferredChannelsForStereo:
+        ((UInt32 *)out)[0] = 1;
+        ((UInt32 *)out)[1] = 2;
+        break;
+    case kAudioDevicePropertyPreferredChannelLayout: {
+        AudioChannelLayout *l2 = out;
+        memset(l2, 0, size);
+        l2->mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelDescriptions;
+        l2->mNumberChannelDescriptions = kAudioServerChannels;
+        for (UInt32 i = 0; i < kAudioServerChannels; i++)
+            l2->mChannelDescriptions[i].mChannelLabel = kAudioServerChannels == 2 ?
+                (i == 0 ? kAudioChannelLabel_Left : kAudioChannelLabel_Right) : kAudioChannelLabel_Discrete_0 + i;
+        break;
+    }
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer: {
         CFTypeRef value = NULL;

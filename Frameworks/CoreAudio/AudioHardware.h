@@ -105,13 +105,41 @@ enum {
     kAudioDevicePropertySafetyOffset = 'saft',
     kAudioDevicePropertyIOProcStreamUsage = 'suse',
     kAudioObjectPropertyBaseClass = 'bcls',
+    kAudioObjectPropertyOwner = 'stdv',
+    kAudioDevicePropertyPreferredChannelsForStereo = 'dch2',
+    kAudioStreamPropertyIsActive = 'sact',
+    kAudioStreamPropertyDirection = 'sdir',
+    kAudioStreamPropertyTerminalType = 'term',
+    kAudioStreamPropertyStartingChannel = 'schn',
+    kAudioStreamPropertyLatency = kAudioDevicePropertyLatency,
+    kAudioStreamPropertyVirtualFormat = 'sfmt',
+    kAudioStreamPropertyAvailableVirtualFormats = 'sfma',
+    kAudioStreamPropertyPhysicalFormat = 'pft ',
+    kAudioStreamPropertyAvailablePhysicalFormats = 'pfta',
 };
 
 enum {
     kAudioObjectClassID = 'aobj',
     kAudioSystemObjectClassID = 'asys',
     kAudioDeviceClassID = 'adev',
+    kAudioStreamClassID = 'astr',
 };
+
+enum {
+    kAudioStreamTerminalTypeUnknown = 0,
+    kAudioStreamTerminalTypeLine = 'line',
+    kAudioStreamTerminalTypeDigitalAudioInterface = 'spdf',
+    kAudioStreamTerminalTypeSpeaker = 'spkr',
+    kAudioStreamTerminalTypeHeadphones = 'hdph',
+    kAudioStreamTerminalTypeMicrophone = 'micr',
+    kAudioStreamTerminalTypeHDMI = 'hdmi',
+};
+
+struct AudioStreamRangedDescription {
+    AudioStreamBasicDescription mFormat;
+    AudioValueRange mSampleRateRange;
+};
+typedef struct AudioStreamRangedDescription AudioStreamRangedDescription;
 
 enum {
     kAudioDeviceTransportTypeUnknown = 0,
