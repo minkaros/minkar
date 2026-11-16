@@ -52,7 +52,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 
 | Part | Chapter | Milestones | Done | Next |
 | --- | --- | --- | --- | --- |
-| Menus | 3 | MB0–MB4 | MB0, MB1, MB2 | MB3 |
+| Menus | 3 | MB0–MB4 | MB0, MB1, MB2 (MB3 partial) | MB3 (Lock Screen, with LoginWindow) |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
@@ -351,6 +351,16 @@ them apart from the gates M*n*.
   Preferences: Sleep, Force Quit window, Lock Screen, System Preferences…,
   Recent Items. Tests: Restart asks apps to quit before rebooting the VM;
   Force Quit ends a hung test app.
+  *Partial (16 Nov 2026):* System Preferences… opens it; Recent Items lists
+  the recent applications and documents (AppKit notes each regular app as
+  it launches and each document NSDocumentController notes, in
+  LaunchServices' recent lists), with Clear Menu; Force Quit… and
+  Command-Option-Escape (claimed by loginwindow) open Force Quit, which
+  lists the running apps with the one in front selected and forces the
+  chosen one to quit after asking; Sleep asks power management and, where
+  the machine cannot sleep yet, puts the displays to sleep; Restart asking
+  the apps to quit is loginwindow's (local test `loginwindow`). Lock
+  Screen waits for LoginWindow. Local test `system-menu`.
 - [ ] **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
   hiding in full screen; auto-hide.
 

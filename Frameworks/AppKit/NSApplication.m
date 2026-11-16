@@ -18,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSDraggingManager.h>
 #import <Foundation/NSDistributedNotificationCenter.h>
 #include <SkyLight/SkyLight.h>
+#include <LaunchServices/LaunchServices.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSMenu.h>
@@ -1023,7 +1024,29 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NS_ENDHANDLER
 
    [self _addFullScreenItem];
+   [self _noteRecentApplication];
    [pool release];
+}
+
+/* The app among the system's recent applications (the system menu's
+   Recent Items): a regular app in a bundle, not one of the system's own
+   services or an agent. */
+-(void)_noteRecentApplication {
+   NSBundle *bundle=[NSBundle mainBundle];
+   NSString *path=[bundle bundlePath];
+
+   if(![[path pathExtension] isEqualToString:@"app"] || [path hasPrefix:@"/System/Library/CoreServices/"] ||
+      [[bundle objectForInfoDictionaryKey:@"LSUIElement"] boolValue] ||
+      [[bundle objectForInfoDictionaryKey:@"LSBackgroundOnly"] boolValue])
+    return;
+   LSSharedFileListRef list=LSSharedFileListCreate(NULL,kLSSharedFileListRecentApplicationItems,NULL);
+   if(list==NULL)
+    return;
+   LSSharedFileListItemRef item=LSSharedFileListInsertItemURL(list,kLSSharedFileListItemBeforeFirst,NULL,NULL,
+      (CFURLRef)[NSURL fileURLWithPath:path],NULL,NULL);
+   if(item!=NULL)
+    CFRelease(item);
+   CFRelease(list);
 }
 
 /* The View menu gets Enter Full Screen (Control-Command-F) unless the app

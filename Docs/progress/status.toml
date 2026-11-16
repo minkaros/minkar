@@ -151,7 +151,7 @@ color = "purple"
 doc = "Atlas.md#3-menus"
 doc_es = "Atlas.es.md#3-menús"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "partial"],
   ["MB4", 1025, "todo"],
 ]
 

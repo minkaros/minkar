@@ -55,7 +55,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 
 | Parte | Capítulo | Hitos | Hechos | Siguiente |
 | --- | --- | --- | --- | --- |
-| Menús | 3 | MB0–MB4 | MB0, MB1, MB2 | MB3 |
+| Menús | 3 | MB0–MB4 | MB0, MB1, MB2 (MB3 en parte) | MB3 (Bloquear pantalla, con LoginWindow) |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 en parte) | K0, K4 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
@@ -373,6 +373,17 @@ distinguirlos de los gates M*n*.
   pantalla, Preferencias del Sistema…, Ítems recientes. Pruebas: Reiniciar
   pide a las apps que terminen antes de reiniciar la VM; Forzar salida
   termina una app de prueba colgada.
+  *Parcial (16 nov 2026):* Preferencias del Sistema… la abre; Ítems
+  recientes lista las aplicaciones y documentos recientes (AppKit anota
+  cada app normal al arrancar y cada documento que anota
+  NSDocumentController, en las listas recientes de LaunchServices), con
+  Borrar menú; Forzar salida… y Comando-Opción-Esc (que reclama
+  loginwindow) abren Forzar salida, que lista las apps abiertas con la de
+  delante seleccionada y fuerza la salida de la elegida tras preguntar;
+  Reposo lo pide a la gestión de energía y, si el equipo aún no puede
+  dormir, apaga las pantallas; que Reiniciar pida a las apps que salgan es
+  cosa de loginwindow (prueba local `loginwindow`). Bloquear pantalla
+  espera a LoginWindow. Prueba local `system-menu`.
 - [ ] **MB4 — Servicios y comportamiento de la barra.** Daemon y menú de
   servicios; ocultación en pantalla completa; ocultación automática.
 

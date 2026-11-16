@@ -21,10 +21,11 @@ SRCS =	loginwindow.c
 MAN =
 LS_FRAMEWORKS = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness -Wno-incompatible-sysroot -F${LS_FRAMEWORKS}
+	-Wno-nullability-completeness -Wno-incompatible-sysroot -F${LS_FRAMEWORKS} \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fuse-ld=${LD}
-LDADD += -framework CoreServices -framework CoreFoundation -lbsm
+	-fuse-ld=${LD} -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+LDADD += -framework CoreServices -framework CoreFoundation -framework SkyLight -lbsm
 
 APP = ${SYSROOT_DIR}/System/Library/CoreServices/loginwindow.app/Contents
 

@@ -63,6 +63,7 @@
 #include <unistd.h>
 #include <LaunchServices/LaunchServices.h>
 #include <LaunchServices/LSSession.h>
+#include <SkyLight/SkyLight.h>
 #include "LoginWindowRequest.h"
 
 extern char **environ;
@@ -113,6 +114,40 @@ executableFor(const char *path, char *out, size_t size)
 }
 
 static void startApp(int i);
+
+/* Command-Option-Escape (the window server's kSLSHotKeyForceQuit) opens
+ * the Force Quit window, as loginwindow does on the reference platform.
+ * The window server may start after loginwindow, or again: the claim is
+ * made again whenever the connection is lost. */
+static void *
+forceQuitHotKey(void *unused)
+{
+	(void)unused;
+	for (;;) {
+		if (SLSMainConnectionID() == 0 || SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 1) != kSLSErrorSuccess) {
+			sleep(2);
+			continue;
+		}
+		fprintf(stderr, "loginwindow: Command-Option-Escape claimed\n");
+		for (;;) {
+			SLSEvent events[kSLSMaxEvents];
+			uint32_t n = 0;
+			if (SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess)
+				break;
+			for (uint32_t i = 0; i < n; i++) {
+				if (events[i].type != kSLSEventSymbolicHotKey || events[i].buttonNumber != kSLSHotKeyForceQuit)
+					continue;
+				CFURLRef url = CFURLCreateWithFileSystemPath(NULL,
+				    CFSTR("/System/Library/CoreServices/ForceQuit.app"), kCFURLPOSIXPathStyle, true);
+				OSStatus err = LSOpenCFURLRef(url, NULL);
+				CFRelease(url);
+				fprintf(stderr, "loginwindow: Force Quit%s\n", err == 0 ? "" : " (cannot open it)");
+			}
+		}
+		sleep(1);
+	}
+	return NULL;
+}
 
 /* The user's login items (Open at Login in the Dock, LSSharedFileList's
  * session list), opened once the session's applications are up: hidden
@@ -374,8 +409,9 @@ main(int argc, char *argv[])
 	pthread_mutex_lock(&sessionLock);
 	startSession();
 	pthread_mutex_unlock(&sessionLock);
-	pthread_t reaper;
+	pthread_t reaper, hotKey;
 	pthread_create(&reaper, NULL, respawn, NULL);
+	pthread_create(&hotKey, NULL, forceQuitHotKey, NULL);
 
 	for (;;) {
 		union {

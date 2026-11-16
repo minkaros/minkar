@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   Force Quit, in Spanish. The keys are the English texts. */
+
+"Force Quit Applications" = "Forzar la salida de aplicaciones";
+"If an app doesn’t respond for a while, select its name and click Force Quit." = "Si una app no responde durante un rato, selecciona su nombre y haz clic en Forzar salida.";
+"Force Quit" = "Forzar salida";
+"Do you want to force “%@” to quit?" = "¿Quieres forzar la salida de «%@»?";
+"You will lose any unsaved changes." = "Perderás los cambios que no hayas guardado.";
+"Cancel" = "Cancelar";

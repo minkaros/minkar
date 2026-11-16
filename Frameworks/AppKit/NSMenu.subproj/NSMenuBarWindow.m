@@ -47,6 +47,7 @@
 #include <servers/bootstrap.h>
 #include <sys/sysctl.h>
 #include "../../../CoreServices/loginwindow/LoginWindowRequest.h"
+#include <LaunchServices/LaunchServices.h>
 
 @interface NSMenu (NSMenuBarWindow)
 - (NSString *)_name;
@@ -62,7 +63,7 @@ static BOOL updating;	/* setting the bars up changes the main menu too */
  * loginwindow (WindowServer plan, section 10.3). The other items act from
  * MB3; until then they are listed, disabled.
  */
-@interface NSSystemMenuActions : NSObject
+@interface NSSystemMenuActions : NSObject <NSMenuDelegate>
 @end
 
 @implementation NSSystemMenuActions
@@ -141,6 +142,89 @@ static BOOL sendLoginWindowRequest(uint32_t request) {
         button:@"Shut Down"];
 }
 
+/* System Preferences, as from the Dock. */
+- (void)openPreferences:(id)sender {
+    [[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:@"/System/Applications/System Preferences.app"]
+        options:NSWorkspaceLaunchDefault configuration:@{} error:NULL];
+}
+
+/* The Force Quit window: an app of its own, which loginwindow also opens
+   for Command-Option-Escape. */
+- (void)forceQuit:(id)sender {
+    [[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:@"/System/Library/CoreServices/ForceQuit.app"]
+        options:NSWorkspaceLaunchDefault configuration:@{} error:NULL];
+}
+
+/* Sleep: the system, through power management (pmset sleepnow); a
+   machine that cannot sleep yet (no ACPI S3) puts its displays to sleep
+   instead. */
+- (void)sleep:(id)sender {
+    NSTask *task = [NSTask launchedTaskWithLaunchPath:@"/usr/bin/pmset" arguments:@[ @"sleepnow" ]];
+    [task waitUntilExit];
+    if([task terminationStatus] != 0)
+        [NSTask launchedTaskWithLaunchPath:@"/usr/bin/pmset" arguments:@[ @"displaysleepnow" ]];
+}
+
+/* Recent Items: the applications and documents LaunchServices' recent
+   lists keep (AppKit notes each app as it launches and each document
+   NSDocumentController notes), built as the menu opens. */
+static NSArray *recentURLs(CFStringRef which) {
+    LSSharedFileListRef list = LSSharedFileListCreate(NULL, which, NULL);
+    NSMutableArray *urls = [NSMutableArray array];
+
+    if(list == NULL)
+        return urls;
+    NSArray *items = [(NSArray *)LSSharedFileListCopySnapshot(list, NULL) autorelease];
+    for(id object in items) {
+        CFURLRef url = LSSharedFileListItemCopyResolvedURL((LSSharedFileListItemRef)object, 0, NULL);
+        if(url != NULL) {
+            if([[NSFileManager defaultManager] fileExistsAtPath:[(NSURL *)url path]])
+                [urls addObject:(NSURL *)url];
+            CFRelease(url);
+        }
+    }
+    CFRelease(list);
+    return urls;
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    [menu removeAllItems];
+    for(NSArray *group in @[ @[ @"Applications", (id)kLSSharedFileListRecentApplicationItems ],
+                             @[ @"Documents", (id)kLSSharedFileListRecentDocumentItems ] ]) {
+        NSArray *urls = recentURLs((CFStringRef)[group objectAtIndex:1]);
+        NSMenuItem *header = [menu addItemWithTitle:[group objectAtIndex:0] action:NULL keyEquivalent:@""];
+        [header setEnabled:NO];
+        for(NSURL *url in urls) {
+            NSString *name = [[NSFileManager defaultManager] displayNameAtPath:[url path]];
+            NSMenuItem *item = [menu addItemWithTitle:name action:@selector(openRecent:) keyEquivalent:@""];
+            NSImage *icon = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];
+            [icon setSize:NSMakeSize(16, 16)];
+            [item setImage:icon];
+            [item setTarget:self];
+            [item setRepresentedObject:url];
+            [item setEnabled:YES];
+        }
+        [menu addItem:[NSMenuItem separatorItem]];
+    }
+    NSMenuItem *clear = [menu addItemWithTitle:@"Clear Menu" action:@selector(clearRecent:) keyEquivalent:@""];
+    [clear setTarget:self];
+    [clear setEnabled:YES];
+}
+
+- (void)openRecent:(NSMenuItem *)sender {
+    [[NSWorkspace sharedWorkspace] openURL:[sender representedObject]];
+}
+
+- (void)clearRecent:(id)sender {
+    for(id which in @[ (id)kLSSharedFileListRecentApplicationItems, (id)kLSSharedFileListRecentDocumentItems ]) {
+        LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)which, NULL);
+        if(list != NULL) {
+            LSSharedFileListRemoveAllItems(list);
+            CFRelease(list);
+        }
+    }
+}
+
 - (void)logOut:(id)sender {
     [self request:kLoginWindowLogOut question:@"Are you sure you want to quit all applications and log out now?"
         button:@"Log Out"];
@@ -158,11 +242,16 @@ static NSMenuItem *systemMenuItem(void) {
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
     [menu setAutoenablesItems:NO];
     NSString *logOut = [NSString stringWithFormat:@"Log Out %@…", NSFullUserName()];
+    /* Title, action, key equivalent (Command plus, unless other modifiers
+       are named: o Option, c Control). Lock Screen comes with LoginWindow. */
+    NSString *escape = [NSString stringWithFormat:@"%C", (unichar)27];
     NSArray *entries = @[
-        @[ @"About This Computer", @"aboutThisComputer:" ], @[ @"System Preferences…", @"" ], @[ @"-" ],
-        @[ @"Force Quit…", @"" ], @[ @"-" ],
-        @[ @"Sleep", @"" ], @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ], @[ @"-" ],
-        @[ @"Lock Screen", @"" ], @[ logOut, @"logOut:" ] ];
+        @[ @"About This Computer", @"aboutThisComputer:" ], @[ @"-" ],
+        @[ @"System Preferences…", @"openPreferences:" ], @[ @"-" ],
+        @[ @"Recent Items", @"recent" ], @[ @"-" ],
+        @[ @"Force Quit…", @"forceQuit:", escape, @"o" ], @[ @"-" ],
+        @[ @"Sleep", @"sleep:" ], @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ], @[ @"-" ],
+        @[ @"Lock Screen", @"", @"q", @"c" ], @[ logOut, @"logOut:", @"Q", @"" ] ];
     for(NSArray *entry in entries) {
         NSString *title = [entry objectAtIndex:0];
         if([title isEqualToString:@"-"]) {
@@ -170,8 +259,23 @@ static NSMenuItem *systemMenuItem(void) {
             continue;
         }
         NSString *action = [entry objectAtIndex:1];
+        if([action isEqualToString:@"recent"]) {
+            NSMenu *recent = [[[NSMenu alloc] initWithTitle:title] autorelease];
+            [recent setAutoenablesItems:NO];
+            [recent setDelegate:actions];
+            [[menu addItemWithTitle:title action:NULL keyEquivalent:@""] setSubmenu:recent];
+            continue;
+        }
+        NSString *key = [entry count] > 2 ? [entry objectAtIndex:2] : @"";
         NSMenuItem *it = [menu addItemWithTitle:title
-            action:[action length] ? NSSelectorFromString(action) : NULL keyEquivalent:@""];
+            action:[action length] ? NSSelectorFromString(action) : NULL keyEquivalent:key];
+        if([entry count] > 3) {
+            NSString *mods = [entry objectAtIndex:3];
+            NSUInteger mask = NSCommandKeyMask;
+            if([mods rangeOfString:@"o"].location != NSNotFound) mask |= NSAlternateKeyMask;
+            if([mods rangeOfString:@"c"].location != NSNotFound) mask |= NSControlKeyMask;
+            [it setKeyEquivalentModifierMask:mask];
+        }
         [it setTarget:actions];
         [it setEnabled:[action length] > 0];
     }

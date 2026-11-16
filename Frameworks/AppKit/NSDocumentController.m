@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <LaunchServices/LaunchServices.h>
 #import <AppKit/NSDocumentController.h>
 #import <AppKit/NSDocument.h>
 #import <AppKit/NSOpenPanel.h>
@@ -591,6 +592,19 @@ static NSDocumentController *shared=nil;
 -(void)noteNewRecentDocumentURL:(NSURL *)url {
    NSString       *path=[url path];
    NSMutableArray *array=[self _recentDocumentPaths];
+
+   /* Also among the system's recent documents (the system menu's Recent
+      Items), newest first. */
+   if([url isFileURL]){
+    LSSharedFileListRef list=LSSharedFileListCreate(NULL,kLSSharedFileListRecentDocumentItems,NULL);
+    if(list!=NULL){
+     LSSharedFileListItemRef item=LSSharedFileListInsertItemURL(list,kLSSharedFileListItemBeforeFirst,NULL,NULL,
+        (CFURLRef)url,NULL,NULL);
+     if(item!=NULL)
+      CFRelease(item);
+     CFRelease(list);
+    }
+   }
 
    [array removeObject:path];
    [array insertObject:path atIndex:0];
