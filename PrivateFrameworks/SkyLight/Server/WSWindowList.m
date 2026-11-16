@@ -643,8 +643,40 @@ wss_window_image(mach_port_t server, audit_token_t token, uint32_t window, int32
 		*result = kSLSErrorFailure;
 		return KERN_SUCCESS;
 	}
-	memcpy((void *)copy, [s lockFront], size);
-	[s unlock];
+	NSArray *under = w.underLayers;
+	if (under.count == 0) {
+		memcpy((void *)copy, [s lockFront], size);
+		[s unlock];
+	} else {
+		/* Its layers under its content first, which shows over them
+		 * where it is clear (Firefox's tiles, OpenGL views), as on the
+		 * screen. */
+		memset((void *)copy, 0, size);
+		pixman_image_t *to = pixman_image_create_bits(PIXMAN_a8r8g8b8, s.width, s.height,
+		    (uint32_t *)copy, s.rowBytes);
+		for (WSUnderLayer *u in under) {
+			WSIOSurfaceBacking *b = u.surface;
+			SLSIntRect c = u.clip;
+			pixman_image_t *from = pixman_image_create_bits(PIXMAN_a8r8g8b8, b.width, b.height,
+			    (uint32_t *)(uintptr_t)[b lockFront], b.rowBytes);
+			pixman_region32_t clip;
+			pixman_region32_init_rect(&clip, c.x, c.y, (unsigned)MAX(c.width, 0), (unsigned)MAX(c.height, 0));
+			pixman_image_set_clip_region32(to, &clip);
+			pixman_image_composite32(PIXMAN_OP_OVER, from, NULL, to, 0, 0, 0, 0, u.x, u.y, b.width,
+			    b.height);
+			pixman_image_set_clip_region32(to, NULL);
+			pixman_region32_fini(&clip);
+			pixman_image_unref(from);
+			[b unlock];
+		}
+		pixman_image_t *content = pixman_image_create_bits(PIXMAN_a8r8g8b8, s.width, s.height,
+		    (uint32_t *)(uintptr_t)[s lockFront], s.rowBytes);
+		pixman_image_composite32(PIXMAN_OP_OVER, content, NULL, to, 0, 0, 0, 0, 0, 0, s.width,
+		    s.height);
+		pixman_image_unref(content);
+		[s unlock];
+		pixman_image_unref(to);
+	}
 	/* With its layer over it, as on the screen. */
 	WSIOSurfaceBacking *layer = w.layerSurface;
 	if (layer != nil) {
