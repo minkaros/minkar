@@ -111,6 +111,10 @@ static const UInt8 *findSpecificConfig(const UInt8 *p, UInt32 size, UInt32 *outS
     return p;
 }
 
+const UInt8 *_ATFindSpecificConfig(const UInt8 *cookie, UInt32 size, UInt32 *outSize) {
+    return findSpecificConfig(cookie, size, outSize);
+}
+
 static Boolean parseSpecificConfig(const UInt8 *p, UInt32 size, UInt32 *objectType, Float64 *rate,
                                    UInt32 *channels) {
     static const UInt32 rates[] = { 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050,
@@ -481,10 +485,23 @@ static OSStatus property(AudioFormatPropertyID id, UInt32 specSize, const void *
             : id == kAudioFormatProperty_FormatIsExternallyFramed ? e->externallyFramed : 0;
         return putBytes(out, ioSize, &v, sizeof(v), sizeOnly);
     }
-    case kAudioFormatProperty_EncodeFormatIDs:
-    case kAudioFormatProperty_DecodeFormatIDs: {
+    case kAudioFormatProperty_EncodeFormatIDs: {
         UInt32 ids[] = { kAudioFormatLinearPCM };
         return putBytes(out, ioSize, ids, sizeof(ids), sizeOnly);
+    }
+    case kAudioFormatProperty_DecodeFormatIDs: {
+        /* Linear PCM, and what FFmpeg decodes for AudioConverter. */
+        static const UInt32 compressed[] = { kAudioFormatMPEG4AAC, kAudioFormatMPEG4AAC_HE, kAudioFormatMPEG4AAC_HE_V2,
+            kAudioFormatMPEG4AAC_LD, kAudioFormatMPEG4AAC_ELD, kAudioFormatMPEGLayer1, kAudioFormatMPEGLayer2,
+            kAudioFormatMPEGLayer3, kAudioFormatAppleLossless, kAudioFormatFLAC, kAudioFormatOpus,
+            kAudioFormatAC3, kAudioFormatEnhancedAC3, kAudioFormatULaw, kAudioFormatALaw,
+            kAudioFormatAMR, kAudioFormatAMR_WB };
+        UInt32 ids[1 + sizeof(compressed) / sizeof(compressed[0])], n = 0;
+        ids[n++] = kAudioFormatLinearPCM;
+        for (UInt32 i = 0; i < sizeof(compressed) / sizeof(compressed[0]); i++)
+            if (_ATCodecCanDecode(compressed[i]))
+                ids[n++] = compressed[i];
+        return putBytes(out, ioSize, ids, n * sizeof(UInt32), sizeOnly);
     }
     case kAudioFormatProperty_ChannelLayoutForTag: {
         AudioChannelLayoutTag tag;

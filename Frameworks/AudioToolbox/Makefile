@@ -11,7 +11,7 @@ FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = AudioServices.c AUComponent.c AUPlugIn.c AUFormat.c AUOutputUnit.c AudioConverter.c \
   AudioQueue.c AudioFile.c ExtendedAudioFile.c \
-  AudioFormat.c AudioFileStream.c resample.c
+  AudioFormat.c AudioFileStream.c resample.c ATCodec.c
 HEADERS = AudioToolbox.h AudioServices.h AudioConverter.h \
   AudioQueue.h AudioFile.h ExtendedAudioFile.h AudioFormat.h \
   AudioFileStream.h
@@ -24,6 +24,9 @@ CFLAGS += -I${.CURDIR:H} -F${FMWKS}
 CFLAGS += -DOUTSIDE_SPEEX -DFLOATING_POINT -DRANDOM_PREFIX=minkar_audio \
   -DEXPORT='__attribute__((visibility("hidden")))'
 LDFLAGS += -F${FMWKS} -framework CoreFoundation -framework CoreAudio
+# FFmpeg's headers for the decoders (ATCodec.c); the libraries are loaded
+# with dlopen when a converter first needs them, not linked.
+CFLAGS += -I${MINKAR_SDKROOT}/usr/local/media/include
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

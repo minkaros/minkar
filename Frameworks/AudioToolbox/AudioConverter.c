@@ -38,6 +38,8 @@ struct OpaqueAudioConverter {
 
     AudioBufferList *inList;    /* what the input procedure fills */
     AudioBufferList *view;      /* a chunk of the input, taken in turn */
+
+    ATCodec *codec;             /* a compressed source's decoder (ATCodec.c) */
 };
 
 static Boolean alive(AudioConverterRef c) {
@@ -61,6 +63,7 @@ static Boolean resampling(AudioConverterRef c) {
 }
 
 static void freeConverter(AudioConverterRef c) {
+    _ATCodecDispose(c->codec);
     if (c->resampler != NULL)
         speex_resampler_destroy(c->resampler);
     free(c->map);
@@ -119,6 +122,24 @@ OSStatus AudioConverterNew(const AudioStreamBasicDescription *inSource, const Au
         c->src.mSampleRate = c->dst.mSampleRate;
     if (c->dst.mSampleRate == 0)
         c->dst.mSampleRate = c->src.mSampleRate;
+    /* A compressed source to linear PCM: decoded (ATCodec.c). */
+    if (c->src.mFormatID != kAudioFormatLinearPCM && c->dst.mFormatID == kAudioFormatLinearPCM) {
+        c->codec = _ATCodecNew(&c->src, &c->dst, &status);
+        c->inList = calloc(1, offsetof(AudioBufferList, mBuffers) + kMaxBuffers * sizeof(AudioBuffer));
+        if (c->codec == NULL || c->inList == NULL) {
+            OSStatus failed = c->codec == NULL ? status : kAudio_MemFullError;
+            _ATCodecDispose(c->codec);
+            free(c->inList);
+            free(c);
+            return failed;
+        }
+        c->magic = kConverterMagic;
+        c->quality = c->codecQuality = kAudioConverterQuality_Medium;
+        c->complexity = kAudioConverterSampleRateConverterComplexity_Normal;
+        c->primeMethod = kConverterPrimeMethod_Normal;
+        *out = c;
+        return noErr;
+    }
     if (!_AUFormatIsSupported(&c->src) || !_AUFormatIsSupported(&c->dst)) {
         free(c);
         return kAudioConverterErr_FormatNotSupported;
@@ -161,6 +182,10 @@ OSStatus AudioConverterDispose(AudioConverterRef c) {
 OSStatus AudioConverterReset(AudioConverterRef c) {
     if (!alive(c))
         return kAudio_ParamError;
+    if (c->codec != NULL) {
+        _ATCodecReset(c->codec);
+        return noErr;
+    }
     c->pendingStart = c->pendingCount = 0;
     c->ended = c->drained = false;
     if (c->resampler != NULL) {
@@ -173,8 +198,33 @@ OSStatus AudioConverterReset(AudioConverterRef c) {
 
 /* ---- Properties ------------------------------------------------------------ */
 
+static UInt32 layoutBytes(UInt32 channels) {
+    return (UInt32)(offsetof(AudioChannelLayout, mChannelDescriptions) + channels * sizeof(AudioChannelDescription));
+}
+
 static UInt32 propertySize(AudioConverterRef c, AudioConverterPropertyID id, Boolean *writable) {
     *writable = false;
+    if (c->codec != NULL) {
+        /* A decoder's: its cookie and layouts; no channel map or
+           resampler of this file's. */
+        switch (id) {
+        case kAudioConverterDecompressionMagicCookie: {
+            UInt32 size;
+            *writable = true;
+            _ATCodecCookie(c->codec, &size);
+            return size > 0 ? size : 1;
+        }
+        case kAudioConverterInputChannelLayout:
+        case kAudioConverterOutputChannelLayout:
+            return layoutBytes(_ATCodecChannels(c->codec));
+        case kAudioConverterChannelMap:
+        case kAudioConverterPropertyCalculateInputBufferSize:
+        case kAudioConverterPropertyCalculateOutputBufferSize:
+            return 0;
+        default:
+            break;
+        }
+    }
     switch (id) {
     case kAudioConverterCurrentInputStreamDescription:
     case kAudioConverterCurrentOutputStreamDescription:
@@ -235,8 +285,44 @@ OSStatus AudioConverterGetProperty(AudioConverterRef c, AudioConverterPropertyID
     size = propertySize(c, id, &writable);
     if (size == 0)
         return kAudioConverterErr_PropertyNotSupported;
+    if (c->codec != NULL && id == kAudioConverterDecompressionMagicCookie) {
+        UInt32 have;
+        const void *cookie = _ATCodecCookie(c->codec, &have);
+        if (*ioSize < have)
+            return kAudioConverterErr_BadPropertySizeError;
+        if (have > 0)
+            memcpy(data, cookie, have);
+        *ioSize = have;
+        return noErr;
+    }
     if (*ioSize < size)
         return kAudioConverterErr_BadPropertySizeError;
+    if (c->codec != NULL && (id == kAudioConverterInputChannelLayout || id == kAudioConverterOutputChannelLayout)) {
+        /* Each channel described, in the order they come out. */
+        AudioChannelLayout *l = data;
+        UInt32 n = _ATCodecChannels(c->codec);
+        memset(l, 0, size);
+        l->mChannelLayoutTag = kAudioChannelLayoutTag_UseChannelDescriptions;
+        l->mNumberChannelDescriptions = n;
+        for (UInt32 i = 0; i < n; i++)
+            l->mChannelDescriptions[i].mChannelLabel = _ATCodecChannelLabel(c->codec, i);
+        *ioSize = size;
+        return noErr;
+    }
+    if (c->codec != NULL && (id == kAudioConverterPropertyMinimumInputBufferSize ||
+                             id == kAudioConverterPropertyMaximumInputPacketSize)) {
+        /* A compressed packet's bound: AAC's is 6144 bits a channel. */
+        *(UInt32 *)data = c->src.mBytesPerPacket > 0 ? c->src.mBytesPerPacket
+                                                     : 768 * (c->src.mChannelsPerFrame ? c->src.mChannelsPerFrame : 2);
+        *ioSize = size;
+        return noErr;
+    }
+    if (c->codec != NULL && id == kAudioConverterPrimeInfo) {
+        AudioConverterPrimeInfo info = { 0, 0 };
+        memcpy(data, &info, size);
+        *ioSize = size;
+        return noErr;
+    }
     ratio = c->src.mSampleRate / c->dst.mSampleRate;
     switch (id) {
     case kAudioConverterCurrentInputStreamDescription:
@@ -297,6 +383,8 @@ OSStatus AudioConverterSetProperty(AudioConverterRef c, AudioConverterPropertyID
 
     if (!alive(c) || data == NULL)
         return kAudio_ParamError;
+    if (c->codec != NULL && id == kAudioConverterDecompressionMagicCookie)
+        return _ATCodecSetCookie(c->codec, data, inSize);
     size = propertySize(c, id, &writable);
     if (size == 0)
         return kAudioConverterErr_PropertyNotSupported;
@@ -304,6 +392,18 @@ OSStatus AudioConverterSetProperty(AudioConverterRef c, AudioConverterPropertyID
         return kAudioConverterErr_OperationNotSupported;
     if (inSize < size)
         return kAudioConverterErr_BadPropertySizeError;
+    if (c->codec != NULL) {
+        /* The rest a decoder takes and keeps, with nothing to change. */
+        if (id == kAudioConverterCodecQuality)
+            c->codecQuality = *(const UInt32 *)data;
+        else if (id == kAudioConverterSampleRateConverterQuality)
+            c->quality = *(const UInt32 *)data;
+        else if (id == kAudioConverterSampleRateConverterComplexity)
+            c->complexity = *(const UInt32 *)data;
+        else if (id == kAudioConverterPrimeMethod)
+            c->primeMethod = *(const UInt32 *)data;
+        return noErr;
+    }
     switch (id) {
     case kAudioConverterSampleRateConverterQuality:
         c->quality = *(const UInt32 *)data;
@@ -422,6 +522,8 @@ OSStatus AudioConverterFillComplexBuffer(AudioConverterRef c, AudioConverterComp
 
     if (!alive(c) || proc == NULL || ioPackets == NULL || out == NULL)
         return kAudio_ParamError;
+    if (c->codec != NULL)
+        return _ATCodecFill(c->codec, c, proc, userData, ioPackets, out, c->inList);
     ch = c->dst.mChannelsPerFrame;
     want = *ioPackets;
     capacity = framesIn(&c->dst, out);

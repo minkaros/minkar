@@ -11,7 +11,9 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef kMaxChannels
 #define kMaxChannels 32
+#endif
 
 Boolean _AUFormatIsSupported(const AudioStreamBasicDescription *f) {
     UInt32 bytes;

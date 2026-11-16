@@ -12,6 +12,7 @@
 #define _AUINTERNAL_H_
 
 #include <AudioUnit/AudioUnit.h>
+#include "AudioConverter.h"
 #include <pthread.h>
 
 typedef struct AUClass AUClass;
@@ -82,6 +83,35 @@ __attribute__((visibility("hidden"))) extern const AUClass _AUPlugInClass;
 /* A registered component's method for a selector, or NULL (AUPlugIn.c). */
 __attribute__((visibility("hidden")))
 AudioComponentMethod _AUPlugInMethod(AudioUnit unit, SInt16 selector);
+
+/* AudioConverter's decoders (ATCodec.c): a compressed source decoded by
+   FFmpeg, loaded when first needed. */
+#ifndef kMaxChannels
+#define kMaxChannels 32
+#endif
+typedef struct ATCodec ATCodec;
+__attribute__((visibility("hidden")))
+Boolean _ATCodecCanDecode(AudioFormatID format);
+__attribute__((visibility("hidden")))
+ATCodec *_ATCodecNew(const AudioStreamBasicDescription *src, const AudioStreamBasicDescription *dst, OSStatus *status);
+__attribute__((visibility("hidden")))
+void _ATCodecDispose(ATCodec *codec);
+__attribute__((visibility("hidden")))
+void _ATCodecReset(ATCodec *codec);
+__attribute__((visibility("hidden")))
+OSStatus _ATCodecSetCookie(ATCodec *codec, const void *data, UInt32 size);
+__attribute__((visibility("hidden")))
+const void *_ATCodecCookie(ATCodec *codec, UInt32 *size);
+__attribute__((visibility("hidden")))
+UInt32 _ATCodecChannels(ATCodec *codec);
+__attribute__((visibility("hidden")))
+AudioChannelLabel _ATCodecChannelLabel(ATCodec *codec, UInt32 index);
+__attribute__((visibility("hidden")))
+OSStatus _ATCodecFill(ATCodec *codec, AudioConverterRef converter, AudioConverterComplexInputDataProc proc,
+                      void *userData, UInt32 *ioFrames, AudioBufferList *out, AudioBufferList *scratch);
+/* An AAC cookie's AudioSpecificConfig (AudioFormat.c). */
+__attribute__((visibility("hidden")))
+const UInt8 *_ATFindSpecificConfig(const UInt8 *cookie, UInt32 size, UInt32 *outSize);
 
 /* Linear PCM to interleaved float, and the formats it reads. */
 __attribute__((visibility("hidden")))
