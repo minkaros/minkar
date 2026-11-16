@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-15"
-commit  = "1120783e0c"
+updated = "2026-11-16"
+commit  = "e01c5dcddf"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -78,7 +78,7 @@ rows = ["ws", "mb"]
 id = "M5"
 title = "M5 Atlas desktop"
 label = "M5"
-state = "todo"
+state = "current"
 x = 760
 rows = ["mb", "dock", "files", "atlas"]
 
@@ -290,6 +290,16 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "Firefox: media, OpenGL views, printing"
+note = "MP4 video seen, OpenGL in views and layers, PrintCore and Save to PDF, distributed notifications; its battery 25/25 · 16 nov"
+line = "fw"
+
+[[board.done]]
+title = "N1, N2: the notification center"
+note = "the list and the settings, alerts' actions and replies, badges, scheduled notifications · 15 nov"
+line = "atlas"
+
+[[board.done]]
 title = "R2: the RX 6600's modes and HDMI"
 note = "EDID, sleep, hot plug, HDMI audio; the PSP and SMU started, 60 Hz from start · 15 nov"
 line = "gpu"
@@ -308,13 +318,3 @@ line = "webkit"
 title = "AU5: video and audio playback"
 note = "CoreMedia, CoreVideo, AVFoundation, AVKit; decoding in its own process; frames match, sync +8 to +12 ms · 15 nov"
 line = "fw"
-
-[[board.done]]
-title = "NSRunLoop on CFRunLoop; W5 under way"
-note = "CF sources and observers run under AppKit; Sparkle's and TextMate's web views reproduced · 10 nov"
-line = "webkit"
-
-[[board.done]]
-title = "W4: the older WebView on WPE"
-note = "frame load, policy and UI delegates, WebScriptObject, synchronous scripts from delegates · 10 nov"
-line = "webkit"

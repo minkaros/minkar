@@ -1,100 +1,130 @@
-# Raven's Guide to the Source Galaxy
+# A guide to the source tree
 
-Don't panic. This document will give you an overview of the important folders and where things are. The organization of the source tree is still evolving, so check back frequently!
+Where things are in Minkar's tree, and in what order they are built. The
+top-level `Makefile` builds these stages in turn (`bmake ONLY_STAGE=<stage>
+<stage>` builds one alone):
 
+`BSD/hier`, `Developer`, `Kernel`, `Libraries`, `Frameworks`,
+`Kernel/Extensions`, `CoreServices`, `BSD`, `Frameworks/WebKit`,
+`SystemLibrary`; then `bmake image` makes the disk image.
 
-### Kernel
-`Kernel` contains the xnu kernel itself, kernel extensions (kexts), and related low-level stuff.
+[BUILDING.md](BUILDING.md) says how to build; [ROADMAP.md](ROADMAP.md) what
+is done and what comes next.
 
-* xnu - the xnu kernel tree
-  * `config` - configurations for exported apis for supported architecture and platform
-  * `SETUP` - Basic set of tools used for configuring the kernel, versioning and kextsymbol 
-management.
-  * `EXTERNAL_HEADERS` - Headers sourced from other projects to avoid dependency cycles when
- building. These headers should be regularly synced when source is updated.
-  * `libkern` - C++ IOKit library code for handling of drivers and kexts.
-  * `libsa` -  kernel bootstrap code for startup
-  * `libsyscall` - syscall library interface for userspace programs
-  * `libkdd` - source for user library for parsing kernel data like kernel chunked data.
-  * `makedefs` - top level rules and defines for kernel build.
-  * `osfmk` - Mach kernel based subsystems
-  * `pexpert` - Platform specific code like interrupt handling, atomics etc.
-  * `security` - Mandatory Access Check policy interfaces and related implementation.
-  * `bsd` - BSD subsystems code
-  * `tools` - A set of utilities for testing, debugging and profiling kernel.
-* libfirehose_kernel - kernel side of the log system. Source is actually in `libdispatch`
-* Extensions - kexts for IOKit
+## Kernel
 
+* `xnu` - the kernel (Darwin 19.6.0): Mach (`osfmk`), BSD (`bsd`), IOKit
+  (`iokit`), libkern, the platform expert (`pexpert`), the MAC framework
+  (`security`), and their build rules (`makedefs`, `config`, `SETUP`).
+* `Extensions` - the kernel extensions, built in their own stage after
+  `Libraries` and `Frameworks`, whose headers they use:
+  * IOKit families: `IOACPIFamily`, `IOATAFamily`, `IOAudioFamily`,
+    `IOGraphics`, `IOHIDFamily`, `IONetworkingFamily`, `IOPCIFamily`,
+    `IOStorageFamily`, `IOUSBFamily`.
+  * Minkar's drivers: `MinkarAHCIPort` (SATA), `MinkarNVMe`,
+    `MinkarXHCIPort` and `MinkarUSB` (USB, HID), `MinkarE1000` (Intel
+    Ethernet), `MinkarBGE` (Broadcom Ethernet), `MinkarHDA` (sound),
+    `MinkarVirtio`, `MinkarDRM` (AMD GPUs: displays and the GPU's
+    engines; [GPU-RDNA2.md](GPU-RDNA2.md)), `MinkarDiskImage`,
+    `MinkarSandbox` (the sandbox policy), `MinkarCodeIntegrity`.
+  * File systems: `hfs`, `msdosfs`, `exfat`; `AppleFileSystemDriver`.
+  * Platform: `AppleAPIC`, `AppleI386PCI`, `AppleIntelPIIXATA`,
+    `ApplePS2Controller`, `corecrypto`, `pthread`.
+* `IOKitUser` - IOKit's user-space library (`IOKit.framework`).
+* `kext_tools` - `kextcache` and the tools that build the kernelcache.
 
-### Libraries
-`Libraries` holds the source of most libraries, including the core `libsystem_*` that make up libSystem.
+## Libraries
 
-* CommonCrypto
-* libdispatch - Grand Central Dispatch
-* Libc (libsystem_c)
-* libplatform (libsystem_platform)
-* libpthread (libsystem_pthread)
-* libmalloc (libsystem_malloc)
-* Libnotify (libsystem_notify)
-* Libinfo (libsystem_info)
-* Libsystem
-* dyld - runtime dynamic linker and loader
+The libraries under `/usr/lib`, most of them parts of `libSystem`:
 
+* `Libsystem` - libSystem and its parts (`libsystem_c`, `libsystem_kernel`,
+  `libsystem_malloc`, `libsystem_platform`, `libsystem_pthread`,
+  `libsystem_info`, `libsystem_notify`, `libsystem_sandbox`, `liblaunch`,
+  `libdispatch`, `CommonCrypto`, ...).
+* `dyld` - the dynamic linker.
+* `objc4` - the Objective-C runtime.
+* `swift` - the Swift 6.4.2 runtime and overlays, in `/usr/lib/swift`.
+* `ICU`, `libiconv`, `zlib`, `mbedtls`, `openbsm`, `OpenPAM`, `OpenSSH`,
+  `MiscLibs`, `CrashReporterClient`, `libfirehose_kernel`, `bootstrap`.
 
-### Developer
+## Frameworks
 
-`Developer` contains all of the tools and artifacts needed to create software for the platform. The Minkar (MacOSX) SDK is here, as well as the Default.xctoolchain. `Developer` is unique in that some of it builds twice: once as `Bootstrap` for the host toolchain, then again using the host toolchain for the platform target.
+The Cocoa API and the frameworks under it, in `/System/Library/Frameworks`.
+Some came from Cocotron; Minkar completes them to the API of the reference
+system ([MissingFrameworks.md](MissingFrameworks.md) lists what is missing).
 
-* Toolchains/Default.xctoolchain - project file to assemble the toolchain
-* Platforms/Minkar.platform - platform definitions and SDKs
-  * Developer/SDKs/Minkar.sdk - project file and some sources for the SDK
-* cctools - lipo, ld64 linker, otool, etc
-* dtrace_ctf - ctf utilities
-* llvm-project - the reference platform vendor's fork of LLVM, and its TAPI project
-* unifdef
-* xcbuild - a builder for the reference platform's IDE projects, from Meta, `xcrun`, `xcodebuild`, `xcode-select`
-* gmake - GNU make, the default on the reference system
-* mig - Mach interface generator
-* xar - archiver tool used in the build
+* Core: `CoreFoundation` (CF-Lite), `Foundation`, `CoreServices`
+  (LaunchServices, FSEvents, AE), `CFNetwork`, `SystemConfiguration`,
+  `DiskArbitration`, `IOSurface`, `Security`, `OpenDirectory`,
+  `ServiceManagement`, `UniformTypeIdentifiers`.
+* Drawing and the interface: `CoreGraphics` on `Onyx2D` (the 2D renderer),
+  `CoreText`, `ImageIO`, `QuartzCore`, `AppKit`, `Cocoa`, `Quartz`,
+  `QuickLook`, `PreferencePanes`, `ApplicationServices` (with `PrintCore`),
+  `Carbon`, `OSAKit`.
+* 3D: `OpenGL` (CGL, Mesa underneath), `Metal`.
+* Media: `CoreAudio`, `AudioToolbox`, `AudioUnit`, `CoreMIDI`, `CoreMedia`,
+  `CoreVideo`, `VideoToolbox`, `AVFoundation`, `AVKit`, `MediaPlayer`.
+* Others: `WebKit` (the Cocoa API over WPE WebKit), `UserNotifications`,
+  `AddressBook`, `AuthenticationServices`, `LocalAuthentication`,
+  `CoreLocation`, `IOBluetooth`, `Vision`, `Combine` (OpenCombine),
+  `ExceptionHandling`, `XCTest`.
 
+`PrivateFrameworks` holds `SkyLight` (the window server's client library,
+and the window server itself under `SkyLight/Server`), `CoreUtils` and
+`ktrace`.
 
-### BSD (__Planned__)
+## CoreServices
 
-The `BSD` folder holds system utilities and services for the BSD subsystem: UNIX command line tools, daemons like `syslogd`, and generally anything going to `/bin`, `/usr/bin`, etc that doesn't have another home. This folder isn't part of the build yet.
+The system's services and its desktop, Atlas ([Atlas.md](Atlas.md)):
 
-* syslog
-* launchd - the newer one we used in FreeBSD (to be ported)
+* Services: `WindowServer` (with SkyLight), `launchservicesd`, `pboard`
+  (the pasteboard), `iosurfaced`, `notificationd` (the notification
+  center), `distnoted` (distributed notifications), `audiod`, `mediadecoder`,
+  `fseventsd`, `logd`, `directoryd`, `dirhelper`, `fontcache`.
+* The desktop and its apps: `loginwindow`, `Dock`, `SystemUIServer` (the
+  menu bar's extras, notifications), `Files` (the file manager),
+  `SystemPreferences`, `Terminal`, `TextEditor`, `SystemMonitor`, `Logs`.
 
-## These folders have not yet been converted to CMake or Darwin
+## BSD and GNU
 
-### SystemLibrary
+The Unix commands and their libraries ([Userland.md](Userland.md),
+[Commands.md](Commands.md)): `bin`, `sbin`, `usr.bin`, `usr.sbin`, `libexec`,
+`lib` (libraries, among them the external ones the media and WebKit use:
+FFmpeg, dav1d, Mesa, WPE WebKit and its dependencies), `etc`, `share` (also
+the `mk` files bmake builds with), `hier` (the file system's layout) and
+`syslog`; `launchd` is in `sbin`. `GNU` holds the GPL tools built apart (`bash`,
+`dmidecode`).
 
-This folder contains the template for SystemVersion.plist which is filled in from the versions in the top-level `Makefile`. It also has most things meant for /System/Library or /Library on the built system that are not built elsewhere, like `Desktop Pictures` and `LaunchDaemons`.
+## Developer
 
+The SDK and the toolchain apps are built with, built first for the host:
 
-### Frameworks
+* `Default.xctoolchain` - LLVM 21.1.6 (Swift's fork), Swift 6.4.2,
+  swift-build, `cctools` (ld64, lipo, otool), `codesign`, `mig`, `iig`,
+  `ibtool`, `plktool`, `dtrace_ctf`, `gmake`, `rpcgen`, `unifdef`, `xar`;
+  [tools/toolchain/MANIFEST](../tools/toolchain/MANIFEST) records where each
+  comes from.
+* `Minkar.platform`, `Minkar.sdk` and `InternalSDK` - the SDK.
+* `Templates` - project templates (the Atlas app template).
 
-The Minkar implementation of Cocoa, Quartz, and Core APIs in various frameworks live in `Frameworks`. API compliance ranges from 10.7-ish to 11.0-ish and there are many stubs for the intrepid explorer to complete. Some of this source originated from Cocotron. Add new frameworks here if they belong in /S/L/F or /L/F.
+## SystemLibrary
 
-* Foundation
-* AppKit
-* ApplicationServices
-* Cocoa
-* LaunchServices
-* CoreFoundation
-* CoreText
-* CoreVideo
-* CoreServices
-* CoreGraphics
-* CoreData
-* CFNetwork
-* QuartzCore
-* Onyx2D - graphics toolkit underpinning CoreGraphics, equivalent to Quartz2D
-* OpenGL
-* PreferencePanes
+What goes to `/System/Library` and `/Library` that is not built elsewhere:
+`LaunchDaemons`, `Fonts` (pinned by their manifests), `Sounds`, `Icons`,
+`Colors`, `Desktop_Pictures`, the user template, and `SystemVersion.plist`,
+filled in from the top-level `Makefile`.
 
-* CF - this is the Swift CF-Lite to be merged in with our CF
+## Image, Tests and tools
 
-### CoreServices
+* `Image` - the disk image (`mkdiskimage.py`), the EFI loader's patches and
+  the boot test (`boottest.py`).
+* `Tests` - gates built as part of the tree: `M3` (command-line Swift
+  packages), `W0`, `W1`, `W2` (WebKit) and `Gallery`.
+* `tools` - build and check tools: `toolchain` (the toolchain's manifest),
+  `check` (sysroot and command reports), `ci`, `symbols` (the reference
+  apps' imports, the coverage measured against them), `progress` (the
+  progress pages), `drm-import` (register tables from amdgpu),
+  `mktrustcache.py`, symbolication and crash and panic reports.
 
-`CoreServices` mostly contains core system services above the BSD layer, such as the Dock, the window server, the desktop shell, and Files, the file manager.
+`SysApps` holds older apps (an installer, a preferences app) that no stage
+builds.

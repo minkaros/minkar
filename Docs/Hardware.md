@@ -9,7 +9,7 @@ tracks the list as a whole.
 | Machine | Role | State |
 |---|---|---|
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
-| PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA; display, keyboard and network work |
+| PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA or NVMe; the RX 6600's display on Minkar's driver (R1, R2), keyboard, network and HDMI sound work |
 | PC 2: Intel Xeon E5-2697 v2 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
@@ -76,10 +76,11 @@ requirement above; it was `-cpu Westmere` until 7 Nov 2026; with
 | CPU | Intel Core i7-7700 (4 cores, 8 threads) | All eight run (SMP, 2026-10-30): `hw.ncpu` 8, 4 physical; eight busy loops take 99.8% |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
 | Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
-| USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
-| Display | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console, through the firmware's framebuffer (no driver for the card yet; the i7-7700's HD 630 is unused) |
-| Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
+| USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch; back after the switch goes to another computer and returns (2026-11-16, tested in QEMU; to be confirmed here) |
+| Display | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff), Xiaomi 34" ultrawide over HDMI | Native 3440x1440 at 60 Hz on `MinkarDRM` (2026-11-15, [GPU-RDNA2.md](GPU-RDNA2.md) R1 and R2): its own framebuffer, flips in the vertical blank, the EDID, display sleep, hot plug, back after a KVM switch; lighting a display the firmware left dark (R2b) is in progress. The i7-7700's HD 630 is unused |
+| Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`); TSO only at 1000 Mb/s, after the transmit unit hung at 100 Mb/s (2026-11-15) |
 | Network | Intel I211 | DHCP and ping on the LAN (`MinkarE1000`) |
+| Sound | HDMI through the RX 6600 (`MinkarHDA`) | The display's speakers, 48 kHz stereo (2026-11-15, R2) |
 | Wi-Fi | Intel (M.2) | No driver |
 
 Images for it are built with `GRAPHICS_MODE=native` and the boot arguments
@@ -104,8 +105,9 @@ loader's output on screen for photos.
   interrupt.
 - Power (2026-10-30): the model and UUID from SMBIOS, `powerd` and
   `pmset` (settings, assertions, schedules, sleep refused as not
-  supported) work. Display sleep does nothing: the GOP framebuffer
-  cannot turn the display off (no GPU driver); blanking it is to do.
+  supported) work. Display sleep turns the display off since the RX
+  6600's driver (R2, 2026-11-15); with the GOP framebuffer it did
+  nothing.
   The power button did nothing: IOACPIFamily now takes ACPI's power
   button (the fixed event, or a PNP0C0C device) and `powerd` asks for an
   orderly shutdown (sleep instead where the machine can sleep and

@@ -22,8 +22,8 @@ Licences other than BSD and MIT need the project's approval first.
 | [Boot commands](#boot-commands) | Done |
 | [the original command sets replaced](#original-command-sets-replaced) | Done; small gaps in `grep` |
 | [Everyday tools](#everyday-tools) | Done: every BSD tool of [Commands.md](Commands.md) |
-| [Power user](#power-user) | `zsh`, `tar`, `ssh`, `curl`, `make` and `git` in the image |
-| [Platform tools](#platform-tools) | `open` missing (needs LaunchServices) |
+| [Power user](#power-user) | `zsh`, `tar`, `ssh`, `curl`, `make`, `git`, Ruby, Python and Perl in the image; `/bin/sh` runs bash |
+| [Platform tools](#platform-tools) | Done: `open` and `hdiutil` included |
 | [System data](#system-data) | Locales, time zones, manual pages, iconv tables |
 
 ## Boot commands
@@ -190,6 +190,12 @@ too: it has line characters, blocks and Braille dots.
   `git daemon`, accented file names on HFS Plus (core.precomposeunicode),
   the manuals and completion. No Perl, Python or Tcl commands (`git svn`,
   `send-email`, `gitk`, `git gui`).
+- Ruby 3.3.9 (`/usr/bin/ruby`), Python 3.13.18 (`/usr/bin/python3`) and
+  Perl 5.40.5 (`/usr/bin/perl`) since 2026-11-11, as the reference system
+  ships its scripting languages.
+- `/bin/sh` runs bash as a POSIX shell since 2026-11-11, as on the
+  reference system: a small launcher, and `/private/var/select/sh` naming
+  the shell; FreeBSD's `sh` stays as `/usr/libexec/bsdsh`.
 
 ## Platform tools
 
@@ -198,7 +204,11 @@ too: it has line characters, blocks and Braille dots.
   trailing blank line).
 - `chmod` has the reference system's ACL syntax (`+a`, `-a`, `=a#`, `-E`, `-C`, `-N`, `-i`,
   `-I`) since 2026-10-26, and the kernel enforces the entries.
-- `open` is missing: it needs LaunchServices. `hdiutil` comes with Phase 6.
+- `open` is ours since 2026-11-04, on LaunchServices (applications, files,
+  URLs, `-a`, `-b`, `-e`, `-t`, `-n`, `--args`, `-R` to reveal in Files).
+- `hdiutil` is ours since 2026-10-30 (`create`, `attach`, `detach`, `info`,
+  `imageinfo`), with the MinkarDiskImage kext presenting disk images as
+  disks.
 
 ## System data
 

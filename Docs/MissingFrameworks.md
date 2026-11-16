@@ -4,7 +4,7 @@
 
 The public frameworks and system services of API 19 that Minkar does not
 provide yet, to choose what to implement after the blocks already planned
-(WebKit W2–W5, audio and media AU1–AU10). Status as of 10 Nov 2026.
+(WebKit W5, audio AU7–AU10, the GPU track). Status as of 16 Nov 2026.
 
 How to read it:
 
@@ -21,14 +21,24 @@ measurement is what decides.
 
 ## What Minkar has
 
-AddressBook, AppKit, ApplicationServices, AudioToolbox (no sound output
-yet), Carbon, CFNetwork, Cocoa, Combine, CoreData, CoreFoundation,
-CoreGraphics, CoreServices, CoreText, CoreVideo, DiskArbitration,
-Foundation, ImageIO, IOKit, IOSurface, OpenDirectory, OpenGL, OSAKit,
-PreferencePanes, Quartz, QuartzCore, Security (a subset), ServiceManagement,
-System, SystemConfiguration, UniformTypeIdentifiers, UserNotifications,
-WebKit (the API; its engine is W2), XCTest, and JavaScriptCore (private, in
-`/usr/lib/webkit`).
+AddressBook, AppKit, ApplicationServices (with PrintCore), AudioToolbox,
+AudioUnit (the output unit), AVFoundation, AVKit, Carbon, CFNetwork, Cocoa,
+Combine, CoreAudio, CoreData, CoreFoundation, CoreGraphics, CoreMedia,
+CoreServices, CoreText, CoreVideo, DiskArbitration, ExceptionHandling,
+Foundation, ImageIO, IOKit, IOSurface, MediaPlayer (now playing and remote
+commands), OpenDirectory, OpenGL (Mesa, in views and layers), OSAKit,
+PreferencePanes, Quartz, QuartzCore, QuickLook, Security (a subset),
+ServiceManagement, System, SystemConfiguration, UniformTypeIdentifiers,
+UserNotifications, VideoToolbox (decoding: H.264, HEVC, VP9, AV1; no
+encoder), WebKit (on WPE WebKit's engine), XCTest, and JavaScriptCore
+(private, in `/usr/lib/webkit`).
+
+Present with what the hardware or a later block gives them: CoreMIDI
+(clients and ports, no endpoints until AU8), Metal (no device until the GPU
+track), Vision (no text recognition), CoreLocation (location services off),
+LocalAuthentication (nothing to authenticate with yet),
+AuthenticationServices (no sign-on providers), IOBluetooth (no Bluetooth
+driver).
 
 ## By layer
 
@@ -36,10 +46,10 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Layer | What Minkar has | What is missing |
 | --- | --- | --- |
-| **Kernel and core OS** | XNU (Darwin 19.6.0: Mach and BSD), I/O Kit, HFS+, FAT and exFAT, the BSD network stack with Ethernet (I219, I211) | Audio drivers (AU1, AU7), Wi-Fi and Bluetooth drivers, the GPU drivers (G1–G5, under way), enforced code signing (decided: static trust cache and Minkar's MAC kext), APFS (after 19.6.0) |
-| **Core services** | CoreFoundation, CoreGraphics, CoreText, ImageIO, QuartzCore, CoreServices (LaunchServices, `AppleEvent`, FSEvents), CFNetwork, a Security subset | CoreAudio and CoreMedia/AVFoundation (AU1–AU6), Metal (GPU track), Accelerate, CoreImage, Network, CryptoKit, ColorSync, a search indexer, the APSL Security sources |
-| **Application frameworks** | Cocoa: AppKit and Foundation (imported symbols 99.9 % against the reference apps), parts of Carbon, the WebKit API | WebKit's engine (W2–W5), PDFKit, QuickLook and the rest listed below; SwiftUI is out of scope for API 19–21 |
-| **User experience** | Atlas, with its own visual language: login window, menu bar, Dock, Files, Preferences | The desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10), search, notification banners, accessibility (screen reader) |
+| **Kernel and core OS** | XNU (Darwin 19.6.0: Mach and BSD), I/O Kit, HFS+, FAT and exFAT, the BSD network stack with Ethernet (I219, I211, Broadcom), HDA sound and HDMI audio, the sandbox policy, AMD displays (R1, R2 on the RX 6600) | USB audio (AU7), Wi-Fi and Bluetooth drivers, the GPU's engines (G1–G5, under way), enforced code signing (decided: static trust cache and Minkar's MAC kext), APFS (after 19.6.0) |
+| **Core services** | CoreFoundation, CoreGraphics, CoreText, ImageIO, QuartzCore, CoreServices (LaunchServices, `AppleEvent`, FSEvents), CFNetwork, a Security subset, CoreAudio, CoreMedia, AVFoundation, VideoToolbox (decoding), OpenGL | Metal with a device (GPU track), Accelerate, CoreImage, Network, CryptoKit, ColorSync, a search indexer, the APSL Security sources |
+| **Application frameworks** | Cocoa: AppKit and Foundation, parts of Carbon, WebKit (W2–W4), AVKit, PrintCore and printing | The reference apps' web views (W5), PDFKit and the rest listed below; SwiftUI is out of scope for API 19–21 |
+| **User experience** | Atlas, with its own visual language: login window, menu bar, Dock, Files, Preferences, the notification center (N1, N2) | The desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10), search, accessibility (screen reader) |
 
 ## Missing frameworks
 
@@ -47,15 +57,12 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Framework | Status | Apps | Notes |
 | --- | --- | --- | --- |
-| CoreAudio | Plan (AU2) | | Audio service and the `AudioObject` API |
-| AudioUnit | Plan (AU3, AU9) | | Output unit; hosting third-party units in AU9 |
-| CoreMIDI | Plan (AU8) | | Framework and service |
-| CoreAudioKit | Plan (AU9) | | Audio unit views |
-| AVFoundation, AVKit, CoreMedia | Plan (AU5) | | On FFmpeg and dav1d |
-| VideoToolbox, MediaToolbox | Decide | | Fit in AU5 |
+| AudioUnit (hosting third-party units), CoreAudioKit | Plan (AU9) | | The output unit exists; hosting and its views in AU9 |
+| CoreMIDI | Plan (AU8) | | The framework exists; endpoints and the service in AU8 |
+| VideoToolbox (encoding), MediaToolbox | Decide | | Decoding exists (FFmpeg in the app's process) |
 | CoreMediaIO | Decide | | Cameras and capture devices |
 | OpenAL | Decide | | Can sit on CoreAudio |
-| MediaPlayer, MediaLibrary | Decide | | |
+| MediaLibrary | Decide | | MediaPlayer exists |
 | AudioVideoBridging | Decide | | Network audio (AVB) |
 | SoundAnalysis, Speech | Decide | | |
 | DVDPlayback | Out | | Deprecated |
@@ -64,14 +71,14 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Framework | Status | Apps | Notes |
 | --- | --- | --- | --- |
-| Metal, MetalKit | Plan (GPU track) | | darling-metal and Indium |
+| Metal (a device), MetalKit | Plan (GPU track) | | darling-metal and Indium; Metal's API exists without a device |
 | Accelerate | Plan (AU9) | | vDSP, BLAS and LAPACK (OpenBLAS, BSD-3); used widely, worth moving earlier |
 | CoreImage | Decide | | Used widely by image apps |
 | MetalPerformanceShaders | Decide | | |
 | SceneKit, SpriteKit, ModelIO, GameplayKit, RealityKit | Decide | | |
 | ColorSync | Decide | | Little CMS is already planned |
 | OpenCL, GLKit, GLUT, AGL | Decide | | Deprecated, still used by some apps |
-| CoreML, Vision, NaturalLanguage | Decide | | |
+| CoreML, NaturalLanguage; Vision's recognition | Decide | | Vision exists without recognition |
 
 ### User interface and app integration
 
@@ -79,13 +86,13 @@ The system in four layers, from the kernel up, and where each stands.
 | --- | --- | --- | --- |
 | SwiftUI | Out | | Decided for API 19–21; OpenSwiftUI watched |
 | PDFKit | Decide | | Atlas's document viewer needs it |
-| QuickLook, QuickLookThumbnailing | Decide | | Quartz already has part of it |
+| QuickLookThumbnailing | Decide | | QuickLook exists |
 | ScreenSaver, InputMethodKit, LinkPresentation, PencilKit | Decide | | |
 | FinderSync, NotificationCenter, SafariServices | Decide | | Integration with Files and Atlas |
 | ScriptingBridge, AppleScriptKit, AppleScriptObjC, Automator | Decide | | Need the scripting component (Phase 6) |
 | ImageCaptureCore, ICADevices, TWAIN | Decide | | Scanners and cameras |
 | SecurityInterface, SecurityFoundation | Decide | | |
-| Collaboration, ExceptionHandling, InstallerPlugins | Decide | | |
+| Collaboration, InstallerPlugins | Decide | | ExceptionHandling exists |
 
 ### Personal data and network services
 
@@ -94,7 +101,7 @@ The system in four layers, from the kernel up, and where each stands.
 | Contacts, ContactsUI, EventKit | Decide | | AddressBook exists |
 | CoreSpotlight | Decide | | Goes with a search indexer; `MDItem` exists |
 | Photos, PhotosUI | Decide | | |
-| MapKit, CoreLocation | Decide | | Need a map or location provider |
+| MapKit; CoreLocation's provider | Decide | | Need a map or location provider; CoreLocation exists, its services off |
 | FileProvider, FileProviderUI | Decide | | |
 | MultipeerConnectivity | Decide | | |
 | CloudKit, GameKit, StoreKit, Accounts, Social, PushKit, DeviceCheck, BusinessChat, VideoSubscriberAccount | Out | | Depend on the vendor's cloud services |
@@ -105,11 +112,11 @@ The system in four layers, from the kernel up, and where each stands.
 | Framework | Status | Apps | Notes |
 | --- | --- | --- | --- |
 | CryptoKit | Decide | | Used widely from Swift |
-| LocalAuthentication, AuthenticationServices, CryptoTokenKit, PCSC | Decide | | |
+| CryptoTokenKit, PCSC; LocalAuthentication's and AuthenticationServices' providers | Decide | | The two frameworks exist, with nothing to authenticate with |
 | GSS, Kerberos, LDAP | Decide | | |
 | Network | Decide | | Used widely by Swift apps |
 | NetworkExtension, NetFS | Decide | | |
-| CoreWLAN, CoreBluetooth, IOBluetooth, IOBluetoothUI | Decide | | Need Wi-Fi and Bluetooth drivers |
+| CoreWLAN, CoreBluetooth, IOBluetoothUI | Decide | | Need Wi-Fi and Bluetooth drivers; IOBluetooth exists without devices |
 | IOUSBHost, ExternalAccessory, GameController, ForceFeedback, CoreHaptics | Decide | | |
 | SystemExtensions, DriverKit, EndpointSecurity, ExecutionPolicy | Decide | | |
 | Hypervisor | Decide | | |
@@ -119,13 +126,11 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Service | Status | Notes |
 | --- | --- | --- |
-| Audio service | Plan (AU2) | |
 | Search indexing | Decide | `MDItem` exists, without an indexer |
-| Printing (CUPS and PrintCore) | Decide | Nothing yet |
+| Printing to printers (a CUPS server) | Decide | PrintCore, NSPrinter and printing to PDF exist (16 Nov 2026); libcups is there, `cupsd` is not, so there are no printers |
 | Wi-Fi and Bluetooth (drivers and services) | Decide | Nothing yet |
 | Camera and video capture | Decide | |
 | Keychain service with encryption | Plan | The current subset is replaced by the APSL Security sources |
-| Notification banners | Decide | The API exists; nothing is shown |
 | Backups (`tmutil`) | Plan (Phase 6) | |
 | Enforced code signing | Plan | Static trust cache and Minkar's MAC kext |
 | Accessibility (screen reader, accessibility server) | Decide | |
@@ -133,13 +138,13 @@ The system in four layers, from the kernel up, and where each stands.
 
 ## Suggested order
 
-After W2 and AU1–AU6, by how much software needs each and how little
-special hardware it takes:
+Now that WebKit's engine (W2–W4) and audio and media (AU1–AU6) are done, by
+how much software needs each and how little special hardware it takes:
 
 1. Accelerate and CoreImage.
 2. Network and CryptoKit.
 3. PDFKit and QuickLook (Atlas's apps).
-4. Printing (CUPS).
+4. Printers (`cupsd`; PrintCore and printing to PDF are done).
 5. Wi-Fi and Bluetooth (much driver work; needed on laptops).
 
 The measurement (column *Apps*) and more reference apps may change it.

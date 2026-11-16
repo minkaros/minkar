@@ -5,11 +5,11 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-15, devel `1120783e0c`_
+_Updated 2026-11-16, devel `e01c5dcddf`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
-| **Gates** | 🟩🟩🟩🟩🟩⬜⬜⬜⬜ | 5 / 9 | — | M5 Atlas desktop |
+| **Gates** | 🟩🟩🟩🟩🟩🟦⬜⬜⬜ | 5 / 9 | M5 Atlas desktop | M6 Minkar 19.6.0 |
 | [Phases 0–2](ROADMAP.md) | 🟩🟩🟩 | 3 / 3 | — | — |
 | [Frameworks](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩🟨🟨🟨🟨🟩🟨🟩🟩 | 4 / 9 | libSystem, Foundation, CF-Lite, Security, Swift 6 | — |
 | [WindowServer](WindowServer-Rewrite.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |

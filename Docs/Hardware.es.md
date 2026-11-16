@@ -11,7 +11,7 @@ en cada máquina, lo que aún no, y cómo se encontró cada arreglo. El
 | Máquina | Papel | Estado |
 |---|---|---|
 | VM de QEMU | Cada cambio: `boottest`, la suite de tests local, la CI | Arranca hasta el login con TCG y KVM |
-| PC 1: Gigabyte H270N-WIFI | Primer PC físico | Arranca hasta el login desde SATA; pantalla, teclado y red funcionan |
+| PC 1: Gigabyte H270N-WIFI | Primer PC físico | Arranca hasta el login desde SATA o NVMe; la pantalla de la RX 6600 con el driver de Minkar (R1, R2), teclado, red y sonido por HDMI funcionan |
 | PC 2: Intel Xeon E5-2697 v2 | Segundo PC físico (gate M1); hardware original del fabricante, para medir la referencia | Arranca hasta el login desde NVMe; 24 hilos, pantalla, teclado y red funcionan |
 | PC AMD | Un procesador AMD | Pendiente: aún no hay hardware (ver abajo) |
 
@@ -81,10 +81,11 @@ en un MSR que lee el kernel).
 | CPU | Intel Core i7-7700 (4 núcleos, 8 hilos) | Los ocho corren (SMP, 30 oct 2026): `hw.ncpu` 8, 4 físicos; ocho bucles ocupados llegan al 99,8 % |
 | Disco | SATA a través de AHCI (`MinkarAHCIPort`) | Sistema de archivos raíz, fsck |
 | Disco | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Sistema de archivos raíz: arranca desde él (`MinkarNVMe`, 29 oct 2026), finalizaciones por interrupción |
-| USB | xHCI (`MinkarXHCIPort`), hub USB 2 de un conmutador KVM | Teclado y ratón, directamente y a través del conmutador |
-| Pantalla | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff); framebuffer GOP, ultrapanorámica Xiaomi de 34" | Consola de texto nativa a 3440x1440, con el framebuffer del firmware (aún sin driver para la tarjeta; la HD 630 del i7-7700 no se usa) |
-| Red | Intel I219-V (LAN del PCH) | ping en la LAN (`MinkarE1000`) |
+| USB | xHCI (`MinkarXHCIPort`), hub USB 2 de un conmutador KVM | Teclado y ratón, directamente y a través del conmutador; vuelven cuando el conmutador pasa a otro equipo y regresa (2026-11-16, probado en QEMU; falta confirmarlo aquí) |
+| Pantalla | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff), ultrapanorámica Xiaomi de 34" por HDMI | 3440x1440 nativa a 60 Hz con `MinkarDRM` (2026-11-15, [GPU-RDNA2.es.md](GPU-RDNA2.es.md) R1 y R2): framebuffer propio, cambios en el retrazado vertical, el EDID, reposo de la pantalla, conexión en caliente, vuelta tras un conmutador KVM; encender una pantalla que el firmware dejó apagada (R2b) está en curso. La HD 630 del i7-7700 no se usa |
+| Red | Intel I219-V (LAN del PCH) | ping en la LAN (`MinkarE1000`); TSO solo a 1000 Mb/s, tras colgarse la unidad de transmisión a 100 Mb/s (2026-11-15) |
 | Red | Intel I211 | DHCP y ping en la LAN (`MinkarE1000`) |
+| Sonido | HDMI a través de la RX 6600 (`MinkarHDA`) | Los altavoces de la pantalla, estéreo a 48 kHz (2026-11-15, R2) |
 | Wi-Fi | Intel (M.2) | Sin driver |
 
 Sus imágenes se compilan con `GRAPHICS_MODE=native` y los argumentos de
@@ -109,9 +110,8 @@ salida del cargador en pantalla para las fotos.
   finalizaciones por interrupción.
 - Energía (30 oct 2026): el modelo y el UUID desde SMBIOS, `powerd` y
   `pmset` (ajustes, aserciones, programaciones, reposo rechazado por no
-  admitido) funcionan. El reposo de la pantalla no hace nada: el framebuffer
-  GOP no puede apagar la pantalla (sin driver de GPU); dejarla en negro está
-  por hacer. El botón de encendido no hacía nada: IOACPIFamily toma ahora el
+  admitido) funcionan. El reposo de la pantalla la apaga desde el driver de
+  la RX 6600 (R2, 2026-11-15); con el framebuffer GOP no hacía nada. El botón de encendido no hacía nada: IOACPIFamily toma ahora el
   botón de encendido de ACPI (el evento fijo, o un dispositivo PNP0C0C) y
   `powerd` pide un apagado ordenado (reposo en su lugar donde la máquina
   puede dormir y "Sleep On Power Button" está activo). Aquí (hw-test38): el

@@ -39,6 +39,33 @@ these keys; any other key is ignored.
 | dk               | Debug flags for DriverKit(?) (IODK)                        |
 | vm_compressor    | Configure the compressed VM pager                          |
 
+### Minkar's drivers
+
+Numbers are given as `name=value`. For the AMD GPU checks, `1` runs them on
+the GPUs that light no display and `2` on every GPU.
+
+| Flag                 | Driver          | Description |
+|----------------------|-----------------|-------------|
+| ahci_debug=1         | MinkarAHCIPort  | The driver's own trace |
+| bge_debug=1          | MinkarBGE       | The driver's own trace |
+| bge_disable=1        | MinkarBGE       | Leave the Broadcom chip alone (to tell its faults from others') |
+| bge_poll=1           | MinkarBGE       | No interrupts: a timer polls the status block |
+| e1000_debug=1        | MinkarE1000     | Intel's shared code's own messages, for a chip that does not come up |
+| e1000_shared=1       | MinkarE1000     | Intel's shared code sets up every chip, not only the PCH LAN (I217 to I219) and the I210/I211 (to test it in QEMU) |
+| xhci_quiet=1         | MinkarXHCIPort  | No trace from the xHCI driver, so that other drivers' messages stay on a PC's screen |
+| minkaramd_fb=0       | MinkarDRM       | No framebuffer driver: the firmware's framebuffer stays (IOGOPFramebuffer) |
+| minkaramd_native=0   | MinkarDRM       | Keep the firmware's refresh rate instead of the native size's fastest |
+| minkaramd_hdmi=0     | MinkarDRM       | Keep an HDMI display the firmware lit as DVI on DVI (no HDMI audio) |
+| minkaramd_dpms=0     | MinkarDRM       | The display stays lit when the system's display sleeps |
+| minkaramd_psp=0      | MinkarDRM       | Leave Navi 23's security processor (PSP) alone: no SMU firmware, the firmware's display clocks |
+| minkaramd_fliptest=1 | MinkarDRM       | R1's flip test on DCN at start |
+| minkaramd_pattern=1  | MinkarDRM       | R1's pitch pattern on DCN at start (green, then blue frame) |
+| minkaramd_gart=1\|2  | MinkarDRM       | The GART on for the driver's life, for clients' buffers |
+| minkaramd_irq=1\|2   | MinkarDRM       | The interrupt ring on (with the GART) |
+| minkaramd_dmatest=1\|2 | MinkarDRM     | G2's DMA check: 8 MB copied by DMA0 and compared |
+| minkaramd_garttest=1\|2 | MinkarDRM    | After the DMA check, the same through the GART |
+| minkaramd_gfxtest=1\|2 | MinkarDRM     | G2's command processor check, AMD's microcode loaded |
+
 ### Architecture-specific flags: ARM64
 ```
     alternate_debugger_init

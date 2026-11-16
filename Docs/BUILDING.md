@@ -72,11 +72,17 @@ The build runs as root (the object directories and sysroot are root owned):
     cd /work/minkar
     sudo bmake -m /work/minkar/BSD/share/mk -j$(nproc) > ../build/world.log 2>&1
 
-One layer at a time, in this order: `Developer Kernel Libraries Frameworks
-Kernel/Extensions CoreServices BSD`. Pass the layer through the environment,
-never on the command line (it would leak into every sub-make):
+One stage at a time, in this order: `Developer Kernel Libraries Frameworks
+Kernel/Extensions CoreServices BSD Frameworks/WebKit SystemLibrary`. Name the
+stage both in `ONLY_STAGE` and as the target:
 
-    sudo env SUBDIR=Frameworks bmake -m /work/minkar/BSD/share/mk -j$(nproc)
+    sudo env ONLY_STAGE=Frameworks bmake -m /work/minkar/BSD/share/mk -j$(nproc) Frameworks
+
+(`SUBDIR=<stage>` in the environment does the same; never pass it on the
+command line, where it would leak into every sub-make.) The disk image is
+made from the sysroot afterwards:
+
+    sudo bmake -m /work/minkar/BSD/share/mk image
 
 `-m /work/minkar/BSD/share/mk` is required. Logs use ANSI colors; strip them
 before searching: `sed 's/\x1b\[[0-9;]*m//g' ../build/world.log`.
