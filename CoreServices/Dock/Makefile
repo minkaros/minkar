@@ -14,7 +14,9 @@ FRAMEWORKS =	AppKit CoreGraphics Foundation
 MK_WERROR =	no
 CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks -I${.OBJDIR} -I${NC}
-LDFLAGS +=	-lobjc -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
+LDFLAGS +=	-lobjc -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight -framework CoreServices
+# LaunchServices' headers, for the session's login items (Open at Login).
+CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 # The Spanish texts (the English ones are the keys).
 RESOURCES =	${.CURDIR}/es.lproj
 

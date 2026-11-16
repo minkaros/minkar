@@ -139,8 +139,8 @@ notifyDockChanged(SLSDisplayID display)
 		WSEventsEnqueue(c, &e);
 }
 
-static BOOL
-isDock(audit_token_t token)
+BOOL
+WSIsDock(audit_token_t token)
 {
 	char path[PROC_PIDPATHINFO_MAXSIZE];
 
@@ -159,7 +159,7 @@ wss_display_set_dock_rect(mach_port_t server, audit_token_t token, uint32_t disp
 		return KERN_SUCCESS;
 	}
 	WSConnection *connection = [WSConnection connectionForToken:token];
-	if (connection == nil || !isDock(token)) {
+	if (connection == nil || !WSIsDock(token)) {
 		*result = connection == nil ? kSLSErrorInvalidConnection : kSLSErrorCannotComplete;
 		return KERN_SUCCESS;
 	}

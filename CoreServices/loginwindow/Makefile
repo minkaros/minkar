@@ -24,7 +24,7 @@ CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -Wno-incompatible-sysroot -F${LS_FRAMEWORKS}
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -framework CoreServices -lbsm
+LDADD += -framework CoreServices -framework CoreFoundation -lbsm
 
 APP = ${SYSROOT_DIR}/System/Library/CoreServices/loginwindow.app/Contents
 

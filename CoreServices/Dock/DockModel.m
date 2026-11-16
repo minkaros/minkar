@@ -11,6 +11,7 @@
 #import "DockModel.h"
 #include <fcntl.h>
 #include <notify.h>
+#include <SkyLight/SkyLight.h>
 #include <dispatch/dispatch.h>
 #include <unistd.h>
 #include <mach/mach.h>
@@ -29,6 +30,7 @@ static NSString *const kTrashFullIconPath = @"/System/Library/Icons/system/user-
 @interface DockTile ()
 @property (nonatomic, strong) NSImage *icon;
 - (instancetype)initTrash;
+- (instancetype)initMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(NSImage *)image;
 @end
 
 @implementation DockTile
@@ -65,8 +67,25 @@ static NSString *const kTrashFullIconPath = @"/System/Library/Icons/system/user-
     return self;
 }
 
+- (instancetype)initMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(NSImage *)image
+{
+    if ((self = [super init]) != nil) {
+        NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+
+        _kind = DockTileKindMinimizedWindow;
+        _windowID = windowID;
+        _ownerPID = pid;
+        _URL = [([app bundleURL] ?: [NSURL fileURLWithPath:@"/"]) copy];
+        _label = [([app localizedName] ?: @"") copy];
+        _icon = image ?: [app icon];
+    }
+    return self;
+}
+
 - (BOOL)matchesApplication:(NSRunningApplication *)app
 {
+    if (_kind == DockTileKindMinimizedWindow)
+        return NO;
     if (_kind == DockTileKindTrash)
         return NO;
     if (_bundleIdentifier != nil && [app bundleIdentifier] != nil)
@@ -145,6 +164,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     NSDictionary<NSString *, NSString *> *_badges;   /* process identifier to label */
     NSArray<DockTile *> *_persistent;
     NSArray<DockTile *> *_tiles;
+    NSMutableArray<DockTile *> *_minimized;
     dispatch_source_t _trashWatch;
 }
 
@@ -413,6 +433,9 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     }
     _firstRunningIndex = [tiles count];
     [tiles addObjectsFromArray:running];
+    _minimizedIndex = [tiles count];
+    if (_minimized != nil)
+        [tiles addObjectsFromArray:_minimized];
     _trashIndex = [tiles count];
     if (_trashTile != nil)
         [tiles addObject:_trashTile];
@@ -425,8 +448,45 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
 }
 
+- (NSUInteger)addMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(NSImage *)image
+{
+    if (_minimized == nil)
+        _minimized = [NSMutableArray array];
+    [self removeMinimizedWindow:windowID quietly:YES];
+    [_minimized addObject:[[DockTile alloc] initMinimizedWindow:windowID owner:pid image:image]];
+    [self applicationsChanged:nil];
+    return _trashIndex - 1;
+}
+
+- (DockTile *)tileForMinimizedWindow:(uint32_t)windowID
+{
+    for (DockTile *tile in _minimized)
+        if (tile.windowID == windowID)
+            return tile;
+    return nil;
+}
+
+- (void)removeMinimizedWindow:(uint32_t)windowID quietly:(BOOL)quietly
+{
+    DockTile *tile = [self tileForMinimizedWindow:windowID];
+
+    if (tile == nil)
+        return;
+    [_minimized removeObject:tile];
+    if (!quietly)
+        [self applicationsChanged:nil];
+}
+
+- (void)removeMinimizedWindow:(uint32_t)windowID
+{
+    [self removeMinimizedWindow:windowID quietly:NO];
+}
+
 - (BOOL)openTile:(DockTile *)tile
 {
+    /* The server restores it; its owner hears it and brings it back. */
+    if (tile.kind == DockTileKindMinimizedWindow)
+        return SLSSetWindowMinimized(tile.windowID, 0) == kSLSErrorSuccess;
     if (tile.kind == DockTileKindTrash)
         return [[NSWorkspace sharedWorkspace] openFile:[tile.URL path]];
     if (tile.application != nil && ![tile.application isTerminated])

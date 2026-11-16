@@ -615,7 +615,8 @@ enum {
 	kSLSEventSymbolicHotKey		= 0x1002,
 	/* To connections that asked (SLSRequestWindowNotifications): a
 	 * window was minimized or restored; x, y is its frame's top left.
-	 * SLSGetWindowInfo gives its owner. */
+	 * SLSGetWindowInfo gives its owner. The owner hears them too (the Dock
+	 * restores a window it keeps with SLSSetWindowMinimized). */
 	kSLSEventWindowMinimized	= 0x1003,
 	kSLSEventWindowRestored		= 0x1004,
 	/* To every connection: a display's mode, place or mirroring changed.

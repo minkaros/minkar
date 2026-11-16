@@ -56,7 +56,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Parte | Capítulo | Hitos | Hechos | Siguiente |
 | --- | --- | --- | --- | --- |
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
-| Dock | 4 | D0–D4 | D0, D1 | D2 |
+| Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 | Notificaciones | 5.6 | N0–N2 | N0, N1, N2 | — |
@@ -599,19 +599,29 @@ evidencia.
   guardan y se leen igual; `screendump` muestra el Dock y el fondo; el Dock
   no consume CPU en reposo. *Hecho (4 nov 2026):* `8cfe7115db`,
   `f6c2d254be`; prueba local `desktop` (27 comprobaciones).
-- [ ] **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
+- [x] **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
   contextuales (Mantener en el Dock, Abrir al iniciar sesión, Mostrar en
   Files, Salir) y el menú de la propia app; ocultación automática,
   magnificación, orientación; la animación de minimizar y restaurar
   (`mineffect`) para `miniaturize:`. *Parcial (4 nov 2026, `5c083e0b97`):*
   arrastrar, los menús de los tiles, ocultación automática, magnificación y
-  orientación; Mostrar en Files (`7e7ea6dfbb`); faltan Abrir al iniciar
-  sesión y la animación de minimizar.
+  orientación; Mostrar en Files (`7e7ea6dfbb`). *Hecho (16 nov 2026):*
+  Abrir al iniciar sesión escribe los elementos de inicio de la sesión
+  (`LSSharedFileList`), que loginwindow abre al empezar la sesión (ocultos
+  si el elemento lo pide); la imagen de una ventana minimizada se escala
+  hasta su tile y vuelve al hacer clic en él (el efecto genie de la
+  plataforma de referencia se dibuja por ahora con su efecto de escala);
+  prueba local `dock-minimize`.
 - [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
   ventanas minimizadas con miniaturas (después de WS4a); el selector de apps
   en el Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del
-  servidor de ventanas.
+  servidor de ventanas. *Parcial (16 nov 2026):* las ventanas minimizadas
+  como tiles entre el separador y la papelera, cada una con la imagen de su
+  ventana y el icono de su app en la esquina; un clic restaura la ventana a
+  través del servidor, y su app lo oye (`kSLSEventWindowRestored`) y la
+  trae de vuelta; las insignias llegaron con N2. Faltan el contenido del
+  tile, el rebote de atención y el selector de apps.
 - [ ] **D4 — Pilas y papelera.** Pilas de Descargas y de carpetas; tile de la
   papelera (vacía o llena, soltar para tirar, vaciar a través de Files).
   *Parcial (6 nov 2026):* el tile de la papelera, el último tras un

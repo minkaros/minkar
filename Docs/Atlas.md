@@ -53,7 +53,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Part | Chapter | Milestones | Done | Next |
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
-| Dock | 4 | D0–D4 | D0, D1 | D2 |
+| Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 | Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
@@ -567,17 +567,26 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   preferences round-trip; `screendump` shows the Dock and the desktop
   picture; the Dock uses no CPU while idle. *Done (4 Nov 2026):*
   `8cfe7115db`, `f6c2d254be`; local test `desktop` (27 checks).
-- [ ] **D2 — Interaction.** Drag to reorder, add and remove; context menus
+- [x] **D2 — Interaction.** Drag to reorder, add and remove; context menus
   (Keep in Dock, Open at Login, Show in Files, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`. *Partial (4 Nov 2026, `5c083e0b97`):*
   dragging, the tile menus, autohide, magnification and orientation; Show
-  in Files (`7e7ea6dfbb`); Open at Login and the minimize animation are
-  missing.
+  in Files (`7e7ea6dfbb`). *Done (16 Nov 2026):* Open at Login writes the
+  session's login items (`LSSharedFileList`), which loginwindow opens when
+  the session starts (hidden when the item asks); a minimized window's
+  image scales into its tile and back out when the tile is clicked (the
+  reference platform's genie is drawn as its scale effect for now); local
+  test `dock-minimize`.
 - [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
   `org.minkar.dock.server`: badges, content, attention bounce; minimized
   windows with thumbnails (after WS4a); the app switcher in the Dock, which
   gets Command-Tab from the window server's symbolic hotkey table.
+  *Partial (16 Nov 2026):* minimized windows as tiles between the separator
+  and the Trash, each its window's image with its app's icon in the
+  corner; a click restores the window through the server, and its app
+  hears it (`kSLSEventWindowRestored`) and brings it back; badges came
+  with N2. Missing: tile content, the attention bounce, the app switcher.
 - [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
   (empty or full, drop to trash, empty through Files).
   *Partial (6 Nov 2026):* the Trash tile, last after a separator of its

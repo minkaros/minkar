@@ -50,6 +50,8 @@ void WSInputPublish(void);
 /* Displays (WSDisplayServices.m). The first is the main display. */
 extern NSArray<WSDisplay *> *WSDisplays;
 WSDisplay *WSDisplayWithID(uint32_t displayID);
+/* The connection is the Dock's (it keeps minimized windows). */
+BOOL WSIsDock(audit_token_t token);
 /* A display's colour table (transfer table and fade), 3 x 256 bytes, or
  * nil for none (IPC queue). */
 NSData *WSDisplayColorTable(WSDisplay *display);

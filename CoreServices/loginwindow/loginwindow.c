@@ -61,6 +61,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <LaunchServices/LaunchServices.h>
 #include <LaunchServices/LSSession.h>
 #include "LoginWindowRequest.h"
 
@@ -113,6 +114,43 @@ executableFor(const char *path, char *out, size_t size)
 
 static void startApp(int i);
 
+/* The user's login items (Open at Login in the Dock, LSSharedFileList's
+ * session list), opened once the session's applications are up: hidden
+ * when the item asks. */
+static void *
+openLoginItems(void *unused)
+{
+	(void)unused;
+	sleep(2);
+	LSSharedFileListRef list = LSSharedFileListCreate(NULL, kLSSharedFileListSessionLoginItems, NULL);
+	if (list == NULL)
+		return NULL;
+	CFArrayRef items = LSSharedFileListCopySnapshot(list, NULL);
+	for (CFIndex i = 0; items != NULL && i < CFArrayGetCount(items); i++) {
+		LSSharedFileListItemRef item = (LSSharedFileListItemRef)CFArrayGetValueAtIndex(items, i);
+		CFURLRef url = LSSharedFileListItemCopyResolvedURL(item, 0, NULL);
+		if (url == NULL)
+			continue;
+		CFTypeRef hidden = LSSharedFileListItemCopyProperty(item, kLSSharedFileListLoginItemHidden);
+		LSLaunchURLSpec spec = { 0 };
+		spec.appURL = url;
+		spec.launchFlags = kLSLaunchDefaults |
+		    (hidden != NULL && CFEqual(hidden, kCFBooleanTrue) ? kLSLaunchAndHide : 0);
+		char path[1024] = "";
+		CFURLGetFileSystemRepresentation(url, true, (UInt8 *)path, sizeof(path));
+		OSStatus err = LSOpenFromURLSpec(&spec, NULL);
+		fprintf(stderr, "loginwindow: login item %s%s\n", path,
+		    err == 0 ? "" : " (cannot open it)");
+		if (hidden != NULL)
+			CFRelease(hidden);
+		CFRelease(url);
+	}
+	if (items != NULL)
+		CFRelease(items);
+	CFRelease(list);
+	return NULL;
+}
+
 /* Starts the session's applications; called with sessionLock held. */
 static void
 startSession(void)
@@ -139,6 +177,9 @@ startSession(void)
 		startApp(sessionAppCount++);
 	}
 	fclose(list);
+	pthread_t opener;
+	if (pthread_create(&opener, NULL, openLoginItems, NULL) == 0)
+		pthread_detach(opener);
 }
 
 /* Starts a session application; called with sessionLock held. */

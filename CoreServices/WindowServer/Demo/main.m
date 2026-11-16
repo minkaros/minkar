@@ -136,6 +136,13 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
     NSRect f = [self.window frame];
     printf("window frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
         f.size.width, f.size.height);
+    /* Restored from elsewhere (its Dock tile). */
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowDidDeminiaturizeNotification
+        object:self.window queue:nil usingBlock:^(NSNotification *note) {
+        (void)note;
+        printf("deminiaturized minimized=%d\n", [self.window isMiniaturized]);
+        fflush(stdout);
+    }];
     [self observeApplications];
 
     /*

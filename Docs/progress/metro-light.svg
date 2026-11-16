@@ -113,18 +113,18 @@
 <text x="1025" y="343" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">MB4</text>
 <text x="20" y="383" font-size="15" font-weight="700" fill="#bc4c00" text-anchor="start">Dock</text>
 <line x1="700" y1="378" x2="1025" y2="378" stroke="#bc4c00" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="378" x2="865" y2="378" stroke="#bc4c00" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="378" x2="760" y2="378" stroke="#bc4c00" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="378" x2="1025" y2="378" stroke="#bc4c00" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="378" x2="865" y2="378" stroke="#bc4c00" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="378" r="10" fill="#bc4c00" stroke="#ffffff" stroke-width="3"/><path d="M695.5 378 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="700" y="407" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">D0</text>
 <circle cx="760" cy="378" r="10" fill="#bc4c00" stroke="#ffffff" stroke-width="3"/><path d="M755.5 378 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="760" y="407" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">D1</text>
-<circle cx="865" cy="378" r="9" fill="#ffffff" stroke="#bc4c00" stroke-width="3"/><path d="M865 372 A6 6 0 0 0 865 384 Z" fill="#bc4c00"/>
+<circle cx="865" cy="378" r="10" fill="#bc4c00" stroke="#ffffff" stroke-width="3"/><path d="M860.5 378 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="865" y="407" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">D2</text>
-<circle cx="970" cy="378" r="8" fill="#ffffff" stroke="#bc4c00" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D3</text>
-<circle cx="1025" cy="378" r="8" fill="#ffffff" stroke="#bc4c00" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1025" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D4</text>
+<circle cx="970" cy="378" r="9" fill="#ffffff" stroke="#bc4c00" stroke-width="3"/><path d="M970 372 A6 6 0 0 0 970 384 Z" fill="#bc4c00"/>
+<text x="970" y="407" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">D3</text>
+<circle cx="1025" cy="378" r="9" fill="#ffffff" stroke="#bc4c00" stroke-width="3"/><path d="M1025 372 A6 6 0 0 0 1025 384 Z" fill="#bc4c00"/>
+<text x="1025" y="407" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">D4</text>
 <text x="20" y="447" font-size="15" font-weight="700" fill="#0f7b6f" text-anchor="start">Files</text>
 <line x1="700" y1="442" x2="1025" y2="442" stroke="#0f7b6f" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="442" x2="760" y2="442" stroke="#0f7b6f" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>

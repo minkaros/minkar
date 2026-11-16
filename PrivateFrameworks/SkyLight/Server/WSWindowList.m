@@ -256,7 +256,7 @@ notifyMinimized(WSWindow *w)
 	e.y = w.frame.y;
 	e.timestamp = WSNanoseconds();
 	for (WSConnection *c in [WSConnection allConnections])
-		if (c.windowNotifications)
+		if (c.windowNotifications || c == w.owner)
 			WSEventsEnqueue(c, &e);
 }
 
@@ -707,6 +707,12 @@ wss_window_set_minimized(mach_port_t server, audit_token_t token, uint32_t windo
 {
 	WSWindow *w = ownWindow(token, window, result);
 
+	/* The Dock restores the windows it keeps (a click on one's tile); the
+	 * owner hears it from kSLSEventWindowRestored. */
+	if (w == nil && !minimized && *result == kSLSErrorCannotComplete && WSIsDock(token)) {
+		w = windowWithID(window);
+		*result = kSLSErrorSuccess;
+	}
 	if (w == nil || (minimized != 0) == w.minimized)
 		return KERN_SUCCESS;
 	if (minimized) {

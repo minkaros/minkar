@@ -183,7 +183,8 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
    itself: the menu bar takes the keyboard. A display that changed
    (kSLSEventDisplayReconfigured) goes to the main thread the same way:
    data1 the display, data2 the CGDisplayChangeSummaryFlags. */
-enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSDisplayReconfiguredEventSubtype = 0x4443 };
+enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSDisplayReconfiguredEventSubtype = 0x4443,
+       kNSWindowRestoredEventSubtype = 0x5752 };
 extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags);
 
 -(void)_postSkyLightEvent:(SLSEvent *)e {
@@ -206,6 +207,20 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
         return;
     }
 
+    /* Another app's window minimized or restored (to a connection that
+       asked, the Dock): a notification on the main thread, with the
+       server's window and its frame's top left. */
+    if(window == nil && (e->type == kSLSEventWindowMinimized || e->type == kSLSEventWindowRestored)) {
+        NSDictionary *info = [NSDictionary dictionaryWithObjectsAndKeys:
+            [NSNumber numberWithUnsignedInt:e->window], @"window",
+            [NSNumber numberWithDouble:e->x], @"x", [NSNumber numberWithDouble:e->y], @"y", nil];
+        NSNotification *note = [NSNotification notificationWithName:e->type == kSLSEventWindowMinimized ?
+            @"_NSSkyLightWindowMinimizedNotification" : @"_NSSkyLightWindowRestoredNotification"
+            object:nil userInfo:info];
+        [[NSNotificationCenter defaultCenter] performSelectorOnMainThread:@selector(postNotification:)
+            withObject:note waitUntilDone:NO];
+        return;
+    }
     if(window == nil)
         return;
     /* Global, from the top left, to the window's own coordinates (the
@@ -237,6 +252,12 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
         case kSLSEventScrollWheel:
             event = [NSEvent mouseEventWithType:NSScrollWheel location:location
                 modifierFlags:e->flags window:window deltaY:e->scrollY];
+            break;
+        case kSLSEventWindowRestored:
+            /* The Dock restored a window of ours it kept. */
+            event = [NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+                modifierFlags:0 timestamp:0 windowNumber:[window windowNumber] context:nil
+                subtype:kNSWindowRestoredEventSubtype data1:0 data2:0];
             break;
         case kSLSEventWindowMoved:
             event = [NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint

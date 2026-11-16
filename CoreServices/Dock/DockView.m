@@ -25,6 +25,9 @@
 
 #import "DockView.h"
 #include <SkyLight/SkyLight.h>
+#include <LaunchServices/LaunchServices.h>
+
+static LSSharedFileListItemRef LoginItemForURL(NSURL *url);
 #include <math.h>
 
 static const CGFloat kEdgeGap = 4;          /* between the bar and the edge */
@@ -47,14 +50,16 @@ static CGFloat gapFor(CGFloat tile) { return round(tile / 6); }
 static CGFloat indicatorSpace(CGFloat tile) { return round(tile / 6); }
 static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 
-/* A separator goes before the first running-only tile and before the Trash. */
+/* A separator goes before the first running-only tile and before the
+   minimized windows and the Trash. */
 static BOOL separatorBefore(DockModel *model, NSUInteger i)
 {
-    NSUInteger first = model.firstRunningIndex, trash = model.trashIndex;
+    NSUInteger first = model.firstRunningIndex, minimized = model.minimizedIndex;
 
+    /* The minimized windows share the Trash's section. */
     if (i == 0)
         return NO;
-    return (i == first && first < trash) || (i == trash && trash < [model.tiles count]);
+    return (i == first && first < minimized) || (i == minimized && minimized < [model.tiles count]);
 }
 
 static NSUInteger separatorCount(DockModel *model)
@@ -256,6 +261,7 @@ static NSUInteger separatorCount(DockModel *model)
 
 @interface DockWindow ()
 - (void)pointerInside:(BOOL)inside;
+- (void)restoreMinimizedTile:(DockTile *)tile;
 - (DockLabelWindow *)label;
 @end
 
@@ -808,7 +814,8 @@ static void drawBadge(NSString *label, NSRect icon)
     NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
     DockModel *model = self.model;
 
-    if (_pressed < 0 || (NSUInteger)_pressed == model.trashIndex)
+    /* The minimized windows and the Trash stay where they are. */
+    if (_pressed < 0 || (NSUInteger)_pressed >= model.minimizedIndex)
         return;
     if (!_dragging && hypot(p.x - _downPoint.x, p.y - _downPoint.y) < kDragThreshold)
         return;
@@ -858,7 +865,7 @@ static void drawBadge(NSString *label, NSRect icon)
             } else {
                 /* Dropped in the kept part, or moved within it. */
                 CGFloat main = [self mainOfPoint:p];
-                BOOL inKept = model.firstRunningIndex == 0 || model.trashIndex == model.firstRunningIndex;
+                BOOL inKept = model.firstRunningIndex == 0 || model.minimizedIndex == model.firstRunningIndex;
                 if (!inKept) {
                     NSRect sep = [self rectForTileAtIndex:model.firstRunningIndex];
                     CGFloat start = [self orientation] == DockOrientationBottom ? NSMinX(sep) : NSHeight([self bounds]) - NSMaxY(sep);
@@ -868,7 +875,10 @@ static void drawBadge(NSString *label, NSRect icon)
                     [model keepTile:tile atIndex:(NSUInteger)_dropIndex];
             }
         } else if ([self tileIndexAtPoint:p] == _pressed) {
-            [model openTile:tile];
+            if (tile.kind == DockTileKindMinimizedWindow)
+                [self.dockWindow restoreMinimizedTile:tile];
+            else
+                [model openTile:tile];
         }
     }
     [_dragWindow orderOut:nil];
@@ -888,6 +898,8 @@ static void drawBadge(NSString *label, NSRect icon)
         [self showTrashMenuWithEvent:event];
         return;
     }
+    if (tile.kind == DockTileKindMinimizedWindow)
+        return;
     NSMenu *menu = [[NSMenu alloc] initWithTitle:tile.label];
     NSMenu *options = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Options", nil)];
     NSMenuItem *item;
@@ -901,8 +913,11 @@ static void drawBadge(NSString *label, NSRect icon)
     [item setTarget:self];
     [item setRepresentedObject:tile];
     [item setState:[model isKept:tile] ? NSOnState : NSOffState];
-    item = [options addItemWithTitle:NSLocalizedString(@"Open at Login", nil) action:NULL keyEquivalent:@""];
-    [item setEnabled:NO];           /* with the login items (MB3) */
+    item = [options addItemWithTitle:NSLocalizedString(@"Open at Login", nil) action:@selector(toggleOpenAtLogin:) keyEquivalent:@""];
+    [item setTarget:self];
+    [item setRepresentedObject:tile];
+    [item setEnabled:tile.URL != nil];
+    [item setState:tile.URL != nil && LoginItemForURL(tile.URL) != NULL ? NSOnState : NSOffState];
     item = [options addItemWithTitle:NSLocalizedString(@"Show in Files", nil) action:@selector(showInFiles:) keyEquivalent:@""];
     [item setTarget:self];
     [item setRepresentedObject:tile];
@@ -973,6 +988,49 @@ static void drawBadge(NSString *label, NSRect icon)
         [self.model removeTile:tile];
     else
         [self.model keepTile:tile atIndex:self.model.firstRunningIndex];
+}
+
+/* The session's login items (loginwindow opens them when the session
+ * starts): the item for an application, or NULL. Retained. */
+static LSSharedFileListItemRef
+LoginItemForURL(NSURL *url)
+{
+    LSSharedFileListRef list = LSSharedFileListCreate(NULL, kLSSharedFileListSessionLoginItems, NULL);
+    LSSharedFileListItemRef found = NULL;
+
+    if (list == NULL)
+        return NULL;
+    NSArray *items = CFBridgingRelease(LSSharedFileListCopySnapshot(list, NULL));
+    for (id object in items) {
+        LSSharedFileListItemRef item = (__bridge LSSharedFileListItemRef)object;
+        NSURL *itemURL = CFBridgingRelease(LSSharedFileListItemCopyResolvedURL(item, 0, NULL));
+        if (itemURL != nil && [[itemURL URLByStandardizingPath] isEqual:[url URLByStandardizingPath]]) {
+            found = (LSSharedFileListItemRef)CFRetain(item);
+            break;
+        }
+    }
+    CFRelease(list);
+    return found;
+}
+
+- (void)toggleOpenAtLogin:(NSMenuItem *)sender
+{
+    NSURL *url = [(DockTile *)[sender representedObject] URL];
+    LSSharedFileListRef list;
+    LSSharedFileListItemRef item;
+
+    if (url == nil || (list = LSSharedFileListCreate(NULL, kLSSharedFileListSessionLoginItems, NULL)) == NULL)
+        return;
+    if ((item = LoginItemForURL(url)) != NULL) {
+        LSSharedFileListItemRemove(list, item);
+        CFRelease(item);
+    } else {
+        item = LSSharedFileListInsertItemURL(list, kLSSharedFileListItemLast, NULL, NULL,
+            (__bridge CFURLRef)url, NULL, NULL);
+        if (item != NULL)
+            CFRelease(item);
+    }
+    CFRelease(list);
 }
 
 - (void)openTileItem:(NSMenuItem *)sender
@@ -1050,6 +1108,119 @@ static void drawBadge(NSString *label, NSRect icon)
 
 @end
 
+/* ---- Minimizing and restoring: a window's image moving to its tile ---- */
+
+/* The minimize effect: the image scaled from one rectangle (screen
+ * coordinates) to another in kEffectTime, easing out, then gone. The
+ * reference platform's "genie" is drawn as "scale" for now. */
+static const NSTimeInterval kEffectTime = 0.3;
+
+@interface DockEffectView : NSView
+@property (nonatomic, strong) NSImage *image;
+@end
+
+@implementation DockEffectView
+- (BOOL)isOpaque
+{
+    return NO;
+}
+
+- (void)drawRect:(NSRect)dirty
+{
+    [[NSColor clearColor] set];
+    NSRectFill(dirty);
+    [self.image drawInRect:[self bounds] fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+}
+@end
+
+@interface DockEffectWindow : NSWindow
++ (void)animateImage:(NSImage *)image from:(NSRect)from to:(NSRect)to then:(nullable void (^)(void))done;
+@end
+
+@implementation DockEffectWindow
++ (void)animateImage:(NSImage *)image from:(NSRect)from to:(NSRect)to then:(void (^)(void))done
+{
+    DockEffectWindow *w = [[DockEffectWindow alloc] initWithContentRect:from styleMask:NSBorderlessWindowMask
+                                                                backing:NSBackingStoreBuffered defer:NO];
+    DockEffectView *view = [[DockEffectView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(from), NSHeight(from))];
+    CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
+
+    view.image = image;
+    [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [w setContentView:view];
+    [w setOpaque:NO];
+    [w setBackgroundColor:[NSColor clearColor]];
+    [w setHasShadow:NO];
+    [w setIgnoresMouseEvents:YES];
+    [w setReleasedWhenClosed:NO];
+    [w setLevel:kCGDockWindowLevelKey + 1];
+    [w orderFront:nil];
+    [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 repeats:YES block:^(NSTimer *timer) {
+        double t = MIN(1.0, (CFAbsoluteTimeGetCurrent() - start) / kEffectTime);
+        double k = 1 - (1 - t) * (1 - t);         /* ease out */
+        NSRect r = NSMakeRect(NSMinX(from) + (NSMinX(to) - NSMinX(from)) * k,
+                              NSMinY(from) + (NSMinY(to) - NSMinY(from)) * k,
+                              MAX(1, NSWidth(from) + (NSWidth(to) - NSWidth(from)) * k),
+                              MAX(1, NSHeight(from) + (NSHeight(to) - NSHeight(from)) * k));
+        [w setFrame:NSIntegralRect(r) display:YES];
+        if (t >= 1) {
+            [timer invalidate];
+            [w orderOut:nil];
+            if (done != nil)
+                done();
+        }
+    }];
+}
+
+- (BOOL)canBecomeKeyWindow
+{
+    return NO;
+}
+@end
+
+/* A server window's image (premultiplied BGRA), or nil. */
+static NSImage *ImageOfServerWindow(uint32_t windowID)
+{
+    uint8_t *pixels = NULL;
+    uint32_t width = 0, height = 0, rowBytes = 0;
+
+    if (SLSCopyWindowImage(windowID, &pixels, &width, &height, &rowBytes) != kSLSErrorSuccess || pixels == NULL)
+        return nil;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(pixels, width, height, 8, rowBytes, space,
+                                                 kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGImageRef cgImage = context != NULL ? CGBitmapContextCreateImage(context) : NULL;
+    NSImage *image = cgImage != NULL ? [[NSImage alloc] initWithCGImage:cgImage size:NSMakeSize(width, height)] : nil;
+
+    if (cgImage != NULL)
+        CGImageRelease(cgImage);
+    if (context != NULL)
+        CGContextRelease(context);
+    CGColorSpaceRelease(space);
+    free(pixels);
+    return image;
+}
+
+/* A minimized window's tile: its image fitted in a square, its app's icon
+ * in the corner, as on the reference platform. */
+static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
+{
+    const CGFloat side = 128;
+
+    return [NSImage imageWithSize:NSMakeSize(side, side) flipped:NO drawingHandler:^BOOL(NSRect rect) {
+        NSSize size = [window size];
+        CGFloat scale = MIN(side / MAX(size.width, 1), side / MAX(size.height, 1)) * 0.92;
+        NSRect fit = NSMakeRect((side - size.width * scale) / 2, (side - size.height * scale) / 2,
+                                size.width * scale, size.height * scale);
+        [window drawInRect:NSIntegralRect(fit) fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+        if (appIcon != nil)
+            [appIcon drawInRect:NSMakeRect(side * 0.6, 0, side * 0.4, side * 0.4) fromRect:NSZeroRect
+                      operation:NSCompositeSourceOver fraction:1.0];
+        (void)rect;
+        return YES;
+    }];
+}
+
 /* ---- The window ---- */
 
 @implementation DockWindow {
@@ -1092,8 +1263,79 @@ static void drawBadge(NSString *label, NSRect icon)
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(modelChanged:)
                                                  name:NSApplicationDidChangeScreenParametersNotification
                                                object:nil];
+    /* Windows minimized into the Dock and restored (AppKit posts the
+       server's notices; SLSRequestWindowNotifications asks for them). */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowMinimized:)
+                                                 name:@"_NSSkyLightWindowMinimizedNotification" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowRestored:)
+                                                 name:@"_NSSkyLightWindowRestoredNotification" object:nil];
+    SLSRequestWindowNotifications(1);
     [self layout];
     return self;
+}
+
+/* A server window's frame in AppKit's screen coordinates. */
+static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
+{
+    CGFloat top = NSMaxY([[[NSScreen screens] objectAtIndex:0] frame]);
+
+    return NSMakeRect(info->x, top - info->y - info->height, info->width, info->height);
+}
+
+- (NSRect)screenRectOfTileAtIndex:(NSUInteger)index
+{
+    NSRect r = [_view convertRect:[_view rectForTileAtIndex:index] toView:nil];
+
+    return [self convertRectToScreen:r];
+}
+
+- (void)windowMinimized:(NSNotification *)note
+{
+    uint32_t windowID = [note.userInfo[@"window"] unsignedIntValue];
+    SLSWindowInfo info;
+
+    if (SLSGetWindowInfo(windowID, &info) != kSLSErrorSuccess)
+        return;
+    NSImage *image = ImageOfServerWindow(windowID);
+    NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:info.ownerPID];
+    NSUInteger index = [_model addMinimizedWindow:windowID owner:info.ownerPID
+                                            image:image != nil ? ThumbnailFor(image, [app icon]) : nil];
+    [self layout];
+    if (image == nil)
+        return;
+    [DockEffectWindow animateImage:image from:ScreenFrameOfServerWindow(&info)
+                                to:[self screenRectOfTileAtIndex:index] then:nil];
+}
+
+- (void)windowRestored:(NSNotification *)note
+{
+    [_model removeMinimizedWindow:[note.userInfo[@"window"] unsignedIntValue]];
+}
+
+/* A click on a minimized window's tile: its image back to its frame, then
+   the server restores it and its app brings it back. */
+- (void)restoreMinimizedTile:(DockTile *)tile
+{
+    SLSWindowInfo info;
+    NSUInteger index = [_model.tiles indexOfObject:tile];
+    uint32_t windowID = tile.windowID;
+
+    if (index == NSNotFound || SLSGetWindowInfo(windowID, &info) != kSLSErrorSuccess) {
+        [_model removeMinimizedWindow:windowID];
+        return;
+    }
+    NSImage *image = ImageOfServerWindow(windowID);
+    NSRect from = [self screenRectOfTileAtIndex:index];
+    DockModel *model = _model;
+
+    [model removeMinimizedWindow:windowID];
+    if (image == nil) {
+        SLSSetWindowMinimized(windowID, 0);
+        return;
+    }
+    [DockEffectWindow animateImage:image from:from to:ScreenFrameOfServerWindow(&info) then:^{
+        SLSSetWindowMinimized(windowID, 0);
+    }];
 }
 
 - (BOOL)canBecomeKeyWindow

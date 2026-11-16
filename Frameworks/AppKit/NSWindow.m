@@ -2725,6 +2725,11 @@ static void sendAppearance(NSView *view,SEL selector) {
     case NSAppKitDefined:
      if([event subtype] == NSWindowMovedEventType)
       [self _skyLightMovedToX:[event data1] y:[event data2]];
+     else if([event subtype] == 0x5752 && _isMiniaturized){
+      /* Restored from its Dock tile (kSLSEventWindowRestored). */
+      [NSApp activateIgnoringOtherApps:YES];
+      [self deminiaturize:nil];
+     }
      break;
 
     default:

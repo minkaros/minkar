@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSInteger, DockTileKind) {
     DockTileKindPersistentApp,   /* kept in the Dock (persistent-apps) */
     DockTileKindRunningApp,      /* running, not kept */
+    DockTileKindMinimizedWindow, /* a window minimized into the Dock */
     DockTileKindTrash,           /* the Trash, always last */
 };
 
@@ -25,6 +26,9 @@ typedef NS_ENUM(NSInteger, DockTileKind) {
 @property (nonatomic, readonly) NSImage *icon;
 /* The running instance, or nil. */
 @property (nonatomic, nullable, strong) NSRunningApplication *application;
+/* A minimized window's tile: the server's window, its owner's pid. */
+@property (nonatomic, readonly) uint32_t windowID;
+@property (nonatomic, readonly) pid_t ownerPID;
 @end
 
 typedef NS_ENUM(NSInteger, DockOrientation) {
@@ -55,6 +59,8 @@ extern NSNotificationName const DockModelDidChangeNotification;
 @property (nonatomic, readonly) NSUInteger firstRunningIndex;
 /* The Trash: the last tile, after a separator of its own. */
 @property (nonatomic, readonly) NSUInteger trashIndex;
+/* The first minimized window's tile, or trashIndex when there is none. */
+@property (nonatomic, readonly) NSUInteger minimizedIndex;
 @property (nonatomic, readonly) DockTile *trashTile;
 /* Whether the Trash holds anything (its icon shows it). */
 @property (nonatomic, readonly) BOOL trashIsFull;
@@ -70,6 +76,11 @@ extern NSNotificationName const DockModelDidChangeNotification;
 - (void)reloadPreferences;
 /* Erases what the Trash holds. */
 - (void)emptyTrash;
+/* A window minimized into the Dock, shown by its image (nil: its owner's
+   icon); the tile's index after the change. */
+- (NSUInteger)addMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(nullable NSImage *)image;
+- (nullable DockTile *)tileForMinimizedWindow:(uint32_t)windowID;
+- (void)removeMinimizedWindow:(uint32_t)windowID;
 /* The badge an app put on its tile (N2), from notificationd; nil if none. */
 - (nullable NSString *)badgeForTile:(DockTile *)tile;
 @end
