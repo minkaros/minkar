@@ -393,12 +393,14 @@ static void write_back_iosurfaces(struct mesa_context *self)
 }
 #endif
 
-/* glFlush and glFinish write the context's IOSurface textures back. */
+/* glFlush and glFinish write the context's IOSurface textures back, and
+   show a single-buffered context's window surface. */
 static void mesa_gl_flush(void)
 {
     mesa.glFlush();
     if (mesa_current != NULL)
         write_back_iosurfaces(mesa_current);
+    cgl_surface_gl_flushed();
 }
 
 static void mesa_gl_finish(void)
@@ -406,6 +408,7 @@ static void mesa_gl_finish(void)
     mesa.glFinish();
     if (mesa_current != NULL)
         write_back_iosurfaces(mesa_current);
+    cgl_surface_gl_flushed();
 }
 
 static CGLError mesa_describe(const CGLDriver *driver, CGLRendererProperty prop,

@@ -108,6 +108,18 @@ struct _CGLContextObject {
     CGLPBufferObj           pbuffer;
     GLenum                  pbufferFace;
     GLint                   pbufferLevel;
+
+    /* Window surface (CGLSurface.c) */
+    GLboolean               surfaceActive;
+    GLsizei                 surfaceWidth;
+    GLsizei                 surfaceHeight;
+    GLsizei                 surfaceDrawWidth;   /* the drawable, the staging buffer's size */
+    GLsizei                 surfaceDrawHeight;
+    void                   *surfaceStaging;     /* the driver reads frames here */
+    void                   *surfaces[3];        /* IOSurfaceRef, in turn */
+    int                     surfaceNext;
+    void                  (*surfacePresenter)(void *, CGLContextObj, void *);
+    void                   *surfacePresenterInfo;
 };
 
 /* Driver registry (CGLDriverRegistry.c). */
@@ -122,6 +134,13 @@ CGL_HIDDEN CGLGLProc cgl_gl_proc(int index);
 /* Built-in drivers. */
 CGL_HIDDEN extern const CGLDriver cgl_null_driver;
 CGL_HIDDEN extern const CGLDriver cgl_mesa_driver;
+
+/* Window surfaces (CGLSurface.c); the context locked. */
+CGL_HIDDEN void cgl_surface_update(CGLContextObj ctx);
+CGL_HIDDEN CGLError cgl_surface_flush(CGLContextObj ctx);
+CGL_HIDDEN void cgl_surface_free(CGLContextObj ctx);
+CGL_HIDDEN void cgl_surface_gl_flushed(void);
+CGL_HIDDEN GLint cgl_param_slot(GLint pname);
 CGL_HIDDEN int cgl_mesa_available(void);
 
 #endif /* _CGL_INTERNAL_H_ */

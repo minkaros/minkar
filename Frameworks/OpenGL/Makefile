@@ -15,6 +15,7 @@ SRCS = \
 	CGLNullDriver.c \
 	CGLPBuffer.c \
 	CGLPixelFormat.c \
+	CGLSurface.c \
 	GLDispatch.gen.c
 
 HEADERS = \

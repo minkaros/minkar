@@ -95,6 +95,11 @@ static GLint param_slot(GLint pname)
     return -1;
 }
 
+GLint cgl_param_slot(GLint pname)
+{
+    return param_slot(pname);
+}
+
 /* ---- Enable table ------------------------------------------------------- */
 
 static const struct {
@@ -305,6 +310,7 @@ void CGLReleaseContext(CGLContextObj ctx)
         current_set(NULL);
     }
 
+    cgl_surface_free(ctx);
     ctx->driver->destroyContext(ctx->driverContext);
     free(ctx->glProcs);
     CGLReleasePBuffer(ctx->pbuffer);
@@ -413,9 +419,14 @@ static CGLError set_parameter(CGLContextObj ctx, GLint pname, const GLint *param
     if (ctx->driver->setParameter != NULL)
         err = ctx->driver->setParameter(ctx->driverContext, pname, params,
                                         param_info[slot].count);
-    if (err == kCGLNoError)
+    if (err == kCGLNoError) {
         memcpy(ctx->params[slot], params,
                sizeof(GLint) * param_info[slot].count);
+        /* The window surface follows its window, frame and size. */
+        if (pname == kCGLCPSurfaceWindowNumber || pname == kCGLCPSurfaceFrame ||
+            pname == kCGLCPSurfaceBackingSize)
+            cgl_surface_update(ctx);
+    }
     pthread_mutex_unlock(&ctx->lock);
     return err;
 }
@@ -512,6 +523,8 @@ static CGLError set_enable(CGLContextObj ctx, CGLContextEnable pname,
             ctx->enables |= 1u << slot;
         else
             ctx->enables &= ~(1u << slot);
+        if (pname == kCGLCESurfaceBackingSize)
+            cgl_surface_update(ctx);
     }
     pthread_mutex_unlock(&ctx->lock);
     return err;
@@ -582,6 +595,8 @@ CGLError CGLUpdateContext(CGLContextObj ctx)
     pthread_mutex_lock(&ctx->lock);
     if (ctx->driver->updateContext != NULL)
         err = ctx->driver->updateContext(ctx->driverContext);
+    if (err == kCGLNoError)
+        cgl_surface_update(ctx);
     pthread_mutex_unlock(&ctx->lock);
     return err;
 }
@@ -620,6 +635,7 @@ CGLError CGLSetOffScreen(CGLContextObj ctx, GLsizei width, GLsizei height,
                                         rowbytes, baseaddr);
     if (err == kCGLNoError) {
         detach_pbuffer(ctx);
+        cgl_surface_free(ctx);      /* the driver draws into the app's memory now */
         ctx->hasOffScreen = 1;
         ctx->offWidth = width;
         ctx->offHeight = height;
@@ -699,6 +715,7 @@ CGLError CGLSetPBuffer(CGLContextObj ctx, CGLPBufferObj pbuffer, GLenum face,
     if (err == kCGLNoError) {
         CGLRetainPBuffer(pbuffer);
         detach_pbuffer(ctx);
+        cgl_surface_free(ctx);
         ctx->pbuffer = pbuffer;
         ctx->pbufferFace = face;
         ctx->pbufferLevel = level;
@@ -752,6 +769,7 @@ CGLError CGLClearDrawable(CGLContextObj ctx)
         ctx->hasOffScreen = 0;
         ctx->params[param_slot(kCGLCPSurfaceWindowNumber)][0] = 0;
         ctx->params[param_slot(kCGLCPWindowNumber)][0] = 0;
+        cgl_surface_free(ctx);
     }
     pthread_mutex_unlock(&ctx->lock);
     return err;
@@ -766,6 +784,8 @@ CGLError CGLFlushDrawable(CGLContextObj ctx)
     pthread_mutex_lock(&ctx->lock);
     if (ctx->driver->flushDrawable != NULL)
         err = ctx->driver->flushDrawable(ctx->driverContext);
+    if (err == kCGLNoError)
+        err = cgl_surface_flush(ctx);
     pthread_mutex_unlock(&ctx->lock);
     return err;
 }

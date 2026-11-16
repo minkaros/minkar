@@ -35,6 +35,7 @@
 #define _OPENGL_CGLPRIVATE_H_
 
 #include <OpenGL/CGLTypes.h>
+#include <OpenGL/CGLIOSurface.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +60,18 @@ CGL_EXPORT CGLError CGLSurfaceResize(CGLContextObj ctx, GLint width, GLint heigh
 
 /* Ask the renderer to install its default compositing shaders. */
 CGL_EXPORT CGLError CGLUseShaders(CGLContextObj ctx);
+
+/*
+ * A context's window surface: with a window number (kCGLCPSurfaceWindowNumber)
+ * and a size (kCGLCPSurfaceBackingSize), the context draws into a surface of
+ * that size, and each CGLFlushDrawable puts the frame in an IOSurface
+ * (32-bit BGRA, rows from the top) handed to the presenter, which shows it
+ * in the window (AppKit's NSOpenGLContext). The presenter may be called on
+ * any thread, with the context locked; the surface stays valid until the
+ * presenter is called twice more.
+ */
+typedef void (*CGLSurfacePresenter)(void *info, CGLContextObj ctx, IOSurfaceRef surface);
+CGL_EXPORT void _CGLSetSurfacePresenter(CGLContextObj ctx, CGLSurfacePresenter presenter, void *info);
 
 #ifdef __cplusplus
 }
