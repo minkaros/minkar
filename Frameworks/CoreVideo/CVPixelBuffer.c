@@ -201,8 +201,12 @@ CVReturn CVPixelBufferCreate(CFAllocatorRef allocator, size_t width, size_t heig
         return kCVReturnAllocationFailed;
 
     if (wholeBytes && attributes != NULL && CFDictionaryContainsKey(attributes, kCVPixelBufferIOSurfacePropertiesKey)) {
-        CFMutableDictionaryRef props = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks,
-            &kCFTypeDictionaryValueCallBacks);
+        /* The caller's surface properties first (kIOSurfaceIsGlobal, a
+         * cache mode...), then the geometry, which is the buffer's. */
+        CFTypeRef asked = CFDictionaryGetValue(attributes, kCVPixelBufferIOSurfacePropertiesKey);
+        CFMutableDictionaryRef props = asked != NULL && CFGetTypeID(asked) == CFDictionaryGetTypeID()
+            ? CFDictionaryCreateMutableCopy(NULL, 0, (CFDictionaryRef)asked)
+            : CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
         setNumber(props, kIOSurfaceWidth, (long long)width);
         setNumber(props, kIOSurfaceHeight, (long long)height);
         setNumber(props, kIOSurfacePixelFormat, pixelFormatType);

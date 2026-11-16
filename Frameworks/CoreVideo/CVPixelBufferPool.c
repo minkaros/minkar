@@ -205,9 +205,14 @@ CVReturn CVPixelBufferPoolCreatePixelBufferWithAuxAttributes(CFAllocatorRef allo
     Slot *slot = NULL;
     CFIndex out_ = 0;
     for (CFIndex i = 0; i < p->count; i++) {
+        IOSurfaceRef surface;
         if (p->slots[i].out)
             out_++;
-        else if (slot == NULL)
+        /* A buffer given back but whose IOSurface another process still
+           shows or reads (its use count) is not written over yet: a
+           video decoder's frames go on to a compositor. */
+        else if (slot == NULL && ((surface = CVPixelBufferGetIOSurface(p->slots[i].buffer)) == NULL ||
+                                  !IOSurfaceIsInUse(surface)))
             slot = &p->slots[i];
     }
     if (slot == NULL) {
