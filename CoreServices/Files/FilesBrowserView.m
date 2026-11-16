@@ -10,6 +10,7 @@
  */
 
 #import "FilesBrowserView.h"
+#include <sys/stat.h>
 
 static const CGFloat kIconCellWidth = 104, kIconCellHeight = 96, kIconSize = 56;
 static const CGFloat kRowHeight = 22, kHeaderHeight = 24;
@@ -22,13 +23,26 @@ static NSColor *selectionColor(void)
 @implementation FilesBrowserView {
     NSInteger _selected;
     NSDateFormatter *_dateFormatter;
+    NSPoint _downPoint;
+    NSInteger _pressed;         /* the item a drag would take, or -1 */
+    NSInteger _dropTarget;      /* the folder item a drop would go into */
+}
+
+/* The volume a path is on, to tell a move from a copy. */
+static dev_t deviceOf(NSURL *url)
+{
+    struct stat st;
+    return stat([[url path] fileSystemRepresentation], &st) == 0 ? st.st_dev : (dev_t)-1;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
 {
     if ((self = [super initWithFrame:frame]) != nil) {
         _selected = -1;
+        _pressed = -1;
+        _dropTarget = -1;
         _items = @[];
+        [self registerForDraggedTypes:@[ NSFilenamesPboardType, NSPasteboardTypeFileURL ]];
         _dateFormatter = [[NSDateFormatter alloc] init];
         [_dateFormatter setLocale:FilesDisplayLocale()];
         [_dateFormatter setDateFormat:NSLocalizedString(@"d MMM yyyy 'at' HH:mm", @"Date Modified column")];
@@ -185,7 +199,10 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
                 continue;
             FilesItem *item = _items[i];
             BOOL isSelected = (NSInteger)i == _selected;
-            if (isSelected) {
+            if ((NSInteger)i == _dropTarget && !isSelected) {
+                [[selectionColor() colorWithAlphaComponent:0.35] set];
+                NSRectFill(row);
+            } else if (isSelected) {
                 [selectionColor() set];
                 NSRectFill(row);
             } else if (i % 2) {
@@ -212,6 +229,10 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         FilesItem *item = _items[i];
         BOOL isSelected = (NSInteger)i == _selected;
         NSRect icon = NSMakeRect(NSMidX(cell) - kIconSize / 2, NSMinY(cell) + 6, kIconSize, kIconSize);
+        if ((NSInteger)i == _dropTarget) {
+            [[selectionColor() colorWithAlphaComponent:0.35] setFill];
+            [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(icon, -6, -6) xRadius:8 yRadius:8] fill];
+        }
         if (isSelected) {
             [[NSColor colorWithCalibratedWhite:0.85 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(icon, -4, -4) xRadius:6 yRadius:6] fill];
@@ -249,8 +270,124 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 
     [[self window] makeFirstResponder:self];
     [self select:index];
+    _downPoint = [self convertPoint:[event locationInWindow] fromView:nil];
+    _pressed = [event clickCount] == 1 ? index : -1;
     if ([event clickCount] == 2 && index >= 0)
         [self.delegate browserView:self openItem:_items[(NSUInteger)index]];
+}
+
+/* -- Drag and drop (K2) -- */
+
+/* An item dragged a few points: its URL on the drag pasteboard, its icon
+   under the pointer. */
+- (void)mouseDragged:(NSEvent *)event
+{
+    NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
+
+    if (_pressed < 0 || (NSUInteger)_pressed >= [_items count] || hypot(p.x - _downPoint.x, p.y - _downPoint.y) < 4)
+        return;
+    FilesItem *item = _items[(NSUInteger)_pressed];
+    _pressed = -1;
+    NSPasteboard *pb = [NSPasteboard pasteboardWithName:NSDragPboard];
+    [pb clearContents];
+    [pb writeObjects:@[ item.URL ]];
+    [pb setPropertyList:@[ [item.URL path] ] forType:NSFilenamesPboardType];
+    NSImage *icon = [item.icon copy];
+    [icon setSize:NSMakeSize(kIconSize, kIconSize)];
+    NSPoint at = NSMakePoint(p.x - kIconSize / 2, p.y + kIconSize / 2);   /* flipped: the image's bottom left */
+    [self dragImage:icon at:at offset:NSZeroSize event:event pasteboard:pb source:self slideBack:YES];
+}
+
+- (void)mouseUp:(NSEvent *)event
+{
+    _pressed = -1;
+}
+
+- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)local
+{
+    return NSDragOperationCopy | NSDragOperationMove | NSDragOperationGeneric;
+}
+
+static NSArray<NSURL *> *draggedURLs(id<NSDraggingInfo> info)
+{
+    NSMutableArray *urls = [NSMutableArray array];
+    id paths = [[info draggingPasteboard] propertyListForType:NSFilenamesPboardType];
+    if ([paths isKindOfClass:[NSArray class]])
+        for (id p in paths)
+            if ([p isKindOfClass:[NSString class]])
+                [urls addObject:[NSURL fileURLWithPath:p]];
+    return urls;
+}
+
+/* The folder a drop at the pointer goes into: a folder item under it (not
+   one being dragged), else the folder shown. */
+- (NSURL *)dropFolderFor:(id<NSDraggingInfo>)info target:(NSInteger *)target
+{
+    NSPoint p = [self convertPoint:[info draggingLocation] fromView:nil];
+    NSInteger index = [self indexAtPoint:p];
+    NSArray<NSURL *> *urls = draggedURLs(info);
+
+    *target = -1;
+    if (index >= 0 && (NSUInteger)index < [_items count]) {
+        FilesItem *item = _items[(NSUInteger)index];
+        if (item.isFolder && ![urls containsObject:item.URL]) {
+            *target = index;
+            return item.URL;
+        }
+    }
+    return [self.delegate folderOfBrowserView:self];
+}
+
+/* Option copies; otherwise a move on the same volume, a copy across. A
+   drop where the items already are does nothing. */
+- (NSDragOperation)operationFor:(id<NSDraggingInfo>)info
+{
+    NSInteger target;
+    NSURL *folder = [self dropFolderFor:info target:&target];
+    NSArray<NSURL *> *urls = draggedURLs(info);
+
+    if (target != _dropTarget) {
+        _dropTarget = target;
+        [self setNeedsDisplay:YES];
+    }
+    if (folder == nil || [urls count] == 0)
+        return NSDragOperationNone;
+    if ([NSEvent modifierFlags] & NSAlternateKeyMask)
+        return NSDragOperationCopy;
+    if ([[[urls[0] URLByDeletingLastPathComponent] path] isEqual:[folder path]])
+        return NSDragOperationNone;
+    return deviceOf(urls[0]) == deviceOf(folder) ? NSDragOperationMove : NSDragOperationCopy;
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)info
+{
+    return [self operationFor:info];
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)info
+{
+    return [self operationFor:info];
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)info
+{
+    _dropTarget = -1;
+    [self setNeedsDisplay:YES];
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)info
+{
+    NSDragOperation operation = [self operationFor:info];
+    NSInteger target;
+    NSURL *folder = [self dropFolderFor:info target:&target];
+
+    _dropTarget = -1;
+    [self setNeedsDisplay:YES];
+    if (operation == NSDragOperationNone || folder == nil)
+        return NO;
+    [self.delegate browserView:self dropURLs:draggedURLs(info) intoFolder:folder
+                       copying:operation == NSDragOperationCopy];
+    return YES;
 }
 
 - (void)keyDown:(NSEvent *)event

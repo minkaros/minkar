@@ -20,6 +20,11 @@ typedef NS_ENUM(NSInteger, FilesViewMode) {
 /* Double click, Command-Down or Command-O on an item. */
 - (void)browserView:(FilesBrowserView *)view openItem:(FilesItem *)item;
 - (void)browserViewSelectionChanged:(FilesBrowserView *)view;
+/* Drag and drop (K2): the folder the view shows, and items dropped into
+   a folder (copying, or moving). */
+- (NSURL *)folderOfBrowserView:(FilesBrowserView *)view;
+- (void)browserView:(FilesBrowserView *)view dropURLs:(NSArray<NSURL *> *)urls
+           intoFolder:(NSURL *)folder copying:(BOOL)copying;
 @end
 
 /* A folder's items as icons in a grid or as a list with columns; the

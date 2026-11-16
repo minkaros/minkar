@@ -569,6 +569,25 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 {
 }
 
+- (NSURL *)folderOfBrowserView:(FilesBrowserView *)view
+{
+    return _folder;
+}
+
+- (void)browserView:(FilesBrowserView *)view dropURLs:(NSArray<NSURL *> *)urls
+           intoFolder:(NSURL *)folder copying:(BOOL)copying
+{
+    FilesOperations *ops = [FilesOperations shared];
+    void (^done)(NSArray<NSURL *> *) = ^(NSArray<NSURL *> *made) { [self selectFirstOf:made]; };
+
+    os_log_info(OS_LOG_DEFAULT, "drop %{public}s %lu into %{public}s", copying ? "copy" : "move",
+                (unsigned long)[urls count], [[folder path] fileSystemRepresentation]);
+    if (copying)
+        [ops copyItems:urls toFolder:folder done:done];
+    else
+        [ops moveItems:urls toFolder:folder done:done];
+}
+
 - (void)columnView:(FilesColumnView *)view openItem:(FilesItem *)item
 {
     [self openItem:item];

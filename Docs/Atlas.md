@@ -621,8 +621,11 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   applications for the item, its default first. The Trash keeps where an
   item was on the item (`org.minkar.trash.put-back`, set by
   `NSFileManager`'s `trashItemAtURL:`, so any app's trashed items can be put
-  back). Local test `files-ops`. Missing: drag and drop, renaming in place,
-  several items selected.
+  back). Items dragged between Files' windows, or onto a folder, move on
+  the same volume and copy across or with Option, and can be undone.
+  Local test `files-ops`. Missing: drag and drop to and from other apps and
+  the Dock (a drag between processes through the window server), renaming
+  in place, several items selected.
 - [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
   DMG step 3).

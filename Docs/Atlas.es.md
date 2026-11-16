@@ -657,8 +657,12 @@ evidencia.
   predeterminada primero. La papelera guarda dónde estaba cada ítem en el
   propio ítem (`org.minkar.trash.put-back`, que pone `trashItemAtURL:` de
   `NSFileManager`, así que se puede devolver lo que tire cualquier app).
-  Prueba local `files-ops`. Faltan arrastrar y soltar, renombrar en el
-  sitio y seleccionar varios ítems.
+  Los ítems arrastrados entre ventanas de Files, o sobre una carpeta, se
+  trasladan en el mismo volumen y se copian entre volúmenes o con Opción, y
+  se pueden deshacer. Prueba local `files-ops`. Faltan arrastrar y soltar
+  desde y hacia otras apps y el Dock (un arrastre entre procesos a través
+  del servidor de ventanas), renombrar en el sitio y seleccionar varios
+  ítems.
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Files; arranque y rearranque por loginwindow;
   doble clic en un DMG (Fase 6, paso 3 de DMG).

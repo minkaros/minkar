@@ -446,9 +446,11 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
     return pointerPos;
 }
 
+/* The modifier keys held now, from the window server's input state
+   (CGEventFlags and NSEventModifierFlags share their bits). */
 -(NSUInteger)currentModifierFlags {
-   NSUnimplementedMethod();
-   return 0;
+   return (NSUInteger)CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) &
+      NSDeviceIndependentModifierFlagsMask;
 }
 
 @end
