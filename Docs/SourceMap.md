@@ -125,6 +125,3 @@ filled in from the top-level `Makefile`.
   apps' imports, the coverage measured against them), `progress` (the
   progress pages), `drm-import` (register tables from amdgpu),
   `mktrustcache.py`, symbolication and crash and panic reports.
-
-`SysApps` holds older apps (an installer, a preferences app) that no stage
-builds.
