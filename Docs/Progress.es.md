@@ -16,7 +16,7 @@ _Actualizado el 2026-11-16, devel `e01c5dcddf`_
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Atlas.es.md#3-menús) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
 | [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟩🟨🟨 | 3 / 5 | D3, D4 | — |
-| [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩🟨⬜⬜ | 1 / 5 | K0, K2 | K3 |
+| [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩🟩⬜⬜ | 2 / 5 | K0 | K3 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](Atlas.es.md#5-aplicaciones) | 🟩🟩🟨🟨 | 2 / 4 | A2 Text Editor, A3–A10 · DMG | — |
 | [WebKit](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟨🟦🟩🟩🟩🟨 | 3 / 6 | W1 JSC | — |

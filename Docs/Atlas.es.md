@@ -57,7 +57,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | --- | --- | --- | --- | --- |
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
-| Files | 4 | K0–K4 | K1 (K0 y K2 en parte) | K2, K0 |
+| Files | 4 | K0–K4 | K1, K2 (K0 en parte) | K3, K0 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 | Notificaciones | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -646,7 +646,7 @@ evidencia.
   Dock. Es la parte «Files navega» del gate M5. *Hecho (4 nov 2026):*
   `896749b380`, `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`;
   pruebas locales `argos` (16) y `launchservices` (24).
-- [ ] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
+- [x] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
   papelera con «Devolver»; «Abrir con». *Parcial (16 nov 2026):* Copiar y
   Pegar ítem (y Trasladar ítem aquí, con Opción), Duplicar, Renombrar, Nueva
@@ -665,8 +665,11 @@ evidencia.
   arrastrado va en el portapapeles de arrastre compartido): los archivos
   soltados en la papelera del Dock van a la papelera, en el tile de una app
   se abren con ella, y las aplicaciones soltadas en su parte fija se quedan
-  en el Dock. Pruebas locales `files-ops` y `drag-apps`. Faltan renombrar
-  en el sitio y seleccionar varios ítems.
+  en el Dock. *Hecho (16 nov 2026):* varios ítems seleccionados (Comando-clic,
+  Mayúsculas-clic, Seleccionar todo) para todas las operaciones y
+  arrastres; Return renombra en el sitio con la raíz del nombre
+  seleccionada, y Escape cancela. Pruebas locales `files-ops` y
+  `drag-apps`.
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Files; arranque y rearranque por loginwindow;
   doble clic en un DMG (Fase 6, paso 3 de DMG).

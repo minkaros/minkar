@@ -23,6 +23,8 @@ typedef NS_ENUM(NSInteger, FilesViewMode) {
 /* Drag and drop (K2): the folder the view shows, and items dropped into
    a folder (copying, or moving). */
 - (NSURL *)folderOfBrowserView:(FilesBrowserView *)view;
+/* A name typed over an item's (Return, or File > Rename). */
+- (void)browserView:(FilesBrowserView *)view renameItem:(FilesItem *)item to:(NSString *)name;
 - (void)browserView:(FilesBrowserView *)view dropURLs:(NSArray<NSURL *> *)urls
            intoFolder:(NSURL *)folder copying:(BOOL)copying;
 @end
@@ -33,6 +35,12 @@ typedef NS_ENUM(NSInteger, FilesViewMode) {
 @property (nonatomic, copy) NSArray<FilesItem *> *items;
 @property (nonatomic) FilesViewMode mode;
 @property (nonatomic, readonly, nullable) FilesItem *selectedItem;
+/* Every item selected (Command-click adds, Shift-click a range), in order. */
+@property (nonatomic, readonly) NSArray<FilesItem *> *selectedItems;
+- (void)selectItemsNamed:(NSArray<NSString *> *)names;
+- (IBAction)selectAll:(nullable id)sender;
+/* The selected item's name edited in place; NO when not one item is selected. */
+- (BOOL)beginRenaming;
 @property (nonatomic, weak, nullable) id<FilesBrowserViewDelegate> delegate;
 - (void)selectItemNamed:(NSString *)name;
 /* Sized again to its scroll view's width and its items. */

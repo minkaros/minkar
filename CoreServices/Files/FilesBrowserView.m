@@ -20,12 +20,19 @@ static NSColor *selectionColor(void)
     return [NSColor colorWithCalibratedRed:0.25 green:0.50 blue:0.85 alpha:1];
 }
 
+@interface FilesBrowserView () <NSTextFieldDelegate>
+@end
+
 @implementation FilesBrowserView {
-    NSInteger _selected;
+    NSInteger _selected;        /* the item clicked last: the anchor of a range */
+    NSMutableIndexSet *_selection;
     NSDateFormatter *_dateFormatter;
     NSPoint _downPoint;
     NSInteger _pressed;         /* the item a drag would take, or -1 */
     NSInteger _dropTarget;      /* the folder item a drop would go into */
+    NSTextField *_renameField;  /* the name being edited in place */
+    FilesItem *_renaming;
+    BOOL _renameCancelled;
 }
 
 /* The volume a path is on, to tell a move from a copy. */
@@ -39,6 +46,7 @@ static dev_t deviceOf(NSURL *url)
 {
     if ((self = [super initWithFrame:frame]) != nil) {
         _selected = -1;
+        _selection = [NSMutableIndexSet indexSet];
         _pressed = -1;
         _dropTarget = -1;
         _items = @[];
@@ -69,6 +77,7 @@ static dev_t deviceOf(NSURL *url)
 {
     _items = [items copy];
     _selected = -1;
+    [_selection removeAllIndexes];
     [self relayout];
     [self.delegate browserViewSelectionChanged:self];
 }
@@ -81,7 +90,42 @@ static dev_t deviceOf(NSURL *url)
 
 - (FilesItem *)selectedItem
 {
-    return _selected >= 0 && (NSUInteger)_selected < [_items count] ? _items[(NSUInteger)_selected] : nil;
+    if ([_selection count] == 0)
+        return nil;
+    if (_selected >= 0 && [_selection containsIndex:(NSUInteger)_selected])
+        return _items[(NSUInteger)_selected];
+    return _items[[_selection firstIndex]];
+}
+
+- (NSArray<FilesItem *> *)selectedItems
+{
+    NSMutableArray *items = [NSMutableArray array];
+    [_selection enumerateIndexesUsingBlock:^(NSUInteger i, BOOL *stop) {
+        if (i < [self->_items count])
+            [items addObject:self->_items[i]];
+    }];
+    return items;
+}
+
+- (void)selectItemsNamed:(NSArray<NSString *> *)names
+{
+    [_selection removeAllIndexes];
+    for (NSUInteger i = 0; i < [_items count]; i++)
+        if ([names containsObject:[_items[i].URL lastPathComponent]]) {
+            [_selection addIndex:i];
+            _selected = (NSInteger)i;
+        }
+    [self setNeedsDisplay:YES];
+    [self.delegate browserViewSelectionChanged:self];
+}
+
+- (IBAction)selectAll:(id)sender
+{
+    [_selection removeAllIndexes];
+    if ([_items count] > 0)
+        [_selection addIndexesInRange:NSMakeRange(0, [_items count])];
+    [self setNeedsDisplay:YES];
+    [self.delegate browserViewSelectionChanged:self];
 }
 
 - (void)selectItemNamed:(NSString *)name
@@ -198,7 +242,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
             if (!NSIntersectsRect(row, dirty))
                 continue;
             FilesItem *item = _items[i];
-            BOOL isSelected = (NSInteger)i == _selected;
+            BOOL isSelected = [_selection containsIndex:i];
             if ((NSInteger)i == _dropTarget && !isSelected) {
                 [[selectionColor() colorWithAlphaComponent:0.35] set];
                 NSRectFill(row);
@@ -227,7 +271,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         if (!NSIntersectsRect(cell, dirty))
             continue;
         FilesItem *item = _items[i];
-        BOOL isSelected = (NSInteger)i == _selected;
+        BOOL isSelected = [_selection containsIndex:i];
         NSRect icon = NSMakeRect(NSMidX(cell) - kIconSize / 2, NSMinY(cell) + 6, kIconSize, kIconSize);
         if ((NSInteger)i == _dropTarget) {
             [[selectionColor() colorWithAlphaComponent:0.35] setFill];
@@ -255,9 +299,13 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 
 - (void)select:(NSInteger)index
 {
-    if (index == _selected)
+    if (index == _selected && [_selection count] == (index >= 0 ? 1u : 0u) &&
+        (index < 0 || [_selection containsIndex:(NSUInteger)index]))
         return;
     _selected = index;
+    [_selection removeAllIndexes];
+    if (index >= 0)
+        [_selection addIndex:(NSUInteger)index];
     if (index >= 0)
         [self scrollRectToVisible:[self rectForIndex:(NSUInteger)index]];
     [self setNeedsDisplay:YES];
@@ -269,11 +317,104 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
     NSInteger index = [self indexAtPoint:[self convertPoint:[event locationInWindow] fromView:nil]];
 
     [[self window] makeFirstResponder:self];
-    [self select:index];
+    NSUInteger modifiers = [event modifierFlags];
+    if ((modifiers & NSCommandKeyMask) && index >= 0) {
+        /* Command: this item in or out of the selection. */
+        if ([_selection containsIndex:(NSUInteger)index])
+            [_selection removeIndex:(NSUInteger)index];
+        else
+            [_selection addIndex:(NSUInteger)index];
+        _selected = index;
+        [self setNeedsDisplay:YES];
+        [self.delegate browserViewSelectionChanged:self];
+    } else if ((modifiers & NSShiftKeyMask) && index >= 0 && _selected >= 0) {
+        /* Shift: from the last item clicked to this one. */
+        NSUInteger a = (NSUInteger)MIN(_selected, index), b = (NSUInteger)MAX(_selected, index);
+        [_selection addIndexesInRange:NSMakeRange(a, b - a + 1)];
+        [self setNeedsDisplay:YES];
+        [self.delegate browserViewSelectionChanged:self];
+    } else if (index < 0 || ![_selection containsIndex:(NSUInteger)index])
+        [self select:index];    /* a click on a selected item keeps the others, to drag them */
+    else
+        _selected = index;
     _downPoint = [self convertPoint:[event locationInWindow] fromView:nil];
     _pressed = [event clickCount] == 1 ? index : -1;
     if ([event clickCount] == 2 && index >= 0)
         [self.delegate browserView:self openItem:_items[(NSUInteger)index]];
+}
+
+/* -- Renaming in place (K2) -- */
+
+/* Where an item's name is drawn: under its icon, or the list's Name
+   column. */
+- (NSRect)nameRectForIndex:(NSUInteger)i
+{
+    NSRect cell = [self rectForIndex:i];
+    if (_mode == FilesViewModeList) {
+        CGFloat name, date, size, kind;
+        [self columnsName:&name date:&date size:&size kind:&kind];
+        return NSMakeRect(name - 3, NSMinY(cell), date - name - 4, kRowHeight);
+    }
+    return NSMakeRect(NSMinX(cell) + 2, NSMinY(cell) + 6 + kIconSize + 4, kIconCellWidth - 4, 20);
+}
+
+- (BOOL)beginRenaming
+{
+    if ([_selection count] != 1 || _renameField != nil)
+        return NO;
+    NSUInteger i = [_selection firstIndex];
+    _renaming = _items[i];
+    _renameCancelled = NO;
+    _renameField = [[NSTextField alloc] initWithFrame:[self nameRectForIndex:i]];
+    [_renameField setFont:[NSFont systemFontOfSize:12]];
+    [_renameField setAlignment:_mode == FilesViewModeIcons ? NSCenterTextAlignment : NSLeftTextAlignment];
+    [_renameField setStringValue:_renaming.name];
+    [_renameField setDelegate:self];
+    [self addSubview:_renameField];
+    [[self window] makeFirstResponder:_renameField];
+    /* The name without its extension selected, as on the reference
+       platform. */
+    NSString *stem = [_renaming.name stringByDeletingPathExtension];
+    NSText *editor = [_renameField currentEditor];
+    if (!_renaming.isFolder && [stem length] > 0 && [stem length] < [_renaming.name length])
+        [editor setSelectedRange:NSMakeRange(0, [stem length])];
+    return YES;
+}
+
+- (void)endRenaming
+{
+    NSTextField *field = _renameField;
+    FilesItem *item = _renaming;
+
+    if (field == nil)
+        return;
+    _renameField = nil;
+    _renaming = nil;
+    NSString *name = [field stringValue];
+    [field removeFromSuperview];
+    [[self window] makeFirstResponder:self];
+    [self setNeedsDisplay:YES];
+    if (!_renameCancelled && [name length] > 0 && ![name isEqualToString:item.name])
+        [self.delegate browserView:self renameItem:item to:name];
+}
+
+/* Escape cancels (the key bindings call it cancelOperation: or
+   complete:). */
+- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)selector
+{
+    if (control == _renameField && (selector == @selector(cancelOperation:) || selector == @selector(complete:))) {
+        _renameCancelled = YES;
+        [self endRenaming];
+        return YES;
+    }
+    return NO;
+}
+
+/* Return, Tab or a click elsewhere: the new name taken. */
+- (void)controlTextDidEndEditing:(NSNotification *)note
+{
+    if ([note object] == _renameField)
+        [self endRenaming];
 }
 
 /* -- Drag and drop (K2) -- */
@@ -288,10 +429,15 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         return;
     FilesItem *item = _items[(NSUInteger)_pressed];
     _pressed = -1;
+    /* The whole selection goes (the pressed item is in it). */
+    NSArray<FilesItem *> *dragged = [self selectedItems];
+    if (![dragged containsObject:item])
+        dragged = @[ item ];
+    NSArray *urls = [dragged valueForKey:@"URL"];
     NSPasteboard *pb = [NSPasteboard pasteboardWithName:NSDragPboard];
     [pb clearContents];
-    [pb writeObjects:@[ item.URL ]];
-    [pb setPropertyList:@[ [item.URL path] ] forType:NSFilenamesPboardType];
+    [pb writeObjects:urls];
+    [pb setPropertyList:[urls valueForKey:@"path"] forType:NSFilenamesPboardType];
     NSImage *icon = [item.icon copy];
     [icon setSize:NSMakeSize(kIconSize, kIconSize)];
     NSPoint at = NSMakePoint(p.x - kIconSize / 2, p.y + kIconSize / 2);   /* flipped: the image's bottom left */
@@ -300,6 +446,10 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 
 - (void)mouseUp:(NSEvent *)event
 {
+    /* A plain click (no drag) on an item of a larger selection: that
+       item alone. */
+    if (_pressed >= 0 && !([event modifierFlags] & (NSCommandKeyMask | NSShiftKeyMask)) && [_selection count] > 1)
+        [self select:_pressed];
     _pressed = -1;
 }
 
@@ -400,6 +550,13 @@ static NSArray<NSURL *> *draggedURLs(id<NSDraggingInfo> info)
     if (count == 0)
         return;
     switch (c) {
+    case '\r':
+    case 3:     /* Enter */
+        /* Return renames, as on the reference platform (Command-O and
+           Command-Down open). */
+        if (![self beginRenaming])
+            NSBeep();
+        return;
     case NSDownArrowFunctionKey:
         if ([event modifierFlags] & NSCommandKeyMask) {
             if (self.selectedItem != nil)

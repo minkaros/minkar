@@ -269,7 +269,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 - (void)folderChanged
 {
-    NSString *selected = [_browser.selectedItem.URL lastPathComponent];
+    NSArray<NSString *> *selected = [_browser.selectedItems valueForKeyPath:@"URL.lastPathComponent"];
     NSArray *items = [FilesItem itemsInFolder:_folder error:NULL];
 
     if (_browser.mode == FilesViewModeColumns) {
@@ -290,8 +290,8 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     }
     os_log_info(OS_LOG_DEFAULT, "reload %{public}s", [[_folder path] fileSystemRepresentation]);
     _browser.items = items;
-    if (selected != nil)
-        [_browser selectItemNamed:selected];
+    if ([selected count] > 0)
+        [_browser selectItemsNamed:selected];
     [self updateStatus];
 }
 
@@ -412,6 +412,8 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 - (NSArray<NSURL *> *)selectedURLs
 {
+    if (_browser.mode != FilesViewModeColumns)
+        return [_browser.selectedItems valueForKey:@"URL"];
     FilesItem *item = self.selectedItem;
     return item != nil ? @[ item.URL ] : @[];
 }
@@ -423,16 +425,27 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         [self selectItemNamed:name];
 }
 
+/* What an operation made, selected when it is in the folder shown. */
 - (void)selectFirstOf:(NSArray<NSURL *> *)urls
 {
-    if ([urls count] > 0 && [[[urls[0] URLByDeletingLastPathComponent] path] isEqual:[_folder path]])
-        [self reloadSelecting:[urls[0] lastPathComponent]];
-    else
+    if ([urls count] > 0 && [[[urls[0] URLByDeletingLastPathComponent] path] isEqual:[_folder path]]) {
+        [self folderChanged];
+        if (_browser.mode == FilesViewModeColumns)
+            [self selectItemNamed:[urls[0] lastPathComponent]];
+        else
+            [_browser selectItemsNamed:[urls valueForKey:@"lastPathComponent"]];
+    } else
         [self reloadSelecting:nil];
 }
 
 /* Paths (NSFilenamesPboardType) for apps that read the older type, and
    file URLs. */
+- (IBAction)selectAll:(id)sender
+{
+    if (_browser.mode != FilesViewModeColumns)
+        [_browser selectAll:sender];
+}
+
 - (IBAction)copy:(id)sender
 {
     NSArray<NSURL *> *urls = self.selectedURLs;
@@ -519,6 +532,9 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         NSBeep();
         return;
     }
+    /* In place in the icon and list views; asked in a window in columns. */
+    if (_browser.mode != FilesViewModeColumns && [_browser beginRenaming])
+        return;
     NSAlert *alert = [[NSAlert alloc] init];
     NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 260, 24)];
     [field setStringValue:[url lastPathComponent]];
@@ -567,6 +583,13 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 - (void)browserViewSelectionChanged:(FilesBrowserView *)view
 {
+}
+
+- (void)browserView:(FilesBrowserView *)view renameItem:(FilesItem *)item to:(NSString *)name
+{
+    NSURL *renamed = [[FilesOperations shared] renameItem:item.URL to:name];
+    if (renamed != nil)
+        [self reloadSelecting:[renamed lastPathComponent]];
 }
 
 - (NSURL *)folderOfBrowserView:(FilesBrowserView *)view

@@ -29,6 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 /* File operations (K2), on the selection or the folder shown. */
 @property (nonatomic, readonly) NSArray<NSURL *> *selectedURLs;
 - (IBAction)copy:(nullable id)sender;
+- (IBAction)selectAll:(nullable id)sender;
 - (IBAction)paste:(nullable id)sender;
 - (IBAction)moveItemsHere:(nullable id)sender;   /* paste, moving */
 - (IBAction)duplicate:(nullable id)sender;

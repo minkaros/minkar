@@ -142,6 +142,7 @@ static void addMenu(NSString *title, NSMenu *menu)
     item(edit, NSLocalizedString(@"Paste Item", nil), self, @selector(paste:), @"v", cmd);
     item(edit, NSLocalizedString(@"Move Item Here", nil), self, @selector(moveItemsHere:), @"v",
          NSCommandKeyMask | NSAlternateKeyMask);
+    item(edit, NSLocalizedString(@"Select All", nil), self, @selector(selectAll:), @"a", cmd);
     addMenu(NSLocalizedString(@"Edit", nil), edit);
 
     NSMenu *view = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"View", nil)];
@@ -207,6 +208,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 /* -- File operations (K2) -- */
 
 - (void)copy:(id)sender { [[self front] copy:sender]; }
+- (void)selectAll:(id)sender { [[self front] selectAll:sender]; }
 - (void)paste:(id)sender { [[self front] paste:sender]; }
 - (void)moveItemsHere:(id)sender { [[self front] moveItemsHere:sender]; }
 - (void)duplicate:(id)sender { [[self front] duplicate:sender]; }

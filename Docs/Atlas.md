@@ -54,7 +54,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
-| Files | 4 | K0–K4 | K1 (K0, K2 partial) | K2, K0 |
+| Files | 4 | K0–K4 | K1, K2 (K0 partial) | K3, K0 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 | Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
 
@@ -611,7 +611,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
   `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
   `argos` (16) and `launchservices` (24).
-- [ ] **K2 — File operations.** Copy, move, rename, duplicate with progress and
+- [x] **K2 — File operations.** Copy, move, rename, duplicate with progress and
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
   "Open With". *Partial (16 Nov 2026):* Copy and Paste Item (and Move Item
   Here, with Option), Duplicate, Rename, New Folder, Move to Trash and Put
@@ -628,8 +628,10 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   window's owner, which answers with the operation; what is dragged is on
   the shared drag pasteboard): files dragged onto the Dock's Trash go to
   the Trash, onto an app's tile open in it, applications onto its kept part
-  stay in the Dock. Local tests `files-ops`, `drag-apps`. Missing: renaming
-  in place, several items selected.
+  stay in the Dock. *Done (16 Nov 2026):* several items selected
+  (Command-click, Shift-click, Select All) for every operation and drag;
+  Return renames in place, the name's stem selected, Escape cancelling.
+  Local tests `files-ops`, `drag-apps`.
 - [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
   DMG step 3).

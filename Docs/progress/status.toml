@@ -173,7 +173,7 @@ color = "teal"
 doc = "Atlas.md#4-dock-and-files"
 doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
-  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "partial"], ["K3", 970, "todo"],
+  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "done"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
 ]
 
@@ -290,6 +290,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "K2: Files' file operations"
+note = "copy, move, rename in place, Trash and Put Back, undo; drags between windows and apps, onto the Dock · 16 nov"
+line = "files"
+
+[[board.done]]
 title = "D2: the Dock's interaction"
 note = "Open at Login opened by loginwindow; minimized windows scale into tiles and back · 16 nov"
 line = "dock"
@@ -313,8 +318,3 @@ line = "gpu"
 title = "R1: the RX 6600's display taken over"
 note = "its own framebuffer in VRAM; 30 of 30 flips in the vertical blank; pitch checked with a pattern · 15 nov"
 line = "gpu"
-
-[[board.done]]
-title = "AU6: media in WebKit"
-note = "<video>, <audio> and Web Audio in WPE on AVFoundation; frames match, sync within 32 ms · 15 nov"
-line = "webkit"

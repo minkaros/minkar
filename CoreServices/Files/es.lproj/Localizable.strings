@@ -95,3 +95,4 @@
 "“%@” could not be put back." = "No se ha podido devolver «%@».";
 "The folder “%@” could not be made." = "No se ha podido crear la carpeta «%@».";
 "The name “%@” is already taken. Please choose a different name." = "El nombre «%@» ya está en uso. Elige otro nombre.";
+"Select All" = "Seleccionar todo";
