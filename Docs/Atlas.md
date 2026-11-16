@@ -56,7 +56,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
-| Notifications | 5.6 | N0–N2 | N0, N1 (N2 partial) | N2's rest (19.6.x) |
+| Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -814,7 +814,7 @@ with sound need a place that shows them; nothing in Atlas had one.
   rightmost Menu Extra, with Clear and Do Not Disturb, and the pane lists
   the apps. Local test `notifications`: the gate met (listed, no banner,
   Notice not in the recording), the panel's click, Do Not Disturb, alerts.
-- [ ] N2 — Alerts with actions and replies, scheduled notifications (time
+- [x] N2 — Alerts with actions and replies, scheduled notifications (time
   and calendar triggers) and badges on the Dock. *Partial (15 Nov 2026,
   `7b55914d9a`):* an alert's actions (one, or an Options menu) and replies
   (a text field and its send button), through NSUserNotification (the
@@ -826,6 +826,13 @@ with sound need a place that shows them; nothing in Atlas had one.
   while their app runs. Local test `notifications`, 41 checks. Left: Close
   as a category's custom dismiss action, and scheduled notifications
   delivered when their app is not running (notificationd keeping them).
+  *Done (16 Nov 2026, `51e1316988`):* Close on a category with a custom
+  dismiss action tells the app (UNNotificationDismissActionIdentifier)
+  without bringing it forward; scheduled notifications are kept by
+  notificationd too (on disk, their next dates from the app) and shown at
+  their time when their app has quit, never twice when it runs. Local test
+  `notifications`, 48 checks. Left for later: a click on one shown after
+  its app quit does not start the app.
 
 N0 and N1 are part of Minkar 19.6.0; N2 follows in 19.6.x.
 
