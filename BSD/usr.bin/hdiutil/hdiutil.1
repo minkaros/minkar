@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\" Copyright (c) 2026 The Minkar contributors
 .\" Part of Minkar.
-.Dd October 30, 2026
+.Dd November 16, 2026
 .Dt HDIUTIL 1
 .Os Minkar
 .Sh NAME
@@ -15,8 +15,17 @@
 .Op Fl volname Ar name
 .Op Fl layout Cm GPTSPUD | NONE
 .Op Fl srcfolder Ar folder
+.Op Fl format Ar format
+.Op Fl imagekey Li zlib-level= Ns Ar n
 .Op Fl ov
 .Ar image
+.Nm
+.Cm convert
+.Ar image
+.Fl format Ar format
+.Fl o Ar output
+.Op Fl imagekey Li zlib-level= Ns Ar n
+.Op Fl ov
 .Nm
 .Cm attach
 .Op Fl readonly
@@ -69,10 +78,43 @@ is
 .Li Journaled HFS+
 or
 .Li MS-DOS .
-.Fl type
-and
 .Fl format
-are accepted: the image is raw whatever they say.
+.Cm UDZO , UDBZ , ULFO
+or
+.Cm UDRO
+makes it, then converts it (see
+.Cm convert ) ;
+with another format, or
+.Fl type ,
+the image is raw.
+.It Cm convert
+Write
+.Ar image
+(any image read here) as a new image,
+.Ar output ,
+in
+.Ar format :
+.Cm UDZO
+(zlib; its level from
+.Fl imagekey Li zlib-level= Ns Ar n ,
+1 by default),
+.Cm UDBZ
+(bzip2),
+.Cm ULFO
+(LZFSE),
+.Cm UDRO
+(read-only, not compressed),
+.Cm UDRW
+(read/write) or
+.Cm UDTO
+(a raw master,
+.Pa .cdr ) .
+The disk is stored in 1 MB chunks; a chunk of zeros takes no room, and
+one that does not shrink is stored as it is.
+The name gets
+.Pa .dmg
+.Pq Pa .cdr
+unless it has an extension.
 .It Cm attach
 Attach an image and mount its volumes
 .Pf ( Fl nomount :
@@ -80,7 +122,7 @@ none;
 .Fl mountpoint :
 the first at
 .Ar path ) .
-A read-only image file, or
+A read-only image file, a compressed or read-only UDIF image, or
 .Fl readonly ,
 attaches read-only.
 Prints the disk and its partitions, with their content and mount points.
@@ -96,8 +138,12 @@ Show an image's format and size.
 .Pp
 Raw images (what
 .Cm create
-makes, and CD/DVD masters) and UDIF read/write images (UDRW) are read;
-compressed and segmented UDIF images are not yet.
+makes, and CD/DVD masters) and UDIF images are read: read/write (UDRW),
+read-only (UDRO) and compressed with ADC (UDCO), zlib (UDZO), bzip2
+(UDBZ) or LZFSE (ULFO), the kernel decompressing a chunk when it is
+read.
+LZMA images (ULMO) are converted but not attached; segmented images are
+not read.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO

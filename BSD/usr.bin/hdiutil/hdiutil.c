@@ -39,8 +39,11 @@
  * -nomount or another mount point); without it, hdiutil mounts them.
  *
  * Images are raw (what "hdiutil create" writes, and UDTO/.cdr/.iso) or
- * UDIF read/write images (UDRW, a raw data fork and a "koly" trailer).
- * Compressed UDIF images are not read yet.
+ * UDIF images (udif.c): read/write (UDRW, the disk as it is), or
+ * read-only and compressed in chunks (UDRO, UDCO, UDZO, UDBZ, ULFO),
+ * attached read-only with their chunk table, the driver decompressing a
+ * chunk when it is read. "hdiutil convert" writes them, as "create
+ * -format" does. LZMA images (ULMO) are converted but not attached.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -71,14 +74,16 @@
 #include <uuid/uuid.h>
 #include <zlib.h>
 
+#include "udif.h"
+
 extern char **environ;
 
 /* The driver's user client (MinkarDiskImage.h). */
 #define kMinkarDiskImageAttach		0
 #define kMinkarDiskImageDetach		1
+#define kMinkarDiskImageAttachChunks	2
 #define kMinkarDiskImageReadOnly	0x1
 
-#define SECTOR		512
 #define GPT_ENTRIES	128
 #define GPT_ENTRY_SIZE	128
 #define FIRST_LBA	40		/* where macOS's single partition starts */
@@ -271,67 +276,6 @@ string_property(io_registry_entry_t e, const char *key, char *buf, size_t len)
 }
 
 /* ---- Image formats -------------------------------------------------------- */
-
-struct koly {
-	char		signature[4];
-	uint32_t	version, header_size, flags;
-	uint64_t	running_data_fork_offset, data_fork_offset;
-	uint64_t	data_fork_length, rsrc_fork_offset, rsrc_fork_length;
-	uint32_t	segment_number, segment_count;
-	uint8_t		segment_id[16];
-	uint32_t	data_checksum_type, data_checksum_size;
-	uint32_t	data_checksum[32];
-	uint64_t	xml_offset, xml_length;
-	uint8_t		reserved1[120];
-	uint32_t	checksum_type, checksum_size;
-	uint32_t	checksum[32];
-	uint32_t	image_variant;
-	uint64_t	sector_count;
-	uint32_t	reserved2, reserved3, reserved4;
-} __attribute__((packed));
-
-struct image {
-	const char	*format;	/* "RAW*", "UDRW" */
-	uint64_t	 offset, length;
-};
-
-/* Where the disk is in the file, or false when it can't be read. */
-static bool
-image_layout(const char *path, struct image *img, const char **why)
-{
-	struct koly k;
-	struct stat st;
-	int fd;
-
-	if ((fd = open(path, O_RDONLY)) < 0 || fstat(fd, &st) != 0) {
-		*why = strerror(errno);
-		if (fd >= 0)
-			close(fd);
-		return (false);
-	}
-	img->format = "RAW*";
-	img->offset = 0;
-	img->length = (uint64_t)st.st_size;
-	if (st.st_size >= (off_t)sizeof(k) &&
-	    pread(fd, &k, sizeof(k), st.st_size - (off_t)sizeof(k)) ==
-	    (ssize_t)sizeof(k) && memcmp(k.signature, "koly", 4) == 0) {
-		uint64_t sectors = OSSwapBigToHostInt64(k.sector_count);
-		uint64_t length = OSSwapBigToHostInt64(k.data_fork_length);
-
-		/* Read/write UDIF: the data fork is the disk, uncompressed. */
-		if (length != sectors * SECTOR) {
-			*why = "a compressed or segmented UDIF image (not "
-			    "supported yet)";
-			close(fd);
-			return (false);
-		}
-		img->format = "UDRW";
-		img->offset = OSSwapBigToHostInt64(k.data_fork_offset);
-		img->length = length;
-	}
-	close(fd);
-	return (true);
-}
 
 /* ---- GUID partition table ------------------------------------------------- */
 
@@ -761,6 +705,35 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 	/* Before the disk appears: its volumes are not to be mounted for us. */
 	usingda = da_open();
 	c = driver();
+	if (!img.flat) {
+		/* Compressed: its chunk table, read-only. */
+		struct { uint32_t pathLength, chunkCount; uint64_t sectorCount; } hdr;
+		size_t plen = strlen(abspath) + 1, pspace = (plen + 7) & ~(size_t)7;
+		size_t size = sizeof(hdr) + pspace + img.nchunks * sizeof(struct udif_chunk);
+		uint8_t *table = calloc(1, size);
+		uint64_t flags = 0;
+
+		if (strcmp(img.format, "ULMO") == 0) {
+			fprintf(stderr, "hdiutil: attach failed - an lzma-compressed image (ULMO) "
+			    "is not attached yet; hdiutil convert makes it UDZO\n");
+			IOServiceClose(c);
+			return (1);
+		}
+		if (table == NULL)
+			err(1, "attach");
+		hdr.pathLength = (uint32_t)plen;
+		hdr.chunkCount = img.nchunks;
+		hdr.sectorCount = img.sectors;
+		memcpy(table, &hdr, sizeof(hdr));
+		memcpy(table + sizeof(hdr), abspath, plen);
+		memcpy(table + sizeof(hdr) + pspace, img.chunks, img.nchunks * sizeof(struct udif_chunk));
+		kr = IOConnectCallMethod(c, kMinkarDiskImageAttachChunks, &flags, 1, table, size,
+		    out, &outcnt, NULL, NULL);
+		free(table);
+		readonly = true;
+		image_free(&img);
+		goto attached;
+	}
 	in[0] = img.offset;
 	in[1] = img.length;
 	in[2] = readonly ? kMinkarDiskImageReadOnly : 0;
@@ -773,10 +746,12 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 		kr = IOConnectCallMethod(c, kMinkarDiskImageAttach, in, 3,
 		    abspath, strlen(abspath) + 1, out, &outcnt, NULL, NULL);
 	}
+attached:
 	IOServiceClose(c);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "hdiutil: attach failed - %s\n",
 		    kr == kIOReturnNotPrivileged ? "Permission denied" :
+		    kr == kIOReturnUnsupported ? "the image's compression is not supported" :
 		    mach_error_string(kr));
 		return (1);
 	}
@@ -964,14 +939,22 @@ imageinfo(const char *path)
 		fprintf(stderr, "hdiutil: imageinfo failed - %s\n", why);
 		return (1);
 	}
-	printf("Format Description: %s\n", strcmp(img.format, "UDRW") == 0 ?
-	    "UDIF read/write image" : "raw read/write image");
+	printf("Format Description: %s\n", image_format_description(img.format));
 	printf("Format: %s\n", img.format);
 	printf("Size Information:\n");
-	printf("\tTotal Bytes: %llu\n", (unsigned long long)img.length);
-	printf("\tSector Count: %llu\n", (unsigned long long)(img.length /
-	    SECTOR));
-	printf("\tData Offset: %llu\n", (unsigned long long)img.offset);
+	printf("\tTotal Bytes: %llu\n", (unsigned long long)(img.sectors * SECTOR));
+	printf("\tSector Count: %llu\n", (unsigned long long)img.sectors);
+	if (img.flat)
+		printf("\tData Offset: %llu\n", (unsigned long long)img.offset);
+	else {
+		uint64_t stored = 0;
+
+		for (uint32_t i = 0; i < img.nchunks; i++)
+			stored += img.chunks[i].length;
+		printf("\tCompressed Bytes: %llu\n", (unsigned long long)stored);
+		printf("\tChunk Count: %u\n", img.nchunks);
+	}
+	image_free(&img);
 	return (0);
 }
 
@@ -991,7 +974,7 @@ folder_size(const char *dir)
 
 static int
 create(const char *image, uint64_t size, const char *fs, const char *volname,
-    const char *layout, const char *srcfolder, bool overwrite)
+    const char *layout, const char *srcfolder, bool overwrite, const char *format, int level)
 {
 	char path[PATH_MAX], disk[64], part[80], mp[PATH_MAX];
 	const char *type;
@@ -1139,8 +1122,58 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 	}
 	if (rc != 0)
 		errx(1, "create failed - copying %s", srcfolder);
+	/* A read-only or compressed format: the raw image made, converted. */
+	if (format != NULL && (strcmp(format, "UDZO") == 0 || strcmp(format, "UDBZ") == 0 ||
+	    strcmp(format, "ULFO") == 0 || strcmp(format, "UDRO") == 0)) {
+		char raw[PATH_MAX];
+
+		snprintf(raw, sizeof(raw), "%s.raw-%d", path, (int)getpid());
+		if (rename(path, raw) != 0)
+			err(1, "%s", path);
+		rc = image_convert(raw, path, format, level);
+		unlink(raw);
+		if (rc != 0)
+			return (1);
+	}
 	if (!quiet)
 		printf("created: %s\n", path);
+	return (0);
+}
+
+/* Name with the extension a format's images take, unless it has one. */
+static void
+image_name(const char *name, const char *format, char *out, size_t len)
+{
+	const char *base = strrchr(name, '/') ? strrchr(name, '/') + 1 : name;
+
+	strlcpy(out, name, len);
+	if (strchr(base, '.') == NULL)
+		strlcat(out, strcmp(format, "UDTO") == 0 ? ".cdr" : ".dmg", len);
+}
+
+static int
+convert(const char *src, const char *dst, const char *format, bool overwrite, int level)
+{
+	char path[PATH_MAX];
+
+	image_name(dst, format, path, sizeof(path));
+	if (!overwrite && access(path, F_OK) == 0) {
+		fprintf(stderr, "hdiutil: convert failed - File exists\n");
+		return (1);
+	}
+	if (image_convert(src, path, format, level) != 0)
+		return (1);
+	if (!quiet)
+		printf("created: %s\n", path);
+	return (0);
+}
+
+/* -imagekey zlib-level=N */
+static int
+zlib_level(const char *key)
+{
+	if (strncmp(key, "zlib-level=", 11) == 0)
+		return (atoi(key + 11));
 	return (0);
 }
 
@@ -1157,6 +1190,7 @@ usage(void)
 	    "detach\n"
 	    "eject\n"
 	    "create\n"
+	    "convert\n"
 	    "info\n"
 	    "imageinfo\n");
 	exit(1);
@@ -1220,9 +1254,10 @@ main(int argc, char *argv[])
 	}
 	if (strcmp(verb, "create") == 0) {
 		const char *image = NULL, *fs = NULL, *volname = NULL;
-		const char *layout = NULL, *src = NULL;
+		const char *layout = NULL, *src = NULL, *format = NULL;
 		uint64_t size = 0;
 		bool ov = false;
+		int level = 0;
 
 		for (i = 2; i < argc; i++) {
 			const char *a = argv[i];
@@ -1240,10 +1275,14 @@ main(int argc, char *argv[])
 				layout = v; i++;
 			} else if (strcmp(a, "-srcfolder") == 0 && v) {
 				src = v; i++;
-			} else if ((strcmp(a, "-type") == 0 ||
-			    strcmp(a, "-format") == 0) && v) {
-				/* raw images, whatever the name says */
-				i++;
+			} else if (strcmp(a, "-format") == 0 && v) {
+				/* UDZO, UDBZ, ULFO, UDRO: converted when made;
+				   the others are raw images */
+				format = v; i++;
+			} else if (strcmp(a, "-type") == 0 && v) {
+				i++;		/* SPARSE, UDIF: raw images */
+			} else if (strcmp(a, "-imagekey") == 0 && v) {
+				level = zlib_level(v); i++;
 			} else if (strcmp(a, "-ov") == 0) {
 				ov = true;
 			} else if (a[0] == '-') {
@@ -1254,7 +1293,34 @@ main(int argc, char *argv[])
 		}
 		if (image == NULL)
 			usage();
-		return (create(image, size, fs, volname, layout, src, ov));
+		return (create(image, size, fs, volname, layout, src, ov, format, level));
+	}
+	if (strcmp(verb, "convert") == 0) {
+		const char *src = NULL, *dst = NULL, *format = NULL;
+		bool ov = false;
+		int level = 0;
+
+		for (i = 2; i < argc; i++) {
+			const char *a = argv[i];
+			const char *v = i + 1 < argc ? argv[i + 1] : NULL;
+
+			if (strcmp(a, "-format") == 0 && v) {
+				format = v; i++;
+			} else if (strcmp(a, "-o") == 0 && v) {
+				dst = v; i++;
+			} else if (strcmp(a, "-imagekey") == 0 && v) {
+				level = zlib_level(v); i++;
+			} else if (strcmp(a, "-ov") == 0) {
+				ov = true;
+			} else if (a[0] == '-') {
+				continue;
+			} else {
+				src = a;
+			}
+		}
+		if (src == NULL || dst == NULL || format == NULL)
+			usage();
+		return (convert(src, dst, format, ov, level));
 	}
 	fprintf(stderr, "hdiutil: %s: verb not recognized\n", verb);
 	usage();

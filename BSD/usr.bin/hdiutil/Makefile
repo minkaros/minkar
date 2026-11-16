@@ -9,13 +9,14 @@ SUBDIR =
 MK_WERROR = no
 WARNS ?= 2
 PROG =	hdiutil
-SRCS =	hdiutil.c
+SRCS =	hdiutil.c udif.c
 MAN =
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness
+	-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/BSD/lib/bzip2/src
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -framework CoreFoundation -framework IOKit -framework DiskArbitration -lz
+LDADD += -framework CoreFoundation -framework IOKit -framework DiskArbitration -lz \
+	-L${SYSROOT_DIR}/usr/lib -lbz2 -lcompression
 
 all: to-sysroot
 

@@ -433,9 +433,9 @@ Goal: install software by dragging the app from a disk image to `/Applications`,
 
 **DMG**
 
-1. Our own `DiskImages.framework` (MIT/BSD): read the UDIF format with its usual compressions, then write it.
-2. Mount through DiskArbitration at `/Volumes/<label>`, using Phase 1's HFS+ driver.
-3. A minimal `hdiutil` (`attach`, `detach`, `create`) on the framework, and double-click in Files.
+1. Read the UDIF format with its usual compressions, then write it. *Done (16 Nov 2026), without a framework:* `hdiutil` reads the image's block table and the kernel's `MinkarDiskImage` driver serves the disk from it, read-only, decompressing a chunk when it is read (the last four kept): ADC (UDCO), zlib (UDZO), bzip2 (UDBZ) and LZFSE (ULFO), from libkern's zlib and the tree's bzip2 and LZFSE sources; a broken chunk is a read error, not a panic. `hdiutil convert` writes UDZO, UDBZ, ULFO, UDRO, UDRW and UDTO (1 MB chunks, CRC-32 checksums), and `create -format` makes them. LZMA images (ULMO) are converted but not attached yet, and segmented images are not read. Local test `dmg-compressed` 33/0: each format converted, attached and its files compared; images made apart from hdiutil (several block entries, ADC) attach; 7z reads what hdiutil writes.
+2. Mount through DiskArbitration at `/Volumes/<label>`, using Phase 1's HFS+ driver. *Done (30 Oct 2026),* see below.
+3. A minimal `hdiutil` (`attach`, `detach`, `create`, `convert`), and double-click in Files. *Done:* `convert` on 16 Nov 2026, double-click in Files with K3.
 4. HFS+ compression (decmpfs) in the hfs kext: the reference platform stores many apps' and the system's files compressed, and Minkar's hfs (Darwin 20's hfs-556.60.1, adapted to Darwin 19's xnu) is built without it, so those files read as empty. Gate: an app copied from a reference-platform DMG runs.
 5. The rest of hfs's adaptation (found on 2026-11-10, see `Kernel/_PROVENANCE`): the loop that `hfs_vfsutils.c` breaks out of by spotting duplicates (a hack by its own comment) found and fixed, and `panic_on_assert` taken from the kernel's configuration again instead of always on.
 
@@ -462,7 +462,7 @@ Commands that come with this phase (moved from Phase 2):
 - [ ] `tmutil`, with backups.
 - [ ] git's Perl, Python and Tcl commands (`git send-email`, `gitk`…), with those languages (moved from Phase 2 on 2026-10-31). *Partial (11 Nov 2026):* the languages are in the image, as the reference system ships them (the maintainer's choice, with Ruby): Ruby 3.3.9 (`9931a36e28`), Python 3.13.18 (`e6f45dd6a6`) and Perl 5.40.5 (`392f302d94`), each fetched pinned and cross-built for Minkar with no compiler in the image. Local tests `bsd-ruby` 14/0, `bsd-python` 12/0, `bsd-perl` 14/0. Remaining: Tcl/Tk, then git's commands that use them.
 
-Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
+Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); compressed DMGs are read since 16 Nov 2026. Next: HFS+ compression (item 4).
 
 **Exit gate (M6):** Minkar is installed on a physical machine from its own USB medium by the system installer; a DMG is downloaded, mounted, the app copied to `/Applications` and run; and the Atlas desktop is complete for daily use, as section 6 of [Atlas.md](Atlas.md) sets it: MB2 and MB3, D2 and D3, K2 and K3, and the essential apps A0–A10, used daily on the development machine itself; WebKit through W5, the reference apps' web views working; and audio and media through AU6, sound in the system and `<video>` in WebKit. MB4, D4, K4, the other apps and professional audio (AU7–AU10) follow in 19.6.x; the web browser is not required.
 

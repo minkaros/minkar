@@ -78,6 +78,8 @@ MinkarDiskImageDevice::initWithVnode(vnode_t vp, int mode, UInt64 offset,
 	fOffset = offset;
 	fSize = size;
 	fReadOnly = readOnly;
+	for (unsigned i = 0; i < kCacheSlots; i++)
+		fCache[i].chunk = ~0U;
 	strlcpy(fProduct, "Disk Image", sizeof(fProduct));
 	setProperty("image-path", path);
 	setProperty("image-offset", offset, 64);
@@ -159,7 +161,24 @@ MinkarDiskImageDevice::free()
 	}
 	if (fLock != NULL)
 		IOLockFree(fLock);
+	if (fChunks != NULL)
+		IOFree(fChunks, sizeof(*fChunks) * fChunkCount);
+	for (unsigned i = 0; i < kCacheSlots; i++)
+		if (fCache[i].data != NULL)
+			IOFree(fCache[i].data, fCache[i].size);
 	super::free();
+}
+
+bool
+MinkarDiskImageDevice::setChunks(const MinkarDiskImageChunk *chunks, UInt32 count)
+{
+	fChunks = (MinkarDiskImageChunk *)IOMalloc(sizeof(*chunks) * count);
+	if (fChunks == NULL)
+		return false;
+	memcpy(fChunks, chunks, sizeof(*chunks) * count);
+	fChunkCount = count;
+	strlcpy(fProduct, "Compressed Image", sizeof(fProduct));
+	return true;
 }
 
 void
@@ -215,6 +234,8 @@ MinkarDiskImageDevice::transfer(Request *req, UInt64 *done, vfs_context_t ctx)
 
 	if (write && fReadOnly)
 		return kIOReturnNotWritable;
+	if (fChunks != NULL)
+		return transferChunks(req, done, ctx);
 	bounce = (char *)IOMalloc(kChunk);
 	if (bounce == NULL)
 		return kIOReturnNoMemory;
@@ -259,6 +280,140 @@ MinkarDiskImageDevice::transfer(Request *req, UInt64 *done, vfs_context_t ctx)
 	}
 	vnode_put(fVnode);
 	IOFree(bounce, kChunk);
+	*done = pos;
+	return status;
+}
+
+/* ---- A compressed image: its chunks ------------------------------------ */
+
+/* The biggest chunk taken, compressed or not: UDIF's are 1 MB at most in
+ * practice; what is past this is refused, not allocated. */
+static const UInt64 kMaxChunkBytes = 64ULL * 1024 * 1024;
+static const UInt8 kZeros[kBlock] = { 0 };
+
+/* n bytes of the image file at offset (all of them, or an error). */
+IOReturn
+MinkarDiskImageDevice::readFile(UInt64 offset, void *buf, size_t n, vfs_context_t ctx)
+{
+	uio_t uio = uio_create(1, (off_t)offset, UIO_SYSSPACE, UIO_READ);
+	int error;
+
+	if (uio == NULL)
+		return kIOReturnNoMemory;
+	uio_addiov(uio, CAST_USER_ADDR_T(buf), n);
+	error = VNOP_READ(fVnode, uio, 0, ctx);
+	bool whole = error == 0 && uio_resid(uio) == 0;
+	uio_free(uio);
+	return whole ? kIOReturnSuccess : kIOReturnIOError;
+}
+
+/* A compressed chunk's sectors: from the cache, or read and decompressed
+ * into the least recently used slot. */
+const UInt8 *
+MinkarDiskImageDevice::chunkData(UInt32 index, vfs_context_t ctx, IOReturn *status)
+{
+	const MinkarDiskImageChunk *c = &fChunks[index];
+	unsigned slot = 0;
+
+	for (unsigned i = 0; i < kCacheSlots; i++) {
+		if (fCache[i].chunk == index) {
+			fCache[i].used = ++fUseClock;
+			return fCache[i].data;
+		}
+		if (fCache[i].used < fCache[slot].used)
+			slot = i;
+	}
+	size_t outLen = (size_t)(c->sectors * kBlock), inLen = (size_t)c->length;
+	UInt8 *in = (UInt8 *)IOMalloc(inLen);
+	UInt8 *out = (UInt8 *)IOMalloc(outLen);
+	*status = kIOReturnNoMemory;
+	if (in != NULL && out != NULL) {
+		*status = readFile(c->offset, in, inLen, ctx);
+		if (*status == kIOReturnSuccess &&
+		    MinkarDiskImageDecompress(c->type, in, inLen, out, outLen) != 0) {
+			LOG("chunk %u (type 0x%x, sectors %llu to %llu) does not decompress", index, c->type,
+			    c->sector, c->sector + c->sectors);
+			*status = kIOReturnIOError;
+		}
+	}
+	if (in != NULL)
+		IOFree(in, inLen);
+	if (*status != kIOReturnSuccess) {
+		if (out != NULL)
+			IOFree(out, outLen);
+		return NULL;
+	}
+	if (fCache[slot].data != NULL)
+		IOFree(fCache[slot].data, fCache[slot].size);
+	fCache[slot].chunk = index;
+	fCache[slot].data = out;
+	fCache[slot].size = outLen;
+	fCache[slot].used = ++fUseClock;
+	return out;
+}
+
+/* A read of a compressed image, run by run of the chunks it covers. */
+IOReturn
+MinkarDiskImageDevice::transferChunks(Request *req, UInt64 *done, vfs_context_t ctx)
+{
+	UInt64 sector = req->block, end = req->block + req->nblks, pos = 0;
+	IOReturn status = kIOReturnSuccess;
+	char *bounce = NULL;
+
+	if (req->buffer->getDirection() == kIODirectionOut)
+		return kIOReturnNotWritable;
+	if (vnode_getwithref(fVnode) != 0)
+		return kIOReturnNoDevice;
+	while (sector < end && status == kIOReturnSuccess) {
+		/* The chunk holding sector: the last one starting at or before. */
+		UInt32 lo = 0, hi = fChunkCount;
+		while (hi - lo > 1) {
+			UInt32 mid = (lo + hi) / 2;
+			if (fChunks[mid].sector <= sector)
+				lo = mid;
+			else
+				hi = mid;
+		}
+		const MinkarDiskImageChunk *c = &fChunks[lo];
+		if (sector < c->sector || sector >= c->sector + c->sectors) {
+			status = kIOReturnIOError;
+			break;
+		}
+		UInt64 n = min(end, c->sector + c->sectors) - sector;
+		UInt64 skip = (sector - c->sector) * kBlock;
+		switch (c->type) {
+		case kMinkarDIChunkZero:
+		case kMinkarDIChunkIgnore:
+			for (UInt64 i = 0; i < n; i++)
+				req->buffer->writeBytes(pos + i * kBlock, kZeros, kBlock);
+			break;
+		case kMinkarDIChunkRaw:
+			if (bounce == NULL && (bounce = (char *)IOMalloc(kChunk)) == NULL) {
+				status = kIOReturnNoMemory;
+				break;
+			}
+			for (UInt64 off = 0; off < n * kBlock && status == kIOReturnSuccess; off += kChunk) {
+				size_t len = (size_t)min(n * kBlock - off, (UInt64)kChunk);
+				status = readFile(c->offset + skip + off, bounce, len, ctx);
+				if (status == kIOReturnSuccess)
+					req->buffer->writeBytes(pos + off, bounce, len);
+			}
+			break;
+		default: {
+			const UInt8 *data = chunkData(lo, ctx, &status);
+			if (data != NULL)
+				req->buffer->writeBytes(pos, data + skip, (IOByteCount)(n * kBlock));
+			break;
+		}
+		}
+		if (status == kIOReturnSuccess) {
+			sector += n;
+			pos += n * kBlock;
+		}
+	}
+	vnode_put(fVnode);
+	if (bounce != NULL)
+		IOFree(bounce, kChunk);
 	*done = pos;
 	return status;
 }
@@ -440,6 +595,8 @@ MinkarDiskImageUserClient::externalMethod(uint32_t selector,
 		{ (IOExternalMethodAction)&sAttach, 3, kIOUCVariableStructureSize,
 		    1, 0 },
 		{ (IOExternalMethodAction)&sDetach, 1, 0, 0, 0 },
+		{ (IOExternalMethodAction)&sAttachChunks, 1, kIOUCVariableStructureSize,
+		    1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -465,6 +622,86 @@ MinkarDiskImageUserClient::sAttach(OSObject *target, void *,
 	    args->scalarInput[2], &args->scalarOutput[0]);
 }
 
+/* A compressed image: the chunk table hdiutil read from its "blkx" blocks
+ * (MinkarDiskImageChunkTable), inline or, when long, in a memory
+ * descriptor; checked whole before the image is attached, read-only. */
+IOReturn
+MinkarDiskImageUserClient::sAttachChunks(OSObject *target, void *,
+    IOExternalMethodArguments *args)
+{
+	MinkarDiskImageUserClient *me = (MinkarDiskImageUserClient *)target;
+	IOMemoryDescriptor *desc = args->structureInputDescriptor;
+	size_t size = desc != NULL ? (size_t)desc->getLength() : args->structureInputSize;
+	const MinkarDiskImageChunkTable *table;
+	UInt8 *bytes;
+	IOReturn status = kIOReturnBadArgument;
+
+	if (size < sizeof(*table) || size > 64 * 1024 * 1024)
+		return kIOReturnBadArgument;
+	bytes = (UInt8 *)IOMalloc(size);
+	if (bytes == NULL)
+		return kIOReturnNoMemory;
+	if (desc != NULL) {
+		bool read = false;
+
+		if (desc->prepare() == kIOReturnSuccess) {
+			read = desc->readBytes(0, bytes, size) == size;
+			desc->complete();
+		}
+		if (!read) {
+			IOFree(bytes, size);
+			return kIOReturnBadArgument;
+		}
+	} else
+		memcpy(bytes, args->structureInput, size);
+
+	table = (const MinkarDiskImageChunkTable *)bytes;
+	size_t pathSpace = ((size_t)table->pathLength + 7) & ~(size_t)7;
+	size_t chunkBytes = (size_t)table->chunkCount * sizeof(MinkarDiskImageChunk);
+	if (table->pathLength < 2 || table->pathLength > MAXPATHLEN || table->chunkCount == 0 ||
+	    table->chunkCount > 1024 * 1024 || sizeof(*table) + pathSpace + chunkBytes != size)
+		goto out;
+	{
+		const char *path = (const char *)(bytes + sizeof(*table));
+		const MinkarDiskImageChunk *in = (const MinkarDiskImageChunk *)(bytes + sizeof(*table) + pathSpace);
+		UInt64 next = 0;
+
+		if (path[table->pathLength - 1] != '\0')
+			goto out;
+		/* Sorted, back to back, covering the disk, each one within reason. */
+		for (UInt32 i = 0; i < table->chunkCount; i++) {
+			const MinkarDiskImageChunk *c = &in[i];
+			bool packed = (c->type & 0x80000000) != 0;
+			/* A compressed chunk is decompressed whole: within reason. A
+			 * raw one holds its sectors. */
+			if (c->sector != next || c->sectors == 0 || c->sectors > (1ULL << 50) ||
+			    c->offset + c->length < c->offset ||
+			    (packed && (c->sectors * kBlock > kMaxChunkBytes || c->length > kMaxChunkBytes)) ||
+			    (c->type == kMinkarDIChunkRaw && c->length < c->sectors * kBlock))
+				goto out;
+			if (c->type == kMinkarDIChunkLZMA) {
+				status = kIOReturnUnsupported;
+				goto out;
+			}
+			if (c->type != kMinkarDIChunkZero && c->type != kMinkarDIChunkRaw &&
+			    c->type != kMinkarDIChunkIgnore && c->type != kMinkarDIChunkADC &&
+			    c->type != kMinkarDIChunkZlib && c->type != kMinkarDIChunkBzip2 &&
+			    c->type != kMinkarDIChunkLZFSE)
+				goto out;
+			next = c->sector + c->sectors;
+		}
+		if (next != table->sectorCount)
+			goto out;
+		/* The table is in bytes, aligned as sent; the device copies it. */
+		status = me->attachImage(path, 0, table->sectorCount * kBlock,
+		    args->scalarInput[0] | kMinkarDiskImageReadOnly, &args->scalarOutput[0],
+		    in, table->chunkCount);
+	}
+out:
+	IOFree(bytes, size);
+	return status;
+}
+
 IOReturn
 MinkarDiskImageUserClient::sDetach(OSObject *target, void *,
     IOExternalMethodArguments *args)
@@ -476,7 +713,8 @@ MinkarDiskImageUserClient::sDetach(OSObject *target, void *,
 /* Opened as the caller (its rights on the file), served by the kernel. */
 IOReturn
 MinkarDiskImageUserClient::attachImage(const char *path, UInt64 offset,
-    UInt64 length, UInt64 flags, UInt64 *id)
+    UInt64 length, UInt64 flags, UInt64 *id, const MinkarDiskImageChunk *chunks,
+    UInt32 chunkCount)
 {
 	bool readOnly = (flags & kMinkarDiskImageReadOnly) != 0;
 	int mode = readOnly ? FREAD : (FREAD | FWRITE);
@@ -506,6 +744,18 @@ MinkarDiskImageUserClient::attachImage(const char *path, UInt64 offset,
 		return kIOReturnBadArgument;
 	}
 	size = va.va_data_size;
+	/* A compressed image: as big as its chunks say; each chunk within the
+	 * file. */
+	if (chunks != NULL) {
+		for (UInt32 i = 0; i < chunkCount; i++)
+			if ((chunks[i].type == kMinkarDIChunkRaw || (chunks[i].type & 0x80000000)) &&
+			    chunks[i].offset + chunks[i].length > size) {
+				vnode_close(vp, mode, ctx);
+				vfs_context_rele(ctx);
+				return kIOReturnBadArgument;
+			}
+		size = offset + length;
+	}
 	if (offset > size) {
 		vnode_close(vp, mode, ctx);
 		vfs_context_rele(ctx);
@@ -531,6 +781,11 @@ MinkarDiskImageUserClient::attachImage(const char *path, UInt64 offset,
 			vnode_close(vp, mode, ctx);
 			vfs_context_rele(ctx);
 		}
+		return kIOReturnNoMemory;
+	}
+	/* A compressed image: the device keeps a copy of its chunks. */
+	if (chunks != NULL && !dev->setChunks(chunks, chunkCount)) {
+		dev->release();
 		return kIOReturnNoMemory;
 	}
 	if (!dev->attach(fController)) {

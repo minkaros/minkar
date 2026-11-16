@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-16"
-commit  = "e01c5dcddf"
+commit  = "87b60e1a21"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -290,6 +290,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "Compressed disk images"
+note = "UDZO, UDBZ, ULFO and ADC images attached, the kernel decompressing; hdiutil convert writes them · 16 nov"
+line = "apps"
+
+[[board.done]]
 title = "D3: tile service and app switcher"
 note = "tile content views, attention bounces, Command-Tab in the Dock · 16 nov"
 line = "dock"
@@ -313,8 +318,3 @@ line = "files"
 title = "K2: Files' file operations"
 note = "copy, move, rename in place, Trash and Put Back, undo; drags between windows and apps, onto the Dock · 16 nov"
 line = "files"
-
-[[board.done]]
-title = "D2: the Dock's interaction"
-note = "Open at Login opened by loginwindow; minimized windows scale into tiles and back · 16 nov"
-line = "dock"

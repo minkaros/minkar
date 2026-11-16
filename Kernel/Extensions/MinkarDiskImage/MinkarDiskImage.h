@@ -43,11 +43,13 @@
 #include <IOKit/storage/IOBlockStorageDevice.h>
 #include <sys/vnode.h>
 #include <kern/thread.h>
+#include "MinkarDiskImageCodecs.h"
 
 /* The user client's methods. */
 enum {
 	kMinkarDiskImageAttach = 0,	/* path; offset, length, flags -> ID */
 	kMinkarDiskImageDetach = 1,	/* ID */
+	kMinkarDiskImageAttachChunks = 2, /* chunk table; flags -> ID (read-only) */
 	kMinkarDiskImageMethodCount
 };
 #define kMinkarDiskImageReadOnly	0x1
@@ -78,14 +80,31 @@ class MinkarDiskImageDevice : public IOBlockStorageDevice {
 	bool			fStopping, fStopped;
 	thread_t		fThread;
 	char			fProduct[32];
+	/* A compressed image: its chunks (sorted by sector) and the last few
+	 * decompressed, kept for the reads that follow. */
+	MinkarDiskImageChunk	*fChunks;
+	UInt32			 fChunkCount;
+	enum { kCacheSlots = 4 };
+	struct CacheSlot {
+		UInt32	 chunk;		/* index, or ~0 */
+		UInt8	*data;
+		size_t	 size;
+		UInt64	 used;		/* for the least recently used */
+	}			 fCache[kCacheSlots];
+	UInt64			 fUseClock;
 
 	static void worker(void *arg, wait_result_t);
+	IOReturn transferChunks(Request *req, UInt64 *done, vfs_context_t ctx);
+	IOReturn readFile(UInt64 offset, void *buf, size_t n, vfs_context_t ctx);
+	const UInt8 *chunkData(UInt32 index, vfs_context_t ctx, IOReturn *status);
 	void serve();
 	IOReturn transfer(Request *req, UInt64 *done, vfs_context_t ctx);
 
 public:
 	bool initWithVnode(vnode_t vp, int mode, UInt64 offset, UInt64 size,
 	    bool readOnly, const char *path);
+	/* A compressed image's chunks (copied). */
+	bool setChunks(const MinkarDiskImageChunk *chunks, UInt32 count);
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual void free() APPLE_KEXT_OVERRIDE;
@@ -122,8 +141,11 @@ class MinkarDiskImageUserClient : public IOUserClient {
 	    IOExternalMethodArguments *args);
 	static IOReturn sDetach(OSObject *target, void *ref,
 	    IOExternalMethodArguments *args);
+	static IOReturn sAttachChunks(OSObject *target, void *ref,
+	    IOExternalMethodArguments *args);
 	IOReturn attachImage(const char *path, UInt64 offset, UInt64 length,
-	    UInt64 flags, UInt64 *id);
+	    UInt64 flags, UInt64 *id, const MinkarDiskImageChunk *chunks = NULL,
+	    UInt32 chunkCount = 0);
 	IOReturn detachImage(UInt64 id);
 
 public:
