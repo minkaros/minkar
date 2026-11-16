@@ -14,6 +14,7 @@ SRCS= \
 	CAShapeLayer.m \
 	CALayerContext.m \
 	CAMetalLayer.m \
+	CAOpenGLLayer.m \
 	CAMediaTimingFunction.m \
 	CAPropertyAnimation.m \
 	CARenderer.m \
@@ -43,6 +44,7 @@ HEADERS= \
 	CAShapeLayer.h \
 	CALayerContext.h \
 	CAMetalLayer.h \
+	CAOpenGLLayer.h \
 	CAMetalLayerPrivate.h \
 	CAMediaTiming.h \
 	CAMediaTimingFunction.h \

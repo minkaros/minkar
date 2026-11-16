@@ -2,6 +2,7 @@
 #import <QuartzCore/CALayer.h>
 #import <QuartzCore/CAShapeLayer.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <QuartzCore/CAOpenGLLayer.h>
 #import <QuartzCore/CARenderer.h>
 #import <QuartzCore/CAMediaTimingFunction.h>
 #import <QuartzCore/CATransaction.h>

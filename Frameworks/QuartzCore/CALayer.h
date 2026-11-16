@@ -197,4 +197,6 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 - (void)_minkarSetHostView:(id)view;
 + (void)_minkarLockTree;
 + (void)_minkarUnlockTree;
+/* Displays the tree's layers that need it (on the main thread). */
+- (void)_minkarDisplayTreeIfNeeded;
 @end

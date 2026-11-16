@@ -472,6 +472,14 @@ static void layerChanged(CALayer *layer);
     [self display];
 }
 
+/* Minkar: every layer of the tree that needs it displayed, as a commit
+   would, before a view composes the tree it hosts. */
+-(void)_minkarDisplayTreeIfNeeded {
+   [self displayIfNeeded];
+   for(CALayer *child in [[_sublayers copy] autorelease])
+    [child _minkarDisplayTreeIfNeeded];
+}
+
 -(void)drawInContext:(CGContextRef)context {
    if([_delegate respondsToSelector:@selector(drawLayer:inContext:)])
     [_delegate drawLayer:self inContext:context];
@@ -487,12 +495,21 @@ static void layerChanged(CALayer *layer);
    [self _setContext:nil];
 }
 
+/* Layers marked to display, displayed on the main thread as a commit would
+   (the reference platform displays them when the transaction commits):
+   those of a tree a view hosts; other trees have their own drawing. */
+static NSMutableSet *layersToDisplay;
+static BOOL          displayScheduled;
+static void scheduleDisplay(CALayer *layer);
+
 -(void)setNeedsDisplay {
    _needsDisplay=YES;
+   scheduleDisplay(self);
 }
 
 -(void)setNeedsDisplayInRect:(CGRect)rect {
    _needsDisplay=YES;
+   scheduleDisplay(self);
 }
 
 #define COLOR_PROPERTY(getter,setter,ivar) \
@@ -514,9 +531,11 @@ VALUE_PROPERTY(BOOL,allowsEdgeAntialiasing,setAllowsEdgeAntialiasing,_allowsEdge
 VALUE_PROPERTY(CAEdgeAntialiasingMask,edgeAntialiasingMask,setEdgeAntialiasingMask,_edgeAntialiasingMask)
 
 -(BOOL)isGeometryFlipped { return _geometryFlipped; }
+/* Where the sublayers go and how the contents are drawn change: drawn
+   again, but not displayed again (the contents stay the app's). */
 -(void)setGeometryFlipped:(BOOL)value {
    _geometryFlipped=value;
-   [self setNeedsDisplay];
+   layerChanged(self);
 }
 
 /* Whether the contents cover the layer (the same as opaque). */
@@ -527,7 +546,7 @@ VALUE_PROPERTY(CAEdgeAntialiasingMask,edgeAntialiasingMask,setEdgeAntialiasingMa
 -(CACornerMask)maskedCorners { return _maskedCorners; }
 -(void)setMaskedCorners:(CACornerMask)value {
    _maskedCorners=value;
-   [self setNeedsDisplay];
+   layerChanged(self);
 }
 VALUE_PROPERTY(BOOL,isHidden,setHidden,_hidden)
 VALUE_PROPERTY(BOOL,isDoubleSided,setDoubleSided,_doubleSided)
@@ -972,6 +991,36 @@ static CGImageRef createImageFromSurface(IOSurfaceRef surface,BOOL opaque) {
 }
 
 @end
+
+static void displayMarked(void) {
+   NSArray *layers;
+
+   @synchronized([CALayer class]){
+    layers=[[layersToDisplay allObjects] retain];
+    [layersToDisplay removeAllObjects];
+    displayScheduled=NO;
+   }
+   for(CALayer *layer in layers){
+    CALayer *root=layer;
+    while([root superlayer]!=nil)
+     root=[root superlayer];
+    if(objc_getAssociatedObject(root,&hostViewKey)!=nil)
+     [layer displayIfNeeded];
+   }
+   [layers release];
+}
+
+static void scheduleDisplay(CALayer *layer) {
+   @synchronized([CALayer class]){
+    if(layersToDisplay==nil)
+     layersToDisplay=[[NSMutableSet alloc] init];
+    [layersToDisplay addObject:layer];
+    if(displayScheduled)
+     return;
+    displayScheduled=YES;
+   }
+   dispatch_async(dispatch_get_main_queue(),^{ displayMarked(); });
+}
 
 static void layerChanged(CALayer *layer) {
    CALayer *root=layer;
