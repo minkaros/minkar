@@ -162,7 +162,7 @@ color = "orange"
 doc = "Atlas.md#4-dock-and-files"
 doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
-  ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "done"], ["D3", 970, "partial"],
+  ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "done"], ["D3", 970, "done"],
   ["D4", 1025, "partial"],
 ]
 
@@ -266,8 +266,8 @@ note = "the maintainer's review, the weekend of 7–8 Nov"
 line = "atlas"
 
 [[board.next]]
-title = "M5: MB3, D3, LoginWindow"
-note = "the full system menu, the Dock tile service and switcher, the full login"
+title = "M5: LoginWindow, Lock Screen"
+note = "the graphical login with a session per user; the system menu's Lock Screen with it"
 line = "mb"
 
 [[board.next]]
@@ -288,6 +288,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "D3: tile service and app switcher"
+note = "tile content views, attention bounces, Command-Tab in the Dock · 16 nov"
+line = "dock"
 
 [[board.done]]
 title = "MB2: standard menus"
@@ -313,8 +318,3 @@ line = "files"
 title = "D2: the Dock's interaction"
 note = "Open at Login opened by loginwindow; minimized windows scale into tiles and back · 16 nov"
 line = "dock"
-
-[[board.done]]
-title = "Firefox: media, OpenGL views, printing"
-note = "MP4 video seen, OpenGL in views and layers, PrintCore and Save to PDF, distributed notifications; its battery 25/25 · 16 nov"
-line = "fw"

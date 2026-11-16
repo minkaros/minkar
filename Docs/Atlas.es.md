@@ -56,7 +56,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Parte | Capítulo | Hitos | Hechos | Siguiente |
 | --- | --- | --- | --- | --- |
 | Menús | 3 | MB0–MB4 | MB0, MB1, MB2 (MB3 en parte) | MB3 (Bloquear pantalla, con LoginWindow) |
-| Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 en parte) | D3 |
+| Dock | 4 | D0–D4 | D0, D1, D2, D3 (D4 en parte) | D4 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 en parte) | K0, K4 |
 | Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 | Notificaciones | 5.6 | N0–N2 | N0, N1, N2 | — |
@@ -651,7 +651,7 @@ evidencia.
   hasta su tile y vuelve al hacer clic en él (el efecto genie de la
   plataforma de referencia se dibuja por ahora con su efecto de escala);
   prueba local `dock-minimize`.
-- [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
+- [x] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
   ventanas minimizadas con miniaturas (después de WS4a); el selector de apps
   en el Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del
@@ -659,8 +659,17 @@ evidencia.
   como tiles entre el separador y la papelera, cada una con la imagen de su
   ventana y el icono de su app en la esquina; un clic restaura la ventana a
   través del servidor, y su app lo oye (`kSLSEventWindowRestored`) y la
-  trae de vuelta; las insignias llegaron con N2. Faltan el contenido del
-  tile, el rebote de atención y el selector de apps.
+  trae de vuelta; las insignias llegaron con N2. *Hecho (16 nov
+  2026):* `display` de NSDockTile dibuja su vista de contenido en una imagen
+  que el Dock muestra en lugar del icono de la app (sin vista, vuelve el
+  icono); `requestUserAttention:` desde una app no activa hace botar su
+  tile, una vez si la petición es informativa y hasta que la app se activa
+  o la petición se cancela si es crítica, y la ventana del Dock crece sobre
+  la barra solo mientras tanto; el selector de apps: el Dock reclama
+  Comando-Tab y Comando-Mayúsculas-Tab, muestra las apps normales abiertas
+  en el orden en que se usaron, cada pulsación avanza, y al soltar Comando
+  se activa la elegida. Las apps y el Dock se hablan con notificaciones
+  distribuidas. Prueba local `dock-d3`.
 - [ ] **D4 — Pilas y papelera.** Pilas de Descargas y de carpetas; tile de la
   papelera (vacía o llena, soltar para tirar, vaciar a través de Files).
   *Parcial (6 nov 2026):* el tile de la papelera, el último tras un

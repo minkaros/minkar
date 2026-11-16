@@ -26,6 +26,13 @@ typedef NS_ENUM(NSInteger, DockTileKind) {
 @property (nonatomic, readonly) NSImage *icon;
 /* The running instance, or nil. */
 @property (nonatomic, nullable, strong) NSRunningApplication *application;
+/* What the app drew for its tile (NSDockTile's content view), shown in
+   place of its icon; nil for the icon (D3). */
+@property (nonatomic, nullable, strong) NSImage *contentImage;
+/* Bouncing for attention since then (0: not), and until the app is
+   active (critical) or for two bounces (informational). */
+@property (nonatomic) CFAbsoluteTime bounceStart;
+@property (nonatomic) BOOL bounceCritical;
 /* A minimized window's tile: the server's window, its owner's pid. */
 @property (nonatomic, readonly) uint32_t windowID;
 @property (nonatomic, readonly) pid_t ownerPID;

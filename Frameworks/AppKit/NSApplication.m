@@ -216,6 +216,18 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
             [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
                 modifierFlags:0 timestamp:0 windowNumber:0 context:nil
                 subtype:kNSMenuBarFocusEventSubtype data1:0 data2:0] atStart:NO];
+        else {
+            /* A hotkey the app claimed (the Dock's Command-Tab): a
+               notification on the main thread, in every run loop mode. */
+            NSNotification *note = [NSNotification notificationWithName:@"_NSSkyLightSymbolicHotKeyNotification"
+                object:nil userInfo:[NSDictionary dictionaryWithObjectsAndKeys:
+                    [NSNumber numberWithUnsignedInt:e->buttonNumber], @"hotKey",
+                    [NSNumber numberWithUnsignedInt:e->flags], @"flags", nil]];
+            [[NSNotificationCenter defaultCenter] performSelectorOnMainThread:@selector(postNotification:)
+                withObject:note waitUntilDone:NO
+                modes:[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSEventTrackingRunLoopMode,
+                       NSModalPanelRunLoopMode, nil]];
+        }
         return;
     }
 
@@ -1822,15 +1834,31 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    [_windows makeObjectsPerformSelector:@selector(_flashWindow)];
 }
 
+/* The Dock bounces the app's tile (D3): once for an informational request,
+   until the app is active or the request cancelled for a critical one. An
+   active app asks for nothing, as on the reference platform. */
 -(NSInteger)requestUserAttention:(NSRequestUserAttentionType)attentionType {
-   [_attentionTimer invalidate];
-   _attentionTimer=[NSTimer scheduledTimerWithTimeInterval:3 target:self selector:@selector(_attentionTimer:) userInfo:nil repeats:YES];
+   static NSInteger requests;
 
-   return 0;
+   if([self isActive])
+    return 0;
+   NSInteger request=++requests;
+   [[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"org.minkar.dock.attention"
+      object:[[NSBundle mainBundle] bundleIdentifier]
+      userInfo:[NSDictionary dictionaryWithObjectsAndKeys:
+         [NSNumber numberWithInt:getpid()],@"pid",
+         [NSNumber numberWithBool:attentionType==NSCriticalRequest],@"critical",
+         [NSNumber numberWithInteger:request],@"request",nil]
+      deliverImmediately:YES];
+   return request;
 }
 
 -(void)cancelUserAttentionRequest:(NSInteger)requestNumber {
-   NSUnimplementedMethod();
+   [[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"org.minkar.dock.attention.cancel"
+      object:[[NSBundle mainBundle] bundleIdentifier]
+      userInfo:[NSDictionary dictionaryWithObjectsAndKeys:
+         [NSNumber numberWithInt:getpid()],@"pid",[NSNumber numberWithInteger:requestNumber],@"request",nil]
+      deliverImmediately:YES];
 }
 
 -(void)runPageLayout:sender {

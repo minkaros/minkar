@@ -1,52 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1043" viewBox="0 0 1120 1043" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-16">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1005" viewBox="0 0 1120 1005" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-16">
 <title>Minkar work board, 2026-11-16</title>
-<rect width="1120" height="1043" fill="#ffffff"/>
+<rect width="1120" height="1005" fill="#ffffff"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar work board</text>
 <text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-16 · devel e01c5dcddf</text>
-<rect x="16" y="70" width="261.5" height="965" rx="10" fill="#f6f8fa"/>
+<rect x="16" y="70" width="261.5" height="927" rx="10" fill="#f6f8fa"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#8250df"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">MB2: standard menus</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">alternates with Option, Help</text>
-<text x="42" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">search, long menus fit, Enter</text>
-<text x="42" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Full Screen, menu</text>
-<text x="42" y="216" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">accessibility · 16 nov</text>
-<rect x="26" y="249" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="249" width="5" height="146" rx="2" fill="#8250df"/>
-<text x="42" y="273" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">MB1: Menu Extras and</text>
-<text x="42" y="294" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">status items</text>
-<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">.menu bundles (clock, volume,</text>
-<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">displays, network),</text>
-<text x="42" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Command-drag with the order</text>
-<text x="42" y="372" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">kept, removal · 16 nov</text>
-<rect x="26" y="405" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="405" width="5" height="125" rx="2" fill="#0f7b6f"/>
-<text x="42" y="429" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">K3: the desktop&#x27;s icons</text>
-<text x="42" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">volumes and ~/Desktop on the</text>
-<text x="42" y="469" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">desktop, eject, DMG</text>
-<text x="42" y="488" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">double-click; window levels</text>
-<text x="42" y="507" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">as the API has them · 16 nov</text>
-<rect x="26" y="540" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="540" width="5" height="146" rx="2" fill="#0f7b6f"/>
-<text x="42" y="564" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">K2: Files&#x27; file</text>
-<text x="42" y="585" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">operations</text>
-<text x="42" y="606" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">copy, move, rename in place,</text>
-<text x="42" y="625" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Trash and Put Back, undo;</text>
-<text x="42" y="644" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">drags between windows and</text>
-<text x="42" y="663" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">apps, onto the Dock · 16 nov</text>
-<rect x="26" y="696" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="696" width="5" height="146" rx="2" fill="#bc4c00"/>
-<text x="42" y="720" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D2: the Dock&#x27;s</text>
-<text x="42" y="741" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">interaction</text>
-<text x="42" y="762" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Open at Login opened by</text>
-<text x="42" y="781" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">loginwindow; minimized</text>
-<text x="42" y="800" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">windows scale into tiles and</text>
-<text x="42" y="819" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">back · 16 nov</text>
-<rect x="26" y="852" width="241.5" height="165" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="852" width="5" height="165" rx="2" fill="#9a6700"/>
-<text x="42" y="876" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Firefox: media, OpenGL</text>
-<text x="42" y="897" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">views, printing</text>
-<text x="42" y="918" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">MP4 video seen, OpenGL in</text>
-<text x="42" y="937" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">views and layers, PrintCore</text>
-<text x="42" y="956" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and Save to PDF, distributed</text>
-<text x="42" y="975" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">notifications; its battery</text>
-<text x="42" y="994" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">25/25 · 16 nov</text>
-<rect x="291.5" y="70" width="261.5" height="965" rx="10" fill="#f6f8fa"/>
+<rect x="26" y="114" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="127" rx="2" fill="#bc4c00"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D3: tile service and app</text>
+<text x="42" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">switcher</text>
+<text x="42" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">tile content views, attention</text>
+<text x="42" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">bounces, Command-Tab in the</text>
+<text x="42" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Dock · 16 nov</text>
+<rect x="26" y="251" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="251" width="5" height="125" rx="2" fill="#8250df"/>
+<text x="42" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">MB2: standard menus</text>
+<text x="42" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">alternates with Option, Help</text>
+<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">search, long menus fit, Enter</text>
+<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Full Screen, menu</text>
+<text x="42" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">accessibility · 16 nov</text>
+<rect x="26" y="386" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="386" width="5" height="146" rx="2" fill="#8250df"/>
+<text x="42" y="410" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">MB1: Menu Extras and</text>
+<text x="42" y="431" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">status items</text>
+<text x="42" y="452" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">.menu bundles (clock, volume,</text>
+<text x="42" y="471" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">displays, network),</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Command-drag with the order</text>
+<text x="42" y="509" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">kept, removal · 16 nov</text>
+<rect x="26" y="542" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="542" width="5" height="125" rx="2" fill="#0f7b6f"/>
+<text x="42" y="566" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">K3: the desktop&#x27;s icons</text>
+<text x="42" y="587" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">volumes and ~/Desktop on the</text>
+<text x="42" y="606" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">desktop, eject, DMG</text>
+<text x="42" y="625" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">double-click; window levels</text>
+<text x="42" y="644" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">as the API has them · 16 nov</text>
+<rect x="26" y="677" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="677" width="5" height="146" rx="2" fill="#0f7b6f"/>
+<text x="42" y="701" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">K2: Files&#x27; file</text>
+<text x="42" y="722" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">operations</text>
+<text x="42" y="743" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">copy, move, rename in place,</text>
+<text x="42" y="762" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Trash and Put Back, undo;</text>
+<text x="42" y="781" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">drags between windows and</text>
+<text x="42" y="800" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">apps, onto the Dock · 16 nov</text>
+<rect x="26" y="833" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="833" width="5" height="146" rx="2" fill="#bc4c00"/>
+<text x="42" y="857" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D2: the Dock&#x27;s</text>
+<text x="42" y="878" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">interaction</text>
+<text x="42" y="899" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Open at Login opened by</text>
+<text x="42" y="918" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">loginwindow; minimized</text>
+<text x="42" y="937" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">windows scale into tiles and</text>
+<text x="42" y="956" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">back · 16 nov</text>
+<rect x="291.5" y="70" width="261.5" height="927" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="106" rx="2" fill="#0969da"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WebKit: WPE as the engine</text>
@@ -58,24 +56,25 @@
 <text x="317.5" y="275" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G4 measured on PC 2; its</text>
 <text x="317.5" y="294" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">clocks, then the 3D path, for</text>
 <text x="317.5" y="313" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">21.0&#x27;s performance gate</text>
-<rect x="567" y="70" width="261.5" height="965" rx="10" fill="#f6f8fa"/>
+<rect x="567" y="70" width="261.5" height="927" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#bf3989"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Desktop design and icons</text>
 <text x="593" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the maintainer&#x27;s review, the</text>
 <text x="593" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">weekend of 7–8 Nov</text>
-<rect x="577" y="211" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="211" width="5" height="106" rx="2" fill="#8250df"/>
-<text x="593" y="235" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M5: MB3, D3, LoginWindow</text>
-<text x="593" y="256" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the full system menu, the</text>
-<text x="593" y="275" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Dock tile service and</text>
-<text x="593" y="294" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">switcher, the full login</text>
-<rect x="577" y="327" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="327" width="5" height="125" rx="2" fill="#cf222e"/>
-<text x="593" y="351" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2b)</text>
-<text x="593" y="372" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">lighting a display the</text>
-<text x="593" y="391" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">firmware did not (KVM</text>
-<text x="593" y="410" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">elsewhere at start); smaller</text>
-<text x="593" y="429" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">sizes</text>
-<rect x="842.5" y="70" width="261.5" height="965" rx="10" fill="#f6f8fa"/>
+<rect x="577" y="211" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="211" width="5" height="127" rx="2" fill="#8250df"/>
+<text x="593" y="235" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M5: LoginWindow, Lock</text>
+<text x="593" y="256" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Screen</text>
+<text x="593" y="277" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the graphical login with a</text>
+<text x="593" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">session per user; the system</text>
+<text x="593" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">menu&#x27;s Lock Screen with it</text>
+<rect x="577" y="348" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="348" width="5" height="125" rx="2" fill="#cf222e"/>
+<text x="593" y="372" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2b)</text>
+<text x="593" y="393" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">lighting a display the</text>
+<text x="593" y="412" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">firmware did not (KVM</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">elsewhere at start); smaller</text>
+<text x="593" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">sizes</text>
+<rect x="842.5" y="70" width="261.5" height="927" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">Minkar 19.6.0</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#1a7f37"/>

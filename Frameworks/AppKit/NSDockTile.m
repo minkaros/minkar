@@ -1,3 +1,7 @@
+#include <unistd.h>
+#import <Foundation/NSDistributedNotificationCenter.h>
+#import <AppKit/NSBitmapImageRep.h>
+#import <AppKit/NSView.h>
 #import <AppKit/NSDockTile.h>
 #import <AppKit/NSApplication.h>
 #import <Foundation/NSUserNotification.h>
@@ -57,13 +61,35 @@
    view=[view retain];
    [_contentView release];
    _contentView=view;
+   if(view==nil)
+    [self display];
 }
 
 -(void)setShowsApplicationBadge:(BOOL)value {
    _showsApplicationBadge=value;
 }
 
+/* The application's tile drawn by its content view (D3): the view drawn
+   into an image at its size, sent to the Dock, which shows it in place of
+   the app's icon; with no content view the icon is back. */
 -(void)display {
+   if(![_owner isKindOfClass:[NSApplication class]])
+    return;
+   NSMutableDictionary *info=[NSMutableDictionary dictionaryWithObject:[NSNumber numberWithInt:getpid()] forKey:@"pid"];
+
+   if(_contentView!=nil){
+    NSRect bounds=[_contentView bounds];
+    NSBitmapImageRep *rep=[_contentView bitmapImageRepForCachingDisplayInRect:bounds];
+
+    if(rep!=nil){
+     [_contentView cacheDisplayInRect:bounds toBitmapImageRep:rep];
+     NSData *png=[rep representationUsingType:NSPNGFileType properties:[NSDictionary dictionary]];
+     if(png!=nil)
+      [info setObject:png forKey:@"png"];
+    }
+   }
+   [[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"org.minkar.dock.tile"
+      object:[[NSBundle mainBundle] bundleIdentifier] userInfo:info deliverImmediately:YES];
 }
 
 @end

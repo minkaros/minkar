@@ -24,7 +24,9 @@
  */
 
 #import "DockView.h"
+#import "DockSwitcher.h"
 #include <SkyLight/SkyLight.h>
+#include <os/log.h>
 #include <LaunchServices/LaunchServices.h>
 
 static LSSharedFileListItemRef LoginItemForURL(NSURL *url);
@@ -49,6 +51,20 @@ static CGFloat padding(CGFloat tile) { return round(tile / 6); }
 static CGFloat gapFor(CGFloat tile) { return round(tile / 6); }
 static CGFloat indicatorSpace(CGFloat tile) { return round(tile / 6); }
 static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
+
+/* How high a tile bouncing for attention is now: half a tile at the top
+   of each 0.6-second bounce (D3). */
+static const CFAbsoluteTime kBouncePeriod = 0.6;
+
+static CGFloat bounceHeight(DockTile *tile, CGFloat size)
+{
+    if (tile.bounceStart == 0)
+        return 0;
+    CFAbsoluteTime t = CFAbsoluteTimeGetCurrent() - tile.bounceStart;
+    if (!tile.bounceCritical && t >= 2 * kBouncePeriod)
+        return 0;
+    return round(size * 0.5 * fabs(sin(M_PI * fmod(t, kBouncePeriod) / kBouncePeriod)));
+}
 
 /* A separator goes before the first running-only tile and before the
    minimized windows and the Trash. */
@@ -428,9 +444,14 @@ static NSUInteger separatorCount(DockModel *model)
     return 2 * padding(tile) + tile + indicatorSpace(tile);
 }
 
+/* Room above the bar while a tile bounces for attention (D3): the window
+   grows only then. */
+static CGFloat bounceRoom;
+
 + (CGFloat)windowThicknessForModel:(DockModel *)model
 {
     CGFloat extra = model.magnification ? MAX(model.largeSize - model.tileSize, 0) : 0;
+    extra = MAX(extra, bounceRoom);
 
     return ceil([self barThicknessForModel:model] + extra);
 }
@@ -628,14 +649,14 @@ static void drawBadge(NSString *label, NSRect icon)
 
     for (NSUInteger i = 0; i < count; i++) {
         DockTile *t = tiles[i];
-        DockSpan s = { mains[i], pad + ind, sizes[i], sizes[i] };
+        DockSpan s = { mains[i], pad + ind + bounceHeight(t, sizes[i]), sizes[i], sizes[i] };
         NSRect rect = [self rectForSpan:s];
         BOOL lifted = _dragging && (NSInteger)i == _pressed;
 
         if (!NSIntersectsRect(rect, dirty))
             continue;
         if (!lifted && t.icon != nil)
-            [[self drawableIcon:t.icon forSize:sizes[i]] drawInRect:rect fromRect:NSZeroRect
+            [[self drawableIcon:(t.contentImage ?: t.icon) forSize:sizes[i]] drawInRect:rect fromRect:NSZeroRect
                 operation:NSCompositeSourceOver fraction:(NSInteger)i == _pressed || (NSInteger)i == _dropTile ? 0.6 : 1.0];
         NSString *badge = lifted ? nil : [model badgeForTile:t];
         if (badge != nil)
@@ -979,11 +1000,11 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
                 all &= [[NSWorkspace sharedWorkspace] unmountAndEjectDeviceAtURL:u error:NULL];
             else
                 all &= [[NSFileManager defaultManager] trashItemAtURL:u resultingItemURL:NULL error:NULL];
-        NSLog(@"drop to the Trash: %lu item(s)", (unsigned long)[urls count]);
+        os_log_info(OS_LOG_DEFAULT, "drop to the Trash: %lu item(s)", (unsigned long)[urls count]);
         return all;
     }
     if (t != nil && !AllApplications(urls)) {
-        NSLog(@"drop on %@: open %lu item(s)", t.label, (unsigned long)[urls count]);
+        os_log_info(OS_LOG_DEFAULT, "drop on %{public}s: open %lu item(s)", [t.label UTF8String], (unsigned long)[urls count]);
         return [[NSWorkspace sharedWorkspace] openURLs:urls withApplicationAtURL:t.URL
                                                options:NSWorkspaceLaunchDefault configuration:@{} error:NULL] != nil;
     }
@@ -998,7 +1019,7 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
             existing = [model tileForApplicationURL:u];
         [model keepTile:existing atIndex:MIN(at, model.firstRunningIndex)];
     }
-    NSLog(@"drop of %lu application(s) kept", (unsigned long)[urls count]);
+    os_log_info(OS_LOG_DEFAULT, "drop of %lu application(s) kept", (unsigned long)[urls count]);
     return YES;
 }
 
@@ -1344,6 +1365,8 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     DockTriggerWindow *_trigger;
     BOOL _shown;              /* autohide: on screen now */
     NSTimer *_slideTimer, *_hideTimer;
+    NSTimer *_bounceTimer;    /* while a tile bounces for attention */
+    DockSwitcher *_switcher;  /* Command-Tab */
 }
 
 - (instancetype)initWithModel:(DockModel *)model
@@ -1384,8 +1407,102 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowRestored:)
                                                  name:@"_NSSkyLightWindowRestoredNotification" object:nil];
     SLSRequestWindowNotifications(1);
+    _switcher = [[DockSwitcher alloc] init];
+    /* Apps' attention requests and tile pictures (NSApplication's
+       requestUserAttention:, NSDockTile's display), and their activation,
+       which ends a bounce. */
+    NSDistributedNotificationCenter *center = [NSDistributedNotificationCenter defaultCenter];
+    [center addObserver:self selector:@selector(attentionRequested:) name:@"org.minkar.dock.attention" object:nil
+     suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+    [center addObserver:self selector:@selector(attentionCancelled:) name:@"org.minkar.dock.attention.cancel" object:nil
+     suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+    [center addObserver:self selector:@selector(tileDrawn:) name:@"org.minkar.dock.tile" object:nil
+     suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+    [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(appActivated:)
+        name:NSWorkspaceDidActivateApplicationNotification object:nil];
     [self layout];
     return self;
+}
+
+- (DockTile *)tileForPID:(pid_t)pid
+{
+    for (DockTile *tile in _model.tiles)
+        if (tile.kind != DockTileKindMinimizedWindow && tile.application != nil &&
+            [tile.application processIdentifier] == pid)
+            return tile;
+    return nil;
+}
+
+- (void)attentionRequested:(NSNotification *)note
+{
+    DockTile *tile = [self tileForPID:[note.userInfo[@"pid"] intValue]];
+    if (tile == nil)
+        return;
+    tile.bounceStart = CFAbsoluteTimeGetCurrent();
+    tile.bounceCritical = [note.userInfo[@"critical"] boolValue];
+    os_log_info(OS_LOG_DEFAULT, "attention %{public}s%{public}s", [tile.label UTF8String], tile.bounceCritical ? " critical" : "");
+    [self bounce];
+}
+
+- (void)attentionCancelled:(NSNotification *)note
+{
+    DockTile *tile = [self tileForPID:[note.userInfo[@"pid"] intValue]];
+    tile.bounceStart = 0;
+    [self bounce];
+}
+
+- (void)appActivated:(NSNotification *)note
+{
+    NSRunningApplication *app = note.userInfo[NSWorkspaceApplicationKey];
+    DockTile *tile = [self tileForPID:[app processIdentifier]];
+    if (tile.bounceStart != 0) {
+        tile.bounceStart = 0;
+        [self bounce];
+    }
+}
+
+/* While a tile bounces: the window has room above the bar and redraws at
+   the display's rate; when none does, it shrinks back. */
+- (void)bounce
+{
+    BOOL any = NO;
+    CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+    for (DockTile *tile in _model.tiles) {
+        if (tile.bounceStart != 0 && !tile.bounceCritical && now - tile.bounceStart >= 2 * kBouncePeriod)
+            tile.bounceStart = 0;
+        any |= tile.bounceStart != 0;
+    }
+    CGFloat room = any ? ceil(_model.tileSize * 0.5) + 2 : 0;
+    if (room != bounceRoom) {
+        bounceRoom = room;
+        [self layout];
+    }
+    [_view setNeedsDisplay:YES];
+    if (any && _bounceTimer == nil)
+        _bounceTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 target:self selector:@selector(bounceTick:)
+                                                      userInfo:nil repeats:YES];
+    else if (!any) {
+        [_bounceTimer invalidate];
+        _bounceTimer = nil;
+    }
+}
+
+- (void)bounceTick:(NSTimer *)timer
+{
+    [self bounce];
+}
+
+/* An app's tile drawn by itself (NSDockTile's content view), or its icon
+   back. */
+- (void)tileDrawn:(NSNotification *)note
+{
+    DockTile *tile = [self tileForPID:[note.userInfo[@"pid"] intValue]];
+    NSData *png = note.userInfo[@"png"];
+    if (tile == nil)
+        return;
+    tile.contentImage = png != nil ? [[NSImage alloc] initWithData:png] : nil;
+    os_log_info(OS_LOG_DEFAULT, "tile %{public}s %{public}s", [tile.label UTF8String], png != nil ? "drawn by the app" : "back to its icon");
+    [_view setNeedsDisplay:YES];
 }
 
 /* A server window's frame in AppKit's screen coordinates. */

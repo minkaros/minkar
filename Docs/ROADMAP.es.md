@@ -489,7 +489,7 @@ Objetivo posterior a Minkar 19.6.0: ejecutar binarios x86-64 compilados para la 
 
 Ruta crítica: Fase 0 (M0) → Fase 1 (M1) → Fase 2 (M2) → Fase 3 (M3) → Fase 4 (M4) → Fase 5 (M5) → Fase 6 (M6, Minkar 19.6.0); la Fase 7 (M7) y el rendimiento de Minkar 21.0 van aparte.
 
-M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y la Fase 2 está cerrada (31 oct). El trabajo activo está en la Fase 5, Atlas ([Atlas.es.md](Atlas.es.md): MB0–MB2, D0–D2, K1–K3, A0, A1, A3, A4 y el centro de notificaciones N0–N2 hechos), y en lo demás que necesita Minkar 19.6.0 (WebKit W2–W4 y audio y medios AU1–AU6 hechos). El frente de GPU arranca en paralelo y alimenta el requisito de rendimiento de Minkar 21.0: igual o mejor que el sistema de referencia en el mismo equipo. La Fase 7 sigue después de Minkar 19.6.0.
+M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y la Fase 2 está cerrada (31 oct). El trabajo activo está en la Fase 5, Atlas ([Atlas.es.md](Atlas.es.md): MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones N0–N2 hechos), y en lo demás que necesita Minkar 19.6.0 (WebKit W2–W4 y audio y medios AU1–AU6 hechos). El frente de GPU arranca en paralelo y alimenta el requisito de rendimiento de Minkar 21.0: igual o mejor que el sistema de referencia en el mismo equipo. La Fase 7 sigue después de Minkar 19.6.0.
 
 - [x] M0 — Build, toolchain, CI
 - [x] M1 — Arranque Darwin
@@ -508,7 +508,7 @@ M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y l
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Cumplido (5 nov 2026): toolchain, runtime, overlays de Swift, Combine y XCTest; el gate M3 pasa con las siete herramientas (swift-argument-parser; Rainbow y Files; Yams; xcbeautify; mogenerator; tag; SwiftFormat) |
 | M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
-| M5 | Escritorio Atlas | En curso: MB0–MB2, D0–D2, K1–K3, A0, A1, A3, A4 y el centro de notificaciones (N0–N2) hechos ([Atlas.es.md](Atlas.es.md)) |
+| M5 | Escritorio Atlas | En curso: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones (N0–N2) hechos ([Atlas.es.md](Atlas.es.md)) |
 | M6 (Minkar 19.6.0) | Apps y distribución, el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5) y audio y medios (AU1–AU6) | En curso: WebKit W2–W4 y audio y medios AU1–AU6 hechos; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |
 | M7 | Compatibilidad binaria, arm64 | Después de Minkar 19.6.0 |

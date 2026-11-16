@@ -53,7 +53,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Part | Chapter | Milestones | Done | Next |
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0, MB1, MB2 (MB3 partial) | MB3 (Lock Screen, with LoginWindow) |
-| Dock | 4 | D0–D4 | D0, D1, D2 (D3, D4 partial) | D3 |
+| Dock | 4 | D0–D4 | D0, D1, D2, D3 (D4 partial) | D4 |
 | Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
 | Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 | Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
@@ -614,7 +614,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   image scales into its tile and back out when the tile is clicked (the
   reference platform's genie is drawn as its scale effect for now); local
   test `dock-minimize`.
-- [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
+- [x] **D3 — Dock tile service, minimized windows and the app switcher.**
   `org.minkar.dock.server`: badges, content, attention bounce; minimized
   windows with thumbnails (after WS4a); the app switcher in the Dock, which
   gets Command-Tab from the window server's symbolic hotkey table.
@@ -622,7 +622,16 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   and the Trash, each its window's image with its app's icon in the
   corner; a click restores the window through the server, and its app
   hears it (`kSLSEventWindowRestored`) and brings it back; badges came
-  with N2. Missing: tile content, the attention bounce, the app switcher.
+  with N2. *Done (16 Nov 2026):* NSDockTile's `display` draws its content
+  view into an image the Dock shows in place of the app's icon (the icon
+  back with no view); `requestUserAttention:` from an app not active
+  bounces its tile, once for an informational request and until the app
+  is active or the request cancelled for a critical one, the Dock's window
+  growing above the bar only meanwhile; the app switcher: the Dock claims
+  Command-Tab and Command-Shift-Tab, shows the regular apps running in the
+  order they were used, each press moving along, and letting go of
+  Command activates the one chosen. Apps and the Dock speak through
+  distributed notifications. Local test `dock-d3`.
 - [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
   (empty or full, drop to trash, empty through Files).
   *Partial (6 Nov 2026):* the Trash tile, last after a separator of its

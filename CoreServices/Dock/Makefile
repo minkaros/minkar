@@ -9,7 +9,7 @@
 SUBDIR =
 APP =		Dock
 APP_INSTALL_DIR = /System/Library/CoreServices
-SRCS =		main.m DockModel.m DockView.m DesktopWindow.m NotificationCenterUser.c
+SRCS =		main.m DockModel.m DockView.m DockSwitcher.m DesktopWindow.m NotificationCenterUser.c
 FRAMEWORKS =	AppKit CoreGraphics Foundation
 MK_WERROR =	no
 CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \

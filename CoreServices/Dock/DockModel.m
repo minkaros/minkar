@@ -431,11 +431,22 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
             NSURL *url = [app bundleURL] ? [app bundleURL] : [app executableURL];
             if (url == nil)
                 continue;
-            owner = [[DockTile alloc] initWithKind:DockTileKindRunningApp URL:url];
+            /* The tile it had, with what it drew and its bounce (D3). */
+            for (DockTile *old in _tiles)
+                if (old.kind == DockTileKindRunningApp && [old.URL isEqual:url] && ![running containsObject:old])
+                    owner = old;
+            if (owner == nil)
+                owner = [[DockTile alloc] initWithKind:DockTileKindRunningApp URL:url];
             [running addObject:owner];
         }
         owner.application = app;
     }
+    /* A kept app that quit: its icon again, still. */
+    for (DockTile *tile in _persistent)
+        if (tile.application == nil) {
+            tile.contentImage = nil;
+            tile.bounceStart = 0;
+        }
     _firstRunningIndex = [tiles count];
     [tiles addObjectsFromArray:running];
     _minimizedIndex = [tiles count];

@@ -15,7 +15,7 @@ _Actualizado el 2026-11-16, devel `e01c5dcddf`_
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨🟨🟩🟨🟩🟩 | 4 / 9 | libSystem, Foundation, CF-Lite, Security, Swift 6 | — |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Atlas.es.md#3-menús) | 🟩🟩🟩🟨⬜ | 3 / 5 | MB3 | MB4 |
-| [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟩🟨🟨 | 3 / 5 | D3, D4 | — |
+| [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟩🟩🟨 | 4 / 5 | D4 | — |
 | [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩🟩🟩⬜ | 3 / 5 | K0 | K4 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](Atlas.es.md#5-aplicaciones) | 🟩🟩🟨🟨 | 2 / 4 | A2 Text Editor, A3–A10 · DMG | — |
