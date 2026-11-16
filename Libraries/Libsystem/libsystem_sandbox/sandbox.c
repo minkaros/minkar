@@ -168,6 +168,7 @@ static const char *const service_aliases[][4] = {
 	{ "org.minkar.logd", "com.apple.logd", "com.apple.system.logger", NULL },
 	{ "org.minkar.pboard", "com.apple.pasteboard.1", NULL, NULL },
 	{ "org.minkar.fseventsd", "com.apple.FSEvents", NULL, NULL },
+	{ "org.minkar.distnoted", "com.apple.distributed_notifications@Uv3", "com.apple.distributed_notifications@1v3", NULL },
 };
 
 /*
