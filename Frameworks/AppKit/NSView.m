@@ -428,16 +428,8 @@ static void updateSurfaceLayer(NSView *self) {
  */
 static char serverLayersKey;	/* the list sent last, as NSData */
 
-/* -[CALayer transform] (not declared in our header): a structure this
-   large comes back through objc_msgSend_stret on x86_64. */
 static CATransform3D layerTransform(CALayer *layer) {
-   CATransform3D t;
-#if defined(__x86_64__)
-   ((void (*)(CATransform3D *,id,SEL))objc_msgSend_stret)(&t,layer,@selector(transform));
-#else
-   t=((CATransform3D (*)(id,SEL))objc_msgSend)(layer,@selector(transform));
-#endif
-   return t;
+   return [layer transform];
 }
 
 static BOOL isIdentity3D(CATransform3D t) {

@@ -107,7 +107,7 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 @property float opacity;
 @property(getter=isOpaque) BOOL opaque;
 @property(retain) id contents;
-//@property CATransform3D transform;
+@property CATransform3D transform;
 @property CATransform3D sublayerTransform;
 
 @property(copy) NSString *minificationFilter;
