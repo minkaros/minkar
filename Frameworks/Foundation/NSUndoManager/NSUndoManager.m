@@ -7,6 +7,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSUndoManager.h>
 #import <Foundation/NSUndoGroup.h>
+#import <Foundation/NSValue.h>
+#import <objc/runtime.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSRunLoop.h>
@@ -409,6 +411,44 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
     
     [_preparedTarget release];
     _preparedTarget = nil;
+}
+
+static char discardableKey;
+
+/* The group an action now registered belongs to: the outermost open
+   one, else the one last closed on the stack being added to. */
+- (NSUndoGroup *)_groupForMarking
+{
+    NSUndoGroup *group = _currentGroup;
+
+    if (group != nil) {
+        while ([group parentGroup] != nil)
+            group = [group parentGroup];
+        return group;
+    }
+    return [(_state == NSUndoManagerUndoing ? _redoStack : _undoStack) lastObject];
+}
+
+/* The action being registered may be dropped without harm (a selection
+   change, say): apps may leave it out of what they count as edits. */
+- (void)setActionIsDiscardable:(BOOL)discardable
+{
+    NSUndoGroup *group = [self _groupForMarking];
+
+    if (group != nil)
+        objc_setAssociatedObject(group, &discardableKey, discardable ? @YES : nil, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (BOOL)undoActionIsDiscardable
+{
+    NSUndoGroup *group = [_undoStack lastObject];
+    return group != nil && [objc_getAssociatedObject(group, &discardableKey) boolValue];
+}
+
+- (BOOL)redoActionIsDiscardable
+{
+    NSUndoGroup *group = [_redoStack lastObject];
+    return group != nil && [objc_getAssociatedObject(group, &discardableKey) boolValue];
 }
 
 - (void)setActionName:(NSString *)name

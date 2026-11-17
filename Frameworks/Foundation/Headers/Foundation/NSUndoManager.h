@@ -76,6 +76,9 @@ FOUNDATION_EXPORT NSString *const NSUndoManagerDidRedoChangeNotification;
 - (void)forwardInvocation:(NSInvocation *)invocation;
 
 - (NSString *)undoActionName;
+- (void)setActionIsDiscardable:(BOOL)discardable;
+@property (readonly) BOOL undoActionIsDiscardable;
+@property (readonly) BOOL redoActionIsDiscardable;
 - (NSString *)undoMenuItemTitle;
 - (NSString *)undoMenuTitleForUndoActionName:(NSString *)name;
 - (void)setActionName:(NSString *)name;

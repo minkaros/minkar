@@ -112,6 +112,8 @@
 #import <Foundation/NSFileHandle.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSFileVersion.h>
+#import <Foundation/NSFilePresenter.h>
+#import <Foundation/NSFileCoordinator.h>
 #import <Foundation/NSFormatter.h>
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSHashTable.h>

@@ -799,6 +799,15 @@ static NSString *baseLanguage(NSString *name) {
             else
                 lookInDirectories = [NSArray arrayWithObjects:[language stringByAppendingPathExtension:@"lproj"], @"en.lproj", @"English.lproj", @"", nil];
 
+            /* Base.lproj (base internationalization: an app's nibs and
+               storyboards for every language) after the languages', before
+               the bundle's unlocalized resources. */
+            if ([lookInDirectories containsObject:@""]) {
+                NSMutableArray *withBase = [NSMutableArray arrayWithArray:lookInDirectories];
+                [withBase insertObject:@"Base.lproj" atIndex:[withBase indexOfObject:@""]];
+                lookInDirectories = withBase;
+            }
+
             for (NSString *proj in lookInDirectories) {
                 NSString *path = [_resourcePath stringByAppendingPathComponent:proj];
                 BOOL isDirectory = NO;

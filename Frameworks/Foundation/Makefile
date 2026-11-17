@@ -327,6 +327,7 @@ SRCS = 	NSFormatter.m \
 	NSRunLoop/NSDelayedPerform.m \
 	NSFileManager.m \
 	NSFileVersion.m \
+	NSFileCoordinator.m \
 	NSAffineTransform.m \
 	NSNotification/NSNotification_concrete.m \
 	NSNotification/NSNotification.m \
@@ -411,6 +412,7 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSFileCoordinator.m = -fobjc-arc
 CFLAGS.NSUserActivity.m = -fobjc-arc
 CFLAGS.NSURLFileTypeMappings.m = -fobjc-arc
 CFLAGS.NSMachPort.m = -fobjc-arc
