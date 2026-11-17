@@ -67,6 +67,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [result setOneShot:(_wtFlags&0x10000000)?YES:NO];
    [result setReleasedWhenClosed:(_wtFlags&0x40000000)?NO:YES];
    [result setHidesOnDeactivate:(_wtFlags&0x80000000)?YES:NO];
+   // The key view loop recalculated as views come and go (IB's setting).
+   [result setAutorecalculatesKeyViewLoop:(_wtFlags&0x00000800)?YES:NO];
    [result setTitle:_windowTitle];
 
    [result setContentView:_windowView];

@@ -156,16 +156,16 @@ const float WSWindowEdgePad = 2;
 
 -(NSComparisonResult)compareKeyViewPosition:(_NSKeyViewPosition *)other {
 
-    // Sort by larger Y (cartesian coordinates)
+    // Top to bottom (larger Y first, cartesian), then left to right.
+    if(NSMaxY(_rect)>NSMaxY(other->_rect))
+        return NSOrderedAscending;
     if(NSMaxY(_rect)<NSMaxY(other->_rect))
         return NSOrderedDescending;
-    else {
-        // Then sort by smaller X
-        if(NSMinX(_rect)<NSMinX(other->_rect))
-            return NSOrderedAscending;
-        else
-            return NSOrderedDescending;
-    }
+    if(NSMinX(_rect)<NSMinX(other->_rect))
+        return NSOrderedAscending;
+    if(NSMinX(_rect)>NSMinX(other->_rect))
+        return NSOrderedDescending;
+    return NSOrderedSame;
 }
 
 @end
@@ -2059,7 +2059,16 @@ static BOOL hasKeyViewLoop(NSView *view) {
     return 0.20;
 }
 
+/* A window that recalculates its key view loop does so as the focus
+   moves, so views added since (a banner, say) are in it, in their place
+   on the screen (as on the reference). */
+-(void)_recalculateKeyViewLoopIfAutomatic {
+   if([self autorecalculatesKeyViewLoop])
+    [self recalculateKeyViewLoop];
+}
+
 -(void)selectNextKeyView:sender {
+   [self _recalculateKeyViewLoopIfAutomatic];
    if([_firstResponder isKindOfClass:[NSView class]]){
     NSView *view=(NSView *)_firstResponder;
 
@@ -2068,6 +2077,7 @@ static BOOL hasKeyViewLoop(NSView *view) {
 }
 
 -(void)selectPreviousKeyView:sender {
+   [self _recalculateKeyViewLoopIfAutomatic];
    if([_firstResponder isKindOfClass:[NSView class]]){
     NSView *view=(NSView *)_firstResponder;
 
@@ -2075,16 +2085,19 @@ static BOOL hasKeyViewLoop(NSView *view) {
    }
 }
 
+/* No view to go to: the focus stays (as on the reference). */
 -(void)selectKeyViewFollowingView:(NSView *)view {
    NSView *next=[view nextValidKeyView];
 
-   [self makeFirstResponder:next];
+   if(next!=nil)
+    [self makeFirstResponder:next];
 }
 
 -(void)selectKeyViewPrecedingView:(NSView *)view {
    NSView *next=[view previousValidKeyView];
 
-   [self makeFirstResponder:next];
+   if(next!=nil)
+    [self makeFirstResponder:next];
 }
 
 -(void)recalculateKeyViewLoopIfNeeded {
