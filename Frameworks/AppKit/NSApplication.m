@@ -103,6 +103,12 @@ NSString * const NSApplicationDidChangeScreenParametersNotification=@"NSApplicat
 -initWithOwner:owner;
 @end
 
+/* NSDocumentController's, for the launch's documents. */
+@interface NSDocumentController (NSApplicationLaunch)
+-(void)_noteTransientDocument:(NSDocument *)document;
+-(void)_openDocumentPresentingError:(NSURL *)url;
+@end
+
 @implementation NSApplication
 
 static NSAppearance *applicationAppearance;
@@ -895,11 +901,11 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    }
    id types=[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleDocumentTypes"];
    if([types count]>0) {
-      BOOL opened=NO;
+      /* Through the newer method, as the reference opens them: a document
+         controller that overrides it is called. */
       for(NSString *path in paths)
-         opened|=[[NSDocumentController sharedDocumentController]
-            openDocumentWithContentsOfURL:[NSURL fileURLWithPath:path] display:YES error:NULL]!=nil;
-      return opened;
+         [[NSDocumentController sharedDocumentController] _openDocumentPresentingError:[NSURL fileURLWithPath:path]];
+      return YES;
    }
    return NO;
 }
@@ -1027,6 +1033,9 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if(needsUntitled && controller) {
        [controller _updateRecentDocumentsMenu];
        [controller newDocument: self];
+       /* The first document opened takes its place while untouched. */
+       if([[controller documents] count]==1)
+           [controller _noteTransientDocument:[[controller documents] lastObject]];
    }
 
    NS_DURING
@@ -1036,6 +1045,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NS_ENDHANDLER
 
    [self _addFullScreenItem];
+   [self _addWindowAlternates];
    [self _noteRecentApplication];
    [pool release];
 }
@@ -1084,6 +1094,44 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
     [view addItem:[NSMenuItem separatorItem]];
    [view addItem:full];
+}
+
+/* The alternates AppKit adds after an app's menu items, as the reference
+   platform's does: with Option, Close becomes Close All, Minimize
+   Minimize All, Zoom Zoom All, Bring All to Front Arrange in Front. */
+-(void)_addWindowAlternates {
+   struct { SEL base; SEL alternate; NSString *title; } pairs[]={
+    { @selector(performClose:), @selector(_closeAllWindows:), @"Close All" },
+    { @selector(performMiniaturize:), @selector(miniaturizeAll:), @"Minimize All" },
+    { @selector(performZoom:), @selector(_zoomAllWindows:), @"Zoom All" },
+    { @selector(arrangeInFront:), @selector(_arrangeInFrontCascading:), @"Arrange in Front" },
+   };
+   NSBundle *appKit=[NSBundle bundleForClass:[NSApplication class]];
+
+   for(NSMenuItem *top in [[self mainMenu] itemArray]){
+    NSMenu *menu=[top submenu];
+
+    for(NSInteger i=0;i<[menu numberOfItems];i++){
+     NSMenuItem *item=[menu itemAtIndex:i];
+
+     for(size_t p=0;p<sizeof(pairs)/sizeof(pairs[0]);p++){
+      if([item action]!=pairs[p].base || [item isAlternate])
+       continue;
+      /* Not twice: the app may have its own. */
+      NSMenuItem *next=(i+1<[menu numberOfItems])?[menu itemAtIndex:i+1]:nil;
+      if([next isAlternate] || [menu indexOfItemWithTarget:nil andAction:pairs[p].alternate]>=0)
+       continue;
+      NSString   *title=[appKit localizedStringForKey:pairs[p].title value:pairs[p].title table:nil];
+      NSMenuItem *alt=[[[NSMenuItem alloc] initWithTitle:title action:pairs[p].alternate
+       keyEquivalent:[item keyEquivalent]] autorelease];
+
+      [alt setKeyEquivalentModifierMask:[item keyEquivalentModifierMask]|NSAlternateKeyMask];
+      [alt setAlternate:YES];
+      [menu insertItem:alt atIndex:i+1];
+      i++;
+     }
+    }
+   }
 }
 
 -(void)_checkForReleasedWindows {
@@ -1966,19 +2014,53 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    NSUnimplementedMethod();
 }
 
--(void)arrangeInFront:sender {
-#define CASCADE_DELTA   20      // ? isn't there a call for this?
-    NSMutableArray *visibleWindows = [NSMutableArray new];
-    NSRect rect=[[[NSScreen screens] objectAtIndex:0] frame], winRect;
-    NSArray *windowsItems = [[self windowsMenu] itemArray];
-    int i, count=[windowsItems count];
+/* The app's windows in the Window menu, in its order. */
+-(NSArray *)_windowsInWindowsMenu {
+    NSMutableArray *windows=[NSMutableArray array];
 
-    for (i = 0 ; i < count; ++i) {
-        id target = [[windowsItems objectAtIndex:i] target];
+    for(NSMenuItem *item in [[self windowsMenu] itemArray]){
+        id target=[item target];
 
-        if ([target isKindOfClass:[NSWindow class]])
-            [visibleWindows addObject:target];
+        if([target isKindOfClass:[NSWindow class]] && ![windows containsObject:target])
+            [windows addObject:target];
     }
+    return windows;
+}
+
+/* Bring All to Front: the app's windows come in front of other apps',
+   where they are (as on the reference); the key window first. */
+-(void)arrangeInFront:sender {
+    NSWindow *key=[self keyWindow];
+
+    for(NSWindow *window in [[self _windowsInWindowsMenu] reverseObjectEnumerator])
+        if(window!=key && ![window isMiniaturized])
+            [window orderFront:sender];
+    if(key!=nil && ![key isMiniaturized])
+        [key orderFront:sender];
+}
+
+/* Close All: each window as its close button would (documents ask to be
+   saved). */
+-(void)_closeAllWindows:sender {
+    for(NSWindow *window in [[[self windows] copy] autorelease])
+        if([window isVisible] && ([window styleMask]&NSWindowStyleMaskClosable))
+            [window performClose:sender];
+}
+
+/* Zoom All: each visible window as its zoom button would. */
+-(void)_zoomAllWindows:sender {
+    for(NSWindow *window in [[[self windows] copy] autorelease])
+        if([window isVisible] && ([window styleMask]&NSWindowStyleMaskResizable))
+            [window performZoom:sender];
+}
+
+/* Arrange in Front (Bring All to Front with Option): the windows in front,
+   cascaded from the screen's middle. */
+-(void)_arrangeInFrontCascading:sender {
+#define CASCADE_DELTA   20      // ? isn't there a call for this?
+    NSArray *visibleWindows = [self _windowsInWindowsMenu];
+    NSRect rect=[[[NSScreen screens] objectAtIndex:0] frame], winRect;
+    int i, count;
 
     count = [visibleWindows count];
     if (count == 0)

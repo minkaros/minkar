@@ -53,6 +53,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - openUntitledDocumentAndDisplay:(BOOL)display error:(NSError **)error;
 - openDocumentWithContentsOfFile:(NSString *)path display:(BOOL)display;
 - openDocumentWithContentsOfURL:(NSURL *)url display:(BOOL)display error:(NSError **)error;
+- (void)openDocumentWithContentsOfURL:(NSURL *)url display:(BOOL)displayDocument
+    completionHandler:(void (^)(NSDocument *document, BOOL documentWasAlreadyOpen, NSError *error))completionHandler;
 
 - (BOOL)reopenDocumentForURL:(NSURL *)url withContentsOfURL:(NSURL *)contentsUL error:(NSError **)error;
 

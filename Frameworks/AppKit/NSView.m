@@ -1186,7 +1186,29 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
    return isfinite(result)?result:newFrame;
 }
 
+/* The view setFrame: is setting through setFrameOrigin: and setFrameSize:
+   (it posts the one notification itself). */
+static NSView *framingView;
+
+/* As the reference does: through setFrameOrigin: and setFrameSize:, always
+   (a subclass that overrides either one hears of every new frame), one
+   NSViewFrameDidChangeNotification when the frame changed. */
 -(void)setFrame:(NSRect)frame {
+   NSRect  oldFrame=_frame;
+   NSView *outer=framingView;
+
+   framingView=self;
+   [self setFrameOrigin:frame.origin];
+   [self setFrameSize:frame.size];
+   framingView=outer;
+   if(NSEqualRects(oldFrame,_frame))
+    return;
+   if(_postsNotificationOnFrameChange)
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:self];
+   globalFrameChanged(self);
+}
+
+-(void)_applyFrame:(NSRect)frame {
   // Cocoa does not post the notification if the frames are equal
    // Possible that resizeSubviewsWithOldSize is not called if the sizes are equal
    if(NSEqualRects(_frame,frame))
@@ -1232,6 +1254,8 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
      [self setNeedsDisplay:YES];
    }
 
+   if(framingView==self)
+    return;
    if(_postsNotificationOnFrameChange)
     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:self];
    if(!NSEqualRects(oldFrame,_frame))
@@ -1242,14 +1266,14 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
    NSRect frame=_frame;
 
    frame.size=size;
-   [self setFrame:frame];
+   [self _applyFrame:frame];
 }
 
 -(void)setFrameOrigin:(NSPoint)origin {
-   NSRect frame=[self frame];
+   NSRect frame=_frame;
 
    frame.origin=origin;
-   [self setFrame:frame];
+   [self _applyFrame:frame];
 }
 
 -(void)setFrameRotation:(CGFloat)angle {
@@ -1450,12 +1474,11 @@ static CGFloat boundsLength(CGFloat bounds,CGFloat oldFrame,CGFloat newFrame) {
    NSUnimplementedMethod();
 }
 
+/* Hooks for subclasses: a subview was added, or is about to go. */
 -(void)didAddSubview:(NSView *)subview {
-   NSUnimplementedMethod();
 }
 
 -(void)willRemoveSubview:(NSView *)subview {
-   NSUnimplementedMethod();
 }
 
 -(void)setAutoresizesSubviews:(BOOL)flag {
@@ -1719,6 +1742,9 @@ static char inputContextKey;
    NSView *removeFrom=_superview;
    NSWindow *window=[self window];
 
+   if(removeFrom==nil)
+    return;
+   [removeFrom willRemoveSubview:self];
    [self _deepResignFirstResponder];
    [self _setSuperview:nil];
    [self _setWindow:nil];

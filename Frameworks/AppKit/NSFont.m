@@ -577,9 +577,14 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
    return familyName;
 }
 
+/* The font's full name, as it names itself ("Menlo Regular", "PT
+   Mono"), as the reference shows it; else its typeface's. */
 -(NSString *)displayName {
-        NSFontTypeface *typeFace = [NSFontFamily fontTypefaceWithName:_name];
-   return [typeFace displayName];
+   NSString *full=[(NSString *)CTFontCopyName(_ctFont,kCTFontFullNameKey) autorelease];
+
+   if([full length]>0)
+    return full;
+   return [[NSFontFamily fontTypefaceWithName:_name] displayName];
 }
 
 - (NSDictionary*)_fontTraitsAsDictionary

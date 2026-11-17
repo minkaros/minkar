@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <LaunchServices/LaunchServices.h>
 #import <AppKit/NSDocumentController.h>
+#import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDocument.h>
 #import <AppKit/NSOpenPanel.h>
 #import <AppKit/NSMenu.h>
@@ -88,15 +89,17 @@ static NSDocumentController *shared=nil;
    return _autosavingDelay;
 }
 
+/* A document type is its declaration's name or one of its content types
+   (LSItemContentTypes: what apps written for UTIs use). */
 -(NSDictionary *)_infoForType:(NSString *)type {
-   int i,count=[_fileTypes count];
-   
-   for(i=0;i<count;i++){
-    NSDictionary *check=[_fileTypes objectAtIndex:i];
-    NSString     *name=[check objectForKey:@"CFBundleTypeName"];
-
-    if([name isEqualToString:type])
+   if(type==nil)
+    return nil;
+   for(NSDictionary *check in _fileTypes){
+    if([[check objectForKey:@"CFBundleTypeName"] isEqualToString:type])
      return check;
+    for(NSString *uti in [check objectForKey:@"LSItemContentTypes"])
+     if([uti caseInsensitiveCompare:type]==NSOrderedSame)
+      return check;
    }
    return nil;
 }
@@ -219,15 +222,31 @@ static NSDocumentController *shared=nil;
    return [[window windowController] document];
 }
 
+/* The first declared content type the file's conforms to, in the
+   declarations' order; else, for declarations by extension, the one whose
+   extensions (or "*") take it. */
 -(NSString *)typeForContentsOfURL:(NSURL *)url error:(NSError **)error {
-   if(![url isFileURL])
-    return nil;
-    
-   NSString *extension=[[url path] pathExtension];
-   if(extension==nil)
-    return nil;
-       
-   return [self typeFromFileExtension:extension];
+   NSString *uti=nil;
+
+   if([url isFileURL]){
+    [url getResourceValue:&uti forKey:NSURLTypeIdentifierKey error:NULL];
+    if(uti==nil)
+     uti=[[NSWorkspace sharedWorkspace] typeOfFile:[url path] error:NULL];
+   }
+   if(uti!=nil)
+    for(NSDictionary *check in _fileTypes)
+     for(NSString *type in [check objectForKey:@"LSItemContentTypes"])
+      if(UTTypeConformsTo((CFStringRef)uti,(CFStringRef)type))
+       return type;
+   NSString *extension=[[[url path] pathExtension] lowercaseString];
+   for(NSDictionary *check in _fileTypes)
+    for(NSString *name in [check objectForKey:@"CFBundleTypeExtensions"])
+     if([name isEqualToString:@"*"] || [[name lowercaseString] isEqualToString:extension])
+      return [check objectForKey:@"CFBundleTypeName"];
+   if(error!=NULL)
+    *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
+     userInfo:[NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey]];
+   return nil;
 }
 
 -makeDocumentWithContentsOfFile:(NSString *)path ofType:(NSString *)type {
@@ -240,12 +259,15 @@ static NSDocumentController *shared=nil;
 }
 
 -makeDocumentWithContentsOfURL:(NSURL *)url ofType:(NSString *)type error:(NSError **)error {
-   id    result;
    Class class=[self documentClassForType:type];
 
-   result=[[[class alloc] initWithContentsOfURL:url ofType:type] autorelease];
-
-   return result;
+   if(class==Nil){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
+      userInfo:[NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey]];
+    return nil;
+   }
+   return [[[class alloc] initWithContentsOfURL:url ofType:type error:error] autorelease];
 }
 
 -makeDocumentForURL:(NSURL *)url withContentsOfURL:(NSURL *)contentsURL ofType:(NSString *)type error:(NSError **)error {
@@ -359,33 +381,99 @@ static NSDocumentController *shared=nil;
    return result;
 }
 
+/* The untitled document opened as the app launched, while untouched: the
+   first document opened takes its place (as on the reference). */
+static NSDocument *transientDocument;
+
+-(void)_noteTransientDocument:(NSDocument *)document {
+   transientDocument=document;
+}
+
+-(NSDocument *)_transientDocumentToReplace {
+   NSDocument *doc=transientDocument;
+
+   if(doc==nil || ![_documents containsObject:doc] || [doc fileURL]!=nil || [doc isDocumentEdited] ||
+      [_documents count]!=1){
+    transientDocument=nil;
+    return nil;
+   }
+   return doc;
+}
+
+/* Opens url: the document already open for it, or a new one of the type
+   its contents have; replaces an untouched untitled document; shows its
+   windows when asked; the handler hears of it (or of the error). */
+-(void)openDocumentWithContentsOfURL:(NSURL *)url display:(BOOL)display
+   completionHandler:(void (^)(NSDocument *document, BOOL documentWasAlreadyOpen, NSError *error))completionHandler {
+   NSDocument *document=[self documentForURL:url];
+   NSError    *error=nil;
+
+   if(document!=nil){
+    if(display)
+     [document showWindows];
+    if(completionHandler!=nil)
+     completionHandler(document,YES,nil);
+    return;
+   }
+   NSString *type=[self typeForContentsOfURL:url error:&error];
+
+   document=(type==nil)?nil:[self makeDocumentWithContentsOfURL:url ofType:type error:&error];
+   if(document!=nil){
+    NSDocument *replaced=[self _transientDocumentToReplace];
+    NSWindow   *place=[[[replaced windowControllers] firstObject] window];
+    NSRect      frame=[place frame];
+
+    [self addDocument:document];
+    [document makeWindowControllers];
+    if(replaced!=nil){
+     transientDocument=nil;
+     /* Where the untitled window was. */
+     for(NSWindowController *controller in [document windowControllers])
+      if([controller window]!=nil && place!=nil)
+       [[controller window] setFrameTopLeftPoint:NSMakePoint(NSMinX(frame),NSMaxY(frame))];
+     [replaced close];
+    }
+    if(display)
+     [document showWindows];
+    [self noteNewRecentDocument:document];
+   }
+   else if(error==nil)
+    error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
+     userInfo:[NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey]];
+   if(completionHandler!=nil)
+    completionHandler(document,NO,document!=nil?nil:error);
+}
+
+/* The older way, through the newer: a subclass that overrides either
+   one is called. */
 -openDocumentWithContentsOfURL:(NSURL *)url display:(BOOL)display error:(NSError **)error {
    IMP mine=[NSDocumentController instanceMethodForSelector:@selector(openDocumentWithContentsOfFile:display:)];
    IMP theirs=[self methodForSelector:@selector(openDocumentWithContentsOfFile:display:)];
-      
+   __block NSDocument *result=nil;
+   __block NSError    *failure=nil;
+
    if([url isFileURL] && mine!=theirs)
     return [self openDocumentWithContentsOfFile:[url path] display:display];
-   else {
-    NSDocument *result=[self documentForURL:url];
+   [self openDocumentWithContentsOfURL:url display:display completionHandler:^(NSDocument *document,BOOL open,NSError *e){
+    result=[document retain];
+    failure=[e retain];
+   }];
+   if(error!=NULL)
+    *error=[failure autorelease];
+   else
+    [failure release];
+   return [result autorelease];
+}
 
-    if(result==nil){
-     NSString   *extension=[[url path] pathExtension];
-     NSString   *type=[self typeFromFileExtension:extension];
-     
-     result=[self makeDocumentWithContentsOfURL:url ofType:type error:error];
+/* What the system opens (LaunchServices, Open, Open Recent): through the
+   newer method, an error shown as the reference shows it. */
+-(void)_openDocumentPresentingError:(NSURL *)url {
+   [self openDocumentWithContentsOfURL:url display:YES completionHandler:^(NSDocument *document,BOOL open,NSError *error){
+    if(document==nil && error!=nil && !([[error domain] isEqualToString:NSCocoaErrorDomain] && [error code]==NSUserCancelledError))
+     [self presentError:error];
+   }];
+}
 
-     if(result!=nil){
-      [self addDocument:result];
-      [result makeWindowControllers];
-      [self noteNewRecentDocument:result];
-     }
-    }
-    if(display)
-     [result showWindows];
-     
-    return result;
-   }
-} 
 
 -(BOOL)reopenDocumentForURL:(NSURL *)url withContentsOfURL:(NSURL *)contentsUL error:(NSError **)error {
    NSUnimplementedMethod();
@@ -643,7 +731,8 @@ static NSDocumentController *shared=nil;
     NSError *error=nil;
     NSURL   *url=[NSURL fileURLWithPath:[files objectAtIndex:i]];
 
-    [self openDocumentWithContentsOfURL:url display:YES error:&error];
+    (void)error;
+    [self _openDocumentPresentingError:url];
    }
 }
 

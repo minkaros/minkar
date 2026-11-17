@@ -123,9 +123,14 @@ static CFStringRef defaultCopyDescription(const void *value) {
    return _count;
 }
 
+/* No key, no object (as the reference answers: nil, no exception). */
 -objectForKey:key {
-   NSUInteger i=_keyCallBacks.hash(key)%_nBuckets;
+   NSUInteger i;
    NSDictNode *j;
+
+   if(key==nil || _nBuckets==0)
+    return nil;
+   i=_keyCallBacks.hash(key)%_nBuckets;
 
    for(j=_buckets[i];j!=NULL;j=j->next)
     if(j->key == key || _keyCallBacks.equal(j->key,key))
@@ -246,6 +251,8 @@ static void NSDictRemove(NSMutableDictionary_CF *self,const void *key){
 }
 
 -(void)removeObjectForKey:key {
+   if(key==nil)
+    NSRaiseException(NSInvalidArgumentException,self,_cmd,@"key cannot be nil");
    NSDictRemove(self,key);
 }
 

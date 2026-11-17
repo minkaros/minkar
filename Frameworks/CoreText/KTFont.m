@@ -6,6 +6,8 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import "KTFont.h"
+#include <objc/runtime.h>
+#include <objc/message.h>
 #import <Onyx2D/O2Exceptions.h>
 #import <Foundation/NSArray.h>
 
@@ -26,6 +28,56 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)dealloc {
    CGFontRelease(_font);
    [super dealloc];
+}
+
+/* A CTFont is an NSFont on the reference (toll-free bridged): what apps
+   send a font made by CoreText (CTFontCreateForString's, say) and only an
+   NSFont answers goes to the NSFont of the same face and size, made once.
+   CoreText does not link AppKit: without it there is none. */
+static char bridgedFontKey;
+
+static Class nsFontClass(void) {
+   static Class cls;
+   static BOOL  looked;
+
+   if(!looked){
+    cls=NSClassFromString(@"NSFont");
+    looked=YES;
+   }
+   return cls;
+}
+
+static BOOL bridgesSelector(SEL selector) {
+   Class cls=nsFontClass();
+
+   return cls!=Nil && sel_getName(selector)[0]!='_' && [cls instancesRespondToSelector:selector];
+}
+
+-(id)_bridgedNSFont {
+   id font=objc_getAssociatedObject(self,&bridgedFontKey);
+
+   if(font==nil && nsFontClass()!=Nil){
+    NSString *name=[(NSString *)CGFontCopyPostScriptName(_font) autorelease];
+
+    font=((id (*)(id,SEL,id,CGFloat))objc_msgSend)(nsFontClass(),@selector(fontWithName:size:),name,[self pointSize]);
+    if(font!=nil)
+     objc_setAssociatedObject(self,&bridgedFontKey,font,OBJC_ASSOCIATION_RETAIN);
+   }
+   return font;
+}
+
+-(id)forwardingTargetForSelector:(SEL)selector {
+   if(bridgesSelector(selector)){
+    id font=[self _bridgedNSFont];
+
+    if(font!=nil)
+     return font;
+   }
+   return [super forwardingTargetForSelector:selector];
+}
+
+-(BOOL)respondsToSelector:(SEL)selector {
+   return [super respondsToSelector:selector] || bridgesSelector(selector);
 }
 
 -(CFStringRef)copyName {

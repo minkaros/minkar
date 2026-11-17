@@ -175,9 +175,49 @@ static Class _fontPanelFactory;
    return nil;
 }
 
+/* Whether a font's glyphs are all as wide: measured once per font. */
+static BOOL fontIsFixedPitch(NSString *name) {
+   static NSMutableDictionary *known=nil;
+   NSNumber *answer;
+
+   if(known==nil)
+    known=[[NSMutableDictionary alloc] init];
+   if((answer=[known objectForKey:name])==nil){
+    NSFont *font=[NSFont fontWithName:name size:12];
+
+    answer=[NSNumber numberWithBool:font!=nil && [font isFixedPitch]];
+    [known setObject:answer forKey:name];
+   }
+   return [answer boolValue];
+}
+
+/* A typeface's traits, with NSFixedPitchFontMask when its glyphs are all
+   as wide. */
+static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface) {
+   NSFontTraitMask traits=[typeface traits];
+
+   if(fontIsFixedPitch([typeface name]))
+    traits|=NSFixedPitchFontMask;
+   return traits;
+}
+
+/* Every face that has all of traits, by its PostScript name, in
+   availableFonts' order; none for no traits (as the reference). */
 -(NSArray *)availableFontNamesWithTraits:(NSFontTraitMask)traits {
-   NSUnimplementedMethod();
-   return nil;
+   NSMutableArray *result=[NSMutableArray array];
+
+   if(traits==0)
+    return result;
+   for(NSString *familyName in [NSFontFamily allFontFamilyNames])
+    for(NSFontTypeface *typeface in [[NSFontFamily fontFamilyWithName:familyName] typefaces]){
+     NSFontTraitMask have=[typeface traits];
+
+     if(traits&NSFixedPitchFontMask && fontIsFixedPitch([typeface name]))
+      have|=NSFixedPitchFontMask;
+     if((have&traits)==traits)
+      [result addObject:[typeface name]];
+    }
+   return result;
 }
 
 -(BOOL)fontNamed:(NSString *)name hasTraits:(NSFontTraitMask)traits {
@@ -235,7 +275,7 @@ static Class _fontPanelFactory;
 -(NSFontTraitMask)traitsOfFont:(NSFont *)font {
    NSFontTypeface *typeface=[NSFontFamily fontTypefaceWithName:[font fontName]];
 
-   return [typeface traits];
+   return typeface!=nil?typefaceTraits(typeface):([font isFixedPitch]?NSFixedPitchFontMask:0);
 }
 
 -(NSString *)localizedNameForFamily:(NSString *)family face:(NSString *)face {
