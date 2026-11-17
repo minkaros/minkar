@@ -769,22 +769,37 @@ attached:
 	} else
 		usleep(500000);	/* the partitions are published after */
 	n = list_media(disk, m, 32);
-	for (i = 0; i < n; i++) {
-		bool ok = false;
+	{
+		char mps[32][PATH_MAX];
+		bool ok[32];
 
-		if (!nomount && m[i].leaf && usingda) {
-			ok = da_mount(m[i].name, mounted == 0 ? mountpoint :
-			    NULL, readonly, mp, sizeof(mp));
-			if (ok)
-				mounted++;
-		} else if (!nomount && m[i].leaf) {
-			ok = mount_volume(m[i].name, mounted == 0 ? mountpoint :
-			    NULL, readonly, mp, sizeof(mp));
-			if (ok)
+		for (i = 0; i < n; i++) {
+			ok[i] = false;
+			if (!nomount && m[i].leaf && usingda)
+				ok[i] = da_mount(m[i].name, mounted == 0 ? mountpoint :
+				    NULL, readonly, mps[i], sizeof(mps[i]));
+			else if (!nomount && m[i].leaf)
+				ok[i] = mount_volume(m[i].name, mounted == 0 ?
+				    mountpoint : NULL, readonly, mps[i], sizeof(mps[i]));
+			if (ok[i])
 				mounted++;
 		}
-		print_media(&m[i], ok ? mp : NULL);
+		/* Nothing mounted when asked to (a mount point that is not
+		 * there, a volume that will not mount): the image goes. */
+		if (!nomount && mounted == 0) {
+			uint64_t id = out[0];
+
+			c = driver();
+			IOConnectCallMethod(c, kMinkarDiskImageDetach, &id, 1, NULL, 0,
+			    NULL, NULL, NULL, NULL);
+			IOServiceClose(c);
+			fprintf(stderr, "hdiutil: attach failed - no mountable file systems\n");
+			return (1);
+		}
+		for (i = 0; i < n; i++)
+			print_media(&m[i], ok[i] ? mps[i] : NULL);
 	}
+	(void)mp;
 	return (0);
 }
 

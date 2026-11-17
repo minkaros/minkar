@@ -470,8 +470,10 @@ write_all(int fd, const void *p, size_t n)
 	return true;
 }
 
-/* Compressed into out (room for outCap): its length, or 0 when it does
- * not shrink. */
+/* Compressed into out (room for outCap): its length, or 0 when it saves
+ * less than an eighth. Such a chunk is stored as it is, as the reference's
+ * hdiutil stores one in UDZO; its reader also fails on an LZFSE chunk of
+ * data that hardly compresses (seen on 16 Nov 2026), and reads it raw. */
 static size_t
 encode(uint32_t type, int level, const uint8_t *in, size_t inLen, uint8_t *out, size_t outCap)
 {
@@ -480,18 +482,18 @@ encode(uint32_t type, int level, const uint8_t *in, size_t inLen, uint8_t *out, 
 		uLongf got = outCap;
 		if (compress2(out, &got, in, inLen, level) != Z_OK)
 			return 0;
-		return got < inLen ? got : 0;
+		return got < inLen - inLen / 8 ? got : 0;
 	}
 	case UDIF_BZIP2: {
 		unsigned int got = (unsigned int)outCap;
 		if (BZ2_bzBuffToBuffCompress((char *)out, &got, (char *)(uintptr_t)in,
 		    (unsigned int)inLen, 9, 0, 0) != BZ_OK)
 			return 0;
-		return got < inLen ? got : 0;
+		return got < inLen - inLen / 8 ? got : 0;
 	}
 	case UDIF_LZFSE: {
 		size_t got = compression_encode_buffer(out, outCap, in, inLen, NULL, COMPRESSION_LZFSE);
-		return got > 0 && got < inLen ? got : 0;
+		return got > 0 && got < inLen - inLen / 8 ? got : 0;
 	}
 	}
 	return 0;
@@ -518,7 +520,9 @@ blkx_plist(const struct mish *m, const struct mish_chunk *chunks, uint32_t n)
 	CFDictionarySetValue(entry, CFSTR("Attributes"), CFSTR("0x0050"));
 	CFDictionarySetValue(entry, CFSTR("CFName"), CFSTR("whole disk"));
 	CFDictionarySetValue(entry, CFSTR("Name"), CFSTR("whole disk"));
-	CFDictionarySetValue(entry, CFSTR("ID"), CFSTR("0"));
+	/* Entries are numbered from -1, as the reference's hdiutil numbers
+	 * them; it does not take a lone entry numbered otherwise. */
+	CFDictionarySetValue(entry, CFSTR("ID"), CFSTR("-1"));
 	CFDictionarySetValue(entry, CFSTR("Data"), data);
 	CFRelease(data);
 	blkx = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
