@@ -59,10 +59,11 @@ finds the last panic in a console log and names every frame from the
 build's unstripped kernel (and, for frames in a kext, from that kext):
 
 ```bash
+# ROOT_BINARY_DIR: the build root, the source directory's ../build
 tools/panic-report.py \
-  --kernel /work/build/work/minkar/Kernel/xnu/RELEASE_X86_64/kernel.unstripped \
-  --kexts /work/build/sysroot/System/Library/Extensions \
-  /work/build/boottest-M2.log
+  --kernel $ROOT_BINARY_DIR/work/<source dir>/Kernel/xnu/RELEASE_X86_64/kernel.unstripped \
+  --kexts $ROOT_BINARY_DIR/sysroot/System/Library/Extensions \
+  $ROOT_BINARY_DIR/boottest-M2.log
 ```
 
 It warns when the panic's kernel UUID is not the given kernel's, and takes
