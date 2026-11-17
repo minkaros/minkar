@@ -405,7 +405,13 @@ endfunction()
 macro(darwin_add_builtin_libraries)
   set(DARWIN_EXCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Darwin-excludes)
 
-  set(CFLAGS -fPIC -O3 -fvisibility=hidden -DVISIBILITY_HIDDEN -Wall -fomit-frame-pointer)
+  # Minkar: COMPILER_RT_BUILTINS_HIDE_SYMBOLS=OFF builds them visible, for
+  # the libcompiler_rt dylib that exports them.
+  if(DEFINED COMPILER_RT_BUILTINS_HIDE_SYMBOLS AND NOT COMPILER_RT_BUILTINS_HIDE_SYMBOLS)
+    set(CFLAGS -fPIC -O3 -Wall -fomit-frame-pointer)
+  else()
+    set(CFLAGS -fPIC -O3 -fvisibility=hidden -DVISIBILITY_HIDDEN -Wall -fomit-frame-pointer)
+  endif()
   set(CMAKE_C_FLAGS "")
   set(CMAKE_CXX_FLAGS "")
   set(CMAKE_ASM_FLAGS "")

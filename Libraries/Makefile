@@ -181,8 +181,41 @@ libcxx: libunwind
 		${MINKAR_SDKROOT}/usr/lib/
 
 RTOBJ = ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a
+# The same builtins with their symbols visible, for the dylib alone: the
+# reference's libcompiler_rt exports them (libSystem re-exports it), and
+# binaries built there call them through it (__extendhfsf2 for a half
+# float, for one). The archive clang links into images keeps them hidden.
+RTOBJ_EXPORTED = ${.OBJDIR}/llvm_target/compiler-rt-exported/lib/minkar/libclang_rt.osx.a
 CLANG_RT_DIR = ${TOOLCHAIN}/usr/lib/clang/${LLVM_VERSION_MAJOR}/lib/darwin
-compiler_rt: runtime libunwind libcxx
+compiler_rt_exported: runtime
+	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer \
+	PATH=${TOOLCHAIN}/usr/bin:${PATH} \
+	SDKROOT=${MINKAR_SDKROOT} CFLAGS=${RUNTIME_FLAGS} \
+	cmake -S ${DEVEL}/Default.xctoolchain/llvm/compiler-rt \
+	-B ${.OBJDIR}/llvm_target/compiler-rt-exported -Wno-dev \
+	-C${DEVEL}/Default.xctoolchain/llvm/compiler-rt/cmake/caches/Apple.cmake \
+	-DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} \
+	-DCMAKE_ASM_COMPILER=${CC} -DCMAKE_C_COMPILER_WORKS=ON \
+	-DCMAKE_CXX_COMPILER_WORKS=ON -DCMAKE_SYSROOT=${MINKAR_SDKROOT} \
+	-DCMAKE_LINKER=${LD} -DCMAKE_SYSTEM_NAME=Darwin \
+	-DCMAKE_ASM_COMPILER_TARGET=${CpuArch}-apple-darwin \
+	-DCMAKE_C_COMPILER_TARGET=${CpuArch}-apple-darwin \
+	-DCMAKE_CXX_COMPILER_TARGET=${CpuArch}-apple-darwin \
+	-DCMAKE_C_CFLAGS_INIT=${RUNTIME_FLAGS} -DCMAKE_LIPO=${LIPO} \
+	-DCOMPILER_RT_ENABLE_WERROR=OFF -DCOMPILER_RT_HAS_G_FLAG=ON \
+	-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=${BuildArch} \
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DCOMPILER_RT_OS_DIR=minkar \
+	-DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+	-DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_XRAY=OFF \
+	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF \
+	-DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_EXTERNALIZE_DEBUGINFO=OFF \
+	-DCOMPILER_RT_BUILD_CTX_PROFILE=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
+	-DCOMPILER_RT_HAS_ATOMIC_KEYWORD=ON -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=OFF \
+	-DCOMPILER_RT_BUILTINS_HIDE_SYMBOLS=OFF
+	env MAKEFLAGS="" .MAKEFLAGS="" \
+		${GMAKE} -C${.OBJDIR}/llvm_target/compiler-rt-exported -j${.MAKE.JOBS}
+
+compiler_rt: runtime libunwind libcxx compiler_rt_exported
 	@echo compiler_rt dependencies built
 	mkdir -p ${RTLIB:H} ${RTOBJ:H} ${RTLIB2:H}
 	@echo after mkdir, making compiler_rt dylib
@@ -191,16 +224,15 @@ compiler_rt: runtime libunwind libcxx
 	  -mmacosx-version-min=${MACOS_VERSION_MIN} \
 	  -Wl,-install_name,/usr/lib/system/libcompiler_rt.dylib \
 	  -Wl,-current_version,${LLVM_VERSION}  \
-	  -Wl,-force_load,${RTOBJ} -Wl,-undefined,warning -Wl,-flat_namespace \
+	  -Wl,-force_load,${RTOBJ_EXPORTED} -Wl,-undefined,warning -Wl,-flat_namespace \
 	  -L${MINKAR_SDKROOT}/usr/lib/system -L${MINKAR_SDKROOT}/usr/lib -lsystem_platform \
 	  -lsystem_c -lsystem_malloc -lsystem_m -ldispatch -ldyld -lsystem_kernel \
 	  -lsystem_pthread -lunwind
 	@echo after making dylib, copying to SDK
 	rsync -cL ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB}
 	rsync -cL ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB2}
-	# The builtins are hidden in the archive, so the dylib exports none.
-	# As on macOS, clang links the archive into every image instead: it
-	# does so whenever the file is in its resource directory.
+	# The archive's builtins stay hidden: clang links it into every image
+	# too, whenever the file is in its resource directory.
 	mkdir -p ${CLANG_RT_DIR}
 	rsync -cL ${RTOBJ} ${CLANG_RT_DIR}/
 

@@ -19,7 +19,7 @@
 # Docs/BUILDING.md. The build exports SOURCE_DATE_EPOCH (the last
 # commit's date), so __DATE__ and __TIME__ in the tools do not change
 # their bytes.
-llvm | llvm | swift-6.4.2-RELEASE (LLVM 21.1.6), tapi-1600.0.11.8 (libtapi, on LLVM 21) | 3b7d9a276b67d87639555cb533d76f5ff75e1bb0 | clang --version: Apple clang version 21.1.6
+llvm | llvm | swift-6.4.2-RELEASE (LLVM 21.1.6), tapi-1600.0.11.8 (libtapi, on LLVM 21) | 36a66b71a978dd1f6947d282636c910274cd885a | clang --version: Apple clang version 21.1.6
 cctools | cctools | PureDarwin cctools, ld64-609 | b1e313357c6b6de25b80fafee065825ac9593152 | ld64 -v: PROJECT:pdcctools
 mig | mig | PureDarwin mig | 3953ed91ca8f662ac5728fde9b584f3305f1e133 | -
 xar | xar | PureDarwin xar | 778e860acbf15e96b615735caf87c99bf6a3ed5a | -
