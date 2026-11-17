@@ -44,6 +44,13 @@ enum {
 Boolean SMJobSubmit(CFStringRef domain, CFDictionaryRef job, AuthorizationRef auth, CFErrorRef *outError);
 Boolean SMJobRemove(CFStringRef domain, CFStringRef jobLabel, AuthorizationRef auth, Boolean wait, CFErrorRef *outError);
 CFDictionaryRef SMJobCopyDictionary(CFStringRef domain, CFStringRef jobLabel);
+/* The rights an authorization asks for to install a privileged helper or
+   change the system's jobs. */
+#define kSMRightBlessPrivilegedHelper "com.apple.ServiceManagement.blesshelper"
+#define kSMRightModifySystemDaemons "com.apple.ServiceManagement.daemons.modify"
+/* The helper Contents/Library/LaunchServices/<label>, installed in
+   /Library/PrivilegedHelperTools and run by the system's launchd. */
+Boolean SMJobBless(CFStringRef domain, CFStringRef executableLabel, AuthorizationRef auth, CFErrorRef *outError);
 /* The helper in Contents/Library/LoginItems with this bundle identifier,
    started (as a launchd job of that label) or stopped. */
 Boolean SMLoginItemSetEnabled(CFStringRef identifier, Boolean enabled);

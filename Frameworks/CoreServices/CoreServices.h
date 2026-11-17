@@ -23,4 +23,5 @@
 #include <CoreServices/Finder.h>
 #include <CoreServices/LSItemInfo.h>
 #include <CoreServices/UnicodeUtilities.h>
+#include <CoreServices/DateTimeUtils.h>
 #include <CoreServices/Metadata.h>

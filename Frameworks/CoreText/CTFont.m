@@ -10,6 +10,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <pthread.h>
 #import <CoreText/CTFont.h>
 #import "KTFont.h"
+#include <objc/message.h>
+
+/* The font itself: a CTFontRef may be an NSFont (they are toll-free
+   bridged), whose own methods take NSGlyph, 32 bits, where CoreText's take
+   CGGlyph, 16: its CoreText font is used instead. */
+static KTFont *ktFontOf(CTFontRef font) {
+   id object=(id)font;
+
+   if(object==nil || [object isKindOfClass:[KTFont class]])
+    return (KTFont *)object;
+   if([object respondsToSelector:@selector(_ctFont)]){
+    id inner=((id (*)(id,SEL))objc_msgSend)(object,@selector(_ctFont));
+
+    if([inner isKindOfClass:[KTFont class]])
+     return (KTFont *)inner;
+   }
+   return (KTFont *)object;
+}
 #include <stdlib.h>
 #include <CoreGraphics/CGContext.h>
 
@@ -24,36 +42,36 @@ CTFontRef CTFontCreateUIFontForLanguage(CTFontUIFontType uiFontType,CGFloat size
 }
 
 CFStringRef CTFontCopyFullName(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self copyName];
 }
 
 CGFloat CTFontGetSize(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self pointSize];
 }
 
 size_t CTFontGetGlyphCount(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self numberOfGlyphs];
 }
 
 bool CTFontGetGlyphsForCharacters(CTFontRef font,const UniChar *characters,CGGlyph *glyphs,size_t count) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    [self getGlyphs:glyphs forCharacters:characters length:count];
    // FIXME: change getGlyphs: to return a BOOL
    return YES;
 }
 
 CGRect CTFontGetBoundingBox(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self boundingRect];
 }
 
 // Minkar: the sum of the advances is returned, and advances may be NULL,
 // as on the reference platform (it returned nothing and needed advances).
 double CTFontGetAdvancesForGlyphs(CTFontRef font,CTFontOrientation orientation,const CGGlyph *glyphs,CGSize *advances,size_t count) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    CGSize  buffer[64];
    CGSize *sizes=advances;
    double  total=0;
@@ -71,47 +89,47 @@ double CTFontGetAdvancesForGlyphs(CTFontRef font,CTFontOrientation orientation,c
 }
 
 CGFloat CTFontGetUnderlinePosition(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self underlinePosition];
 }
 
 CGFloat CTFontGetUnderlineThickness(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self underlineThickness];
 }
 
 CGFloat CTFontGetAscent(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self ascender];
 }
 
 CGFloat CTFontGetDescent(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self descender];
 }
 
 CGFloat CTFontGetLeading(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self leading];
 }
 
 CGFloat CTFontGetSlantAngle(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self italicAngle];
 }
 
 CGFloat CTFontGetXHeight(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self xHeight];
 }
 
 CGFloat CTFontGetCapHeight(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return [self capHeight];
 }
 
 CGPathRef CTFontCreatePathForGlyph(CTFontRef font,CGGlyph glyph,CGAffineTransform *xform) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return (CGPathRef)[self createPathForGlyph:glyph transform:xform];
 }
 
@@ -160,13 +178,13 @@ CTFontRef CTFontCreateWithName(CFStringRef name, CGFloat size, const CGAffineTra
 }
 
 CTFontRef CTFontCreateCopyWithAttributes(CTFontRef font, CGFloat size, const CGAffineTransform *matrix, CFTypeRef attributes) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
    return CTFontCreateWithName((CFStringRef)name,(size>0)?size:[self pointSize],matrix);
 }
 
 CFStringRef CTFontCopyPostScriptName(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return CTFontCopyFullName(self);
 }
 
@@ -176,7 +194,7 @@ extern CFStringRef _CGFontCopyNameForID(CGFontRef font,uint16_t nameID);
    name it ("Liberation Sans"); a font standing in for another one keeps
    the name it was asked by. */
 CFStringRef CTFontCopyFamilyName(CTFontRef font) {
-   KTFont   *self=(KTFont *)font;
+   KTFont   *self=ktFontOf(font);
    NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
    NSString *psName=[(NSString *)_CGFontCopyNameForID([self _cgFont],6) autorelease];
 
@@ -192,7 +210,7 @@ CFStringRef CTFontCopyFamilyName(CTFontRef font) {
 }
 
 CFStringRef CTFontCopyDisplayName(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
    NSString *style=styleOfName(name);
    if([style isEqualToString:@"Regular"] || [name rangeOfString:@"-"].location==NSNotFound)
@@ -201,7 +219,7 @@ CFStringRef CTFontCopyDisplayName(CTFontRef font) {
 }
 
 CTFontSymbolicTraits CTFontGetSymbolicTraits(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    NSString            *name=[(NSString *)CTFontCopyFullName(self) autorelease];
    CTFontSymbolicTraits traits=traitsOfStyle(styleOfName(name));
    CGGlyph              glyphs[2];
@@ -220,7 +238,7 @@ CTFontSymbolicTraits CTFontGetSymbolicTraits(CTFontRef font) {
 
 CTFontRef CTFontCreateCopyWithSymbolicTraits(CTFontRef font, CGFloat size, const CGAffineTransform *matrix,
                                              CTFontSymbolicTraits value, CTFontSymbolicTraits mask) {
-   KTFont              *self=(KTFont *)font;
+   KTFont              *self=ktFontOf(font);
    NSString            *name=[(NSString *)CTFontCopyFullName(self) autorelease];
    NSString            *family=familyOfName(name);
    CTFontSymbolicTraits wanted=(traitsOfStyle(styleOfName(name))&~mask)|(value&mask);
@@ -250,14 +268,14 @@ CTFontRef CTFontCreateCopyWithSymbolicTraits(CTFontRef font, CGFloat size, const
 }
 
 CGFontRef CTFontCopyGraphicsFont(CTFontRef font, CFTypeRef *attributes) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    if(attributes!=NULL)
     *attributes=NULL;
    return CGFontRetain([self _cgFont]);
 }
 
 CGFloat CTFontGetUnitsPerEm(CTFontRef font) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    return CGFontGetUnitsPerEm([self _cgFont]);
 }
 
@@ -284,13 +302,13 @@ static uint32_t read32(const UInt8 *p) { return ((uint32_t)p[0]<<24)|((uint32_t)
 CFDataRef CTFontCopyTable(CTFontRef font,CTFontTableTag table,CTFontTableOptions options) {
    if(font==NULL)
     return NULL;
-   return CGFontCopyTableForTag([(KTFont *)font _cgFont],table);
+   return CGFontCopyTableForTag([ktFontOf(font) _cgFont],table);
 }
 
 CFArrayRef CTFontCopyAvailableTables(CTFontRef font,CTFontTableOptions options) {
    if(font==NULL)
     return NULL;
-   return CGFontCopyTableTags([(KTFont *)font _cgFont]);
+   return CGFontCopyTableTags([ktFontOf(font) _cgFont]);
 }
 
 static uint16_t nameIDOfKey(CFStringRef key) {
@@ -314,7 +332,7 @@ CFStringRef CTFontCopyName(CTFontRef font,CFStringRef nameKey) {
     return CTFontCopyFamilyName(font);
    if(nameID==6)
     return CTFontCopyPostScriptName(font);
-   return _CGFontCopyNameForID([(KTFont *)font _cgFont],nameID);
+   return _CGFontCopyNameForID([ktFontOf(font) _cgFont],nameID);
 }
 
 /* The names are read in English, the language reported. */
@@ -339,7 +357,7 @@ CFCharacterSetRef CTFontCopyCharacterSet(CTFontRef font) {
    if(font==NULL)
     return NULL;
    set=CFCharacterSetCreateMutable(NULL);
-   table=CGFontCopyTableForTag([(KTFont *)font _cgFont],'cmap');
+   table=CGFontCopyTableForTag([ktFontOf(font) _cgFont],'cmap');
    if(table!=NULL){
     bytes=CFDataGetBytePtr(table);
     length=CFDataGetLength(table);
@@ -402,7 +420,7 @@ CFArrayRef CTFontCopyFeatures(CTFontRef font) {
    features=CFArrayCreateMutable(NULL,0,&kCFTypeArrayCallBacks);
    seen=CFSetCreateMutable(NULL,0,&kCFTypeSetCallBacks);
    for(int t=0;t<2;t++){
-    CFDataRef table=CGFontCopyTableForTag([(KTFont *)font _cgFont],tables[t]);
+    CFDataRef table=CGFontCopyTableForTag([ktFontOf(font) _cgFont],tables[t]);
 
     if(table==NULL)
      continue;
@@ -447,7 +465,7 @@ CFArrayRef CTFontCopyVariationAxes(CTFontRef font) {
    CFArrayRef        axes;
    CFMutableArrayRef result;
 
-   if(font==NULL || (axes=_CGFontCopyVariationAxesWithTags([(KTFont *)font _cgFont],true))==NULL)
+   if(font==NULL || (axes=_CGFontCopyVariationAxesWithTags([ktFontOf(font) _cgFont],true))==NULL)
     return NULL;
    result=CFArrayCreateMutable(NULL,0,&kCFTypeArrayCallBacks);
    for(CFIndex i=0;i<CFArrayGetCount(axes);i++){
@@ -472,9 +490,9 @@ CFDictionaryRef CTFontCopyVariation(CTFontRef font) {
    CFArrayRef             axes;
    CFMutableDictionaryRef result;
 
-   if(font==NULL || (byName=CGFontCopyVariations([(KTFont *)font _cgFont]))==NULL)
+   if(font==NULL || (byName=CGFontCopyVariations([ktFontOf(font) _cgFont]))==NULL)
     return NULL;
-   axes=_CGFontCopyVariationAxesWithTags([(KTFont *)font _cgFont],true);
+   axes=_CGFontCopyVariationAxesWithTags([ktFontOf(font) _cgFont],true);
    result=CFDictionaryCreateMutable(NULL,0,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);
    for(CFIndex i=0;axes!=NULL && i<CFArrayGetCount(axes);i++){
     CFDictionaryRef axis=CFArrayGetValueAtIndex(axes,i);
@@ -536,7 +554,7 @@ static CTFontRef copyFallbackFont(CFStringRef name,CGFloat size) {
 /* The font itself when it has the characters, else the face fontconfig
    finds for the first one it lacks, at the same size. */
 CTFontRef CTFontCreateForString(CTFontRef font,CFStringRef string,CFRange range) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
 
    if(font==NULL)
     return NULL;
@@ -584,14 +602,14 @@ CTFontRef CTFontCreateForString(CTFontRef font,CFStringRef string,CFRange range)
 void CTFontDrawGlyphs(CTFontRef font,const CGGlyph glyphs[],const CGPoint positions[],size_t count,CGContextRef context) {
    if(font==NULL || context==NULL || count==0)
     return;
-   CGContextSetFont(context,[(KTFont *)font _cgFont]);
-   CGContextSetFontSize(context,[(KTFont *)font pointSize]);
+   CGContextSetFont(context,[ktFontOf(font) _cgFont]);
+   CGContextSetFontSize(context,[ktFontOf(font) pointSize]);
    CGContextShowGlyphsAtPositions(context,glyphs,positions,count);
 }
 
 /* Each glyph's box at the font's size, and the box of them all. */
 CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef font,CTFontOrientation orientation,const CGGlyph glyphs[],CGRect *boundingRects,CFIndex count) {
-   KTFont *self=(KTFont *)font;
+   KTFont *self=ktFontOf(font);
    CGRect  all=CGRectNull;
    CGRect  buffer[64];
    CGRect *rects;

@@ -247,3 +247,196 @@ Boolean SMLoginItemSetEnabled(CFStringRef identifier, Boolean enabled) {
     CFRelease(executable);
     return ok;
 }
+
+/* ---- SMJobBless: a privileged helper installed from the app ---- */
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <mach-o/loader.h>
+#include <mach-o/fat.h>
+#include <libkern/OSByteOrder.h>
+
+#define kHelperTools	"/Library/PrivilegedHelperTools"
+#define kLaunchDaemons	"/Library/LaunchDaemons"
+
+/* A __TEXT section of the helper (its x86_64 slice in a universal file),
+   as a property list. */
+static CFPropertyListRef embeddedPlist(const char *path, const char *section) {
+    int fd = open(path, O_RDONLY);
+    struct stat st;
+    uint8_t *file = NULL;
+    CFPropertyListRef plist = NULL;
+
+    if (fd < 0 || fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(struct mach_header_64))
+        goto out;
+    file = malloc((size_t)st.st_size);
+    if (file == NULL || pread(fd, file, (size_t)st.st_size, 0) != st.st_size)
+        goto out;
+    size_t base = 0, size = (size_t)st.st_size;
+    uint32_t magic = *(uint32_t *)file;
+    if (magic == FAT_CIGAM || magic == FAT_MAGIC) {
+        struct fat_header *fh = (struct fat_header *)file;
+        uint32_t n = OSSwapBigToHostInt32(fh->nfat_arch);
+        struct fat_arch *fa = (struct fat_arch *)(fh + 1);
+        base = 0;
+        for (uint32_t i = 0; i < n && (uint8_t *)(fa + i + 1) <= file + size; i++)
+            if ((cpu_type_t)OSSwapBigToHostInt32(fa[i].cputype) == CPU_TYPE_X86_64) {
+                base = OSSwapBigToHostInt32(fa[i].offset);
+                size = OSSwapBigToHostInt32(fa[i].size);
+                break;
+            }
+        if (base == 0 || base + size > (size_t)st.st_size)
+            goto out;
+    }
+    struct mach_header_64 *mh = (struct mach_header_64 *)(file + base);
+    if (size < sizeof(*mh) || mh->magic != MH_MAGIC_64)
+        goto out;
+    uint8_t *lc = (uint8_t *)(mh + 1), *end = file + base + size;
+    for (uint32_t i = 0; i < mh->ncmds && lc + sizeof(struct load_command) <= end; i++) {
+        struct load_command *cmd = (struct load_command *)lc;
+        if (cmd->cmdsize == 0 || lc + cmd->cmdsize > end)
+            break;
+        if (cmd->cmd == LC_SEGMENT_64) {
+            struct segment_command_64 *seg = (struct segment_command_64 *)lc;
+            struct section_64 *sect = (struct section_64 *)(seg + 1);
+            for (uint32_t j = 0; j < seg->nsects; j++)
+                if (strncmp(sect[j].segname, "__TEXT", 16) == 0 &&
+                    strncmp(sect[j].sectname, section, 16) == 0 &&
+                    sect[j].offset + sect[j].size <= size) {
+                    CFDataRef data = CFDataCreate(NULL, file + base + sect[j].offset, (CFIndex)sect[j].size);
+                    plist = CFPropertyListCreateWithData(NULL, data, kCFPropertyListImmutable, NULL, NULL);
+                    CFRelease(data);
+                    goto out;
+                }
+        }
+        lc += cmd->cmdsize;
+    }
+out:
+    free(file);
+    if (fd >= 0)
+        close(fd);
+    return plist;
+}
+
+/* Copies from to to (written whole, then renamed into place), owned by
+   root, mode 0544. */
+static Boolean installTool(const char *from, const char *to) {
+    char tmp[PATH_MAX];
+    char buf[65536];
+    ssize_t n;
+    int in, out;
+    Boolean ok = false;
+
+    snprintf(tmp, sizeof(tmp), "%s.%d", to, (int)getpid());
+    if ((in = open(from, O_RDONLY)) < 0)
+        return false;
+    out = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0544);
+    if (out >= 0) {
+        ok = true;
+        while ((n = read(in, buf, sizeof(buf))) > 0)
+            if (write(out, buf, (size_t)n) != n) {
+                ok = false;
+                break;
+            }
+        if (n < 0 || fchown(out, 0, 0) != 0 || fchmod(out, 0544) != 0 || close(out) != 0)
+            ok = false;
+        if (ok && rename(tmp, to) != 0)
+            ok = false;
+        if (!ok)
+            unlink(tmp);
+    }
+    close(in);
+    return ok;
+}
+
+/* The helper Contents/Library/LaunchServices/<label> of the main bundle,
+   installed in /Library/PrivilegedHelperTools and run by the system's
+   launchd as its embedded __launchd_plist says. Both sides must name each
+   other: the app's SMPrivilegedExecutables has the label, the helper's
+   embedded Info.plist has SMAuthorizedClients (their code requirements are
+   not evaluated: Minkar does not sign code yet). Installing needs root:
+   with no authorization service to act for an app yet, a process that is
+   not root fails with kSMErrorAuthorizationFailure. */
+Boolean SMJobBless(CFStringRef domain, CFStringRef executableLabel, AuthorizationRef auth, CFErrorRef *outError) {
+    char label[256], tool[PATH_MAX], dest[PATH_MAX], plistPath[PATH_MAX];
+    CFBundleRef bundle = CFBundleGetMainBundle();
+    CFURLRef bundleURL = NULL;
+    CFPropertyListRef launchd = NULL, info = NULL;
+    CFMutableDictionaryRef job = NULL;
+    Boolean ok = false;
+
+    (void)auth;
+    if (domain == NULL || !CFEqual(domain, kSMDomainSystemLaunchd) || executableLabel == NULL ||
+        !CFStringGetCString(executableLabel, label, sizeof(label), kCFStringEncodingUTF8) ||
+        strchr(label, '/') != NULL || label[0] == '.') {
+        setError(outError, kSMErrorDomainFramework, kSMErrorInternalFailure);
+        return false;
+    }
+    /* The app names the helper. */
+    CFDictionaryRef wanted = bundle ? CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("SMPrivilegedExecutables")) : NULL;
+    if (wanted == NULL || CFGetTypeID(wanted) != CFDictionaryGetTypeID() ||
+        CFDictionaryGetValue(wanted, executableLabel) == NULL) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorToolNotValid);
+        return false;
+    }
+    bundleURL = CFBundleCopyBundleURL(bundle);
+    if (bundleURL == NULL || !CFURLGetFileSystemRepresentation(bundleURL, true, (UInt8 *)tool, sizeof(tool))) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorInternalFailure);
+        goto out;
+    }
+    strlcat(tool, "/Contents/Library/LaunchServices/", sizeof(tool));
+    strlcat(tool, label, sizeof(tool));
+    launchd = embeddedPlist(tool, "__launchd_plist");
+    info = embeddedPlist(tool, "__info_plist");
+    if (launchd == NULL || CFGetTypeID(launchd) != CFDictionaryGetTypeID()) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorJobPlistNotFound);
+        goto out;
+    }
+    /* The helper names the app, and its job is the label. */
+    CFTypeRef clients = info && CFGetTypeID(info) == CFDictionaryGetTypeID() ?
+        CFDictionaryGetValue(info, CFSTR("SMAuthorizedClients")) : NULL;
+    CFTypeRef jobLabel = CFDictionaryGetValue(launchd, CFSTR("Label"));
+    if (clients == NULL || jobLabel == NULL || !CFEqual(jobLabel, executableLabel)) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorToolNotValid);
+        goto out;
+    }
+    if (geteuid() != 0) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorAuthorizationFailure);
+        goto out;
+    }
+    snprintf(dest, sizeof(dest), kHelperTools "/%s", label);
+    snprintf(plistPath, sizeof(plistPath), kLaunchDaemons "/%s.plist", label);
+    mkdir(kHelperTools, 0755);
+    if (!installTool(tool, dest)) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorInternalFailure);
+        goto out;
+    }
+    /* Its job runs the installed copy, and is kept for the next start. */
+    job = CFDictionaryCreateMutableCopy(NULL, 0, launchd);
+    CFStringRef program = CFStringCreateWithCString(NULL, dest, kCFStringEncodingUTF8);
+    CFDictionarySetValue(job, CFSTR("Program"), program);
+    CFRelease(program);
+    CFDataRef xml = CFPropertyListCreateData(NULL, job, kCFPropertyListXMLFormat_v1_0, 0, NULL);
+    int fd = xml ? open(plistPath, O_WRONLY | O_CREAT | O_TRUNC, 0644) : -1;
+    Boolean written = fd >= 0 && write(fd, CFDataGetBytePtr(xml), (size_t)CFDataGetLength(xml)) == CFDataGetLength(xml);
+    if (fd >= 0)
+        close(fd);
+    if (xml)
+        CFRelease(xml);
+    if (!written) {
+        setError(outError, kSMErrorDomainFramework, kSMErrorInternalFailure);
+        goto out;
+    }
+    SMJobRemove(kSMDomainSystemLaunchd, executableLabel, NULL, true, NULL);
+    ok = SMJobSubmit(kSMDomainSystemLaunchd, job, NULL, outError);
+out:
+    if (job)
+        CFRelease(job);
+    if (launchd)
+        CFRelease(launchd);
+    if (info)
+        CFRelease(info);
+    if (bundleURL)
+        CFRelease(bundleURL);
+    return ok;
+}

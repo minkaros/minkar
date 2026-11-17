@@ -44,4 +44,11 @@ enum {
     errFSRefsDifferent = -1420
 };
 
+/* Date and time conversions (DateTimeUtils.h). */
+enum {
+    kUTCUnderflowErr = -8850,
+    kUTCOverflowErr = -8851,
+    kIllegalClockValueErr = -8852
+};
+
 #endif
