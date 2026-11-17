@@ -632,11 +632,6 @@ static int untitled_document_number = 0;
    else {
     status = [self writeToURL:url ofType:type error:error];
    }
-    if (status == YES && [self fileURL] == nil) {
-        // It's a new file that's been successfully saved to a url...
-        // so note it for the open recent menu
-        [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: url];
-    }
     return status;
 }
 
@@ -886,7 +881,13 @@ static int untitled_document_number = 0;
                 return YES;
             }
             if(operation!=NSSaveToOperation) {
+                /* A new file (a first save, or Save As under another name)
+                   goes to the top of Open Recent, as on the reference. */
+                BOOL newFile=([self fileURL]==nil || ![[self fileURL] isEqual:url]);
+
                 [self setFileURL:url];
+                if(newFile)
+                    [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:url];
                 [self setFileType: type];
                 [self setFileModificationDate: [NSDate date]];
             }
