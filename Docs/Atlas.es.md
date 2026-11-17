@@ -979,6 +979,42 @@ no tenía ninguno.
 
 N0 y N1 forman parte de Minkar 19.6.0; N2 sigue en 19.6.x.
 
+### 5.7 Servicios de ventana y texto que añade el sistema (W0–W4)
+
+Encontrado el 17 nov 2026 al comparar los menús de Hex Fiend con los de la
+referencia: el sistema añade elementos a los menús de todas las apps, y sus
+servicios todavía no existen en Atlas. En lo demás los menús de Hex Fiend ya
+coinciden (Close All, Minimize All, Zoom All y Arrange in Front como
+alternativos con Opción, `78b8f1b01a`).
+
+- [ ] W0 — Pestañas de ventana: `NSWindowTab`, `NSWindowTabGroup`,
+  `tabbingMode`, `tabbingIdentifier`, `addTabbedWindow:ordered:`,
+  `tabbedWindows`, la preferencia de pestañas automáticas
+  (`userTabbingPreference`) y la barra de pestañas en la barra de título;
+  en el menú Window, Show Previous/Next Tab, Move Tab to New Window, Merge
+  All Windows, Show Tab Bar y Show All Tabs, activos como en la referencia.
+  Puerta: dos documentos de una app se unen en una ventana con dos pestañas
+  y se separan de nuevo, desde el menú y arrastrando una pestaña.
+- [ ] W1 — Mosaico: Tile Window to Left/Right of Screen y Move Window to
+  Left/Right Side of Screen en el menú Window, y mantener pulsado el botón
+  de ampliar, con la división de dos ventanas a pantalla completa. Puerta:
+  dos apps comparten la pantalla lado a lado y la dejan como estaban.
+- [ ] W2 — Restauración de ventanas: `NSWindowRestoration`, `restorable`,
+  `encodeRestorableStateWithCoder:` y la restauración de la app al
+  arrancar; Quit and Keep Windows (alternativo de Quit con Opción) y el
+  ajuste del panel General. Puerta: Text Editor cerrado con dos documentos
+  abiertos vuelve con los dos, en su sitio.
+- [ ] W3 — Emoji y símbolos: el elemento del menú Edit y un panel de
+  caracteres (categorías, búsqueda, recientes, inserción en la vista de
+  texto activa con `insertText:`). Puerta: un carácter elegido en el panel
+  se inserta en Text Editor.
+- [ ] W4 — Dictado: Start Dictation… en el menú Edit. *Por decidir:*
+  necesita un reconocedor de voz local (libre, con sus modelos en la
+  imagen); hasta entonces el elemento no se muestra.
+
+W0–W3 forman parte de Minkar 19.6.0 (las apps de la referencia y las
+escritas para ella cuentan con ellos); W4 espera su decisión.
+
 ## 6. Puertas
 
 - **M5** (Fase 5, sin cambios): desde el arranque se llega a una sesión

@@ -920,6 +920,40 @@ with sound need a place that shows them; nothing in Atlas had one.
 
 N0 and N1 are part of Minkar 19.6.0; N2 follows in 19.6.x.
 
+### 5.7 Window and text services the system adds (W0–W4)
+
+Found on 17 Nov 2026 comparing Hex Fiend's menus with the reference's: the
+system adds items to every app's menus, and their services do not exist in
+Atlas yet. Hex Fiend's menus already match in the rest (Close All, Minimize
+All, Zoom All and Arrange in Front as Option alternates, `78b8f1b01a`).
+
+- [ ] W0 — Window tabs: `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
+  `tabbingIdentifier`, `addTabbedWindow:ordered:`, `tabbedWindows`, the
+  automatic tabbing preference (`userTabbingPreference`) and the tab bar in
+  the title bar; the Window menu's Show Previous/Next Tab, Move Tab to New
+  Window, Merge All Windows, Show Tab Bar and Show All Tabs, enabled as on
+  the reference. Gate: two documents of an app merge into one window with
+  two tabs and split again, from the menu and by dragging a tab.
+- [ ] W1 — Tiling: the Window menu's Tile Window to Left/Right of Screen and
+  Move Window to Left/Right Side of Screen, and holding the zoom button,
+  with the split of two full-screen windows. Gate: two apps share the
+  screen side by side and leave it as they came.
+- [ ] W2 — Window restoration: `NSWindowRestoration`, `restorable`,
+  `encodeRestorableStateWithCoder:` and the app's restoration at launch;
+  Quit and Keep Windows (Option alternate of Quit) and the General pane's
+  setting. Gate: Text Editor quit with two documents open comes back with
+  both, in their places.
+- [ ] W3 — Emoji & Symbols: the Edit menu's item and a character panel
+  (categories, search, recent, insertion into the key text view through
+  `insertText:`). Gate: a character chosen in the panel is inserted into
+  Text Editor.
+- [ ] W4 — Dictation: Start Dictation… in the Edit menu. *To decide:* it
+  needs an on-device speech recognizer (a free one, with its models in the
+  image); until then the item is not shown.
+
+W0–W3 are part of Minkar 19.6.0 (the reference's apps and the apps
+written for it expect them); W4 waits for its decision.
+
 ## 6. Gates
 
 - **M5** (Phase 5, unchanged): from boot, a graphical session starts, an
