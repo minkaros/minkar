@@ -9,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSText.h>
 #import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSDraggingItem.h>
 #import <AppKit/NSPasteboard.h>
@@ -1780,6 +1781,13 @@ static char inputContextKey;
 }
 
 -(void)_deepResignFirstResponder {
+   id responder=[_window firstResponder];
+
+   /* A field this view is being edited in: the editing ends and the
+      window takes the focus (as the reference, when an edited control
+      leaves its window). */
+   if([responder isKindOfClass:[NSText class]] && [(NSText *)responder isFieldEditor] && [(NSText *)responder delegate]==(id)self)
+    [_window endEditingFor:_window];
    if([_window firstResponder]==self)
     [_window makeFirstResponder:nil];
 

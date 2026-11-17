@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSDocument.h>
+#import <AppKit/NSAlert.h>
 #import <AppKit/NSDocumentController.h>
 #import <AppKit/NSWindowController.h>
 #import <AppKit/NSSavePanel.h>
@@ -1045,32 +1046,46 @@ forSaveOperation:(NSSaveOperationType)operation
 }
 
 
+/* The saved version again, after a sheet asks as the reference's does
+   (Revert or Cancel). */
 -(void)revertDocumentToSaved:sender {
-   int result=NSRunAlertPanel(nil,
-                              NSLocalizedStringFromTableInBundle(@"%@ has been edited. Are you sure you want to undo changes?", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                              NSLocalizedStringFromTableInBundle(@"Revert", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                              NSLocalizedStringFromTableInBundle(@"Cancel", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                              nil,
-                              [self displayName]);
+   NSBundle *bundle=[NSBundle bundleForClass:[NSDocument class]];
+   NSAlert  *alert=[[[NSAlert alloc] init] autorelease];
 
-   if(result==NSAlertDefaultReturn)
-     {
-       NSFileVersion *opened=nil;
+   [alert setMessageText:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Do you want to revert to the most recently saved version of the document \u201c%@\u201d?", nil, bundle, @""),[self displayName]]];
+   [alert setInformativeText:NSLocalizedStringFromTableInBundle(@"Your current changes will be lost.", nil, bundle, @"")];
+   [alert addButtonWithTitle:NSLocalizedStringFromTableInBundle(@"Revert", nil, bundle, @"")];
+   [alert addButtonWithTitle:NSLocalizedStringFromTableInBundle(@"Cancel", nil, bundle, @"")];
+   [alert beginSheetModalForWindow:[self windowForSheet] completionHandler:^(NSModalResponse response){
+      if(response==NSAlertFirstButtonReturn)
+       [self _revertToSavedNow];
+   }];
+}
 
-       for (id editor in [[_activeEditors copy] autorelease])
-         [editor discardEditing];
-       if([[self class] autosavesInPlace] && _openedVersionIdentifier!=nil && _fileURL!=nil)
-         opened=[NSFileVersion versionOfItemAtURL:_fileURL forPersistentIdentifier:_openedVersionIdentifier];
-       if(opened!=nil){
-         NSError *error=nil;
+-(void)_revertToSavedNow {
+   NSFileVersion *opened=nil;
 
-         if([opened replaceItemAtURL:_fileURL options:0 error:&error]==nil ||
-            ![self revertToContentsOfURL:_fileURL ofType:[self fileType] error:&error])
-           [self presentError:error];
-       }
-       else
-         [self revertToSavedFromFile:[self fileName] ofType:[self fileType]];
-     }
+   for (id editor in [[_activeEditors copy] autorelease])
+     [editor discardEditing];
+   if([[self class] autosavesInPlace] && _openedVersionIdentifier!=nil && _fileURL!=nil)
+     opened=[NSFileVersion versionOfItemAtURL:_fileURL forPersistentIdentifier:_openedVersionIdentifier];
+   if(opened!=nil){
+     NSError *error=nil;
+
+     if([opened replaceItemAtURL:_fileURL options:0 error:&error]==nil ||
+        ![self revertToContentsOfURL:_fileURL ofType:[self fileType] error:&error])
+       [self presentError:error];
+   }
+   else if(_fileURL!=nil){
+     NSError *error=nil;
+
+     /* The modern way (readFromURL:ofType:error: underneath), as apps
+        written for it expect. */
+     if(![self revertToContentsOfURL:_fileURL ofType:[self fileType] error:&error] && error!=nil)
+       [self presentError:error];
+   }
+   else
+     [self revertToSavedFromFile:[self fileName] ofType:[self fileType]];
 }
 
 -(void)saveDocument:sender

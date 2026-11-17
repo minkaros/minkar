@@ -310,10 +310,23 @@ static char identifierKey;
     _representedObject = [object retain];
 }
 
+/* As the reference: an item whose action is none or submenuAction: is
+   aimed at its submenu (so its target never outlives the submenu it
+   had); without a submenu, that aim goes. Another action stays. */
 -(void)setSubmenu:(NSMenu *)submenu {
     submenu=[submenu retain];
    [_submenu release];
    _submenu=submenu;
+   if(_action==NULL || sel_isEqual(_action,@selector(submenuAction:))){
+    if(submenu!=nil){
+     _target=submenu;
+     _action=@selector(submenuAction:);
+    }
+    else {
+     _target=nil;
+     _action=NULL;
+    }
+   }
     [submenu setSupermenu:_menu];
     [_menu itemChanged:self];
 }
