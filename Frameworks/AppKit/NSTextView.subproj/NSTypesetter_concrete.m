@@ -22,6 +22,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRaise.h>
 
 #import "NSBidiHelper.h"
+#include <unicode/ubrk.h>
+
+@interface NSLayoutManager (NSTypesetterLaidOut)
+-(NSRect)_laidOutLineFragmentRectForGlyphAtIndex:(NSUInteger)glyphIndex;
+@end
 
 @interface NSLayoutManager(private)
 - (void)_rollbackLatestFragment;
@@ -49,6 +54,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSZoneFree([self zone],_glyphCache);
     NSZoneFree([self zone],_characterCache);
     NSZoneFree([self zone],_bidiLevels);
+    free(_lineBreaks);
    [_container release];
 
    [_glyphRangesInLine release];
@@ -62,6 +68,43 @@ static void loadGlyphAndCharacterCacheForLocation(NSTypesetter_concrete *self,un
 
    [self->_string getCharacters:self->_characterCache range:self->_glyphCacheRange];
    [self->_layoutManager getGlyphs:self->_glyphCache range:self->_glyphCacheRange];
+}
+
+/* Whether a line may end after the character at index: the Unicode line
+   breaking rules (UAX #14, through ICU), as the reference breaks lines -
+   after spaces, but also after a slash, a hyphen or a question mark, so a
+   URL wraps. Worked out once for each paragraph. */
+static BOOL lineMayBreakAfter(NSTypesetter_concrete *self,NSUInteger index) {
+   if(!NSLocationInRange(index,self->_lineBreaksRange)){
+    NSRange    paragraph=[self->_string paragraphRangeForRange:NSMakeRange(index,0)];
+    unichar   *text=malloc(sizeof(unichar)*MAX(paragraph.length,1));
+    UErrorCode status=U_ZERO_ERROR;
+    UBreakIterator *breaks;
+
+    free(self->_lineBreaks);
+    self->_lineBreaks=calloc(MAX(paragraph.length,1),1);
+    self->_lineBreaksRange=paragraph;
+    [self->_string getCharacters:text range:paragraph];
+    breaks=ubrk_open(UBRK_LINE,"",text,(int32_t)paragraph.length,&status);
+    if(U_SUCCESS(status)){
+     int32_t boundary;
+
+     for(boundary=ubrk_first(breaks);boundary!=UBRK_DONE;boundary=ubrk_next(breaks))
+      if(boundary>0)
+       self->_lineBreaks[boundary-1]=1;
+     ubrk_close(breaks);
+    }
+    else {
+     NSUInteger i;
+
+     for(i=0;i<paragraph.length;i++)
+      self->_lineBreaks[i]=(text[i]==' ');
+    }
+    free(text);
+    if(!NSLocationInRange(index,paragraph))
+     return NO;
+   }
+   return self->_lineBreaks[index-self->_lineBreaksRange.location]!=0;
 }
 
 #define DEBUG_TYPESETTER 0
@@ -199,8 +242,7 @@ static void loadGlyphAndCharacterCacheForLocation(NSTypesetter_concrete *self,un
 
                 glyph=_glyphCache[glyphIndex-_glyphCacheRange.location];
                 character=_characterCache[glyphIndex-_glyphCacheRange.location];
-        // TODO: there must be other chars to check for word wrapping
-                if(character==' '){
+                if(character==' ' || lineMayBreakAfter(self,glyphIndex)){
 
 #if DEBUG_GETLINEFRAGMENTRECT
             NSLog(@"found a space char");
@@ -553,7 +595,7 @@ static void loadGlyphAndCharacterCacheForLocation(NSTypesetter_concrete *self,un
 #endif
                 NSPoint location=[_layoutManager locationForGlyphAtIndex:range.location];
                 NSRect  usedRect=[_layoutManager lineFragmentUsedRectForGlyphAtIndex:range.location effectiveRange:NULL];
-                NSRect  rect=[_layoutManager lineFragmentRectForGlyphAtIndex:range.location effectiveRange:NULL];
+                NSRect  rect=[_layoutManager _laidOutLineFragmentRectForGlyphAtIndex:range.location];
                 usedRect.origin = currentLocation;
                 rect.origin = currentLocation;
                 [_layoutManager setLineFragmentRect:rect forGlyphRange:range usedRect:usedRect];
@@ -637,7 +679,7 @@ static void loadGlyphAndCharacterCacheForLocation(NSTypesetter_concrete *self,un
             NSLog(@"adjusting glyph range: %@", NSStringFromRange(range));
 #endif
 
-                        NSRect  backRect=[_layoutManager lineFragmentRectForGlyphAtIndex:range.location effectiveRange:NULL];
+                        NSRect  backRect=[_layoutManager _laidOutLineFragmentRectForGlyphAtIndex:range.location];
                         NSRect  usedRect=[_layoutManager lineFragmentUsedRectForGlyphAtIndex:range.location effectiveRange:NULL];
                         NSPoint location=[_layoutManager locationForGlyphAtIndex:range.location];
 
@@ -871,6 +913,7 @@ static void loadGlyphAndCharacterCacheForLocation(NSTypesetter_concrete *self,un
    _nextGlyphLocation=0;
    _numberOfGlyphs=[_string length];
    _glyphCacheRange=NSMakeRange(0,0);
+   _lineBreaksRange=NSMakeRange(0,0);
    _previousGlyph=NSNullGlyph;
 
         NSTextContainer *container = [[_textContainers objectAtIndex:0] retain];

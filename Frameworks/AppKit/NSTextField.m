@@ -54,8 +54,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
+   /* A fixed wrapping width from the nib; an automatic one (0) follows the
+      field's own width as it is laid out. */
+   if([coder allowsKeyedCoding] && ![coder decodeBoolForKey:@"NSControlAutosetMaxLayoutWidth"])
+    _preferredMaxLayoutWidth=[coder decodeDoubleForKey:@"NSPreferredMaxLayoutWidth"];
    [self registerForDraggedTypes:[NSArray arrayWithObject:NSStringPboardType]];
    return self;
+}
+
+/* A wrapping field with no width of its own to wrap at wraps at its frame's:
+   a new width is a new height, which Auto Layout is told of. */
+-(void)setFrameSize:(NSSize)size {
+   BOOL widthChanged=(size.width!=NSWidth([self frame]));
+
+   [super setFrameSize:size];
+   if(widthChanged && _preferredMaxLayoutWidth<=0 && [_cell wraps] && ![self usesSingleLineMode])
+    [self invalidateIntrinsicContentSize];
 }
 
 -initWithFrame:(NSRect)frame {

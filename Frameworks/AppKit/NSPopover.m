@@ -10,6 +10,7 @@
  */
 
 #import <AppKit/NSPopover.h>
+#import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSBezierPath.h>
 #import <AppKit/NSColor.h>
@@ -181,11 +182,30 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     _contentViewController = controller;
 }
 
-/* Unless set, the content view's size. */
+/* Unless set, the content view's size: its frame's, or, when constraints
+   lay it out, its frame's width and the height they need at that width
+   (text that wraps grows the popover, as on the reference). */
 - (NSSize)contentSize {
+    NSView *view = [_contentViewController view];
+    NSSize size;
+
     if(_contentSize.width > 0 && _contentSize.height > 0)
         return _contentSize;
-    return [[_contentViewController view] frame].size;
+    size = [view frame].size;
+    if([[view constraints] count] > 0 && size.width > 0) {
+        NSLayoutConstraint *width = [NSLayoutConstraint constraintWithItem:view attribute:NSLayoutAttributeWidth
+            relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1 constant:size.width];
+        NSSize fitting;
+
+        /* Laid out at that width first, so wrapping text knows its own. */
+        [view layoutSubtreeIfNeeded];
+        [view addConstraint:width];
+        fitting = [view fittingSize];
+        [view removeConstraint:width];
+        if(fitting.height > 0)
+            size.height = fitting.height;
+    }
+    return size;
 }
 
 - (void)setContentSize:(NSSize)size {

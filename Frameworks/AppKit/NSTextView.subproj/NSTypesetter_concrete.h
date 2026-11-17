@@ -54,6 +54,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSRange _wordWrapRange;
     CGFloat _wordWrapWidth;
     NSGlyph _wordWrapPreviousGlyph;
+
+    /* Where a line may break in the paragraph being laid out (Unicode
+       line breaking): one byte per character, nonzero after a character
+       a line may end with. */
+    NSRange _lineBreaksRange;
+    uint8_t *_lineBreaks;
 }
 
 @end

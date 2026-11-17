@@ -654,13 +654,16 @@ CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN
 	-I${KIWI_DIR}
 
 CFLAGS.NSGestureRecognizer.m = -fobjc-arc
+# ICU's line breaking, by its plain names as libicucore exports them.
+CFLAGS.NSTypesetter_concrete.m = -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common
 
 LDFLAGS = -lc++ -pthread -lcups -framework ApplicationServices -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
 	-framework CoreServices -framework DiskArbitration -framework IOSurface -framework AudioToolbox \
-	-lobjc -lSystem -lcompression -lz
+	-lobjc -lSystem -lcompression -lz -licucore
 
 DIRS = \
 	NSLayout \

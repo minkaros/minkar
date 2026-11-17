@@ -397,6 +397,14 @@ static inline NSGlyphFragment *fragmentAtGlyphIndex(NSLayoutManager *self,unsign
         return fragment->container;
 }
 
+/* The typesetter's: the rect of a fragment it laid out already, with no
+   layout first (it is laying out). */
+-(NSRect)_laidOutLineFragmentRectForGlyphAtIndex:(NSUInteger)glyphIndex {
+   NSGlyphFragment *fragment=fragmentAtGlyphIndex(self,glyphIndex,NULL);
+
+   return (fragment==NULL)?NSZeroRect:fragment->rect;
+}
+
 -(NSRect)lineFragmentRectForGlyphAtIndex:(NSUInteger)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange {
 
 #if DEBUG_LM_LAYOUT
@@ -404,16 +412,33 @@ static inline NSGlyphFragment *fragmentAtGlyphIndex(NSLayoutManager *self,unsign
 #define DEBUG_lineFragmentRectForGlyphAtIndex_effectiveRange 0
 #endif
 
-        NSGlyphFragment *fragment=fragmentAtGlyphIndex(self,glyphIndex,effectiveGlyphRange);
+        NSRange          range=NSMakeRange(glyphIndex,0);
+        NSGlyphFragment *fragment;
+
+        /* Laid out first, as the reference does; the range is the whole line
+           fragment's, every run of glyphs sharing its rect. */
+        [self validateGlyphsAndLayoutForGlyphRange:NSMakeRange(glyphIndex,1)];
+        fragment=fragmentAtGlyphIndex(self,glyphIndex,&range);
 
         if(fragment==NULL) {
 
 #if DEBUG_lineFragmentRectForGlyphAtIndex_effectiveRange
         NSLog(@"fragment not found returning zero rect");
 #endif
-
+                if(effectiveGlyphRange!=NULL)
+                 *effectiveGlyphRange=NSMakeRange(glyphIndex,0);
                 return NSZeroRect;
     }
+        if(effectiveGlyphRange!=NULL){
+         NSRange          other;
+         NSGlyphFragment *next;
+
+         while(range.location>0 && (next=fragmentAtGlyphIndex(self,range.location-1,&other))!=NULL && NSEqualRects(next->rect,fragment->rect) && other.length>0)
+          range=NSUnionRange(range,other);
+         while((next=fragmentAtGlyphIndex(self,NSMaxRange(range),&other))!=NULL && NSEqualRects(next->rect,fragment->rect) && other.length>0)
+          range=NSUnionRange(range,other);
+         *effectiveGlyphRange=range;
+        }
 
 #if DEBUG_lineFragmentRectForGlyphAtIndex_effectiveRange
     NSLog(@"returning rect: %@", NSStringFromRect(fragment->rect));
