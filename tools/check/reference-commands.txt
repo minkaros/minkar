@@ -255,6 +255,7 @@ usr/bin rlogin bsd
 usr/bin rs bsd
 usr/bin rsync licence
 usr/bin ruby bsd
+usr/bin tclsh bsd
 usr/bin say platform
 usr/bin scp bsd
 usr/bin screencapture platform
