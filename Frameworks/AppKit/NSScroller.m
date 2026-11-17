@@ -165,6 +165,16 @@ static NSAppleScrollBarVariant appleScrollBarVariant(NSScroller *self){
    [self setNeedsDisplay:YES];
 }
 
+/* The knob's share of the slot, 0 to 1 (the value stays). */
+-(void)setKnobProportion:(CGFloat)proportion {
+    if(proportion>1)
+        proportion=1;
+    if(proportion<0)
+        proportion=0;
+    _knobProportion=proportion;
+    [self setNeedsDisplay:YES];
+}
+
 -(double)doubleValue {
     return _floatValue;
 }

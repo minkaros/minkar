@@ -258,6 +258,7 @@ SRCS = \
     NSViewBackingLayer.m \
     NSViewController.m \
     NSTouchBar.m \
+    NSGestureRecognizer.m \
     NSSharingService.m \
     NSHapticFeedback.m \
     NSAccessibilityCustomAction.m \
@@ -553,6 +554,12 @@ HEADERS = \
     NSViewBackingLayer.h \
     NSViewController.h \
     NSTouchBar.h \
+    NSGestureRecognizer.h \
+    NSClickGestureRecognizer.h \
+    NSPressGestureRecognizer.h \
+    NSPanGestureRecognizer.h \
+    NSMagnificationGestureRecognizer.h \
+    NSRotationGestureRecognizer.h \
     NSSharingService.h \
     NSHapticFeedback.h \
     NSAccessibilityCustomAction.h \
@@ -645,6 +652,8 @@ CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks \
 	-I${KIWI_DIR}
+
+CFLAGS.NSGestureRecognizer.m = -fobjc-arc
 
 LDFLAGS = -lc++ -pthread -lcups -framework ApplicationServices -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \

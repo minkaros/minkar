@@ -110,6 +110,13 @@ enum {
 - (NSInteger)clearContents;
 - (BOOL)writeObjects:(NSArray *)objects;
 - (NSArray *)readObjectsForClasses:(NSArray *)classArray options:(NSDictionary *)options;
+
+/* readObjectsForClasses:options:'s options for NSURL: only file URLs (an
+   NSNumber), only files whose type conforms to one of these (an array of
+   type identifiers). */
+typedef NSString *NSPasteboardReadingOptionKey;
+APPKIT_EXPORT NSPasteboardReadingOptionKey const NSPasteboardURLReadingFileURLsOnlyKey;
+APPKIT_EXPORT NSPasteboardReadingOptionKey const NSPasteboardURLReadingContentsConformToTypesKey;
 - (BOOL)canReadObjectForClasses:(NSArray *)classArray options:(NSDictionary *)options;
 
 - (NSArray *)types;

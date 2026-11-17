@@ -58,6 +58,8 @@ COLORS = [
     ('tertiaryLabelColor', 0.60),
     ('quaternaryLabelColor', 0.75),
     ('textColor', 0.0),
+    # The text cursor: the accent, as the newer API has it.
+    ('textInsertionPointColor', ACCENT),
     ('textBackgroundColor', 1.0),
     ('selectedTextColor', 0.0),
     ('selectedTextBackgroundColor', SELECTION),
@@ -110,6 +112,8 @@ COLORS = [
     ('systemYellowColor', (1.0, 0.80, 0.0)),
     ('systemGreenColor', (0.20, 0.74, 0.32)),
     ('systemTealColor', (0.25, 0.70, 0.80)),
+    ('systemMintColor', (0.25, 0.78, 0.68)),
+    ('systemCyanColor', (0.30, 0.75, 0.95)),
     ('systemBlueColor', ACCENT),
     ('systemIndigoColor', (0.35, 0.34, 0.84)),
     ('systemPurpleColor', (0.69, 0.32, 0.87)),

@@ -79,6 +79,7 @@ typedef NS_ENUM(NSInteger, NSScrollerKnobStyle) {
 + (CGFloat)scrollerWidth;
 
 - (CGFloat)knobProportion;
+- (void)setKnobProportion:(CGFloat)proportion;
 - (NSScrollArrowPosition)arrowsPosition;
 - (NSControlSize)controlSize;
 

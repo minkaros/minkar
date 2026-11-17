@@ -76,6 +76,8 @@ typedef NS_ENUM(NSInteger, NSScrollElasticity) {
 - (CGFloat)pageScroll;
 - (BOOL)scrollsDynamically;
 - (BOOL)autohidesScrollers;
+@property BOOL usesPredominantAxisScrolling;
+- (void)flashScrollers;
 
 - (NSCursor *)documentCursor;
 

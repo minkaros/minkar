@@ -166,6 +166,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSStackView.h>
 #import <AppKit/NSViewController.h>
 #import <AppKit/NSTouchBar.h>
+#import <AppKit/NSGestureRecognizer.h>
 #import <AppKit/NSSharingService.h>
 #import <AppKit/NSHapticFeedback.h>
 #import <AppKit/NSAccessibilityCustomAction.h>

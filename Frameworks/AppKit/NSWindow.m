@@ -2619,6 +2619,19 @@ static void sendAppearance(NSView *view,SEL selector) {
         }
     }
 
+    /* The gesture recognizers of the views under a gesture see its events
+       first, and may keep them from the views. */
+    {
+     extern BOOL _NSGestureWindowHandleEvent(NSWindow *window,NSEvent *event,NSView *hitView);
+     NSEventType t=[event type];
+     NSView *gestureHit=nil;
+
+     if(t!=NSKeyDown && t!=NSKeyUp && t!=NSFlagsChanged)
+      gestureHit=[_backgroundView hitTest:[event locationInWindow]];
+     if(_NSGestureWindowHandleEvent(self,event,gestureHit))
+      return;
+    }
+
     BOOL shouldValidateToolbarItems = YES;
     // OK let's see if anyone else wants it
    switch([event type]){
@@ -3907,6 +3920,12 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 
 /* Full screen: the window takes its screen's visible frame, and gets its
    frame back when toggled again (there are no full screen spaces). */
+/* The windows of this window's tab group: none, as windows are not
+   grouped in tabs yet (a window in no group has none either). */
+-(NSArray *)tabbedWindows {
+   return nil;
+}
+
 -(void)toggleFullScreen:(id)sender {
    NSValue *saved=objc_getAssociatedObject(self,&fullScreenFrameKey);
 

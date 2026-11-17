@@ -298,6 +298,19 @@ static NSString *panelText(NSString *english) {
    return _treatsFilePackagesAsDirectories;
 }
 
+static char disclosedKey;
+
+/* Whether the accessory view shows: it always does here; the value is
+   kept as set. */
+-(BOOL)isAccessoryViewDisclosed {
+   NSNumber *value=objc_getAssociatedObject(self,&disclosedKey);
+   return value!=nil?[value boolValue]:YES;
+}
+
+-(void)setAccessoryViewDisclosed:(BOOL)disclosed {
+   objc_setAssociatedObject(self,&disclosedKey,[NSNumber numberWithBool:disclosed],OBJC_ASSOCIATION_RETAIN);
+}
+
 -(NSView *)accessoryView {
    return _accessoryView;
 }

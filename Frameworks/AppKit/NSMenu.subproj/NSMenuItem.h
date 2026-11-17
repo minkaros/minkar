@@ -76,6 +76,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setAction:(SEL)action;
 - (void)setIndentationLevel:(NSInteger)indentationLevel;
 - (void)setTag:(NSInteger)tag;
+/* NSUserInterfaceItemIdentification. */
+@property (copy) NSString *identifier;
+@property (copy) NSString *userInterfaceItemIdentifier;
 - (void)setState:(NSControlStateValue)state;
 - (void)setKeyEquivalent:(NSString *)keyEquivalent;
 - (void)setKeyEquivalentModifierMask:(NSEventModifierFlags)mask;

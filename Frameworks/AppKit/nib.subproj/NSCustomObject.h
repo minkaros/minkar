@@ -8,6 +8,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
+/* A class named in a nib (newer nibs' NSCustomObject names its class by
+   one): the class and its module. */
+@interface IBClassReference : NSObject <NSCoding> {
+    NSString *_className;
+    NSString *_moduleName;
+}
+-(NSString *)className;
+-(NSString *)moduleName;
+-(NSString *)_runtimeClassName;
+@end
+
 @interface NSCustomObject : NSObject {
     NSString *_className;
 }

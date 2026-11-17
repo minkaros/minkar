@@ -244,6 +244,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _indentationLevel = indentationLevel;
 }
 
+static char identifierKey;
+
+-(NSString *)identifier {
+   return objc_getAssociatedObject(self,&identifierKey);
+}
+
+-(void)setIdentifier:(NSString *)identifier {
+   objc_setAssociatedObject(self,&identifierKey,identifier,OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+
+-(NSString *)userInterfaceItemIdentifier {
+   return [self identifier];
+}
+
+-(void)setUserInterfaceItemIdentifier:(NSString *)identifier {
+   [self setIdentifier:identifier];
+}
+
 -(void)setTag:(NSInteger)tag {
    _tag=tag;
 }

@@ -207,6 +207,22 @@ void NSRectFillListUsingOperation(const NSRect *rects,int count,NSCompositingOpe
    CGContextRestoreGState(context);
 }
 
+/* Each rect in its own colour, composited with operation. */
+void NSRectFillListWithColorsUsingOperation(const NSRect *rects,NSColor *const *colors,NSInteger count,NSCompositingOperation operation) {
+   CGContextRef context=NSCurrentGraphicsPort();
+   NSInteger i;
+
+   CGContextSaveGState(context);
+   CGContextSetBlendMode(context,blendModeForCompositeOp(operation));
+   for(i=0;i<count;i++){
+    if(rects[i].size.width<=0 || rects[i].size.height<=0)
+     continue;
+    [colors[i] setFill];
+    CGContextFillRect(context,rects[i]);
+   }
+   CGContextRestoreGState(context);
+}
+
 void NSRectFillUsingOperation(NSRect rect,NSCompositingOperation op) {
    NSRectFillListUsingOperation(&rect,1,op);
 }

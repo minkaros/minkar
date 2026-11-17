@@ -49,6 +49,7 @@ enum {
 - (NSString *)directory;
 - (BOOL)treatsFilePackagesAsDirectories;
 - (NSView *)accessoryView;
+@property (getter=isAccessoryViewDisclosed) BOOL accessoryViewDisclosed;
 
 - (void)setTitle:(NSString *)title;
 

@@ -15,6 +15,56 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSFontManager.h>
 
+/* A class named in a nib: its name, and the module it is in (a Swift
+   module) when it has one. */
+@implementation IBClassReference
+
+-initWithCoder:(NSCoder *)coder {
+   if([coder allowsKeyedCoding]){
+    _className=[[coder decodeObjectForKey:@"IBClassName"] copy];
+    _moduleName=[[coder decodeObjectForKey:@"IBModuleName"] copy];
+   }
+   return self;
+}
+
+-(void)encodeWithCoder:(NSCoder *)coder {
+   if([coder allowsKeyedCoding]){
+    [coder encodeObject:_className forKey:@"IBClassName"];
+    [coder encodeObject:_moduleName forKey:@"IBModuleName"];
+   }
+}
+
+-(void)dealloc {
+   [_className release];
+   [_moduleName release];
+   [super dealloc];
+}
+
+-(NSString *)className {
+   return _className;
+}
+
+-(NSString *)moduleName {
+   return _moduleName;
+}
+
+/* The name NSClassFromString finds: the class alone, or for a module
+   "Module.Class", or the Objective-C name Swift gives such a class. */
+-(NSString *)_runtimeClassName {
+   if([_moduleName length]==0)
+    return _className;
+   NSString *dotted=[NSString stringWithFormat:@"%@.%@",_moduleName,_className];
+   if(NSClassFromString(dotted)!=Nil)
+    return dotted;
+   NSString *mangled=[NSString stringWithFormat:@"_TtC%lu%@%lu%@",(unsigned long)[_moduleName length],_moduleName,
+    (unsigned long)[_className length],_className];
+   if(NSClassFromString(mangled)!=Nil)
+    return mangled;
+   return _className;
+}
+
+@end
+
 @implementation NSCustomObject
 
 -initWithCoder:(NSCoder *)coder {
@@ -22,6 +72,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
 
     _className=[[keyed decodeObjectForKey:@"NSClassName"] retain];
+    /* Newer nibs name the class by an IBClassReference (class and
+       module) instead. */
+    if(_className==nil){
+     IBClassReference *ref=[keyed decodeObjectForKey:@"IBClassReference"];
+
+     if([ref isKindOfClass:[IBClassReference class]])
+      _className=[[ref _runtimeClassName] retain];
+    }
    }
    else
     [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] does not handle %@",[self class],sel_getName(_cmd),[coder class]];

@@ -95,7 +95,55 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
 
    }
    else {
-    [NSException raise:NSInvalidArgumentException format:@"%@ can not encodeWithCoder:%@",[self class], [coder class]];
+    /* An NSArchiver (typed stream): the space's code as a char, then its
+       components as floats, as the reference archives them; a colour in
+       any other space is written as calibrated RGB. */
+    NSString *spaceName=[self colorSpaceName];
+    char      code;
+
+    if([spaceName isEqualToString:NSNamedColorSpace]){
+     NSString *catalog=[self catalogName],*name=[self colorName];
+     NSColor  *color=[self color];
+
+     code=6;
+     [coder encodeValueOfObjCType:@encode(char) at:&code];
+     [coder encodeValuesOfObjCTypes:"@@@",&catalog,&name,&color];
+    }
+    else if([spaceName isEqualToString:NSCalibratedWhiteColorSpace] || [spaceName isEqualToString:NSDeviceWhiteColorSpace]){
+     CGFloat g,a;
+     float   fg,fa;
+
+     [self getWhite:&g alpha:&a];
+     fg=g; fa=a;
+     code=[spaceName isEqualToString:NSDeviceWhiteColorSpace]?4:3;
+     [coder encodeValueOfObjCType:@encode(char) at:&code];
+     [coder encodeValuesOfObjCTypes:"ff",&fg,&fa];
+    }
+    else if([spaceName isEqualToString:NSDeviceCMYKColorSpace]){
+     CGFloat c,m,y,k,a;
+     float   fc,fm,fy,fk,fa;
+
+     [self getCyan:&c magenta:&m yellow:&y black:&k alpha:&a];
+     fc=c; fm=m; fy=y; fk=k; fa=a;
+     code=5;
+     [coder encodeValueOfObjCType:@encode(char) at:&code];
+     [coder encodeValuesOfObjCTypes:"fffff",&fc,&fm,&fy,&fk,&fa];
+    }
+    else {
+     NSColor *rgb=self;
+     CGFloat  r,g,b,a;
+     float    fr,fg,fb,fa;
+
+     code=[spaceName isEqualToString:NSDeviceRGBColorSpace]?2:1;
+     if(code==1 && ![spaceName isEqualToString:NSCalibratedRGBColorSpace])
+      rgb=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+     if(rgb==nil)
+      rgb=[NSColor blackColor];
+     [rgb getRed:&r green:&g blue:&b alpha:&a];
+     fr=r; fg=g; fb=b; fa=a;
+     [coder encodeValueOfObjCType:@encode(char) at:&code];
+     [coder encodeValuesOfObjCTypes:"ffff",&fr,&fg,&fb,&fa];
+    }
    }
 }
 
@@ -210,8 +258,59 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
 
    
    else {
-    [NSException raise:NSInvalidArgumentException format:@"%@ can not initWithCoder:%@",[self class], [coder class]];
-    return nil;
+    /* An NSUnarchiver: as encodeWithCoder: writes it. */
+    NSColor *result=nil;
+    char     code=0;
+
+    [coder decodeValueOfObjCType:@encode(char) at:&code];
+    switch(code){
+     case 1: case 2:{
+      float r,g,b,a;
+
+      [coder decodeValuesOfObjCTypes:"ffff",&r,&g,&b,&a];
+      result=(code==1)?[NSColor colorWithCalibratedRed:r green:g blue:b alpha:a]:
+       [NSColor colorWithDeviceRed:r green:g blue:b alpha:a];
+     }
+      break;
+     case 3: case 4:{
+      float w,a;
+
+      [coder decodeValuesOfObjCTypes:"ff",&w,&a];
+      result=(code==3)?[NSColor colorWithCalibratedWhite:w alpha:a]:[NSColor colorWithDeviceWhite:w alpha:a];
+     }
+      break;
+     case 5:{
+      float c,m,y,k,a;
+
+      [coder decodeValuesOfObjCTypes:"fffff",&c,&m,&y,&k,&a];
+      result=[NSColor colorWithDeviceCyan:c magenta:m yellow:y black:k alpha:a];
+     }
+      break;
+     case 6:{
+      NSString *catalog=nil,*name=nil;
+      NSColor  *color=nil;
+
+      [coder decodeValuesOfObjCTypes:"@@@",&catalog,&name,&color];
+      result=[NSColor colorWithCatalogName:catalog colorName:name];
+      if(result==nil)
+       result=color;
+      [catalog release];
+      [name release];
+      if(result!=color)
+       [color release];
+      else
+       [result autorelease];
+     }
+      break;
+     default:
+      NSLog(@"-[%@ %s] unknown color space %d",[self class],sel_getName(_cmd),code);
+      result=[NSColor blackColor];
+      break;
+    }
+    /* The unarchiver holds this object until it has the one returned:
+       let it go after that. */
+    [self autorelease];
+    return [result retain];
    }
 }
 
@@ -305,6 +404,23 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
 
 +(NSColor *)systemTealColor {
     return [NSColor colorWithCatalogName:@"System" colorName:@"systemTealColor"];
+}
+
++(NSColor *)systemMintColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemMintColor"];
+}
+
++(NSColor *)systemCyanColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemCyanColor"];
+}
+
++(NSColor *)textInsertionPointColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"textInsertionPointColor"];
+}
+
+/* The colours rows of content (tables, lists) alternate between. */
++(NSArray *)alternatingContentBackgroundColors {
+    return [self controlAlternatingRowBackgroundColors];
 }
 
 +(NSColor *)systemBlueColor {

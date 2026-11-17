@@ -12,6 +12,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <servers/bootstrap.h>
 #include <string.h>
 #include "Pasteboard.h"		/* MIG, generated from Pasteboard/Pasteboard.defs */
+#import <AppKit/NSWorkspace.h>
+#include <CoreServices/CoreServices.h>
+
+NSString *const NSPasteboardURLReadingFileURLsOnlyKey = @"NSPasteboardURLReadingFileURLsOnlyKey";
+NSString *const NSPasteboardURLReadingContentsConformToTypesKey = @"NSPasteboardURLReadingContentsConformToTypesKey";
+
+/* An object read for readObjectsForClasses:options: kept or not, by the
+   URL options: only file URLs, only files of these types. */
+static BOOL passesURLOptions(id object, NSDictionary *options) {
+   if (![object isKindOfClass:[NSURL class]] || [options count] == 0)
+      return YES;
+   NSURL *url = object;
+   NSArray *types = [options objectForKey:NSPasteboardURLReadingContentsConformToTypesKey];
+   if ([[options objectForKey:NSPasteboardURLReadingFileURLsOnlyKey] boolValue] && ![url isFileURL])
+      return NO;
+   if ([types count] > 0) {
+      if (![url isFileURL])
+         return NO;
+      NSString *uti = [[NSWorkspace sharedWorkspace] typeOfFile:[url path] error:NULL];
+      if (uti == nil)
+         return NO;
+      for (NSString *want in types)
+         if (UTTypeConformsTo((CFStringRef)uti, (CFStringRef)want))
+            return YES;
+      return NO;
+   }
+   return YES;
+}
 
 /*
  * Copyright (c) 2026 The Minkar contributors (the pasteboard server's
@@ -390,6 +418,8 @@ static NSMutableDictionary *sPasteboards;
             (id)[self dataForType:type];
          id object = plist != nil ? [[[c alloc] initWithPasteboardPropertyList:plist
                                                                       ofType:type] autorelease] : nil;
+         if (object != nil && !passesURLOptions(object, options))
+            object = nil;
          if (object != nil) {
             [objects addObject:object];
             break;

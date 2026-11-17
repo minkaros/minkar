@@ -569,6 +569,23 @@ static Class _rulerViewClass = nil;
     return _scrollsDynamically;
 }
 
+static char predominantAxisKey;
+
+/* Scrolling mostly along one axis moves along that one only (YES unless
+   set otherwise). */
+-(BOOL)usesPredominantAxisScrolling {
+   NSNumber *value=objc_getAssociatedObject(self,&predominantAxisKey);
+   return value!=nil?[value boolValue]:YES;
+}
+
+-(void)setUsesPredominantAxisScrolling:(BOOL)flag {
+   objc_setAssociatedObject(self,&predominantAxisKey,flag?nil:[NSNumber numberWithBool:NO],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* Shows overlay scrollers for a moment: these are always shown. */
+-(void)flashScrollers {
+}
+
 -(BOOL)autohidesScrollers {
    return _autohidesScrollers;
 }

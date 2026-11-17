@@ -608,6 +608,7 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (NSPoint)convertPointToScreen:(NSPoint)point;
 - (NSPoint)convertPointFromScreen:(NSPoint)point;
 - (void)toggleFullScreen:(id)sender;
+@property (readonly, copy) NSArray *tabbedWindows;
 + (BOOL)allowsAutomaticWindowTabbing;
 + (void)setAllowsAutomaticWindowTabbing:(BOOL)value;
 @property NSWindowAnimationBehavior animationBehavior;

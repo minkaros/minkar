@@ -76,6 +76,7 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 
 @protocol NSUserInterfaceItemIdentification
 @property (copy) NSUserInterfaceItemIdentifier identifier;
+@property (copy) NSUserInterfaceItemIdentifier userInterfaceItemIdentifier;
 @end
 
 @class NSDraggingSession;
@@ -419,6 +420,22 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 @property(readonly) BOOL wantsUpdateLayer;
 - (void)updateLayer;
 
+@end
+
+@class NSGestureRecognizer;
+
+/* Whether the view's drawing is clipped to its bounds: YES, as API 19
+   views draw (the value is kept; a view does not draw outside its bounds
+   yet when it is NO). */
+@interface NSView (NSClipsToBounds)
+@property BOOL clipsToBounds;
+@end
+
+/* The gesture recognizers attached to the view (NSGestureRecognizer.h). */
+@interface NSView (NSGestureRecognizer)
+@property(copy) NSArray *gestureRecognizers;
+- (void)addGestureRecognizer:(NSGestureRecognizer *)gestureRecognizer;
+- (void)removeGestureRecognizer:(NSGestureRecognizer *)gestureRecognizer;
 @end
 
 @interface NSObject (NSView_toolTipOwner)

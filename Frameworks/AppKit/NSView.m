@@ -125,6 +125,15 @@ static char appearanceKey;
    return objc_getAssociatedObject(self,&identifierKey);
 }
 
+/* The same identifier, under the name some code asks it by. */
+-(NSUserInterfaceItemIdentifier)userInterfaceItemIdentifier {
+   return [self identifier];
+}
+
+-(void)setUserInterfaceItemIdentifier:(NSUserInterfaceItemIdentifier)identifier {
+   [self setIdentifier:identifier];
+}
+
 -(void)setIdentifier:(NSUserInterfaceItemIdentifier)identifier {
    objc_setAssociatedObject(self,&identifierKey,identifier,OBJC_ASSOCIATION_COPY);
 }
@@ -2910,9 +2919,17 @@ drawn:
         NSRect bounds=[documentView bounds];
         NSRect visible=[documentView visibleRect];
         float  direction=[documentView isFlipped]?-1:1;
+        CGFloat dx=[event deltaX],dy=[event deltaY];
 
-        visible.origin.x+=[event deltaX]*[scrollView horizontalLineScroll]*3;
-        visible.origin.y+=[event deltaY]*direction*[scrollView verticalLineScroll]*3;
+        /* Scrolling mostly along one axis moves along that one only. */
+        if([scrollView usesPredominantAxisScrolling]){
+            if(fabs(dx)>fabs(dy))
+                dy=0;
+            else
+                dx=0;
+        }
+        visible.origin.x+=dx*[scrollView horizontalLineScroll]*3;
+        visible.origin.y+=dy*direction*[scrollView verticalLineScroll]*3;
 
         // Something equivalent to this should be in scrollRectToVisible:
         if(visible.origin.y<bounds.origin.y)
