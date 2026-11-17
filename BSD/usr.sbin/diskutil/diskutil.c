@@ -495,6 +495,7 @@ cmd_info(int argc, char **argv)
 {
 	char bsd[64] = "", whole[64], s[512], v[600], mp[MAXPATHLEN], sz[32];
 	char kind[64], type[128], name[256], uuid[64], proto[64];
+	char media[256], ioname[256];
 	CFMutableDictionaryRef p = NULL;
 	CFDictionaryRef d;
 	DADiskRef disk;
@@ -534,6 +535,24 @@ cmd_info(int argc, char **argv)
 	writable = cfbool(d, kDADiskDescriptionMediaWritableKey);
 	cfstr(CFDictionaryGetValue(d, kDADiskDescriptionMediaContentKey), s,
 	    sizeof(s));
+	/* The media's registry name (DiskArbitration's media name), and, for a
+	   whole disk only, the device's: its model, else the media's name
+	   without " Media" (as the reference reports both). */
+	cfstr(CFDictionaryGetValue(d, kDADiskDescriptionMediaNameKey), ioname,
+	    sizeof(ioname));
+	media[0] = '\0';
+	if (isWhole) {
+		if (CFDictionaryGetValue(d, kDADiskDescriptionDeviceModelKey) != NULL)
+			cfstr(CFDictionaryGetValue(d,
+			    kDADiskDescriptionDeviceModelKey), media, sizeof(media));
+		if (media[0] == '\0') {
+			size_t n = strlen(ioname);
+
+			strlcpy(media, ioname, sizeof(media));
+			if (n > 6 && strcmp(ioname + n - 6, " Media") == 0)
+				media[n - 6] = '\0';
+		}
+	}
 
 	if (plist) {
 		p = CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
@@ -546,6 +565,8 @@ cmd_info(int argc, char **argv)
 		plist_str(p, "ParentWholeDisk", whole);
 		plist_str(p, "Content", s);
 		plist_str(p, "VolumeName", name);
+		plist_str(p, "MediaName", media);
+		plist_str(p, "IORegistryEntryName", ioname);
 		plist_str(p, "MountPoint", mounted ? mp : "");
 		plist_str(p, "FilesystemType", kind);
 		plist_str(p, "FilesystemUserVisibleName", type);
@@ -591,11 +612,8 @@ cmd_info(int argc, char **argv)
 	row("Device Node", v);
 	row("Whole", isWhole ? "Yes" : "No");
 	row("Part of Whole", whole);
-	if (CFDictionaryGetValue(d, kDADiskDescriptionMediaNameKey) != NULL) {
-		cfstr(CFDictionaryGetValue(d, kDADiskDescriptionMediaNameKey), v,
-		    sizeof(v));
-		row("Device / Media Name", v);
-	}
+	if (media[0] != '\0')
+		row("Device / Media Name", media);
 	printf("\n");
 	if (kind[0] != '\0' || name[0] != '\0') {
 		row("Volume Name", name[0] ? name : "Not applicable (no file system)");
