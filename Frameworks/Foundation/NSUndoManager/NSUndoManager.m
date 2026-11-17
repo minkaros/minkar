@@ -26,10 +26,14 @@ enum _NSUndoManagerState {
 NSString * const NSUndoManagerCheckpointNotification=@"NSUndoManagerCheckpointNotification";
 NSString * const NSUndoManagerDidOpenUndoGroupNotification=@"NSUndoManagerDidOpenUndoGroupNotification";
 NSString * const NSUndoManagerWillCloseUndoGroupNotification=@"NSUndoManagerWillCloseUndoGroupNotification";
+NSString * const NSUndoManagerDidCloseUndoGroupNotification=@"NSUndoManagerDidCloseUndoGroupNotification";
+NSString * const NSUndoManagerGroupIsDiscardableKey=@"NSUndoManagerGroupIsDiscardableKey";
 NSString * const NSUndoManagerWillUndoChangeNotification=@"NSUndoManagerWillUndoChangeNotification";
 NSString * const NSUndoManagerDidUndoChangeNotification=@"NSUndoManagerDidUndoChangeNotification";
 NSString * const NSUndoManagerWillRedoChangeNotification=@"NSUndoManagerWillRedoChangeNotification";
 NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoChangeNotification";
+
+static char discardableKey;
 
 @implementation NSUndoManager
 
@@ -161,11 +165,19 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
     [[NSNotificationCenter defaultCenter] postNotificationName:NSUndoManagerCheckpointNotification
                                                         object:self];
 
+    /* Every group closed outside undo and redo, empty or nested, is heard
+       of before and after (the reference's notifications); after, with
+       whether it may be dropped. */
+    NSUndoGroup *closing = [_currentGroup retain];
+    BOOL         announce = (_state == NSUndoManagerNormal);
+    BOOL         discardable = (parentGroup == nil) && [objc_getAssociatedObject(closing, &discardableKey) boolValue];
+
+    if (announce)
+        [[NSNotificationCenter defaultCenter] postNotificationName:NSUndoManagerWillCloseUndoGroupNotification object:self];
+
     if (parentGroup == nil && [[_currentGroup invocations] count] > 0) {
         switch (_state) {
             case NSUndoManagerNormal:
-                [[NSNotificationCenter defaultCenter] postNotificationName:NSUndoManagerWillCloseUndoGroupNotification object:self];
-                
             case NSUndoManagerRedoing:
                 stack = _undoStack;
                 break;
@@ -188,6 +200,10 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
 
     [_currentGroup release];
     _currentGroup = parentGroup;
+    if (announce)
+        [[NSNotificationCenter defaultCenter] postNotificationName:NSUndoManagerDidCloseUndoGroupNotification object:self
+            userInfo:discardable ? [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] forKey:NSUndoManagerGroupIsDiscardableKey] : nil];
+    [closing release];
 }
 
 - (NSInteger)groupingLevel
@@ -412,8 +428,6 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
     [_preparedTarget release];
     _preparedTarget = nil;
 }
-
-static char discardableKey;
 
 /* The group an action now registered belongs to: the outermost open
    one, else the one last closed on the stack being added to. */

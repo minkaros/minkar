@@ -32,6 +32,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)_setPanelTitle:(NSString *)title;
 @end
 
+@interface NSSavePanel (NSOpenPanelSheet)
+-(void)_finishPanelWithCode:(NSInteger)code;
+@end
+
 @interface NSOpenPanel (Minkar)
 -(void)_goToFolder:(NSString *)folder;
 -(void)_activateEntryAtIndex:(NSInteger)index;
@@ -396,11 +400,32 @@ static const CGFloat kOpenRowHeight=20;
       _filenames=[chosen copy];
    }
    [self _setFilename:[chosen firstObject]];
-   [NSApp stopModalWithCode:NSFileHandlingPanelOKButton];
+   [self _finishPanelWithCode:NSFileHandlingPanelOKButton];
 }
 
 -(void)_cancelOpen:(id)sender {
-   [NSApp stopModalWithCode:NSFileHandlingPanelCancelButton];
+   [self _finishPanelWithCode:NSFileHandlingPanelCancelButton];
+}
+
+-(void)ok:(id)sender {
+   [self _open:sender];
+}
+
+-(void)cancel:(id)sender {
+   [self _cancelOpen:sender];
+}
+
+/* As a sheet (NSSavePanel's): the open panel's controls and focus. */
+-(void)_preparePanel {
+   BOOL isDir=NO;
+
+   if(![[NSFileManager defaultManager] fileExistsAtPath:[self directory] isDirectory:&isDir] || !isDir)
+      [self setDirectory:NSHomeDirectory()];
+   [self _buildOpenPanel];
+}
+
+-(NSResponder *)_panelFirstResponder {
+   return _fileList;
 }
 
 -(void)_buildOpenPanel {

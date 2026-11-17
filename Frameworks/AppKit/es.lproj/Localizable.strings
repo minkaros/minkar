@@ -90,3 +90,6 @@
 "Arrange in Front" = "Organizar delante";
 "Do you want to revert to the most recently saved version of the document “%@”?" = "¿Quieres volver a la última versión guardada del documento «%@»?";
 "Your current changes will be lost." = "Se perderán los cambios actuales.";
+"Do you want to save the changes made to the document “%@”?" = "¿Quieres guardar los cambios hechos en el documento «%@»?";
+"Your changes will be lost if you don’t save them." = "Si no los guardas, se perderán los cambios.";
+"Don’t Save" = "No guardar";

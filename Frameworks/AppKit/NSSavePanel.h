@@ -93,6 +93,9 @@ enum {
 @property BOOL canSelectHiddenExtension;
 @property (getter=isExtensionHidden) BOOL extensionHidden;
 
+- (void)ok:(id)sender;
+- (void)cancel:(id)sender;
+
 @end
 
 /* Minkar: the formal delegate protocol (API 10.6). */
@@ -104,4 +107,5 @@ enum {
 - (NSString *)panel:(id)sender userEnteredFilename:(NSString *)filename confirmed:(BOOL)okFlag;
 - (void)panel:(id)sender willExpand:(BOOL)expanding;
 - (void)panelSelectionDidChange:(id)sender;
+
 @end

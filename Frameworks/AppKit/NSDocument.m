@@ -207,10 +207,10 @@ static int untitled_document_number = 0;
 
 
 -(NSUndoManager *)undoManager {
-    if (_undoManager == nil && _hasUndoManager == YES) {
-        [self setUndoManager:[NSUndoManager new]];
-        [_undoManager beginUndoGrouping];
-    }
+    /* Made on demand; it opens its groups itself (by event) as actions
+       are registered, so a new document is not edited. */
+    if (_undoManager == nil && _hasUndoManager == YES)
+        [self setUndoManager:[[NSUndoManager new] autorelease]];
 
     return _undoManager;
 }
@@ -263,7 +263,7 @@ static int untitled_document_number = 0;
                                                         name:NSUndoManagerDidRedoChangeNotification
                                                       object:_undoManager];
         [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                        name:NSUndoManagerWillCloseUndoGroupNotification
+                                                        name:NSUndoManagerDidCloseUndoGroupNotification
                                                       object:_undoManager];
         [_undoManager release];
     }
@@ -282,7 +282,7 @@ static int untitled_document_number = 0;
                                                    object:_undoManager];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(_undoManagerDidCloseGroup:)
-                                                     name:NSUndoManagerWillCloseUndoGroupNotification
+                                                     name:NSUndoManagerDidCloseUndoGroupNotification
                                                    object:_undoManager];
     }
 }
@@ -750,20 +750,21 @@ static int untitled_document_number = 0;
         return;
     }
 
-    int saveResult;
+    /* A sheet on the document's window, as the reference's: next to the
+       file, or in the current folder under the document's name. */
     if (_fileURL) {
-        // Suggest saving alongside the original file
-        saveResult = [savePanel runModalForDirectory:[path stringByDeletingLastPathComponent]
-                                                file:[path lastPathComponent]];
+        [savePanel setDirectory:[path stringByDeletingLastPathComponent]];
+        [savePanel setNameFieldStringValue:[path lastPathComponent]];
     } else {
         NSString *directory = [savePanel directory];
         if (directory == nil) {
             // Suggest saving in some reasonable directory
             directory = [[NSDocumentController sharedDocumentController] currentDirectory];
         }
-        saveResult = [savePanel runModalForDirectory: directory
-                                                file: [self displayName]];
+        [savePanel setDirectory:directory];
+        [savePanel setNameFieldStringValue:[self displayName]];
     }
+    [savePanel beginSheetModalForWindow:[self windowForSheet] completionHandler:^(NSInteger saveResult){
     if(saveResult) {
         NSString *savePath=[savePanel filename];
         NSString* extension = [savePath pathExtension];
@@ -802,6 +803,7 @@ static int untitled_document_number = 0;
             delegateMethod(delegate, selector, self, NO, context);
         }
     }
+    }];
 }
 
 -(void)saveDocumentWithDelegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info
@@ -1375,51 +1377,47 @@ forSaveOperation:(NSSaveOperationType)operation
     [self updateChangeCount:NSChangeDone];
 }
 
+/* A group closed at the top level (not while undoing or redoing, which
+   send no such notification) is a change, as on the reference. */
 -(void)_undoManagerDidCloseGroup:(NSNotification *)note {
-// FIXME: the following would mark just opened and otherwise pristine documents as changed
-//  [self updateChangeCount:NSChangeDone];
+   if([[note object] groupingLevel]==0)
+    [self updateChangeCount:NSChangeDone];
 }
 
 
+/* An edited document's window asks first, in a sheet, as the reference's
+   does: Save (then closes once saved), Don't Save, or Cancel. */
 -(BOOL)windowShouldClose:sender {
-   if([[NSUserDefaults standardUserDefaults] boolForKey:@"useSheets"]){
-    NSBeginAlertSheet(nil,
-                      NSLocalizedStringFromTableInBundle(@"Yes", nil, [NSBundle bundleForClass: [NSDocument class]], @""), NSLocalizedStringFromTableInBundle(@"No", nil, [NSBundle bundleForClass: [NSDocument class]], @""), NSLocalizedStringFromTableInBundle(@"Cancel", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                      sender, self,
-                      @selector(didEndShouldCloseSheet:returnCode:contextInfo:),
-                      NULL, sender,
-                      NSLocalizedStringFromTableInBundle(@"Save changes to %@?", nil, [NSBundle bundleForClass: [NSDocument class]], @""), [self displayName]);
+   NSBundle *bundle=[NSBundle bundleForClass:[NSDocument class]];
+   NSWindow *window=[sender isKindOfClass:[NSWindow class]]?sender:[self windowForSheet];
+   NSAlert  *alert;
 
+   if(![self isDocumentEdited])
+    return YES;
+   if([window attachedSheet]!=nil)
     return NO;
-   }
-   else {
-    if(![self isDocumentEdited])
-     return YES;
-    else {
-     int result=NSRunAlertPanel(nil,
-                                NSLocalizedStringFromTableInBundle(@"Save changes to %@?", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                                NSLocalizedStringFromTableInBundle(@"Yes", nil, [NSBundle bundleForClass: [NSDocument class]], @""), NSLocalizedStringFromTableInBundle(@"No", nil, [NSBundle bundleForClass: [NSDocument class]], @""), NSLocalizedStringFromTableInBundle(@"Cancel", nil, [NSBundle bundleForClass: [NSDocument class]], @""),
-                                [self displayName]);
+   alert=[[[NSAlert alloc] init] autorelease];
+   [alert setMessageText:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Do you want to save the changes made to the document \u201c%@\u201d?", nil, bundle, @""),[self displayName]]];
+   [alert setInformativeText:NSLocalizedStringFromTableInBundle(@"Your changes will be lost if you don\u2019t save them.", nil, bundle, @"")];
+   [alert addButtonWithTitle:NSLocalizedStringFromTableInBundle(@"Save", nil, bundle, @"")];
+   [alert addButtonWithTitle:NSLocalizedStringFromTableInBundle(@"Cancel", nil, bundle, @"")];
+   [alert addButtonWithTitle:NSLocalizedStringFromTableInBundle(@"Don\u2019t Save", nil, bundle, @"")];
+   [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response){
+      if(response==NSAlertFirstButtonReturn)
+       [self saveDocumentWithDelegate:self didSaveSelector:@selector(_document:didSaveToClose:contextInfo:) contextInfo:window];
+      else if(response==NSAlertThirdButtonReturn){
+       for (id editor in [[_activeEditors copy] autorelease])
+        [editor discardEditing];
+       [self updateChangeCount:NSChangeCleared];
+       [window close];
+      }
+   }];
+   return NO;
+}
 
-     switch(result){
-      case NSAlertDefaultReturn:
-       [self saveDocument:nil];
-       return YES;
-
-      case NSAlertAlternateReturn:
-             // Let's prep the document to close cleanly.
-             for (id editor in [[_activeEditors copy] autorelease]) {
-                [editor discardEditing];
-             }
-             [self updateChangeCount: NSChangeCleared];
-       return YES;
-
-      case NSAlertOtherReturn:
-      default:
-       return NO;
-     }
-    }
-   }
+-(void)_document:(NSDocument *)document didSaveToClose:(BOOL)didSave contextInfo:(void *)info {
+   if(didSave)
+    [(NSWindow *)info close];
 }
 
 -(void)didEndShouldCloseSheet:(NSWindow *)sheet

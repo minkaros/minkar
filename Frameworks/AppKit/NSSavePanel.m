@@ -140,11 +140,20 @@ static NSString *panelText(NSString *english) {
    }
    [self setDirectory:folder];
    [self _setFilename:path];
-   [NSApp stopModalWithCode:NSFileHandlingPanelOKButton];
+   [self _finishPanelWithCode:NSFileHandlingPanelOKButton];
 }
 
 -(void)_cancel:(id)sender {
-   [NSApp stopModalWithCode:NSFileHandlingPanelCancelButton];
+   [self _finishPanelWithCode:NSFileHandlingPanelCancelButton];
+}
+
+/* The panel's own actions (the reference's ok: and cancel:). */
+-(void)ok:(id)sender {
+   [self _save:sender];
+}
+
+-(void)cancel:(id)sender {
+   [self _cancel:sender];
 }
 
 -(void)_addFolder:(NSString *)path title:(NSString *)title to:(NSMutableArray *)folders {
@@ -279,11 +288,61 @@ static NSString *panelText(NSString *english) {
    return _allowsOtherFileTypes;
 }
 
-/* Not a sheet yet: the panel runs modal on its own, then the handler. */
+/* The panel ready to run (its controls built) and what takes the
+   focus in it. */
+-(void)_preparePanel {
+   [self _buildSavePanel];
+}
+
+-(NSResponder *)_panelFirstResponder {
+   return _nameField;
+}
+
+/* Ends the panel: its sheet, or its modal session. */
+-(void)_finishPanelWithCode:(NSInteger)code {
+   if([self isSheet])
+      [NSApp endSheet:self returnCode:code];
+   else
+      [NSApp stopModalWithCode:code];
+}
+
+static char sheetHandlerKey, sheetStyleKey;
+
+/* A sheet on the window (as the reference's), the handler told when it
+   ends; without a window, a modal panel. */
 -(void)beginSheetModalForWindow:(NSWindow *)window completionHandler:(void (^)(NSInteger result))handler {
-   NSInteger result=[self runModal];
+   NSResponder *responder;
+
+   if(window==nil){
+      NSInteger result=[self runModal];
+      if(handler!=nil)
+         handler(result);
+      return;
+   }
+   [self _preparePanel];
+   objc_setAssociatedObject(self,&sheetHandlerKey,handler,OBJC_ASSOCIATION_COPY);
+   objc_setAssociatedObject(self,&sheetStyleKey,[NSNumber numberWithUnsignedInteger:[self styleMask]],OBJC_ASSOCIATION_RETAIN);
+   [self setStyleMask:NSDocModalWindowMask];
+   [self retain];
+   [NSApp beginSheet:self modalForWindow:window modalDelegate:self didEndSelector:@selector(_panelSheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+   responder=[self _panelFirstResponder];
+   [self makeFirstResponder:responder];
+   if([responder respondsToSelector:@selector(selectText:)])
+      [(NSTextField *)responder selectText:nil];
+}
+
+-(void)_panelSheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)code contextInfo:(void *)info {
+   void (^handler)(NSInteger)=[objc_getAssociatedObject(self,&sheetHandlerKey) retain];
+   NSNumber *style=objc_getAssociatedObject(self,&sheetStyleKey);
+
+   [self orderOut:nil];
+   if(style!=nil)
+      [self setStyleMask:[style unsignedIntegerValue]];
+   objc_setAssociatedObject(self,&sheetHandlerKey,nil,OBJC_ASSOCIATION_COPY);
    if(handler!=nil)
-      handler(result);
+      handler(code);
+   [handler release];
+   [self autorelease];
 }
 
 -(void)beginWithCompletionHandler:(void (^)(NSInteger result))handler {
