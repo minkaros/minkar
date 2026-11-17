@@ -2,7 +2,7 @@ SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarBGE MinkarVirtio MinkarNVMe \
-	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity MinkarSandbox \
+	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarFSCompression MinkarCodeIntegrity MinkarSandbox \
 	 IOAudioFamily MinkarHDA
 
 all: kernelcache
@@ -54,6 +54,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
 	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext \
 	${EXTENSIONS}/MinkarDiskImage/MinkarDiskImage.kext \
+	${EXTENSIONS}/MinkarFSCompression/MinkarFSCompression.kext \
 	${EXTENSIONS}/MinkarCodeIntegrity/MinkarCodeIntegrity.kext \
 	${EXTENSIONS}/MinkarSandbox/MinkarSandbox.kext \
 	${EXTENSIONS}/IOAudioFamily/IOAudioFamily.kext \

@@ -4,7 +4,8 @@
  * Part of Minkar.
  *
  * What bzip2's and LZFSE's sources take from <stdlib.h>, in the kernel:
- * size_t and NULL. Their malloc and free are mapped to MinkarDiskImageCodecs.c.
+ * size_t, NULL, and malloc and free, which each kext maps (-Dmalloc=,
+ * -Dfree=) to its own allocator.
  */
 
 #ifndef _MINKAR_DI_KSHIM_STDLIB_H_
@@ -12,7 +13,7 @@
 
 #include <stddef.h>
 
-void *minkar_di_malloc(size_t size);
-void minkar_di_free(void *p);
+void *malloc(size_t size);
+void free(void *p);
 
 #endif

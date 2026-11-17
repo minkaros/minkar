@@ -18,7 +18,8 @@
 - Extensions/msdosfs: msdosfs-411.100.3 (SPDX:APSL-2.0)
 - Extensions/AppleFileSystemDriver: AppleFileSystemDriver-23 (SPDX:APSL-2.0)
 - Extensions/hfs: hfs-556.60.1, Darwin 20's, adapted to Darwin 19's xnu
-  (zinit zones, journal accounting, no AppleKeyStore, no compression)
+  (zinit zones, journal accounting, no AppleKeyStore; compression through
+  decmpfs since 2026-11-17, its types from MinkarFSCompression, ours)
   (SPDX:APSL-2.0)
 - kext_tools: kext_tools-623.120.1 (SPDX:APSL-2.0)
 Older open-source releases, not in Darwin 19's distribution (the lines

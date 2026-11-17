@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>MinkarFSCompression</string>
+	<key>CFBundleGetInfoString</key>
+	<string>@BUNDLE_VERSION@, Copyright (c) 2026 The Minkar contributors</string>
+	<key>CFBundleIdentifier</key>
+	<string>@BUNDLE_IDENTIFIER@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>MinkarFSCompression</string>
+	<key>CFBundlePackageType</key>
+	<string>KEXT</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@BUNDLE_VERSION@</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>@BUNDLE_VERSION@</string>
+	<key>IOKitPersonalities</key>
+	<dict>
+		<key>File system compression</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>@BUNDLE_IDENTIFIER@</string>
+			<key>IOClass</key>
+			<string>MinkarFSCompression</string>
+			<key>IOMatchCategory</key>
+			<string>MinkarFSCompression</string>
+			<key>IOProviderClass</key>
+			<string>IOResources</string>
+			<!-- Started once BSD is up: decmpfs starts with the VFS. -->
+			<key>IOResourceMatch</key>
+			<string>IOBSD</string>
+			<!-- The names the kernel's decmpfs looks for, to wait for the
+			     kext that registers a compression type. -->
+			<key>com.apple.AppleFSCompression.providesType3</key>
+			<true/>
+			<key>com.apple.AppleFSCompression.providesType4</key>
+			<true/>
+			<key>com.apple.AppleFSCompression.providesType7</key>
+			<true/>
+			<key>com.apple.AppleFSCompression.providesType8</key>
+			<true/>
+			<key>com.apple.AppleFSCompression.providesType11</key>
+			<true/>
+			<key>com.apple.AppleFSCompression.providesType12</key>
+			<true/>
+		</dict>
+	</dict>
+	<key>OSBundleLibraries</key>
+	<dict>
+		<key>com.apple.kpi.bsd</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.dsep</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.iokit</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.libkern</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.mach</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.private</key>
+		<string>8.0.0</string>
+	</dict>
+	<key>OSBundleRequired</key>
+	<string>Root</string>
+</dict>
+</plist>
