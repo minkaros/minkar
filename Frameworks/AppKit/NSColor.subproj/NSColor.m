@@ -243,7 +243,15 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
        NSString *colorName=[keyed decodeObjectForKey:@"NSColorName"];
        NSColor  *color=[keyed decodeObjectForKey:@"NSColor"];
        
-       result=[NSColor_catalog colorWithCatalogName: catalogName colorName: colorName color:color];
+       /* The catalog's own color (the system's, as it is now), as the
+          reference reads it; the archive's copy only for a name the
+          catalog does not have. */
+       NSColor  *known=[[NSColorList colorListNamed:catalogName] colorWithKey:colorName];
+
+       if(known!=nil)
+        result=[NSColor colorWithCatalogName:catalogName colorName:colorName];
+       else
+        result=[NSColor_catalog colorWithCatalogName: catalogName colorName: colorName color:color];
       }
       break;
 

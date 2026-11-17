@@ -241,9 +241,9 @@ static BOOL loadsItsOwnWindow(NSWindowController *self) {
    if(_document!=nil && _window!=nil){
     NSString *displayName=[_document displayName];
     NSString *title=[self windowTitleForDocumentDisplayName:displayName];
-    NSString *path=[_document fileName];
-
+    /* The window stands for the document's file (none when untitled). */
     [_window setTitle:title];
+    [_window setRepresentedURL:[_document fileURL]];
    }
 }
 

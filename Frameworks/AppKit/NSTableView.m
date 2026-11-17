@@ -119,6 +119,9 @@ const float NSTableViewDefaultRowHeight=16.0f;
     _numberOfRows = -1;
     _draggingRow = -1;
 
+    if([keyed containsValueForKey:@"NSEnabled"])
+     [self setEnabled:[keyed decodeBoolForKey:@"NSEnabled"]];
+
     // row background and grid attributes for OS X >= 10.3
     _alternatingRowBackground=(flags&0x00800000)?YES:NO;
     /* How the columns fit a new width; older archives only say whether
@@ -2398,6 +2401,19 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
    [self _updateRowViews];
 }
 
+
+/* Enabled, as the reference's tables are unless told (they have no cell
+   to keep it in, NSControl's place for it). */
+static char tableDisabledKey;
+
+-(BOOL)isEnabled {
+   return ![objc_getAssociatedObject(self,&tableDisabledKey) boolValue];
+}
+
+-(void)setEnabled:(BOOL)flag {
+   objc_setAssociatedObject(self,&tableDisabledKey,flag?nil:[NSNumber numberWithBool:YES],OBJC_ASSOCIATION_RETAIN);
+   [self setNeedsDisplay:YES];
+}
 
 static char autoresizingStyleKey;
 -(NSTableViewColumnAutoresizingStyle)columnAutoresizingStyle {

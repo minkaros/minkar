@@ -56,11 +56,20 @@ size_t CTFontGetGlyphCount(CTFontRef font) {
    return [self numberOfGlyphs];
 }
 
+/* Whether every character has a glyph (as the reference answers: false
+   when one maps to glyph 0; a surrogate pair is one character). */
 bool CTFontGetGlyphsForCharacters(CTFontRef font,const UniChar *characters,CGGlyph *glyphs,size_t count) {
    KTFont *self=ktFontOf(font);
+   bool    all=true;
+
    [self getGlyphs:glyphs forCharacters:characters length:count];
-   // FIXME: change getGlyphs: to return a BOOL
-   return YES;
+   for(size_t i=0;i<count;i++){
+    if(glyphs[i]==0)
+     all=false;
+    if(CFStringIsSurrogateHighCharacter(characters[i]) && i+1<count && CFStringIsSurrogateLowCharacter(characters[i+1]))
+     i++;
+   }
+   return all;
 }
 
 CGRect CTFontGetBoundingBox(CTFontRef font) {
@@ -384,12 +393,34 @@ CFCharacterSetRef CTFontCopyCharacterSet(CTFontRef font) {
      uint16_t segments=read16(bytes+best+6)/2;
      const UInt8 *ends=bytes+best+14,*starts=ends+2*segments+2;
 
-     if(starts+2*segments<=bytes+length)
+     const UInt8 *deltas=starts+2*segments,*rangeOffsets=deltas+2*segments;
+
+     /* Only the characters that map to a glyph (a segment may leave some
+        of its characters on glyph 0), as the reference counts them. */
+     if(rangeOffsets+2*segments<=bytes+length)
       for(uint16_t i=0;i<segments;i++){
        uint16_t start=read16(starts+2*i),end=read16(ends+2*i);
+       uint16_t delta=read16(deltas+2*i),rangeOffset=read16(rangeOffsets+2*i);
 
-       if(start<=end && start!=0xFFFF)
-        CFCharacterSetAddCharactersInRange(set,CFRangeMake(start,end-start+1));
+       if(start>end || start==0xFFFF)
+        continue;
+       for(uint32_t c=start;c<=end;c++){
+        uint16_t glyph;
+
+        if(rangeOffset==0)
+         glyph=(uint16_t)(c+delta);
+        else {
+         const UInt8 *at=rangeOffsets+2*i+rangeOffset+2*(c-start);
+
+         if(at+2>bytes+length)
+          break;
+         glyph=read16(at);
+         if(glyph!=0)
+          glyph=(uint16_t)(glyph+delta);
+        }
+        if(glyph!=0)
+         CFCharacterSetAddCharactersInRange(set,CFRangeMake(c,1));
+       }
       }
     }
     else if(bestRank>0 && read16(bytes+best)==12 && best+16<=(uint32_t)length){
@@ -397,7 +428,11 @@ CFCharacterSetRef CTFontCopyCharacterSet(CTFontRef font) {
 
      for(uint32_t i=0;i<groups && best+16+12*(i+1)<=(uint32_t)length;i++){
       uint32_t start=read32(bytes+best+16+12*i),end=read32(bytes+best+20+12*i);
+      uint32_t glyph=read32(bytes+best+24+12*i);
 
+      // A group starting at glyph 0 maps its first character to nothing.
+      if(glyph==0)
+       start++;
       if(start<=end && end<=0x10FFFF)
        CFCharacterSetAddCharactersInRange(set,CFRangeMake(start,end-start+1));
      }

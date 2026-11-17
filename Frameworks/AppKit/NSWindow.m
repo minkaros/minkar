@@ -678,12 +678,15 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(NSString *)representedFilename {
-   return _representedFilename;
+   return _representedFilename?_representedFilename:@"";
 }
 
+/* The window's file, as a URL or a path: one follows the other (a URL
+   that is not a file's leaves no path), as on the reference. */
+static char representedURLKey;
+
 -(NSURL *)representedURL {
-   NSUnimplementedMethod();
-   return nil;
+   return objc_getAssociatedObject(self,&representedURLKey);
 }
 
 -(NSInteger)level {
@@ -1296,10 +1299,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [_backgroundView setNeedsDisplay:YES];
 }
 
+/* "name  —  folder", the window standing for the file (as on the
+   reference). */
 -(void)setTitleWithRepresentedFilename:(NSString *)filename {
-   [self setTitle:[NSString stringWithFormat:@"%@  --  %@",
+   [self setTitle:[NSString stringWithFormat:@"%@  \u2014  %@",
       [filename lastPathComponent],
       [filename stringByDeletingLastPathComponent]]];
+   [self setRepresentedFilename:filename];
 
    if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:filename filename:YES];
@@ -1493,10 +1499,15 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    value=[value copy];
    [_representedFilename release];
    _representedFilename=value;
+   objc_setAssociatedObject(self,&representedURLKey,[value length]?[NSURL fileURLWithPath:value]:nil,OBJC_ASSOCIATION_RETAIN);
 }
 
 -(void)setRepresentedURL:(NSURL *)newURL {
-   NSUnimplementedMethod();
+   NSString *path=[newURL isFileURL]?[newURL path]:@"";
+
+   [_representedFilename release];
+   _representedFilename=[path copy];
+   objc_setAssociatedObject(self,&representedURLKey,newURL,OBJC_ASSOCIATION_RETAIN);
 }
 
 -(void)setResizeIncrements:(NSSize)value {

@@ -14,6 +14,36 @@ const CGFloat NSStackViewSpacingUseDefault=FLT_MAX;
  * detaches them. Its own size follows its views (with its hugging
  * priority) unless something else sets it. */
 
+@interface NSStackViewContainer : NSObject <NSCoding> {
+   NSArray *_views;
+}
+-(NSArray *)views;
+@end
+
+/* What a nib keeps a stack view's views of one gravity in. */
+@implementation NSStackViewContainer
+
+-initWithCoder:(NSCoder *)coder {
+   if((self=[super init])!=nil)
+    _views=[[coder decodeObjectForKey:@"NSStackViewContainerNonDroppedViews"] retain];
+   return self;
+}
+
+-(void)dealloc {
+   [_views release];
+   [super dealloc];
+}
+
+-(NSArray *)views {
+   return _views;
+}
+
+-(void)encodeWithCoder:(NSCoder *)coder {
+   [coder encodeObject:_views forKey:@"NSStackViewContainerNonDroppedViews"];
+}
+
+@end
+
 @implementation NSStackView
 
 /* Minkar: as on the reference platform, a stack view made this way is
@@ -62,6 +92,37 @@ const CGFloat NSStackViewSpacingUseDefault=FLT_MAX;
       _spacing=[coder decodeDoubleForKey:@"NSStackViewSpacing"];
      for(NSView *view in [coder decodeObjectForKey:@"NSStackViewArrangedSubviews"])
       [self addArrangedSubview:view];
+     /* IB's other form: the views by gravity, in containers (with a flat
+        view hierarchy they are the stack's own subviews), and the rest of
+        the layout settings. */
+     if([coder containsValueForKey:@"NSStackViewAlignment"])
+      _alignment=[coder decodeIntegerForKey:@"NSStackViewAlignment"];
+     if([coder containsValueForKey:@"NSStackViewdistribution"])
+      _distribution=[coder decodeIntegerForKey:@"NSStackViewdistribution"];
+     if([coder containsValueForKey:@"NSStackViewDetachesHiddenViews"])
+      _detachesHiddenViews=[coder decodeBoolForKey:@"NSStackViewDetachesHiddenViews"];
+     if([coder containsValueForKey:@"NSStackViewEdgeInsets.top"])
+      _edgeInsets=NSEdgeInsetsMake([coder decodeDoubleForKey:@"NSStackViewEdgeInsets.top"],[coder decodeDoubleForKey:@"NSStackViewEdgeInsets.left"],
+       [coder decodeDoubleForKey:@"NSStackViewEdgeInsets.bottom"],[coder decodeDoubleForKey:@"NSStackViewEdgeInsets.right"]);
+     if([coder containsValueForKey:@"NSStackViewHorizontalHugging"])
+      _hugging[NSLayoutConstraintOrientationHorizontal]=[coder decodeFloatForKey:@"NSStackViewHorizontalHugging"];
+     if([coder containsValueForKey:@"NSStackViewVerticalHugging"])
+      _hugging[NSLayoutConstraintOrientationVertical]=[coder decodeFloatForKey:@"NSStackViewVerticalHugging"];
+     if([coder containsValueForKey:@"NSStackViewHorizontalClippingResistance"])
+      _clippingResistance[NSLayoutConstraintOrientationHorizontal]=[coder decodeFloatForKey:@"NSStackViewHorizontalClippingResistance"];
+     if([coder containsValueForKey:@"NSStackViewVerticalClippingResistance"])
+      _clippingResistance[NSLayoutConstraintOrientationVertical]=[coder decodeFloatForKey:@"NSStackViewVerticalClippingResistance"];
+     if([[self arrangedSubviews] count]==0){
+      NSString *keys[3]={ @"NSStackViewBeginningContainer",@"NSStackViewMiddleContainer",@"NSStackViewEndContainer" };
+      NSStackViewGravity gravities[3]={ NSStackViewGravityLeading,NSStackViewGravityCenter,NSStackViewGravityTrailing };
+
+      for(int i=0;i<3;i++){
+       NSStackViewContainer *container=[coder decodeObjectForKey:keys[i]];
+
+       for(NSView *view in [container views])
+        [self addView:view inGravity:gravities[i]];
+      }
+     }
     }
    }
    return self;

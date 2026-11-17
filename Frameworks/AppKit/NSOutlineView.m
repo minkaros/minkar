@@ -262,9 +262,12 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
 
 -(BOOL)_delayResizeButExpandItem:(id)item expandChildren:(BOOL)expandChildren {
    BOOL noteNumberOfRowsChanged=NO;
-    BOOL expandThisItem = YES;
+    BOOL expandThisItem = (item != nil);
 
-    if(![self isExpandable:item])
+    /* nil is the root: nothing to expand itself, its children may be
+       (expandItem:nil expandChildren:YES opens the whole tree, as on the
+       reference). */
+    if(item != nil && ![self isExpandable:item])
      return YES;
 
     if ([_delegate respondsToSelector:@selector(outlineView:shouldExpandItem:)])
