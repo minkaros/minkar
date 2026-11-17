@@ -182,7 +182,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)_appendClassVersion:(Class)class
 {
     if (class == [NSObject class]) {
-        [self _appendWordFour:0];
+        [self _appendReference:NULL];	/* a reference's width, as read */
         return;
     }
     
@@ -217,7 +217,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         }
 
         if (object == nil) {
-            [self _appendWordFour:0];
+            [self _appendReference:NULL];
         } else if (NSHashGet(_objects, object) != NULL) {
             [self _appendReference:object];
         } else { // FIX do replacementForCoder ?
@@ -407,8 +407,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self _appendBytes: byteaddr length:length];
 }
 
+/* Its length and bytes, as encodeBytes:length: writes them. */
 -(void)encodeDataObject:(NSData *)data {
-   [self cannotEncodeType:"encodeDataObject"];
+   [self encodeBytes:[data bytes] length:[data length]];
 }
 
 -(void)encodeRootObject:(id)rootObject {

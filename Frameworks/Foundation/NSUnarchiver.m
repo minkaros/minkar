@@ -111,8 +111,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* As wide as NSArchiver writes them: a pointer's width. */
 -(NSUInteger)_extractReference {
+#ifdef __LP64__
+   return (NSUInteger)[self _extractWordEight];
+#else
    return (NSUInteger)[self _extractWordFour];
+#endif
 }
 
 -(NSString *)_extractCStringString {
@@ -304,7 +309,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      break;
 
     case '{':
-     if(strcmp(type,"{?=II}")==0){
+     if(strcmp(type,@encode(NSRange))==0 || strcmp(type,"{?=II}")==0){
       NSRange *value=addr;
 
       value->location=[self _extractWordFour];
@@ -363,8 +368,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 -(NSData *)decodeDataObject {
-   [self cannotDecodeType:"decodeDataObject"];
-   return nil;
+   NSUInteger length=0;
+   void      *bytes=[self decodeBytesWithReturnedLength:&length];
+
+   return [NSData dataWithBytes:bytes length:length];
 }
 
 

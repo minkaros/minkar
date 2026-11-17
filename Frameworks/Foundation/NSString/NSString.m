@@ -521,21 +521,14 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
     return [self initWithString:string];
    }
    else {
+    /* An NSUnarchiver: the UTF-8 bytes NSArchiver wrote, into this very
+       object (which may be a CoreFoundation string: it is not to be
+       freed here). */
     NSUInteger length;
     char    *bytes;
 
-    [self dealloc];
-
     bytes=[coder decodeBytesWithReturnedLength:&length];
-
-    if(NSUTF8IsASCII(bytes,length))
-     return NSString_cStringNewWithBytes(NULL,bytes,length);
-    else {
-     NSUInteger resultLength;
-     unichar *characters=NSUTF8ToUnicode(bytes,length,&resultLength,NULL);
-
-     return NSString_unicodePtrNewNoCopy(NULL,characters,resultLength,YES);
-    }
+    return [self initWithBytes:bytes length:length encoding:NSUTF8StringEncoding];
    }
 }
 

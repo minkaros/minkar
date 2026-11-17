@@ -149,10 +149,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     return [self initWithData:data];
    }
-   else {
-    [self dealloc];
-    return [[coder decodeDataObject] retain];
-   }
+   else
+    return [self initWithData:[coder decodeDataObject]];
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {

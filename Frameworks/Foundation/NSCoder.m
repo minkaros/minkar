@@ -87,7 +87,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     typeBuf[restTypes-types]='\0';
 
     ptr=va_arg(arguments,void *);
-    [self encodeValueOfObjCType:types at:ptr];
+    /* Each value with its own type, not the rest of the list. */
+    [self encodeValueOfObjCType:typeBuf at:ptr];
    }
 
    va_end(arguments);
@@ -223,7 +224,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     typeBuf[restTypes-types]='\0';
 
     ptr=va_arg(arguments,void *);
-    [self decodeValueOfObjCType:types at:ptr];
+    [self decodeValueOfObjCType:typeBuf at:ptr];
    }
 
    va_end(arguments);
