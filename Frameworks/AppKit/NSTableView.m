@@ -36,6 +36,7 @@ const float NSTableViewDefaultRowHeight=16.0f;
 -(void)noteColumnDidResizeWithOldWidth:(CGFloat)oldWidth;
 -(BOOL)dataSourceCanSetObjectValue;
 -(void)dataSourceSetObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+-(CGFloat)_displayWidthOfColumns;
 
 @end
 
@@ -120,6 +121,12 @@ const float NSTableViewDefaultRowHeight=16.0f;
 
     // row background and grid attributes for OS X >= 10.3
     _alternatingRowBackground=(flags&0x00800000)?YES:NO;
+    /* How the columns fit a new width; older archives only say whether
+       all of them do. */
+    if([keyed containsValueForKey:@"NSColumnAutoresizingStyle"])
+     [self setColumnAutoresizingStyle:[keyed decodeIntegerForKey:@"NSColumnAutoresizingStyle"]];
+    else
+     [self setColumnAutoresizingStyle:_autoresizesAllColumnsToFit?NSTableViewUniformColumnAutoresizingStyle:NSTableViewLastColumnOnlyAutoresizingStyle];
     if ([keyed containsValueForKey:@"NSGridStyleMask"])
        _gridStyleMask=[keyed decodeIntForKey:@"NSGridStyleMask"];
     else
@@ -361,10 +368,8 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     for (i = 0; i < row; i++)
         rect.origin.y += rowHeightAtIndex(self,i)+ _intercellSpacing.height;
 
-    rect.size.width = 0.;
-    count = [_tableColumns count];
-    for (i = 0; i < count; i++)
-        rect.size.width += [[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
+    /* The table's width (at least its columns'), as the reference's. */
+    rect.size.width = MAX(_bounds.size.width, [self _displayWidthOfColumns]);
     rect.size.height = rowHeightAtIndex(self,row) + _intercellSpacing.height;
 
     return rect;
@@ -606,6 +611,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
 
 -(void)setAutoresizesAllColumnsToFit:(BOOL)flag {
     _autoresizesAllColumnsToFit = flag;
+    [self setColumnAutoresizingStyle:flag?NSTableViewUniformColumnAutoresizingStyle:NSTableViewLastColumnOnlyAutoresizingStyle];
 }
 
 -(void)setAllowsMultipleSelection:(BOOL)flag {
@@ -1051,9 +1057,10 @@ _dataSource);
     if (_editingCell != nil)
      [self textDidEndEditing:nil];
 
-    if (numberOfRows > 0){
-        size.width = [self rectOfRow:0].size.width;
-    }
+    /* As wide as its columns; in a clip view, at least as wide as it. */
+    size.width = [self _displayWidthOfColumns];
+    if ([[self superview] isKindOfClass:[NSClipView class]])
+        size.width = MAX(size.width, [[self superview] bounds].size.width);
     if ([_tableColumns count] > 0)
         size.height = [self rectOfColumn:0].size.height;
 
@@ -1091,10 +1098,11 @@ _dataSource);
     [_headerView setNeedsDisplay:YES];
 }
 
+/* Sizes the table and its header; the columns keep their widths (as
+   on the reference). */
 -(void)tile {
     NSRect rect;
 
-    [self sizeLastColumnToFit];
     [self noteNumberOfRowsChanged];
     rect=[_headerView frame];
     rect.size.width=[self frame].size.width;
@@ -1106,23 +1114,20 @@ _dataSource);
     [_headerView setNeedsDisplay:YES];
 }
 
+/* The last column fills the clip view's width, within its minimum and
+   maximum (spacing counted after each column). */
 -(void)sizeLastColumnToFit {
     NSClipView *clipView = (NSClipView *)[self superview];
+    NSTableColumn *lastColumn = nil;
 
-    if ([clipView isKindOfClass:[NSClipView class]]) {
-        NSSize size = [clipView bounds].size;
-        int i, count = [_tableColumns count];
-        float lastWidth = size.width - (count * _intercellSpacing.width);
-        NSTableColumn *lastColumn = [_tableColumns lastObject];
+    for (NSTableColumn *column in _tableColumns)
+        if (![column isHidden])
+            lastColumn = column;
+    if ([clipView isKindOfClass:[NSClipView class]] && lastColumn != nil) {
+        CGFloat delta = [clipView bounds].size.width - [self _displayWidthOfColumns];
 
-        for (i = 0; i < count-1; ++i)
-            lastWidth -= [[_tableColumns objectAtIndex:i] width];
-
-        if (lastWidth > 0)
-            [lastColumn setWidth:lastWidth];
-        else if (lastWidth < 0)
-            [lastColumn setWidth:[lastColumn width]+lastWidth];
-
+        [lastColumn setWidth:[lastColumn width] + delta];
+        [self noteNumberOfRowsChanged];
         [self setNeedsDisplay:YES];
     }
 }
@@ -1341,33 +1346,90 @@ _dataSource);
     float result = 0;
 
     for (i = 0; i < count; ++i)
-        result += [[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
+        if (![[_tableColumns objectAtIndex:i] isHidden])
+            result += [[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
 
     return result;
 }
 
+/* The visible columns that take part in fitting: autoresizing ones, in
+   the order the style takes them. */
+-(NSArray *)_columnsForAutoresizing {
+   NSTableViewColumnAutoresizingStyle style=[self columnAutoresizingStyle];
+   NSMutableArray *result=[NSMutableArray array];
+
+   for(NSTableColumn *column in _tableColumns)
+    if(![column isHidden] && ([column resizingMask]&NSTableColumnAutoresizingMask))
+     [result addObject:column];
+   switch(style){
+    case NSTableViewSequentialColumnAutoresizingStyle:
+     return [[result reverseObjectEnumerator] allObjects];
+    case NSTableViewLastColumnOnlyAutoresizingStyle:
+     return ([result count]>0)?[NSArray arrayWithObject:[result lastObject]]:result;
+    case NSTableViewFirstColumnOnlyAutoresizingStyle:
+     return ([result count]>0)?[NSArray arrayWithObject:[result objectAtIndex:0]]:result;
+    default:
+     return result;
+   }
+}
+
+/* The columns made to fill width (spacing included), as the reference
+   fits them: uniform shares, to the nearest point with halves down (the
+   last column takes what rounding leaves),
+   or one column after another; each within its minimum and maximum. */
+-(void)_fitColumnsToWidth:(CGFloat)width {
+   NSTableViewColumnAutoresizingStyle style=[self columnAutoresizingStyle];
+   NSMutableArray *columns;
+   CGFloat         delta;
+
+   if(style==NSTableViewNoColumnAutoresizing)
+    return;
+   columns=[[[self _columnsForAutoresizing] mutableCopy] autorelease];
+   delta=width-[self _displayWidthOfColumns];
+   if(style==NSTableViewUniformColumnAutoresizingStyle){
+    while(fabs(delta)>=0.5 && [columns count]>0){
+     NSUInteger count=[columns count];
+     CGFloat    share=delta/count,given=0;
+     NSMutableArray *full=[NSMutableArray array];
+
+     for(NSUInteger i=0;i<count;i++){
+      NSTableColumn *column=[columns objectAtIndex:i];
+      CGFloat        old=[column width];
+      CGFloat        want=(i+1<count)?ceil(old+share-0.5):old+(delta-given);
+
+      [column setWidth:want];
+      given+=[column width]-old;
+      if([column width]!=want)
+       [full addObject:column];
+     }
+     delta-=given;
+     if([full count]==0)
+      break;
+     [columns removeObjectsInArray:full];
+    }
+   }
+   else {
+    for(NSTableColumn *column in columns){
+     CGFloat old=[column width];
+
+     if(fabs(delta)<0.5)
+      break;
+     [column setWidth:old+delta];
+     delta-=[column width]-old;
+    }
+   }
+}
+
+/* The superview (the clip view) changed size: the columns fit its width
+   as the style says, and the table is at least as wide. */
 -(void)resizeWithOldSuperviewSize:(NSSize)oldSize {
     NSSize size=[self frame].size;
+    CGFloat width=[[self superview] bounds].size.width;
 
-    if(size.width<[[self superview] bounds].size.width){
-     size.width=[[self superview] bounds].size.width;
-     [self setFrameSize:size];
-    }
-
-    if (_autoresizesAllColumnsToFit) {
-        float delta = [[self enclosingScrollView] contentSize].width - [self _displayWidthOfColumns];
-        int i, count = [_tableColumns count];
-
-        for (i = 0; i < count; ++i) {
-            NSTableColumn *column = [_tableColumns objectAtIndex:i];
-            [column setWidth:[column width] + floor((delta/count))];
-        }
-
-    }
-    else
-        [self sizeLastColumnToFit];
-
-   [self tile];
+    [self _fitColumnsToWidth:width];
+    size.width=MAX(width,[self _displayWidthOfColumns]);
+    [self setFrameSize:size];
+    [self tile];
 }
 
 -(BOOL)isFlipped {
@@ -2340,7 +2402,7 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
 static char autoresizingStyleKey;
 -(NSTableViewColumnAutoresizingStyle)columnAutoresizingStyle {
    id value=objc_getAssociatedObject(self,&autoresizingStyleKey);
-   return (value!=nil)?(NSTableViewColumnAutoresizingStyle)[value integerValue]:NSTableViewUniformColumnAutoresizingStyle;
+   return (value!=nil)?(NSTableViewColumnAutoresizingStyle)[value integerValue]:NSTableViewLastColumnOnlyAutoresizingStyle;
 }
 -(void)setColumnAutoresizingStyle:(NSTableViewColumnAutoresizingStyle)value {
    objc_setAssociatedObject(self,&autoresizingStyleKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);

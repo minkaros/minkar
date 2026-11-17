@@ -502,10 +502,29 @@ static char menuItemKey;
    return result;
 }
 
+/* A pull-down shows its first item's title, whatever is selected; its
+   title set is that item's (as the reference's). */
+-(NSString *)title {
+   if(_pullsDown && [_menu numberOfItems]>0)
+    return [[_menu itemAtIndex:0] title];
+   return [super title];
+}
+
+-(NSAttributedString *)attributedTitle {
+   if(_pullsDown && [_menu numberOfItems]>0){
+    NSString *title=[[_menu itemAtIndex:0] title];
+
+    if(![[super title] isEqualToString:title])
+     [super setTitle:title];
+   }
+   return [super attributedTitle];
+}
+
 -(void)setTitle:(NSString *)title {
    
    if(_pullsDown){
-    // Doc.s for pulls down behavior are not correct, it just sets the title to the argument and doesn't affect the selection
+    if([_menu numberOfItems]>0)
+     [[_menu itemAtIndex:0] setTitle:title];
     [super setTitle:title];
    }
    else {

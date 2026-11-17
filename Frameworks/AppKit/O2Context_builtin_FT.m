@@ -100,8 +100,10 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
    }
 }
 
+/* Each glyph at the pen, the pen moved by its advance: the one given
+   (text space, as CGContextShowGlyphsWithAdvances takes them) or else the
+   font's; the text position moves as far. */
 -(void)showGlyphs:(const O2Glyph *)glyphs advances:(const O2Size *)advances count:(unsigned)count {
-// FIXME: use advances if not NULL
 
    O2AffineTransform transform=O2ContextGetUserSpaceToDeviceSpaceTransform(self);
    O2GState         *gState=O2ContextCurrentGState(self);
@@ -152,7 +154,11 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
       
     drawFreeTypeBitmap(self,_surface,&slot->bitmap,x+slot->bitmap_left,point.y-slot->bitmap_top,paint);
 
-    if(subpixel)
+    if(advances!=NULL){
+     point.x += transform.a*advances[i].width+transform.c*advances[i].height;
+     point.y += transform.b*advances[i].width+transform.d*advances[i].height;
+    }
+    else if(subpixel)
      point.x += slot->linearHoriAdvance/65536.0;
     else
      point.x += slot->advance.x >> 6;
@@ -161,7 +167,15 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
     FT_Set_Transform(face,NULL,NULL);
    
    O2PaintRelease(paint);
-   
+
+   if(advances!=NULL){
+    for(i=0;i<count;i++){
+     _textMatrix.tx += advances[i].width;
+     _textMatrix.ty += advances[i].height;
+    }
+    return;
+   }
+
    int     glyphAdvances[count];
    O2Float unitsPerEm=O2FontGetUnitsPerEm(font);
    

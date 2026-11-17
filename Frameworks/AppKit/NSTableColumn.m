@@ -37,6 +37,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _minWidth=[keyed decodeFloatForKey:@"NSMinWidth"];
     _maxWidth=[keyed decodeFloatForKey:@"NSMaxWidth"];
     _isResizable=[keyed decodeBoolForKey:@"NSIsResizeable"];
+    /* How the column takes part in fitting the table (and the user's
+       resizing); older archives say only whether it is resizable. */
+    if([keyed containsValueForKey:@"NSResizingMask"])
+     _resizingMask=[keyed decodeIntegerForKey:@"NSResizingMask"];
+    else
+     _resizingMask=_isResizable?(NSTableColumnAutoresizingMask|NSTableColumnUserResizingMask):NSTableColumnNoResizing;
     _isEditable=[keyed decodeBoolForKey:@"NSIsEditable"];
    }
    else {
@@ -60,6 +66,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _width=100.0;
    _minWidth=10.0;
    _maxWidth=FLT_MAX; // Doc.s say MAXFLOAT
+   _isResizable=YES;
+   _resizingMask=NSTableColumnAutoresizingMask|NSTableColumnUserResizingMask; // as the reference's
 
         _headerCell = [[NSTableHeaderCell alloc] initTextCell:@""];
         _dataCell = [[NSTextFieldCell alloc] initTextCell:@""];
