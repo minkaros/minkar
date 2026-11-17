@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-16"
-commit  = "87b60e1a21"
+updated = "2026-11-17"
+commit  = "1185b94021"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -278,8 +278,8 @@ line = "gpu"
 [[board.later]]
 group = "Minkar 19.6.0"
 items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
-  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: the APSL sources replace the subset", "fw"],
-  ["DMG installs", "apps"], ["The system installer: USB medium, first start", "apps"]]
+  ["MB3: Lock Screen with the graphical login", "mb"], ["Security: the APSL sources replace the subset", "fw"],
+  ["The system installer: USB medium, first start", "apps"]]
 
 [[board.later]]
 group = "Minkar 21.0"
@@ -288,6 +288,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "DMG installs"
+note = "Hex Fiend from its own DMG starts; HFS+ compression, Tcl.framework, archiving, gestures · 17 nov"
+line = "apps"
 
 [[board.done]]
 title = "Compressed disk images"
@@ -312,9 +317,4 @@ line = "mb"
 [[board.done]]
 title = "K3: the desktop's icons"
 note = "volumes and ~/Desktop on the desktop, eject, DMG double-click; window levels as the API has them · 16 nov"
-line = "files"
-
-[[board.done]]
-title = "K2: Files' file operations"
-note = "copy, move, rename in place, Trash and Put Back, undo; drags between windows and apps, onto the Dock · 16 nov"
 line = "files"

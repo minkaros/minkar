@@ -920,9 +920,13 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
    return nil;
 }
 
+/* As the reference writes it: the string, and for a URL relative to
+   another, " -- " and the base. */
 - (NSString *)description;
 {
-	return [self absoluteString];
+	if (_baseURL == nil)
+		return [self relativeString];
+	return [NSString stringWithFormat:@"%@ -- %@", [self relativeString], [_baseURL description]];
 }
 
 -(NSURL *)absoluteURL {
