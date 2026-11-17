@@ -833,6 +833,17 @@ CF_PRIVATE const char *__CFStringEncodingGetName(CFStringEncoding encoding) {
         case kCFStringEncodingUTF32LE: return "Unicode (UTF-32LE)"; break;
         case kCFStringEncodingNonLossyASCII: return "Non-lossy ASCII"; break;
         case kCFStringEncodingUTF7: return "Unicode (UTF-7)"; break;
+        /* Minkar: encodings the tables above leave unnamed, named as the
+           reference names them (observed through CFStringGetNameOfEncoding). */
+        case kCFStringEncodingMacHFS: return "Western (Mac OS Roman)"; break;
+        case kCFStringEncodingMacVT100: return "Western (Mac VT100)"; break;
+        case kCFStringEncodingANSEL: return "Western (ANSEL)"; break;
+        case kCFStringEncodingJIS_X0208_90: return "Japanese (JIS X0208)"; break;
+        case kCFStringEncodingGB_2312_80: return "Simplified Chinese (GB 2312)"; break;
+        case kCFStringEncodingGBK_95: return "Chinese (GBK)"; break;
+        case kCFStringEncodingKSC_5601_87: return "Korean (KSC 5601-1987)"; break;
+        case kCFStringEncodingNextStepJapanese: return "Japanese (NextStep)"; break;
+        case kCFStringEncodingEBCDIC_US: return "Western (EBCDIC Latin Core)"; break;
     }
 
 #if DEPLOYMENT_TARGET_MACOSX
