@@ -252,6 +252,8 @@ static char windowAppearanceKey;
 
 static char contentTitleContext;
 
+static BOOL hasKeyViewLoop(NSView *view);
+
 @implementation NSWindow
 
 static char hidesWindowControlsKey;
@@ -1980,14 +1982,28 @@ static char titlebarSeparatorKey;
         if([self initialFirstResponder]!=nil)
             [self makeFirstResponder:[self initialFirstResponder]];
         else {
-            // otherwise calculate one and set the first responder
-            if ([self autorecalculatesKeyViewLoop]) {
+            // otherwise calculate one and set the first responder: also
+            // when nothing set a key view loop (as the reference: the
+            // first view that takes the focus, top to bottom, left to
+            // right, gets it).
+            if ([self autorecalculatesKeyViewLoop] || !hasKeyViewLoop(_contentView)) {
                 [self recalculateKeyViewLoop];
             }
             if([self firstResponder]==self)
                 [self makeFirstResponder:[_contentView nextValidKeyView]];
         }
     }
+}
+
+/* Whether any view under view has a next key view set (from a nib's
+   connections or by code). */
+static BOOL hasKeyViewLoop(NSView *view) {
+   if([view nextKeyView]!=nil)
+    return YES;
+   for(NSView *subview in [view subviews])
+    if(hasKeyViewLoop(subview))
+     return YES;
+   return NO;
 }
 
 -(void)makeMainWindow {

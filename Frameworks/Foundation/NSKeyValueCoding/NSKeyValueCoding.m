@@ -230,34 +230,30 @@ NSString *const NSUndefinedKeyException = @"NSUnknownKeyException";
     }
 
     const char *keyCString = [key UTF8String];
-    SEL sel = sel_getUid(keyCString);
-
-    // FIXME: getKey, _getKey, isKey, _isKey are missing
-
-    if ([self respondsToSelector:sel]) {
-        id value = [self _wrapReturnValueForSelector:sel];
-        return value;
-    }
+    SEL sel;
 
     size_t keyCStringLength = strlen(keyCString);
-    char *selBuffer = __builtin_alloca(keyCStringLength + 5);
+    char *selBuffer = __builtin_alloca(keyCStringLength + 6);
 
     char *keyname = __builtin_alloca(keyCStringLength + 1);
     strcpy(keyname, keyCString);
+    if (keyname[0] != '\0')
+        keyname[0] = toupper(keyname[0]);
 
-    #define TRY_FORMAT(format)\
-            sprintf(selBuffer, format, keyname);\
+    /* The getters in the reference's order: getKey, key, isKey, _getKey,
+       _key (no _isKey). */
+    #define TRY_FORMAT(format, name)\
+            sprintf(selBuffer, format, name);\
             sel = sel_getUid(selBuffer);\
             if ([self respondsToSelector:sel]) {\
                 id value = [self _wrapReturnValueForSelector:sel];\
                 return value;\
             }
-    TRY_FORMAT("_%s");
-    keyname[0] = toupper(keyname[0]);
-    TRY_FORMAT("is%s");
-    TRY_FORMAT("_is%s");
-//    TRY_FORMAT("get%s");
-//    TRY_FORMAT("_get%s");
+    TRY_FORMAT("get%s", keyname);
+    TRY_FORMAT("%s", keyCString);
+    TRY_FORMAT("is%s", keyname);
+    TRY_FORMAT("_get%s", keyname);
+    TRY_FORMAT("_%s", keyCString);
     #undef TRY_FORMAT
 
     if ([object_getClass(self) accessInstanceVariablesDirectly]) {

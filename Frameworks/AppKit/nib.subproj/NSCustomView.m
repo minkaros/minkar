@@ -46,6 +46,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
          if([coder containsValueForKey:@"NSTag"])
              newView->_tag=[coder decodeIntForKey:@"NSTag"];
+         // The identifier set in the nib, as NSView decodes it.
+         if([coder containsValueForKey:@"NSReuseIdentifierKey"])
+             [newView setIdentifier:[coder decodeObjectForKey:@"NSReuseIdentifierKey"]];
         NSArray* subviews = [coder decodeObjectForKey:@"NSSubviews"];
 
         // For some unknown reason custom view subviews are presented in reverse order

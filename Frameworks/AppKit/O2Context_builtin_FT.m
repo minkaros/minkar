@@ -50,6 +50,30 @@ static void applyCoverageToSpan_lRGBA8888_PRE(O2argb8u *dst,unsigned char *cover
 }
 
 
+/* The blend mode onto a span (the result in src): in bytes when the mode
+   has a byte version, else in floats (most modes have only that, as the
+   rasterizer's fills use them). */
+static void blendSpan(O2Context_builtin_FT *self,O2argb8u *src,O2argb8u *dst,int length){
+   if(self->_blend_argb8u_PRE!=NULL){
+    self->_blend_argb8u_PRE(src,dst,length);
+    return;
+   }
+   if(self->_blend_argb32f_PRE==NULL)
+    return;
+
+   O2argb32f *fsrc=__builtin_alloca(length*sizeof(O2argb32f));
+   O2argb32f *fdst=__builtin_alloca(length*sizeof(O2argb32f));
+   int        i;
+
+   for(i=0;i<length;i++){
+    fsrc[i]=O2argb32fInit(O2Float32FromByte(src[i].r),O2Float32FromByte(src[i].g),O2Float32FromByte(src[i].b),O2Float32FromByte(src[i].a));
+    fdst[i]=O2argb32fInit(O2Float32FromByte(dst[i].r),O2Float32FromByte(dst[i].g),O2Float32FromByte(dst[i].b),O2Float32FromByte(dst[i].a));
+   }
+   self->_blend_argb32f_PRE(fsrc,fdst,length);
+   for(i=0;i<length;i++)
+    src[i]=O2argb8uFromO2argb32f(fsrc[i]);
+}
+
 /* A glyph's coverage, in the fill color, onto the surface: only what is
    inside the clip's rectangle (the context's viewport, in the surface's
    coordinates, as fills use it). Clipping paths beyond that rectangle are
@@ -86,7 +110,7 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
      if(chunk<0)
       chunk=-chunk;
      else {
-      self->_blend_argb8u_PRE(src,dst,chunk);
+      blendSpan(self,src,dst,chunk);
       applyCoverageToSpan_lRGBA8888_PRE(dst,coverage,src,chunk);
       if(direct==NULL)
        O2SurfaceWriteSpan_argb8u_PRE(surface,column,y,dst,chunk);

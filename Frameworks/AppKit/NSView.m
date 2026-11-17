@@ -192,6 +192,9 @@ static BOOL NSViewLayersEnabled=NO;
     _tag= 0; // IB assigns a default tag id of 0 - which is different from the default in the docs.
     if([keyed containsValueForKey:@"NSTag"])
      _tag=[keyed decodeIntForKey:@"NSTag"];
+    /* The identifier set in the nib (what code finds a view by). */
+    if([keyed containsValueForKey:@"NSReuseIdentifierKey"])
+     [self setIdentifier:[keyed decodeObjectForKey:@"NSReuseIdentifierKey"]];
 
     // Subviews come in from the nib in back to front order
     [_subviews addObjectsFromArray:[keyed decodeObjectForKey:@"NSSubviews"]];
@@ -1125,6 +1128,60 @@ static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform 
    CGAffineTransform fromWindow=[self transformFromWindow];
 
    return CGSizeApplyAffineTransform(CGSizeApplyAffineTransform(size,toWindow),fromWindow);
+}
+
+/* The backing store's coordinates (as the reference's): the distance from
+   the bounds' origin as the window sees it (y up, also for a flipped
+   view), in the backing's pixels; nothing rounded. */
+static CGFloat backingScale(NSView *self) {
+   NSWindow *window=[self window];
+
+   return (window!=nil)?[window backingScaleFactor]:1.0;
+}
+
+-(NSPoint)convertPointToBacking:(NSPoint)point {
+   NSPoint at=[self convertPoint:point toView:nil];
+   NSPoint origin=[self convertPoint:[self bounds].origin toView:nil];
+   CGFloat scale=backingScale(self);
+
+   return NSMakePoint((at.x-origin.x)*scale,(at.y-origin.y)*scale);
+}
+
+-(NSPoint)convertPointFromBacking:(NSPoint)point {
+   NSPoint origin=[self convertPoint:[self bounds].origin toView:nil];
+   CGFloat scale=backingScale(self);
+
+   return [self convertPoint:NSMakePoint(origin.x+point.x/scale,origin.y+point.y/scale) fromView:nil];
+}
+
+-(NSSize)convertSizeToBacking:(NSSize)size {
+   NSSize  result=[self convertSize:size toView:nil];
+   CGFloat scale=backingScale(self);
+
+   return NSMakeSize(fabs(result.width)*scale,fabs(result.height)*scale);
+}
+
+-(NSSize)convertSizeFromBacking:(NSSize)size {
+   CGFloat scale=backingScale(self);
+   NSSize  result=[self convertSize:NSMakeSize(size.width/scale,size.height/scale) fromView:nil];
+
+   return NSMakeSize(fabs(result.width),fabs(result.height));
+}
+
+-(NSRect)convertRectToBacking:(NSRect)rect {
+   NSRect  at=[self convertRect:rect toView:nil];
+   NSPoint origin=[self convertPoint:[self bounds].origin toView:nil];
+   CGFloat scale=backingScale(self);
+
+   return NSMakeRect((NSMinX(at)-origin.x)*scale,(NSMinY(at)-origin.y)*scale,NSWidth(at)*scale,NSHeight(at)*scale);
+}
+
+-(NSRect)convertRectFromBacking:(NSRect)rect {
+   NSPoint origin=[self convertPoint:[self bounds].origin toView:nil];
+   CGFloat scale=backingScale(self);
+   NSRect  window=NSMakeRect(origin.x+NSMinX(rect)/scale,origin.y+NSMinY(rect)/scale,NSWidth(rect)/scale,NSHeight(rect)/scale);
+
+   return [self convertRect:window fromView:nil];
 }
 
 -(NSSize)convertSize:(NSSize)size toView:(NSView *)viewOrNil {

@@ -78,7 +78,7 @@
 		if(path==nil)
 			path=[[NSBundle mainBundle] pathForResource:name ofType:@"nib"];
 	} else {
-		NSLog(@"warning: full path passed when only nib file name should be used");
+		// The documented form: the nib file's full path.
 		path = fileName;
 	}
 	

@@ -146,6 +146,9 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
     _name=[[keyed decodeObjectForKey:@"NSName"] copy];
     
     _itemArray=[[NSMutableArray alloc] initWithArray:[keyed decodeObjectForKey:@"NSMenuItems"]];
+    /* Each item knows its menu (item.menu), as when added by code. */
+    for(NSMenuItem *item in _itemArray)
+     [item performSelector:@selector(_setMenu:) withObject:self];
     _autoenablesItems=![keyed decodeBoolForKey:@"NSNoAutoenable"];    
    }
    else {
