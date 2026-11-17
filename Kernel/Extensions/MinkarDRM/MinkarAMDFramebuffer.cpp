@@ -125,13 +125,16 @@ MinkarAMDFramebuffer::probe(IOService *provider, SInt32 *score)
 
 	if (PE_parse_boot_argn("minkaramd_fb", &enabled, sizeof(enabled)) && enabled == 0)
 		return NULL;
-	if (pci == NULL || getPlatform() == NULL ||
-	    getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess || boot.v_baseAddr == 0)
+	if (pci == NULL || getPlatform() == NULL)
 		return NULL;
 	UInt16 device = pci->configRead16(kIOPCIConfigDeviceID);
 	MinkarAMDFamily(device, &gcn1);
 	if (!gcn1 && !MinkarAMDIsNavi23(device))
 		return NULL;
+	bzero(&boot, sizeof(boot));
+	if (getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess || boot.v_baseAddr == 0)
+		/* No display at start: a Navi 23 waits, dark, for its saved one. */
+		return MinkarAMDIsNavi23(device) ? super::probe(provider, score) : NULL;
 	IODeviceMemory *vram = MinkarAMDBARRange(pci, kIOPCIConfigBaseAddress0);
 	uint64_t fb = boot.v_baseAddr & ~(uint64_t)0xFFF;
 	bool ours = vram != NULL && fb >= vram->getPhysicalAddress() &&
@@ -959,7 +962,7 @@ MinkarAMDFramebuffer::getDDCBlock(IOIndex connectIndex, UInt32 blockNumber, IOSe
 /* The kernel's console draws into our framebuffer, as it did into the
  * firmware's. */
 void
-MinkarAMDFramebuffer::setConsole()
+MinkarAMDFramebuffer::setConsole(bool acquire)
 {
 	const Mode &m = fModes[fCurrent];
 	PE_Video console;
@@ -982,6 +985,14 @@ MinkarAMDFramebuffer::setConsole()
 	setProperty("MinkarFramebufferWindowBase",
 	    (unsigned long long)fVRAM->getPhysicalAddress(), 64);
 	setProperty("MinkarFramebufferWindowSize", (unsigned long long)fVRAM->getLength(), 64);
+	/* Only when the display is taken: the console is acquired and turned
+	 * on, as the firmware's was. A mode change later only tells it the new
+	 * geometry: turning it on again then (the window server has it off)
+	 * had a verbose boot's console paint over the desktop. */
+	if (!acquire) {
+		getPlatform()->setConsoleInfo(&console, kPEBaseAddressChange);
+		return;
+	}
 	getPlatform()->setConsoleInfo(&console, kPEAcquireScreen);
 	getPlatform()->setConsoleInfo(&console, kPEGraphicsMode);
 	getPlatform()->setConsoleInfo(&console, kPEEnableScreen);
@@ -994,9 +1005,10 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	bool gcn1;
 
 	fPCI = OSDynamicCast(IOPCIDevice, provider);
-	if (fPCI == NULL || getPlatform() == NULL ||
-	    getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess)
+	if (fPCI == NULL || getPlatform() == NULL)
 		return false;
+	bzero(&boot, sizeof(boot));
+	bool console = getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess && boot.v_baseAddr != 0;
 	fPCI->retain();
 	UInt16 device = fPCI->configRead16(kIOPCIConfigDeviceID);
 	MinkarAMDFamily(device, &gcn1);
@@ -1007,6 +1019,25 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		LOG("cannot map the registers or VRAM");
 		return false;
 	}
+	/* Navi 23 with no display the firmware lit (none at start): dark
+	 * until the display it saved comes (MinkarAMDDCNState.cpp). */
+	if (fDCN && (!console || !findDisplayDCN(boot.v_baseAddr, (UInt32)boot.v_rowBytes)))
+		return startDark(provider);
+	if (!console)
+		return false;
+	return takeOver(provider, &boot);
+}
+
+/*
+ * The display the firmware lit (boot): its pipe found, a framebuffer of
+ * the driver's own scanned out, the framebuffer registered. On Navi 23
+ * after a dark start, boot describes what the saved state set again.
+ */
+bool
+MinkarAMDFramebuffer::takeOver(IOService *provider, const PE_Video *bootInfo)
+{
+	PE_Video boot = *bootInfo;
+
 	if (fDCN ? !findDisplayDCN(boot.v_baseAddr, (UInt32)boot.v_rowBytes) :
 	    !findDisplay(boot.v_baseAddr)) {
 		LOG("no crtc scans out the firmware's framebuffer at 0x%llx",
@@ -1055,6 +1086,8 @@ MinkarAMDFramebuffer::start(IOService *provider)
 			fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
 		describeOutputDCN();
 		describeDMCUB();
+		fPixelKHz = pixelClockDCN();
+		captureStateDCN();
 		probeSMU();
 		fDisplayOn = true;
 		fPixelKHz = pixelClockDCN();
@@ -1088,15 +1121,9 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	else if (!fDCN)
 		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
 
-	if (!super::start(provider))
-		return false;
-
-	UInt32 pattern = 0;
-	if (fDCN && PE_parse_boot_argn("minkaramd_pattern", &pattern, sizeof(pattern)) && pattern != 0)
-		showPitchPatternDCN();
-
-	/* Take the display: the firmware's picture copied over, then ours
-	 * scanned out at the native mode. */
+	/* The firmware's picture copied into ours before the framebuffer is
+	 * registered: once it is, the window server may draw in it at once,
+	 * and a copy after that would cover its picture. */
 	IODeviceMemory *theirs = IODeviceMemory::withSubRange(fVRAM, fFirmwareOffset,
 	    (IOByteCount)fFirmwarePitch * 4 * fModes[0].height);
 	IOMemoryMap *from = theirs != NULL ? theirs->map(kIOMapInhibitCache | kIOMapReadOnly) : NULL;
@@ -1110,6 +1137,13 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		from->release();
 	} else
 		bzero(to, fSize);
+	if (!super::start(provider))
+		return false;
+
+	UInt32 pattern = 0;
+	if (fDCN && PE_parse_boot_argn("minkaramd_pattern", &pattern, sizeof(pattern)) && pattern != 0)
+		showPitchPatternDCN();
+
 	if (!scanOut(fOffset, fModes[0].width, fModes[0].height, pitchFor(fModes[0].width), true)) {
 		/* Give the display back as it was. */
 		scanOut(fFirmwareOffset, fModes[0].width, fModes[0].height, fFirmwarePitch, true);
@@ -1122,7 +1156,7 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	UInt32 flipTest = 0;
 	if (fDCN && PE_parse_boot_argn("minkaramd_fliptest", &flipTest, sizeof(flipTest)) && flipTest != 0)
 		flipTestDCN();
-	setConsole();
+	setConsole(true);
 	setBestNativeMode();
 	publishTimings();
 
@@ -1199,8 +1233,9 @@ MinkarAMDFramebuffer::displayClocksReady()
 IOReturn
 MinkarAMDFramebuffer::displayClocksReadyGated(void *, void *, void *, void *)
 {
-	if (!fDCN)
-		return kIOReturnUnsupported;
+	if (!fDCN || fDark)
+		return kIOReturnUnsupported;	/* dark: it lights itself */
+	saveStateDCN();		/* the root file system is up by now */
 	fSMUDALBase = 0;
 	probeSMU();
 	if (fSMUDALBase == 0)
@@ -1231,6 +1266,8 @@ MinkarAMDFramebuffer::powerStateDidChangeTo(IOPMPowerFlags capabilities, unsigne
 void
 MinkarAMDFramebuffer::free()
 {
+	if (fState != NULL)
+		IOFree(fState, fStateBytes);
 	if (fWranglerNotifier != NULL)
 		fWranglerNotifier->remove();
 	if (fWrangler != NULL) {
@@ -1428,13 +1465,36 @@ MinkarAMDFramebuffer::setProperties(OSObject *properties)
 	OSBoolean *measure = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarMeasureRefresh")) : NULL;
 	OSBoolean *hdmi = d != NULL ? OSDynamicCast(OSBoolean, d->getObject("MinkarSwitchToHDMI")) : NULL;
 	OSNumber *refresh = d != NULL ? OSDynamicCast(OSNumber, d->getObject("MinkarSetRefresh")) : NULL;
+	OSArray *peek = d != NULL ? OSDynamicCast(OSArray, d->getObject("MinkarPeek")) : NULL;
 
-	if (power == NULL && measure == NULL && hdmi == NULL && refresh == NULL)
+	if (power == NULL && measure == NULL && hdmi == NULL && refresh == NULL && peek == NULL)
 		return super::setProperties(properties);
 	if (IOUserClient::clientHasPrivilege(current_task(), kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return kIOReturnNotPrivileged;
 	if (hdmi != NULL)
 		return fDCN ? switchToHDMIDCN() : kIOReturnUnsupported;
+	/* Bring-up: registers read by index, into MinkarPeeked (index, value). */
+	if (peek != NULL) {
+		OSArray *out = OSArray::withCapacity(peek->getCount() * 2);
+		for (unsigned i = 0; out != NULL && i < peek->getCount() && i < 256; i++) {
+			OSNumber *n = OSDynamicCast(OSNumber, peek->getObject(i));
+			if (n == NULL)
+				continue;
+			OSNumber *a = OSNumber::withNumber(n->unsigned32BitValue(), 32);
+			OSNumber *v = OSNumber::withNumber(readReg(n->unsigned32BitValue()), 32);
+			if (a != NULL && v != NULL) {
+				out->setObject(a);
+				out->setObject(v);
+			}
+			OSSafeReleaseNULL(a);
+			OSSafeReleaseNULL(v);
+		}
+		if (out != NULL) {
+			setProperty("MinkarPeeked", out);
+			out->release();
+		}
+		return kIOReturnSuccess;
+	}
 	/* Bring-up: the native size at the EDID's rate nearest refresh (Hz),
 	 * the SMU asked again first. */
 	if (refresh != NULL && fDCN) {

@@ -113,7 +113,14 @@ versión fijada con su SHA-256, como los de Tahiti (ADR 0002).
   340 MHz, con scrambling) quedan fuera, como en GCN 1.0; DisplayPort
   espera a una pantalla DisplayPort. Criterio: el PC 1 arrancado con su
   KVM en otro equipo muestra su escritorio cuando vuelve el KVM, y
-  `wsctl mode` fija un tamaño menor.
+  `wsctl mode` fija un tamaño menor. *En parte (16 nov 2026):* la
+  primera mitad cumplida en el PC 1: arrancado con su KVM en otro equipo,
+  mostró su escritorio entero, con sus colores, a 3440x1440 cuando volvió
+  el KVM. El estado guardado del motor de pantalla se restaura con sus
+  tablas de color en bypass, la imagen del firmware está en el
+  framebuffer antes de registrarlo, y el servidor de ventanas toma una
+  pantalla que llega después de arrancar y avisa a las apps (pantalla
+  añadida). Falta: los tamaños menores y los otros totales.
 - [ ] **R3 — Memoria y DMA.** La traducción de direcciones de los hubs de
   memoria (la GART y los espacios de direcciones de GPU por proceso), SDMA 5.2
   con su firmware, las interrupciones (IH) y el cliente de usuario; el

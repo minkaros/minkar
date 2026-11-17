@@ -117,6 +117,10 @@
 - (const SLSDisplayMode *)modeWithID:(uint32_t)modeID;
 - (const SLSDisplayMode *)currentMode;
 - (void)refreshModes;
+/* A display of a framebuffer (nil when it cannot draw on it). */
+- (instancetype)initWithService:(io_service_t)service;
+/* The main display: kSLSDisplayMain set. */
+- (void)markAsMain;
 
 /* Switches the framebuffer to a mode of modeWithID:. */
 - (int)setModeID:(uint32_t)modeID;

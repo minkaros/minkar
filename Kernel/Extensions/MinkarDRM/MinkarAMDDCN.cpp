@@ -125,4 +125,16 @@ MinkarAMDGPU::describeDisplayDCN302()
 	}
 	setProperty("MinkarDisplayPipes", pipes);
 	pipes->release();
+
+	/* The display microcontroller, as the firmware left it: whether it
+	 * runs (its timer moves), and its mailbox. With no display at start
+	 * the firmware may not have started it. */
+	uint32_t t0 = readReg(dcn302_DMCUB_TIMER_CURRENT);
+	IODelay(100);
+	uint32_t t1 = readReg(dcn302_DMCUB_TIMER_CURRENT);
+	bool running = t0 != t1;
+	setProperty("MinkarDMCUBRunning", running);
+	LOG("display microcontroller: %s (CNTL 0x%08x, SCRATCH0 0x%08x, mailbox %u of %u bytes)",
+	    running ? "running" : "stopped", readReg(dcn302_DMCUB_CNTL), readReg(dcn302_DMCUB_SCRATCH0),
+	    readReg(dcn302_DMCUB_INBOX1_WPTR), readReg(dcn302_DMCUB_INBOX1_SIZE));
 }

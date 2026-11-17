@@ -48,6 +48,16 @@
 
 class IOTimerEventSource;
 
+/* A lit display's state on Navi 23 (MinkarAMDDCNState.cpp), as saved. */
+enum { kDCNStateMagic = 0x53444b4d };	/* "MKDS" */
+struct DCNState {
+	uint32_t magic, version, key;	/* key: the EDID's */
+	uint32_t width, height, pixelKHz;
+	uint32_t pipe, digFE, digBE, digMode, hpd, phy, ddc, connector, encoder;
+	uint32_t count;
+	uint32_t regs[];		/* count (index, value) pairs */
+};
+
 struct minkar_atom;
 struct minkar_atom_fw_transmitter_args;
 
@@ -58,6 +68,12 @@ class MinkarAMDFramebuffer : public IOFramebuffer
 public:
 	virtual IOService *probe(IOService *provider, SInt32 *score) APPLE_KEXT_OVERRIDE;
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+	bool takeOver(IOService *provider, const PE_Video *boot);
+	/* Navi 23 started with no display: lit from its saved state when it
+	 * comes (MinkarAMDDCNState.cpp). */
+	bool startDark(IOService *provider);
+	static void darkThread(void *fb, wait_result_t);
+	bool lightFromState(const struct DCNState *s, PE_Video *boot);
 	virtual void free() APPLE_KEXT_OVERRIDE;
 
 	virtual IOReturn enableController() APPLE_KEXT_OVERRIDE;
@@ -144,7 +160,7 @@ private:
 	bool readEDID(uint8_t *edid, unsigned *bytes);
 	static void hpdTimer(OSObject *owner, IOTimerEventSource *sender);
 	void pollHPD();
-	void setConsole();
+	void setConsole(bool acquire = false);
 	/* Navi 23's display engine (DCN 3.0.2, MinkarAMDFramebufferDCN.cpp):
 	 * the firmware's mode only, until R2. */
 	bool findDisplayDCN(uint64_t bootAddress, UInt32 bootRowBytes);
@@ -157,6 +173,12 @@ private:
 	void readSinkDCN();
 	void describeOutputDCN();
 	void describeDMCUB();
+	void captureStateDCN();
+	void saveStateDCN();
+	struct DCNState *	fState;
+	bool			fDark;		/* started with no display */
+	IOService *		fDarkProvider;
+	size_t			fStateBytes;
 	bool dmcubSend(const uint32_t cmd[16]);
 	bool dmcubTransmitter(const struct minkar_atom_fw_transmitter_args *t);
 	bool dmcubPixelClock(uint32_t khz);

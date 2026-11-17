@@ -141,6 +141,7 @@ main(int argc, char *argv[])
 
 	/* Before the first request: connect needs the dead-name port. */
 	[WSConnection startOnQueue:ipc];
+	WSDisplaysWatch(ipc);
 	dispatch_resume(source);
 	fprintf(stderr, "WindowServer: serving %s (interface version %d)\n",
 	    kSLSServiceName, kSLSInterfaceVersion);

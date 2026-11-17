@@ -102,7 +102,14 @@ their SHA-256, as Tahiti's are (ADR 0002).
   as G1's on GCN 1.0. HDMI 2.0 rates (above 340 MHz, scrambled) stay out,
   as on GCN 1.0; DisplayPort waits for a DisplayPort display. Gate: PC 1
   started with its KVM elsewhere shows its desktop when the KVM comes
-  back, and `wsctl mode` sets a smaller size.
+  back, and `wsctl mode` sets a smaller size. *Partial (16 Nov 2026):*
+  the first half met on PC 1: started with its KVM on another computer,
+  it showed its whole desktop, in its colours, at 3440x1440 when the KVM
+  came back. The display engine's saved state is restored with its colour
+  tables bypassed, the firmware's picture is in the framebuffer before it
+  is registered, and the window server takes a display that comes after
+  it started and tells the apps (a display added). Remaining: the smaller
+  sizes, and the other totals.
 - [ ] **R3 — Memory and DMA.** The memory hubs' address translation (the
   GART and per-process GPU address spaces), SDMA 5.2 with its firmware,
   interrupts (IH), and the user client; the window server presents its

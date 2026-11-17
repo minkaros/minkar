@@ -34,6 +34,7 @@
  */
 
 #include <math.h>
+#include <IOKit/IOKitLib.h>
 #include <pthread.h>
 #include <bsm/libbsm.h>
 #include <libproc.h>
@@ -248,6 +249,7 @@ wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
 enum {
 	kChangeMoved		= 1 << 1,
 	kChangeSetMode		= 1 << 3,
+	kChangeAdd		= 1 << 4,
 	kChangeMirror		= 1 << 10,
 	kChangeUnMirror		= 1 << 11,
 	kChangeDesktopShape	= 1 << 12,
@@ -263,6 +265,7 @@ static void
 notifyReconfigured(void)
 {
 	static NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *notified;
+	BOOL first = notified == nil;
 
 	if (notified == nil)
 		notified = [NSMutableDictionary dictionary];
@@ -275,8 +278,24 @@ notifyReconfigured(void)
 		uint32_t flags = 0;
 
 		notified[key] = now;
-		if (was == nil)
+		if (was == nil && first)
 			continue;	/* as it started: nothing to tell */
+		if (was == nil) {
+			/* A display that came after the server started. */
+			SLSEvent e;
+			memset(&e, 0, sizeof(e));
+			e.type = kSLSEventDisplayReconfigured;
+			e.buttonNumber = d.displayID;
+			e.flags = kChangeAdd | kChangeDesktopShape;
+			e.x = d.x;
+			e.y = d.y;
+			e.dx = d.width;
+			e.dy = d.height;
+			e.timestamp = WSNanoseconds();
+			for (WSConnection *c in [WSConnection allConnections])
+				WSEventsEnqueue(c, &e);
+			continue;
+		}
 		if (![was[0] isEqual:now[0]])
 			flags |= kChangeSetMode;
 		if (![was[1] isEqual:now[1]] || ![was[2] isEqual:now[2]])
@@ -378,9 +397,15 @@ applyConfiguration(NSDictionary *all)
 				best = m;
 		}
 		if (best != NULL && (d.currentMode == NULL || best->modeID != d.currentMode->modeID) &&
-		    [d setModeID:best->modeID] == kSLSErrorSuccess)
+		    [d setModeID:best->modeID] == kSLSErrorSuccess) {
 			fprintf(stderr, "WindowServer: display 0x%x: saved mode %ux%u\n",
 			    d.displayID, width, height);
+			/* The compositor takes the framebuffer as the new mode
+			 * left it, and draws it all again: the driver blacks it
+			 * for a new mode, and a mode of the same size changes
+			 * nothing else that would. */
+			[d.compositor displayChanged];
+		}
 		d.x = [saved[@"X"] doubleValue];
 		d.y = [saved[@"Y"] doubleValue];
 		d.mirrorOf = 0;
@@ -1178,4 +1203,96 @@ wss_display_stream_stop(mach_port_t server, audit_token_t token, uint32_t stream
 			*result = kSLSErrorSuccess;
 	(void)connection;
 	return KERN_SUCCESS;
+}
+
+/* ---- Displays that come after the server started ---- */
+
+/* The display joined: to the right of the others (the main one when it
+ * is the first), and every connection told. Its framebuffer may not be
+ * mappable yet when the driver has only just registered it: tried again,
+ * from a new connection, each second, three times. */
+static void
+addDisplay(io_service_t service, int tries)
+{
+	/* A connection of its own each try: one opened while the driver was
+	 * still setting the framebuffer up never maps it. */
+	WSDisplay *d = [[WSDisplay alloc] initWithService:service];
+	WSCompositor *c = d != nil ? [[WSCompositor alloc] initWithDisplay:d] : nil;
+	if (d != nil && WSDisplayWithID(d.displayID) != nil) {
+		IOObjectRelease(service);
+		return;
+	}
+	if (c == nil) {
+		d = nil;
+		if (tries > 0)
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), WSIPCQueue, ^{
+				addDisplay(service, tries - 1);
+			});
+		else {
+			/* IOGraphics sets a framebuffer up for its clients when
+			 * the server first opens them all; one registered later
+			 * is left out of that until the server starts again
+			 * (TODO: set it up there). With no display before, there
+			 * is nothing on screen to lose: start again, and launchd
+			 * starts the server, which takes it. */
+			fprintf(stderr, "WindowServer: a display came but cannot be drawn on: "
+			    "starting again to take it\n");
+			IOObjectRelease(service);
+			if (WSDisplays.count == 0)
+				exit(75);	/* EX_TEMPFAIL */
+		}
+		return;
+	}
+	IOObjectRelease(service);
+	double x = 0;
+	for (WSDisplay *o in WSDisplays)
+		x = MAX(x, o.x + o.width);
+	d.unit = (uint32_t)WSDisplays.count;
+	d.x = x;
+	d.y = 0;
+	if (WSDisplays.count == 0)
+		[d markAsMain];
+	d.compositor = c;
+	[c start];
+	WSDisplays = WSDisplays != nil ? [WSDisplays arrayByAddingObject:d] : @[ d ];
+	fprintf(stderr, "WindowServer: display 0x%x %ux%u%s came, %u mode(s)\n", d.displayID,
+	    d.width, d.height, (d.flags & kSLSDisplayMain) ? " main" : "", d.modeCount);
+	WSInputModelChanged();
+	notifyReconfigured();
+}
+
+/* A framebuffer registered later (a display the GPU's driver lit once it
+ * came: the RX 6600 started with its KVM switched elsewhere). */
+static void
+framebuffersAppeared(void *refcon, io_iterator_t iter)
+{
+	io_service_t service;
+	BOOL initial = refcon != NULL;
+
+	while ((service = IOIteratorNext(iter)) != IO_OBJECT_NULL) {
+		if (initial) {		/* the ones availableDisplays found */
+			IOObjectRelease(service);
+			continue;
+		}
+		/* A moment first: the driver registers the framebuffer before
+		 * it has finished setting it up. */
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC / 2), WSIPCQueue, ^{
+			addDisplay(service, 3);
+		});
+	}
+}
+
+void
+WSDisplaysWatch(dispatch_queue_t queue)
+{
+	static IONotificationPortRef port;
+	static io_iterator_t iter;
+
+	port = IONotificationPortCreate(kIOMasterPortDefault);
+	if (port == NULL)
+		return;
+	IONotificationPortSetDispatchQueue(port, queue);
+	if (IOServiceAddMatchingNotification(port, kIOFirstMatchNotification,
+	    IOServiceMatching("IOFramebuffer"), framebuffersAppeared, NULL, &iter) == KERN_SUCCESS)
+		framebuffersAppeared((void *)1, iter);	/* arms it; these are known */
 }

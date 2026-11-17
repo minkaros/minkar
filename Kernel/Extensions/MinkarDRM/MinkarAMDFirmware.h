@@ -41,5 +41,9 @@
  * when it cannot be read yet (no root file system) or at all. */
 bool MinkarAMDReadFirmware(const char *name, uint8_t **data, size_t *bytes);
 void MinkarAMDFreeFirmware(uint8_t *data, size_t bytes);
+/* Any file by path, the same way (free with MinkarAMDFreeFirmware); and
+ * one written whole. */
+bool MinkarAMDReadFile(const char *path, uint8_t **data, size_t *bytes);
+bool MinkarAMDWriteFile(const char *path, const uint8_t *data, size_t bytes);
 
 #endif

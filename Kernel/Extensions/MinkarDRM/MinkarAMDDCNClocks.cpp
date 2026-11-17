@@ -49,6 +49,8 @@
 enum {
 	kDALResultOK = 0x1,
 	kDALSetHardMinByFreq = 0x9,
+	kDALNumOfDisplays = 0xE,
+	kPPCLKDcefclk = 8,			/* the display hub's (DCFCLK) */
 	kPPCLKDispclk = 9, kPPCLKPixclk = 10,	/* PIXCLK: the DPP clock */
 	kDentistVCOKHz = 3650000,
 };
@@ -155,6 +157,17 @@ MinkarAMDFramebuffer::raiseDisplayClocksDCN(uint32_t pixelKHz)
 
 	LOG("clocks: DISPCLK %u kHz, DPPCLK %u kHz; %u kHz needs %u", dentistKHz(dispDID),
 	    dentistKHz(dppDID), pixelKHz, khz);
+	/* The display hub's clock, which its plane readers fetch with: as
+	 * fast as the display clock (amdgpu's DML asks about this much for
+	 * one 4K-class plane). With no display at start the firmware leaves
+	 * it at its least, and the plane underflows. */
+	/* The SMU told a display is on (dcn30_smu_set_num_of_displays): with
+	 * none it lets the memory and the fabric sleep under the plane. */
+	if (fSMUDALBase != 0)
+		smuDAL(kDALNumOfDisplays, 1, NULL);
+	uint32_t hub = 0;
+	if (fSMUDALBase != 0 && smuDAL(kDALSetHardMinByFreq, (kPPCLKDcefclk << 16) | ((khz + 999) / 1000), &hub))
+		LOG("clocks: SMU DCFCLK minimum %u MHz: %u MHz", (khz + 999) / 1000, hub);
 	if (dentistKHz(dispDID) >= want && dentistKHz(dppDID) >= want)
 		return true;
 	uint32_t mhz = (khz + 999) / 1000, got = 0;

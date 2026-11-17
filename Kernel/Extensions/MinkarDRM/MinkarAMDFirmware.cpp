@@ -38,6 +38,14 @@ bool
 MinkarAMDReadFirmware(const char *name, uint8_t **data, size_t *bytes)
 {
 	char path[128];
+
+	snprintf(path, sizeof(path), kFirmwareDir "%s", name);
+	return MinkarAMDReadFile(path, data, bytes);
+}
+
+bool
+MinkarAMDReadFile(const char *path, uint8_t **data, size_t *bytes)
+{
 	vfs_context_t ctx = vfs_context_create(NULL);	/* the kernel's */
 	vnode_t vp = NULLVP;
 	struct vnode_attr va;
@@ -50,7 +58,6 @@ MinkarAMDReadFirmware(const char *name, uint8_t **data, size_t *bytes)
 	*bytes = 0;
 	if (ctx == NULL)
 		return false;
-	snprintf(path, sizeof(path), kFirmwareDir "%s", name);
 	if (vnode_open(path, FREAD, 0, 0, &vp, ctx) != 0) {
 		vfs_context_rele(ctx);
 		return false;
@@ -76,6 +83,26 @@ MinkarAMDReadFirmware(const char *name, uint8_t **data, size_t *bytes)
 	*data = buffer;
 	*bytes = size;
 	return true;
+}
+
+/* A file written whole (created, or truncated first), owned by root, 0644. */
+bool
+MinkarAMDWriteFile(const char *path, const uint8_t *data, size_t bytes)
+{
+	vfs_context_t ctx = vfs_context_create(NULL);
+	vnode_t vp = NULLVP;
+	int resid = 0;
+	bool ok = false;
+
+	if (ctx == NULL)
+		return false;
+	if (vnode_open(path, FWRITE | O_CREAT | O_TRUNC, 0644, 0, &vp, ctx) == 0) {
+		ok = vn_rdwr(UIO_WRITE, vp, (caddr_t)(uintptr_t)data, (int)bytes, 0, UIO_SYSSPACE, 0,
+		    vfs_context_ucred(ctx), &resid, vfs_context_proc(ctx)) == 0 && resid == 0;
+		vnode_close(vp, FWRITE, ctx);
+	}
+	vfs_context_rele(ctx);
+	return ok;
 }
 
 void

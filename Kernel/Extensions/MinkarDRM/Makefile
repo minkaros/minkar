@@ -22,7 +22,8 @@ SRCS = lkpi_xnu.cpp atom_glue.c atom_glue_fw.c amd_psp.c atom.c MinkarAMDDevice.
 	MinkarAMDFramebuffer.cpp MinkarAMDDMA.cpp MinkarAMDGART.cpp MinkarAMDUserClient.cpp minkar_vram.c \
 	MinkarAMDFirmware.cpp MinkarAMDGFX.cpp MinkarAMDNode.cpp MinkarAMDDCN.cpp \
 	MinkarAMDFramebufferDCN.cpp MinkarAMDDCNI2C.cpp MinkarAMDDMCUB.cpp \
-	MinkarAMDDCNClocks.cpp MinkarAMDDCNAudio.cpp MinkarAMDPSP.cpp
+	MinkarAMDDCNClocks.cpp MinkarAMDDCNAudio.cpp MinkarAMDPSP.cpp \
+	MinkarAMDDCNState.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-format-zero-length \
 	-Wno-pointer-sign -Wno-unused-parameter -Wno-missing-prototypes \
