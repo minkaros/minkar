@@ -793,8 +793,12 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 
     case NSRoundRectBezelStyle:
      if([self isBordered]){
-      CGFloat height=MIN(NSHeight(original),18-_controlSize*2);
-      NSRect  face=NSInsetRect(NSMakeRect(NSMinX(original)+1,floor(NSMidY(original)-height/2),NSWidth(original)-2,height),0.5,0.5);
+      /* The reference's height for the control size, even past a shorter
+         frame, centered from the top (rounding down), flipped or not. */
+      CGFloat height=18-_controlSize*2;
+      CGFloat top=floor((NSHeight(original)-height)/2);
+      CGFloat y=[controlView isFlipped]?NSMinY(original)+top:NSMaxY(original)-top-height;
+      NSRect  face=NSInsetRect(NSMakeRect(NSMinX(original)+1,y,NSWidth(original)-2,height),0.5,0.5);
       NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4];
 
       [[NSColor colorWithCalibratedWhite:[self isHighlighted]?0.78:0.87 alpha:1] setFill];

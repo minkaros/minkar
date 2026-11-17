@@ -22,6 +22,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 static char menuItemKey;
 
+@interface NSButtonCell (NSPopUpButtonCellGeometry)
+-(NSRect)getControlSizeAdjustment:(BOOL)flipped;
+@end
+
 @implementation NSPopUpButtonCell
 
 /* The item the button shows: the one given with setMenuItem: when it does
@@ -440,6 +444,66 @@ static char menuItemKey;
 		rect.size.width = NSMinX(arrowRect) - NSMinX(rect) - 5.;
 	}
 	return rect;
+}
+
+/* Where the bezel is drawn: rounded, Atlas's push button face (one
+   height for the control size, centered: NSButtonCell's rule); round rect
+   (what tables use), the reference's, measured on it (NSButtonCell draws
+   it so). NSZeroRect for the others. */
+-(NSRect)_referenceBezelRectForFrame:(NSRect)frame inView:(NSView *)controlView {
+   NSRect bezel=frame;
+
+   if(![self isBordered])
+    return NSZeroRect;
+   if([self bezelStyle]==NSRoundedBezelStyle){
+    CGFloat height=MIN(NSHeight(frame),22-[self controlSize]*3);
+
+    bezel.origin.y=floor(NSMidY(frame)-height/2);
+    bezel.size.height=height;
+    return bezel;
+   }
+   if([self bezelStyle]==NSRoundRectBezelStyle && [self controlSize]!=NSMiniControlSize){
+    CGFloat height=([self controlSize]==NSSmallControlSize)?16:18;
+    CGFloat top=floor((NSHeight(frame)-height)/2);
+
+    bezel.size.height=height;
+    bezel.origin.y=[controlView isFlipped]?NSMinY(frame)+top:NSMaxY(frame)-top-height;
+    return bezel;
+   }
+   return NSZeroRect;
+}
+
+/* The frame NSButtonCell's control size adjustment turns into rect. */
+-(NSRect)_frameAdjustingTo:(NSRect)rect inView:(NSView *)controlView {
+   NSRect adjustment=[self getControlSizeAdjustment:[controlView isFlipped]];
+
+   rect.origin.y-=adjustment.origin.y;
+   rect.size.height+=adjustment.size.height;
+   return rect;
+}
+
+/* The title: for a rounded bezel, centered in it; for a round rect one
+   (tables), where the reference places it, centered in the whole cell
+   frame in the view's own coordinates, whatever the bezel. */
+-(void)drawInteriorWithFrame:(NSRect)frame inView:(NSView *)controlView {
+   NSRect bezel=[self _referenceBezelRectForFrame:frame inView:controlView];
+
+   if(!NSIsEmptyRect(bezel)){
+    if([self bezelStyle]==NSRoundRectBezelStyle){
+     /* NSButtonCell insets the adjusted frame by 2: undo both, so the
+        title is centered in the frame itself. */
+     NSRect adjustment=[self getControlSizeAdjustment:[controlView isFlipped]];
+
+     frame.origin.y-=adjustment.origin.y+2;
+     frame.size.height+=adjustment.size.height+4;
+     /* Unflipped, the reference rounds the other way: a point higher. */
+     if(![controlView isFlipped])
+      frame.origin.y+=1;
+    }
+    else
+     frame=[self _frameAdjustingTo:bezel inView:controlView];
+   }
+   [super drawInteriorWithFrame:frame inView:controlView];
 }
 
 -(void)drawBezelWithFrame:(NSRect)frame inView:(NSView *)controlView {

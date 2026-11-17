@@ -904,7 +904,12 @@ static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform 
    CGContextSaveGState(port);
    CGContextSetCTM(port,CGAffineTransformConcat([view transformToWindow],toBitmap));
    CGContextClipToRect(port,rect);
+   /* The view has the focus while it draws, as when it draws in its
+      window: the context then knows whether it is flipped (text laid out
+      upside down in a flipped view otherwise). */
+   [[context focusStack] addObject:view];
    [view drawRect:rect];
+   [[context focusStack] removeLastObject];
    CGContextRestoreGState(port);
 
    for(NSView *child in [view subviews])
