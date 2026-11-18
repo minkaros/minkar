@@ -150,6 +150,7 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
      image=[[NSAssetCatalog catalogForBundle:bundle] imageNamed:name];
      if(image!=nil){
       [image setName:name];
+      setTemplateFromName(image,name);
       break;
      }
      path=[bundle pathForImageResource:name];
@@ -1091,8 +1092,10 @@ static char accessibilityDescriptionKey;
    NSImage *cataloged=[[NSAssetCatalog catalogForBundle:self] imageNamed:name];
    NSString *path;
 
-   if(cataloged!=nil)
+   if(cataloged!=nil){
+    setTemplateFromName(cataloged,name);
     return cataloged;
+   }
    path=[self pathForImageResource:name];
    if(path==nil)
     return nil;

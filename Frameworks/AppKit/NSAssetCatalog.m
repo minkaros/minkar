@@ -224,6 +224,10 @@ static uint16_t le16(const uint8_t *p) { return (uint16_t)(p[1] << 8 | p[0]); }
     compression = le32(p + at + 8);
     length = le32(p + at + 12);
     compressed = p + at + 16;
+    /* Chunked data (KCBC, a band of rows each): the field is the number of
+       chunks, and they run to the rendition's end. */
+    if ([rendition length] >= at + 36 && memcmp(compressed, "KCBC", 4) == 0)
+        length = (uint32_t)([rendition length] - at - 16);
     if (at + 16 + (NSUInteger)length > [rendition length])
         return nil;
     pixels = [NSMutableData dataWithLength:expected];
@@ -303,13 +307,31 @@ static CGImageRef createImage(NSData *pixels, uint32_t format, uint32_t width, u
     CGColorSpaceRef space;
     CGDataProviderRef provider;
     CGImageRef image, cropped;
-    BOOL gray = (format == 'GA8 ');
 
-    space = gray ? CGColorSpaceCreateDeviceGray() : CGColorSpaceCreateDeviceRGB();
+    /* Gray and alpha (premultiplied, two bytes a pixel) as 32-bit pixels:
+       the drawing code takes those. */
+    if (format == 'GA8 ') {
+        NSMutableData *wide = [NSMutableData dataWithLength:(NSUInteger)width * 4 * height];
+        const uint8_t *in = [pixels bytes];
+        uint8_t *out = [wide mutableBytes];
+
+        if ((NSUInteger)bytesPerRow * height > [pixels length])
+            return NULL;
+        for (uint32_t y = 0; y < height; y++)
+            for (uint32_t x = 0; x < width; x++) {
+                const uint8_t *g = in + (NSUInteger)y * bytesPerRow + 2 * x;
+                uint8_t *o = out + ((NSUInteger)y * width + x) * 4;
+
+                o[0] = o[1] = o[2] = g[0];
+                o[3] = g[1];
+            }
+        pixels = wide;
+        bytesPerRow = (NSUInteger)width * 4;
+    }
+    space = CGColorSpaceCreateDeviceRGB();
     provider = CGDataProviderCreateWithCFData((CFDataRef)pixels);
-    image = CGImageCreate(width, height, 8, gray ? 16 : 32, bytesPerRow, space,
-                          gray ? kCGImageAlphaPremultipliedLast
-                               : (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little),
+    image = CGImageCreate(width, height, 8, 32, bytesPerRow, space,
+                          kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little,
                           provider, NULL, false, kCGRenderingIntentDefault);
     CGDataProviderRelease(provider);
     CGColorSpaceRelease(space);
@@ -408,6 +430,10 @@ static CGImageRef createImage(NSData *pixels, uint32_t format, uint32_t width, u
     }
     if (sourceFormat != 'ARGB' && sourceFormat != 'GA8 ')
         return nil;
+    /* A region of an atlas is counted from its bottom edge; a CGImage's
+       rectangles from its top. */
+    if (!NSIsEmptyRect(region))
+        region.origin.y = sourceHeight - NSMaxY(region);
     if (bytesPerRow == 0)
         bytesPerRow = sourceWidth * (sourceFormat == 'GA8 ' ? 2 : 4);
 
