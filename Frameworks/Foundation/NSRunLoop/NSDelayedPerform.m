@@ -18,9 +18,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)dealloc {
-	[_object release];
-	[_argument release];
+	if(!_probe) {
+		[_object release];
+		[_argument release];
+	}
 	[super dealloc];
+}
+
++(NSDelayedPerform *)_probeWithObject:object selector:(SEL)selector argument:argument {
+   NSDelayedPerform *probe=[[self allocWithZone:NULL] init];
+
+   probe->_object=object;
+   probe->_selector=selector;
+   probe->_argument=argument;
+   probe->_probe=YES;
+   return [probe autorelease];
 }
 
 +(NSDelayedPerform *)delayedPerformWithObject:object selector:(SEL)selector argument:argument {

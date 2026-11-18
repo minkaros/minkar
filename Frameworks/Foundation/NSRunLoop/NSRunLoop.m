@@ -519,13 +519,13 @@ static void beforeWaiting(CFRunLoopObserverRef observer,CFRunLoopActivity activi
 
 +(void)cancelPreviousPerformRequestsWithTarget:target
        selector:(SEL)selector object:argument {
-   NSDelayedPerform *delayed=[NSDelayedPerform delayedPerformWithObject:target selector:selector argument:argument];
+   NSDelayedPerform *delayed=[NSDelayedPerform _probeWithObject:target selector:selector argument:argument];
 
    [[NSRunLoop currentRunLoop] invalidateTimerWithDelayedPerform:delayed];
 }
 
 +(void)cancelPreviousPerformRequestsWithTarget:target {
-   NSDelayedPerform *delayed=[NSDelayedPerform delayedPerformWithObject:target selector:NULL argument:nil];
+   NSDelayedPerform *delayed=[NSDelayedPerform _probeWithObject:target selector:NULL argument:nil];
 
    [[NSRunLoop currentRunLoop] invalidateTimerWithDelayedPerform:delayed];
 }

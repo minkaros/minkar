@@ -12,7 +12,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     id _object;
     SEL _selector;
     id _argument;
+    BOOL _probe;   /* only compared with: holds neither object nor argument */
 }
+
+/* What a cancel compares the pending performs with: it does not retain
+   the object, which may be in its -dealloc (a common place to cancel). */
++ (NSDelayedPerform *)_probeWithObject:object selector:(SEL)selector argument:argument;
 
 + (NSDelayedPerform *)delayedPerformWithObject:object selector:(SEL)selector argument:argument;
 
