@@ -365,6 +365,15 @@ static NSString *visibleKey(NSString *name) {
     return _visible;
 }
 
+/* Hidden while the front app's presentation options hide the menu bar
+   (NSStatusBar hears of them); visible as it was after. */
+- (void)_setHiddenByPresentation:(BOOL)hidden {
+    if(hidden || !_visible)
+        [_window orderOut:nil];
+    else
+        [_window orderFront:nil];
+}
+
 - (void)setVisible:(BOOL)visible {
     _visible = visible;
     if(_autosaveName != nil)

@@ -104,6 +104,25 @@ typedef NS_ENUM(NSInteger, NSApplicationActivationPolicy) {
     NSApplicationActivationPolicyProhibited = 2,
 };
 
+/* What the system shows while the app is in front (API 10.6); the
+   reference's values. */
+typedef NS_OPTIONS(NSUInteger, NSApplicationPresentationOptions) {
+    NSApplicationPresentationDefault = 0,
+    NSApplicationPresentationAutoHideDock = 1 << 0,
+    NSApplicationPresentationHideDock = 1 << 1,
+    NSApplicationPresentationAutoHideMenuBar = 1 << 2,
+    NSApplicationPresentationHideMenuBar = 1 << 3,
+    NSApplicationPresentationDisableAppleMenu = 1 << 4,
+    NSApplicationPresentationDisableProcessSwitching = 1 << 5,
+    NSApplicationPresentationDisableForceQuit = 1 << 6,
+    NSApplicationPresentationDisableSessionTermination = 1 << 7,
+    NSApplicationPresentationDisableHideApplication = 1 << 8,
+    NSApplicationPresentationDisableMenuBarTransparency = 1 << 9,
+    NSApplicationPresentationFullScreen = 1 << 10,
+    NSApplicationPresentationAutoHideToolbar = 1 << 11,
+    NSApplicationPresentationDisableCursorLocationAssistance = 1 << 12,
+};
+
 typedef enum {
     NSPrintingCancelled,
     NSPrintingSuccess,
@@ -169,6 +188,8 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationOcclusionState) {
 - (BOOL)isActive;
 - (BOOL)isHidden;
 - (NSApplicationActivationPolicy)activationPolicy;
+@property NSApplicationPresentationOptions presentationOptions;
+@property (readonly) NSApplicationPresentationOptions currentSystemPresentationOptions;
 - (BOOL)setActivationPolicy:(NSApplicationActivationPolicy)policy;
 - (BOOL)isRunning;
 

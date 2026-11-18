@@ -22,6 +22,71 @@
     NSMutableArray<DesktopWindow *> *_desktops;
     NSMutableArray<NSWindow *> *_menuBarBackdrops;
     NSArray<NSValue *> *_desktopFrames;
+    NSMutableDictionary<NSNumber *, NSNumber *> *_presentationOptions;  /* pid to its options */
+    pid_t _frontPID;
+}
+
+/* The front app's presentation options (NSApplication's
+   setPresentationOptions:, told by a distributed notification): the Dock
+   hidden or hiding itself, and the menu bar's backdrop gone with the
+   app's own bar. */
+- (void)presentationOptionsChanged:(NSNotification *)note
+{
+    pid_t pid = [note.object intValue];
+    NSNumber *options = note.userInfo[@"options"];
+
+    if (pid <= 0 || options == nil)
+        return;
+    if (_presentationOptions == nil)
+        _presentationOptions = [NSMutableDictionary dictionary];
+    _presentationOptions[@(pid)] = options;
+    [self applyPresentationOptions];
+}
+
+- (void)frontAppChanged:(NSNotification *)note
+{
+    NSRunningApplication *app = note.userInfo[NSWorkspaceApplicationKey];
+
+    if (note.name == NSWorkspaceDidTerminateApplicationNotification) {
+        [_presentationOptions removeObjectForKey:@(app.processIdentifier)];
+        if (app.processIdentifier != _frontPID) {
+            [self applyPresentationOptions];
+            return;
+        }
+        _frontPID = 0;
+    } else if (app.activationPolicy == NSApplicationActivationPolicyRegular)
+        _frontPID = app.processIdentifier;
+    [self applyPresentationOptions];
+}
+
+- (void)applyPresentationOptions
+{
+    NSUInteger options = [_presentationOptions[@(_frontPID)] unsignedIntegerValue];
+    BOOL hideDock = (options & (1 << 1)) != 0;          /* HideDock */
+    BOOL autohideDock = (options & (1 << 0)) != 0;      /* AutoHideDock */
+    BOOL hideBar = (options & ((1 << 2) | (1 << 3))) != 0;  /* AutoHideMenuBar, HideMenuBar */
+
+    _model.presentationAutohide = autohideDock;
+    if (hideDock)
+        [_dock orderOut:nil];
+    else
+        [_dock orderFront:nil];
+    for (NSWindow *backdrop in _menuBarBackdrops) {
+        if (hideBar)
+            [backdrop orderOut:nil];
+        else
+            [backdrop orderFront:nil];
+    }
+}
+
+- (void)watchPresentationOptions
+{
+    NSNotificationCenter *workspace = [[NSWorkspace sharedWorkspace] notificationCenter];
+
+    [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(presentationOptionsChanged:)
+        name:@"org.minkar.presentationOptionsChanged" object:nil];
+    [workspace addObserver:self selector:@selector(frontAppChanged:) name:NSWorkspaceDidActivateApplicationNotification object:nil];
+    [workspace addObserver:self selector:@selector(frontAppChanged:) name:NSWorkspaceDidTerminateApplicationNotification object:nil];
 }
 
 /* The screens' frames the desktops were made for. */
@@ -96,6 +161,7 @@
     _model = [[DockModel alloc] init];
     _dock = [[DockWindow alloc] initWithModel:_model];
     [_dock orderFront:nil];
+    [self watchPresentationOptions];
 }
 
 - (void)applicationDidChangeScreenParameters:(NSNotification *)note

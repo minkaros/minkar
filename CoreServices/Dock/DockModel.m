@@ -168,6 +168,22 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     dispatch_source_t _trashWatch;
 }
 
+@synthesize autohide = _autohide;
+
+/* The preference, or the front app's presentation options asking it. */
+- (BOOL)autohide
+{
+    return _autohide || _presentationAutohide;
+}
+
+- (void)setPresentationAutohide:(BOOL)value
+{
+    if (value == _presentationAutohide)
+        return;
+    _presentationAutohide = value;
+    [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
+}
+
 - (void)reloadPreferences
 {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];

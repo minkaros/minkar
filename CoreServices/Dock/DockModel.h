@@ -57,7 +57,10 @@ extern NSNotificationName const DockModelDidChangeNotification;
 @property (nonatomic, readonly) BOOL magnification;      /* magnification */
 @property (nonatomic, readonly) CGFloat largeSize;       /* largesize, 16-128 */
 @property (nonatomic, readonly) DockOrientation orientation; /* orientation */
-@property (nonatomic, readonly) BOOL autohide;           /* autohide */
+@property (nonatomic, readonly) BOOL autohide;           /* autohide, or the front app's presentation asks it */
+/* The front app's presentation options (NSApplicationPresentationOptions):
+   hide the Dock while it is in front, or hide it until the pointer comes. */
+@property (nonatomic) BOOL presentationAutohide;
 
 /* Persistent tiles first, then the running apps that are not kept. */
 @property (nonatomic, readonly, copy) NSArray<DockTile *> *tiles;

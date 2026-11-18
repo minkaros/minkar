@@ -30,9 +30,65 @@
 #import <AppKit/NSStatusItem.h>
 #import <CoreGraphics/CGDirectDisplay.h>
 
+#import <AppKit/NSWorkspace.h>
+#import <AppKit/NSRunningApplication.h>
+#import <AppKit/NSApplication.h>
+#import <Foundation/NSDistributedNotificationCenter.h>
+
 @interface NSStatusItem (NSStatusBar)
 - (instancetype)_initWithStatusBar:(NSStatusBar *)bar length:(CGFloat)length;
 - (void)_remove;
+- (void)_setHiddenByPresentation:(BOOL)hidden;
+@end
+
+@interface NSStatusBar (NSStatusBarPresentation)
+- (NSArray *)_statusItems;
+@end
+
+/* The status items leave the menu bar with it: while the front app's
+   presentation options hide or auto-hide the bar
+   (NSApplication's setPresentationOptions:, a distributed notification). */
+@interface _NSStatusBarPresentationWatcher : NSObject {
+@public
+    NSStatusBar *_bar;
+    NSMutableDictionary *_options;   /* pid to options */
+    pid_t _front;
+}
+@end
+
+@implementation _NSStatusBarPresentationWatcher
+
+- (void)apply {
+    NSUInteger options = [[_options objectForKey:[NSNumber numberWithInt:_front]] unsignedIntegerValue];
+    BOOL hidden = (options & (NSApplicationPresentationHideMenuBar | NSApplicationPresentationAutoHideMenuBar)) != 0;
+
+    for(NSStatusItem *item in [_bar _statusItems])
+        [item _setHiddenByPresentation:hidden];
+}
+
+- (void)optionsChanged:(NSNotification *)note {
+    pid_t pid = [[note object] intValue];
+    NSNumber *options = [[note userInfo] objectForKey:@"options"];
+
+    if(pid <= 0 || options == nil)
+        return;
+    [_options setObject:options forKey:[NSNumber numberWithInt:pid]];
+    [self apply];
+}
+
+- (void)frontChanged:(NSNotification *)note {
+    NSRunningApplication *app = [[note userInfo] objectForKey:NSWorkspaceApplicationKey];
+
+    if([[note name] isEqualToString:NSWorkspaceDidTerminateApplicationNotification]) {
+        [_options removeObjectForKey:[NSNumber numberWithInt:[app processIdentifier]]];
+        if([app processIdentifier] == _front)
+            _front = 0;
+    }
+    else if([app activationPolicy] == NSApplicationActivationPolicyRegular)
+        _front = [app processIdentifier];
+    [self apply];
+}
+
 @end
 
 @implementation NSStatusBar
@@ -46,8 +102,19 @@
 }
 
 - (instancetype)init {
-    if((self = [super init]) != nil)
+    if((self = [super init]) != nil) {
         _statusItems = [[NSMutableArray alloc] init];
+        /* Watched for the life of the bar (the system bar is never freed). */
+        _NSStatusBarPresentationWatcher *watcher = [[_NSStatusBarPresentationWatcher alloc] init];
+        NSNotificationCenter *workspace = [[NSWorkspace sharedWorkspace] notificationCenter];
+
+        watcher->_bar = self;
+        watcher->_options = [[NSMutableDictionary alloc] init];
+        [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(optionsChanged:)
+            name:@"org.minkar.presentationOptionsChanged" object:nil];
+        [workspace addObserver:watcher selector:@selector(frontChanged:) name:NSWorkspaceDidActivateApplicationNotification object:nil];
+        [workspace addObserver:watcher selector:@selector(frontChanged:) name:NSWorkspaceDidTerminateApplicationNotification object:nil];
+    }
     return self;
 }
 

@@ -1522,6 +1522,65 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    return _activationPolicy;
 }
 
+/* Presentation options (API 10.6): checked as the reference checks them
+   (an invalid combination raises), kept, and told to the session's Dock
+   and menu bar, which hide or show while the app is in front. */
+static char presentationOptionsKey;
+NSString * const _NSApplicationPresentationOptionsDidChangeNotification=@"org.minkar.presentationOptionsChanged";
+
+static BOOL presentationOptionsValid(NSApplicationPresentationOptions o) {
+   BOOL dock=(o&(NSApplicationPresentationAutoHideDock|NSApplicationPresentationHideDock))!=0;
+
+   if((o&NSApplicationPresentationAutoHideDock) && (o&NSApplicationPresentationHideDock))
+    return NO;
+   if((o&NSApplicationPresentationAutoHideMenuBar) && (o&NSApplicationPresentationHideMenuBar))
+    return NO;
+   if((o&NSApplicationPresentationHideMenuBar) && !(o&NSApplicationPresentationHideDock))
+    return NO;
+   if((o&NSApplicationPresentationAutoHideMenuBar) && !dock)
+    return NO;
+   if((o&(NSApplicationPresentationDisableProcessSwitching|NSApplicationPresentationDisableForceQuit|
+          NSApplicationPresentationDisableSessionTermination|NSApplicationPresentationDisableHideApplication)) && !dock)
+    return NO;
+   if((o&NSApplicationPresentationDisableAppleMenu) &&
+      !(o&(NSApplicationPresentationAutoHideMenuBar|NSApplicationPresentationHideMenuBar)))
+    return NO;
+   if((o&NSApplicationPresentationAutoHideToolbar) && !(o&NSApplicationPresentationFullScreen))
+    return NO;
+   return YES;
+}
+
+-(NSApplicationPresentationOptions)presentationOptions {
+   return [objc_getAssociatedObject(self,&presentationOptionsKey) unsignedIntegerValue];
+}
+
+-(void)setPresentationOptions:(NSApplicationPresentationOptions)options {
+   if(!presentationOptionsValid(options))
+    [NSException raise:NSInvalidArgumentException format:@"-[NSApplication setPresentationOptions:] called with NSApplicationPresentationOptions = %lu, an invalid combination",(unsigned long)options];
+   objc_setAssociatedObject(self,&presentationOptionsKey,[NSNumber numberWithUnsignedInteger:options],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   /* The app's own menu bar, while it is in front; the Dock hides its
+      part of the bar and itself when it hears of it. */
+   if(_isActive && _activationPolicy==NSApplicationActivationPolicyRegular){
+    if([self _presentationHidesMenuBar])
+     [NSMenuBarWindow _hideMenuBars];
+    else
+     [NSMenuBarWindow _showMenuBars];
+   }
+   [[NSDistributedNotificationCenter defaultCenter] postNotificationName:_NSApplicationPresentationOptionsDidChangeNotification
+     object:[NSString stringWithFormat:@"%d",getpid()]
+     userInfo:[NSDictionary dictionaryWithObject:[NSNumber numberWithUnsignedInteger:options] forKey:@"options"]
+     deliverImmediately:YES];
+}
+
+-(BOOL)_presentationHidesMenuBar {
+   return ([self presentationOptions]&(NSApplicationPresentationHideMenuBar|NSApplicationPresentationAutoHideMenuBar))!=0;
+}
+
+/* What is in effect: the front app's options (this app's while it is). */
+-(NSApplicationPresentationOptions)currentSystemPresentationOptions {
+   return [self isActive]?[self presentationOptions]:NSApplicationPresentationDefault;
+}
+
 -(BOOL)setActivationPolicy:(NSApplicationActivationPolicy)policy {
    if(policy<NSApplicationActivationPolicyRegular || policy>NSApplicationActivationPolicyProhibited)
        return NO;
@@ -1616,7 +1675,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
       app goes behind an agent (a Menu Extra's panel, which has no menu
       bar): it goes when another regular app comes to the front
       (_launchServicesMessage:). */
-   if(_activationPolicy==NSApplicationActivationPolicyRegular && active)
+   if(_activationPolicy==NSApplicationActivationPolicyRegular && active && ![self _presentationHidesMenuBar])
        [NSMenuBarWindow _showMenuBars];
    [[NSNotificationCenter defaultCenter] postNotificationName:
        active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
