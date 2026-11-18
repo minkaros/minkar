@@ -134,4 +134,12 @@ typedef NS_OPTIONS(NSUInteger, NSMatchingFlags) {
 
 @end
 
+/* Links and phone numbers found in text (dates, addresses and transit
+   information are not detected yet). */
+@interface NSDataDetector : NSRegularExpression
++ (nullable NSDataDetector *)dataDetectorWithTypes:(NSTextCheckingTypes)checkingTypes error:(NSError **)error;
+- (nullable instancetype)initWithTypes:(NSTextCheckingTypes)checkingTypes error:(NSError **)error;
+@property (readonly) NSTextCheckingTypes checkingTypes;
+@end
+
 NS_ASSUME_NONNULL_END

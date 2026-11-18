@@ -82,6 +82,7 @@ SRCS = 	NSFormatter.m \
 	NSSubscripting.m \
 	NSCollectionBlocks.m \
 	NSRegularExpression.m \
+	NSDataDetector.m \
 	NSJSONSerialization.m \
 	NSCache.m \
 	NSConstantLiterals.m \
@@ -457,6 +458,7 @@ CFLAGS.NSTimeZone.m = -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 # ICU's regular expressions, by their plain names as libicucore exports them.
+CFLAGS.NSDataDetector.m = -fobjc-arc
 CFLAGS.NSRegularExpression.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n

@@ -14,6 +14,8 @@ FOUNDATION_EXPORT NSString *const NSTextCheckingStateKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingZIPKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingCountryKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingPhoneKey;
+FOUNDATION_EXPORT NSString *const NSTextCheckingAirlineKey;
+FOUNDATION_EXPORT NSString *const NSTextCheckingFlightKey;
 
 typedef NS_OPTIONS(uint64_t, NSTextCheckingType) {
     NSTextCheckingTypeOrthography = 1ULL << 0,
@@ -55,6 +57,9 @@ enum : NSTextCheckingTypes {
 + (NSTextCheckingResult *)quoteCheckingResultWithRange:(NSRange)range replacementString:(NSString *)replacement;
 + (NSTextCheckingResult *)replacementCheckingResultWithRange:(NSRange)range replacementString:(NSString *)replacement;
 + (NSTextCheckingResult *)spellCheckingResultWithRange:(NSRange)range;
++ (NSTextCheckingResult *)correctionCheckingResultWithRange:(NSRange)range replacementString:(NSString *)replacement alternativeStrings:(NSArray *)alternativeStrings;
++ (NSTextCheckingResult *)phoneNumberCheckingResultWithRange:(NSRange)range phoneNumber:(NSString *)phoneNumber;
++ (NSTextCheckingResult *)transitInformationCheckingResultWithRange:(NSRange)range components:(NSDictionary *)components;
 
 @property(readonly) NSDictionary *addressComponents;
 @property(readonly) NSDate *date;
@@ -66,6 +71,9 @@ enum : NSTextCheckingTypes {
 @property(readonly) NSTextCheckingType resultType;
 @property(readonly) NSTimeZone *timeZone;
 @property(readonly) NSURL *URL;
+@property(readonly) NSString *phoneNumber;
+@property(readonly) NSDictionary *components;
+@property(readonly) NSArray *alternativeStrings;
 
 @end
 

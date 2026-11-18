@@ -2161,3 +2161,124 @@ static NSString *NSStringMapCase(NSString *self, int mapping) {
 }
 
 @end
+
+/* The encoding of data whose encoding is not known (API 10.10): a byte
+   order mark's, else UTF-8 when the bytes are valid UTF-8 (ASCII when they
+   are all 7-bit), else the suggested encodings in order, else Windows
+   Latin 1 (as the reference picks for Latin text), else Latin 1. Lossy
+   conversion, allowed by default, replaces what does not convert. */
+NSString *const NSStringEncodingDetectionSuggestedEncodingsKey=@"NSStringEncodingDetectionSuggestedEncodingsKey";
+NSString *const NSStringEncodingDetectionDisallowedEncodingsKey=@"NSStringEncodingDetectionDisallowedEncodingsKey";
+NSString *const NSStringEncodingDetectionUseOnlySuggestedEncodingsKey=@"NSStringEncodingDetectionUseOnlySuggestedEncodingsKey";
+NSString *const NSStringEncodingDetectionAllowLossyKey=@"NSStringEncodingDetectionAllowLossyKey";
+NSString *const NSStringEncodingDetectionFromWindowsKey=@"NSStringEncodingDetectionFromWindowsKey";
+NSString *const NSStringEncodingDetectionLossySubstitutionKey=@"NSStringEncodingDetectionLossySubstitutionKey";
+NSString *const NSStringEncodingDetectionLikelyLanguageKey=@"NSStringEncodingDetectionLikelyLanguageKey";
+
+@implementation NSString (NSStringEncodingDetection)
+
+static BOOL validUTF8(const uint8_t *b,NSUInteger n,BOOL *ascii) {
+   NSUInteger i=0;
+
+   *ascii=YES;
+   while(i<n){
+    uint8_t c=b[i];
+    NSUInteger more;
+
+    if(c<0x80){ i++; continue; }
+    *ascii=NO;
+    if(c>=0xC2 && c<=0xDF) more=1;
+    else if(c>=0xE0 && c<=0xEF) more=2;
+    else if(c>=0xF0 && c<=0xF4) more=3;
+    else return NO;
+    if(i+more>=n)
+     return NO;
+    for(NSUInteger k=1;k<=more;k++)
+     if((b[i+k]&0xC0)!=0x80)
+      return NO;
+    i+=more+1;
+   }
+   return YES;
+}
+
++(NSStringEncoding)stringEncodingForData:(NSData *)data encodingOptions:(NSDictionary *)options convertedString:(NSString **)string usedLossyConversion:(BOOL *)usedLossy {
+   const uint8_t *b=[data bytes];
+   NSUInteger     n=[data length];
+   NSArray       *suggested=[options objectForKey:NSStringEncodingDetectionSuggestedEncodingsKey];
+   NSArray       *disallowed=[options objectForKey:NSStringEncodingDetectionDisallowedEncodingsKey];
+   BOOL           onlySuggested=[[options objectForKey:NSStringEncodingDetectionUseOnlySuggestedEncodingsKey] boolValue];
+   NSNumber      *lossyValue=[options objectForKey:NSStringEncodingDetectionAllowLossyKey];
+   BOOL           allowLossy=(lossyValue==nil)?YES:[lossyValue boolValue];
+   NSMutableArray *candidates=[NSMutableArray array];
+   BOOL           ascii=NO;
+
+   if(usedLossy!=NULL)
+    *usedLossy=NO;
+   if(n>=4 && b[0]==0xFF && b[1]==0xFE && b[2]==0 && b[3]==0)
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSUTF32StringEncoding]];
+   else if(n>=4 && b[0]==0 && b[1]==0 && b[2]==0xFE && b[3]==0xFF)
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSUTF32StringEncoding]];
+   else if(n>=2 && ((b[0]==0xFF && b[1]==0xFE) || (b[0]==0xFE && b[1]==0xFF)))
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSUnicodeStringEncoding]];
+   else if(n>=3 && b[0]==0xEF && b[1]==0xBB && b[2]==0xBF)
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSUTF8StringEncoding]];
+   if(!onlySuggested && [candidates count]==0 && validUTF8(b,n,&ascii))
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:ascii?NSASCIIStringEncoding:NSUTF8StringEncoding]];
+   if([suggested isKindOfClass:[NSArray class]])
+    [candidates addObjectsFromArray:suggested];
+   if(!onlySuggested){
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSWindowsCP1252StringEncoding]];
+    [candidates addObject:[NSNumber numberWithUnsignedInteger:NSISOLatin1StringEncoding]];
+   }
+
+   for(NSNumber *candidate in candidates){
+    NSStringEncoding encoding=[candidate unsignedIntegerValue];
+    NSString        *converted;
+
+    if([disallowed containsObject:candidate])
+     continue;
+    converted=[[[NSString alloc] initWithData:data encoding:encoding] autorelease];
+    if(converted!=nil){
+     if(string!=NULL)
+      *string=converted;
+     return encoding;
+    }
+   }
+
+   /* Nothing converts it whole: lossy, in the first allowed candidate. */
+   if(allowLossy){
+    NSString *substitution=[options objectForKey:NSStringEncodingDetectionLossySubstitutionKey];
+
+    for(NSNumber *candidate in candidates){
+     NSStringEncoding encoding=[candidate unsignedIntegerValue];
+     NSMutableString *result=[NSMutableString string];
+
+     if([disallowed containsObject:candidate] || encoding!=NSUTF8StringEncoding)
+      continue;
+     for(NSUInteger i=0;i<n;){
+      NSUInteger len=1;
+      NSString  *piece=nil;
+
+      for(len=4;len>=1;len--)
+       if(i+len<=n && (piece=[[[NSString alloc] initWithBytes:b+i length:len encoding:NSUTF8StringEncoding] autorelease])!=nil)
+        break;
+      if(piece!=nil){
+       [result appendString:piece];
+       i+=len;
+      }
+      else {
+       [result appendString:(substitution!=nil)?substitution:@"�"];
+       i++;
+      }
+     }
+     if(string!=NULL)
+      *string=result;
+     if(usedLossy!=NULL)
+      *usedLossy=YES;
+     return encoding;
+    }
+   }
+   return 0;
+}
+
+@end

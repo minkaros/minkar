@@ -312,6 +312,24 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+
+/* Encoding detection (API 10.10). */
+typedef NSString *NSStringEncodingDetectionOptionsKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionSuggestedEncodingsKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionDisallowedEncodingsKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionUseOnlySuggestedEncodingsKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionAllowLossyKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionFromWindowsKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionLossySubstitutionKey;
+FOUNDATION_EXPORT NSStringEncodingDetectionOptionsKey const NSStringEncodingDetectionLikelyLanguageKey;
+
+@interface NSString (NSStringEncodingDetection)
++ (NSStringEncoding)stringEncodingForData:(NSData *)data
+                          encodingOptions:(nullable NSDictionary<NSStringEncodingDetectionOptionsKey, id> *)opts
+                          convertedString:(NSString * _Nullable * _Nullable)string
+                      usedLossyConversion:(nullable BOOL *)usedLossyConversion;
+@end
+
 NS_ASSUME_NONNULL_END
 
 
