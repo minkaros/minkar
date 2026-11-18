@@ -140,7 +140,17 @@ static CFTypeRef copyCFValue(id value) {
     _behavior=[[attributes objectForKey:@"formatterBehavior"] intValue];
     _dateStyle=[[attributes objectForKey:@"dateStyle"] intValue];
     _timeStyle=[[attributes objectForKey:@"timeStyle"] intValue];
-    _dateFormat=[[coder decodeObjectForKey:@"NS.format"] retain];
+    _relative=[[attributes objectForKey:@"doesRelativeDateFormatting"] boolValue];
+    _lenient=[[attributes objectForKey:@"lenient"] boolValue];
+    _generatesCalendarDates=[[attributes objectForKey:@"generatesCalendarDates"] boolValue];
+    /* With a date or time style, NS.format is only the pattern the nib
+       editor showed: the styles make the format, for the locale the app
+       runs in (as the reference reads it). A pattern of its own is in
+       dateFormat, or in NS.format when there is no style. */
+    if([attributes objectForKey:@"dateFormat"]!=nil)
+     _dateFormat=[[attributes objectForKey:@"dateFormat"] copy];
+    else if(_dateStyle==NSDateFormatterNoStyle && _timeStyle==NSDateFormatterNoStyle)
+     _dateFormat=[[coder decodeObjectForKey:@"NS.format"] retain];
     _allowsNaturalLanguage=[coder decodeBoolForKey:@"NS.natural"];
     _tz = [[coder decodeObjectForKey:@"timeZone"] retain];
    }
@@ -208,6 +218,8 @@ static CFTypeRef copyCFValue(id value) {
      CFRelease(zone);
     }
     CFDateFormatterSetProperty(formatter,kCFDateFormatterIsLenient,_lenient?kCFBooleanTrue:kCFBooleanFalse);
+    if(_relative)
+     CFDateFormatterSetProperty(formatter,kCFDateFormatterDoesRelativeDateFormattingKey,kCFBooleanTrue);
     for(NSString *key in _properties){
      CFTypeRef value=copyCFValue([_properties objectForKey:key]);
      CFDateFormatterSetProperty(formatter,(CFStringRef)key,value);
@@ -342,14 +354,15 @@ static CFTypeRef copyCFValue(id value) {
    _generatesCalendarDates=value;
 }
 
-// Relative dates ("today") need what CFDateFormatter does not have: the
-// setting is kept, the dates are formatted as usual.
+// Relative dates ("Today", "Yesterday"), through CFDateFormatter (ICU's
+// relative styles).
 -(BOOL)doesRelativeDateFormatting {
    return _relative;
 }
 
 -(void)setDoesRelativeDateFormatting:(BOOL)value {
    _relative=value;
+   [self _invalidate];
 }
 
 -(NSFormattingContext)formattingContext {

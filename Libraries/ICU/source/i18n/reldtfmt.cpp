@@ -4,6 +4,7 @@
 *******************************************************************************
 * Copyright (C) 2007-2016, International Business Machines Corporation and
 * others. All Rights Reserved.
+* Modifications Copyright (c) 2026 The Minkar contributors
 *******************************************************************************
 */
 
@@ -543,6 +544,27 @@ void RelativeDateFormat::loadDates(UErrorCode &status) {
             }
 
             const char16_t *resStr = ures_getStringByIndex(dateTimePatterns.getAlias(), glueIndex, &resStrLen, &status);
+            // Minkar: the "atTime" combining patterns, as SimpleDateFormat
+            // takes them for compatibility with pre-CLDR-42 data, so a
+            // relative date joins its time as an absolute one does
+            // ("Today at 2:54 AM", as the reference prints it).
+            int32_t atTimeIndex = (fDateStyle & ~kRelative);
+            if (U_SUCCESS(status) && atTimeIndex >= static_cast<int32_t>(kFull) &&
+                atTimeIndex <= static_cast<int32_t>(kShort)) {
+                UErrorCode atTimeStatus = U_ZERO_ERROR;
+                LocalUResourceBundlePointer atTimePatterns(
+                    ures_getByKeyWithFallback(rb, "calendar/gregorian/DateTimePatterns%atTime",
+                                              nullptr, &atTimeStatus));
+                if (U_SUCCESS(atTimeStatus) && ures_getSize(atTimePatterns.getAlias()) >= 4) {
+                    int32_t atTimeLen = 0;
+                    const char16_t *atTimeStr = ures_getStringByIndex(atTimePatterns.getAlias(), atTimeIndex,
+                                                                      &atTimeLen, &atTimeStatus);
+                    if (U_SUCCESS(atTimeStatus)) {
+                        resStr = atTimeStr;
+                        resStrLen = atTimeLen;
+                    }
+                }
+            }
             if (U_SUCCESS(status) && resStrLen >= patItem1Len && u_strncmp(resStr,patItem1,patItem1Len)==0) {
                 fCombinedHasDateAtStart = true;
             }

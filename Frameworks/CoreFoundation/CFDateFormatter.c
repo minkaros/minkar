@@ -1112,7 +1112,27 @@ static CFStringRef __CFDateFormatterCreateForcedTemplate(CFLocaleRef locale, CFS
     return outString;
 }
 
+static CFStringRef __CFDateFormatterCreateForcedHourString(CFDateFormatterRef formatter, CFStringRef inString);
+
+/* Minkar: the newer locale data puts a narrow no-break space (U+202F)
+   between the time and AM/PM; the reference's formats (API 19 to 21) have
+   a plain space there, and apps compare and parse what they print. */
 static CFStringRef __CFDateFormatterCreateForcedString(CFDateFormatterRef formatter, CFStringRef inString) {
+    CFStringRef forced = __CFDateFormatterCreateForcedHourString(formatter, inString);
+    if (forced == NULL) return NULL;
+    CFIndex length = CFStringGetLength(forced);
+    CFMutableStringRef plain = NULL;
+    for (CFIndex i = 0; i < length; i++) {
+        if (CFStringGetCharacterAtIndex(forced, i) != 0x202F) continue;
+        if (plain == NULL) plain = CFStringCreateMutableCopy(kCFAllocatorSystemDefault, 0, forced);
+        CFStringReplace(plain, CFRangeMake(i, 1), CFSTR(" "));
+    }
+    if (plain == NULL) return forced;
+    CFRelease(forced);
+    return plain;
+}
+
+static CFStringRef __CFDateFormatterCreateForcedHourString(CFDateFormatterRef formatter, CFStringRef inString) {
     if (!inString) return NULL;
     
     UDateTimePatternMatchOptions options = UDATPG_MATCH_NO_OPTIONS;

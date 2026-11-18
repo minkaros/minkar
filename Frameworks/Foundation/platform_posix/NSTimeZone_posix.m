@@ -172,8 +172,14 @@ NSInteger sortTransitions(id trans1, id trans2, void *context) {
 {
     NSTimeZone *systemTimeZone = nil;
     NSString *timeZoneName;
+    const char *envTimeZoneName = getenv("TZ");
 
-    if ([[NSFileManager defaultManager] fileExistsAtPath:@"/etc/localtime"] == YES) {
+    /* The TZ environment variable first, as CoreFoundation and the
+       reference take it, then the system's /etc/localtime. */
+    if (envTimeZoneName != NULL && envTimeZoneName[0] != '\0')
+        systemTimeZone = [self timeZoneWithName:[NSString stringWithUTF8String:envTimeZoneName]];
+
+    if (systemTimeZone == nil && [[NSFileManager defaultManager] fileExistsAtPath:@"/etc/localtime"] == YES) {
         NSError *error;
         NSString *path = [[NSFileManager defaultManager] destinationOfSymbolicLinkAtPath:@"/etc/localtime" error:&error];
 
@@ -197,14 +203,6 @@ NSInteger sortTransitions(id trans1, id trans2, void *context) {
         }
     }
 
-    if (systemTimeZone == nil) {
-        //try to use TZ environment variable
-        const char *envTimeZoneName = getenv("TZ");
-
-        if (envTimeZoneName != NULL) {
-            systemTimeZone = [self timeZoneWithName:[NSString stringWithCString:envTimeZoneName]];
-        }
-    }
 
     if (systemTimeZone == nil) {
         NSString *abbreviation;
