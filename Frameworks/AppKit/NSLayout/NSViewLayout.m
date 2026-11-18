@@ -6,6 +6,7 @@
 #import "NSLayoutInternal.h"
 #import <AppKit/NSControl.h>
 #import <AppKit/NSCell.h>
+#import <AppKit/NSButton.h>
 #import <objc/runtime.h>
 
 const CGFloat NSViewNoIntrinsicMetric=-1;
@@ -331,7 +332,10 @@ static NSLayoutPriority defaultHugging(NSView *view,NSLayoutConstraintOrientatio
     return NSLayoutPriorityDefaultLow;
    if([view isKindOfClass:popUp] || [view isKindOfClass:progress])
     return NSLayoutPriorityDefaultHigh;
-   if([view isKindOfClass:button] || [view isKindOfClass:imageView] || [view isKindOfClass:colorWell])
+   /* A push button's rounded bezel has a height of its own. */
+   if([view isKindOfClass:button])
+    return ([(NSButton *)view isBordered] && [(NSButton *)view bezelStyle]==NSBezelStyleRounded)?NSLayoutPriorityDefaultHigh:NSLayoutPriorityDefaultLow;
+   if([view isKindOfClass:imageView] || [view isKindOfClass:colorWell])
     return NSLayoutPriorityDefaultLow;
    if([view isKindOfClass:[NSControl class]])
     return NSLayoutPriorityDefaultHigh;
