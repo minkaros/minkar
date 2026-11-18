@@ -462,7 +462,9 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 
 -(NSArray *)windows {
-   return _windows;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_windows copy] autorelease];
 }
 
 -(NSWindow *)windowWithWindowNumber:(NSInteger)number {

@@ -47,6 +47,15 @@ NSString * const NSBackgroundColorDocumentAttribute=@"NSBackgroundColorDocumentA
 NSString * const NSTitleDocumentAttribute=@"NSTitleDocumentAttribute";
 NSString * const NSDocumentTypeDocumentAttribute=@"DocumentType";
 NSString * const NSHTMLTextDocumentType=@"NSHTML";
+NSString * const NSPlainTextDocumentType=@"NSPlainText";
+NSString * const NSRTFTextDocumentType=@"NSRTF";
+NSString * const NSRTFDTextDocumentType=@"NSRTFD";
+NSString * const NSMacSimpleTextDocumentType=@"NSMacSimpleText";
+NSString * const NSDocFormatTextDocumentType=@"NSDocFormat";
+NSString * const NSWordMLTextDocumentType=@"NSWordML";
+NSString * const NSWebArchiveTextDocumentType=@"NSWebArchive";
+NSString * const NSOfficeOpenXMLTextDocumentType=@"NSOfficeOpenXML";
+NSString * const NSOpenDocumentTextDocumentType=@"NSOpenDocument";
 NSString * const NSBaseURLDocumentOption=@"BaseURL";
 NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; // temporary attribute
 

@@ -39,6 +39,15 @@ APPKIT_EXPORT NSString *const NSBackgroundColorDocumentAttribute;
 APPKIT_EXPORT NSString *const NSTitleDocumentAttribute;
 APPKIT_EXPORT NSString *const NSDocumentTypeDocumentAttribute;
 APPKIT_EXPORT NSString *const NSHTMLTextDocumentType;
+APPKIT_EXPORT NSString *const NSPlainTextDocumentType;
+APPKIT_EXPORT NSString *const NSRTFTextDocumentType;
+APPKIT_EXPORT NSString *const NSRTFDTextDocumentType;
+APPKIT_EXPORT NSString *const NSMacSimpleTextDocumentType;
+APPKIT_EXPORT NSString *const NSDocFormatTextDocumentType;
+APPKIT_EXPORT NSString *const NSWordMLTextDocumentType;
+APPKIT_EXPORT NSString *const NSWebArchiveTextDocumentType;
+APPKIT_EXPORT NSString *const NSOfficeOpenXMLTextDocumentType;
+APPKIT_EXPORT NSString *const NSOpenDocumentTextDocumentType;
 APPKIT_EXPORT NSString *const NSBaseURLDocumentOption;
 
 APPKIT_EXPORT NSString *const NSSpellingStateAttributeName;

@@ -1105,6 +1105,11 @@ static char representedURLKey;
        newFrame.size.height = MIN(NSHeight(newFrame), [self maxSize].height);
     }
 
+    /* A negative size (an app's arithmetic, or its limits, can give one)
+       makes the whole frame empty, as on the reference (measured there). */
+    if (!(NSWidth(newFrame) >= 0) || !(NSHeight(newFrame) >= 0))
+       newFrame = NSZeroRect;
+
     BOOL didSize=NSEqualSizes(newFrame.size,_frame.size)?NO:YES;
     BOOL didMove=NSEqualPoints(newFrame.origin,_frame.origin)?NO:YES;
 
@@ -1178,6 +1183,14 @@ static char representedURLKey;
 }
 
 -(void)setMinSize:(NSSize)size {
+   /* A negative minimum is the frame's own around no content (its title
+      bar), as on the reference (measured there: 22 for a titled window). */
+   NSSize frameOnly=[self frameRectForContentRect:NSZeroRect].size;
+
+   if(size.width<0)
+    size.width=frameOnly.width;
+   if(size.height<0)
+    size.height=frameOnly.height;
    _minSize=size;
 }
 
@@ -1894,7 +1907,9 @@ static char titlebarSeparatorKey;
 }
 
 -(NSArray *)childWindows {
-   return _childWindows;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_childWindows copy] autorelease];
 }
 
 /*

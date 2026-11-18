@@ -322,7 +322,9 @@ const float NSTableViewDefaultRowHeight=16.0f;
 }
 
 -(NSArray *)tableColumns {
-   return _tableColumns;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_tableColumns copy] autorelease];
 }
 
 -(NSInteger)columnWithIdentifier:(id)identifier {

@@ -812,7 +812,9 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(NSArray *)subviews {
-   return _subviews;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_subviews copy] autorelease];
 }
 
 -(BOOL)autoresizesSubviews {

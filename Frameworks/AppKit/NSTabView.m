@@ -248,7 +248,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSArray *)tabViewItems {
-    return _items;
+    /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_items copy] autorelease];
 }
 
 -(NSTabViewItem *)tabViewItemAtIndex:(NSInteger)index {

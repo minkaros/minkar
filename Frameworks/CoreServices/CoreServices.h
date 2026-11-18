@@ -24,4 +24,5 @@
 #include <CoreServices/LSItemInfo.h>
 #include <CoreServices/UnicodeUtilities.h>
 #include <CoreServices/DateTimeUtils.h>
+#include <CoreServices/BackupCore.h>
 #include <CoreServices/Metadata.h>

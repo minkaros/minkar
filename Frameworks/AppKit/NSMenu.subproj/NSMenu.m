@@ -220,7 +220,9 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 }
 
 -(NSArray *)itemArray {
-   return _itemArray;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_itemArray copy] autorelease];
 }
 
 -(void)_setItemArray:itemArray {

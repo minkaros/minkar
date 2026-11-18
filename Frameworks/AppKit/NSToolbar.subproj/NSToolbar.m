@@ -171,7 +171,9 @@ NSString * const NSToolbarChangeAppearanceNotification = @"__NSToolbarChangeAppe
 
 -(NSArray *)items {
    [self loadDefaultItemsIfNeeded];
-   return _items;
+   /* A copy, as the reference gives it: callers change the list while
+      going through it (Transmission takes items out of a menu so). */
+   return [[_items copy] autorelease];
 } 
 
 -(NSArray *)visibleItems {
