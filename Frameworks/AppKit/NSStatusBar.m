@@ -53,6 +53,7 @@
     NSStatusBar *_bar;
     NSMutableDictionary *_options;   /* pid to options */
     pid_t _front;
+    BOOL _hidden;                    /* the items are hidden now */
 }
 @end
 
@@ -62,6 +63,10 @@
     NSUInteger options = [[_options objectForKey:[NSNumber numberWithInt:_front]] unsignedIntegerValue];
     BOOL hidden = (options & (NSApplicationPresentationHideMenuBar | NSApplicationPresentationAutoHideMenuBar)) != 0;
 
+    /* Only a change moves the items' windows. */
+    if(hidden == _hidden)
+        return;
+    _hidden = hidden;
     for(NSStatusItem *item in [_bar _statusItems])
         [item _setHiddenByPresentation:hidden];
 }

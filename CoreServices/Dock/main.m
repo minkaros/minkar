@@ -24,6 +24,7 @@
     NSArray<NSValue *> *_desktopFrames;
     NSMutableDictionary<NSNumber *, NSNumber *> *_presentationOptions;  /* pid to its options */
     pid_t _frontPID;
+    NSUInteger _appliedOptions;   /* what the Dock and the backdrops follow now */
 }
 
 /* The front app's presentation options (NSApplication's
@@ -62,6 +63,11 @@
 - (void)applyPresentationOptions
 {
     NSUInteger options = [_presentationOptions[@(_frontPID)] unsignedIntegerValue];
+    /* Only a change moves windows: ordering the Dock and the backdrops
+       front at every activation put them over panels and drags. */
+    if (options == _appliedOptions)
+        return;
+    _appliedOptions = options;
     BOOL hideDock = (options & (1 << 1)) != 0;          /* HideDock */
     BOOL autohideDock = (options & (1 << 0)) != 0;      /* AutoHideDock */
     BOOL hideBar = (options & ((1 << 2) | (1 << 3))) != 0;  /* AutoHideMenuBar, HideMenuBar */
