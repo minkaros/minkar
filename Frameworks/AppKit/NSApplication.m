@@ -524,6 +524,26 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    return _keyWindow;
 }
 
+/* The frontmost visible window of the app that can be key (and main) other
+   than the one given: key and main, as the reference does when the key
+   window goes away or none was made key. */
+-(void)_makeFrontWindowKeyExcept:(NSWindow *)except {
+   NSWindow *key=nil,*main=nil;
+
+   for(NSWindow *window in [self orderedWindows]){
+    if(window==except || ![window isVisible] || [window isMiniaturized])
+     continue;
+    if(key==nil && [window canBecomeKeyWindow])
+     key=window;
+    if(main==nil && [window canBecomeMainWindow])
+     main=window;
+   }
+   if(main!=nil && _mainWindow==nil)
+    [main makeMainWindow];
+   if(key!=nil && _keyWindow==nil)
+    [key makeKeyWindow];
+}
+
 -(void)_setKeyWindow:(NSWindow *)window {
    _keyWindow=window;
 }
@@ -1049,6 +1069,11 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    [self _addFullScreenItem];
    [self _addWindowAlternates];
    [self _noteRecentApplication];
+   /* A window shown at launch with none made key (a nib's window visible
+      at launch): the frontmost one becomes key and main, as on the
+      reference. */
+   if(_keyWindow==nil)
+    [self _makeFrontWindowKeyExcept:nil];
    [pool release];
 }
 

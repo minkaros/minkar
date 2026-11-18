@@ -109,6 +109,7 @@ const float WSWindowEdgePad = 2;
 @interface NSApplication(private)
 -(void)_setMainWindow:(NSWindow *)window;
 -(void)_setKeyWindow:(NSWindow *)window;
+-(void)_makeFrontWindowKeyExcept:(NSWindow *)except;
 @end
 
 @interface _NSKeyViewPosition : NSObject {
@@ -2569,6 +2570,20 @@ static void sendAppearance(NSView *view,SEL selector) {
     case NSWindowOut:
      _isVisible=NO;
      [self _updateWSState];
+     /* The key or main window going: the app's next window takes its
+        place, as on the reference. */
+     if([NSApp keyWindow]==self || [NSApp mainWindow]==self){
+      if([NSApp keyWindow]==self){
+       [self resignKeyWindow];
+       [NSApp _setKeyWindow:nil];
+      }
+      if([NSApp mainWindow]==self){
+       [self resignMainWindow];
+       [NSApp _setMainWindow:nil];
+      }
+      if([NSApp isActive])
+       [NSApp _makeFrontWindowKeyExcept:self];
+     }
      if (![self isKindOfClass:[NSPanel class]]) {
        [NSApp removeWindowsItem:self];
      }

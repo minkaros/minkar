@@ -641,6 +641,8 @@ isApplication(const char *path)
 	    S_ISDIR(st.st_mode);
 }
 
+static OSStatus openFromSpec(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef inArguments, CFURLRef *outLaunchedURL);
+
 OSStatus
 LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 {
@@ -651,12 +653,46 @@ OSStatus
 LSOpenFromURLSpecWithArguments(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef inArguments,
     CFURLRef *outLaunchedURL)
 {
-	char path[1024];
-
 	if (outLaunchedURL != NULL)
 		*outLaunchedURL = NULL;
 	if (inLaunchSpec == NULL)
 		return kLSDataErr;
+
+	/* Files reach the application by their real paths, links resolved
+	   (/tmp/x is /private/tmp/x), as on the reference. */
+	CFArrayRef items = inLaunchSpec->itemURLs;
+	CFMutableArrayRef resolved = NULL;
+	if (items != NULL) {
+		resolved = CFArrayCreateMutable(NULL, CFArrayGetCount(items), &kCFTypeArrayCallBacks);
+		for (CFIndex i = 0; i < CFArrayGetCount(items); i++) {
+			CFURLRef item = CFArrayGetValueAtIndex(items, i);
+			char given[1024], real[1024];
+			CFURLRef replacement = NULL;
+			CFStringRef scheme = CFURLCopyScheme(item);
+			Boolean isFile = scheme != NULL && CFStringCompare(scheme, CFSTR("file"), kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+			if (scheme != NULL)
+				CFRelease(scheme);
+			if (isFile && CFURLGetFileSystemRepresentation(item, true, (UInt8 *)given, sizeof(given)) &&
+			    realpath(given, real) != NULL && strcmp(given, real) != 0)
+				replacement = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)real, strlen(real),
+				    CFURLHasDirectoryPath(item));
+			CFArrayAppendValue(resolved, replacement != NULL ? replacement : item);
+			if (replacement != NULL)
+				CFRelease(replacement);
+		}
+	}
+	LSLaunchURLSpec spec = *inLaunchSpec;
+	spec.itemURLs = resolved;
+	OSStatus status = openFromSpec(&spec, inArguments, outLaunchedURL);
+	if (resolved != NULL)
+		CFRelease(resolved);
+	return status;
+}
+
+static OSStatus
+openFromSpec(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef inArguments, CFURLRef *outLaunchedURL)
+{
+	char path[1024];
 	if (inLaunchSpec->appURL != NULL) {
 		if (!copyPath(inLaunchSpec->appURL, path))
 			return kLSDataErr;
