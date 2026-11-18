@@ -2,6 +2,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  */
+#include <cmath>
 #include "NSLayoutSolver.h"
 #include <kiwi/kiwi.h>
 #include <string>
@@ -56,12 +57,19 @@ double NSLayoutSolverRequired(void) {
    return kiwi::strength::required;
 }
 
+/* A priority's weight in the solver. The reference meets a higher
+   priority before any number of lower ones: a window held at 500 is not
+   pulled narrower by a dozen labels hugging at 250. The solver adds up
+   weighted errors, so the weight grows exponentially with the priority,
+   about 170 times for every 250, staying under required at 999. A
+   linear weight (priority * 1000) let ten labels at 249 outweigh a
+   window's 500 and shrink Transmission's inspector to its minimum. */
 double NSLayoutSolverStrength(double priority) {
    if(priority>=1000)
     return kiwi::strength::required;
    if(priority<=0)
     return 0;
-   return kiwi::strength::create(0,priority,0);
+   return pow(10,priority*8.9/1000);
 }
 
 int NSLayoutSolverVariableCount(NSLayoutSolver *solver) {

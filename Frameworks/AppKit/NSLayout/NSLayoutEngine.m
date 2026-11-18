@@ -658,6 +658,40 @@ void NSLayoutEngineLayout(NSView *root) {
     if(getenv("NSLayoutDebug")!=NULL)
      NSLog(@"layout solve: %lu views, %lu required constraints, %.1f ms",(unsigned long)[pass->views count],(unsigned long)pass->requiredCount,([NSDate timeIntervalSinceReferenceDate]-start)*1000);
 
+    if(getenv("NSLayoutDebug")!=NULL)
+     NSLog(@"layout root %@ frame view=%d frame=%@ solved=%gx%g window=%@",[root class],isWindowFrameView(root),
+      NSStringFromRect([root frame]),value(pass,root,WIDTH),value(pass,root,HEIGHT),[[root window] title]);
+    /* NSLayoutDebug=2: the constraints the solution does not meet, with
+       their strengths and the items they name; 3 also the required ones
+       relating widths, 4 also those of one width alone. */
+    if(getenv("NSLayoutDebug")!=NULL && atoi(getenv("NSLayoutDebug"))>=2){
+     static const char *names[4]={"left","top","width","height"};
+     NSMapEnumerator items;
+     id               item;
+     NSNumber        *first;
+
+     for(NSUInteger n=0;n<pass->pendingCount;n++){
+      struct pendingConstraint *c=&pass->pending[n];
+      double lhs=c->e.constant;
+      NSMutableString *terms=[NSMutableString string];
+
+      for(int t=0;t<c->e.count;t++){
+       int var=c->e.variables[t];
+       lhs+=c->e.coefficients[t]*NSLayoutSolverValue(pass->solver,var);
+       items=NSEnumerateMapTable(pass->items);
+       while(NSNextMapEnumeratorPair(&items,(void **)&item,(void **)&first))
+        if(var>=[first intValue] && var<[first intValue]+4)
+         [terms appendFormat:@" %+g*%@<%p>.%s(=%g)",c->e.coefficients[t],[item class],item,names[var-[first intValue]],NSLayoutSolverValue(pass->solver,var)];
+       NSEndMapTableEnumeration(&items);
+      }
+      BOOL met=(c->op==NSLayoutSolverEqual)?fabs(lhs)<0.5:(c->op==NSLayoutSolverLessOrEqual)?lhs<0.5:lhs>-0.5;
+      if(!met)
+       NSLog(@"unmet op=%d strength=%g const=%g lhs=%g:%@",c->op,c->strength,c->e.constant,lhs,terms);
+      else if(c->required && atoi(getenv("NSLayoutDebug"))>=3 && [terms rangeOfString:@".width"].location!=NSNotFound && (c->e.count>1 || atoi(getenv("NSLayoutDebug"))>=4))
+       NSLog(@"required op=%d const=%g what=%@:%@",c->op,c->e.constant,[c->what isKindOfClass:[NSView class]]?[NSString stringWithFormat:@"mask %#lx of %@",(unsigned long)[(NSView *)c->what autoresizingMask],[c->what class]]:c->what,terms);
+     }
+    }
+
     // The window to the size its content asked for, its top left kept.
     if(isWindowFrameView(root)){
      NSRect  frame=[[root window] frame];
