@@ -7,57 +7,55 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSObjectController.h>
 
-@class NSIndexPath;
+@class NSIndexPath, NSTreeNode, NSArray, NSSortDescriptor;
 
-@interface NSTreeController : NSObjectController <NSCoding, NSCopying> {
-}
+/* A controller of a tree of objects (API 10.4, nodes since 10.5): each
+   object's children at childrenKeyPath, its arranged objects a tree of
+   NSTreeNode, selected by index paths. */
+@interface NSTreeController : NSObjectController <NSCoding>
 
-#if 0
--content;
--(NSString *)countKeyPath;
--(NSString *)childrenKeyPath;
--(NSString *)leafKeyPath;
--(NSArray *)sortDescriptors;
--(BOOL)alwaysUsesMultipleValuesMarker;
--(BOOL)avoidsEmptySelection;
--(BOOL)selectsInsertedObjects;
--(BOOL)preservesSelection;
+@property (copy) NSString *childrenKeyPath;
+@property (copy) NSString *countKeyPath;
+@property (copy) NSString *leafKeyPath;
+- (void)setLeafPathKey:(NSString *)key;   /* the older name */
+@property (copy) NSArray *sortDescriptors;
+@property BOOL alwaysUsesMultipleValuesMarker;
+@property BOOL avoidsEmptySelection;
+@property BOOL selectsInsertedObjects;
+@property BOOL preservesSelection;
 
--(void)setContent:content;
--(void)setCountKeyPath:(NSString *)path;
--(void)setChildrenKeyPath:(NSString *)path;
--(void)setLeafPathKey:(NSString *)key;
--(void)setSortDescriptors:(NSArray *)descriptors;
--(void)setAlwaysUsesMultipleValuesMarker:(BOOL)flag;
--(void)setAvoidsEmptySelection:(BOOL)flag;
--(void)setSelectsInsertedObjects:(BOOL)flag;
--(void)setPreservesSelection:(BOOL)flag;
+/* The root of the arranged tree: no represented object, the content's
+   objects as its children. */
+- (id)arrangedObjects;
+- (void)rearrangeObjects;
 
--(void)insertObject:object atArrangedObjectIndexPath:(NSIndexPath *)indexPath;
--(void)insertObjects:(NSArray *)objects atArrangedObjectIndexPaths:(NSArray *)indexPaths;
--(void)removeObjectAtArrangedObjectIndexPath:(NSIndexPath *)indexPath;
--(void)removeObjectsAtArrangedObjectIndexPaths:(NSArray *)indexPaths;
+- (void)insertObject:(id)object atArrangedObjectIndexPath:(NSIndexPath *)indexPath;
+- (void)insertObjects:(NSArray *)objects atArrangedObjectIndexPaths:(NSArray *)indexPaths;
+- (void)removeObjectAtArrangedObjectIndexPath:(NSIndexPath *)indexPath;
+- (void)removeObjectsAtArrangedObjectIndexPaths:(NSArray *)indexPaths;
+- (void)moveNode:(NSTreeNode *)node toIndexPath:(NSIndexPath *)indexPath;
+- (void)moveNodes:(NSArray *)nodes toIndexPath:(NSIndexPath *)startingIndexPath;
 
--arrangedObjects;
--(void)rearrangeObjects;
+- (NSArray *)selectedObjects;
+@property (readonly, copy) NSArray *selectedNodes;
+- (NSIndexPath *)selectionIndexPath;
+- (NSArray *)selectionIndexPaths;
+- (BOOL)setSelectionIndexPath:(NSIndexPath *)indexPath;
+- (BOOL)setSelectionIndexPaths:(NSArray *)indexPaths;
+- (BOOL)addSelectionIndexPaths:(NSArray *)indexPaths;
+- (BOOL)removeSelectionIndexPaths:(NSArray *)indexPaths;
 
--(NSArray *)selectedObjects;
--(NSIndexPath *)selectionIndexPath;
--(NSArray *)selectionIndexPaths;
+- (BOOL)canInsert;
+- (BOOL)canAddChild;
+- (BOOL)canInsertChild;
+- (void)add:(id)sender;
+- (void)addChild:(id)sender;
+- (void)insert:(id)sender;
+- (void)insertChild:(id)sender;
+- (void)remove:(id)sender;
 
--(BOOL)addSelectionIndexPaths:(NSArray *)indexPaths;
--(void)removeSelectionIndexPaths:(NSArray *)indexPaths;
--(BOOL)setSelectionIndexPath:(NSIndexPath *)indexPath;
--(BOOL)setSelectionIndexPaths:(NSArray *)indexPaths;
-
--(BOOL)canAddChid;
--(BOOL)canInsert;
--(BOOL)canInsertChild;
--(void)add:sender;
--(void)addChild:sender;
--(void)insert:sender;
--(void)insertChild:sender;
--(void)remove:sender;
-#endif
+- (NSString *)childrenKeyPathForNode:(NSTreeNode *)node;
+- (NSString *)countKeyPathForNode:(NSTreeNode *)node;
+- (NSString *)leafKeyPathForNode:(NSTreeNode *)node;
 
 @end

@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTableRowView.h>
 #import <sys/param.h>
 #import <AppKit/NSOutlineView.h>
+#import "NSKeyValueBinding/NSObject+BindingSupport.h"
+#import <objc/runtime.h>
 #import <AppKit/NSInterfaceStyle.h>
 #import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSImage.h>
@@ -62,6 +64,92 @@ NSString * const NSOutlineViewSelectionIsChangingNotification=@"NSOutlineViewSel
 -(void)_delegateDidRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
 @end
 
+/* An outline view with no data source whose content is bound (to a tree
+   controller's arranged objects): its items are the tree's nodes, a
+   column's value its value binding's key path (after arrangedObjects) on
+   the node's object, as on the reference. */
+@interface _NSOutlineTreeAdapter : NSObject {
+@public
+    NSOutlineView *_outline;   /* not retained: the outline holds this */
+}
+@end
+
+@implementation _NSOutlineTreeAdapter
+
+- (id)_root {
+    id binder = [_outline _binderForBinding:@"content"];
+    id destination = [binder valueForKey:@"destination"];
+    NSString *keyPath = [binder valueForKey:@"keyPath"];
+
+    return (destination != nil && keyPath != nil) ? [destination valueForKeyPath:keyPath] : nil;
+}
+
+- (NSArray *)_childrenOf:(id)item {
+    id node = item != nil ? item : [self _root];
+
+    return [node respondsToSelector:@selector(childNodes)] ? [node childNodes] : nil;
+}
+
+- (NSInteger)outlineView:(NSOutlineView *)outline numberOfChildrenOfItem:(id)item {
+    return [[self _childrenOf:item] count];
+}
+
+- (id)outlineView:(NSOutlineView *)outline child:(NSInteger)index ofItem:(id)item {
+    NSArray *children = [self _childrenOf:item];
+
+    return index < (NSInteger)[children count] ? [children objectAtIndex:index] : nil;
+}
+
+- (BOOL)outlineView:(NSOutlineView *)outline isItemExpandable:(id)item {
+    return [item respondsToSelector:@selector(isLeaf)] ? ![item isLeaf] : NO;
+}
+
+static NSString *columnValueKeyPath(NSTableColumn *column) {
+    id binder = [column _binderForBinding:@"value"];
+    NSString *keyPath = [binder valueForKey:@"keyPath"];
+    NSRange dot;
+
+    if(keyPath == nil)
+        return nil;
+    dot = [keyPath rangeOfString:@"."];
+    return dot.location != NSNotFound ? [keyPath substringFromIndex:NSMaxRange(dot)] : nil;
+}
+
+- (id)outlineView:(NSOutlineView *)outline objectValueForTableColumn:(NSTableColumn *)column byItem:(id)item {
+    NSString *keyPath = columnValueKeyPath(column);
+    id object = [item respondsToSelector:@selector(representedObject)] ? [item representedObject] : item;
+
+    return keyPath != nil ? [object valueForKeyPath:keyPath] : nil;
+}
+
+- (void)outlineView:(NSOutlineView *)outline setObjectValue:(id)value forTableColumn:(NSTableColumn *)column byItem:(id)item {
+    NSString *keyPath = columnValueKeyPath(column);
+    id object = [item respondsToSelector:@selector(representedObject)] ? [item representedObject] : item;
+
+    if(keyPath != nil)
+        [object setValue:value forKeyPath:keyPath];
+}
+
+@end
+
+static char treeAdapterKey;
+
+/* The data source, or the bound content's adapter. */
+static id outlineSource(NSOutlineView *self) {
+    id source = [self dataSource];
+    _NSOutlineTreeAdapter *adapter;
+
+    if(source != nil || [self _binderForBinding:@"content"] == nil)
+        return source;
+    adapter = objc_getAssociatedObject(self, &treeAdapterKey);
+    if(adapter == nil) {
+        adapter = [[[_NSOutlineTreeAdapter alloc] init] autorelease];
+        adapter->_outline = self;
+        objc_setAssociatedObject(self, &treeAdapterKey, adapter, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return adapter;
+}
+
 @implementation NSOutlineView
 
 static inline BOOL isItemExpanded(NSOutlineView *self,id item){
@@ -74,7 +162,7 @@ static inline NSInteger numberOfChildrenOfItemAndReload(NSOutlineView *self,id i
    if(!reload)
     result=(int)NSMapGet(self->_itemToNumberOfChildren,item);
    else {
-    result=[self->_dataSource outlineView:self numberOfChildrenOfItem:item];
+    result=[outlineSource(self) outlineView:self numberOfChildrenOfItem:item];
 
     NSMapInsert(self->_itemToNumberOfChildren,item,(void *)result);
    }
@@ -85,14 +173,14 @@ static inline NSInteger numberOfChildrenOfItemAndReload(NSOutlineView *self,id i
 static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
 #if 1
    //NSLog(@"%s %d",__FILE__,__LINE__);
-   id result=[self->_dataSource outlineView:self child:index ofItem:item];
+   id result=[outlineSource(self) outlineView:self child:index ofItem:item];
 
    //NSLog(@"item %@ child %d = %@",item,index,result);
 
    return result;
 #else // broken
    if(item==nil)
-    return [self->_dataSource outlineView:self child:index ofItem:item];
+    return [outlineSource(self) outlineView:self child:index ofItem:item];
    else {
     int row=(int)NSMapGet(self->_itemToRow,item);
 
@@ -201,7 +289,7 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
 
 - (BOOL)isExpandable:(id)item
 {
-    return [_dataSource outlineView:self isItemExpandable:item];
+    return [outlineSource(self) outlineView:self isItemExpandable:item];
 }
 
 -(NSInteger)levelForItem:(id)item {
@@ -294,7 +382,7 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
         int i,numberOfChildren=numberOfChildrenOfItemAndReload(self,item,YES);
 
         for (i = 0; i < numberOfChildren; ++i) {
-            id child = [_dataSource outlineView:self child:i ofItem:item];
+            id child = [outlineSource(self) outlineView:self child:i ofItem:item];
 
             if([self _delayResizeButExpandItem:child expandChildren:YES])
              noteNumberOfRowsChanged=YES;
@@ -305,8 +393,8 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
 }
 
 -_objectValueForTableColumn:(NSTableColumn *)column byItem:(id)item {
-   if([_dataSource respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)])
-    return [_dataSource outlineView:self objectValueForTableColumn:column byItem:item];
+   if([outlineSource(self) respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)])
+    return [outlineSource(self) outlineView:self objectValueForTableColumn:column byItem:item];
 
 // FIXME: Does it actually send this to the delegate too?
    if([_delegate respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)])
@@ -395,7 +483,7 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
         int i,numberOfChildren=numberOfChildrenOfItemAndReload(self,item,YES);
 
         for (i = 0; i < numberOfChildren; ++i) {
-            id child = [_dataSource outlineView:self child:i ofItem:item];
+            id child = [outlineSource(self) outlineView:self child:i ofItem:item];
 
             [self collapseItem:child collapseChildren:YES];
         }
@@ -506,7 +594,7 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
     int i,numberOfChildren=numberOfChildrenOfItemAndReload(self,item,YES);
 
     for (i = 0; i < numberOfChildren; ++i) {
-        id child = [self->_dataSource outlineView:self child:i ofItem:item];
+        id child = [outlineSource(self) outlineView:self child:i ofItem:item];
 
         NSHashRemove(removeItems,child);
 
@@ -794,7 +882,7 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
 }
 
 -(BOOL)_dataSourceHasObjectValues {
-   return [_dataSource respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)];
+   return [outlineSource(self) respondsToSelector:@selector(outlineView:objectValueForTableColumn:byItem:)];
 }
 
 -(void)_delegateDidAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
@@ -883,17 +971,17 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
 
 -(BOOL)dataSourceCanSetObjectValue
 {
-    return [_dataSource respondsToSelector:@selector(outlineView:setObjectValue:forTableColumn:byItem:)];
+    return [outlineSource(self) respondsToSelector:@selector(outlineView:setObjectValue:forTableColumn:byItem:)];
 }
 
 -(void)dataSourceSetObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
-    [_dataSource outlineView:self setObjectValue:object forTableColumn:tableColumn byItem:[self itemAtRow:row]];
+    [outlineSource(self) outlineView:self setObjectValue:object forTableColumn:tableColumn byItem:[self itemAtRow:row]];
 }
 
 -(id)dataSourceObjectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
-    return [_dataSource outlineView:self objectValueForTableColumn:tableColumn byItem:[self itemAtRow:row]];
+    return [outlineSource(self) outlineView:self objectValueForTableColumn:tableColumn byItem:[self itemAtRow:row]];
 }
 
 -(void)_willDisplayCell:(NSCell *)cell forTableColumn:(NSTableColumn *)column row:(NSInteger)row {
