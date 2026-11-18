@@ -1263,8 +1263,37 @@ static NSURL *fileURL(NSString *path) {
 }
 
 - (NSURL *)bundleURL { return directoryURL([self bundlePath]); }
-- (NSURL *)resourceURL { return directoryURL([self resourcePath]); }
-- (NSURL *)executableURL { return fileURL([self executablePath]); }
+/* As the reference makes them: the resources' directory relative to the
+   bundle ("Contents/Resources/ -- file:///x.app/"), the executable relative
+   to its directory, and each of the resources a directory lists relative
+   to that directory; their paths are the full ones. */
+static NSURL *relativeURL(NSString *component, BOOL isDirectory, NSURL *base) {
+    NSString *escaped = [component stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+
+    if (escaped == nil || base == nil)
+        return nil;
+    if (isDirectory && ![escaped hasSuffix:@"/"])
+        escaped = [escaped stringByAppendingString:@"/"];
+    return [NSURL URLWithString:escaped relativeToURL:base];
+}
+static NSURL *resourceInDirectoryURL(NSString *path) {
+    NSURL *url = relativeURL([path lastPathComponent], NO, directoryURL([path stringByDeletingLastPathComponent]));
+
+    return (url != nil) ? url : fileURL(path);
+}
+- (NSURL *)resourceURL {
+    NSString *bundle = [self bundlePath], *resources = [self resourcePath];
+    NSURL *url = nil;
+
+    if ([resources hasPrefix:[bundle stringByAppendingString:@"/"]])
+        url = relativeURL([resources substringFromIndex:[bundle length] + 1], YES, directoryURL(bundle));
+    return (url != nil) ? url : directoryURL(resources);
+}
+- (NSURL *)executableURL {
+    NSString *path = [self executablePath];
+
+    return (path != nil) ? resourceInDirectoryURL(path) : nil;
+}
 - (NSURL *)privateFrameworksURL { return directoryURL([self privateFrameworksPath]); }
 - (NSURL *)sharedFrameworksURL { return directoryURL([self sharedFrameworksPath]); }
 - (NSURL *)sharedSupportURL { return directoryURL([self sharedSupportPath]); }
@@ -1282,7 +1311,7 @@ static NSURL *fileURL(NSString *path) {
 - (NSArray *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath {
     NSMutableArray *urls = [NSMutableArray array];
     for (NSString *path in [self pathsForResourcesOfType:ext inDirectory:subpath])
-        [urls addObject:[NSURL fileURLWithPath:path]];
+        [urls addObject:resourceInDirectoryURL(path)];
     return urls;
 }
 
@@ -1290,7 +1319,7 @@ static NSURL *fileURL(NSString *path) {
                            localization:(NSString *)localizationName {
     NSMutableArray *urls = [NSMutableArray array];
     for (NSString *path in [self pathsForResourcesOfType:ext inDirectory:subpath forLocalization:localizationName])
-        [urls addObject:[NSURL fileURLWithPath:path]];
+        [urls addObject:resourceInDirectoryURL(path)];
     return urls;
 }
 

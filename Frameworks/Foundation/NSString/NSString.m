@@ -2142,3 +2142,22 @@ static NSString *NSStringMapCase(NSString *self, int mapping) {
 }
 
 @end
+
+/* A nib's localizable string (newer nib compilers archive text with its
+   localization key, NSKey, and a comment, NSDev): decoded, the string
+   itself. */
+@interface NSLocalizableString : NSString
+@end
+
+@implementation NSLocalizableString
+
+-initWithCoder:(NSCoder *)coder {
+   NSString *string=nil;
+
+   if([coder allowsKeyedCoding])
+    string=[coder decodeObjectForKey:@"NS.string"];
+   [self release];
+   return [[NSString alloc] initWithString:(string!=nil)?string:@""];
+}
+
+@end

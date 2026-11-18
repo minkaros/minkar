@@ -16,6 +16,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSPersistantDomain_posix.h"
 #import <Foundation/NSPropertyList.h>
 #import <Foundation/NSData.h>
+#import <Foundation/NSException.h>
+#import <Foundation/NSAutoreleasePool.h>
+#include <dispatch/dispatch.h>
 
 @implementation NSPersistantDomain_posix
 
@@ -50,7 +53,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSArray *)allKeys {
-    return [_mutableDomain allKeys];
+    @synchronized(self) {
+        return [_mutableDomain allKeys];
+    }
 }
 
 -(NSEnumerator *)keyEnumerator {
@@ -58,17 +63,60 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -objectForKey:(NSString *)key {
-    return [_mutableDomain objectForKey:key];
+    @synchronized(self) {
+        return [[[_mutableDomain objectForKey:key] retain] autorelease];
+    }
+}
+
+/* A change reaches the file soon after it is made, on a queue of its own,
+   as the reference's preferences daemon has it at once: a process that
+   ends without synchronizing (killed, or one that never calls it, as the
+   API no longer asks) keeps it. Changes made together are written once. */
+static dispatch_queue_t writeQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t once;
+
+    dispatch_once(&once, ^{
+        queue = dispatch_queue_create("org.minkar.Foundation.preferences", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+-(void)_scheduleWrite {
+    @synchronized(self) {
+        if (_writeScheduled)
+            return;
+        _writeScheduled = YES;
+    }
+    [self retain];
+    dispatch_async(writeQueue(), ^{
+        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+
+        @try {
+            [self synchronize];
+        } @catch (id exception) {
+            /* The write is tried again with the next change, or at a
+               synchronize, which reports it. */
+        }
+        [pool release];
+        [self release];
+    });
 }
 
 -(void)setObject:object forKey:(NSString *)key {
-    [_mutableDomain setObject:object forKey:key];
-    [_changedKeys addObject:key];
+    @synchronized(self) {
+        [_mutableDomain setObject:object forKey:key];
+        [_changedKeys addObject:key];
+    }
+    [self _scheduleWrite];
 }
 
 -(void)removeObjectForKey:(NSString *)key {
-    [_mutableDomain removeObjectForKey:key];
-    [_changedKeys addObject:key];
+    @synchronized(self) {
+        [_mutableDomain removeObjectForKey:key];
+        [_changedKeys addObject:key];
+    }
+    [self _scheduleWrite];
 }
 
 -(void)createUserDefaultsDirectoryIfNeeded {
@@ -82,6 +130,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    set or removed since the last time are written over it. It used to
    write this process's copy alone, losing the others' changes. */
 -(void)synchronize {
+  @synchronized(self) {
+    _writeScheduled = NO;
     NSDictionary *onDisk = [NSPropertyListReader dictionaryWithContentsOfFile:_path];
     NSMutableDictionary *merged = onDisk ? [onDisk mutableCopy] : [[NSMutableDictionary alloc] init];
 
@@ -107,6 +157,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
     [_mutableDomain release];
     _mutableDomain = merged;
+  }
 }
 
 @end

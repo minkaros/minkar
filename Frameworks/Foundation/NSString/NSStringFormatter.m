@@ -355,6 +355,89 @@ unichar *NSCharactersNewWithFormat(NSString *format,NSDictionary *locale,va_list
    return NSCharactersNewWithFormatAndGrouping(format,locale,arguments,lengthp,zone,nil,0);
 }
 
+/* Positional arguments ("%2$@ %1$d", as localized strings reorder them,
+   the same one used more than once): their kinds found in a first pass
+   over the format, then read from the list once, in order, and taken by
+   number while formatting. */
+typedef enum { ARG_NONE=0, ARG_INT, ARG_LONG, ARG_LLONG, ARG_DOUBLE, ARG_POINTER } NSFormatArgKind;
+
+typedef union {
+   int        i;
+   long       l;
+   long long  ll;
+   double     d;
+   void      *p;
+} NSFormatArg;
+
+#define NSFORMAT_MAX_POSITIONAL 64
+
+static NSFormatArgKind kindOfConversion(unichar modifier,unichar conversion){
+   switch(conversion){
+    case 'd': case 'D': case 'i': case 'o': case 'x': case 'X': case 'u': case 'U':
+     if(modifier=='l' || modifier=='z' || modifier=='t')
+      return ARG_LONG;
+     if(modifier=='q')
+      return ARG_LLONG;
+     return ARG_INT;
+    case 'c': case 'C':
+     return ARG_INT;
+    case 'f': case 'F': case 'e': case 'E': case 'a': case 'A': case 'g': case 'G':
+     return ARG_DOUBLE;
+    case 's': case 'S': case 'p': case 'n': case '@':
+     return ARG_POINTER;
+   }
+   return ARG_NONE;
+}
+
+/* The kinds of the numbered arguments of a format (1-based), and how many
+   there are; 0 when it numbers none. */
+static int scanPositional(const unichar *fmt,NSUInteger length,NSFormatArgKind *kinds){
+   NSUInteger pos=0;
+   int        highest=0;
+
+   while(pos<length){
+    NSUInteger start;
+    int        number=0,index=0;
+    unichar    modifier=' ';
+
+    if(fmt[pos++]!='%')
+     continue;
+    if(pos<length && fmt[pos]=='%'){
+     pos++;
+     continue;
+    }
+    start=pos;
+    while(pos<length && fmt[pos]>='0' && fmt[pos]<='9')
+     number=number*10+(fmt[pos++]-'0');
+    if(pos<length && fmt[pos]=='$' && number>0){
+     index=number;
+     pos++;
+    }
+    else
+     pos=start;
+    while(pos<length && (fmt[pos]=='#' || fmt[pos]=='0' || fmt[pos]=='-' || fmt[pos]=='+' || fmt[pos]==' '))
+     pos++;
+    while(pos<length && ((fmt[pos]>='0' && fmt[pos]<='9') || fmt[pos]=='*' || fmt[pos]=='$'))
+     pos++;
+    if(pos<length && fmt[pos]=='.'){
+     pos++;
+     while(pos<length && ((fmt[pos]>='0' && fmt[pos]<='9') || fmt[pos]=='*' || fmt[pos]=='$'))
+      pos++;
+    }
+    while(pos<length && (fmt[pos]=='h' || fmt[pos]=='l' || fmt[pos]=='q' || fmt[pos]=='z' || fmt[pos]=='t' || fmt[pos]=='L' || fmt[pos]=='j'))
+     modifier=fmt[pos++];
+    if(pos>=length)
+     break;
+    if(index>0 && index<=NSFORMAT_MAX_POSITIONAL){
+     kinds[index]=kindOfConversion(modifier,fmt[pos]);
+     if(index>highest)
+      highest=index;
+    }
+    pos++;
+   }
+   return highest;
+}
+
 unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *locale,va_list arguments,NSUInteger *lengthp,NSZone *zone,NSString *groupingSeparator,NSInteger groupingSize){
    NSUInteger  pos,fmtLength=[format length];
    unichar   fmtBuffer[fmtLength],unicode;
@@ -375,6 +458,32 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
 
    [format getCharacters:fmtBuffer];
 
+   NSFormatArgKind kinds[NSFORMAT_MAX_POSITIONAL+1]={ARG_NONE};
+   NSFormatArg     values[NSFORMAT_MAX_POSITIONAL+1];
+   int             positionalCount=scanPositional(fmtBuffer,fmtLength,kinds),argIndex=0,k;
+
+   if(positionalCount>0){
+    va_list copy;
+
+    va_copy(copy,arguments);
+    for(k=1;k<=positionalCount;k++)
+     switch(kinds[k]){
+      case ARG_LONG:    values[k].l=va_arg(copy,long); break;
+      case ARG_LLONG:   values[k].ll=va_arg(copy,long long); break;
+      case ARG_DOUBLE:  values[k].d=va_arg(copy,double); break;
+      case ARG_POINTER: values[k].p=va_arg(copy,void *); break;
+      default:          values[k].i=va_arg(copy,int); break;
+     }
+    va_end(copy);
+   }
+
+/* The next argument: the numbered one if the conversion named one. */
+#define NEXT_INT()     ((argIndex>0)?values[argIndex].i:va_arg(arguments,int))
+#define NEXT_LONG()    ((argIndex>0)?values[argIndex].l:va_arg(arguments,long))
+#define NEXT_LLONG()   ((argIndex>0)?values[argIndex].ll:va_arg(arguments,long long))
+#define NEXT_DOUBLE()  ((argIndex>0)?values[argIndex].d:va_arg(arguments,double))
+#define NEXT_POINTER() ((argIndex>0)?values[argIndex].p:va_arg(arguments,void *))
+
    prepForUse(&result,zone);
 
    for(pos=0;pos<fmtLength;pos++){
@@ -390,6 +499,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
        altForm=leftAdj=plusSign=spaceSign=NO;
        fieldWidth=0;
        precision=-1;
+       argIndex=0;
        state=STATE_PERCENT;
       }
       break;
@@ -419,15 +529,17 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
         break;
 
        case '*':
-        fieldWidth=va_arg(arguments,int);
+        fieldWidth=NEXT_INT();
         if(fieldWidth<0){
          leftAdj=YES;
          fieldWidth=-fieldWidth;
         }
         break;
 
-       case '$': // FIXME: argument index for localization
-        state=STATE_MODIFIER;
+       case '$': /* the digits were the argument's number: flags follow */
+        argIndex=(fieldWidth>0 && fieldWidth<=NSFORMAT_MAX_POSITIONAL)?fieldWidth:0;
+        fieldWidth=0;
+        state=STATE_PERCENT;
         break;
         
        case '.':
@@ -451,7 +563,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
         break;
 
        case '*': // fix
-        precision=va_arg(arguments,int);
+        precision=NEXT_INT();
         break;
 
        default:
@@ -484,15 +596,15 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          long long value;
 
          if(dwModify=='h')
-          value=(short)va_arg(arguments,int);
+          value=(short)NEXT_INT();
          else if(dwModify=='l')
-          value=va_arg(arguments,long);
+          value=NEXT_LONG();
          else if(dwModify=='q')
-          value=va_arg(arguments,long long);
+          value=NEXT_LLONG();
          else if(dwModify=='z')
-          value=va_arg(arguments, NSInteger);
+          value=((NSInteger)NEXT_LONG());
          else
-          value=va_arg(arguments,int);
+          value=NEXT_INT();
 
          appendDecimal(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,groupingSeparator,groupingSize);
         }
@@ -502,13 +614,13 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          unsigned long long value;
 
          if(dwModify=='h')
-          value=(unsigned short)va_arg(arguments,int);
+          value=(unsigned short)NEXT_INT();
          else if(dwModify=='l')
-          value=va_arg(arguments,unsigned long);
+          value=((unsigned long)NEXT_LONG());
          else if(dwModify=='q')
-          value=va_arg(arguments,unsigned long long);
+          value=((unsigned long long)NEXT_LLONG());
          else
-          value=va_arg(arguments,unsigned int);
+          value=((unsigned int)NEXT_INT());
 
          appendOctal(&result,value,fillChar,leftAdj,fieldWidth);
         }
@@ -518,15 +630,15 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          unsigned long long value;
 
          if(dwModify=='h')
-          value=(unsigned short)va_arg(arguments,int);
+          value=(unsigned short)NEXT_INT();
          else if(dwModify=='l')
-          value=va_arg(arguments,unsigned long);
+          value=((unsigned long)NEXT_LONG());
          else if(dwModify=='q')
-          value=va_arg(arguments,unsigned long long);
+          value=((unsigned long long)NEXT_LLONG());
          else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
+          value=((NSUInteger)NEXT_LONG());
          else
-          value=va_arg(arguments,unsigned int);
+          value=((unsigned int)NEXT_INT());
 
          appendHex(&result,value,fillChar,leftAdj,fieldWidth,"0123456789abcdef");
         }
@@ -536,15 +648,15 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          unsigned long long value;
 
          if(dwModify=='h')
-          value=(unsigned short)va_arg(arguments,int);
+          value=(unsigned short)NEXT_INT();
          else if(dwModify=='l')
-          value=va_arg(arguments,unsigned long);
+          value=((unsigned long)NEXT_LONG());
          else if(dwModify=='q')
-          value=va_arg(arguments,unsigned long long);
+          value=((unsigned long long)NEXT_LLONG());
          else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
+          value=((NSUInteger)NEXT_LONG());
          else
-          value=va_arg(arguments,unsigned int);
+          value=((unsigned int)NEXT_INT());
 
          appendHex(&result,value,fillChar,leftAdj,fieldWidth,"0123456789ABCDEF");
         }
@@ -554,43 +666,43 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          unsigned long long value;
 
          if(dwModify=='h')
-          value=(unsigned short)va_arg(arguments,int);
+          value=(unsigned short)NEXT_INT();
          else if(dwModify=='l')
-          value=va_arg(arguments,unsigned long);
+          value=((unsigned long)NEXT_LONG());
          else if(dwModify=='q')
-          value=va_arg(arguments,unsigned long long);
+          value=((unsigned long long)NEXT_LLONG());
          else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
+          value=((NSUInteger)NEXT_LONG());
          else
-          value=va_arg(arguments,unsigned int);
+          value=((unsigned int)NEXT_INT());
 
          appendUnsigned(&result,value,fillChar,leftAdj,fieldWidth,groupingSeparator,groupingSize);
         }
         break;
 
        case 'c':
-        appendCStringChar(&result,va_arg(arguments,int),fillChar,leftAdj,fieldWidth);
+        appendCStringChar(&result,NEXT_INT(),fillChar,leftAdj,fieldWidth);
         break;
 
        case 'C':
-        appendUnichar(&result,va_arg(arguments,int),fillChar,leftAdj,fieldWidth);
+        appendUnichar(&result,NEXT_INT(),fillChar,leftAdj,fieldWidth);
         break;
 
        case 's':
-        appendCString(&result,va_arg(arguments,char *),fillChar,leftAdj,fieldWidth);
+        appendCString(&result,((char *)NEXT_POINTER()),fillChar,leftAdj,fieldWidth);
         break;
 
        case 'S':
-        appendUnicodeString(&result,va_arg(arguments,unichar *),fillChar,leftAdj,fieldWidth);
+        appendUnicodeString(&result,((unichar *)NEXT_POINTER()),fillChar,leftAdj,fieldWidth);
         break;
 
        case 'f': case 'F':{
          double value;
 
          if(dwModify=='l')
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
          else
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
 
          appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
@@ -600,16 +712,16 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          double value;
 
          if(dwModify=='l')
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
          else
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
 
          appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
         break;
 
        case 'a': case 'A':{
-         double value=va_arg(arguments,double);
+         double value=NEXT_DOUBLE();
 
          appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
@@ -619,24 +731,24 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          double value;
 
          if(dwModify=='l')
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
          else
-          value=va_arg(arguments,double);
+          value=NEXT_DOUBLE();
 
          appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
         break;
 
        case 'p':
-        appendPointer(&result,(unsigned long long)(uintptr_t)va_arg(arguments,void *),leftAdj,fieldWidth);
+        appendPointer(&result,(unsigned long long)(uintptr_t)NEXT_POINTER(),leftAdj,fieldWidth);
         break;
 
        case 'n':
-        *va_arg(arguments,int *)=result.length;
+        *((int *)NEXT_POINTER())=result.length;
         break;
 
        case '@':
-        appendObject(&result,va_arg(arguments,id),fillChar,leftAdj,fieldWidth);
+        appendObject(&result,((id)NEXT_POINTER()),fillChar,leftAdj,fieldWidth);
         break;
 
        case '%':
@@ -649,6 +761,11 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
 
    }
 
+#undef NEXT_INT
+#undef NEXT_LONG
+#undef NEXT_LLONG
+#undef NEXT_DOUBLE
+#undef NEXT_POINTER
    return prepForReturn(&result,lengthp);
 }
 
