@@ -284,11 +284,16 @@ static void drawRoundedSelection(NSRect rect){
     [result addObject:[[[NSAttributedString alloc] initWithString:year attributes:attributes] autorelease]];
    }
 
-   /* The time: hours (0-23), minutes and, if asked, seconds. */
+   /* The time: hours, minutes and, if asked, seconds; in a locale whose
+      clock has twelve hours (en_US), 1 to 12 and its AM or PM, as the
+      reference shows it. The hour's value stays 0-23 for the stepper. */
    if((_elements&NSHourMinuteDatePickerElementFlag)==NSHourMinuteDatePickerElementFlag){
     NSUInteger        flags=NSHourCalendarUnit|NSMinuteCalendarUnit|NSSecondCalendarUnit;
     NSDateComponents *components=[_calendar components:flags fromDate:[self dateValue]];
     BOOL              seconds=(_elements&NSHourMinuteSecondDatePickerElementFlag)==NSHourMinuteSecondDatePickerElementFlag;
+    NSLocale         *locale=_locale!=nil?_locale:[NSLocale currentLocale];
+    NSString         *hourFormat=[NSDateFormatter dateFormatFromTemplate:@"j" options:0 locale:locale];
+    BOOL              twelve=[hourFormat rangeOfString:@"a"].location!=NSNotFound;
     struct { NSInteger value,max; NSUInteger unit; const char *format; } parts[3]={
      { [components hour],23,NSHourCalendarUnit,"%ld" },
      { [components minute],59,NSMinuteCalendarUnit,"%02ld" },
@@ -306,8 +311,19 @@ static void drawRoundedSelection(NSRect rect){
      [attributes setObject:[NSNumber numberWithUnsignedInteger:parts[i].max] forKey:@"_max"];
      [attributes setObject:[NSNumber numberWithUnsignedInteger:parts[i].unit] forKey:@"_unit"];
      [attributes setObject:[NSNumber numberWithFloat:digitWidth*2] forKey:@"_width"];
-     [result addObject:[[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:[NSString stringWithUTF8String:parts[i].format],(long)parts[i].value]
+     NSInteger shown=parts[i].value;
+
+     if(twelve && parts[i].unit==NSHourCalendarUnit)
+      shown=(shown%12==0)?12:shown%12;
+     [result addObject:[[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:[NSString stringWithUTF8String:parts[i].format],(long)shown]
         attributes:attributes] autorelease]];
+    }
+    if(twelve){
+     NSDateFormatter *symbols=[[[NSDateFormatter alloc] init] autorelease];
+
+     [symbols setLocale:locale];
+     [result addObject:[[[NSAttributedString alloc] initWithString:[@" " stringByAppendingString:
+        ([components hour]<12)?[symbols AMSymbol]:[symbols PMSymbol]] attributes:separatorAttributes] autorelease]];
     }
    }
 
