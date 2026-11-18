@@ -57,6 +57,17 @@ NSString * const NSWebArchiveTextDocumentType=@"NSWebArchive";
 NSString * const NSOfficeOpenXMLTextDocumentType=@"NSOfficeOpenXML";
 NSString * const NSOpenDocumentTextDocumentType=@"NSOpenDocument";
 NSString * const NSBaseURLDocumentOption=@"BaseURL";
+// The reference's values.
+NSString * const NSCharacterEncodingDocumentAttribute=@"CharacterEncoding";
+NSString * const NSCharacterEncodingDocumentOption=@"CharacterEncoding";
+NSString * const NSDefaultAttributesDocumentOption=@"DefaultAttributes";
+NSString * const NSDocumentTypeDocumentOption=@"DocumentType";
+NSString * const NSTextEncodingNameDocumentOption=@"TextEncodingName";
+NSString * const NSTextEncodingNameDocumentAttribute=@"TextEncodingName";
+NSString * const NSTextSizeMultiplierDocumentOption=@"TextSizeMultiplier";
+NSString * const NSTimeoutDocumentOption=@"Timeout";
+NSString * const NSFileTypeDocumentOption=@"UTI";
+NSString * const NSFileTypeDocumentAttribute=@"UTI";
 NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; // temporary attribute
 
 @implementation NSAttributedString(NSAttributedString_AppKit)
@@ -72,9 +83,76 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
    return [[[self alloc] initWithString:string attributes:attributes] autorelease];
 }
 
+/* A document's text in one of the types read here: RTF, HTML or plain
+   text, as the options name it or as its data starts. RTFD and the
+   office formats are not read yet. */
+static NSString *documentTypeOfData(NSData *data) {
+   const char *bytes=[data bytes];
+   NSUInteger  length=[data length],i=0;
+
+   if(length>=5 && memcmp(bytes,"{\\rtf",5)==0)
+    return NSRTFTextDocumentType;
+   while(i<length && (bytes[i]==' ' || bytes[i]=='\t' || bytes[i]=='\n' || bytes[i]=='\r'))
+    i++;
+   if(i+1<length && bytes[i]=='<' && (bytes[i+1]=='!' || bytes[i+1]=='h' || bytes[i+1]=='H'))
+    return NSHTMLTextDocumentType;
+   return NSPlainTextDocumentType;
+}
+
+static NSError *readError(NSInteger code) {
+   return [NSError errorWithDomain:NSCocoaErrorDomain code:code userInfo:nil];
+}
+
 -initWithData:(NSData *)data options:(NSDictionary *)options documentAttributes:(NSDictionary **)attributes error:(NSError **)error {
-   NSUnimplementedMethod();
-   return nil;
+   NSString           *type=[options objectForKey:NSDocumentTypeDocumentOption];
+   NSAttributedString *string=nil;
+   NSMutableDictionary *document=[NSMutableDictionary dictionary];
+
+   if(data==nil){
+    if(error!=NULL)
+     *error=readError(NSFileReadUnknownError);
+    [self release];
+    return nil;
+   }
+   if(type==nil)
+    type=documentTypeOfData(data);
+
+   if([type isEqualToString:NSRTFTextDocumentType])
+    string=[NSRichTextReader attributedStringWithData:data];
+   else if([type isEqualToString:NSHTMLTextDocumentType])
+    string=[NSHTMLReader attributedStringWithHTML:data baseURL:[options objectForKey:NSBaseURLDocumentOption] documentAttributes:NULL];
+   else if([type isEqualToString:NSPlainTextDocumentType]){
+    NSNumber        *given=[options objectForKey:NSCharacterEncodingDocumentOption];
+    NSStringEncoding encoding=[given unsignedIntegerValue];
+    NSString        *text=nil;
+
+    if(given!=nil)
+     text=[[[NSString alloc] initWithData:data encoding:encoding] autorelease];
+    else {
+     encoding=[NSString stringEncodingForData:data encodingOptions:nil convertedString:&text usedLossyConversion:NULL];
+     if(text==nil){
+      encoding=NSUTF8StringEncoding;
+      text=[[[NSString alloc] initWithData:data encoding:encoding] autorelease];
+     }
+    }
+    if(text!=nil){
+     NSDictionary *defaults=[options objectForKey:NSDefaultAttributesDocumentOption];
+
+     string=[[[NSAttributedString alloc] initWithString:text attributes:defaults] autorelease];
+     [document setObject:[NSNumber numberWithUnsignedInteger:encoding] forKey:NSCharacterEncodingDocumentAttribute];
+    }
+   }
+
+   if(string==nil){
+    if(error!=NULL)
+     *error=readError(NSFileReadCorruptFileError);
+    [self release];
+    return nil;
+   }
+   [document setObject:type forKey:NSDocumentTypeDocumentAttribute];
+   if(attributes!=NULL)
+    *attributes=document;
+   return [self initWithAttributedString:string];
 }
 
 -initWithDocFormat:(NSData *)werd documentAttributes:(NSDictionary **)attributes {
@@ -130,13 +208,49 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 }
 
 -initWithURL:(NSURL *)url documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithURL:url options:[NSDictionary dictionary] documentAttributes:attributes error:NULL];
 }
 
+/* A file's document: its type from the options, else from its extension,
+   else from its contents. */
 -initWithURL:(NSURL *)url options:(NSDictionary *)options documentAttributes:(NSDictionary **)attributes error:(NSError **)error {
-   NSUnimplementedMethod();
-   return nil;
+   NSString *extension=[[url pathExtension] lowercaseString];
+   NSData   *data;
+
+   if(![url isFileURL]){
+    if(error!=NULL)
+     *error=readError(NSFileReadUnsupportedSchemeError);
+    [self release];
+    return nil;
+   }
+   data=[NSData dataWithContentsOfURL:url options:0 error:error];
+   if(data==nil){
+    [self release];
+    return nil;
+   }
+   if([options objectForKey:NSDocumentTypeDocumentOption]==nil){
+    NSString *type=nil;
+
+    if([extension isEqualToString:@"rtf"])
+     type=NSRTFTextDocumentType;
+    else if([extension isEqualToString:@"html"] || [extension isEqualToString:@"htm"])
+     type=NSHTMLTextDocumentType;
+    else if([extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"])
+     type=NSPlainTextDocumentType;
+    if(type!=nil){
+     NSMutableDictionary *withType=[NSMutableDictionary dictionaryWithDictionary:options];
+
+     [withType setObject:type forKey:NSDocumentTypeDocumentOption];
+     options=withType;
+    }
+   }
+   if([options objectForKey:NSBaseURLDocumentOption]==nil){
+    NSMutableDictionary *withBase=[NSMutableDictionary dictionaryWithDictionary:options];
+
+    [withBase setObject:url forKey:NSBaseURLDocumentOption];
+    options=withBase;
+   }
+   return [self initWithData:data options:options documentAttributes:attributes error:error];
 }
 
 #pragma mark -

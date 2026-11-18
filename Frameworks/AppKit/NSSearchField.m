@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSSearchField.h>
 #import <AppKit/NSSearchFieldCell.h>
+#import <objc/runtime.h>
 
 @implementation NSSearchField
 
@@ -35,6 +36,54 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setRecentsAutosaveName:(NSString *)name {
    [[self _searchCell] setRecentsAutosaveName:name];
+}
+
+/* The cell's settings, on the field too, as on the reference (API 10.10). */
+-(NSMenu *)searchMenuTemplate {
+   return [[self _searchCell] searchMenuTemplate];
+}
+
+-(void)setSearchMenuTemplate:(NSMenu *)menu {
+   [[self _searchCell] setSearchMenuTemplate:menu];
+}
+
+-(BOOL)sendsWholeSearchString {
+   return [[self _searchCell] sendsWholeSearchString];
+}
+
+-(void)setSendsWholeSearchString:(BOOL)flag {
+   [[self _searchCell] setSendsWholeSearchString:flag];
+}
+
+-(NSInteger)maximumRecents {
+   return [[self _searchCell] maximumRecents];
+}
+
+-(void)setMaximumRecents:(NSInteger)value {
+   [[self _searchCell] setMaximumRecents:value];
+}
+
+-(BOOL)sendsSearchStringImmediately {
+   return [[self _searchCell] sendsSearchStringImmediately];
+}
+
+-(void)setSendsSearchStringImmediately:(BOOL)flag {
+   [[self _searchCell] setSendsSearchStringImmediately:flag];
+}
+
+/* Whether the placeholder sits in the middle when the field is empty and
+   not being edited (API 10.11); YES by default, as on the reference. */
+static char centersPlaceholderKey;
+
+-(BOOL)centersPlaceholder {
+   NSNumber *value=objc_getAssociatedObject(self,&centersPlaceholderKey);
+
+   return value!=nil?[value boolValue]:YES;
+}
+
+-(void)setCentersPlaceholder:(BOOL)flag {
+   objc_setAssociatedObject(self,&centersPlaceholderKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   [self setNeedsDisplay:YES];
 }
 
 @end

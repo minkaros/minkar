@@ -49,6 +49,16 @@ APPKIT_EXPORT NSString *const NSWebArchiveTextDocumentType;
 APPKIT_EXPORT NSString *const NSOfficeOpenXMLTextDocumentType;
 APPKIT_EXPORT NSString *const NSOpenDocumentTextDocumentType;
 APPKIT_EXPORT NSString *const NSBaseURLDocumentOption;
+APPKIT_EXPORT NSString *const NSCharacterEncodingDocumentAttribute;
+APPKIT_EXPORT NSString *const NSCharacterEncodingDocumentOption;
+APPKIT_EXPORT NSString *const NSDefaultAttributesDocumentOption;
+APPKIT_EXPORT NSString *const NSDocumentTypeDocumentOption;
+APPKIT_EXPORT NSString *const NSTextEncodingNameDocumentOption;
+APPKIT_EXPORT NSString *const NSTextEncodingNameDocumentAttribute;
+APPKIT_EXPORT NSString *const NSTextSizeMultiplierDocumentOption;
+APPKIT_EXPORT NSString *const NSTimeoutDocumentOption;
+APPKIT_EXPORT NSString *const NSFileTypeDocumentOption;
+APPKIT_EXPORT NSString *const NSFileTypeDocumentAttribute;
 
 APPKIT_EXPORT NSString *const NSSpellingStateAttributeName;
 APPKIT_EXPORT NSString *const NSMarkedClauseSegmentAttributeName;

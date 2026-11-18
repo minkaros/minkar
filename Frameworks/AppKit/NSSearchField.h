@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSTextField.h>
 
+@class NSMenu;
+
 @interface NSSearchField : NSTextField
 
 - (NSArray *)recentSearches;
@@ -16,6 +18,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void)setRecentSearches:(NSArray *)searches;
 - (void)setRecentsAutosaveName:(NSString *)name;
+
+@property (strong) NSMenu *searchMenuTemplate;
+@property BOOL sendsWholeSearchString;
+@property NSInteger maximumRecents;
+@property BOOL sendsSearchStringImmediately;
+@property BOOL centersPlaceholder;
 
 @end
 

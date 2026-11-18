@@ -442,8 +442,10 @@ static NSString *decodeEntity(NSString *name)
             i++;
     }
 
-    /* No trailing empty line. */
-    while ([_result length] > 0 && [[_result string] characterAtIndex:[_result length] - 1] == '\n')
+    /* A last block ends its line, once, as on the reference ("Hi there\n"
+       for one paragraph): no trailing empty lines. */
+    while ([_result length] > 1 && [[_result string] characterAtIndex:[_result length] - 1] == '\n'
+           && [[_result string] characterAtIndex:[_result length] - 2] == '\n')
         [_result deleteCharactersInRange:NSMakeRange([_result length] - 1, 1)];
 }
 

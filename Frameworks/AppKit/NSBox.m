@@ -319,7 +319,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)drawRect:(NSRect)rect {
    NSRect              grooveRect=[self _grooveRect];
    NSRect              titleRect=[self titleRect];
-   BOOL                drawTitle=(_titlePosition!=NSNoTitle);
+   /* A separator is a line: its title is not shown (a nib can keep one). */
+   BOOL                drawTitle=(_titlePosition!=NSNoTitle && _boxType!=NSBoxSeparator);
 
    if([self isTransparent])
     return;
