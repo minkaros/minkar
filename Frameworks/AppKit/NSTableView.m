@@ -1084,6 +1084,12 @@ _dataSource);
       [selection removeIndex:indexes[count]];
 }
 
+    /* A table that does not allow an empty selection has its first row
+       selected as soon as it has rows, as on the reference (Transmission's
+       groups preferences show the first group). */
+    if([selection count]==0 && !_allowsEmptySelection && numberOfRows>0)
+     [selection addIndex:0];
+
 /* Do not change the selection if it didnt change. _setSelectedRowIndexes posts a notification and doing it
    unnecessarily can cause performance and behavior problems. For example, if there is no selection in a newly
    created tableview and you post the notification indirectly with setDataSource:, an application which expects

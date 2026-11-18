@@ -343,6 +343,43 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
    }
 }
 
+/* The width of the text shown: each part as wide as it is laid out. */
+-(CGFloat)_textWidth {
+   NSArray  *array=[self _attributedStrings];
+   NSInteger i,count=[array count];
+   NSRect    rects[count];
+   CGFloat   width=0;
+
+   getRectsInFrameForAttributesStrings(rects,NSZeroRect,array);
+   for(i=0;i<count;i++)
+    width+=rects[i].size.width;
+   return width;
+}
+
+/* As measured on the reference: the text field is its text and 13.855
+   points of margins, 21 tall; the stepper adds 19 and makes it 28 tall.
+   The graphical style is a fixed size: a calendar, a clock, or both. */
+-(NSSize)cellSize {
+   if(_style==NSClockAndCalendarDatePickerStyle){
+    BOOL date=(_elements&NSYearMonthDatePickerElementFlag)!=0;
+    BOOL time=(_elements&NSHourMinuteDatePickerElementFlag)!=0;
+
+    if(date && time)
+     return NSMakeSize(276.5,148);
+    if(date)
+     return NSMakeSize(138.5,148);
+    return NSMakeSize(122,123);
+   }
+
+   NSSize size=NSMakeSize([self _textWidth]+13.855,21);
+
+   if(_style==NSTextFieldAndStepperDatePickerStyle){
+    size.width+=19;
+    size.height=28;
+   }
+   return size;
+}
+
 -(NSRect)_stepperFrameForFrame:(NSRect)frame {
    NSRect stepper=frame;
    stepper.origin.x=NSMaxX(stepper)-15;

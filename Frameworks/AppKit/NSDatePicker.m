@@ -30,6 +30,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [self cell];
 }
 
+/* Its alignment size, as measured on the reference: with a stepper the
+   field rounded up and 16 more, 24 tall; a field alone rounded up; the
+   graphical style its calendar and clock. */
+-(NSSize)intrinsicContentSize {
+   NSDatePickerCell *cell=[self _pickerCell];
+   NSSize            size=[cell cellSize];
+
+   switch([cell datePickerStyle]){
+    case NSClockAndCalendarDatePickerStyle:
+     if(size.height<130)
+      return NSMakeSize(119,119);
+     return NSMakeSize(size.width<200?139:276,148);
+
+    case NSTextFieldDatePickerStyle:
+     return NSMakeSize(ceil(size.width),21);
+
+    default:
+     return NSMakeSize(ceil(size.width-19)+16,24);
+   }
+}
+
 -(BOOL)isBezeled {
    return [[self _pickerCell] isBezeled];
 }

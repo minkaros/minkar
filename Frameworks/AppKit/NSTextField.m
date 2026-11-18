@@ -536,11 +536,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(![_cell wraps] || [self usesSingleLineMode])
     return [_cell cellSize];
 
+   /* With no preferred width its text on one line is the width it asks
+      for, as on the reference; once the layout has made it narrower, it
+      is as tall as its text wrapped to that width. */
+   NSSize  line=[_cell cellSize];
    CGFloat width=(_preferredMaxLayoutWidth>0)?_preferredMaxLayoutWidth:NSWidth([self bounds]);
 
-   if(width<=0)
-    return [_cell cellSize];
+   if(_preferredMaxLayoutWidth<=0 && (width<=0 || width>=line.width))
+    return [self isEditable]?NSMakeSize(NSViewNoIntrinsicMetric,line.height):line;
    size=[_cell cellSizeForBounds:NSMakeRect(0,0,width,CGFLOAT_MAX)];
+   if(_preferredMaxLayoutWidth<=0)
+    size.width=line.width;
    if(_maximumNumberOfLines>0){
     /* A line's height and the cell's padding, from the same cell on one
        line. */
