@@ -526,7 +526,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* A wrapping field is as tall as its text broken at the preferred width,
    up to its maximum number of lines. */
+/* A label (no bezel, no border) has its text's margins outside its
+   alignment rectangle, two points each side, as on the reference. */
+-(NSEdgeInsets)alignmentRectInsets {
+   if(![self isBezeled] && ![self isBordered])
+    return NSEdgeInsetsMake(0,2,0,2);
+   return NSEdgeInsetsZero;
+}
+
 -(NSSize)intrinsicContentSize {
+   NSSize size=[self _frameIntrinsicContentSize];
+
+   if(size.width!=NSViewNoIntrinsicMetric && ![self isBezeled] && ![self isBordered])
+    size.width=ceil(size.width-4);
+   return size;
+}
+
+-(NSSize)_frameIntrinsicContentSize {
    NSSize size;
 
    if(_cell==nil)

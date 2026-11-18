@@ -217,6 +217,26 @@ static NSRect rootFrame(NSView *view,NSView *root) {
    return NSMakeRect(parent.origin.x+frame.origin.x-bounds.origin.x,parent.origin.y+top,frame.size.width,frame.size.height);
 }
 
+/* Constraints are between alignment rectangles, as on the reference: a
+   control's frame has room for its bezel's shadow and focus ring around
+   them (alignmentRectInsets). The solver's variables for a view are its
+   alignment rectangle, top-down in the root. */
+static NSEdgeInsets insetsOf(NSView *view) {
+   return [view alignmentRectInsets];
+}
+
+static NSRect alignmentFromFrame(NSView *view,NSRect frame) {
+   NSEdgeInsets i=insetsOf(view);
+
+   return NSMakeRect(frame.origin.x+i.left,frame.origin.y+i.top,
+                     frame.size.width-i.left-i.right,frame.size.height-i.top-i.bottom);
+}
+
+// A view's alignment rectangle, in the root's top-down coordinates.
+static NSRect rootAlignment(NSView *view,NSView *root) {
+   return alignmentFromFrame(view,rootFrame(view,root));
+}
+
 static void addItem(NSLayoutPass *pass,id item,NSRect frame) {
    int first=firstVariable(pass,item);
    expression e={0};
@@ -283,14 +303,17 @@ static void collect(NSLayoutPass *pass,NSView *view) {
 
    if(view!=pass->root && pass->needed!=NULL && NSHashGet(pass->needed,view)==NULL)
     return;
-   frame=rootFrame(view,pass->root);
+   frame=rootAlignment(view,pass->root);
 
    [pass->views addObject:view];
    addItem(pass,view,frame);
    for(NSLayoutGuide *guide in [view layoutGuides]){
     NSRect g=[guide frame];
 
-    addItem(pass,guide,NSMakeRect(frame.origin.x+g.origin.x,frame.origin.y+g.origin.y,g.size.width,g.size.height));
+    // A guide is placed in its view's bounds, not its alignment rectangle.
+    NSEdgeInsets i=insetsOf(view);
+
+    addItem(pass,guide,NSMakeRect(frame.origin.x-i.left+g.origin.x,frame.origin.y-i.top+g.origin.y,g.size.width,g.size.height));
    }
    for(NSView *subview in [view subviews])
     collect(pass,subview);
@@ -439,8 +462,11 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
    int v=firstVariable(pass,view);
 
    if(view==pass->root){
-    fix(pass,v+LEFT,0,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's x (%@)",view]);
-    fix(pass,v+TOP,0,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's y (%@)",view]);
+    NSEdgeInsets i=insetsOf(view);
+    NSSize       size=NSMakeSize([view frame].size.width-i.left-i.right,[view frame].size.height-i.top-i.bottom);
+
+    fix(pass,v+LEFT,i.left,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's x (%@)",view]);
+    fix(pass,v+TOP,i.top,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's y (%@)",view]);
     if(pass->fitting){
      double fit=NSLayoutSolverStrength(NSLayoutPriorityFittingSizeCompression);
 
@@ -453,16 +479,16 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
      // find panel) makes the window grow, instead of fighting a required size.
      double stay=NSLayoutSolverStrength(NSLayoutPriorityWindowSizeStayPut);
 
-     fix(pass,v+WIDTH,[view frame].size.width,stay,nil);
-     fix(pass,v+HEIGHT,[view frame].size.height,stay,nil);
+     fix(pass,v+WIDTH,size.width,stay,nil);
+     fix(pass,v+HEIGHT,size.height,stay,nil);
     }
     else {
-     fix(pass,v+WIDTH,[view frame].size.width,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's width %g (%@)",[view frame].size.width,view]);
-     fix(pass,v+HEIGHT,[view frame].size.height,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's height %g (%@)",[view frame].size.height,view]);
+     fix(pass,v+WIDTH,size.width,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's width %g (%@)",size.width,view]);
+     fix(pass,v+HEIGHT,size.height,NSLayoutSolverRequired(),[NSString stringWithFormat:@"the root's height %g (%@)",size.height,view]);
     }
    }
    else if([view translatesAutoresizingMaskIntoConstraints]){
-    NSRect      frame=rootFrame(view,pass->root);
+    NSRect      frame=rootAlignment(view,pass->root);
     NSView     *superview=[view superview];
     int         s=(superview!=nil)?firstVariable(pass,superview):-1;
     id          what=view;   // described only if a log needs it
@@ -477,7 +503,7 @@ static void addImplicit(NSLayoutPass *pass,NSView *view) {
     // Minkar: the mask relative to the superview, as the reference
     // translates it (the frame was fixed: a superview sized by
     // constraints could not resize its translating subviews).
-    NSRect             parent=rootFrame(superview,pass->root);
+    NSRect             parent=rootAlignment(superview,pass->root);
     NSAutoresizingMaskOptions mask=[view autoresizingMask];
     BOOL               flipped=[superview isFlipped];
     BOOL               top=flipped?(mask&NSViewMinYMargin)!=0:(mask&NSViewMaxYMargin)!=0;
@@ -651,10 +677,13 @@ void NSLayoutEngineLayout(NSView *root) {
      NSView *superview=[view superview];
 
      if(view!=root && superview!=nil && ![view translatesAutoresizingMaskIntoConstraints]){
+      /* From alignment rectangles to the frame, in the superview's frame
+         (its own alignment rectangle is inset in it). */
+      NSEdgeInsets i=insetsOf(view),si=insetsOf(superview);
       NSRect  bounds=[superview bounds];
-      CGFloat width=value(pass,view,WIDTH),height=value(pass,view,HEIGHT);
-      CGFloat x=value(pass,view,LEFT)-value(pass,superview,LEFT)+bounds.origin.x;
-      CGFloat top=value(pass,view,TOP)-value(pass,superview,TOP);
+      CGFloat width=value(pass,view,WIDTH)+i.left+i.right,height=value(pass,view,HEIGHT)+i.top+i.bottom;
+      CGFloat x=value(pass,view,LEFT)-i.left-value(pass,superview,LEFT)+si.left+bounds.origin.x;
+      CGFloat top=value(pass,view,TOP)-i.top-value(pass,superview,TOP)+si.top;
       CGFloat y=[superview isFlipped]?bounds.origin.y+top:NSMaxY(bounds)-top-height;
       NSRect  frame=NSMakeRect(x,y,width,height);
 
@@ -662,7 +691,7 @@ void NSLayoutEngineLayout(NSView *root) {
        [view setFrame:frame];
      }
      for(NSLayoutGuide *guide in [view layoutGuides])
-      [guide _setFrame:NSMakeRect(value(pass,guide,LEFT)-value(pass,view,LEFT),value(pass,guide,TOP)-value(pass,view,TOP),
+      [guide _setFrame:NSMakeRect(value(pass,guide,LEFT)-value(pass,view,LEFT)+insetsOf(view).left,value(pass,guide,TOP)-value(pass,view,TOP)+insetsOf(view).top,
        value(pass,guide,WIDTH),value(pass,guide,HEIGHT))];
     }
    }
@@ -674,7 +703,10 @@ NSSize NSLayoutEngineFittingSize(NSView *view) {
    @autoreleasepool {
     NSLayoutPass *pass=solve(view,YES);
 
-    result=NSMakeSize(value(pass,view,WIDTH),value(pass,view,HEIGHT));
+    NSEdgeInsets i=insetsOf(view);
+
+    // The frame's size: its alignment rectangle and the insets around it.
+    result=NSMakeSize(value(pass,view,WIDTH)+i.left+i.right,value(pass,view,HEIGHT)+i.top+i.bottom);
    }
    return result;
 }

@@ -7,6 +7,13 @@
 #import <AppKit/NSControl.h>
 #import <AppKit/NSCell.h>
 #import <AppKit/NSButton.h>
+#import <AppKit/NSAttributedString.h>
+#import <AppKit/NSImage.h>
+#import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSFont.h>
+#import <AppKit/NSMenuItem.h>
+#import <AppKit/NSPopUpButton.h>
+#import <AppKit/NSPopUpButtonCell.h>
 #import <objc/runtime.h>
 
 const CGFloat NSViewNoIntrinsicMetric=-1;
@@ -311,6 +318,95 @@ static void sendLayout(NSView *view) {
    NSLayoutSetNeedsLayout(self);
 }
 
+/* The standard controls' metrics, as measured on the reference for each
+   control size (regular, small, mini): the insets of the alignment
+   rectangle in the frame (top, left, bottom, right), what the alignment
+   width adds to the title's, and the alignment height. A title in another
+   font is a little wider or narrower, the rest the same. */
+typedef struct {
+   CGFloat insets[3][4];
+   CGFloat pad[3];
+   CGFloat height[3];
+   BOOL    fixedSize;       // the size is the height, both ways (help, disclosure)
+} NSControlMetrics;
+
+enum { MetricsNone=-1, MetricsPush, MetricsCheck, MetricsRadio, MetricsPopUp, MetricsPullDown, MetricsSquare,
+       MetricsRecessed, MetricsInline, MetricsHelp, MetricsDisclosure, MetricsSlider, MetricsStepper, MetricsSegmented };
+
+static const NSControlMetrics controlMetrics[]={
+   [MetricsPush]={{{4,6,7,6},{3,5,6,5},{0,1,1,1}},{28,16,22},{21,18,15},NO},
+   [MetricsCheck]={{{2,2,2,2},{3,3,3,2},{5,4,3,2}},{18,17,16},{14,12,10},NO},
+   [MetricsRadio]={{{1,1,1,2},{2,2,2,1},{4,4,4,1}},{19,19,17},{16,14,10},NO},
+   [MetricsPopUp]={{{1,2,3,3},{1,3,3,3},{0,1,1,2}},{33,30,32},{21,18,15},NO},
+   [MetricsPullDown]={{{1,3,3,3},{1,3,3,3},{0,0,1,1}},{33,30,34},{21,18,15},NO},
+   [MetricsSquare]={{{2,2,3,2},{2,2,3,2},{2,2,3,2}},{20,20,20},{23,21,18},NO},
+   [MetricsRecessed]={{{0,0,1,0},{0,0,1,0},{0,0,1,0}},{14,14,14},{18,16,14},NO},
+   [MetricsInline]={{{0,0,1,0},{0,0,1,0},{0,0,1,0}},{12,12,12},{18,16,13},NO},
+   [MetricsHelp]={{{0,2,4,2},{0,0,1,0},{0,0,1,0}},{0,0,0},{21,18,16},YES},
+   [MetricsDisclosure]={{{0,0,0,0},{0,0,0,0},{0,0,0,0}},{0,0,0},{13,13,13},YES},
+   [MetricsSlider]={{{2,2,2,2},{1,0,1,0},{0,0,1,0}},{0,0,0},{15,13,12},NO},
+   [MetricsStepper]={{{3,3,3,3},{1,2,2,2},{1,2,2,2}},{0,0,0},{22,19,15},NO},
+   [MetricsSegmented]={{{1,2,2,2},{1,2,2,2},{0,1,1,1}},{0,0,0},{21,18,15},NO},
+};
+
+static int controlMetricsKind(NSControl *control) {
+   static Class popUp,button,slider,stepper,segmented;
+   NSCell *cell=[control cell];
+
+   if(button==nil){
+    button=NSClassFromString(@"NSButton");
+    popUp=NSClassFromString(@"NSPopUpButton");
+    slider=NSClassFromString(@"NSSlider");
+    stepper=NSClassFromString(@"NSStepper");
+    segmented=NSClassFromString(@"NSSegmentedControl");
+   }
+   if(cell==nil)
+    return MetricsNone;
+   if([control isKindOfClass:popUp])
+    return [(NSPopUpButton *)control pullsDown]?MetricsPullDown:MetricsPopUp;
+   if([control isKindOfClass:button]){
+    NSButton *b=(NSButton *)control;
+    NSString *imageName=[[b image] name];
+
+    if([imageName isEqualToString:@"NSSwitch"])
+     return MetricsCheck;
+    if([imageName isEqualToString:@"NSRadioButton"])
+     return MetricsRadio;
+    if(![b isBordered])
+     return MetricsNone;
+    switch([b bezelStyle]){
+     case NSBezelStyleRounded: return MetricsPush;
+     case NSBezelStyleRegularSquare: return MetricsSquare;
+     case NSBezelStyleRecessed: return MetricsRecessed;
+     case NSBezelStyleInline: return MetricsInline;
+     case NSBezelStyleHelpButton: return MetricsHelp;
+     case NSBezelStyleDisclosure: return MetricsDisclosure;
+     default: return MetricsNone;
+    }
+   }
+   if([control isKindOfClass:slider])
+    return NSWidth([control frame])>=NSHeight([control frame])?MetricsSlider:MetricsNone;
+   if([control isKindOfClass:stepper])
+    return MetricsStepper;
+   if([control isKindOfClass:segmented])
+    return MetricsSegmented;
+   return MetricsNone;
+}
+
+static int controlSizeIndex(NSControl *control) {
+   NSControlSize size=[[control cell] controlSize];
+
+   return (size==NSControlSizeSmall)?1:(size==NSControlSizeMini)?2:0;
+}
+
+// The width of a title in the control's font.
+static CGFloat titleWidth(NSControl *control,NSString *title) {
+   NSFont *font=[control font];
+   NSDictionary *attributes=(font!=nil)?[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]:nil;
+
+   return (title!=nil)?ceil([title sizeWithAttributes:attributes].width):0;
+}
+
 /* A view's own content hugging, as measured on the reference: a control
    hugs its content vertically (750), a view, a button with no bezel to
    size it (a checkbox), an image view and a color well do not (250); a
@@ -328,13 +424,24 @@ static NSLayoutPriority defaultHugging(NSView *view,NSLayoutConstraintOrientatio
    }
    if([view isKindOfClass:stepper])
     return NSLayoutPriorityDefaultHigh;
+   if([view isKindOfClass:button] && ![view isKindOfClass:popUp]){
+    int kind=controlMetricsKind((NSControl *)view);
+
+    if(kind==MetricsHelp || kind==MetricsDisclosure)
+     return NSLayoutPriorityDefaultHigh;
+   }
    if(orientation==NSLayoutConstraintOrientationHorizontal)
     return NSLayoutPriorityDefaultLow;
    if([view isKindOfClass:popUp] || [view isKindOfClass:progress])
     return NSLayoutPriorityDefaultHigh;
-   /* A push button's rounded bezel has a height of its own. */
-   if([view isKindOfClass:button])
-    return ([(NSButton *)view isBordered] && [(NSButton *)view bezelStyle]==NSBezelStyleRounded)?NSLayoutPriorityDefaultHigh:NSLayoutPriorityDefaultLow;
+   /* A button's bezel decides: a push button's, a recessed one's and a
+      pop-up's have a height of their own; a help or disclosure button
+      hugs both ways (above); a square, inline, check or radio one not. */
+   if([view isKindOfClass:button]){
+    int kind=controlMetricsKind((NSControl *)view);
+
+    return (kind==MetricsPush || kind==MetricsRecessed || kind==MetricsHelp || kind==MetricsDisclosure)?NSLayoutPriorityDefaultHigh:NSLayoutPriorityDefaultLow;
+   }
    if([view isKindOfClass:imageView] || [view isKindOfClass:colorWell])
     return NSLayoutPriorityDefaultLow;
    if([view isKindOfClass:[NSControl class]])
@@ -460,12 +567,83 @@ static NSLayoutPriority defaultHugging(NSView *view,NSLayoutConstraintOrientatio
 // Controls are as large as their cell needs.
 @implementation NSControl (NSConstraintBasedLayoutLayering)
 
+-(NSEdgeInsets)alignmentRectInsets {
+   int kind=controlMetricsKind(self);
+
+   if(kind==MetricsNone)
+    return NSEdgeInsetsZero;
+   const CGFloat *i=controlMetrics[kind].insets[controlSizeIndex(self)];
+   return NSEdgeInsetsMake(i[0],i[1],i[2],i[3]);
+}
+
 -(NSSize)intrinsicContentSize {
    NSCell *cell=[self cell];
+   int     kind=controlMetricsKind(self);
 
    if(cell==nil)
     return NSMakeSize(NSViewNoIntrinsicMetric,NSViewNoIntrinsicMetric);
-   return [cell cellSize];
+   if(kind==MetricsNone)
+    return [cell cellSize];
+
+   const NSControlMetrics *m=&controlMetrics[kind];
+   int     size=controlSizeIndex(self);
+   CGFloat height=m->height[size];
+
+   switch(kind){
+    case MetricsHelp:
+    case MetricsDisclosure:
+     return NSMakeSize(height,height);
+
+    case MetricsSlider:
+     return NSMakeSize(NSViewNoIntrinsicMetric,height);
+
+    case MetricsStepper:
+     return NSMakeSize(size==0?13:(size==1?11:9),height);
+
+    case MetricsSegmented:{
+     NSSize cellSize=[cell cellSize];
+     const CGFloat *i=m->insets[size];
+
+     return NSMakeSize(cellSize.width<10000?cellSize.width-i[1]-i[3]:NSViewNoIntrinsicMetric,height);
+    }
+
+    case MetricsPopUp:
+    case MetricsPullDown:{
+     /* As wide as its widest item, its arrows and margins; one showing an
+        item of its own (an action menu's gear) as wide as that item. */
+     NSPopUpButtonCell *popUpCell=(NSPopUpButtonCell *)cell;
+     NSArray *items=[(NSPopUpButton *)self itemArray];
+     CGFloat  widest=0;
+
+     if(![popUpCell usesItemFromMenu] && [popUpCell menuItem]!=nil)
+      items=[NSArray arrayWithObject:[popUpCell menuItem]];
+     for(NSMenuItem *item in items){
+      CGFloat width=titleWidth(self,[item title]);
+
+      if([item image]!=nil)
+       width+=[[item image] size].width+(width>0?4:0);
+      widest=MAX(widest,width);
+     }
+     return NSMakeSize(widest+m->pad[size],height);
+    }
+
+    default:{
+     NSButton *button=(NSButton *)self;
+     CGFloat   width=titleWidth(self,[button title])+m->pad[size];
+
+     // An image beside or in place of the title takes its own room.
+     if([button image]!=nil && kind!=MetricsCheck && kind!=MetricsRadio){
+      NSCellImagePosition position=[button imagePosition];
+      CGFloat imageWidth=[[button image] size].width;
+
+      if(position==NSImageOnly)
+       width=imageWidth+m->pad[size];
+      else if(position==NSImageLeft || position==NSImageRight)
+       width+=imageWidth+4;
+     }
+     return NSMakeSize(width,height);
+    }
+   }
 }
 
 @end
