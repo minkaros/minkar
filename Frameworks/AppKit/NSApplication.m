@@ -531,7 +531,10 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    NSWindow *key=nil,*main=nil;
 
    for(NSWindow *window in [self orderedWindows]){
-    if(window==except || ![window isVisible] || [window isMiniaturized])
+    /* Document and panel windows at the normal level only: not a status
+       item's, a menu's or a banner's (SystemUIServer's panel going away
+       made its status item's window key). */
+    if(window==except || ![window isVisible] || [window isMiniaturized] || [window level]!=NSNormalWindowLevel)
      continue;
     if(key==nil && [window canBecomeKeyWindow])
      key=window;

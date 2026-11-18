@@ -2573,13 +2573,16 @@ static void sendAppearance(NSView *view,SEL selector) {
      /* The key or main window going: the app's next window takes its
         place, as on the reference. */
      if([NSApp keyWindow]==self || [NSApp mainWindow]==self){
+      /* No longer key or main first, then told: a window that orders
+         itself out as it resigns (SystemUIServer's panel) finds it is
+         neither, instead of resigning again without end. */
       if([NSApp keyWindow]==self){
-       [self resignKeyWindow];
        [NSApp _setKeyWindow:nil];
+       [self resignKeyWindow];
       }
       if([NSApp mainWindow]==self){
-       [self resignMainWindow];
        [NSApp _setMainWindow:nil];
+       [self resignMainWindow];
       }
       if([NSApp isActive])
        [NSApp _makeFrontWindowKeyExcept:self];
