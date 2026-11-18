@@ -19,6 +19,28 @@ typedef enum {
     NSImageCellType
 } NSCellType;
 
+/* A cell's attributes, for -cellAttribute: and -setCellAttribute:to:
+   (the reference's values). */
+typedef NS_ENUM(NSUInteger, NSCellAttribute) {
+    NSCellDisabled = 0,
+    NSCellState = 1,
+    NSPushInCell = 2,
+    NSCellEditable = 3,
+    NSChangeGrayCell = 4,
+    NSCellHighlighted = 5,
+    NSCellLightsByContents = 6,
+    NSCellLightsByGray = 7,
+    NSChangeBackgroundCell = 8,
+    NSCellLightsByBackground = 9,
+    NSCellIsBordered = 10,
+    NSCellHasOverlappingImage = 11,
+    NSCellHasImageHorizontal = 12,
+    NSCellHasImageOnLeftOrBottom = 13,
+    NSCellChangesContents = 14,
+    NSCellIsInsetButton = 15,
+    NSCellAllowsMixedState = 16,
+};
+
 enum {
     NSAnyType = 0,
     NSIntType = 1,
@@ -51,11 +73,13 @@ typedef enum {
     NSScaleNone = NSImageScaleNone,
 } NSImageScaling;
 
-typedef enum {
+/* The state's older type (NSCellState is a cell attribute's name). */
+typedef NSInteger NSCellStateValue;
+enum {
     NSMixedState = -1,
     NSOffState = 0,
     NSOnState = 1,
-} NSCellState;
+};
 
 /* The names of API 19. */
 typedef NSInteger NSControlStateValue;
@@ -286,6 +310,8 @@ enum {
 
 /* Minkar: the events a cell sends its action on, and its contextual menu. */
 @interface NSCell (MinkarCellExtras)
+- (NSInteger)cellAttribute:(NSCellAttribute)attribute;
+- (void)setCellAttribute:(NSCellAttribute)attribute to:(NSInteger)value;
 - (NSInteger)sendActionOn:(NSInteger)mask;
 @property (strong) NSMenu *menu;
 - (NSMenu *)menuForEvent:(NSEvent *)event inRect:(NSRect)cellFrame ofView:(NSView *)view;

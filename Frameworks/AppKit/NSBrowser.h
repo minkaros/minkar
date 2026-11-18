@@ -100,7 +100,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setTitle:(NSString *)title ofColumn:(NSInteger)column;
 
 - (void)selectRow:(NSInteger)row inColumn:(NSInteger)column;
-- (void)setPath:(NSString *)path;
+- (BOOL)setPath:(NSString *)path;
+- (NSString *)path;
+- (NSString *)pathToColumn:(NSInteger)column;
+@property (copy) NSString *pathSeparator;
 
 - (BOOL)sendAction;
 - (void)doClick:sender;

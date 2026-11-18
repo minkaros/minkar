@@ -19,7 +19,10 @@ typedef NS_OPTIONS(NSUInteger, NSDragOperation) {
     NSDragOperationPrivate = 0x08,
     NSDragOperationMove = 0x10,
     NSDragOperationDelete = 0x20,
-    NSDragOperationEvery = NSUIntegerMax
+    NSDragOperationEvery = NSUIntegerMax,
+    /* Deprecated, still declared at API 19 (the four first operations). */
+    NSDragOperationAll_Obsolete = 15,
+    NSDragOperationAll = NSDragOperationAll_Obsolete
 };
 
 @protocol NSDraggingInfo

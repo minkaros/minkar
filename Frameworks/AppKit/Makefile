@@ -162,6 +162,7 @@ SRCS = \
     NSPathControl.m \
     NSPoofAnimation.m \
     NSPopUpButton.m \
+    NSMenuItemCell.m \
     NSPopUpButtonCell.m \
     NSPredicateEditor.m \
     NSPredicateEditorRowTemplate.m \
@@ -456,6 +457,7 @@ HEADERS = \
     NSSwitch.h \
     NSPoofAnimation.h \
     NSPopUpButton.h \
+    NSMenuItemCell.h \
     NSPopUpButtonCell.h \
     NSPredicateEditor.h \
     NSPredicateEditorRowTemplate.h \

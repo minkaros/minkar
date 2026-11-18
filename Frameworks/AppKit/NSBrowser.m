@@ -507,8 +507,69 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)setPath:(NSString *)path {
-   NSUnimplementedMethod();
+/* Paths: the selected cells' titles from column zero, joined by the
+   separator ("/" unless set), as on the reference. */
+static char pathSeparatorKey;
+
+-(NSString *)pathSeparator {
+   NSString *separator=objc_getAssociatedObject(self,&pathSeparatorKey);
+
+   return separator!=nil?separator:@"/";
+}
+
+-(void)setPathSeparator:(NSString *)separator {
+   objc_setAssociatedObject(self,&pathSeparatorKey,separator,OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+
+-(NSString *)pathToColumn:(NSInteger)column {
+   NSMutableString *path=[NSMutableString stringWithString:[self pathSeparator]];
+   NSInteger        i;
+
+   for(i=0;i<column && i<(NSInteger)[_matrices count];i++){
+    NSCell *cell=[[self matrixInColumn:i] selectedCell];
+
+    if(cell==nil)
+     break;
+    if(i>0)
+     [path appendString:[self pathSeparator]];
+    [path appendString:[cell stringValue]];
+   }
+   return path;
+}
+
+-(NSString *)path {
+   return [self pathToColumn:[_matrices count]];
+}
+
+/* Selects each component in turn, from column zero: NO when one is not
+   there (what is before it stays selected). */
+-(BOOL)setPath:(NSString *)path {
+   NSString *separator=[self pathSeparator];
+   NSArray  *components=[path componentsSeparatedByString:separator];
+   NSInteger column=0;
+
+   [self loadColumnZero];
+   for(NSString *name in components){
+    NSMatrix *matrix;
+    NSInteger row,rows,found=-1;
+
+    if([name length]==0)
+     continue;
+    if(column>=(NSInteger)[_matrices count])
+     return NO;
+    matrix=[self matrixInColumn:column];
+    rows=[matrix numberOfRows];
+    for(row=0;row<rows;row++)
+     if([[[matrix cellAtRow:row column:0] stringValue] isEqualToString:name]){
+      found=row;
+      break;
+     }
+    if(found<0)
+     return NO;
+    [self selectRow:found inColumn:column];
+    column++;
+   }
+   return YES;
 }
 
 -(BOOL)sendAction {

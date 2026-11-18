@@ -13,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 enum {
     NSUtilityWindowMask = 0x10,
     NSDocModalWindowMask = 0x40,
+    NSNonactivatingPanelMask = 0x80,
+    NSHUDWindowMask = 0x2000,
 };
 
 @interface NSPanel : NSWindow {

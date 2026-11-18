@@ -101,6 +101,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSSwitch.h>
 #import <AppKit/NSPDFImageRep.h>
 #import <AppKit/NSPopUpButton.h>
+#import <AppKit/NSMenuItemCell.h>
 #import <AppKit/NSPopUpButtonCell.h>
 #import <AppKit/NSPrinter.h>
 #import <AppKit/NSPrintOperation.h>

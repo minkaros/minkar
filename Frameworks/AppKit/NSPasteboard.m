@@ -73,6 +73,8 @@ NSString *const NSPasteboardTypeFileURL = @"public.file-url";
 NSString * const NSColorPboardType=@"NSColorPboardType";
 NSString * const NSFileContentsPboardType=@"NSFileContentsPboardType";
 NSString * const NSFilenamesPboardType=@"NSFilenamesPboardType";
+// The reference's value.
+NSString * const NSFilesPromisePboardType=@"Apple files promise pasteboard type";
 NSString * const NSFontPboardType=@"NSFontPboardType";
 NSString * const NSPDFPboardType=@"NSPDFPboardType";
 NSString * const NSPICTPboardType=@"NSPICTPboardType";

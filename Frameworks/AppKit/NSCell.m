@@ -1067,4 +1067,30 @@ static char sendMaskKey, menuKey, expansionKey;
    NSRectFill([self focusRingMaskBoundsForFrame:cellFrame inView:controlView]);
 }
 
+/* The attributes a plain cell has; a button cell answers the ones about
+   its highlighting and image (NSButtonCell). */
+-(NSInteger)cellAttribute:(NSCellAttribute)attribute {
+   switch(attribute){
+    case NSCellDisabled: return ![self isEnabled];
+    case NSCellState: return [self state];
+    case NSCellEditable: return [self isEditable];
+    case NSCellHighlighted: return [self isHighlighted];
+    case NSCellIsBordered: return [self isBordered];
+    case NSCellAllowsMixedState: return [self allowsMixedState];
+    default: return 0;
+   }
+}
+
+-(void)setCellAttribute:(NSCellAttribute)attribute to:(NSInteger)value {
+   switch(attribute){
+    case NSCellDisabled: [self setEnabled:value==0]; break;
+    case NSCellState: [self setState:value]; break;
+    case NSCellEditable: [self setEditable:value!=0]; break;
+    case NSCellHighlighted: [self setHighlighted:value!=0]; break;
+    case NSCellIsBordered: [self setBordered:value!=0]; break;
+    case NSCellAllowsMixedState: [self setAllowsMixedState:value!=0]; break;
+    default: break;
+   }
+}
+
 @end

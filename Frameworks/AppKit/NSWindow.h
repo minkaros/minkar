@@ -27,6 +27,9 @@ enum {
     NSMiniaturizableWindowMask = 0x04,
     NSResizableWindowMask = 0x08,
     NSTexturedBackgroundWindowMask = 0x100,
+    /* The older names API 19 still declares (deprecated in 10.12). */
+    NSUnifiedTitleAndToolbarWindowMask = 1 << 12,
+    NSFullScreenWindowMask = 1 << 14,
     NSFullSizeContentViewWindowMask = 1 << 15,
 };
 

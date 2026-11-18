@@ -35,6 +35,7 @@ APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeFileURL;
 APPKIT_EXPORT NSString *const NSColorPboardType;
 APPKIT_EXPORT NSString *const NSFileContentsPboardType;
 APPKIT_EXPORT NSString *const NSFilenamesPboardType;
+APPKIT_EXPORT NSString *const NSFilesPromisePboardType;
 APPKIT_EXPORT NSString *const NSFontPboardType;
 APPKIT_EXPORT NSString *const NSPDFPboardType;
 APPKIT_EXPORT NSString *const NSPICTPboardType;
