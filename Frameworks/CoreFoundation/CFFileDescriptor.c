@@ -10,6 +10,12 @@
  * scheduled in; that source runs the callback on the run loop's thread.
  * A descriptor is freed once invalidated and released (its sources hold
  * it until then).
+ *
+ * Invalidating waits until both sources are cancelled, as dispatch says a
+ * descriptor is only free again then: a descriptor made at once on the
+ * same file (AppKit makes one for each wait on its event pipe) otherwise
+ * had its read source taken away by the old one's late removal from the
+ * kernel queue, and never fired.
  */
 
 #include <CoreFoundation/CFFileDescriptor.h>
@@ -34,6 +40,7 @@ struct __CFFileDescriptor {
     Boolean readResumed, writeResumed;
     CFRunLoopSourceRef runLoopSource;
     CFMutableArrayRef runLoops;       /* where runLoopSource is scheduled */
+    dispatch_group_t cancelled;       /* left by each source's cancel handler */
 };
 
 static CFTypeID fileDescriptorTypeID = 0;
@@ -53,6 +60,8 @@ static void fileDescriptorFinalize(CFTypeRef cf)
         release(info);
     if (f->runLoops)
         CFRelease(f->runLoops);
+    if (f->cancelled)
+        dispatch_release(f->cancelled);
     pthread_mutex_destroy(&f->lock);
 }
 
@@ -117,11 +126,16 @@ static void eventFired(CFFileDescriptorRef f, CFOptionFlags event)
     signalRunLoops(f);
 }
 
+static char eventQueueKey;
+
 static dispatch_queue_t eventQueue(void)
 {
     static dispatch_queue_t queue;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ queue = dispatch_queue_create("org.minkar.CFFileDescriptor", DISPATCH_QUEUE_SERIAL); });
+    dispatch_once(&once, ^{
+        queue = dispatch_queue_create("org.minkar.CFFileDescriptor", DISPATCH_QUEUE_SERIAL);
+        dispatch_queue_set_specific(queue, &eventQueueKey, &eventQueueKey, NULL);
+    });
     return queue;
 }
 
@@ -163,10 +177,14 @@ CFFileDescriptorRef CFFileDescriptorCreate(CFAllocatorRef allocator, CFFileDescr
     }
     dispatch_source_set_event_handler(f->readSource, ^{ eventFired(f, kCFFileDescriptorReadCallBack); });
     dispatch_source_set_event_handler(f->writeSource, ^{ eventFired(f, kCFFileDescriptorWriteCallBack); });
+    f->cancelled = dispatch_group_create();
+    dispatch_group_t cancelled = f->cancelled;
+    dispatch_group_enter(cancelled);
+    dispatch_group_enter(cancelled);
     CFRetain(f);
     CFRetain(f);
-    dispatch_source_set_cancel_handler(f->readSource, ^{ CFRelease(f); });
-    dispatch_source_set_cancel_handler(f->writeSource, ^{ CFRelease(f); });
+    dispatch_source_set_cancel_handler(f->readSource, ^{ dispatch_group_leave(cancelled); CFRelease(f); });
+    dispatch_source_set_cancel_handler(f->writeSource, ^{ dispatch_group_leave(cancelled); CFRelease(f); });
     return f;
 }
 
@@ -249,12 +267,24 @@ void CFFileDescriptorInvalidate(CFFileDescriptorRef f)
     void (*release)(void *) = NULL;
     CFRunLoopSourceRef source = NULL;
 
+    dispatch_group_t cancelled = NULL;
+
     CFRetain(f);
     pthread_mutex_lock(&f->lock);
+    if (f->valid && f->cancelled) {
+        cancelled = f->cancelled;
+        dispatch_retain(cancelled);
+    }
     invalidateLocked(f, &info, &release);
     source = f->runLoopSource;
     f->runLoopSource = NULL;
     pthread_mutex_unlock(&f->lock);
+    /* Not on the sources' own queue: their cancel handlers run there. */
+    if (cancelled) {
+        if (dispatch_get_specific(&eventQueueKey) == NULL)
+            dispatch_group_wait(cancelled, DISPATCH_TIME_FOREVER);
+        dispatch_release(cancelled);
+    }
     if (source) {
         CFRunLoopSourceInvalidate(source);
         CFRelease(source);

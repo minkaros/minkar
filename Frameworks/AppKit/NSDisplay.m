@@ -229,15 +229,36 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 
 -(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
     NSEvent *result=nil;
+    /* The event pipe is watched in a mode while any call waits in it: a
+       call made while another waits (a perform, a timer, a callback
+       running the loop again in the same mode) took the source away as it
+       returned, and the outer call slept on with events queued and the
+       pipe full. Counted per thread, as its run loop is. */
+    NSMutableDictionary *threadInfo=[[NSThread currentThread] threadDictionary];
+    NSCountedSet *watching=[threadInfo objectForKey:@"_NSDisplayWatchedModes"];
 
-    if([_eventQueue count])
-        untilDate=[NSDate date];
-   
-    [[NSRunLoop currentRunLoop] addInputSource:[NSApp inputSource] forMode:mode];
+    if(watching==nil){
+        watching=[NSCountedSet set];
+        [threadInfo setObject:watching forKey:@"_NSDisplayWatchedModes"];
+    }
+    mode=[[mode copy] autorelease];
+
+    @synchronized(_eventQueue) {
+        if([_eventQueue count])
+            untilDate=[NSDate date];
+    }
+
+    if([watching countForObject:mode]==0)
+        [[NSRunLoop currentRunLoop] addInputSource:[NSApp inputSource] forMode:mode];
+    [watching addObject:mode];
     [[NSRunLoop currentRunLoop] runMode:mode beforeDate:untilDate];
     [NSApp _drainPipe]; // if there are events, read one at a time
-    [[NSRunLoop currentRunLoop] removeInputSource:[NSApp inputSource] forMode:mode];
+    [watching removeObject:mode];
+    if([watching countForObject:mode]==0)
+        [[NSRunLoop currentRunLoop] removeInputSource:[NSApp inputSource] forMode:mode];
 
+    /* The queue is filled by the window server's thread too. */
+    @synchronized(_eventQueue) {
     while(result==nil && [_eventQueue count]>0) {
         NSEvent *check=[_eventQueue objectAtIndex:0];
     
@@ -264,6 +285,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
             [_eventQueue removeObjectAtIndex:0];
        }
    }
+    }
 
     if(result==nil)
         result=[[[NSEvent alloc] initWithType:NSAppKitSystem location:NSMakePoint(0,0) modifierFlags:0 window:nil] autorelease];
@@ -271,30 +293,33 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
     return result;
 }
 
+/* The events before the given one that the mask takes, each by its own
+   type (it looked at the given event's). */
 -(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
-   int count=[_eventQueue count];
+   @synchronized(_eventQueue) {
+   NSInteger count=[_eventQueue count];
+   NSInteger index=[_eventQueue indexOfObjectIdenticalTo:event];
 
+   count=(index!=NSNotFound)?index:0;
    while(--count>=0){
-    NSEvent *check=[_eventQueue objectAtIndex:count];
-
-    if(check==event)
-     break;
-   }
-
-   while(--count>=0){
-    if(NSEventMaskFromType([event type])&mask)
+    if(NSEventMaskFromType([(NSEvent *)[_eventQueue objectAtIndex:count] type])&mask)
      [_eventQueue removeObjectAtIndex:count];
+   }
    }
 }
 
+/* Called on the window server's thread as well as the main one. */
 -(void)postEvent:(NSEvent *)event atStart:(BOOL)atStart {
+   @synchronized(_eventQueue) {
    if(atStart)
     [_eventQueue insertObject:event atIndex:0];
    else
     [_eventQueue addObject:event];
+   }
 }
 
 -(BOOL)containsAndRemovePeriodicEvents {
+   @synchronized(_eventQueue) {
    BOOL result=NO;
    int  count=[_eventQueue count];
 
@@ -306,6 +331,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    }
 
    return result;
+   }
 }
 
 -(NSEventModifierFlags)modifierForDefault:(NSString *)key:(NSUInteger)standard {
