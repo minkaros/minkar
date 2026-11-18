@@ -5,6 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <CoreData/CoreData.h>
 #import <AppKit/NSArrayController.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
@@ -75,8 +76,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		_flags.alwaysUsesMultipleValuesMarker = [coder decodeBoolForKey:@"NSAlwaysUsesMultipleValuesMarker"];
 
 		id declaredKeys=[coder decodeObjectForKey:@"NSDeclaredKeys"];
-		
-		if([self automaticallyPreparesContent]) {
+		_flags.automaticallyPreparesContent = [coder decodeBoolForKey:@"NSAutomaticallyPreparesContent"];
+
+		/* In entity mode the content is prepared once the nib's bindings
+		   have given the context (awakeFromNib). */
+		if([self automaticallyPreparesContent] && [self entityName]==nil) {
 			[self prepareContent];
 		} else {
 			[self _setContentArray:[NSMutableArray array]];
@@ -84,6 +88,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 	}
 	return self;
+}
+
+/* Its defaults with no content: as the reference's init. */
+- (id)init
+{
+	return [self initWithContent:nil];
 }
 
 - (id)initWithContent:(id)content
@@ -97,7 +107,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		_flags.alwaysUsesMultipleValuesMarker = NO;
 		
 		[self setAutomaticallyPreparesContent:NO];
-		[self _setContentArray:content];
+		/* No content is an empty array, as on the reference. */
+		[self _setContentArray:content!=nil?content:[NSMutableArray array]];
 	}
 	return self;
 }
@@ -117,6 +128,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 {
    [self _selectionWillChange];
    [self _selectionDidChange];
+   if([self automaticallyPreparesContent] && [self entityName]!=nil)
+    [self prepareContent];
 }
 
 #pragma mark -
@@ -249,9 +262,79 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)prepareContent
 {
+	if([self entityName]!=nil) {
+		[super prepareContent];   /* entity mode: fetched at the run loop's next turn */
+		return;
+	}
 	id array=[NSMutableArray array];
 	[array addObject:[[self newObject] autorelease]];
 	[self _setContentArray:array];
+}
+
+#pragma mark -
+#pragma mark Core Data (entity mode)
+
+/* The fetched objects: the content, or added to it when merging. */
+-(void)_setFetchedObjects:(NSArray *)objects merge:(BOOL)merge
+{
+	if(merge && _content!=nil) {
+		NSMutableArray *merged=[NSMutableArray arrayWithArray:_content];
+
+		for(id object in objects)
+			if(![merged containsObject:object])
+				[merged addObject:object];
+		[self setContent:merged];
+		return;
+	}
+	[self setContent:objects];
+}
+
+static BOOL objectMatchesController(NSArrayController *controller,NSManagedObject *object)
+{
+	NSEntityDescription *entity=[object entity];
+	NSPredicate *predicate=[controller fetchPredicate];
+
+	while(entity!=nil && ![[entity name] isEqualToString:[controller entityName]])
+		entity=[entity superentity];
+	return entity!=nil && (predicate==nil || [predicate evaluateWithObject:object]);
+}
+
+static BOOL removingForContext;
+
+/* The context's inserted objects of the entity (that the fetch predicate
+   takes) join the content; its deleted ones leave it. */
+-(void)_contextObjectsDidChange:(NSNotification *)note
+{
+	NSDictionary *info=[note userInfo];
+
+	for(NSManagedObject *object in [info objectForKey:NSInsertedObjectsKey])
+		if(objectMatchesController(self,object) && ![_content containsObject:object])
+			[self addObject:object];
+	removingForContext=YES;
+	@try {
+		for(NSManagedObject *object in [info objectForKey:NSDeletedObjectsKey])
+			if([_arrangedObjects containsObject:object])
+				[self removeObject:object];
+			else if([_content containsObject:object]) {
+				[self willChangeValueForKey:@"content"];
+				[_content removeObject:object];
+				[self didChangeValueForKey:@"content"];
+			}
+	}
+	@finally {
+		removingForContext=NO;
+	}
+}
+
+/* Objects removed from an entity-mode controller are deleted from its
+   context, as on the reference. */
+-(void)_deleteRemovedObjects:(NSArray *)objects
+{
+	if(removingForContext || [self entityName]==nil || [self managedObjectContext]==nil)
+		return;
+	for(id object in objects)
+		if([object isKindOfClass:[NSManagedObject class]] && [object managedObjectContext]==[self managedObjectContext])
+			[[self managedObjectContext] deleteObject:object];
 }
 
 #pragma mark -
@@ -483,7 +566,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	
 	id toAdd=nil;
-	if([self automaticallyPreparesContent]) {
+	if([self automaticallyPreparesContent] || [self entityName]!=nil) {
 		toAdd=[[self newObject] autorelease];
 	} else {
 		toAdd=[[self _defaultNewObject] autorelease];
@@ -574,13 +657,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 {
 	[self removeSelectionIndexes: [NSIndexSet indexSetWithIndex: index]];
 	
-	id object = [_arrangedObjects objectAtIndex: index];
+	id object = [[[_arrangedObjects objectAtIndex: index] retain] autorelease];
 	[self willChangeValueForKey: @"content"];
 	[self willChangeValueForKey: @"arrangedObjects"];
 	[_arrangedObjects removeObjectAtIndex: index];
 	[_content removeObject: object];
 	[self didChangeValueForKey: @"content"];
 	[self didChangeValueForKey: @"arrangedObjects"];
+	[self _deleteRemovedObjects:[NSArray arrayWithObject:object]];
 
 	if ([self automaticallyRearrangesObjects]) {
 		[self rearrangeObjects];
@@ -596,9 +680,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	[self willChangeValueForKey: @"arrangedObjects"];
 
 	// Work in reverse order to avoid messing up the array
+	NSMutableArray *removed = [NSMutableArray array];
 	NSUInteger index = [indexes lastIndex];
 	while (index != NSNotFound) {
 		id object = [_arrangedObjects objectAtIndex: index];
+		[removed addObject: object];
 		[_arrangedObjects removeObjectAtIndex: index];
 		[_content removeObject: object];
 		index = [indexes indexLessThanIndex: index];
@@ -606,6 +692,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 	[self didChangeValueForKey: @"content"];
 	[self didChangeValueForKey: @"arrangedObjects"];
+	[self _deleteRemovedObjects: removed];
 
 	if ([self automaticallyRearrangesObjects]) {
 		[self rearrangeObjects];

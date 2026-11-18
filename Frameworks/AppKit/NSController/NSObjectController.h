@@ -26,16 +26,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - initWithContent:(id)content;
 
 - (Class)objectClass;
-//-(NSString *)entityName;
-//-(NSPredicate *)fetchPredicate;
-//-(NSManagedObjectContext *)managedObjectContext;
 - (BOOL)isEditable;
 - (BOOL)automaticallyPreparesContent;
 
 - (void)setObjectClass:(Class)objectClass;
-//-(void)setEntityName:(NSString *)name;
-//-(void)setFetchPredicate:(NSPredicate *)predicate;
-//-(void)setManagedObjectContext:(NSManagedObjectContext *)context;
 - (void)setEditable:(BOOL)flag;
 - (void)setAutomaticallyPreparesContent:(BOOL)flag;
 
@@ -46,16 +40,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)canAdd;
 - (BOOL)canRemove;
 //-(void)add:sender;
-//-(void)fetch:sender;
 //-(void)remove:sender;
 //-(void)removeObject:object;
 
 - (void)prepareContent;
 
-//-(BOOL)fetchWithRequest:(NSFetchRequest *)fetchRequest merge:(BOOL)merge error:(NSError **)error;
 
 //-(BOOL)validateMenuItem:(NSMenuItem *)menuItem;
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isEditable) BOOL editable;
+
+/* Core Data (entity mode): the content fetched from the context. */
+@property (strong) NSManagedObjectContext *managedObjectContext;
+@property (copy) NSString *entityName;
+@property (strong) NSPredicate *fetchPredicate;
+@property BOOL usesLazyFetching;
+- (NSFetchRequest *)defaultFetchRequest;
+- (void)fetch:(id)sender;
+- (BOOL)fetchWithRequest:(NSFetchRequest *)fetchRequest merge:(BOOL)merge error:(NSError **)error;
 @end

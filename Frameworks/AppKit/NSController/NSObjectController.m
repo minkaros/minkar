@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSet.h>
 #import "NSControllerSelectionProxy.h"
 #import "NSObservationProxy.h"
+#import "../CoreData_/_NSManagedProxy.h"
+#import <CoreData/CoreData.h>
+#import <objc/runtime.h>
 
 @interface NSObjectController(forward)
 -(void)_selectionWillChange;
@@ -27,24 +30,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setKeys:[NSArray arrayWithObjects:@"content", nil] triggerChangeNotificationsForDependentKey:@"contentObject"];
 }
 
+/* Editable, of NSMutableDictionary objects, no content: as the
+   reference's init (initWithContent:nil). Not through initWithContent:,
+   which an array controller overrides by calling init. */
+static void setUpObjectController(NSObjectController *self_, NSString **objectClassName, BOOL *editable,
+                                  BOOL *prepares, NSCountedSet **observedKeys, id *selection)
+{
+	*objectClassName=@"NSMutableDictionary";
+	*editable=YES;
+	*prepares=NO;
+	*observedKeys=[[NSCountedSet alloc] init];
+	*selection=[[NSControllerSelectionProxy alloc] initWithController:self_];
+}
+
 - (id)init
 {
-	if ((self = [super init])) {
-		_selection=[[NSControllerSelectionProxy alloc] initWithController:self];
-	}
+	if ((self=[super init]))
+		setUpObjectController(self,&_objectClassName,&_editable,&_automaticallyPreparesContent,&_observedKeys,&_selection);
 	return self;
 }
 
 - (id)initWithContent:(id)content
 {
 	if ((self=[super init])) {
-		_objectClassName=@"NSMutableDictionary";
-		
-		_editable = YES;
-		_automaticallyPreparesContent = NO;
-
-		_observedKeys=[[NSCountedSet alloc] init];
-		_selection=[[NSControllerSelectionProxy alloc] initWithController:self];
+		setUpObjectController(self,&_objectClassName,&_editable,&_automaticallyPreparesContent,&_observedKeys,&_selection);
+		_content=[content retain];
 	}
 
 	return self;
@@ -59,6 +69,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      
     _editable = [coder decodeBoolForKey:@"NSEditable"];
     _automaticallyPreparesContent = [coder decodeBoolForKey:@"NSAutomaticallyPreparesContent"];
+    /* Entity mode from the nib: the entity and fetch predicate the
+       managed proxy keeps; the context comes by its binding. */
+    if([coder decodeBoolForKey:@"_NSIsUsingManagedProxy"]){
+     _NSManagedProxy *proxy=[coder decodeObjectForKey:@"_NSManagedProxy"];
+     NSPredicate     *predicate=nil;
+
+     [self setEntityName:[proxy entityName]];
+     @try { predicate=[[proxy valueForKey:@"_fetchRequest"] predicate]; } @catch(NSException *e) { predicate=nil; }
+     [self setFetchPredicate:predicate];
+    }
+    if([coder containsValueForKey:@"NSUsesLazyFetching"])
+     [self setUsesLazyFetching:[coder decodeBoolForKey:@"NSUsesLazyFetching"]];
      
     _observedKeys=[[NSCountedSet alloc] init];
     _selection=[[NSControllerSelectionProxy alloc] initWithController:self];
@@ -66,7 +88,136 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
+#pragma mark - Core Data (entity mode)
+
+/* The managed object context, entity, fetch predicate and lazy fetching
+   of a controller in entity mode, kept beside the object. */
+static char contextKey, entityNameKey, fetchPredicateKey, lazyKey, watchingKey;
+
+-(NSManagedObjectContext *)managedObjectContext {
+   return objc_getAssociatedObject(self,&contextKey);
+}
+
+-(void)setManagedObjectContext:(NSManagedObjectContext *)context {
+   NSManagedObjectContext *old=[self managedObjectContext];
+
+   if(context==old)
+    return;
+   if(old!=nil && objc_getAssociatedObject(self,&watchingKey)!=nil){
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:NSManagedObjectContextObjectsDidChangeNotification object:old];
+    objc_setAssociatedObject(self,&watchingKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   }
+   objc_setAssociatedObject(self,&contextKey,context,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(NSString *)entityName {
+   return objc_getAssociatedObject(self,&entityNameKey);
+}
+
+-(void)setEntityName:(NSString *)name {
+   objc_setAssociatedObject(self,&entityNameKey,name,OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+
+-(NSPredicate *)fetchPredicate {
+   return objc_getAssociatedObject(self,&fetchPredicateKey);
+}
+
+-(void)setFetchPredicate:(NSPredicate *)predicate {
+   objc_setAssociatedObject(self,&fetchPredicateKey,predicate,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(BOOL)usesLazyFetching {
+   return [objc_getAssociatedObject(self,&lazyKey) boolValue];
+}
+
+-(void)setUsesLazyFetching:(BOOL)flag {
+   objc_setAssociatedObject(self,&lazyKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(BOOL)_isEntityMode {
+   return [self entityName]!=nil && [self managedObjectContext]!=nil;
+}
+
+/* The request a fetch makes: the entity in the context's model (which
+   must have it) and the fetch predicate. */
+-(NSFetchRequest *)defaultFetchRequest {
+   NSManagedObjectContext *context=[self managedObjectContext];
+   NSEntityDescription    *entity;
+   NSFetchRequest         *request;
+
+   if([self entityName]==nil || context==nil)
+    return nil;
+   entity=[NSEntityDescription entityForName:[self entityName] inManagedObjectContext:context];
+   if(entity==nil)
+    [NSException raise:NSInternalInconsistencyException format:@"Cannot perform operation without a managed object context with an entity named '%@'",[self entityName]];
+   request=[[[NSFetchRequest alloc] init] autorelease];
+   [request setEntity:entity];
+   [request setPredicate:[self fetchPredicate]];
+   return request;
+}
+
+/* The fetched objects as the content: an object controller's is the
+   first of them (kept when merging). */
+-(void)_setFetchedObjects:(NSArray *)objects merge:(BOOL)merge {
+   if(merge && [self content]!=nil)
+    return;
+   [self setContent:[objects count]>0?[objects objectAtIndex:0]:nil];
+}
+
+-(BOOL)fetchWithRequest:(NSFetchRequest *)request merge:(BOOL)merge error:(NSError **)error {
+   NSArray *objects;
+
+   if(request==nil)
+    request=[self defaultFetchRequest];
+   if(request==nil)
+    return NO;
+   objects=[[self managedObjectContext] executeFetchRequest:request error:error];
+   if(objects==nil)
+    return NO;
+   [self _setFetchedObjects:objects merge:merge];
+   return YES;
+}
+
+-(void)fetch:(id)sender {
+   [self fetchWithRequest:nil merge:NO error:NULL];
+}
+
+/* Objects inserted into or deleted from the context, while prepared: an
+   object controller drops its content when it is deleted (an array
+   controller adds and removes; it overrides this). */
+-(void)_contextObjectsDidChange:(NSNotification *)note {
+   NSSet *deleted=[[note userInfo] objectForKey:NSDeletedObjectsKey];
+
+   if([self content]!=nil && [deleted containsObject:[self content]])
+    [self setContent:nil];
+}
+
+-(void)_watchContext {
+   NSManagedObjectContext *context=[self managedObjectContext];
+
+   if(context==nil || objc_getAssociatedObject(self,&watchingKey)!=nil)
+    return;
+   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_contextObjectsDidChange:)
+     name:NSManagedObjectContextObjectsDidChangeNotification object:context];
+   objc_setAssociatedObject(self,&watchingKey,context,OBJC_ASSOCIATION_ASSIGN);
+}
+
+-(void)_fetchPreparedContent {
+   if([self _isEntityMode])
+    [self fetchWithRequest:nil merge:NO error:NULL];
+}
+
+/* In entity mode the content is fetched at the run loop's next turn, as
+   the reference does, and follows the context's changes from then on;
+   otherwise a new object. */
 -(void)prepareContent {
+   if([self _isEntityMode]){
+    [self _watchContext];
+    [self performSelector:@selector(_fetchPreparedContent) withObject:nil afterDelay:0];
+    return;
+   }
+   if([self content]==nil && [self entityName]==nil)
+    [self setContent:[[self newObject] autorelease]];
 }
 
 -(void)awakeFromNib {
@@ -117,8 +268,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	return [[NSClassFromString(_objectClassName) alloc] init];
 }
 
+/* In entity mode a new object of the entity, inserted into the context. */
 -(id)newObject
 {
+	if([self _isEntityMode])
+	 return [[NSEntityDescription insertNewObjectForEntityForName:[self entityName] inManagedObjectContext:[self managedObjectContext]] retain];
 	return [self _defaultNewObject];
 }
 
@@ -137,6 +291,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  
 -(void)dealloc
 {
+	/* A pending fetch keeps the controller alive (performSelector retains
+	   it), so there is none to cancel here. */
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[_selection release];
 	[_objectClassName release];
 	[_content release];
