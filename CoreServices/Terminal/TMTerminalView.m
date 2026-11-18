@@ -59,7 +59,7 @@ static BOOL before(TMPoint a, TMPoint b)
     _cursorColor = prefs.cursorColor;
     [self applyDefaultColors];
     for (int i = 0; i < 16; i++) {
-        NSColor *c = [[prefs paletteColorAtIndex:i] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+        NSColor *c = [[prefs paletteColorAtIndex:i] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
         [_session setPaletteIndex:i red:(uint8_t)lround([c redComponent] * 255)
             green:(uint8_t)lround([c greenComponent] * 255) blue:(uint8_t)lround([c blueComponent] * 255)];
     }
@@ -79,7 +79,7 @@ static BOOL before(TMPoint a, TMPoint b)
 
 static VTermColor rgbOf(NSColor *color)
 {
-    NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace] ?: [NSColor blackColor];
+    NSColor *rgb = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]] ?: [NSColor blackColor];
     VTermColor c;
 
     vterm_color_rgb(&c, (uint8_t)lround([rgb redComponent] * 255), (uint8_t)lround([rgb greenComponent] * 255),

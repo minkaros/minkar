@@ -36,7 +36,8 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *schemes(void)
 
 NSString *TMHexOfColor(NSColor *color)
 {
-    NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+    /* In sRGB, the space the hex colors are read back in (TMColorOfHex). */
+    NSColor *rgb = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
 
     if (rgb == nil)
         return @"#000000";

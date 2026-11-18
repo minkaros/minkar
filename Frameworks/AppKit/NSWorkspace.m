@@ -721,7 +721,7 @@ static NSDictionary *desktopEntries(void) {
    NSNumber *scaling=[options objectForKey:NSWorkspaceDesktopImageScalingKey];
    NSNumber *clipping=[options objectForKey:NSWorkspaceDesktopImageAllowClippingKey];
    NSColor *color=[[options objectForKey:NSWorkspaceDesktopImageFillColorKey]
-      colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+      colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
 
    if(scaling!=nil)
       [entry setObject:scaling forKey:@"scaling"];

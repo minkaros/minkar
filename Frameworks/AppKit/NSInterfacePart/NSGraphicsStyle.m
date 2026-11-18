@@ -404,7 +404,7 @@ static NSColor *atlasAccent(void) {
 }
 
 static NSColor *atlasDarker(NSColor *color,CGFloat fraction) {
-   NSColor *rgb=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+   NSColor *rgb=[color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
 
    if(rgb==nil)
     return color;
@@ -413,7 +413,7 @@ static NSColor *atlasDarker(NSColor *color,CGFloat fraction) {
 }
 
 static NSColor *atlasLighter(NSColor *color,CGFloat fraction) {
-   NSColor *rgb=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+   NSColor *rgb=[color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
 
    if(rgb==nil)
     return color;
