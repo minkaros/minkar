@@ -733,6 +733,11 @@ static NSDictionary *desktopEntries(void) {
       [entry setObject:[NSArray arrayWithObjects:[NSNumber numberWithDouble:r],
          [NSNumber numberWithDouble:g],[NSNumber numberWithDouble:b],
          [NSNumber numberWithDouble:a],nil] forKey:@"color"];
+      /* The color itself too, in its own space, so it reads back the
+         same, as the reference keeps it. */
+      NSData *archived=[NSKeyedArchiver archivedDataWithRootObject:[options objectForKey:NSWorkspaceDesktopImageFillColorKey]];
+      if(archived!=nil)
+         [entry setObject:archived forKey:@"colorData"];
    }
 
    NSMutableDictionary *screens=[[desktopEntries() mutableCopy] autorelease];
@@ -762,7 +767,12 @@ static NSDictionary *desktopEntries(void) {
       [NSNumber numberWithInteger:NSImageScaleProportionallyUpOrDown] forKey:NSWorkspaceDesktopImageScalingKey];
    [result setObject:[entry objectForKey:@"clipping"] ? [entry objectForKey:@"clipping"] :
       [NSNumber numberWithBool:YES] forKey:NSWorkspaceDesktopImageAllowClippingKey];
-   if([rgba isKindOfClass:[NSArray class]] && [rgba count]==4)
+   NSData *archived=[entry objectForKey:@"colorData"];
+   NSColor *kept=[archived isKindOfClass:[NSData class]]?[NSKeyedUnarchiver unarchiveObjectWithData:archived]:nil;
+
+   if([kept isKindOfClass:[NSColor class]])
+      [result setObject:kept forKey:NSWorkspaceDesktopImageFillColorKey];
+   else if([rgba isKindOfClass:[NSArray class]] && [rgba count]==4)
       [result setObject:[NSColor colorWithSRGBRed:[[rgba objectAtIndex:0] doubleValue]
          green:[[rgba objectAtIndex:1] doubleValue] blue:[[rgba objectAtIndex:2] doubleValue]
          alpha:[[rgba objectAtIndex:3] doubleValue]] forKey:NSWorkspaceDesktopImageFillColorKey];
