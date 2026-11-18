@@ -32,6 +32,7 @@
 #import "VGPath.h"
 #import <Onyx2D/O2Paint_image.h>
 #import <Onyx2D/O2Paint_color.h>
+#import <Onyx2D/O2ColorMatching.h>
 #import <Onyx2D/O2Paint_axialGradient.h>
 #import <Onyx2D/O2Paint_radialGradient.h>
 #import <Onyx2D/O2Paint_pattern.h>
@@ -435,6 +436,26 @@ ONYX2D_STATIC O2Paint *paintFromColor(O2Context_builtin *self,O2ColorRef color,O
    else {
     size_t    count=O2ColorGetNumberOfComponents(color);
     const O2Float *components=O2ColorGetComponents(color);
+    NSString *profile=[O2ColorGetColorSpace(color) _matchingProfile];
+    O2Float   matched[4];
+
+    /* A color of another space than the device's (sRGB, as the reference
+       matches its displays): matched to it first, as the reference draws
+       Generic RGB colors, the calibrated ones among them. */
+    if(profile!=nil && ((count==4 && ![profile isEqualToString:O2ColorProfileSRGB]) ||
+                        (count==2 && ![profile isEqualToString:O2ColorProfileSRGBGray]))){
+     double in[3]={0},out[3]={0};
+     size_t i,n=count-1;
+
+     for(i=0;i<n;i++)
+      in[i]=components[i];
+     if(O2ColorMatchComponents(profile,in,(n==3)?O2ColorProfileSRGB:O2ColorProfileSRGBGray,out)){
+      for(i=0;i<n;i++)
+       matched[i]=out[i];
+      matched[n]=components[n];
+      components=matched;
+     }
+    }
 
     if(count==2)
      result=[[O2Paint_color alloc] initWithGray:components[0]  alpha:components[1] surfaceToPaintTransform:surfaceToPaintMatrix];

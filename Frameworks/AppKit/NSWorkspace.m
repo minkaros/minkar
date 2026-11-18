@@ -763,7 +763,7 @@ static NSDictionary *desktopEntries(void) {
    [result setObject:[entry objectForKey:@"clipping"] ? [entry objectForKey:@"clipping"] :
       [NSNumber numberWithBool:YES] forKey:NSWorkspaceDesktopImageAllowClippingKey];
    if([rgba isKindOfClass:[NSArray class]] && [rgba count]==4)
-      [result setObject:[NSColor colorWithCalibratedRed:[[rgba objectAtIndex:0] doubleValue]
+      [result setObject:[NSColor colorWithSRGBRed:[[rgba objectAtIndex:0] doubleValue]
          green:[[rgba objectAtIndex:1] doubleValue] blue:[[rgba objectAtIndex:2] doubleValue]
          alpha:[[rgba objectAtIndex:3] doubleValue]] forKey:NSWorkspaceDesktopImageFillColorKey];
    return result;

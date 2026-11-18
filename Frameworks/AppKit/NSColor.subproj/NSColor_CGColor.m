@@ -32,11 +32,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[[self alloc] initWithColorRef:colorRef spaceName:spaceName] autorelease];
 }
 
+/* The CG space of a named color space, as the reference has them: the
+   calibrated ones Generic RGB and Generic Gray, the device ones the device
+   spaces; NULL for the others. */
+static CGColorSpaceRef createSpaceForName(NSString *spaceName) {
+   if([spaceName isEqualToString:NSCalibratedRGBColorSpace])
+    return CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+   if([spaceName isEqualToString:NSCalibratedWhiteColorSpace])
+    return CGColorSpaceCreateWithName(kCGColorSpaceGenericGray);
+   if([spaceName isEqualToString:NSDeviceRGBColorSpace])
+    return CGColorSpaceCreateDeviceRGB();
+   if([spaceName isEqualToString:NSDeviceWhiteColorSpace])
+    return CGColorSpaceCreateDeviceGray();
+   return NULL;
+}
+
 +(NSColor *)colorWithGray:(CGFloat)gray alpha:(CGFloat)alpha spaceName:(NSString *)spaceName {
    NSColor *result;
 
-   CGColorSpaceRef colorSpace=CGColorSpaceCreateDeviceGray();
+   CGColorSpaceRef colorSpace=createSpaceForName(spaceName);
    CGFloat         components[2]={gray,alpha};
+
+   if(colorSpace==NULL || CGColorSpaceGetModel(colorSpace)!=kCGColorSpaceModelMonochrome){
+    CGColorSpaceRelease(colorSpace);
+    colorSpace=CGColorSpaceCreateDeviceGray();
+   }
    CGColorRef     cgColor=CGColorCreate(colorSpace,components);
 
    result=[self colorWithColorRef:cgColor spaceName:spaceName];
@@ -65,8 +85,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 +(NSColor *)colorWithRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha spaceName:(NSString *)spaceName {
    NSColor *result;
 
-   CGColorSpaceRef colorSpace=CGColorSpaceCreateDeviceRGB();
+   CGColorSpaceRef colorSpace=createSpaceForName(spaceName);
    CGFloat           components[4]={red,green,blue,alpha};
+
+   if(colorSpace==NULL || CGColorSpaceGetModel(colorSpace)!=kCGColorSpaceModelRGB){
+    CGColorSpaceRelease(colorSpace);
+    colorSpace=CGColorSpaceCreateDeviceRGB();
+   }
    CGColorRef     cgColor=CGColorCreate(colorSpace,components);
 
    result=[self colorWithColorRef:cgColor spaceName:spaceName];
@@ -159,6 +184,25 @@ static inline CGFloat calibratedWhiteFromRGB(CGFloat r, CGFloat g, CGFloat b) {
 -(NSColor *)colorUsingColorSpaceName:(NSString *)otherSpaceName device:(NSDictionary *)device {
    if(otherSpaceName==nil || [otherSpaceName isEqualToString:_colorSpaceName])
     return self;
+
+   /* Between the calibrated and device RGB and gray spaces (and from a
+      space of known profile, such as sRGB), matched as the reference
+      matches them. */
+   {
+    CGColorSpaceRef target=createSpaceForName(otherSpaceName);
+
+    if(target!=NULL){
+     CGColorRef matched=CGColorCreateCopyByMatchingToColorSpace(target,kCGRenderingIntentDefault,_colorRef,NULL);
+
+     CGColorSpaceRelease(target);
+     if(matched!=NULL){
+      NSColor *result=[NSColor_CGColor colorWithColorRef:matched spaceName:otherSpaceName];
+
+      CGColorRelease(matched);
+      return result;
+     }
+    }
+   }
 
 // Most of these are crude
 

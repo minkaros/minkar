@@ -522,7 +522,7 @@ static void drawCentered(NSString *string,NSRect rect,NSDictionary *attributes);
 
    [[NSColor whiteColor] setFill];
    [face fill];
-   [[NSColor colorWithCalibratedWhite:0.62 alpha:1] setStroke];
+   [[NSColor colorWithGenericGamma22White:0.62 alpha:1] setStroke];
    [face setLineWidth:2];
    [face stroke];
    for(i=1;i<=12;i++){

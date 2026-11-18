@@ -101,18 +101,18 @@ const float kEdgeThickness = 2.f;
 -(void)drawRect:(NSRect)rect {
    if([[_toolbarItem itemIdentifier] isEqual:[[_toolbarItem toolbar] selectedItemIdentifier]]){
 
-       NSArray *colors = [NSArray arrayWithObjects: [NSColor colorWithCalibratedWhite: kFillGrayLevel alpha: 0],
-                          [NSColor colorWithCalibratedWhite: kFillGrayLevel alpha: 0.5],
-                          [NSColor colorWithCalibratedWhite: kFillGrayLevel alpha: 1],
-                          [NSColor colorWithCalibratedWhite: kFillGrayLevel alpha: 0.0],
+       NSArray *colors = [NSArray arrayWithObjects: [NSColor colorWithGenericGamma22White: kFillGrayLevel alpha: 0],
+                          [NSColor colorWithGenericGamma22White: kFillGrayLevel alpha: 0.5],
+                          [NSColor colorWithGenericGamma22White: kFillGrayLevel alpha: 1],
+                          [NSColor colorWithGenericGamma22White: kFillGrayLevel alpha: 0.0],
                           nil];
        NSGradient *gradient = [[[NSGradient alloc] initWithColors: colors] autorelease];
        [gradient drawInRect: [self bounds] angle: 270];
        
        // fill the edges
-       colors = [NSArray arrayWithObjects: [NSColor colorWithCalibratedWhite: kEdgeGrayLevel alpha: 0],
-                          [NSColor colorWithCalibratedWhite: kEdgeGrayLevel alpha: 1],
-                          [NSColor colorWithCalibratedWhite: kEdgeGrayLevel alpha: 0.0],
+       colors = [NSArray arrayWithObjects: [NSColor colorWithGenericGamma22White: kEdgeGrayLevel alpha: 0],
+                          [NSColor colorWithGenericGamma22White: kEdgeGrayLevel alpha: 1],
+                          [NSColor colorWithGenericGamma22White: kEdgeGrayLevel alpha: 0.0],
                           nil];
        gradient = [[[NSGradient alloc] initWithColors: colors] autorelease];
        NSRect edgeRect = [self bounds];

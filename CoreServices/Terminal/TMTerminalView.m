@@ -174,7 +174,7 @@ static VTermColor rgbOf(NSColor *color)
         return _background;
 
     [_session getRed:&r green:&g blue:&b ofColor:color];
-    return [NSColor colorWithCalibratedRed:r / 255.0 green:g / 255.0 blue:b / 255.0 alpha:1];
+    return [NSColor colorWithSRGBRed:r / 255.0 green:g / 255.0 blue:b / 255.0 alpha:1];
 }
 
 - (BOOL)cell:(VTermScreenCell *)cell line:(NSInteger)line column:(int)column

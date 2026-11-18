@@ -738,9 +738,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
        fill=0.80;
       else if(on)
        fill=0.84;
-      [[NSColor colorWithCalibratedWhite:fill alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:fill alpha:1] setFill];
       [path fill];
-      [[NSColor colorWithCalibratedWhite:[self isEnabled]?0.66:0.82 alpha:1] setStroke];
+      [[NSColor colorWithGenericGamma22White:[self isEnabled]?0.66:0.82 alpha:1] setStroke];
       [path setLineWidth:1];
       [path stroke];
      }
@@ -758,9 +758,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
          [self isEnabled]?[NSColor controlTextColor]:[NSColor disabledControlTextColor],NSForegroundColorAttributeName,nil];
       NSSize        mark=[@"?" sizeWithAttributes:attributes];
 
-      [[NSColor colorWithCalibratedWhite:pressed?0.84:1.0 alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:pressed?0.84:1.0 alpha:1] setFill];
       [circle fill];
-      [[NSColor colorWithCalibratedWhite:pressed?0.58:0.70 alpha:1] setStroke];
+      [[NSColor colorWithGenericGamma22White:pressed?0.58:0.70 alpha:1] setStroke];
       [circle setLineWidth:1];
       [circle stroke];
       [@"?" drawAtPoint:NSMakePoint(floor(NSMidX(face)-mark.width/2),floor(NSMidY(face)-mark.height/2)) withAttributes:attributes];
@@ -775,7 +775,7 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
       CGFloat height=MIN(NSHeight(original),20-_controlSize*3);
       NSRect  face=NSMakeRect(NSMinX(original)+2,floor(NSMidY(original)-height/2),NSWidth(original)-4,height);
 
-      [[NSColor colorWithCalibratedWhite:[self isHighlighted]?0.47:0.57 alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:[self isHighlighted]?0.47:0.57 alpha:1] setFill];
       [[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4] fill];
      }
      break;
@@ -786,7 +786,7 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
       NSRect  face=NSMakeRect(NSMinX(original)+1,floor(NSMidY(original)-height/2),NSWidth(original)-2,height);
       CGFloat gray=![self isEnabled]?0.62:([self isHighlighted]?0.30:0.40);
 
-      [[NSColor colorWithCalibratedWhite:gray alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:gray alpha:1] setFill];
       [[NSBezierPath bezierPathWithRoundedRect:face xRadius:height/2 yRadius:height/2] fill];
      }
      break;
@@ -801,9 +801,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
       NSRect  face=NSInsetRect(NSMakeRect(NSMinX(original)+1,y,NSWidth(original)-2,height),0.5,0.5);
       NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4];
 
-      [[NSColor colorWithCalibratedWhite:[self isHighlighted]?0.78:0.87 alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:[self isHighlighted]?0.78:0.87 alpha:1] setFill];
       [path fill];
-      [[NSColor colorWithCalibratedWhite:[self isEnabled]?0.45:0.70 alpha:1] setStroke];
+      [[NSColor colorWithGenericGamma22White:[self isEnabled]?0.45:0.70 alpha:1] setStroke];
       [path stroke];
      }
      break;

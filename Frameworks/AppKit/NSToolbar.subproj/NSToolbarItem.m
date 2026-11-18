@@ -554,7 +554,7 @@ extern NSSize _NSToolbarIconSizeSmall;
         }
         [image drawInRect:imageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:highlighted?0.5:1.0];
         if ([self isEnabled] == NO) {
-            [[NSColor colorWithCalibratedWhite:0.0 alpha:0.33] set];
+            [[NSColor colorWithGenericGamma22White:0.0 alpha:0.33] set];
             NSRectFillUsingOperation(imageRect, NSCompositeSourceAtop);
         }
         CGContextEndTransparencyLayer(ctx);

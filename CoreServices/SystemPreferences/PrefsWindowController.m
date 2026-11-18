@@ -62,8 +62,8 @@ static const CGFloat kGridWidth = 668;
     NSArray *rgb = [[_bundle objectForInfoDictionaryKey:@"MinkarPrefPaneIconColor"]
         componentsSeparatedByString:@" "];
     NSColor *color = [rgb count] == 3 ?
-        [NSColor colorWithCalibratedRed:[rgb[0] doubleValue] green:[rgb[1] doubleValue] blue:[rgb[2] doubleValue] alpha:1] :
-        [NSColor colorWithCalibratedWhite:0.5 alpha:1];
+        [NSColor colorWithSRGBRed:[rgb[0] doubleValue] green:[rgb[1] doubleValue] blue:[rgb[2] doubleValue] alpha:1] :
+        [NSColor colorWithGenericGamma22White:0.5 alpha:1];
     NSString *initial = [_label length] ? [[_label substringToIndex:1] uppercaseString] : @"?";
     NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(128, 128)];
 
@@ -167,7 +167,7 @@ static NSArray<PrefsPaneInfo *> *findPanes(void)
                                   NSForegroundColorAttributeName: [NSColor blackColor],
                                   NSParagraphStyleAttributeName: center };
 
-    [[NSColor colorWithCalibratedWhite:0.93 alpha:1] set];
+    [[NSColor colorWithGenericGamma22White:0.93 alpha:1] set];
     NSRectFill(dirty);
     for (NSUInteger i = 0; i < [self.panes count]; i++) {
         NSRect cell = [self rectForIndex:i];

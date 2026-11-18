@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGColorSpace.h>
 #include <string.h>
 #import <Onyx2D/O2ColorSpace.h>
+#import <Onyx2D/O2ColorMatching.h>
 
 CGColorSpaceRef CGColorSpaceRetain(CGColorSpaceRef colorSpace) {
    return O2ColorSpaceRetain(colorSpace);
@@ -97,7 +98,8 @@ const CFStringRef kCGColorSpaceExtendedLinearGray=CFSTR("kCGColorSpaceExtendedLi
 const CFStringRef kCGColorSpaceGenericCMYK=CFSTR("kCGColorSpaceGenericCMYK");
 
 /* A device space that keeps the name it was made with; it equals the
-   device space of its model, as nothing converts between them yet. */
+   device space of its model when drawn; colors are matched between them
+   by their profiles (_CGColorSpaceGetMatchingProfile). */
 @interface CGNamedColorSpace : O2ColorSpace {
     CFStringRef _name;
 }
@@ -123,6 +125,33 @@ const CFStringRef kCGColorSpaceGenericCMYK=CFSTR("kCGColorSpaceGenericCMYK");
 
 -copyWithZone:(NSZone *)zone {
    return [self retain];
+}
+
+/* Its name's profile; nil for a space that is not matched. */
+-(NSString *)_matchingProfile {
+   static const struct { const CFStringRef *name; NSString *const *profile; } names[]={
+    { &kCGColorSpaceSRGB, &O2ColorProfileSRGB },
+    { &kCGColorSpaceExtendedSRGB, &O2ColorProfileSRGB },
+    { &kCGColorSpaceGenericRGB, &O2ColorProfileGenericRGB },
+    { &kCGColorSpaceGenericRGBLinear, &O2ColorProfileGenericRGBLinear },
+    { &kCGColorSpaceDisplayP3, &O2ColorProfileDisplayP3 },
+    { &kCGColorSpaceAdobeRGB1998, &O2ColorProfileAdobeRGB1998 },
+    { &kCGColorSpaceLinearSRGB, &O2ColorProfileLinearSRGB },
+    { &kCGColorSpaceExtendedLinearSRGB, &O2ColorProfileLinearSRGB },
+    { &kCGColorSpaceITUR_709, &O2ColorProfileITUR709 },
+    { &kCGColorSpaceITUR_2020, &O2ColorProfileITUR2020 },
+    { &kCGColorSpaceGenericGray, &O2ColorProfileGenericGray },
+    { &kCGColorSpaceGenericGrayGamma2_2, &O2ColorProfileGenericGrayGamma22 },
+    { &kCGColorSpaceExtendedGray, &O2ColorProfileGenericGrayGamma22 },
+    { &kCGColorSpaceLinearGray, &O2ColorProfileLinearGray },
+    { &kCGColorSpaceExtendedLinearGray, &O2ColorProfileLinearGray },
+   };
+   size_t i;
+
+   for(i=0;i<sizeof(names)/sizeof(names[0]);i++)
+    if(CFEqual(_name,*names[i].name))
+     return *names[i].profile;
+   return nil;
 }
 
 @end
@@ -151,6 +180,12 @@ CGColorSpaceRef CGColorSpaceCreateWithName(CFStringRef name) {
    if((int)model<0)
     return NULL;
    return (CGColorSpaceRef)[[CGNamedColorSpace alloc] initWithModel:model name:name];
+}
+
+/* The color matching profile of a space (O2ColorSpace's _matchingProfile:
+   sRGB's for the device spaces, as the reference matches them). */
+NSString *_CGColorSpaceGetMatchingProfile(CGColorSpaceRef space) {
+   return [(O2ColorSpace *)space _matchingProfile];
 }
 
 CFStringRef CGColorSpaceGetName(CGColorSpaceRef space) {

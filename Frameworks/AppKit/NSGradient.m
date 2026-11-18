@@ -239,7 +239,7 @@ static void evaluate(void *info,CGFloat const *input,CGFloat *output) {
     *location=_locations[index];
     
    if (color)
-    *color=[NSColor colorWithCalibratedRed:_components[index][0] green:_components[index][1] blue:_components[index][2] alpha:_components[index][3]];
+    *color=[NSColor colorWithSRGBRed:_components[index][0] green:_components[index][1] blue:_components[index][2] alpha:_components[index][3]];
 }
 
 -(NSColor *)interpolatedColorAtLocation:(CGFloat)location {
@@ -248,7 +248,7 @@ static void evaluate(void *info,CGFloat const *input,CGFloat *output) {
    
    evaluate(self,input,output);
 
-   return [NSColor colorWithCalibratedRed:output[0] green:output[1] blue:output[2] alpha:output[3]];
+   return [NSColor colorWithSRGBRed:output[0] green:output[1] blue:output[2] alpha:output[3]];
 }
 
 @end

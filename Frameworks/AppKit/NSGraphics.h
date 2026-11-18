@@ -102,6 +102,7 @@ APPKIT_EXPORT NSString *const NSDeviceCMYKColorSpace;
 APPKIT_EXPORT NSString *const NSCalibratedBlackColorSpace; // deprecated from 10.6
 APPKIT_EXPORT NSString *const NSCalibratedWhiteColorSpace;
 APPKIT_EXPORT NSString *const NSCalibratedRGBColorSpace;
+APPKIT_EXPORT NSString *const NSCustomColorSpace;
 APPKIT_EXPORT NSString *const NSNamedColorSpace;
 APPKIT_EXPORT NSString *const NSPatternColorSpace;
 

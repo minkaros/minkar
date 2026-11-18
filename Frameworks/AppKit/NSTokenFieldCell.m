@@ -88,7 +88,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       [self isEnabled]?[NSColor controlTextColor]:[NSColor disabledControlTextColor],NSForegroundColorAttributeName,nil];
    NSRect        inner=NSInsetRect(frame,4,2);
    CGFloat       x=NSMinX(inner);
-   NSColor      *fill=[NSColor colorWithCalibratedRed:175/255.0 green:205/255.0 blue:1.0 alpha:1];
+   NSColor      *fill=[NSColor colorWithSRGBRed:175/255.0 green:205/255.0 blue:1.0 alpha:1];
 
    [NSGraphicsContext saveGraphicsState];
    NSRectClip(inner);

@@ -68,21 +68,21 @@ static NSTextField *entry(NSRect frame)
     NSDictionary *name = @{ NSFontAttributeName: [NSFont systemFontOfSize:13],
                             NSForegroundColorAttributeName: [NSColor blackColor] };
     NSDictionary *status = @{ NSFontAttributeName: [NSFont systemFontOfSize:10],
-                              NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.4 alpha:1] };
+                              NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.4 alpha:1] };
 
     [[NSColor whiteColor] set];
     NSRectFill([self bounds]);
-    [[NSColor colorWithCalibratedWhite:0.75 alpha:1] set];
+    [[NSColor colorWithGenericGamma22White:0.75 alpha:1] set];
     NSFrameRect([self bounds]);
     for (NSUInteger i = 0; i < [self.rows count]; i++) {
         NSRect row = NSMakeRect(1, i * kRow + 1, NSWidth([self bounds]) - 2, kRow);
         if ((NSInteger)i == self.selected) {
-            [[NSColor colorWithCalibratedRed:0.80 green:0.87 blue:0.97 alpha:1] set];
+            [[NSColor colorWithSRGBRed:0.80 green:0.87 blue:0.97 alpha:1] set];
             NSRectFill(row);
         }
         BOOL connected = [self.rows[i][@"connected"] boolValue];
-        [(connected ? [NSColor colorWithCalibratedRed:0.2 green:0.75 blue:0.3 alpha:1]
-                    : [NSColor colorWithCalibratedRed:0.85 green:0.25 blue:0.2 alpha:1]) setFill];
+        [(connected ? [NSColor colorWithSRGBRed:0.2 green:0.75 blue:0.3 alpha:1]
+                    : [NSColor colorWithSRGBRed:0.85 green:0.25 blue:0.2 alpha:1]) setFill];
         [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(10, NSMinY(row) + 15, 10, 10)] fill];
         [self.rows[i][@"name"] drawAtPoint:NSMakePoint(28, NSMinY(row) + 4) withAttributes:name];
         [self.rows[i][@"status"] drawAtPoint:NSMakePoint(28, NSMinY(row) + 22) withAttributes:status];

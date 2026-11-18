@@ -410,7 +410,7 @@ static NSImage *statusImage(NSColor *color) {
    [image lockFocus];
    [color setFill];
    [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(3,3,10,10)] fill];
-   [[NSColor colorWithCalibratedWhite:0 alpha:0.25] setStroke];
+   [[NSColor colorWithGenericGamma22White:0 alpha:0.25] setStroke];
    [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(3.5,3.5,9,9)] stroke];
    [image unlockFocus];
    return [image autorelease];
@@ -478,7 +478,7 @@ NSImage *_NSStandardImageNamed(NSString *name) {
    else if([name isEqualToString:@"NSStatusUnavailable"])
     image=statusImage([NSColor systemRedColor]);
    else if([name isEqualToString:@"NSStatusNone"])
-    image=statusImage([NSColor colorWithCalibratedWhite:0.85 alpha:1]);
+    image=statusImage([NSColor colorWithGenericGamma22White:0.85 alpha:1]);
    else {
     NSString *path=iconPath(name);
 

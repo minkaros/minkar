@@ -20,7 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -init {
    _offset=NSMakeSize(0,0); // what is the default?
-   _color=[[NSColor colorWithCalibratedWhite:0 alpha:1.0/3.0] retain];
+   _color=[[NSColor colorWithGenericGamma22White:0 alpha:1.0/3.0] retain];
    _blurRadius=0;
    return self;
 }

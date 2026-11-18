@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <CoreGraphics/CGColor.h>
+#import <Onyx2D/O2ColorMatching.h>
 #import <Onyx2D/O2Color.h>
 #import <Onyx2D/O2ColorSpace.h>
 #include <dispatch/dispatch.h>
@@ -51,6 +52,45 @@ CGColorRef CGColorCreateWithPattern(CGColorSpaceRef colorSpace,CGPatternRef patt
 
 CGColorRef CGColorCreateCopy(CGColorRef self) {
    return O2ColorCreateCopy(self);
+}
+
+NSString *_CGColorSpaceGetMatchingProfile(CGColorSpaceRef space);
+
+/* The color in another space, matched by the spaces' profiles (Little CMS
+   in Onyx2D); a space of the same model that is not matched takes the
+   components as they are. */
+CGColorRef CGColorCreateCopyByMatchingToColorSpace(CGColorSpaceRef space,CGColorRenderingIntent intent,CGColorRef color,CFDictionaryRef options) {
+   CGColorSpaceRef from;
+   NSString       *fromProfile,*toProfile;
+   size_t          inCount,outCount,i;
+   const CGFloat  *in;
+   double          din[4]={0},dout[4]={0};
+   CGFloat         out[5];
+
+   if(space==NULL || color==NULL || CGColorGetPattern(color)!=NULL)
+    return NULL;
+   from=CGColorGetColorSpace(color);
+   inCount=CGColorSpaceGetNumberOfComponents(from);
+   outCount=CGColorSpaceGetNumberOfComponents(space);
+   in=CGColorGetComponents(color);
+   fromProfile=_CGColorSpaceGetMatchingProfile(from);
+   toProfile=_CGColorSpaceGetMatchingProfile(space);
+   if(fromProfile!=nil && toProfile!=nil && inCount<=3 && outCount<=3){
+    for(i=0;i<inCount;i++)
+     din[i]=in[i];
+    if(!O2ColorMatchComponents(fromProfile,din,toProfile,dout))
+     return NULL;
+    for(i=0;i<outCount;i++)
+     out[i]=dout[i];
+   }
+   else if(inCount==outCount && CGColorSpaceGetModel(from)==CGColorSpaceGetModel(space)){
+    for(i=0;i<outCount;i++)
+     out[i]=in[i];
+   }
+   else
+    return NULL;
+   out[outCount]=CGColorGetAlpha(color);
+   return CGColorCreate(space,out);
 }
 
 CGColorRef CGColorCreateCopyWithAlpha(CGColorRef self,CGFloat a) {

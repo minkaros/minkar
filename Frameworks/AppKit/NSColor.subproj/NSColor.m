@@ -83,6 +83,43 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
      NSData   *data=[string dataUsingEncoding:NSASCIIStringEncoding];
      [coder encodeBytes:[data bytes] length:[data length] forKey:@"NSCMYK"];
     }
+    else if([spaceName isEqualToString:NSCustomColorSpace] && [self colorSpace]!=nil){
+     /* As the reference writes it: the calibrated values, then the
+        components in the color's own space and that space. */
+     NSColorSpace *space=[self colorSpace];
+     NSInteger     i,count=[self numberOfComponents];
+     CGFloat       components[6];
+     NSMutableString *own=[NSMutableString string];
+     BOOL          gray=([space colorSpaceModel]==NSColorSpaceModelGray);
+     NSColor      *calibrated=[self colorUsingColorSpaceName:gray?NSCalibratedWhiteColorSpace:NSCalibratedRGBColorSpace];
+     NSString     *string;
+     NSData       *data;
+
+     [self getComponents:components];
+     for(i=0;i<count && i<6;i++)
+      [own appendFormat:(i==0)?@"%.10g":@" %.10g",components[i]];
+     if(gray){
+      CGFloat w=0,a=1;
+
+      [calibrated getWhite:&w alpha:&a];
+      [coder encodeInt:3 forKey:@"NSColorSpace"];
+      string=[NSString stringWithFormat:@"%.10g",w];
+      data=[string dataUsingEncoding:NSASCIIStringEncoding];
+      [coder encodeBytes:[data bytes] length:[data length] forKey:@"NSWhite"];
+     }
+     else {
+      CGFloat r=0,g=0,b=0,a=1;
+
+      [calibrated getRed:&r green:&g blue:&b alpha:&a];
+      [coder encodeInt:1 forKey:@"NSColorSpace"];
+      string=[NSString stringWithFormat:@"%.10g %.10g %.10g",r,g,b];
+      data=[string dataUsingEncoding:NSASCIIStringEncoding];
+      [coder encodeBytes:[data bytes] length:[data length] forKey:@"NSRGB"];
+     }
+     data=[own dataUsingEncoding:NSASCIIStringEncoding];
+     [coder encodeBytes:[data bytes] length:[data length] forKey:@"NSComponents"];
+     [coder encodeObject:space forKey:@"NSCustomColorSpace"];
+    }
     else if([spaceName isEqualToString:NSNamedColorSpace]){
      [coder encodeInt:6 forKey:@"NSColorSpace"];
      [coder encodeObject:[self catalogName] forKey:@"NSCatalogName"];
@@ -156,6 +193,26 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
     int                colorSpace=[keyed decodeIntForKey:@"NSColorSpace"];
     NSColor           *result;
+
+    /* A color of a space of its own (sRGB, Display P3, Gray Gamma 2.2...):
+       its components in that space, as the reference archives them beside
+       the calibrated values (NSRGB, NSWhite) older readers take. */
+    if([keyed containsValueForKey:@"NSCustomColorSpace"] && [keyed containsValueForKey:@"NSComponents"]){
+     NSColorSpace  *space=[keyed decodeObjectForKey:@"NSCustomColorSpace"];
+     NSUInteger     length;
+     const uint8_t *bytes=[keyed decodeBytesForKey:@"NSComponents" returnedLength:&length];
+     NSString      *string=(bytes!=NULL)?[[[NSString alloc] initWithBytes:bytes length:length encoding:NSUTF8StringEncoding] autorelease]:nil;
+     NSArray       *parts=[[string stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" \0"]] componentsSeparatedByString:@" "];
+     CGFloat        values[6];
+     NSInteger      i,count=MIN((NSInteger)[parts count],6);
+
+     for(i=0;i<count;i++)
+      values[i]=[[parts objectAtIndex:i] doubleValue];
+     if([space isKindOfClass:[NSColorSpace class]] && [space CGColorSpace]!=NULL && count==[space numberOfColorComponents]+1){
+      [self autorelease];
+      return [[NSColor colorWithColorSpace:space components:values count:count] retain];
+     }
+    }
 
     switch(colorSpace){
     
@@ -589,38 +646,40 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
    return [NSColor colorWithCatalogName:@"System" colorName:@"menuItemTextColor"];
 }
 
+/* The standard colors in the reference's spaces: grays in Generic Gray
+   Gamma 2.2, the others in sRGB (calibrated colors are Generic RGB's). */
 +(NSColor *)clearColor {
-   return [NSColor colorWithCalibratedRed:0 green:0 blue:0 alpha:0];
+   return [NSColor colorWithGenericGamma22White:0 alpha:0];
 }
 
 +(NSColor *)darkGrayColor {
-   return [NSColor colorWithCalibratedWhite:1.0/3.0 alpha:1.0];
+   return [NSColor colorWithGenericGamma22White:1.0/3.0 alpha:1.0];
 }
 
 /* The fixed colors are constants, as Cocoa documents them; the theme
    changes the system colors (systemGrayColor and the others), not these. */
 +(NSColor *)grayColor {
-   return [NSColor colorWithCalibratedWhite:0.5 alpha:1.0];
+   return [NSColor colorWithGenericGamma22White:0.5 alpha:1.0];
 }
 
 +(NSColor *)lightGrayColor {
-   return [NSColor colorWithCalibratedWhite:2.0/3.0 alpha:1.0];
+   return [NSColor colorWithGenericGamma22White:2.0/3.0 alpha:1.0];
 }
 
 +(NSColor *)blackColor {
-   return [NSColor colorWithCalibratedWhite:0 alpha:1.0];
+   return [NSColor colorWithGenericGamma22White:0 alpha:1.0];
 }
 
 +(NSColor *)blueColor {
-   return [NSColor colorWithCalibratedRed:0 green:0 blue:1 alpha:1.0];
+   return [NSColor colorWithSRGBRed:0 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)brownColor {
-   return [NSColor colorWithCalibratedRed:0.6 green:0.4 blue:0.2 alpha:1.0];
+   return [NSColor colorWithSRGBRed:0.6 green:0.4 blue:0.2 alpha:1.0];
 }
 
 +(NSColor *)cyanColor {
-   return [NSColor colorWithCalibratedRed:0 green:1 blue:1 alpha:1.0];
+   return [NSColor colorWithSRGBRed:0 green:1 blue:1 alpha:1.0];
 }
 
 +(NSColor *)tealColor {
@@ -632,15 +691,15 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
 }
 
 +(NSColor *)greenColor {
-   return [NSColor colorWithCalibratedRed:0 green:1 blue:0 alpha:1.0];
+   return [NSColor colorWithSRGBRed:0 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)magentaColor {
-   return [NSColor colorWithCalibratedRed:1 green:0 blue:1 alpha:1.0];
+   return [NSColor colorWithSRGBRed:1 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)orangeColor {
-   return [NSColor colorWithCalibratedRed:1 green:0.5 blue:0 alpha:1.0];
+   return [NSColor colorWithSRGBRed:1 green:0.5 blue:0 alpha:1.0];
 }
 
 +(NSColor *)pinkColor {
@@ -648,19 +707,19 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
 }
 
 +(NSColor *)purpleColor {
-   return [NSColor colorWithCalibratedRed:0.5 green:0 blue:0.5 alpha:1.0];
+   return [NSColor colorWithSRGBRed:0.5 green:0 blue:0.5 alpha:1.0];
 }
 
 +(NSColor *)redColor {
-   return [NSColor colorWithCalibratedRed:1 green:0 blue:0 alpha:1.0];
+   return [NSColor colorWithSRGBRed:1 green:0 blue:0 alpha:1.0];
 }
 
 +(NSColor *)yellowColor {
-   return [NSColor colorWithCalibratedRed:1 green:1 blue:0 alpha:1.0];
+   return [NSColor colorWithSRGBRed:1 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)whiteColor {
-   return [NSColor colorWithCalibratedWhite:1 alpha:1.0];
+   return [NSColor colorWithGenericGamma22White:1 alpha:1.0];
 }
 
 +(NSColor *)colorWithDeviceWhite:(CGFloat)white alpha:(CGFloat)alpha {
@@ -976,6 +1035,19 @@ static void releasePatternInfo(void *info){
     return nil;
    if([self type]==NSColorTypeComponentBased && [[self colorSpace] isEqual:space])
     return self;
+   /* Matched from the color's own space to the other (Little CMS through
+      CoreGraphics), as the reference does. */
+   {
+    CGColorRef own=[self CGColor];
+    CGColorRef matched=(own!=NULL && [space CGColorSpace]!=NULL)?CGColorCreateCopyByMatchingToColorSpace([space CGColorSpace],kCGRenderingIntentDefault,own,NULL):NULL;
+
+    if(matched!=NULL){
+     NSColor *result=[NSColor colorWithColorSpace:space components:CGColorGetComponents(matched) count:CGColorGetNumberOfComponents(matched)];
+
+     CGColorRelease(matched);
+     return result;
+    }
+   }
    switch([space colorSpaceModel]){
     case NSColorSpaceModelRGB:
      source=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];

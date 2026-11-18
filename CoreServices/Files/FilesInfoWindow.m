@@ -26,17 +26,17 @@
     NSDictionary *name = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:14],
                             NSForegroundColorAttributeName: [NSColor blackColor] };
     NSDictionary *label = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:11],
-                             NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.35 alpha:1] };
+                             NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.35 alpha:1] };
     NSDictionary *value = @{ NSFontAttributeName: [NSFont systemFontOfSize:11],
                              NSForegroundColorAttributeName: [NSColor blackColor] };
 
-    [[NSColor colorWithCalibratedWhite:0.95 alpha:1] set];
+    [[NSColor colorWithGenericGamma22White:0.95 alpha:1] set];
     NSRectFill(dirty);
     [self.item.icon drawInRect:NSMakeRect(16, 16, 48, 48) fromRect:NSZeroRect
                      operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
     [self.item.name drawAtPoint:NSMakePoint(76, 22) withAttributes:name];
     [self.item.kind drawAtPoint:NSMakePoint(76, 44) withAttributes:value];
-    [[NSColor colorWithCalibratedWhite:0.82 alpha:1] set];
+    [[NSColor colorWithGenericGamma22White:0.82 alpha:1] set];
     NSRectFill(NSMakeRect(12, 78, NSWidth([self bounds]) - 24, 1));
 
     CGFloat y = 92;

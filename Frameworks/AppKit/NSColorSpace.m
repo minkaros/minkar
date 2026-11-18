@@ -49,7 +49,7 @@ static NSColorSpace *deviceSpace(NSColorSpace **cache,CGColorSpaceRef (*create)(
    static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceSRGB,@"sRGB IEC61966-2.1");
 }
 +(NSColorSpace *)extendedSRGBColorSpace {
-   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceExtendedSRGB,@"Extended sRGB");
+   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceExtendedSRGB,@"sRGB IEC61966-2.1");
 }
 +(NSColorSpace *)displayP3ColorSpace {
    static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceDisplayP3,@"Display P3");
@@ -67,10 +67,10 @@ static NSColorSpace *deviceSpace(NSColorSpace **cache,CGColorSpaceRef (*create)(
    static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceGenericGray,@"Generic Gray");
 }
 +(NSColorSpace *)genericGamma22GrayColorSpace {
-   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceGenericGrayGamma2_2,@"Generic Gray Gamma 2.2");
+   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceGenericGrayGamma2_2,@"Generic Gray Gamma 2.2 Profile");
 }
 +(NSColorSpace *)extendedGenericGamma22GrayColorSpace {
-   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceExtendedGray,@"Extended Gray");
+   static NSColorSpace *space; return namedSpace(&space,kCGColorSpaceExtendedGray,@"Generic Gray Gamma 2.2 Profile");
 }
 +(NSColorSpace *)deviceGrayColorSpace {
    static NSColorSpace *space; return deviceSpace(&space,CGColorSpaceCreateDeviceGray,@"Device Gray");
@@ -156,8 +156,8 @@ static NSColorSpace *deviceSpace(NSColorSpace **cache,CGColorSpaceRef (*create)(
     {"kCGColorSpaceSRGB","sRGB IEC61966-2.1"},{"kCGColorSpaceExtendedSRGB","Extended sRGB"},
     {"kCGColorSpaceDisplayP3","Display P3"},{"kCGColorSpaceAdobeRGB1998","Adobe RGB (1998)"},
     {"kCGColorSpaceGenericRGB","Generic RGB"},{"kCGColorSpaceDeviceRGB","Device RGB"},
-    {"kCGColorSpaceGenericGray","Generic Gray"},{"kCGColorSpaceGenericGrayGamma2_2","Generic Gray Gamma 2.2"},
-    {"kCGColorSpaceExtendedGray","Extended Gray"},{"kCGColorSpaceDeviceGray","Device Gray"},
+    {"kCGColorSpaceGenericGray","Generic Gray"},{"kCGColorSpaceGenericGrayGamma2_2","Generic Gray Gamma 2.2 Profile"},
+    {"kCGColorSpaceExtendedGray","Generic Gray Gamma 2.2 Profile"},{"kCGColorSpaceDeviceGray","Device Gray"},
     {"kCGColorSpaceGenericCMYK","Generic CMYK"},{"kCGColorSpaceDeviceCMYK","Device CMYK"},
    };
    NSString *name=(NSString *)CGColorSpaceGetName(_cgColorSpace);
@@ -175,14 +175,24 @@ static NSColorSpace *deviceSpace(NSColorSpace **cache,CGColorSpaceRef (*create)(
    return nil;
 }
 
+/* The named color space of the space's colors, as the reference has them:
+   the device ones', Generic RGB and Gray the calibrated ones, any other
+   (sRGB, Display P3, Gray Gamma 2.2...) a custom space. */
 -(NSString *)_colorSpaceName {
    CFStringRef name=CGColorSpaceGetName(_cgColorSpace);
    BOOL        device=(name==NULL || CFStringHasPrefix(name,CFSTR("kCGColorSpaceDevice")));
 
    switch([self colorSpaceModel]){
-    case NSColorSpaceModelGray: return device?NSDeviceWhiteColorSpace:NSCalibratedWhiteColorSpace;
-    case NSColorSpaceModelCMYK: return NSDeviceCMYKColorSpace;
-    default:                    return device?NSDeviceRGBColorSpace:NSCalibratedRGBColorSpace;
+    case NSColorSpaceModelGray:
+     if(device)
+      return NSDeviceWhiteColorSpace;
+     return CFEqual(name,kCGColorSpaceGenericGray)?NSCalibratedWhiteColorSpace:NSCustomColorSpace;
+    case NSColorSpaceModelCMYK:
+     return NSDeviceCMYKColorSpace;
+    default:
+     if(device)
+      return NSDeviceRGBColorSpace;
+     return CFEqual(name,kCGColorSpaceGenericRGB)?NSCalibratedRGBColorSpace:NSCustomColorSpace;
    }
 }
 
@@ -202,13 +212,46 @@ static NSColorSpace *deviceSpace(NSColorSpace **cache,CGColorSpaceRef (*create)(
 }
 
 /* Kept by the name of the CG space. */
+/* The reference archives a standard space by number: NSID, or NSSpaceID
+   for the newer ones (measured on it). */
+static const struct { int number; BOOL newer; const char *name; } spaceNumbers[]={
+   { 1, NO, "kCGColorSpaceGenericRGB" },  { 2, NO, "kCGColorSpaceGenericGray" },
+   { 3, NO, "kCGColorSpaceGenericCMYK" }, { 4, NO, "kCGColorSpaceDeviceRGB" },
+   { 5, NO, "kCGColorSpaceDeviceGray" },  { 6, NO, "kCGColorSpaceDeviceCMYK" },
+   { 7, NO, "kCGColorSpaceSRGB" },        { 8, NO, "kCGColorSpaceAdobeRGB1998" },
+   { 9, NO, "kCGColorSpaceGenericGrayGamma2_2" },
+   { 12, YES, "kCGColorSpaceDisplayP3" }, { 14, YES, "kCGColorSpaceExtendedSRGB" },
+   { 15, YES, "kCGColorSpaceExtendedGray" },
+};
+
 -(void)encodeWithCoder:(NSCoder *)coder {
-   [coder encodeObject:(NSString *)CGColorSpaceGetName(_cgColorSpace) forKey:@"NSColorSpaceName"];
+   NSString *name=(NSString *)CGColorSpaceGetName(_cgColorSpace);
+   size_t    i;
+
+   [coder encodeObject:name forKey:@"NSColorSpaceName"];
+   if([coder allowsKeyedCoding])
+    for(i=0;i<sizeof(spaceNumbers)/sizeof(spaceNumbers[0]);i++)
+     if([name isEqualToString:[NSString stringWithUTF8String:spaceNumbers[i].name]]){
+      [coder encodeInt:spaceNumbers[i].number forKey:spaceNumbers[i].newer?@"NSSpaceID":@"NSID"];
+      if([self colorSpaceModel]==NSColorSpaceModelGray && spaceNumbers[i].number>=7)
+       [coder encodeInt:0 forKey:@"NSModel"];
+      break;
+     }
 }
 
 -initWithCoder:(NSCoder *)coder {
    NSString       *name=[coder decodeObjectOfClass:[NSString class] forKey:@"NSColorSpaceName"];
    CGColorSpaceRef cg=NULL;
+
+   if(name==nil && [coder allowsKeyedCoding]){
+    BOOL   newer=[coder containsValueForKey:@"NSSpaceID"];
+    int    number=newer?[coder decodeIntForKey:@"NSSpaceID"]:[coder decodeIntForKey:@"NSID"];
+    size_t i;
+
+    for(i=0;i<sizeof(spaceNumbers)/sizeof(spaceNumbers[0]);i++)
+     if(spaceNumbers[i].number==number && spaceNumbers[i].newer==newer)
+      name=[NSString stringWithUTF8String:spaceNumbers[i].name];
+   }
 
    if([name isEqualToString:@"kCGColorSpaceDeviceRGB"])
     cg=CGColorSpaceCreateDeviceRGB();

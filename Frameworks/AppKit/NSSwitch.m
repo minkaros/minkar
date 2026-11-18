@@ -75,7 +75,7 @@
     CGFloat  height = MIN(HEIGHT, NSHeight(bounds)), width = MIN(WIDTH, NSWidth(bounds));
     NSRect   track = NSMakeRect(NSMinX(bounds), floor(NSMidY(bounds) - height / 2), width, height);
     BOOL     on = (_switchState == NSOnState);
-    NSColor *fill = on ? [NSColor controlAccentColor] : [NSColor colorWithCalibratedWhite:0.82 alpha:1];
+    NSColor *fill = on ? [NSColor controlAccentColor] : [NSColor colorWithGenericGamma22White:0.82 alpha:1];
     NSBezierPath *pill = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(track, 0.5, 0.5)
         xRadius:height / 2 - 0.5 yRadius:height / 2 - 0.5];
     CGFloat  knob = height - 4;
@@ -87,11 +87,11 @@
         fill = [fill shadowWithLevel:0.15] ?: fill;
     [fill setFill];
     [pill fill];
-    [[NSColor colorWithCalibratedWhite:0 alpha:0.12] setStroke];
+    [[NSColor colorWithGenericGamma22White:0 alpha:0.12] setStroke];
     [pill stroke];
-    [[NSColor colorWithCalibratedWhite:[self isEnabled] ? 1.0 : 0.96 alpha:1] setFill];
+    [[NSColor colorWithGenericGamma22White:[self isEnabled] ? 1.0 : 0.96 alpha:1] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:knobRect] fill];
-    [[NSColor colorWithCalibratedWhite:0 alpha:0.18] setStroke];
+    [[NSColor colorWithGenericGamma22White:0 alpha:0.18] setStroke];
     [[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(knobRect, 0.5, 0.5)] stroke];
 }
 

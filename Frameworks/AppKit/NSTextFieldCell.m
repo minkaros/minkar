@@ -317,9 +317,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
      case NSTextFieldRoundedBezel:{
       NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:5 yRadius:5];
 
-      [([self isEnabled]?[NSColor textBackgroundColor]:[NSColor colorWithCalibratedWhite:0.97 alpha:1]) setFill];
+      [([self isEnabled]?[NSColor textBackgroundColor]:[NSColor colorWithGenericGamma22White:0.97 alpha:1]) setFill];
       [path fill];
-      [[NSColor colorWithCalibratedWhite:0.74 alpha:1] setStroke];
+      [[NSColor colorWithGenericGamma22White:0.74 alpha:1] setStroke];
       [path stroke];
      }
       break;

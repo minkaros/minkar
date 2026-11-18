@@ -99,8 +99,8 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
 /* The bubble's outline, then the arrow filled over it (hiding the outline
    at its base) and its sides stroked: one shape. */
 - (void)drawRect:(NSRect)rect {
-    NSColor *fill = [NSColor colorWithCalibratedWhite:0.99 alpha:1];
-    NSColor *border = [NSColor colorWithCalibratedWhite:0.68 alpha:1];
+    NSColor *fill = [NSColor colorWithGenericGamma22White:0.99 alpha:1];
+    NSColor *border = [NSColor colorWithGenericGamma22White:0.68 alpha:1];
     NSBezierPath *bubble = [NSBezierPath bezierPathWithRoundedRect:[self bubbleRect] xRadius:RADIUS yRadius:RADIUS];
     NSBezierPath *sides = [self arrowSidesInset:0];
     /* Filled from 1.5 points inside the bubble: no outline left at its base. */

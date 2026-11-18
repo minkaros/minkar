@@ -116,7 +116,7 @@ static NSUInteger separatorCount(DockModel *model)
 {
     [[NSColor clearColor] set];
     NSRectFill([self bounds]);
-    [[NSColor colorWithCalibratedWhite:0.12 alpha:0.85] setFill];
+    [[NSColor colorWithGenericGamma22White:0.12 alpha:0.85] setFill];
     [[NSBezierPath bezierPathWithRoundedRect:[self bounds] xRadius:6 yRadius:6] fill];
     NSSize size = [self.text sizeWithAttributes:[DockLabelView attributes]];
     [self.text drawAtPoint:NSMakePoint(round((NSWidth([self bounds]) - size.width) / 2),
@@ -549,9 +549,9 @@ static void drawBarPath(NSRect rect)
 {
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rect, 0.5, 0.5)
                                                          xRadius:kBarRadius yRadius:kBarRadius];
-    [[NSColor colorWithCalibratedWhite:0.96 alpha:0.55] setFill];
+    [[NSColor colorWithGenericGamma22White:0.96 alpha:0.55] setFill];
     [path fill];
-    [[NSColor colorWithCalibratedWhite:1.0 alpha:0.6] setStroke];
+    [[NSColor colorWithGenericGamma22White:1.0 alpha:0.6] setStroke];
     [path setLineWidth:1];
     [path stroke];
 }
@@ -616,9 +616,9 @@ static void drawBadge(NSString *label, NSRect icon)
     NSRect pill = NSMakeRect(NSMaxX(icon) - width + height * 0.25, NSMaxY(icon) - height + height * 0.15, width, height);
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:pill xRadius:height / 2 yRadius:height / 2];
 
-    [[NSColor colorWithCalibratedRed:0.86 green:0.16 blue:0.14 alpha:1] setFill];
+    [[NSColor colorWithSRGBRed:0.86 green:0.16 blue:0.14 alpha:1] setFill];
     [path fill];
-    [[NSColor colorWithCalibratedWhite:1 alpha:0.9] setStroke];
+    [[NSColor colorWithGenericGamma22White:1 alpha:0.9] setStroke];
     [path setLineWidth:1];
     [path stroke];
     [label drawAtPoint:NSMakePoint(NSMidX(pill) - text.width / 2, NSMidY(pill) - text.height / 2) withAttributes:attributes];
@@ -663,7 +663,7 @@ static void drawBadge(NSString *label, NSRect icon)
             drawBadge(badge, rect);
         if (t.application != nil) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
-            [[NSColor colorWithCalibratedWhite:0.15 alpha:0.85] setFill];
+            [[NSColor colorWithGenericGamma22White:0.15 alpha:0.85] setFill];
             [[NSBezierPath bezierPathWithOvalInRect:[self rectForSpan:d]] fill];
         }
     }
@@ -673,7 +673,7 @@ static void drawBadge(NSString *label, NSRect icon)
             continue;
         CGFloat at = mains[i - 1] + sizes[i - 1] + (gapFor(tile) + separatorSpace(tile)) / 2;
         DockSpan s = { floor(at), pad, 1, [DockView barThicknessForModel:model] - 2 * pad };
-        [[NSColor colorWithCalibratedWhite:0.2 alpha:0.35] setFill];
+        [[NSColor colorWithGenericGamma22White:0.2 alpha:0.35] setFill];
         NSRectFill([self rectForSpan:s]);
     }
 }

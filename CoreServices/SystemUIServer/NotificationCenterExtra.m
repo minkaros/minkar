@@ -71,7 +71,7 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
     CGFloat width = NSWidth(self.bounds);
 
     time.dateFormat = @"HH:mm";
-    [[NSColor colorWithCalibratedWhite:0.97 alpha:1] setFill];
+    [[NSColor colorWithGenericGamma22White:0.97 alpha:1] setFill];
     NSRectFill(self.bounds);
     if (self.notifications.count == 0) {
         drawText(NSLocalizedString(@"No Notifications", @"the notification center, empty"),
@@ -100,7 +100,7 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
         drawText(second, [NSFont systemFontOfSize:12], [NSColor darkGrayColor],
                  NSMakeRect(x, top + 40, textWidth, 16), NSTextAlignmentLeft);
         if (i + 1 < self.notifications.count) {
-            [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+            [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
             NSRectFill(NSMakeRect(12, top + kRowHeight - 1, width - 24, 1));
         }
     }];

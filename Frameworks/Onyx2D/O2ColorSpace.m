@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Onyx2D/O2ColorSpace.h>
+#import <Onyx2D/O2ColorMatching.h>
 #import <Foundation/NSString.h>
 #import <CoreFoundation/CFBase.h>
 
@@ -110,6 +111,14 @@ size_t O2ColorSpaceGetNumberOfComponents(O2ColorSpaceRef self) {
      
     default:
      return 0;
+   }
+}
+
+-(NSString *)_matchingProfile {
+   switch(_type){
+    case kO2ColorSpaceModelRGB:        return O2ColorProfileSRGB;
+    case kO2ColorSpaceModelMonochrome: return O2ColorProfileSRGBGray;
+    default:                           return nil;
    }
 }
 

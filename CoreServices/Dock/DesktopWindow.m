@@ -12,7 +12,7 @@
 
 NSColor *DesktopDefaultColor(void)
 {
-    return [NSColor colorWithCalibratedRed:99 / 255.0 green:130 / 255.0 blue:145 / 255.0 alpha:1];
+    return [NSColor colorWithSRGBRed:99 / 255.0 green:130 / 255.0 blue:145 / 255.0 alpha:1];
 }
 
 NSRect DesktopImageRect(NSSize image, NSRect bounds, NSImageScaling scaling, BOOL clipping)

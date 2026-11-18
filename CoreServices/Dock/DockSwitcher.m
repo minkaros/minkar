@@ -24,12 +24,12 @@ static const CGFloat kIcon = 64, kCell = 84, kPad = 16, kLabel = 22;
 {
     [[NSColor clearColor] set];
     NSRectFill(dirty);
-    [[NSColor colorWithCalibratedWhite:0.12 alpha:0.85] setFill];
+    [[NSColor colorWithGenericGamma22White:0.12 alpha:0.85] setFill];
     [[NSBezierPath bezierPathWithRoundedRect:[self bounds] xRadius:18 yRadius:18] fill];
     for (NSUInteger i = 0; i < [self.apps count]; i++) {
         NSRect cell = NSMakeRect(kPad + i * kCell, kPad + kLabel, kCell, kCell);
         if (i == self.selected) {
-            [[NSColor colorWithCalibratedWhite:1 alpha:0.18] setFill];
+            [[NSColor colorWithGenericGamma22White:1 alpha:0.18] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(cell, 2, 2) xRadius:12 yRadius:12] fill];
         }
         NSImage *icon = [self.apps[i] icon];

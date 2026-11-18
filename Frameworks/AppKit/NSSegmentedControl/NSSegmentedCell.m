@@ -380,16 +380,16 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
    for(i=0;i<count;i++){
     segmentFrame.size.width=[[_segmentComputedWidths objectAtIndex:i] doubleValue];
     if([[_segments objectAtIndex:i] isSelected]){
-     [([self isEnabled] ? [NSColor controlAccentColor] : [NSColor colorWithCalibratedWhite:0.78 alpha:1]) setFill];
+     [([self isEnabled] ? [NSColor controlAccentColor] : [NSColor colorWithGenericGamma22White:0.78 alpha:1]) setFill];
      [_NSSegmentPath(NSInsetRect(segmentFrame,0,0.5),4.5,i==0,i==count-1) fill];
     }
     else if(i>0 && ![[_segments objectAtIndex:i-1] isSelected]){
-     [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+     [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
      NSRectFill(NSMakeRect(NSMinX(segmentFrame),NSMinY(segmentFrame)+4,1,NSHeight(segmentFrame)-8));
     }
     segmentFrame.origin.x+=segmentFrame.size.width;
    }
-   [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+   [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
    [shape stroke];
 
    segmentFrame=strip;

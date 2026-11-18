@@ -104,7 +104,7 @@ static const CGFloat kOpenRowHeight=20;
 -(void)drawRect:(NSRect)dirty {
    NSFont *font=[NSFont systemFontOfSize:12];
    NSDictionary *plain=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor blackColor], NSForegroundColorAttributeName, nil];
-   NSDictionary *grey=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor colorWithCalibratedWhite:0.6 alpha:1], NSForegroundColorAttributeName, nil];
+   NSDictionary *grey=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor colorWithGenericGamma22White:0.6 alpha:1], NSForegroundColorAttributeName, nil];
    NSDictionary *white=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor whiteColor], NSForegroundColorAttributeName, nil];
    BOOL key=[[self window] firstResponder]==self;
 
@@ -117,7 +117,7 @@ static const CGFloat kOpenRowHeight=20;
       NSDictionary *entry=[_entries objectAtIndex:i];
       BOOL selected=[_selected containsIndex:i], enabled=[[entry objectForKey:@"enabled"] boolValue];
       if(selected) {
-         [(key ? [NSColor colorWithCalibratedRed:0.25 green:0.50 blue:0.85 alpha:1] : [NSColor colorWithCalibratedWhite:0.84 alpha:1]) set];
+         [(key ? [NSColor colorWithSRGBRed:0.25 green:0.50 blue:0.85 alpha:1] : [NSColor colorWithGenericGamma22White:0.84 alpha:1]) set];
          NSRectFill(row);
       }
       NSImage *icon=[[NSWorkspace sharedWorkspace] iconForFile:[entry objectForKey:@"path"]];

@@ -216,7 +216,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     if([[self window] isSheet]) {
         [[[self window] backgroundColor] setFill];
         NSRectFill(rect);
-        [[NSColor colorWithCalibratedWhite:0.70 alpha:1] set];
+        [[NSColor colorWithGenericGamma22White:0.70 alpha:1] set];
         NSFrameRect([self bounds]);
         return;
     }
@@ -336,7 +336,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
             NSFontAttributeName : [NSFont systemFontOfSize:13.0],
-            NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:0.25 alpha:1]
+            NSForegroundColorAttributeName : [NSColor colorWithGenericGamma22White:0.25 alpha:1]
         };
         NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];

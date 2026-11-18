@@ -349,16 +349,16 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 /* Atlas's menu bar is dark: a charcoal gradient with a darker line at
    its bottom edge, and light text. The menus it opens stay light. */
 NSColor *_NSMenuBarTextColor(void) {
-	return [NSColor colorWithCalibratedWhite:0.93 alpha:1];
+	return [NSColor colorWithGenericGamma22White:0.93 alpha:1];
 }
 
 -(void)drawMenuBarBackgroundInRect:(NSRect)rect {
-	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithCalibratedWhite:0.17 alpha:1]
-		endingColor:[NSColor colorWithCalibratedWhite:0.25 alpha:1]];
+	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithGenericGamma22White:0.17 alpha:1]
+		endingColor:[NSColor colorWithGenericGamma22White:0.25 alpha:1]];
 
 	[gradient drawInRect:rect angle:90];
 	[gradient release];
-	[[NSColor colorWithCalibratedWhite:0.08 alpha:1] setFill];
+	[[NSColor colorWithGenericGamma22White:0.08 alpha:1] setFill];
 	NSRectFill(NSMakeRect(NSMinX(rect),NSMinY(rect),NSWidth(rect),1));
 }
 
@@ -369,7 +369,7 @@ NSColor *_NSMenuBarTextColor(void) {
 
 -(void)drawAttributedMenuBarItemText:(NSAttributedString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
 	NSMutableAttributedString *text=[[string mutableCopy] autorelease];
-	NSColor *color=!enabled ? [NSColor colorWithCalibratedWhite:0.55 alpha:1]
+	NSColor *color=!enabled ? [NSColor colorWithGenericGamma22White:0.55 alpha:1]
 		: selected ? [NSColor selectedMenuItemTextColor] : _NSMenuBarTextColor();
 	Margins margins=[self menuItemTextMargins];
 
@@ -394,13 +394,13 @@ static BOOL atlasFlipped(void) {
 }
 
 static NSColor *atlasGray(CGFloat white) {
-   return [NSColor colorWithCalibratedWhite:white alpha:1];
+   return [NSColor colorWithGenericGamma22White:white alpha:1];
 }
 
 static NSColor *atlasAccent(void) {
    NSColor *accent=[NSColor controlAccentColor];
 
-   return (accent!=nil)?accent:[NSColor colorWithCalibratedRed:0.13 green:0.47 blue:0.95 alpha:1];
+   return (accent!=nil)?accent:[NSColor colorWithSRGBRed:0.13 green:0.47 blue:0.95 alpha:1];
 }
 
 static NSColor *atlasDarker(NSColor *color,CGFloat fraction) {
@@ -408,7 +408,7 @@ static NSColor *atlasDarker(NSColor *color,CGFloat fraction) {
 
    if(rgb==nil)
     return color;
-   return [NSColor colorWithCalibratedRed:[rgb redComponent]*(1-fraction) green:[rgb greenComponent]*(1-fraction)
+   return [NSColor colorWithSRGBRed:[rgb redComponent]*(1-fraction) green:[rgb greenComponent]*(1-fraction)
       blue:[rgb blueComponent]*(1-fraction) alpha:[rgb alphaComponent]];
 }
 
@@ -417,7 +417,7 @@ static NSColor *atlasLighter(NSColor *color,CGFloat fraction) {
 
    if(rgb==nil)
     return color;
-   return [NSColor colorWithCalibratedRed:[rgb redComponent]+(1-[rgb redComponent])*fraction
+   return [NSColor colorWithSRGBRed:[rgb redComponent]+(1-[rgb redComponent])*fraction
       green:[rgb greenComponent]+(1-[rgb greenComponent])*fraction
       blue:[rgb blueComponent]+(1-[rgb blueComponent])*fraction alpha:[rgb alphaComponent]];
 }
@@ -867,8 +867,8 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
 
 /* Atlas's group box: a slightly darker rounded area with a light border. */
 -(void)drawBoxWithBezelInRect:(NSRect)rect clipRect:(NSRect)clipRect {
-   atlasRounded(rect,6,[NSColor colorWithCalibratedWhite:0 alpha:0.035],
-      [NSColor colorWithCalibratedWhite:0 alpha:0.035],atlasGray(0.80));
+   atlasRounded(rect,6,[NSColor colorWithGenericGamma22White:0 alpha:0.035],
+      [NSColor colorWithGenericGamma22White:0 alpha:0.035],atlasGray(0.80));
 }
 
 -(void)drawBoxWithGrooveInRect:(NSRect)rect clipRect:(NSRect)clipRect {

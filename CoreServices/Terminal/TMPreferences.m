@@ -52,7 +52,7 @@ NSColor *TMColorOfHex(NSString *hex)
         return nil;
     if (![[NSScanner scannerWithString:[hex substringFromIndex:1]] scanHexInt:&value])
         return nil;
-    return [NSColor colorWithCalibratedRed:((value >> 16) & 0xff) / 255.0 green:((value >> 8) & 0xff) / 255.0
+    return [NSColor colorWithSRGBRed:((value >> 16) & 0xff) / 255.0 green:((value >> 8) & 0xff) / 255.0
         blue:(value & 0xff) / 255.0 alpha:1];
 }
 

@@ -59,6 +59,11 @@ O2ColorSpaceModel O2ColorSpaceGetModel(O2ColorSpaceRef self);
 
 - (BOOL)isEqualToColorSpace:(O2ColorSpaceRef)other;
 
+/* The color matching profile of the space (O2ColorMatching.h): sRGB's for
+   the device RGB and gray spaces, nil for the others; named spaces have
+   their own. */
+- (NSString *)_matchingProfile;
+
 @end
 
 @interface O2ColorSpace_indexed : O2ColorSpace {

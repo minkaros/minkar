@@ -539,7 +539,7 @@ static id lineStyle(NSInteger index){
 
     [shadow setShadowOffset:NSMakeSize(2,-2)];
     [shadow setShadowBlurRadius:[_shadowBlurSlider doubleValue]];
-    [shadow setShadowColor:[NSColor colorWithCalibratedWhite:0 alpha:[_shadowOpacitySlider doubleValue]]];
+    [shadow setShadowColor:[NSColor colorWithGenericGamma22White:0 alpha:[_shadowOpacitySlider doubleValue]]];
     value=shadow;
    }
    [self _sendAttributes:[NSDictionary dictionaryWithObject:value forKey:NSShadowAttributeName]];

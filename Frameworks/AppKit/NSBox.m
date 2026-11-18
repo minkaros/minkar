@@ -69,11 +69,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 [_customData setObject:obj forKey:@"NSCornerRadius2"];
 
                 obj = [keyed decodeObjectForKey:@"NSBorderColor2"];
-                if (obj == nil) obj = [NSColor colorWithCalibratedWhite:0.000 alpha:0.420];
+                if (obj == nil) obj = [NSColor colorWithGenericGamma22White:0.000 alpha:0.420];
                 [_customData setObject:obj forKey:@"NSBorderColor2"];
 
                 obj = [keyed decodeObjectForKey:@"NSFillColor2"];
-                if (obj == nil) obj = [NSColor colorWithCalibratedWhite:0.000 alpha:0.000];
+                if (obj == nil) obj = [NSColor colorWithGenericGamma22White:0.000 alpha:0.000];
                 [_customData setObject:obj forKey:@"NSFillColor2"];
    }
    }

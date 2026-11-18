@@ -112,7 +112,7 @@ static NSImage *volumeIcon(void)
 - (void)drawRect:(NSRect)dirty
 {
     NSShadow *shadow = [[NSShadow alloc] init];
-    [shadow setShadowColor:[NSColor colorWithCalibratedWhite:0 alpha:0.8]];
+    [shadow setShadowColor:[NSColor colorWithGenericGamma22White:0 alpha:0.8]];
     [shadow setShadowOffset:NSMakeSize(0, -1)];
     [shadow setShadowBlurRadius:2];
     NSDictionary *label = @{ NSFontAttributeName: [NSFont systemFontOfSize:12],
@@ -128,7 +128,7 @@ static NSImage *volumeIcon(void)
         BOOL selected = [_selection containsIndex:i];
         NSRect icon = NSMakeRect(NSMidX(cell) - kIcon / 2, NSMinY(cell) + 4, kIcon, kIcon);
         if (selected || (NSInteger)i == _dropTarget) {
-            [[NSColor colorWithCalibratedWhite:0 alpha:0.3] setFill];
+            [[NSColor colorWithGenericGamma22White:0 alpha:0.3] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(icon, -4, -4) xRadius:6 yRadius:6] fill];
         }
         [(isVolume(item.URL) ? volumeIcon() : item.icon) drawInRect:icon fromRect:NSZeroRect
@@ -138,7 +138,7 @@ static NSImage *volumeIcon(void)
         CGFloat width = MIN(size.width, kCellWidth - 8);
         NSRect text = NSMakeRect(NSMidX(cell) - width / 2 - 4, NSMaxY(icon) + 5, width + 8, size.height + 2);
         if (selected) {
-            [[NSColor colorWithCalibratedRed:0.25 green:0.50 blue:0.85 alpha:1] setFill];
+            [[NSColor colorWithSRGBRed:0.25 green:0.50 blue:0.85 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:text xRadius:4 yRadius:4] fill];
         }
         [name drawInRect:NSInsetRect(text, 4, 0) withAttributes:label];

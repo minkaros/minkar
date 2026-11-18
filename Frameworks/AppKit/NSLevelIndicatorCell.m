@@ -249,8 +249,8 @@ static NSBezierPath *starPath(NSRect rect){
    BOOL    flipped=[controlView isFlipped];
    NSRect  level;
    double  fraction=[self _fraction];
-   NSColor *track=[NSColor colorWithCalibratedWhite:0.88 alpha:1];
-   NSColor *border=[NSColor colorWithCalibratedWhite:0.70 alpha:1];
+   NSColor *track=[NSColor colorWithGenericGamma22White:0.88 alpha:1];
+   NSColor *border=[NSColor colorWithGenericGamma22White:0.70 alpha:1];
    BOOL    enabled=[self isEnabled];
    int     i;
 
@@ -261,8 +261,8 @@ static NSBezierPath *starPath(NSRect rect){
    /* As the reference platform draws them: the empty part light grey, the
       level in its color; relevancy dark grey stripes on a grey track;
       rating small stars, dark for the value and light for the rest. */
-   NSColor *empty=[NSColor colorWithCalibratedWhite:0.80 alpha:1];
-   NSColor *edge=[NSColor colorWithCalibratedWhite:0.72 alpha:1];
+   NSColor *empty=[NSColor colorWithGenericGamma22White:0.80 alpha:1];
+   NSColor *edge=[NSColor colorWithGenericGamma22White:0.72 alpha:1];
 
    switch(_style){
 
@@ -302,12 +302,12 @@ static NSBezierPath *starPath(NSRect rect){
       NSRect bar=NSInsetRect(level,0,MAX(0,floor((NSHeight(level)-10)/2)));
       int    width=(int)floor(NSWidth(bar)*fraction);
 
-      [[NSColor colorWithCalibratedWhite:0.77 alpha:1] setFill];
+      [[NSColor colorWithGenericGamma22White:0.77 alpha:1] setFill];
       NSRectFill(bar);
       for(i=0;i<width;i+=2){
-       [[NSColor colorWithCalibratedWhite:(enabled?0.45:0.65) alpha:1] setFill];
+       [[NSColor colorWithGenericGamma22White:(enabled?0.45:0.65) alpha:1] setFill];
        NSRectFill(NSMakeRect(NSMinX(bar)+i,NSMinY(bar),1,NSHeight(bar)));
-       [[NSColor colorWithCalibratedWhite:(enabled?0.62:0.72) alpha:1] setFill];
+       [[NSColor colorWithGenericGamma22White:(enabled?0.62:0.72) alpha:1] setFill];
        NSRectFill(NSMakeRect(NSMinX(bar)+i+1,NSMinY(bar),1,NSHeight(bar)));
       }
      }
@@ -317,8 +317,8 @@ static NSBezierPath *starPath(NSRect rect){
       int     count=MAX(1,(int)floor(_maxValue-_minValue));
       CGFloat side=MIN(NSHeight(level),12);
       double  value=[self doubleValue]-_minValue;
-      NSColor *filled=enabled?[NSColor colorWithCalibratedWhite:0.40 alpha:1]:[NSColor tertiaryLabelColor];
-      NSColor *unfilled=[NSColor colorWithCalibratedWhite:0.77 alpha:1];
+      NSColor *filled=enabled?[NSColor colorWithGenericGamma22White:0.40 alpha:1]:[NSColor tertiaryLabelColor];
+      NSColor *unfilled=[NSColor colorWithGenericGamma22White:0.77 alpha:1];
 
       for(i=0;i<count;i++){
        NSRect star=NSMakeRect(NSMinX(level)+i*(side+1),floor(NSMidY(level)-side/2),side,side);

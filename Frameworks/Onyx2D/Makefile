@@ -14,6 +14,7 @@ SRCS = \
 	O2ClipState.m \
 	O2Color.m \
 	O2ColorSpace+PDF.m \
+	O2ColorMatching.m \
 	O2ColorSpace.m \
 	O2Context.m \
 	O2Context_builtin.m \
@@ -109,6 +110,7 @@ HEADERS = \
 	O2ClipState.h \
 	O2Color.h \
 	O2ColorSpace+PDF.h \
+	O2ColorMatching.h \
 	O2ColorSpace.h \
 	O2Context.h \
 	O2Context_builtin.h \
@@ -197,6 +199,42 @@ HEADERS = \
 	VGmath.h \
 	gif_lib.h
 
+
+# Little CMS 2 (MIT, lcms2/PROVENANCE): Onyx2D's color management engine,
+# built in with its symbols hidden (Onyx2D's color spaces use it).
+.PATH: ${.CURDIR}/lcms2/src
+LCMS_SRCS = \
+	cmsalpha.c \
+	cmscam02.c \
+	cmscgats.c \
+	cmscnvrt.c \
+	cmserr.c \
+	cmsgamma.c \
+	cmsgmt.c \
+	cmshalf.c \
+	cmsintrp.c \
+	cmsio0.c \
+	cmsio1.c \
+	cmslut.c \
+	cmsmd5.c \
+	cmsmtrx.c \
+	cmsnamed.c \
+	cmsopt.c \
+	cmspack.c \
+	cmspcs.c \
+	cmsplugin.c \
+	cmsps2.c \
+	cmssamp.c \
+	cmssm.c \
+	cmstypes.c \
+	cmsvirt.c \
+	cmswtpnt.c \
+	cmsxform.c
+SRCS += ${LCMS_SRCS}
+.for f in ${LCMS_SRCS}
+CFLAGS.${f} += -I${.CURDIR}/lcms2/include -fvisibility=hidden -Wno-everything
+.endfor
+
 RESOURCES = Info.plist English.lproj
 CFLAGS += -I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/Foundation/Headers \
         -I${ROOT_SOURCE_DIR}/BSD/lib/libjpeg \
@@ -206,7 +244,7 @@ CFLAGS += -I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/Foundation/Headers \
 	-I${.OBJDIR}/jpeg -I${.OBJDIR}/tiff/libtiff \
         -Wno-missing-method-return-type -Wno-missing-prototypes \
 	-Wno-implicit-function-declaration
-CFLAGS += -I${.CURDIR}/freetype/include \
+CFLAGS += -I${.CURDIR}/freetype/include -I${.CURDIR}/lcms2/include \
 	-include${MINKAR_SDKROOT}/usr/include/sys/param.h
 LDFLAGS += ${.OBJDIR}/jpeg/libjpeg.a ${.OBJDIR}/png/libpng.a \
 	${.OBJDIR}/tiff/libtiff/libtiff.a \

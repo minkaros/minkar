@@ -78,22 +78,22 @@
 
    switch(_material){
     case NSVisualEffectMaterialSidebar:
-     return [NSColor colorWithCalibratedWhite:0.91 alpha:0.96];
+     return [NSColor colorWithGenericGamma22White:0.91 alpha:0.96];
     case NSVisualEffectMaterialMenu:
-     return [NSColor colorWithCalibratedWhite:0.97 alpha:0.96];
+     return [NSColor colorWithGenericGamma22White:0.97 alpha:0.96];
     case NSVisualEffectMaterialPopover:
-     return [NSColor colorWithCalibratedWhite:0.96 alpha:0.98];
+     return [NSColor colorWithGenericGamma22White:0.96 alpha:0.98];
     case NSVisualEffectMaterialTitlebar:
     case NSVisualEffectMaterialHeaderView:
-     return [NSColor colorWithCalibratedWhite:active?0.91:0.95 alpha:1];
+     return [NSColor colorWithGenericGamma22White:active?0.91:0.95 alpha:1];
     case NSVisualEffectMaterialSelection:
      return (_emphasized && active)?[NSColor selectedContentBackgroundColor]:[NSColor unemphasizedSelectedContentBackgroundColor];
     case NSVisualEffectMaterialToolTip:
-     return [NSColor colorWithCalibratedWhite:0.98 alpha:0.97];
+     return [NSColor colorWithGenericGamma22White:0.98 alpha:0.97];
     case NSVisualEffectMaterialHUDWindow:
     case NSVisualEffectMaterialDark:
     case NSVisualEffectMaterialUltraDark:
-     return [NSColor colorWithCalibratedWhite:0.12 alpha:0.85];
+     return [NSColor colorWithGenericGamma22White:0.12 alpha:0.85];
     case NSVisualEffectMaterialContentBackground:
      return [NSColor controlBackgroundColor];
     case NSVisualEffectMaterialUnderPageBackground:

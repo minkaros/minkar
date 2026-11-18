@@ -522,20 +522,20 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
     return;
    NSBezierPath *shape=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(strip,0.5,0.5) xRadius:5 yRadius:5];
 
-   [[NSColor colorWithCalibratedWhite:1 alpha:1] setFill];
+   [[NSColor colorWithGenericGamma22White:1 alpha:1] setFill];
    [shape fill];
    if(selected!=NSNotFound){
     [[NSColor controlAccentColor] setFill];
     [_NSSegmentPath(NSInsetRect([self _segmentRectAtIndex:selected],0,0.5),4.5,selected==0,(unsigned)selected==count-1) fill];
    }
-   [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+   [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
    for(i=1;i<count;i++){
     if((NSInteger)i==selected || (NSInteger)i-1==selected)
      continue;
     NSRect segment=[self _segmentRectAtIndex:i];
     NSRectFill(NSMakeRect(NSMinX(segment),NSMinY(segment)+4,1,NSHeight(segment)-8));
    }
-   [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+   [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
    [shape setLineWidth:1];
    [shape stroke];
    for(i=0;i<count;i++)

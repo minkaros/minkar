@@ -235,9 +235,9 @@ static CGFloat frameInset(NSImageFrameStyle style) {
     case NSImageFrameGrayBezel:{
      NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:4 yRadius:4];
 
-     [[NSColor colorWithCalibratedWhite:0.84 alpha:1] setFill];
+     [[NSColor colorWithGenericGamma22White:0.84 alpha:1] setFill];
      [path fill];
-     [[NSColor colorWithCalibratedWhite:0.76 alpha:1] setStroke];
+     [[NSColor colorWithGenericGamma22White:0.76 alpha:1] setStroke];
      [path stroke];
      frame=NSInsetRect(frame,6,6);
     }
@@ -246,7 +246,7 @@ static CGFloat frameInset(NSImageFrameStyle style) {
     case NSImageFrameGroove:{
      NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:4 yRadius:4];
 
-     [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+     [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
      [path stroke];
      frame=NSInsetRect(frame,4,4);
     }

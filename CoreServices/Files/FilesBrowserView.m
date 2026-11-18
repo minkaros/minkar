@@ -17,7 +17,7 @@ static const CGFloat kRowHeight = 22, kHeaderHeight = 24;
 
 static NSColor *selectionColor(void)
 {
-    return [NSColor colorWithCalibratedRed:0.25 green:0.50 blue:0.85 alpha:1];
+    return [NSColor colorWithSRGBRed:0.25 green:0.50 blue:0.85 alpha:1];
 }
 
 @interface FilesBrowserView () <NSTextFieldDelegate>
@@ -217,7 +217,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
     NSFont *font = [NSFont systemFontOfSize:12];
     NSDictionary *plain = @{ NSFontAttributeName: font, NSForegroundColorAttributeName: [NSColor blackColor] };
     NSDictionary *light = @{ NSFontAttributeName: font,
-                             NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.4 alpha:1] };
+                             NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.4 alpha:1] };
     NSDictionary *selected = @{ NSFontAttributeName: font, NSForegroundColorAttributeName: [NSColor whiteColor] };
 
     [[NSColor whiteColor] set];
@@ -227,10 +227,10 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         CGFloat name, date, size, kind;
         [self columnsName:&name date:&date size:&size kind:&kind];
         NSDictionary *header = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:11],
-                                  NSForegroundColorAttributeName: [NSColor colorWithCalibratedWhite:0.35 alpha:1] };
-        [[NSColor colorWithCalibratedWhite:0.95 alpha:1] set];
+                                  NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.35 alpha:1] };
+        [[NSColor colorWithGenericGamma22White:0.95 alpha:1] set];
         NSRectFill(NSMakeRect(0, 0, NSWidth([self bounds]), kHeaderHeight));
-        [[NSColor colorWithCalibratedWhite:0.85 alpha:1] set];
+        [[NSColor colorWithGenericGamma22White:0.85 alpha:1] set];
         NSRectFill(NSMakeRect(0, kHeaderHeight - 1, NSWidth([self bounds]), 1));
         drawText(NSLocalizedString(@"Name", nil), NSMakeRect(name, 0, date - name - 8, kHeaderHeight), header);
         drawText(NSLocalizedString(@"Date Modified", nil), NSMakeRect(date, 0, size - date - 8, kHeaderHeight), header);
@@ -250,7 +250,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
                 [selectionColor() set];
                 NSRectFill(row);
             } else if (i % 2) {
-                [[NSColor colorWithCalibratedWhite:0.965 alpha:1] set];
+                [[NSColor colorWithGenericGamma22White:0.965 alpha:1] set];
                 NSRectFill(row);
             }
             [item.icon drawInRect:NSMakeRect(8, NSMinY(row) + 3, 16, 16) fromRect:NSZeroRect
@@ -278,7 +278,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(icon, -6, -6) xRadius:8 yRadius:8] fill];
         }
         if (isSelected) {
-            [[NSColor colorWithCalibratedWhite:0.85 alpha:1] setFill];
+            [[NSColor colorWithGenericGamma22White:0.85 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(icon, -4, -4) xRadius:6 yRadius:6] fill];
         }
         [item.icon drawInRect:icon fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1

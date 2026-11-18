@@ -104,9 +104,9 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     BOOL alert = self.banner.alert;
     CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12 - (alert ? kColumnWidth : 0);
 
-    [[NSColor colorWithCalibratedWhite:0.97 alpha:0.98] setFill];
+    [[NSColor colorWithGenericGamma22White:0.97 alpha:0.98] setFill];
     [path fill];
-    [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+    [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
     [path stroke];
     [self.icon drawInRect:NSMakeRect(12, (kHeight - 36) / 2, 36, 36)
                  fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
@@ -125,7 +125,7 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
         NSArray *actions = self.actions;
         NSString *close = n[@kNCKeyCloseTitle];
         NSFont *font = [NSFont systemFontOfSize:12];
-        NSColor *line = [NSColor colorWithCalibratedWhite:0.72 alpha:1];
+        NSColor *line = [NSColor colorWithGenericGamma22White:0.72 alpha:1];
 
         if (close.length == 0 || [close isEqualToString:@"Close"])
             close = NSLocalizedString(@"Close", @"an alert's button");
