@@ -20,15 +20,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSUndoManager.h>
 #import <Foundation/NSRaise.h>
 
-NSString * const NSManagedObjectContextWillSaveNotification=@"NSManagedObjectContextWillSaveNotification";
-NSString * const NSManagedObjectContextDidSaveNotification=@"NSManagedObjectContextDidSaveNotification";
+/* The changes since they were last processed, told by
+   NSManagedObjectContextObjectsDidChangeNotification. */
+@interface NSManagedObjectContext () {
+    NSMutableSet *_pendingInserted;
+    NSMutableSet *_pendingUpdated;
+    NSMutableSet *_pendingDeleted;
+}
+@end
 
-NSString * const NSInsertedObjectsKey=@"NSInsertedObjectsKey";
-NSString * const NSUpdatedObjectsKey=@"NSUpdatedObjectsKey";
-NSString * const NSDeletedObjectsKey=@"NSDeletedObjectsKey";
-NSString * const NSRefreshedObjectsKey=@"NSRefreshedObjectsKey";
-NSString * const NSInvalidatedObjectsKey=@"NSInvalidatedObjectsKey";
-NSString * const NSInvalidatedAllObjectsKey=@"NSInvalidatedAllObjectsKey";
+// The reference's values (apps compare the strings too).
+NSString * const NSManagedObjectContextWillSaveNotification=@"NSManagingContextWillSaveChangesNotification";
+NSString * const NSManagedObjectContextDidSaveNotification=@"NSManagingContextDidSaveChangesNotification";
+NSString * const NSManagedObjectContextObjectsDidChangeNotification=@"NSObjectsChangedInManagingContextNotification";
+
+NSString * const NSInsertedObjectsKey=@"inserted";
+NSString * const NSUpdatedObjectsKey=@"updated";
+NSString * const NSDeletedObjectsKey=@"deleted";
+NSString * const NSRefreshedObjectsKey=@"refreshed";
+NSString * const NSInvalidatedObjectsKey=@"invalidated";
+NSString * const NSInvalidatedAllObjectsKey=@"invalidatedAll";
 
 @interface NSAtomicStore(private)
 -(void)_uniqueObjectID:(NSManagedObjectID *)objectID;
@@ -108,6 +119,9 @@ NSString * const NSInvalidatedAllObjectsKey=@"NSInvalidatedAllObjectsKey";
    [_insertedObjects release];
    [_updatedObjects release];
    [_deletedObjects release];
+   [_pendingInserted release];
+   [_pendingUpdated release];
+   [_pendingDeleted release];
    if(_objectIdToObject!=NULL)
     NSFreeMapTable(_objectIdToObject);
    if(_queue!=NULL)
@@ -409,15 +423,39 @@ static BOOL entityMatches(NSEntityDescription *entity,NSEntityDescription *reque
 
    [_insertedObjects addObject:object];
    [self _registerObject:object];
+   [self _pendingSet:&_pendingInserted] ;
+   if([_pendingDeleted containsObject:object])
+    [_pendingDeleted removeObject:object];
+   else
+    [_pendingInserted addObject:object];
+   [self _requestProcessPendingChanges];
 }
 
 -(void)deleteObject:(NSManagedObject *)object {
    NSArray *properties=[[object entity] properties];
-    
+
+   /* Inserted and deleted before anyone heard of it: nothing to tell. */
+   [self _pendingSet:&_pendingDeleted];
+   if([_pendingInserted containsObject:object])
+    [_pendingInserted removeObject:object];
+   else
+    [_pendingDeleted addObject:object];
+   [_pendingUpdated removeObject:object];
+
    for(NSPropertyDescription *property in properties)
     [object setValue:nil forKey:[property name]];
 
    [_deletedObjects addObject:object];
+   [self _requestProcessPendingChanges];
+}
+
+/* The pending sets, made when first needed. */
+-(void)_pendingSet:(NSMutableSet **)set {
+   if(_pendingInserted==nil){
+    _pendingInserted=[[NSMutableSet alloc] init];
+    _pendingUpdated=[[NSMutableSet alloc] init];
+    _pendingDeleted=[[NSMutableSet alloc] init];
+   }
 }
 
 -(void)assignObject:object toPersistentStore:(NSPersistentStore *)store {
@@ -456,8 +494,28 @@ static BOOL entityMatches(NSEntityDescription *entity,NSEntityDescription *reque
    }
 }
 
+/* The changes since last time, told once: inserted, updated and deleted
+   objects, under the reference's keys. */
 -(void)_processPendingChanges {
+    NSMutableDictionary *info;
+
     _requestedProcessPendingChanges = NO;
+    if([_pendingInserted count]==0 && [_pendingUpdated count]==0 && [_pendingDeleted count]==0)
+     return;
+    info=[NSMutableDictionary dictionary];
+    [_pendingUpdated minusSet:_pendingInserted];
+    [_pendingUpdated minusSet:_pendingDeleted];
+    if([_pendingInserted count]>0)
+     [info setObject:[NSSet setWithSet:_pendingInserted] forKey:NSInsertedObjectsKey];
+    if([_pendingUpdated count]>0)
+     [info setObject:[NSSet setWithSet:_pendingUpdated] forKey:NSUpdatedObjectsKey];
+    if([_pendingDeleted count]>0)
+     [info setObject:[NSSet setWithSet:_pendingDeleted] forKey:NSDeletedObjectsKey];
+    [_pendingInserted removeAllObjects];
+    [_pendingUpdated removeAllObjects];
+    [_pendingDeleted removeAllObjects];
+    if([info count]>0)
+     [[NSNotificationCenter defaultCenter] postNotificationName:NSManagedObjectContextObjectsDidChangeNotification object:self userInfo:info];
 }
 
 -(void)processPendingChanges {
@@ -474,8 +532,13 @@ static BOOL entityMatches(NSEntityDescription *entity,NSEntityDescription *reque
 }
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-   if(NSMapGet(_objectIdToObject,[object objectID])==object)
+   if(NSMapGet(_objectIdToObject,[object objectID])==object){
     [_updatedObjects addObject:object];
+    [self _pendingSet:&_pendingUpdated];
+    if(![_pendingInserted containsObject:object] && ![_pendingDeleted containsObject:object])
+     [_pendingUpdated addObject:object];
+    [self _requestProcessPendingChanges];
+   }
 }
 
 -(BOOL)obtainPermanentIDsForObjects:(NSArray *)objects error:(NSError **)error {
@@ -525,6 +588,7 @@ static BOOL entityMatches(NSEntityDescription *entity,NSEntityDescription *reque
    NSError        *idError=nil;
    NSMutableSet   *affectedStores=[NSMutableSet set];
    
+   [self processPendingChanges];
    [[NSNotificationCenter defaultCenter] postNotificationName:NSManagedObjectContextWillSaveNotification object:self];
 
    NSMutableSet *savedInserted=[NSMutableSet setWithSet:_insertedObjects];

@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 COREDATA_EXPORT NSString *const NSManagedObjectContextWillSaveNotification;
 COREDATA_EXPORT NSString *const NSManagedObjectContextDidSaveNotification;
+COREDATA_EXPORT NSString *const NSManagedObjectContextObjectsDidChangeNotification;
 
 COREDATA_EXPORT NSString *const NSInsertedObjectsKey;
 COREDATA_EXPORT NSString *const NSUpdatedObjectsKey;
