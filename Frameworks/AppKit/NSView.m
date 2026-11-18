@@ -207,6 +207,22 @@ static BOOL NSViewLayersEnabled=NO;
     // subviews are in it now) and whether its autoresizing mask is one.
     if([keyed decodeBoolForKey:@"NSDoNotTranslateAutoresizingMask"])
      [self setTranslatesAutoresizingMaskIntoConstraints:NO];
+    /* Priorities the nib editor set: "{horizontal, vertical}". */
+    {
+     NSString *hugging=[keyed decodeObjectForKey:@"NSHuggingPriority"];
+     NSString *resistance=[keyed decodeObjectForKey:@"NSAntiCompressionPriority"];
+
+     if([hugging isKindOfClass:[NSString class]]){
+      NSSize p=NSSizeFromString(hugging);
+      [self setContentHuggingPriority:p.width forOrientation:NSLayoutConstraintOrientationHorizontal];
+      [self setContentHuggingPriority:p.height forOrientation:NSLayoutConstraintOrientationVertical];
+     }
+     if([resistance isKindOfClass:[NSString class]]){
+      NSSize p=NSSizeFromString(resistance);
+      [self setContentCompressionResistancePriority:p.width forOrientation:NSLayoutConstraintOrientationHorizontal];
+      [self setContentCompressionResistancePriority:p.height forOrientation:NSLayoutConstraintOrientationVertical];
+     }
+    }
     {
      NSArray *constraints=[keyed decodeObjectForKey:@"NSViewConstraints"];
 

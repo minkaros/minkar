@@ -441,6 +441,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [result setTextColor:[NSColor labelColor]];
    [result setLineBreakMode:NSLineBreakByClipping];
    [result setUsesSingleLineMode:YES];
+   /* As the reference's: it hugs its text a little more than a field. */
+   [result setContentHuggingPriority:251 forOrientation:NSLayoutConstraintOrientationHorizontal];
    [result sizeToFit];
    return result;
 }
@@ -452,6 +454,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [result setUsesSingleLineMode:NO];
    [result setLineBreakMode:NSLineBreakByWordWrapping];
    [[result cell] setWraps:YES];
+   /* It gives way across, to wrap (as the reference's). */
+   [result setContentHuggingPriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+   [result setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
    [result sizeToFit];
    return result;
 }

@@ -17,8 +17,9 @@ const CGFloat NSViewNoIntrinsicMetric=-1;
    layoutGuides=[[NSMutableArray alloc] init];
    anchors=[[NSMutableDictionary alloc] init];
    translatesAutoresizingMask=YES;
-   hugging[0]=hugging[1]=NSLayoutPriorityDefaultLow;
-   compressionResistance[0]=compressionResistance[1]=NSLayoutPriorityDefaultHigh;
+   /* Not set: the view's class gives it (-1). */
+   hugging[0]=hugging[1]=-1;
+   compressionResistance[0]=compressionResistance[1]=-1;
    return self;
 }
 
@@ -309,10 +310,40 @@ static void sendLayout(NSView *view) {
    NSLayoutSetNeedsLayout(self);
 }
 
+/* A view's own content hugging, as measured on the reference: a control
+   hugs its content vertically (750), a view, a button with no bezel to
+   size it (a checkbox), an image view and a color well do not (250); a
+   stepper hugs both ways. Compression resistance is 750 throughout. */
+static NSLayoutPriority defaultHugging(NSView *view,NSLayoutConstraintOrientation orientation) {
+   static Class button,popUp,imageView,colorWell,stepper,progress;
+
+   if(button==nil){
+    button=NSClassFromString(@"NSButton");
+    popUp=NSClassFromString(@"NSPopUpButton");
+    imageView=NSClassFromString(@"NSImageView");
+    colorWell=NSClassFromString(@"NSColorWell");
+    stepper=NSClassFromString(@"NSStepper");
+    progress=NSClassFromString(@"NSProgressIndicator");
+   }
+   if([view isKindOfClass:stepper])
+    return NSLayoutPriorityDefaultHigh;
+   if(orientation==NSLayoutConstraintOrientationHorizontal)
+    return NSLayoutPriorityDefaultLow;
+   if([view isKindOfClass:popUp] || [view isKindOfClass:progress])
+    return NSLayoutPriorityDefaultHigh;
+   if([view isKindOfClass:button] || [view isKindOfClass:imageView] || [view isKindOfClass:colorWell])
+    return NSLayoutPriorityDefaultLow;
+   if([view isKindOfClass:[NSControl class]])
+    return NSLayoutPriorityDefaultHigh;
+   return NSLayoutPriorityDefaultLow;
+}
+
 -(NSLayoutPriority)contentHuggingPriorityForOrientation:(NSLayoutConstraintOrientation)orientation {
    NSViewLayoutState *state=NSViewLayoutStateIfAny(self);
 
-   return (state!=nil)?state->hugging[orientation&1]:NSLayoutPriorityDefaultLow;
+   if(state!=nil && state->hugging[orientation&1]>=0)
+    return state->hugging[orientation&1];
+   return defaultHugging(self,orientation);
 }
 
 -(void)setContentHuggingPriority:(NSLayoutPriority)priority forOrientation:(NSLayoutConstraintOrientation)orientation {
@@ -323,7 +354,7 @@ static void sendLayout(NSView *view) {
 -(NSLayoutPriority)contentCompressionResistancePriorityForOrientation:(NSLayoutConstraintOrientation)orientation {
    NSViewLayoutState *state=NSViewLayoutStateIfAny(self);
 
-   return (state!=nil)?state->compressionResistance[orientation&1]:NSLayoutPriorityDefaultHigh;
+   return (state!=nil && state->compressionResistance[orientation&1]>=0)?state->compressionResistance[orientation&1]:NSLayoutPriorityDefaultHigh;
 }
 
 -(void)setContentCompressionResistancePriority:(NSLayoutPriority)priority forOrientation:(NSLayoutConstraintOrientation)orientation {
