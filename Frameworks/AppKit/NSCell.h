@@ -117,7 +117,13 @@ enum {
     NSCellHitTrackableArea = 0x04,
 };
 
-@interface NSCell : NSObject <NSCopying, NSCoding> {
+@interface NSCell : NSObject <NSCopying, NSCoding>
+/* Minkar: its instance variables are AppKit's own, seen only as AppKit
+   builds (_APPKIT_INTERNAL): an app's subclass may name its own as it
+   likes (_image, _font, ...), as with the reference's headers, which do
+   not show them. The runtime places a subclass's variables after them. */
+#ifdef _APPKIT_INTERNAL
+{
     NSInteger _state;
     NSFont *_font;
     int _entryType;
@@ -153,6 +159,7 @@ enum {
     BOOL _allowsEditingTextAttributes;
     BOOL _importsGraphics;
 }
+#endif
 
 #pragma mark -
 #pragma mark Class Methods

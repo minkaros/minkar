@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <math.h>
 #import <sys/param.h>
 #import <AppKit/NSAnimation.h>
 #import <Foundation/NSString.h>
@@ -123,8 +124,21 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
    return _currentProgress;
 }
 
+/* Minkar: the progress through the curve (as measured on the reference:
+   ease in and out 0.5-0.5cos(pi p), ease in 1-cos(pi p/2), ease out
+   sin(pi p/2), linear p), or the delegate's value for it. It was never
+   set, so it was always 0. */
 -(float)currentValue {
-   return _currentValue;
+   double p=_currentProgress;
+
+   if([_delegate respondsToSelector:@selector(animation:valueForProgress:)])
+    return [_delegate animation:self valueForProgress:_currentProgress];
+   switch(_curve){
+    case NSAnimationEaseInOut: return (float)(0.5-0.5*cos(M_PI*p));
+    case NSAnimationEaseIn: return (float)(1.0-cos(M_PI*p/2.0));
+    case NSAnimationEaseOut: return (float)sin(M_PI*p/2.0);
+    default: return (float)p;
+   }
 }
 
 -(BOOL)isAnimating {
@@ -136,7 +150,7 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
 }
 
 -(void)setCurrentProgress:(NSAnimationProgress)progress {
-   _currentProgress=progress;
+   _currentProgress=MAX(0.0,MIN(1.0,progress));   /* as on the reference */
 }
 
 -(void)clearStartAnimation {

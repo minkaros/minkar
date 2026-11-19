@@ -44,7 +44,13 @@ APPKIT_EXPORT NSString *NSAnimationTriggerOrderOut;
 
 @end
 
-@interface NSAnimation : NSObject <NSCopying> {
+@interface NSAnimation : NSObject <NSCopying>
+/* Minkar: its instance variables are AppKit's own, seen only as AppKit
+   builds (_APPKIT_INTERNAL): an app's subclass may name its own as it
+   likes (_image, _font, ...), as with the reference's headers, which do
+   not show them. The runtime places a subclass's variables after them. */
+#ifdef _APPKIT_INTERNAL
+{
     NSTimeInterval _duration;
     NSAnimationCurve _curve;
     float _frameRate;
@@ -58,6 +64,7 @@ APPKIT_EXPORT NSString *NSAnimationTriggerOrderOut;
     NSTimer *_timer;
     NSTimeInterval _startTime;
 }
+#endif
 
 - initWithDuration:(NSTimeInterval)duration animationCurve:(NSAnimationCurve)curve;
 

@@ -650,7 +650,7 @@ CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN
 	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/fontconfig \
-	-D_BuildingFramework -DFREETYPE_PRESENT -pthread \
+	-D_BuildingFramework -D_APPKIT_INTERNAL -DFREETYPE_PRESENT -pthread \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks \
 	-I${KIWI_DIR}
