@@ -70,6 +70,17 @@ CF_EXPORT const CFStringRef kSecAttrProtocolPOP3S;
 CF_EXPORT const CFStringRef kSecAttrPort;
 CF_EXPORT const CFStringRef kSecAttrPath;
 CF_EXPORT const CFStringRef kSecAttrSecurityDomain;
+/* An internet password's authentication type: part of what tells it from
+   another (an HTML form's password and an HTTP login's for one server). */
+CF_EXPORT const CFStringRef kSecAttrAuthenticationType;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeNTLM;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeMSN;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeDPA;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeRPA;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeHTTPBasic;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeHTTPDigest;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeHTMLForm;
+CF_EXPORT const CFStringRef kSecAttrAuthenticationTypeDefault;
 CF_EXPORT const CFStringRef kSecAttrCreationDate;
 CF_EXPORT const CFStringRef kSecAttrModificationDate;
 CF_EXPORT const CFStringRef kSecAttrCreator;

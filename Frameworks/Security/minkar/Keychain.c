@@ -67,6 +67,15 @@ const CFStringRef kSecAttrProtocolPOP3S = CFSTR("pops");
 const CFStringRef kSecAttrPort = CFSTR("port");
 const CFStringRef kSecAttrPath = CFSTR("path");
 const CFStringRef kSecAttrSecurityDomain = CFSTR("sdmn");
+const CFStringRef kSecAttrAuthenticationType = CFSTR("atyp");
+const CFStringRef kSecAttrAuthenticationTypeNTLM = CFSTR("ntlm");
+const CFStringRef kSecAttrAuthenticationTypeMSN = CFSTR("msna");
+const CFStringRef kSecAttrAuthenticationTypeDPA = CFSTR("dpaa");
+const CFStringRef kSecAttrAuthenticationTypeRPA = CFSTR("rpaa");
+const CFStringRef kSecAttrAuthenticationTypeHTTPBasic = CFSTR("http");
+const CFStringRef kSecAttrAuthenticationTypeHTTPDigest = CFSTR("httd");
+const CFStringRef kSecAttrAuthenticationTypeHTMLForm = CFSTR("form");
+const CFStringRef kSecAttrAuthenticationTypeDefault = CFSTR("dflt");
 const CFStringRef kSecAttrCreationDate = CFSTR("cdat");
 const CFStringRef kSecAttrModificationDate = CFSTR("mdat");
 const CFStringRef kSecAttrCreator = CFSTR("crtr");
@@ -287,13 +296,14 @@ static CFTypeRef resultFor(CFDictionaryRef item, CFDictionaryRef query) {
 
 static Boolean sameIdentity(CFDictionaryRef a, CFDictionaryRef b) {
     static const CFStringRef generic[] = { CFSTR("acct"), CFSTR("svce") };
-    static const CFStringRef internet[] = { CFSTR("acct"), CFSTR("srvr"), CFSTR("ptcl"), CFSTR("port"), CFSTR("path"), CFSTR("sdmn") };
+    static const CFStringRef internet[] = { CFSTR("acct"), CFSTR("srvr"), CFSTR("ptcl"), CFSTR("port"), CFSTR("path"), CFSTR("sdmn"),
+                                            CFSTR("atyp") };
     CFTypeRef cls = CFDictionaryGetValue(a, kItemClassKey);
     if (!CFEqual(cls, CFDictionaryGetValue(b, kItemClassKey)))
         return false;
     Boolean inet = CFEqual(cls, kSecClassInternetPassword);
     const CFStringRef *keys = inet ? internet : generic;
-    size_t n = inet ? 6 : 2;
+    size_t n = inet ? 7 : 2;
     for (size_t i = 0; i < n; i++)
         if (!valuesMatch(CFDictionaryGetValue(a, keys[i]), CFDictionaryGetValue(b, keys[i]), false))
             return false;
