@@ -124,4 +124,6 @@ NSDictionary *O2FontCopyVariations(O2FontRef self);
 
 uint16_t O2FontUnicodeForGlyphName(CFStringRef name);
 
+/* Minkar: the font's glyph for a character (0: none). */
+- (O2Glyph)glyphForCharacter:(unichar)character;
 @end

@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Onyx2D/O2Context.h>
+#import "O2PDFFont.h"
 #import <Onyx2D/O2Context_builtin.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <Onyx2D/O2Color.h>
@@ -1266,6 +1267,22 @@ void O2ContextShowGlyphsWithAdvances(O2ContextRef self,const O2Glyph *glyphs,con
 
 void O2ContextDefaultShowText(O2ContextRef self,const char *text,unsigned length) {
    O2GState        *gState=O2ContextCurrentGState(self);
+   id               pdfFont=O2GStatePDFFont(gState);
+
+   /* Minkar: a composite PDF font's two-byte codes, its glyphs and widths. */
+   if(pdfFont!=nil && [pdfFont isComposite]){
+    unsigned codes[length/2+1];
+    O2Glyph  glyphs[length/2+1];
+    O2Float  widths[length/2+1];
+    O2Size   advances[length/2+1];
+    unsigned i,count=[pdfFont decodeBytes:(const uint8_t *)text length:length codes:codes glyphs:glyphs widths:widths];
+
+    for(i=0;i<count;i++)
+     advances[i]=O2SizeMake(widths[i]*gState->_pointSize+gState->_characterSpacing,0);
+    self->_showGlyphsFunction(self,NULL,glyphs,advances,count);
+    return;
+   }
+
    O2Encoding      *encoding=O2GStateEncoding(gState);
    O2PDFCharWidths *widths=O2GStateCharWidths(gState);
    O2Glyph          glyphs[length];
@@ -1277,8 +1294,14 @@ void O2ContextDefaultShowText(O2ContextRef self,const char *text,unsigned length
     O2Size advances[length];
     int    i;
     
-    if(widths!=nil)
+    if(widths!=nil){
+     /* Minkar: a PDF font's widths are thousandths of its size: scaled
+        to it, as the default advances are (they were added unscaled, a
+        font's glyphs piled up). */
      O2PDFCharWidthsGetAdvances(widths,advances,(const uint8_t *)text,length);
+     for(i=0;i<length;i++)
+      advances[i].width*=gState->_pointSize;
+    }
     else
      O2ContextGetDefaultAdvances(self,glyphs,advances,length);
     

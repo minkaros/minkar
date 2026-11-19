@@ -14,6 +14,7 @@
 #import <Onyx2D/O2PDFCharWidths.h>
 #import <Onyx2D/O2Font.h>
 #import <Onyx2D/O2PDFPage.h>
+#import "O2PDFFont.h"
 #import <math.h>
 
 @interface O2Context_textExtractor : O2Context {
@@ -66,6 +67,43 @@ static void extractShowText(O2ContextRef self, const char *text, unsigned length
         O2PDFCharWidthsGetAdvances(widths, pdfAdvances, (const uint8_t *)text, length);
     else if (font == NULL || !O2FontGetGlyphAdvances(font, glyphs, length, advances))
         memset(advances, 0, sizeof(advances));
+
+    /* A composite font: two-byte codes, their text from its ToUnicode
+       (several characters for a ligature, sharing its width). */
+    id pdfFont = O2GStatePDFFont(gState);
+    if (pdfFont != nil && [pdfFont isComposite]) {
+        unsigned codes[length / 2 + 1], count;
+        O2Glyph cidGlyphs[length / 2 + 1];
+        O2Float cidWidths[length / 2 + 1];
+
+        count = [pdfFont decodeBytes:(const uint8_t *)text length:length codes:codes glyphs:cidGlyphs widths:cidWidths];
+        for (unsigned i = 0; i < count; i++) {
+            O2AffineTransform tm = O2ContextGetTextMatrix(self);
+            O2AffineTransform trm = O2AffineTransformConcat(O2AffineTransformMake(size * scaling, 0, 0, size, 0, rise), O2AffineTransformConcat(tm, O2ContextGetCTM(self)));
+            O2Point origin = O2PointApplyAffineTransform(O2PointMake(0, 0), trm);
+            O2Point end = O2PointApplyAffineTransform(O2PointMake(cidWidths[i], 0), trm);
+            O2Point top = O2PointApplyAffineTransform(O2PointMake(0, 1), trm);
+            O2Float pageSize = hypot(top.x - origin.x, top.y - origin.y);
+            O2Float advance = hypot(end.x - origin.x, end.y - origin.y);
+            NSString *chars = [pdfFont unicodeForCode:codes[i]];
+            NSUInteger n = [chars length];
+
+            for (NSUInteger k = 0; k < (n ? n : 1); k++) {
+                O2PDFTextCharacter character;
+
+                character.unicode = n ? [chars characterAtIndex:k] : 0xFFFD;
+                character.origin = O2PointMake(origin.x + (end.x - origin.x) * k / (n ? n : 1), origin.y + (end.y - origin.y) * k / (n ? n : 1));
+                character.advance = advance / (n ? n : 1);
+                character.fontSize = pageSize;
+                character.ascent = ascent * pageSize;
+                character.descent = descent * pageSize;
+                [extractor->_characters appendBytes:&character length:sizeof(character)];
+            }
+            O2Float tx = (cidWidths[i] * size + spacing) * scaling;
+            O2ContextSetTextMatrix(self, O2AffineTransformConcat(O2AffineTransformMakeTranslation(tx, 0), tm));
+        }
+        return;
+    }
 
     for (unsigned i = 0; i < length; i++) {
         O2AffineTransform tm = O2ContextGetTextMatrix(self);

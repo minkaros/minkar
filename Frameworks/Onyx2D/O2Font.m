@@ -413,6 +413,10 @@ NSString *O2MacRomanGlyphNames[256]={
    return [[O2Encoding alloc] initWithGlyphs:glyphs unicode:unicode];
 }
 
+-(O2Glyph)glyphForCharacter:(unichar)character {
+   return 0;
+}
+
 -(float)nativeSizeForSize:(float)size
 {
     return size;
@@ -435,8 +439,18 @@ O2FontRef O2FontCreateWithFontName(NSString *name) {
    return [font initWithFontName:name];
 }
 
+/* Minkar: as by name, the platform's class (AppKit's FreeType fonts)
+   when it has taken over the allocation: the _platform call bound to
+   Onyx2D's stub, so a PDF's embedded fonts were never loaded and its
+   text was drawn with a stand-in. */
 O2FontRef O2FontCreateWithDataProvider(O2DataProviderRef provider) {
-   return O2FontCreateWithDataProvider_platform(provider);
+   O2Font *font=[O2Font alloc];
+
+   if([font class]==[O2Font class]){
+    [font release];
+    return O2FontCreateWithDataProvider_platform(provider);
+   }
+   return [font initWithDataProvider:provider];
 }
 
 O2FontRef O2FontRetain(O2FontRef self) {

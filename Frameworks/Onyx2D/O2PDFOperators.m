@@ -432,6 +432,9 @@ static void establishFontInContext(O2Context *context,O2PDFFont *pdfFont,O2PDFRe
    O2ContextSetFontSize(context,scale);
    O2ContextSetEncoding(context,[pdfFont encoding]);
    O2ContextSetPDFCharWidths(context,[pdfFont pdfCharWidths]);
+   /* Minkar: the PDF font itself, for its codes (a composite font's are
+      two bytes). */
+   O2GStateSetPDFFont(O2ContextCurrentGState(context),pdfFont);
 }
 
 // Set parameters from graphics state parameter dictionary

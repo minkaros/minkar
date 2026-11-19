@@ -454,6 +454,10 @@ static void readFace(O2Font_FT *self,NSString *name) {
    return 0;
 }
 
+-(O2Glyph)glyphForCharacter:(unichar)character {
+   return (_face!=NULL)?FT_Get_Char_Index(_face,character):0;
+}
+
 /* Minkar: a PDF font's byte codes: each byte's character from the text
    encoding's table (WinAnsi, MacRoman, MacExpert; a font that names none
    has the byte itself), and the glyph the font's character map gives it

@@ -35,6 +35,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _fontIsDirty=YES;
    _encoding=nil;
    _pdfCharWidths=nil;
+   _pdfFont=nil;
    _fontState=nil;
    _patternPhase=O2SizeMake(0,0);
    _allowsFontSubpixelPositioning=YES;
@@ -74,6 +75,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_font release];
    [_encoding release];
    [_pdfCharWidths release];
+   [_pdfFont release];
    [_fontState release];
    if(_dashLengths!=NULL)
     NSZoneFree(NULL,_dashLengths);
@@ -93,6 +95,7 @@ O2GState *O2GStateCopyWithZone(O2GState *self,NSZone *zone) {
    copy->_font=[self->_font retain];
    copy->_encoding=[self->_encoding retain];
    copy->_pdfCharWidths=[self->_pdfCharWidths retain];
+   copy->_pdfFont=[self->_pdfFont retain];
    copy->_fontState=[self->_fontState retain];
    if(self->_dashLengths!=NULL){
     int i;
@@ -276,6 +279,16 @@ O2Encoding *O2GStateEncoding(O2GState *self) {
 
 O2PDFCharWidths *O2GStateCharWidths(O2GState *self) {
    return self->_pdfCharWidths;
+}
+
+id O2GStatePDFFont(O2GState *self) {
+   return self->_pdfFont;
+}
+
+void O2GStateSetPDFFont(O2GState *self,id font) {
+   font=[font retain];
+   [self->_pdfFont release];
+   self->_pdfFont=font;
 }
 
 -(O2Encoding *)encoding {

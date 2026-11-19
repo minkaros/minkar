@@ -38,6 +38,7 @@ extern "C" {
 
     O2Encoding *_encoding;
     O2PDFCharWidths *_pdfCharWidths;
+    id _pdfFont;   /* Minkar: the PDF font shown with (its codes' decoder) */
     id _fontState;
     O2Size _patternPhase;
     int _textDrawingMode;
@@ -114,6 +115,8 @@ O2Float O2GStatePointSize(O2GState *self);
 
 O2Encoding *O2GStateEncoding(O2GState *self);
 O2PDFCharWidths *O2GStateCharWidths(O2GState *self);
+id O2GStatePDFFont(O2GState *self);
+void O2GStateSetPDFFont(O2GState *self, id font);
 
 - (O2Encoding *)encoding;
 - (O2PDFCharWidths *)pdfCharWidths;
