@@ -13,3 +13,4 @@
 #import <PDFKit/PDFDocument.h>
 #import <PDFKit/PDFOutline.h>
 #import <PDFKit/PDFPage.h>
+#import <PDFKit/PDFSelection.h>

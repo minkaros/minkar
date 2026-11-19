@@ -278,6 +278,98 @@
     return NSNotFound;
 }
 
+/* ---- selections ---- */
+
+- (PDFSelection *)_selectionWithRange:(NSRange)range {
+    PDFSelection *selection;
+
+    if (range.length == 0 || range.location >= self.numberOfCharacters)
+        return nil;
+    selection = [[PDFSelection alloc] initWithDocument:(PDFDocument *_Nonnull)_document];
+    [selection _addRange:range onPage:self];
+    return (selection.pages.count > 0) ? selection : nil;
+}
+
+- (PDFSelection *)selectionForRange:(NSRange)range {
+    return [self _selectionWithRange:range];
+}
+
+- (PDFSelection *)selectionForRect:(PDFRect)rect {
+    NSUInteger count = self.numberOfCharacters;
+    PDFSelection *selection = [[PDFSelection alloc] initWithDocument:(PDFDocument *_Nonnull)_document];
+
+    rect = CGRectStandardize(rect);
+    for (NSUInteger i = 0; i < count; i++)
+        if (CGRectContainsRect(rect, [self characterBoundsAtIndex:i]))
+            [selection _addRange:NSMakeRange(i, 1) onPage:self];
+    return (selection.pages.count > 0) ? selection : nil;
+}
+
+- (PDFSelection *)selectionForWordAtPoint:(PDFPoint)point {
+    NSInteger index = [self characterIndexAtPoint:point];
+    NSString *text = self.string;
+    NSCharacterSet *word = [NSCharacterSet alphanumericCharacterSet];
+    NSUInteger start, end;
+
+    if (index == NSNotFound || ![word characterIsMember:[text characterAtIndex:index]])
+        return nil;
+    for (start = index; start > 0 && [word characterIsMember:[text characterAtIndex:start - 1]]; start--)
+        ;
+    for (end = index + 1; end < text.length && [word characterIsMember:[text characterAtIndex:end]]; end++)
+        ;
+    return [self _selectionWithRange:NSMakeRange(start, end - start)];
+}
+
+/* The characters on the line of index: those with its baseline, around it,
+   without the separators. */
+- (NSRange)_lineRangeAtIndex:(NSUInteger)index {
+    NSString *text = self.string;
+    CGRect box = [self characterBoundsAtIndex:index];
+    NSUInteger start = index, end = index + 1;
+
+    BOOL (^sameLine)(NSUInteger) = ^BOOL(NSUInteger i) {
+        CGRect other = [self characterBoundsAtIndex:i];
+        unichar c = [text characterAtIndex:i];
+
+        if (c == '\n' || (c == ' ' && other.size.width == 0))
+            return NO;
+        return fabs(CGRectGetMinY(other) - CGRectGetMinY(box)) <= MAX(box.size.height, other.size.height) / 2;
+    };
+    while (start > 0 && sameLine(start - 1))
+        start--;
+    while (end < text.length && sameLine(end))
+        end++;
+    return NSMakeRange(start, end - start);
+}
+
+- (PDFSelection *)selectionForLineAtPoint:(PDFPoint)point {
+    NSInteger index = [self characterIndexAtPoint:point];
+
+    if (index == NSNotFound)
+        return nil;
+    return [self _selectionWithRange:[self _lineRangeAtIndex:index]];
+}
+
+/* Where a point falls between characters: before the one it is on, or
+   after it past its middle; NSNotFound off the text. */
+- (NSUInteger)_boundaryAtPoint:(PDFPoint)point {
+    NSInteger index = [self characterIndexAtPoint:point];
+    CGRect box;
+
+    if (index == NSNotFound)
+        return NSNotFound;
+    box = [self characterBoundsAtIndex:index];
+    return (point.x > CGRectGetMidX(box)) ? index + 1 : index;
+}
+
+- (PDFSelection *)selectionFromPoint:(PDFPoint)startPoint toPoint:(PDFPoint)endPoint {
+    NSUInteger a = [self _boundaryAtPoint:startPoint], b = [self _boundaryAtPoint:endPoint];
+
+    if (a == NSNotFound || b == NSNotFound)
+        return nil;
+    return [self _selectionWithRange:NSMakeRange(MIN(a, b), MAX(a, b) - MIN(a, b))];
+}
+
 /* The page alone, as a one-page PDF. */
 - (NSData *)dataRepresentation {
     PDFDocument *document = [[PDFDocument alloc] init];

@@ -6,7 +6,7 @@
 
 #import <PDFKit/PDFKitPlatform.h>
 
-@class PDFDocument;
+@class PDFDocument, PDFSelection;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -53,6 +53,16 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 - (PDFRect)characterBoundsAtIndex:(NSInteger)index;
 /* The character whose box holds point, or NSNotFound. */
 - (NSInteger)characterIndexAtPoint:(PDFPoint)point;
+/* The characters whose boxes rect holds whole. */
+- (nullable PDFSelection *)selectionForRect:(PDFRect)rect;
+/* The word (letters and digits) at point; nil off one. */
+- (nullable PDFSelection *)selectionForWordAtPoint:(PDFPoint)point;
+/* The line at point, without its separator. */
+- (nullable PDFSelection *)selectionForLineAtPoint:(PDFPoint)point;
+/* From one point to the other, in either order: each point falls before or
+   after the character it is on, as it is left or right of its middle. */
+- (nullable PDFSelection *)selectionFromPoint:(PDFPoint)startPoint toPoint:(PDFPoint)endPoint;
+- (nullable PDFSelection *)selectionForRange:(NSRange)range;
 
 @property (nonatomic, readonly, nullable) NSData *dataRepresentation;
 @end

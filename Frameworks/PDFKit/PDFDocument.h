@@ -7,7 +7,7 @@
 #import <PDFKit/PDFKitPlatform.h>
 #import <PDFKit/PDFPage.h>
 
-@class PDFOutline;
+@class PDFOutline, PDFSelection;
 @protocol PDFDocumentDelegate;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -73,6 +73,9 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 @property (nonatomic, weak, nullable) id<PDFDocumentDelegate> delegate;
 
 @property (nonatomic, strong, nullable) PDFOutline *outlineRoot;
+/* The outline item a selection is under: the last whose destination comes
+   before its start. */
+- (nullable PDFOutline *)outlineItemForSelection:(PDFSelection *)selection;
 
 @property (nonatomic, readonly) NSUInteger pageCount;
 - (nullable PDFPage *)pageAtIndex:(NSUInteger)index;
@@ -81,6 +84,23 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 - (void)removePageAtIndex:(NSUInteger)index;
 - (void)exchangePageAtIndex:(NSUInteger)indexA withPageAtIndex:(NSUInteger)indexB;
 @property (nonatomic, readonly) Class pageClass;
+
+/* Each match of string in the pages' text (not across pages), in order;
+   options as NSString's (case insensitive, backwards...). */
+- (NSArray<PDFSelection *> *)findString:(NSString *)string withOptions:(NSStringCompareOptions)options;
+/* The next match after selection (before it, backwards), or the first;
+   nil past the last (no wrapping). */
+- (nullable PDFSelection *)findString:(NSString *)string fromSelection:(nullable PDFSelection *)selection withOptions:(NSStringCompareOptions)options;
+/* Finding, told by notifications (and the delegate): begin, each page,
+   each match, end. */
+- (void)beginFindString:(NSString *)string withOptions:(NSStringCompareOptions)options;
+- (void)beginFindStrings:(NSArray<NSString *> *)strings withOptions:(NSStringCompareOptions)options;
+@property (nonatomic, readonly) BOOL isFinding;
+- (void)cancelFindString;
+
+@property (nonatomic, readonly, nullable) PDFSelection *selectionForEntireDocument;
+- (nullable PDFSelection *)selectionFromPage:(PDFPage *)startPage atPoint:(PDFPoint)startPoint toPage:(PDFPage *)endPage atPoint:(PDFPoint)endPoint;
+- (nullable PDFSelection *)selectionFromPage:(PDFPage *)startPage atCharacterIndex:(NSUInteger)startCharacter toPage:(PDFPage *)endPage atCharacterIndex:(NSUInteger)endCharacter;
 
 - (nullable NSData *)dataRepresentation;
 - (nullable NSData *)dataRepresentationWithOptions:(NSDictionary *)options;
@@ -94,6 +114,12 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 @protocol PDFDocumentDelegate <NSObject>
 @optional
 - (void)documentDidUnlock:(NSNotification *)notification;
+- (void)documentDidBeginDocumentFind:(NSNotification *)notification;
+- (void)documentDidEndDocumentFind:(NSNotification *)notification;
+- (void)documentDidBeginPageFind:(NSNotification *)notification;
+- (void)documentDidEndPageFind:(NSNotification *)notification;
+- (void)documentDidFindMatch:(NSNotification *)notification;
+- (void)didMatchString:(PDFSelection *)instance;
 - (Class)classForPage;
 @end
 

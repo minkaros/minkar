@@ -21,6 +21,13 @@ NS_ASSUME_NONNULL_BEGIN
 @interface PDFPage (PDFKitPrivate)
 - (instancetype)_initWithDocument:(PDFDocument *)document pageRef:(CGPDFPageRef)pageRef;
 - (void)_setDocument:(nullable PDFDocument *)document;
+/* Where a point falls between characters, or NSNotFound off the text. */
+- (NSUInteger)_boundaryAtPoint:(PDFPoint)point;
+@end
+
+@interface PDFSelection (PDFKitPrivate)
+/* Characters on a page added (clipped to its text). */
+- (void)_addRange:(NSRange)range onPage:(PDFPage *)page;
 @end
 
 @interface PDFOutline (PDFKitPrivate)

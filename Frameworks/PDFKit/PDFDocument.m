@@ -9,6 +9,7 @@
  */
 
 #import "PDFKitPrivate.h"
+#import <objc/message.h>
 
 NSNotificationName const PDFDocumentDidUnlockNotification = @"PDFDocumentDidUnlock";
 NSNotificationName const PDFDocumentDidBeginFindNotification = @"PDFDidBeginDocumentFind";
@@ -102,6 +103,8 @@ static void collectNumberTree(CGPDFDictionaryRef node, NSMutableArray *entries, 
     NSMapTable *_pageIndexByDictionary;
     NSDictionary *_documentAttributes;
     PDFOutline *_outlineRoot;
+    BOOL _isFinding;
+    BOOL _findCancelled;
 }
 
 - (instancetype)init {
@@ -334,6 +337,206 @@ static void collectNumberTree(CGPDFDictionaryRef node, NSMutableArray *entries, 
     for (NSUInteger i = 0; i < self.pageCount; i++)
         [strings addObject:[self pageAtIndex:i].string ?: @""];
     return (strings.count > 0) ? [strings componentsJoinedByString:@"\n"] : nil;
+}
+
+/* ---- finding and selecting ---- */
+
+- (NSArray<PDFSelection *> *)_matchesOf:(NSString *)string onPage:(PDFPage *)page options:(NSStringCompareOptions)options {
+    NSMutableArray *matches = [NSMutableArray array];
+    NSString *text = page.string;
+    NSRange search = NSMakeRange(0, text.length), found;
+
+    options &= ~(NSStringCompareOptions)NSBackwardsSearch;
+    if (string.length == 0 || text == nil)
+        return matches;
+    while (search.length > 0 && (found = [text rangeOfString:string options:options range:search]).location != NSNotFound) {
+        PDFSelection *selection = [[PDFSelection alloc] initWithDocument:self];
+
+        [selection _addRange:found onPage:page];
+        [matches addObject:selection];
+        search = NSMakeRange(NSMaxRange(found), text.length - NSMaxRange(found));
+    }
+    return matches;
+}
+
+- (NSArray<PDFSelection *> *)findString:(NSString *)string withOptions:(NSStringCompareOptions)options {
+    NSMutableArray *matches = [NSMutableArray array];
+
+    for (NSUInteger i = 0; i < self.pageCount; i++)
+        [matches addObjectsFromArray:[self _matchesOf:string onPage:[self pageAtIndex:i] options:options]];
+    if (options & NSBackwardsSearch)
+        return matches.reverseObjectEnumerator.allObjects;
+    return matches;
+}
+
+/* A selection's place: its first page's index and first character (its
+   last, for searching backwards from it). */
+- (BOOL)_placeOf:(PDFSelection *)selection page:(NSUInteger *)pageIndex character:(NSUInteger *)character last:(BOOL)last {
+    PDFPage *page = last ? selection.pages.lastObject : selection.pages.firstObject;
+    NSUInteger ranges = page ? [selection numberOfTextRangesOnPage:page] : 0;
+
+    if (ranges == 0)
+        return NO;
+    NSRange range = [selection rangeAtIndex:last ? ranges - 1 : 0 onPage:page];
+    *pageIndex = [self indexForPage:page];
+    *character = last ? NSMaxRange(range) : range.location;
+    return *pageIndex != NSNotFound;
+}
+
+- (PDFSelection *)findString:(NSString *)string fromSelection:(PDFSelection *)selection withOptions:(NSStringCompareOptions)options {
+    BOOL backwards = (options & NSBackwardsSearch) != 0;
+    NSUInteger fromPage = 0, fromCharacter = 0;
+    BOOL placed = (selection != nil) && [self _placeOf:selection page:&fromPage character:&fromCharacter last:!backwards];
+
+    for (PDFSelection *match in [self findString:string withOptions:options]) {
+        NSUInteger page, character;
+
+        if (![self _placeOf:match page:&page character:&character last:NO])
+            continue;
+        if (!placed)
+            return match;
+        if (!backwards && (page > fromPage || (page == fromPage && character >= fromCharacter)))
+            return match;
+        if (backwards && (page < fromPage || (page == fromPage && character < fromCharacter)))
+            return match;
+    }
+    return nil;
+}
+
+- (void)_post:(NSNotificationName)name selector:(SEL)selector info:(NSDictionary *)info {
+    NSNotification *note = [NSNotification notificationWithName:name object:self userInfo:info];
+
+    [[NSNotificationCenter defaultCenter] postNotification:note];
+    if ([_delegate respondsToSelector:selector])
+        ((void (*)(id, SEL, id))objc_msgSend)(_delegate, selector, note);
+}
+
+/* Done at once, told as the reference tells it: begin, each page (its
+   index), each match (the selection; the delegate's didMatchString: too),
+   end. */
+- (void)beginFindStrings:(NSArray<NSString *> *)strings withOptions:(NSStringCompareOptions)options {
+    _isFinding = YES;
+    _findCancelled = NO;
+    [self _post:PDFDocumentDidBeginFindNotification selector:@selector(documentDidBeginDocumentFind:) info:nil];
+    for (NSUInteger i = 0; i < self.pageCount && !_findCancelled; i++) {
+        NSDictionary *pageInfo = @{ @"PDFDocumentPageIndex": @(i) };
+
+        [self _post:PDFDocumentDidBeginPageFindNotification selector:@selector(documentDidBeginPageFind:) info:pageInfo];
+        for (NSString *string in strings)
+            for (PDFSelection *match in [self _matchesOf:string onPage:[self pageAtIndex:i] options:options]) {
+                if (_findCancelled)
+                    break;
+                if ([_delegate respondsToSelector:@selector(didMatchString:)])
+                    [_delegate didMatchString:match];
+                [self _post:PDFDocumentDidFindMatchNotification selector:@selector(documentDidFindMatch:) info:@{ @"PDFDocumentFoundSelection": match }];
+            }
+        [self _post:PDFDocumentDidEndPageFindNotification selector:@selector(documentDidEndPageFind:) info:pageInfo];
+    }
+    _isFinding = NO;
+    [self _post:PDFDocumentDidEndFindNotification selector:@selector(documentDidEndDocumentFind:) info:nil];
+}
+
+- (void)beginFindString:(NSString *)string withOptions:(NSStringCompareOptions)options {
+    [self beginFindStrings:string ? @[ string ] : @[] withOptions:options];
+}
+
+- (void)cancelFindString {
+    _findCancelled = YES;
+}
+
+- (PDFSelection *)selectionForEntireDocument {
+    PDFSelection *selection = [[PDFSelection alloc] initWithDocument:self];
+
+    for (NSUInteger i = 0; i < self.pageCount; i++) {
+        PDFPage *page = [self pageAtIndex:i];
+
+        [selection _addRange:NSMakeRange(0, page.numberOfCharacters) onPage:page];
+    }
+    return (selection.pages.count > 0) ? selection : nil;
+}
+
+/* From a character on one page to one on another: the pages between whole. */
+- (PDFSelection *)selectionFromPage:(PDFPage *)startPage atCharacterIndex:(NSUInteger)startCharacter toPage:(PDFPage *)endPage atCharacterIndex:(NSUInteger)endCharacter {
+    NSUInteger first = [self indexForPage:startPage], last = [self indexForPage:endPage];
+    PDFSelection *selection = [[PDFSelection alloc] initWithDocument:self];
+
+    if (first == NSNotFound || last == NSNotFound)
+        return nil;
+    if (first > last || (first == last && startCharacter > endCharacter)) {
+        NSUInteger t = first; first = last; last = t;
+        t = startCharacter; startCharacter = endCharacter; endCharacter = t;
+    }
+    for (NSUInteger i = first; i <= last; i++) {
+        PDFPage *page = [self pageAtIndex:i];
+        NSUInteger from = (i == first) ? startCharacter : 0;
+        NSUInteger to = (i == last) ? MIN(endCharacter + 1, page.numberOfCharacters) : page.numberOfCharacters;
+
+        if (to > from)
+            [selection _addRange:NSMakeRange(from, to - from) onPage:page];
+    }
+    return (selection.pages.count > 0) ? selection : nil;
+}
+
+/* From a point on one page to one on another; a point falls between
+   characters as on a page (off the text: the page's start or end). A page
+   before the last ends without its last line feed, as on the reference. */
+- (PDFSelection *)selectionFromPage:(PDFPage *)startPage atPoint:(PDFPoint)startPoint toPage:(PDFPage *)endPage atPoint:(PDFPoint)endPoint {
+    NSUInteger first = [self indexForPage:startPage], last = [self indexForPage:endPage];
+    PDFSelection *selection;
+
+    if (first == NSNotFound || last == NSNotFound)
+        return nil;
+    if (first == last)
+        return [startPage selectionFromPoint:startPoint toPoint:endPoint];
+    if (first > last) {
+        PDFPage *page = startPage; startPage = endPage; endPage = page;
+        PDFPoint point = startPoint; startPoint = endPoint; endPoint = point;
+        NSUInteger t = first; first = last; last = t;
+    }
+    selection = [[PDFSelection alloc] initWithDocument:self];
+    for (NSUInteger i = first; i <= last; i++) {
+        PDFPage *page = [self pageAtIndex:i];
+        NSString *text = page.string;
+        NSUInteger count = text.length, from = 0, to = count;
+
+        if (i == first) {
+            from = [page _boundaryAtPoint:startPoint];
+            if (from == NSNotFound)
+                from = 0;
+        }
+        if (i == last) {
+            to = [page _boundaryAtPoint:endPoint];
+            if (to == NSNotFound)
+                to = count;
+        } else if (count > 0 && [text characterAtIndex:count - 1] == '\n')
+            to = count - 1;
+        if (to > from)
+            [selection _addRange:NSMakeRange(from, to - from) onPage:page];
+    }
+    return (selection.pages.count > 0) ? selection : nil;
+}
+
+- (PDFOutline *)outlineItemForSelection:(PDFSelection *)selection {
+    NSUInteger page = 0, character = 0;
+    PDFOutline *best = nil;
+    NSMutableArray *stack = [NSMutableArray array];
+
+    if (self.outlineRoot == nil || ![self _placeOf:selection page:&page character:&character last:NO])
+        return nil;
+    for (NSUInteger i = self.outlineRoot.numberOfChildren; i > 0; i--)
+        [stack addObject:[self.outlineRoot childAtIndex:i - 1]];
+    while (stack.count > 0) {
+        PDFOutline *item = stack.lastObject;
+        NSUInteger itemPage;
+
+        [stack removeLastObject];
+        itemPage = item.destination.page ? [self indexForPage:item.destination.page] : NSNotFound;
+        if (itemPage != NSNotFound && itemPage <= page)
+            best = item;
+        for (NSUInteger i = item.numberOfChildren; i > 0; i--)
+            [stack addObject:[item childAtIndex:i - 1]];
+    }
+    return best;
 }
 
 /* ---- page labels ---- */
