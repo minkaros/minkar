@@ -25,6 +25,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (O2PDFDictionary *)encryptDictionary;
 
 - (int)pageCount;
+/* Minkar: its version (the header's, or the catalog's Version if later). */
+- (void)getVersionMajor:(int *)major minor:(int *)minor;
 - (O2PDFPage *)pageAtNumber:(int)pageNumber;
 
 @end

@@ -17,7 +17,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _length=length;
    _noCopyNoFree=NO;
    _bytes=NSZoneMalloc(NULL,length);
-   strncpy((char *)_bytes,(const char *)bytes,length);
+   /* Minkar: every byte (a string may hold zeros: UTF-16 text, an ID);
+      strncpy stopped at the first and left the rest zero. */
+   memcpy(_bytes,bytes,length);
    return self;
 }
 

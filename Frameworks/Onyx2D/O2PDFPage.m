@@ -107,7 +107,14 @@ BOOL O2PDFGetPageArrayForKey(O2PDFPage *page,const char *key,O2PDFArray **arrayp
    return YES;
 }
 
+/* Minkar: its Rotate, its own or inherited, as written (the reference
+   gives -90 as -90). */
 -(int)rotationAngle {
+   O2PDFObject *object;
+   O2PDFInteger angle;
+
+   if(O2PDFGetPageObjectForKey(self,"Rotate",&object) && [[object realObject] checkForType:kO2PDFObjectTypeInteger value:&angle])
+    return angle;
    return 0;
 }
 

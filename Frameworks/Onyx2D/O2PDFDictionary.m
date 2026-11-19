@@ -218,5 +218,19 @@ NSMapTableKeyCallBacks O2PDFOwnedCStringKeyCallBacks={
    [encoder appendString:@">>\n"];
 }
 
+-(unsigned)count {
+   return NSCountMapTable(_table);
+}
+
+-(void)applyFunction:(void (*)(const char *key,O2PDFObject *value,void *info))function info:(void *)info {
+   NSMapEnumerator state=NSEnumerateMapTable(_table);
+   const char     *key;
+   O2PDFObject    *value;
+
+   while(NSNextMapEnumeratorPair(&state,(void **)&key,(void **)&value))
+    function(key,[value realObject],info);
+   NSEndMapTableEnumeration(&state);
+}
+
 @end
 

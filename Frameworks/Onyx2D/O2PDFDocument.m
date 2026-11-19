@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2PDFScanner.h>
 
 #import <limits.h>
+#import <stdio.h>
+#import <string.h>
 
 @implementation O2PDFDocument
 
@@ -149,6 +151,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    O2PDFPage       *page=[self pageAtNumber:pageNumber-1 pages:pages pagesOffset:0];
 
    return page;
+}
+
+-(void)getVersionMajor:(int *)major minor:(int *)minor {
+   int         headerMajor=0,headerMinor=0,catalogMajor=0,catalogMinor=0;
+   const char *name;
+
+   if(_version!=nil){
+    char buffer[8]={0};
+    unsigned length=MIN([_version length],(unsigned)sizeof(buffer)-1);
+
+    memcpy(buffer,[_version bytes],length);
+    sscanf(buffer,"%d.%d",&headerMajor,&headerMinor);
+   }
+   if([[self catalog] getNameForKey:"Version" value:&name])
+    sscanf(name,"%d.%d",&catalogMajor,&catalogMinor);
+   if(catalogMajor>headerMajor || (catalogMajor==headerMajor && catalogMinor>headerMinor)){
+    headerMajor=catalogMajor;
+    headerMinor=catalogMinor;
+   }
+   if(major!=NULL) *major=headerMajor;
+   if(minor!=NULL) *minor=headerMinor;
 }
 
 @end

@@ -29,6 +29,7 @@ SRCS= \
 	CGLayer.m \
 	CGPDFContext.m \
 	CGPDFDocument.m \
+	CGPDFObjects.m \
 	CGPDFPage.m \
 	CGPath.m \
 	CGPattern.m \
@@ -59,6 +60,11 @@ HEADERS= \
 	CGLayer.h \
 	CGPDFContext.h \
 	CGPDFDocument.h \
+	CGPDFObject.h \
+	CGPDFArray.h \
+	CGPDFDictionary.h \
+	CGPDFString.h \
+	CGPDFStream.h \
 	CGPDFPage.h \
 	CGPath.h \
 	CGPattern.h \

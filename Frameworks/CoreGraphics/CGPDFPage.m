@@ -18,13 +18,54 @@ void CGPDFPageRelease(CGPDFPageRef self) {
    [self release];
 }
 
-CGRect CGPDFPageGetBoxRect(CGPDFPageRef self,CGPDFBox box) {
+/* A box as given, its corners in either order; false if it has none. */
+static bool boxRect(CGPDFPageRef self,CGPDFBox box,CGRect *rect) {
    CGRect result;
-   
+
    if(![self getRect:&result forBox:box])
-    result=CGRectZero;
-    
-   return result;
+    return false;
+   *rect=CGRectStandardize(result);
+   return true;
+}
+
+CGRect CGPDFPageGetBoxRect(CGPDFPageRef self,CGPDFBox box) {
+   CGRect media,result;
+
+   if(self==NULL)
+    return CGRectZero;
+   if(!boxRect(self,kCGPDFMediaBox,&media))
+    media=CGRectMake(0,0,612,792);   // a page without one: US Letter
+   if(box==kCGPDFMediaBox)
+    return media;
+   if(!boxRect(self,kCGPDFCropBox,&result))
+    result=media;
+   else
+    result=CGRectIntersection(result,media);
+   if(box==kCGPDFCropBox)
+    return result;
+   {
+    CGRect crop=result;
+
+    if(!boxRect(self,box,&result))
+     return crop;
+    return CGRectIntersection(result,media);
+   }
+}
+
+int CGPDFPageGetRotationAngle(CGPDFPageRef self) {
+   return (self!=NULL)?[self rotationAngle]:0;
+}
+
+size_t CGPDFPageGetPageNumber(CGPDFPageRef self) {
+   return (self!=NULL)?[self pageNumber]+1:0;
+}
+
+CGPDFDictionaryRef CGPDFPageGetDictionary(CGPDFPageRef self) {
+   return (self!=NULL)?(CGPDFDictionaryRef)[self dictionary]:NULL;
+}
+
+struct O2PDFDocument *CGPDFPageGetDocument(CGPDFPageRef self) {
+   return (self!=NULL)?(struct O2PDFDocument *)[self document]:NULL;
 }
 
 CGAffineTransform CGPDFPageGetDrawingTransform(CGPDFPageRef self,CGPDFBox box,CGRect rect,int clockwiseDegrees,bool preserveAspectRatio) {

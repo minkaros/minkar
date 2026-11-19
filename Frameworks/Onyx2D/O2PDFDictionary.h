@@ -37,6 +37,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)getDictionaryForKey:(const char *)key value:(O2PDFDictionary **)dictionaryp;
 - (BOOL)getStreamForKey:(const char *)key value:(O2PDFStream **)streamp;
 
+/* Minkar: its entries (count, and each key and value, the value looked up
+   through a reference), for CGPDFDictionary. */
+- (unsigned)count;
+- (void)applyFunction:(void (*)(const char *key, O2PDFObject *value, void *info))function info:(void *)info;
+
 @end
 
 unsigned long O2PDFHashCString(NSMapTable *table, const void *data);

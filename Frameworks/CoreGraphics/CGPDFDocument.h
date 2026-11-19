@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 typedef struct O2PDFDocument *CGPDFDocumentRef;
 
 #import <CoreGraphics/CGPDFPage.h>
+#import <CoreGraphics/CGPDFArray.h>
+#import <CoreGraphics/CGPDFDictionary.h>
 #import <CoreGraphics/CGDataProvider.h>
 
 /* CF's naming rules for what the functions return (Create, Copy). */
@@ -25,7 +27,21 @@ COREGRAPHICS_EXPORT CGPDFDocumentRef CGPDFDocumentCreateWithProvider(CGDataProvi
 COREGRAPHICS_EXPORT CGPDFDocumentRef CGPDFDocumentCreateWithURL(CFURLRef url);
 
 COREGRAPHICS_EXPORT size_t CGPDFDocumentGetNumberOfPages(CGPDFDocumentRef self);
+/* Pages count from 1; 0 or past the last is NULL. */
 COREGRAPHICS_EXPORT CGPDFPageRef CGPDFDocumentGetPage(CGPDFDocumentRef self, size_t pageNumber);
+
+/* Minkar: the document's structure. */
+COREGRAPHICS_EXPORT CGPDFDictionaryRef CGPDFDocumentGetCatalog(CGPDFDocumentRef self);
+COREGRAPHICS_EXPORT CGPDFDictionaryRef CGPDFDocumentGetInfo(CGPDFDocumentRef self);
+COREGRAPHICS_EXPORT CGPDFArrayRef CGPDFDocumentGetID(CGPDFDocumentRef self);
+/* The header's version, or the catalog's Version if later. */
+COREGRAPHICS_EXPORT void CGPDFDocumentGetVersion(CGPDFDocumentRef self, int *majorVersion, int *minorVersion);
+/* An encrypted document is not read yet (no decryption): it stays locked. */
+COREGRAPHICS_EXPORT bool CGPDFDocumentIsEncrypted(CGPDFDocumentRef self);
+COREGRAPHICS_EXPORT bool CGPDFDocumentIsUnlocked(CGPDFDocumentRef self);
+COREGRAPHICS_EXPORT bool CGPDFDocumentUnlockWithPassword(CGPDFDocumentRef self, const char *password);
+COREGRAPHICS_EXPORT bool CGPDFDocumentAllowsPrinting(CGPDFDocumentRef self);
+COREGRAPHICS_EXPORT bool CGPDFDocumentAllowsCopying(CGPDFDocumentRef self);
 
 
 CF_IMPLICIT_BRIDGING_DISABLED

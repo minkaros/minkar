@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <CoreGraphics/CGGeometry.h>
 #import <CoreGraphics/CGAffineTransform.h>
+#import <CoreGraphics/CGPDFDictionary.h>
 
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
@@ -24,7 +25,15 @@ typedef enum {
 COREGRAPHICS_EXPORT CFTypeID CGPDFPageGetTypeID(void);
 COREGRAPHICS_EXPORT CGPDFPageRef CGPDFPageRetain(CGPDFPageRef self);
 COREGRAPHICS_EXPORT void CGPDFPageRelease(CGPDFPageRef self);
+/* A box missing is its default (the crop box the media box, the others
+   the crop box), each within the media box. */
 COREGRAPHICS_EXPORT CGRect CGPDFPageGetBoxRect(CGPDFPageRef self, CGPDFBox box);
+/* Minkar: its Rotate, its own or inherited, as written. */
+/* Pages count from 1. */
+COREGRAPHICS_EXPORT int CGPDFPageGetRotationAngle(CGPDFPageRef self);
+COREGRAPHICS_EXPORT size_t CGPDFPageGetPageNumber(CGPDFPageRef self);
+COREGRAPHICS_EXPORT CGPDFDictionaryRef CGPDFPageGetDictionary(CGPDFPageRef self);
+COREGRAPHICS_EXPORT struct O2PDFDocument *CGPDFPageGetDocument(CGPDFPageRef self);
 COREGRAPHICS_EXPORT CGAffineTransform CGPDFPageGetDrawingTransform(CGPDFPageRef self, CGPDFBox box, CGRect rect, int clockwiseDegrees, bool preserveAspectRatio);
 
 

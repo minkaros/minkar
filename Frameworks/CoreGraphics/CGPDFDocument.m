@@ -38,5 +38,73 @@ size_t CGPDFDocumentGetNumberOfPages(CGPDFDocumentRef self) {
 }
 
 CGPDFPageRef CGPDFDocumentGetPage(CGPDFDocumentRef self,size_t pageNumber) {
+   if(self==NULL || pageNumber<1 || pageNumber>(size_t)[self pageCount])
+    return NULL;
    return [self pageAtNumber:pageNumber];
+}
+
+/* ---- Minkar: the document's structure ---- */
+
+#import <Onyx2D/O2PDFDictionary.h>
+#import <Onyx2D/O2PDFArray.h>
+#import <Onyx2D/O2PDFObject_Integer.h>
+#import <Onyx2D/O2PDFxref.h>
+
+CGPDFDictionaryRef CGPDFDocumentGetCatalog(CGPDFDocumentRef self) {
+   return (self!=NULL)?(CGPDFDictionaryRef)[self catalog]:NULL;
+}
+
+CGPDFDictionaryRef CGPDFDocumentGetInfo(CGPDFDocumentRef self) {
+   return (self!=NULL)?(CGPDFDictionaryRef)[self infoDictionary]:NULL;
+}
+
+CGPDFArrayRef CGPDFDocumentGetID(CGPDFDocumentRef self) {
+   O2PDFArray *result;
+
+   if(self==NULL || ![[[self xref] trailer] getArrayForKey:"ID" value:&result])
+    return NULL;
+   return (CGPDFArrayRef)result;
+}
+
+void CGPDFDocumentGetVersion(CGPDFDocumentRef self,int *majorVersion,int *minorVersion) {
+   if(self!=NULL)
+    [self getVersionMajor:majorVersion minor:minorVersion];
+   else {
+    if(majorVersion!=NULL) *majorVersion=0;
+    if(minorVersion!=NULL) *minorVersion=0;
+   }
+}
+
+bool CGPDFDocumentIsEncrypted(CGPDFDocumentRef self) {
+   return (self!=NULL && [self encryptDictionary]!=nil);
+}
+
+bool CGPDFDocumentIsUnlocked(CGPDFDocumentRef self) {
+   return (self!=NULL && !CGPDFDocumentIsEncrypted(self));
+}
+
+bool CGPDFDocumentUnlockWithPassword(CGPDFDocumentRef self,const char *password) {
+   return CGPDFDocumentIsUnlocked(self);
+}
+
+/* An encrypted document's permissions (its P entry: bit 3 printing, bit 5
+   copying); an open one allows both. */
+static bool allows(CGPDFDocumentRef self,int bit) {
+   O2PDFInteger permissions;
+
+   if(self==NULL)
+    return false;
+   if(!CGPDFDocumentIsEncrypted(self))
+    return true;
+   if(![[self encryptDictionary] getIntegerForKey:"P" value:&permissions])
+    return false;
+   return (permissions&(1<<(bit-1)))!=0;
+}
+
+bool CGPDFDocumentAllowsPrinting(CGPDFDocumentRef self) {
+   return allows(self,3);
+}
+
+bool CGPDFDocumentAllowsCopying(CGPDFDocumentRef self) {
+   return allows(self,5);
 }
