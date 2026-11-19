@@ -7,6 +7,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSObject.h>
 
+/* Minkar: Security's trust type, as the reference's header names it; a
+   CF type, retained by what holds it. */
+typedef struct __SecTrust *SecTrustRef;
+
 typedef NS_ENUM(NSUInteger, NSURLCredentialPersistence) {
     NSURLCredentialPersistenceNone,
     NSURLCredentialPersistenceForSession,
@@ -18,6 +22,7 @@ typedef NS_ENUM(NSUInteger, NSURLCredentialPersistence) {
     NSString *_user;
     NSString *_password;
     NSURLCredentialPersistence _persistence;
+    SecTrustRef _trust;
 }
 
 + (NSURLCredential *)credentialWithUser:(NSString *)user password:(NSString *)password persistence:(NSURLCredentialPersistence)persistence;
@@ -29,5 +34,9 @@ typedef NS_ENUM(NSUInteger, NSURLCredentialPersistence) {
 - (NSURLCredentialPersistence)persistence;
 
 - (BOOL)hasPassword;
+
+/* A server's trust, accepted (the answer to a server trust challenge). */
++ (NSURLCredential *)credentialForTrust:(SecTrustRef)trust;
+- initWithTrust:(SecTrustRef)trust;
 
 @end

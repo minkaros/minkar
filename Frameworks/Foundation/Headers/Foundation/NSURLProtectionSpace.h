@@ -7,6 +7,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSObject.h>
 
+/* Minkar: Security's trust type, as the reference's header names it; a
+   CF type, retained by what holds it. */
+typedef struct __SecTrust *SecTrustRef;
+
 FOUNDATION_EXPORT NSString *const NSURLProtectionSpaceHTTP;
 FOUNDATION_EXPORT NSString *const NSURLProtectionSpaceHTTPS;
 FOUNDATION_EXPORT NSString *const NSURLProtectionSpaceFTP;
@@ -31,6 +35,7 @@ FOUNDATION_EXPORT NSString *const NSURLAuthenticationMethodServerTrust;
     NSString *_realm;
     NSString *_authenticationMethod;
     BOOL _isProxy;
+    SecTrustRef _serverTrust;
 }
 
 - initWithHost:(NSString *)host port:(int)port protocol:(NSString *)protocol realm:(NSString *)realm authenticationMethod:(NSString *)authenticationMethod;
@@ -46,5 +51,9 @@ FOUNDATION_EXPORT NSString *const NSURLAuthenticationMethodServerTrust;
 
 - (BOOL)receivesCredentialsSecurely;
 - (BOOL)isProxy;
+
+/* A server trust challenge's: the server's certificates and how they
+   were evaluated; NULL for other challenges. */
+- (SecTrustRef)serverTrust;
 
 @end

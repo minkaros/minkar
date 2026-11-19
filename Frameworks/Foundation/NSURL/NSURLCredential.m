@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSURLCredential.h>
 #import <Foundation/NSString.h>
+#import <CoreFoundation/CoreFoundation.h>
 
 @implementation NSURLCredential
 
@@ -21,7 +22,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
++(NSURLCredential *)credentialForTrust:(SecTrustRef)trust {
+   return [[[self alloc] initWithTrust:trust] autorelease];
+}
+
+// Minkar: a trust credential, for this session, as on the reference.
+-initWithTrust:(SecTrustRef)trust {
+   _trust=trust?(SecTrustRef)CFRetain(trust):NULL;
+   _persistence=NSURLCredentialPersistenceForSession;
+   return self;
+}
+
+-(SecTrustRef)_trust {
+   return _trust;
+}
+
 -(void)dealloc {
+   if(_trust)
+    CFRelease(_trust);
    [_user release];
    [_password release];
    [super dealloc];
