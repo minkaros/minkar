@@ -1047,6 +1047,115 @@ static NSData *derOf(GTlsCertificate *certificate)
 }
 @end
 
+/* WebKit's context menu actions as the reference's menu items: title and
+   identifier (an app finds items by it). Others keep WebKit's title. */
+static const struct { WebKitContextMenuAction action; const char *title, *identifier; } menuActions[] = {
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_LINK, "Open Link", "WKMenuItemIdentifierOpenLink" },
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_LINK_IN_NEW_WINDOW, "Open Link in New Window", "WKMenuItemIdentifierOpenLinkInNewWindow" },
+    { WEBKIT_CONTEXT_MENU_ACTION_DOWNLOAD_LINK_TO_DISK, "Download Linked File", "WKMenuItemIdentifierDownloadLinkedFile" },
+    { WEBKIT_CONTEXT_MENU_ACTION_COPY_LINK_TO_CLIPBOARD, "Copy Link", "WKMenuItemIdentifierCopyLink" },
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_IMAGE_IN_NEW_WINDOW, "Open Image in New Window", "WKMenuItemIdentifierOpenImageInNewWindow" },
+    { WEBKIT_CONTEXT_MENU_ACTION_DOWNLOAD_IMAGE_TO_DISK, "Download Image", "WKMenuItemIdentifierDownloadImage" },
+    { WEBKIT_CONTEXT_MENU_ACTION_COPY_IMAGE_TO_CLIPBOARD, "Copy Image", "WKMenuItemIdentifierCopyImage" },
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_FRAME_IN_NEW_WINDOW, "Open Frame in New Window", "WKMenuItemIdentifierOpenFrameInNewWindow" },
+    { WEBKIT_CONTEXT_MENU_ACTION_GO_BACK, "Back", "WKMenuItemIdentifierGoBack" },
+    { WEBKIT_CONTEXT_MENU_ACTION_GO_FORWARD, "Forward", "WKMenuItemIdentifierGoForward" },
+    { WEBKIT_CONTEXT_MENU_ACTION_STOP, "Stop", NULL },
+    { WEBKIT_CONTEXT_MENU_ACTION_RELOAD, "Reload", "WKMenuItemIdentifierReload" },
+    { WEBKIT_CONTEXT_MENU_ACTION_COPY, "Copy", "WKMenuItemIdentifierCopy" },
+    { WEBKIT_CONTEXT_MENU_ACTION_CUT, "Cut", "WKMenuItemIdentifierCut" },
+    { WEBKIT_CONTEXT_MENU_ACTION_PASTE, "Paste", "WKMenuItemIdentifierPaste" },
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_VIDEO_IN_NEW_WINDOW, "Open Video in New Window", "WKMenuItemIdentifierOpenMediaInNewWindow" },
+    { WEBKIT_CONTEXT_MENU_ACTION_OPEN_AUDIO_IN_NEW_WINDOW, "Open Audio in New Window", "WKMenuItemIdentifierOpenMediaInNewWindow" },
+    { WEBKIT_CONTEXT_MENU_ACTION_COPY_VIDEO_LINK_TO_CLIPBOARD, "Copy Video Address", "WKMenuItemIdentifierCopyMediaLink" },
+    { WEBKIT_CONTEXT_MENU_ACTION_COPY_AUDIO_LINK_TO_CLIPBOARD, "Copy Audio Address", "WKMenuItemIdentifierCopyMediaLink" },
+    { WEBKIT_CONTEXT_MENU_ACTION_DOWNLOAD_VIDEO_TO_DISK, "Download Video", "WKMenuItemIdentifierDownloadMedia" },
+    { WEBKIT_CONTEXT_MENU_ACTION_DOWNLOAD_AUDIO_TO_DISK, "Download Audio", "WKMenuItemIdentifierDownloadMedia" },
+    { WEBKIT_CONTEXT_MENU_ACTION_TOGGLE_MEDIA_CONTROLS, "Show Controls", "WKMenuItemIdentifierShowHideMediaControls" },
+    { WEBKIT_CONTEXT_MENU_ACTION_ENTER_VIDEO_FULLSCREEN, "Enter Full Screen", "WKMenuItemIdentifierToggleFullScreen" },
+    { WEBKIT_CONTEXT_MENU_ACTION_INSPECT_ELEMENT, "Inspect Element", "WKMenuItemIdentifierInspectElement" },
+};
+
+/* A Share item's service and the URL it shares. */
+@interface _WKShareAction : NSObject
+@property (strong) NSSharingService *service;
+@property (copy) NSURL *URL;
+@end
+
+@implementation _WKShareAction
+- (void)share:(id)sender { [_service performWithItems:@[ _URL ]]; }
+@end
+
+/* A menu item's WebKit action, activated when it is chosen. */
+@interface _WKMenuAction : NSObject
+@end
+
+@implementation _WKMenuAction {
+    GAction *_action;
+    GVariant *_target;
+}
+- (instancetype)_initWithItem:(WebKitContextMenuItem *)item {
+    if ((self = [super init])) {
+        _action = g_object_ref(webkit_context_menu_item_get_gaction(item));
+        _target = webkit_context_menu_item_get_gaction_target(item);
+        if (_target)
+            g_variant_ref(_target);
+    }
+    return self;
+}
+- (void)dealloc {
+    g_object_unref(_action);
+    if (_target)
+        g_variant_unref(_target);
+}
+- (BOOL)enabled { return g_action_get_enabled(_action); }
+- (void)activate:(id)sender { g_action_activate(_action, _target); }
+- (BOOL)validateMenuItem:(NSMenuItem *)item { return self.enabled; }
+@end
+
+/* WebKit's menu as AppKit's. Back, Forward and Stop only when they can
+   be done; no separators at either end or twice. */
+static NSMenu *menuFrom(WebKitContextMenu *webMenu)
+{
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+    for (GList *l = webkit_context_menu_get_items(webMenu); l != NULL; l = l->next) {
+        WebKitContextMenuItem *item = l->data;
+        if (webkit_context_menu_item_is_separator(item)) {
+            if (menu.numberOfItems > 0 && !menu.itemArray.lastObject.isSeparatorItem)
+                [menu addItem:[NSMenuItem separatorItem]];
+            continue;
+        }
+        WebKitContextMenuAction action = webkit_context_menu_item_get_stock_action(item);
+        NSString *title = stringOrNil(webkit_context_menu_item_get_title(item)) ?: @"";
+        NSString *identifier = nil;
+        for (size_t i = 0; i < sizeof(menuActions) / sizeof(*menuActions); i++)
+            if (menuActions[i].action == action) {
+                title = @(menuActions[i].title);
+                identifier = menuActions[i].identifier ? @(menuActions[i].identifier) : nil;
+                break;
+            }
+        title = [title stringByReplacingOccurrencesOfString:@"_" withString:@""];
+        NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:title action:NULL keyEquivalent:@""];
+        menuItem.identifier = identifier;
+        WebKitContextMenu *submenu = webkit_context_menu_item_get_submenu(item);
+        if (submenu != NULL)
+            menuItem.submenu = menuFrom(submenu);
+        else {
+            _WKMenuAction *target = [[_WKMenuAction alloc] _initWithItem:item];
+            if (!target.enabled && (action == WEBKIT_CONTEXT_MENU_ACTION_GO_BACK || action == WEBKIT_CONTEXT_MENU_ACTION_GO_FORWARD ||
+                                    action == WEBKIT_CONTEXT_MENU_ACTION_STOP))
+                continue;
+            menuItem.target = target;
+            menuItem.action = @selector(activate:);
+            menuItem.representedObject = target;   /* kept with the item */
+        }
+        [menu addItem:menuItem];
+    }
+    while (menu.numberOfItems > 0 && menu.itemArray.lastObject.isSeparatorItem)
+        [menu removeItemAtIndex:menu.numberOfItems - 1];
+    return menu;
+}
+
 /* The sender of a challenge the delegate answers by its completion
    handler; the sender's own methods are not used for a web view's. */
 @interface _WKAuthenticationSender : NSObject <NSURLAuthenticationChallengeSender>
@@ -1228,6 +1337,7 @@ static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
        navigation fails with the handler's own error). */
     NSMutableArray<_WKURLSchemeTask *> *_schemeTasks;
     NSMutableDictionary<NSString *, NSError *> *_schemeErrors;
+    NSEvent *_menuEvent;                  /* the click a context menu is for */
 }
 
 /* Each WebKit view's web view, to find it from WebKit's requests. */
@@ -1326,6 +1436,12 @@ static gboolean runFileChooser(WebKitWebView *webView, WebKitFileChooserRequest 
 {
     (void)webView;
     return [(__bridge WKWebView *)data _runFileChooser:request];
+}
+
+static gboolean contextMenuRequested(WebKitWebView *webView, WebKitContextMenu *menu, WebKitHitTestResult *hit, gpointer data)
+{
+    (void)webView; (void)hit;
+    return [(__bridge WKWebView *)data _contextMenu:menu hit:hit];
 }
 
 static gboolean loadFailedWithTLSErrors(WebKitWebView *webView, char *uri, GTlsCertificate *certificate,
@@ -1440,6 +1556,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         g_signal_connect(_webView, "authenticate", G_CALLBACK(authenticate), me);
         g_signal_connect(_webView, "run-file-chooser", G_CALLBACK(runFileChooser), me);
         g_signal_connect(_webView, "load-failed-with-tls-errors", G_CALLBACK(loadFailedWithTLSErrors), me);
+        g_signal_connect(_webView, "context-menu", G_CALLBACK(contextMenuRequested), me);
         _kvoTitle = @"";
 
         [webViews() setObject:self forKey:(__bridge id)(void *)_webView];
@@ -1662,9 +1779,55 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 - (void)rightMouseDown:(NSEvent *)event {
     if (self.window.firstResponder != self)
         [self.window makeFirstResponder:self];
+    _menuEvent = event;
     [self _send:event];
 }
-- (void)rightMouseUp:(NSEvent *)event { [self _send:event]; }
+- (void)rightMouseUp:(NSEvent *)event { _menuEvent = event; [self _send:event]; }
+
+/* WebKit's context menu for the page, shown as AppKit's: once WebKit has
+   tied its items to the page (after this returns), with the view's
+   willOpenMenu:withEvent: and didCloseMenu:withEvent:, as on the
+   reference. */
+- (gboolean)_contextMenu:(WebKitContextMenu *)webMenu hit:(WebKitHitTestResult *)hit {
+    NSMenu *menu = menuFrom(webMenu);
+    /* As the reference: a link's or an image's menu ends with Share (the
+       services that take its URL), a page's with a separator. */
+    const char *shared = NULL;
+    if (hit && webkit_hit_test_result_context_is_link(hit))
+        shared = webkit_hit_test_result_get_link_uri(hit);
+    else if (hit && webkit_hit_test_result_context_is_image(hit))
+        shared = webkit_hit_test_result_get_image_uri(hit);
+    NSURL *sharedURL = shared ? [NSURL URLWithString:@(shared)] : nil;
+    if (sharedURL != nil) {
+        NSMenu *services = [[NSMenu alloc] initWithTitle:@"Share"];
+        for (NSSharingService *service in [NSSharingService sharingServicesForItems:@[ sharedURL ]]) {
+            _WKShareAction *action = [_WKShareAction new];
+            action.service = service;
+            action.URL = sharedURL;
+            NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:service.menuItemTitle ?: service.title action:@selector(share:) keyEquivalent:@""];
+            item.target = action;
+            item.representedObject = action;
+            [services addItem:item];
+        }
+        NSMenuItem *share = [[NSMenuItem alloc] initWithTitle:@"Share" action:NULL keyEquivalent:@""];
+        share.identifier = @"WKMenuItemIdentifierShareMenu";
+        share.submenu = services;
+        if (menu.numberOfItems > 0)
+            [menu addItem:[NSMenuItem separatorItem]];
+        [menu addItem:share];
+    } else if (menu.numberOfItems > 0 && [menu.itemArray.lastObject.identifier isEqualToString:@"WKMenuItemIdentifierReload"])
+        [menu addItem:[NSMenuItem separatorItem]];
+    NSEvent *event = _menuEvent ?: [NSApp currentEvent];
+    if (menu.numberOfItems == 0 || event == nil)
+        return TRUE;
+    __weak WKWebView *weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        WKWebView *me = weakSelf;
+        if (me != nil && me.window != nil)
+            [NSMenu popUpContextMenu:menu withEvent:event forView:me];
+    });
+    return TRUE;
+}
 - (void)rightMouseDragged:(NSEvent *)event { [self _send:event]; }
 - (void)otherMouseDown:(NSEvent *)event { [self _send:event]; }
 - (void)otherMouseUp:(NSEvent *)event { [self _send:event]; }
