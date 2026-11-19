@@ -20,6 +20,7 @@ typedef struct O2Context *CGContextRef;
 #import <CoreGraphics/CGPath.h>
 #import <CoreGraphics/CGPattern.h>
 #import <CoreGraphics/CGShading.h>
+#import <CoreGraphics/CGGradient.h>
 #import <CoreGraphics/CGPDFPage.h>
 #import <CoreGraphics/CGLayer.h>
 
@@ -238,6 +239,8 @@ COREGRAPHICS_EXPORT void CGContextShowText(CGContextRef context, const char *tex
 COREGRAPHICS_EXPORT void CGContextShowTextAtPoint(CGContextRef context, CGFloat x, CGFloat y, const char *text, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextDrawShading(CGContextRef context, CGShadingRef shading);
+COREGRAPHICS_EXPORT void CGContextDrawLinearGradient(CGContextRef context, CGGradientRef gradient, CGPoint startPoint, CGPoint endPoint, CGGradientDrawingOptions options);
+COREGRAPHICS_EXPORT void CGContextDrawRadialGradient(CGContextRef context, CGGradientRef gradient, CGPoint startCenter, CGFloat startRadius, CGPoint endCenter, CGFloat endRadius, CGGradientDrawingOptions options);
 COREGRAPHICS_EXPORT void CGContextDrawImage(CGContextRef context, CGRect rect, CGImageRef _Nullable image);
 /* The image repeated in tiles of rect's size, from rect's origin, over the
  * clip. */

@@ -1,16 +1,28 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ */
+
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreGraphics/CGGeometry.h>
 #import <CoreGraphics/CGColorSpace.h>
+#import <CoreFoundation/CFArray.h>
+
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
 
 typedef struct CGGradient *CGGradientRef;
 
-enum {
-    kCGGradientDrawsBeforeStartLocation = 0x01,
-    kCGGradientDrawsAfterEndLocation = 0x02
+typedef CF_OPTIONS(uint32_t, CGGradientDrawingOptions) {
+    kCGGradientDrawsBeforeStartLocation = (1 << 0),
+    kCGGradientDrawsAfterEndLocation = (1 << 1)
 };
 
-CGGradientRef CGGradientCreateWithColorComponents(CGColorSpaceRef colorSpace, const CGFloat components[], const CGFloat locations[], size_t count);
-CGGradientRef CGGradientCreateWithColors(CGColorSpaceRef colorSpace, CFArrayRef colors, const CGFloat locations[]);
+COREGRAPHICS_EXPORT CFTypeID CGGradientGetTypeID(void);
+COREGRAPHICS_EXPORT CGGradientRef CGGradientCreateWithColorComponents(CGColorSpaceRef space, const CGFloat *components, const CGFloat *locations, size_t count);
+COREGRAPHICS_EXPORT CGGradientRef CGGradientCreateWithColors(CGColorSpaceRef space, CFArrayRef colors, const CGFloat *locations);
+COREGRAPHICS_EXPORT CGGradientRef CGGradientRetain(CGGradientRef gradient);
+COREGRAPHICS_EXPORT void CGGradientRelease(CGGradientRef gradient);
 
-void CGGradientRelease(CGGradientRef self);
-CGGradientRef CGGradientRetain(CGGradientRef self);
+CF_IMPLICIT_BRIDGING_DISABLED

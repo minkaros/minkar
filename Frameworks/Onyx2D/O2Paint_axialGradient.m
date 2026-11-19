@@ -34,6 +34,11 @@
 // Interestingly, using this produces stair step artifacts at the same angles that Quartz2D produces artifacts
 // The artifacts are different but shaped the same
 ONYX2D_STATIC_INLINE O2argb8u O2PaintFastAxialRamp(O2Paint_ramp *self,O2Float gradient, O2Float rho,int *skip)  {
+   /* Minkar: nothing before the start or past the end unless extended. */
+   if((gradient<0.0f && !self->_extendStart) || (gradient>1.0f && !self->_extendEnd)){
+    *skip=1;
+    return self->_colorStops[0].color8u;
+   }
    if(gradient<=0.0)
     return self->_colorStops[0].color8u;
    else if(gradient>=1.0)

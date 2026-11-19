@@ -188,6 +188,14 @@ O2argb32f O2PaintColorRamp(O2Paint_ramp *self,O2Float gradient, O2Float rho,int 
 
 	O2argb32f c=O2argb32fInit(0,0,0,0);
 
+	/* Minkar: before the start or past the end, nothing is drawn unless
+	   the shading extends that way (PDF's Extend, the gradient's
+	   kCGGradientDrawsBefore/AfterLocation options). */
+	if((gradient<0.0f && !self->_extendStart) || (gradient>1.0f && !self->_extendEnd)){
+	 *skip=1;
+	 return c;
+	}
+
 	if(rho == 0.0f) {	//filter size is zero or gradient is degenerate
 
 			gradient = RI_CLAMP(gradient, 0.0f, 1.0f);
