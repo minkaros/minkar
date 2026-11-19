@@ -546,18 +546,22 @@ extern NSSize _NSToolbarIconSizeSmall;
 
         imageRect.origin.y=bounds.origin.y+labelHeight;
         imageRect.origin.x=bounds.origin.x+floor((bounds.size.width-imageRect.size.width)/2);
-        CGContextRef ctx = NULL;
+        /* Disabled: the icon dimmed, in a layer of its own so the dimming
+           falls only on it; the clip ends with it. */
         if ([self isEnabled] == NO) {
-            ctx = [[NSGraphicsContext currentContext] graphicsPort];
+            CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
+
+            CGContextSaveGState(ctx);
             CGContextClipToRect(ctx, imageRect);
             CGContextBeginTransparencyLayer(ctx, NULL);
-        }
-        [image drawInRect:imageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:highlighted?0.5:1.0];
-        if ([self isEnabled] == NO) {
+            [image drawInRect:imageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:highlighted?0.5:1.0];
             [[NSColor colorWithGenericGamma22White:0.0 alpha:0.33] set];
             NSRectFillUsingOperation(imageRect, NSCompositeSourceAtop);
+            CGContextEndTransparencyLayer(ctx);
+            CGContextRestoreGState(ctx);
         }
-        CGContextEndTransparencyLayer(ctx);
+        else
+            [image drawInRect:imageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:highlighted?0.5:1.0];
     }
    }
 }

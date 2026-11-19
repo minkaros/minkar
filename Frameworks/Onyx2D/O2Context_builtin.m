@@ -195,7 +195,16 @@ void O2DContextClipAndFillEdges(O2Context_builtin *self,int fillRuleMask);
     O2ContextDrawImage(self,O2RectMake(O2ContextCurrentGState(self)->_shadowOffset.width,O2ContextCurrentGState(self)->_shadowOffset.height,size.width,size.height),shadow);
    }
    
+   /* Minkar: the layer's pixels go back where they were drawn: it is
+      composited with the context's base transform, not through the
+      current one too (a
+      view's translation put it off where it belonged, so what was drawn
+      in it, a disabled toolbar item's icon, did not show). The clip
+      stays. */
+   O2ContextSaveGState(self);
+   O2ContextConcatCTM(self,O2AffineTransformInvert(O2ContextGetCTM(self)));
    O2ContextDrawLayerInRect(self,O2RectMake(0,0,size.width,size.height),layer);
+   O2ContextRestoreGState(self);
    O2LayerRelease(layer);
 }
 
