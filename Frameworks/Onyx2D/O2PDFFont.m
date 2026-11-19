@@ -5,6 +5,105 @@
 #import <Onyx2D/O2Encoding.h>
 #import "O2PDFCharWidths.h"
 
+/* The hex string at *p (<...>), as a number of up to 4 bytes; false if
+   none is there. */
+static BOOL nextHex(const char **p,const char *end,uint32_t *value,int *byteCount){
+   const char *s=*p;
+   uint32_t    result=0;
+   int         digits=0;
+
+   while(s<end && *s!='<' && *s!='[' && *s!='e')
+    s++;
+   if(s>=end || *s!='<')
+    return NO;
+   for(s++;s<end && *s!='>';s++){
+    int d=(*s>='0'&&*s<='9')?*s-'0':(*s>='a'&&*s<='f')?*s-'a'+10:(*s>='A'&&*s<='F')?*s-'A'+10:-1;
+
+    if(d>=0){
+     if(digits<8)
+      result=(result<<4)|d;
+     digits++;
+    }
+   }
+   *p=(s<end)?s+1:end;
+   *value=result;
+   *byteCount=(digits+1)/2;
+   return YES;
+}
+
+/* A ToUnicode CMap's one-byte codes into unicode (the first UTF-16 unit of
+   each); YES if any was. */
+static BOOL O2PDFParseToUnicode(NSData *data,unichar *unicode){
+   const char *bytes=[data bytes],*end=bytes+[data length],*p=bytes;
+   BOOL        mapped=NO;
+
+   while(p<end){
+    const char *bfchar=strnstr(p,"beginbfchar",end-p),*bfrange=strnstr(p,"beginbfrange",end-p);
+    const char *section=(bfchar && (!bfrange || bfchar<bfrange))?bfchar:bfrange;
+
+    if(section==NULL)
+     break;
+    if(section==bfchar){
+     const char *stop=strnstr(section,"endbfchar",end-section);
+
+     p=section+11;
+     stop=stop?stop:end;
+     for(;;){
+      uint32_t code,value;
+      int      codeBytes,valueBytes;
+
+      if(!nextHex(&p,stop,&code,&codeBytes) || !nextHex(&p,stop,&value,&valueBytes))
+       break;
+      if(codeBytes==1 && code<256){
+       unicode[code]=(valueBytes>2)?(unichar)(value>>((valueBytes-2)*8)):(unichar)value;
+       mapped=YES;
+      }
+     }
+     p=stop;
+    }
+    else {
+     const char *stop=strnstr(section,"endbfrange",end-section);
+
+     p=section+12;
+     stop=stop?stop:end;
+     for(;;){
+      uint32_t low,high,value;
+      int      lowBytes,highBytes,valueBytes;
+
+      if(!nextHex(&p,stop,&low,&lowBytes) || !nextHex(&p,stop,&high,&highBytes))
+       break;
+      while(p<stop && (*p==' '||*p=='\n'||*p=='\r'||*p=='\t'))
+       p++;
+      if(p<stop && *p=='['){
+       /* One destination string per code. */
+       for(uint32_t code=low;code<=high && nextHex(&p,stop,&value,&valueBytes);code++)
+        if(lowBytes==1 && code<256){
+         unicode[code]=(unichar)value;
+         mapped=YES;
+        }
+       while(p<stop && *p!=']')
+        p++;
+       if(p<stop)
+        p++;
+      }
+      else if(nextHex(&p,stop,&value,&valueBytes)){
+       if(valueBytes>2)
+        value>>=(valueBytes-2)*8;
+       for(uint32_t code=low;code<=high && code<256;code++)
+        if(lowBytes==1){
+         unicode[code]=(unichar)(value+(code-low));
+         mapped=YES;
+        }
+      }
+      else
+       break;
+     }
+     p=stop;
+    }
+   }
+   return mapped;
+}
+
 @implementation O2PDFFont
 
 static inline O2TextEncoding textEncodingWithName(const char *name){
@@ -200,6 +299,26 @@ static inline O2TextEncoding textEncodingWithName(const char *name){
     }
     [_encoding release];
     _encoding=newEncoding;
+   }
+
+   /* Minkar: a ToUnicode CMap's characters (bfchar and bfrange, one-byte
+      codes) are the codes' text, over the encoding's. */
+   if(toUnicode!=NULL){
+    unichar unicode[256];
+    BOOL    mapped=NO;
+
+    [_encoding getUnicode:unicode];
+    mapped=O2PDFParseToUnicode([toUnicode data],unicode);
+    if(mapped){
+     O2Glyph            glyphs[256];
+     O2MutableEncoding *newEncoding=[_encoding mutableCopy];
+
+     [_encoding getGlyphs:glyphs];
+     for(int code=0;code<256;code++)
+      [newEncoding setGlyph:glyphs[code] unicode:unicode[code] atIndex:code];
+     [_encoding release];
+     _encoding=newEncoding;
+    }
    }
    
    return self;

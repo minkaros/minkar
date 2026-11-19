@@ -28,8 +28,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    O2PDFObject     *contents;
    NSMutableArray  *streams=[NSMutableArray array];
    
-   if(![dictionary getDictionaryForKey:"Resources" value:&resources])
-    resources=nil;
+   /* Minkar: Resources is inheritable (PDF 1.7, table 30): a page without
+      its own takes its nearest ancestor's. */
+   resources=nil;
+   for(O2PDFDictionary *node=dictionary;node!=nil && resources==nil;){
+    O2PDFDictionary *parent;
+
+    if(![node getDictionaryForKey:"Resources" value:&resources])
+     resources=nil;
+    if(![node getDictionaryForKey:"Parent" value:&parent] || parent==node)
+     break;
+    node=parent;
+   }
    if(![dictionary getObjectForKey:"Contents" value:&contents])
     contents=nil;
    else if([contents objectType]==kO2PDFObjectTypeArray){
