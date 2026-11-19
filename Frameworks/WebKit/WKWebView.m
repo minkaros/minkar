@@ -1341,6 +1341,8 @@ static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
     /* The page's vertical scroller, from its scroll position and height
        (asked of the page), and those last seen. */
     NSScroller *_verticalScroller;
+    /* Snapshots waiting for the next frame drawn. */
+    NSMutableArray *_snapshotsWaiting;
     NSTimer *_scrollerTimer;
     BOOL _scrollerQueryPending;
     double _pageScrollY, _pageHeight, _pageViewHeight, _pageScrollX;
@@ -1721,6 +1723,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     if (_frame)
         CGImageRelease(_frame);
     _frame = image;
+    [self _takeWaitingSnapshots];
 
     if (count == 0) {
         [self setNeedsDisplay:YES];
@@ -1747,15 +1750,63 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 /* The last frame drawn: the configuration's rectangle of the view
    (top-left origin, as the view is flipped), scaled to its width; the
    image's size in points. On the main queue, later, as on the reference. */
+static void pagePainted(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^painted)(void) = (__bridge_transfer void (^)(void))data;
+    JSCValue *value = webkit_web_view_call_async_javascript_function_finish(WEBKIT_WEB_VIEW(object), result, NULL);
+    if (value)
+        g_object_unref(value);
+    painted();
+}
+
+/* A snapshot is of the page as painted, as on the reference: asked as a
+   load finishes, the last frame may be the one before it, or none. The
+   page is let paint (two animation frames), then the next frame drawn is
+   taken: half a second at most for it, then the last frame there is, or
+   an error. Three seconds at most for the page. */
 - (void)takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)configuration
                     completionHandler:(void (^)(NSImage *, NSError *))completionHandler {
+    __block BOOL queued = NO;
+    __weak WKWebView *weakSelf = self;
+    void (^queue)(void) = [^{
+        WKWebView *me = weakSelf;
+        if (queued || me == nil)
+            return;
+        queued = YES;
+        if (me->_snapshotsWaiting == nil)
+            me->_snapshotsWaiting = [NSMutableArray array];
+        [me->_snapshotsWaiting addObject:[^{ [me _takeSnapshotWithConfiguration:configuration completionHandler:completionHandler]; } copy]];
+        [me performSelector:@selector(_takeWaitingSnapshots) withObject:nil afterDelay:0.5];
+    } copy];
+
+    webkit_web_view_call_async_javascript_function(_webView,
+        "await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return 1;", -1,
+        NULL, NULL, NULL, NULL, pagePainted, (__bridge_retained void *)queue);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), dispatch_get_main_queue(), queue);
+}
+
+- (void)_takeWaitingSnapshots {
+    NSArray *waiting = _snapshotsWaiting;
+
+    if (waiting.count == 0)
+        return;
+    _snapshotsWaiting = nil;
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(_takeWaitingSnapshots) object:nil];
+    for (void (^snapshot)(void) in waiting)
+        snapshot();
+}
+
+- (void)_takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)configuration
+                     completionHandler:(void (^)(NSImage *, NSError *))completionHandler {
     void (^handler)(NSImage *, NSError *) = [completionHandler copy];
     NSRect bounds = self.bounds;
     NSRect rect = (configuration == nil || CGRectIsNull(configuration.rect)) ? bounds : NSRectFromCGRect(configuration.rect);
     CGFloat width = configuration.snapshotWidth != nil ? configuration.snapshotWidth.doubleValue : rect.size.width;
     CGImageRef frame = _frame ? CGImageRetain(_frame) : NULL;
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (frame == NULL || rect.size.width <= 0 || rect.size.height <= 0 || width <= 0 || bounds.size.width <= 0) {
+        /* No frame, or an empty one: an error, not an empty image. */
+        if (frame == NULL || CGImageGetWidth(frame) == 0 || CGImageGetHeight(frame) == 0 ||
+            rect.size.width <= 0 || rect.size.height <= 0 || width <= 0 || bounds.size.width <= 0) {
             if (frame)
                 CGImageRelease(frame);
             handler(nil, [NSError errorWithDomain:WKErrorDomain code:WKErrorUnknown
