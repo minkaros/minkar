@@ -130,7 +130,7 @@ AddressBook: Foundation
 AudioToolbox: CoreFoundation CoreAudio
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
-PDFKit: AppKit CoreGraphics
+PDFKit: AppKit CoreGraphics Onyx2D
 Quartz: AppKit QuickLook PDFKit
 CoreAudio: CoreFoundation ../Kernel/IOKitUser
 AudioUnit: AudioToolbox

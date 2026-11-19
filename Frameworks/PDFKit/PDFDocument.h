@@ -68,6 +68,8 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 @property (nonatomic, readonly) BOOL allowsFormFieldEntry;
 @property (nonatomic, readonly) PDFDocumentPermissions permissionsStatus;
 
+/* Its pages' text, a line feed between pages. */
+@property (nonatomic, readonly, nullable) NSString *string;
 @property (nonatomic, weak, nullable) id<PDFDocumentDelegate> delegate;
 
 @property (nonatomic, strong, nullable) PDFOutline *outlineRoot;

@@ -42,6 +42,18 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 - (void)drawWithBox:(PDFDisplayBox)box;
 - (NSImage *)thumbnailOfSize:(PDFSize)size forBox:(PDFDisplayBox)box;
 
+/* Its text, as its content shows it: characters in that order, a space
+   where a line goes on (a gap in it, or the next line close under it), a
+   line feed where it ends; the last line ends with one too. */
+@property (nonatomic, readonly, nullable) NSString *string;
+@property (nonatomic, readonly, nullable) NSAttributedString *attributedString;
+@property (nonatomic, readonly) NSUInteger numberOfCharacters;
+/* A character's box on the page: from its baseline's start, as wide as it
+   advances, from below the baseline to its font's cap height. */
+- (PDFRect)characterBoundsAtIndex:(NSInteger)index;
+/* The character whose box holds point, or NSNotFound. */
+- (NSInteger)characterIndexAtPoint:(PDFPoint)point;
+
 @property (nonatomic, readonly, nullable) NSData *dataRepresentation;
 @end
 

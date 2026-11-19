@@ -16,7 +16,7 @@ HEADERS = PDFKit.h PDFKitPlatform.h PDFAction.h PDFActionGoTo.h PDFActionNamed.h
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} -fobjc-arc
-LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Foundation -lobjc
+LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Onyx2D -framework Foundation -lobjc
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

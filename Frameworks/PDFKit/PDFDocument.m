@@ -326,6 +326,16 @@ static void collectNumberTree(CGPDFDictionaryRef node, NSMutableArray *entries, 
     _pageIndexByDictionary = nil;
 }
 
+/* ---- text ---- */
+
+- (NSString *)string {
+    NSMutableArray *strings = [NSMutableArray array];
+
+    for (NSUInteger i = 0; i < self.pageCount; i++)
+        [strings addObject:[self pageAtIndex:i].string ?: @""];
+    return (strings.count > 0) ? [strings componentsJoinedByString:@"\n"] : nil;
+}
+
 /* ---- page labels ---- */
 
 /* A page's label: its place among the document's own pages as read (a

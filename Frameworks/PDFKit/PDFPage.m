@@ -5,6 +5,7 @@
  */
 
 #import "PDFKitPrivate.h"
+#import <Onyx2D/O2PDFTextExtractor.h>
 
 @interface PDFDocument (PDFPageLabels)
 - (nullable NSString *)_labelForPage:(PDFPage *)page;
@@ -15,6 +16,9 @@
     NSImage *_image;
     NSMutableDictionary<NSNumber *, NSValue *> *_bounds;  // boxes set in code
     NSNumber *_rotation;                                   // set in code
+    NSString *_string;                                     // its text, once read
+    NSData *_characterBounds;                              // a PDFRect per character
+    BOOL _textRead;
 }
 
 /* A blank page, US Letter. */
@@ -172,6 +176,106 @@
     [self drawWithBox:box toContext:context];
     [image unlockFocus];
     return image;
+}
+
+/* ---- text ---- */
+
+/* The text from the content's characters (Onyx2D's text extractor). */
+- (void)_readText {
+    NSMutableString *string = [NSMutableString string];
+    NSMutableData *bounds = [NSMutableData data];
+    NSData *data;
+    const O2PDFTextCharacter *characters;
+    NSUInteger count;
+    BOOL started = NO;
+    O2PDFTextCharacter previous = {0};
+    CGFloat lineSize = 0;
+
+    _textRead = YES;
+    if (_pageRef == NULL)
+        return;
+    data = O2PDFPageCopyTextCharacters((__bridge O2PDFPage *)(void *)_pageRef);
+    characters = data.bytes;
+    count = data.length / sizeof(O2PDFTextCharacter);
+
+    void (^append)(unichar, CGRect) = ^(unichar c, CGRect r) {
+        [string appendFormat:@"%C", c];
+        [bounds appendBytes:&r length:sizeof(r)];
+    };
+    CGRect (^boxOf)(O2PDFTextCharacter, CGFloat, CGFloat) = ^CGRect(O2PDFTextCharacter c, CGFloat x, CGFloat width) {
+        return CGRectMake(x, c.origin.y + c.descent, width, c.ascent - c.descent);
+    };
+
+    for (NSUInteger i = 0; i < count; i++) {
+        O2PDFTextCharacter c = characters[i];
+        CGFloat previousEnd = previous.origin.x + previous.advance;
+
+        if (c.unicode < 0x20 || c.unicode == 0x7F)
+            continue;
+        if (started) {
+            CGFloat size = MAX(c.fontSize, previous.fontSize);
+            BOOL sameLine = fabs(c.origin.y - previous.origin.y) <= size * 0.5 && c.origin.x >= previousEnd - size;
+
+            if (!sameLine) {
+                /* The next line close under this one goes on with a space;
+                   any other ends this one. */
+                CGFloat drop = previous.origin.y - c.origin.y;
+                unichar separator = (drop > 0 && drop <= 2 * lineSize) ? ' ' : '\n';
+
+                if (!(separator == ' ' && previous.unicode == ' '))
+                    append(separator, boxOf(previous, previousEnd, 0));
+                lineSize = c.fontSize;
+            } else if (c.unicode != ' ' && previous.unicode != ' ' && c.origin.x - previousEnd > size * 0.15) {
+                /* A gap in the line is a space, as wide as the gap. */
+                append(' ', boxOf(previous, previousEnd, c.origin.x - previousEnd));
+            }
+        } else
+            lineSize = c.fontSize;
+        append(c.unicode, boxOf(c, c.origin.x, c.advance));
+        lineSize = MAX(lineSize, c.fontSize);
+        previous = c;
+        started = YES;
+    }
+    if (started)
+        append('\n', boxOf(previous, previous.origin.x + previous.advance, 0));
+    _string = (string.length > 0) ? [string copy] : nil;
+    _characterBounds = bounds;
+}
+
+- (NSString *)string {
+    if (!_textRead)
+        [self _readText];
+    return _string;
+}
+
+- (NSAttributedString *)attributedString {
+    NSString *string = self.string;
+
+    return (string != nil) ? [[NSAttributedString alloc] initWithString:string] : nil;
+}
+
+- (NSUInteger)numberOfCharacters {
+    return self.string.length;
+}
+
+- (PDFRect)characterBoundsAtIndex:(NSInteger)index {
+    if (!_textRead)
+        [self _readText];
+    if (index < 0 || (NSUInteger)index >= _characterBounds.length / sizeof(CGRect))
+        return CGRectZero;
+    return ((const CGRect *)_characterBounds.bytes)[index];
+}
+
+- (NSInteger)characterIndexAtPoint:(PDFPoint)point {
+    if (!_textRead)
+        [self _readText];
+    const CGRect *rects = _characterBounds.bytes;
+    NSUInteger count = _characterBounds.length / sizeof(CGRect);
+
+    for (NSUInteger i = 0; i < count; i++)
+        if (rects[i].size.width > 0 && CGRectContainsPoint(rects[i], point))
+            return (NSInteger)i;
+    return NSNotFound;
 }
 
 /* The page alone, as a one-page PDF. */
