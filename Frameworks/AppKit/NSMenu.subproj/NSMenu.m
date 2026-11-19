@@ -107,11 +107,15 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    return item;
 }
 
+/* The view hears of it before the menu opens and after it closes, as on
+   the reference (a view may change the menu then). */
 +(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
    NSWindow *window=[event window]?[event window]:[view window];
 
+   [view willOpenMenu:menu withEvent:event];
    [menu _popUpAtScreenPoint:[window convertBaseToScreen:[event locationInWindow]] positioning:nil
        event:event startedOpen:NO minimumWidth:0 flips:YES perform:YES];
+   [view didCloseMenu:menu withEvent:nil];
 }
 
 +(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font {
@@ -596,11 +600,20 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 
 
 
-/* Menus track in their own loop; one is ended when the user is done. */
+/* A menu tracking (its own loop, waiting for events) is ended as by
+   Escape: an event wakes the loop, which takes it as cancelled. Nothing
+   when no menu tracks. */
+extern NSInteger _NSMenuTrackingDepth;
+
 -(void)cancelTracking {
+   if(_NSMenuTrackingDepth<=0)
+    return;
+   [NSApp postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint modifierFlags:0 timestamp:0
+       windowNumber:0 context:nil subtype:0x4d43 data1:0 data2:0] atStart:YES];
 }
 
 -(void)cancelTrackingWithoutAnimation {
+   [self cancelTracking];
 }
 
 -(void)performActionForItemAtIndex:(NSInteger)index {

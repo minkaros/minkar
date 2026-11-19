@@ -3082,6 +3082,12 @@ drawn:
    _menu=menu;
 }
 
+-(void)willOpenMenu:(NSMenu *)menu withEvent:(NSEvent *)event {
+}
+
+-(void)didCloseMenu:(NSMenu *)menu withEvent:(NSEvent *)event {
+}
+
 -(void)rightMouseDown:(NSEvent *)event {
    NSMenu *menu=[self menuForEvent:event];
 

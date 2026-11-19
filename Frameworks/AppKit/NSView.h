@@ -188,6 +188,9 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 - (NSView *)previousValidKeyView;
 
 - (NSMenu *)menuForEvent:(NSEvent *)event;
+/* A context menu of the view's, about to open and closed. */
+- (void)willOpenMenu:(NSMenu *)menu withEvent:(NSEvent *)event;
+- (void)didCloseMenu:(NSMenu *)menu withEvent:(NSEvent *)event;
 - (NSMenuItem *)enclosingMenuItem;
 - (NSString *)toolTip;
 

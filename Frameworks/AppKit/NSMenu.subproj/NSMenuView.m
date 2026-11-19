@@ -879,6 +879,11 @@ const float kMouseMovementThreshold = .001f;
    a press now held: it stays open until an item is chosen or it is left,
    and the pointer is not looked at until it moves. selecting: the item
    selected at first, or NSNotFound. */
+/* Minkar: menus tracking now (cancelTracking ends them), and the event
+   subtype that does it. */
+NSInteger _NSMenuTrackingDepth=0;
+enum { kNSMenuCancelTrackingSubtype=0x4d43 };
+
 -(NSMenuItem *)_trackForEvent:(NSEvent *)event selecting:(NSUInteger)selecting startedOpen:(BOOL)startedOpen {
 	NSMenuItem *item=nil;
 	
@@ -926,6 +931,7 @@ const float kMouseMovementThreshold = .001f;
 	NSEvent *lastMouseEvent = [[event retain] autorelease];
 	
 	MENUDEBUG(@"entering outer loop");
+	_NSMenuTrackingDepth++;
 	
 	// Start tracking the mouse movements and clicks
 	do {
@@ -1306,8 +1312,8 @@ const float kMouseMovementThreshold = .001f;
 		// We use this special AppKitDefined event to let the menu respond to the app deactivation - it *has*
 		// to be passed through the event system, unfortunately
 		if ([event type] == NSAppKitDefined) {
-			if ([event subtype] == NSApplicationDeactivated) {
-				MENUDEBUG(@"NSApplicationDeactivated");
+			if ([event subtype] == NSApplicationDeactivated || [event subtype] == kNSMenuCancelTrackingSubtype) {
+				MENUDEBUG(@"NSApplicationDeactivated or cancelTracking");
 				cancelled = YES;
 			}
 		}
@@ -1387,6 +1393,7 @@ const float kMouseMovementThreshold = .001f;
                         MENUDEBUG(@"reset point!");
 		}
 	}while(cancelled == NO && state!=STATE_EXIT);
+	_NSMenuTrackingDepth--;
 	
 	MENUDEBUG(@"done with the event loop");
 	
