@@ -10,9 +10,9 @@ MK_WERROR = no
 FRAMEWORK = PDFKit
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = PDFAction.m PDFDestination.m PDFDocument.m PDFOutline.m PDFPage.m PDFSelection.m PDFAnnotation.m PDFAnnotationSubclasses.m PDFAnnotationUtilities.m PDFBorder.m
+SRCS = PDFAction.m PDFDestination.m PDFDocument.m PDFOutline.m PDFPage.m PDFSelection.m PDFAnnotation.m PDFAnnotationSubclasses.m PDFAnnotationUtilities.m PDFBorder.m PDFView.m
 HEADERS = PDFKit.h PDFKitPlatform.h PDFAction.h PDFActionGoTo.h PDFActionNamed.h \
-	PDFActionURL.h PDFDestination.h PDFDocument.h PDFOutline.h PDFPage.h PDFSelection.h PDFAnnotation.h PDFAnnotationSubclasses.h PDFAnnotationUtilities.h PDFBorder.h
+	PDFActionURL.h PDFDestination.h PDFDocument.h PDFOutline.h PDFPage.h PDFSelection.h PDFAnnotation.h PDFAnnotationSubclasses.h PDFAnnotationUtilities.h PDFBorder.h PDFView.h
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} -fobjc-arc

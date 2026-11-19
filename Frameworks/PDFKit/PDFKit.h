@@ -18,3 +18,4 @@
 #import <PDFKit/PDFAnnotationSubclasses.h>
 #import <PDFKit/PDFAnnotationUtilities.h>
 #import <PDFKit/PDFBorder.h>
+#import <PDFKit/PDFView.h>
