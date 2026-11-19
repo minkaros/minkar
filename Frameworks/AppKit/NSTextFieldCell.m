@@ -217,9 +217,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
+-(CGFloat)_lineHeight {
+   NSFont *font=[self font];
+
+   return font?ceil([font ascender]-[font descender]+[font leading]):0;
+}
+
 -(NSSize)cellSize
 {
     NSSize size = [[self attributedStringValue] size];
+
+    /* A line is the font's ascender and descender rounded up, as on the
+       reference (11 point text 14, 13 point 16); the text system rounds
+       it to the nearest point. */
+    size.height = MAX(ceil(size.height), [self _lineHeight]);
 
     if([self isBezeled])
     {
@@ -253,13 +264,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(![self wraps] || [self usesSingleLineMode] || rect.size.width>=single.width)
     return NSMakeSize(MIN(rect.size.width,single.width),MIN(rect.size.height,single.height));
 
+   CGFloat lineHeight=[[self attributedStringValue] size].height;
+   CGFloat roundedLine=MAX(ceil(lineHeight),[self _lineHeight]);
    NSSize padding=NSMakeSize(single.width-[[self attributedStringValue] size].width,
-                             single.height-[[self attributedStringValue] size].height);
+                             single.height-roundedLine);
    NSRect text=[[self attributedStringValue] boundingRectWithSize:NSMakeSize(MAX(rect.size.width-padding.width,1),CGFLOAT_MAX)
       options:NSStringDrawingUsesLineFragmentOrigin];
+   /* Each line a whole number of points tall, as on the reference (two
+      lines of 11 point text 28). */
+   CGFloat lines=(lineHeight>0)?MAX(1,round(NSHeight(text)/lineHeight)):1;
 
    return NSMakeSize(MIN(rect.size.width,ceil(NSWidth(text))+padding.width),
-                     MIN(rect.size.height,ceil(NSHeight(text))+padding.height));
+                     MIN(rect.size.height,lines*roundedLine+padding.height));
 }
 
 -(void)editWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate event:(NSEvent *)event {

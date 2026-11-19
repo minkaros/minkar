@@ -51,6 +51,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
+/* With a stepper, its frame reaches 4 points above the field and 3 to
+   the right of the stepper, as measured on the reference (59x24 aligned,
+   62x28 framed). */
+-(NSEdgeInsets)alignmentRectInsets {
+   if([[self _pickerCell] datePickerStyle]==NSTextFieldAndStepperDatePickerStyle)
+    return NSEdgeInsetsMake(4,0,0,3);
+   return [super alignmentRectInsets];
+}
+
 -(BOOL)isBezeled {
    return [[self _pickerCell] isBezeled];
 }

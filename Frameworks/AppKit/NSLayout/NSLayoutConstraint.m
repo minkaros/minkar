@@ -112,8 +112,12 @@ static NSView *commonAncestor(id first,id second) {
     _secondAttribute=[coder decodeIntegerForKey:[coder containsValueForKey:@"NSSecondAttributeV2"]?@"NSSecondAttributeV2":@"NSSecondAttribute"];
    _relation=[coder decodeIntegerForKey:@"NSRelation"];
    _multiplier=(_secondItem==nil)?0:([coder containsValueForKey:@"NSMultiplier"]?[coder decodeDoubleForKey:@"NSMultiplier"]:1);
-   if([coder containsValueForKey:@"NSSymbolicConstant"])
-    _constant=8;
+   /* Interface Builder's standard space: resolved as it is read, once the
+      views are in their places (see -constant). */
+   if([coder containsValueForKey:@"NSSymbolicConstant"]){
+    _symbolicConstant=YES;
+    _constant=[coder containsValueForKey:@"NSConstant"]?[coder decodeDoubleForKey:@"NSConstant"]:8;   /* its sign */
+   }
    else
     _constant=[coder decodeDoubleForKey:[coder containsValueForKey:@"NSConstantV2"]?@"NSConstantV2":@"NSConstant"];
    if([coder containsValueForKey:@"NSPriority"])
@@ -167,11 +171,38 @@ static NSView *commonAncestor(id first,id second) {
     NSLayoutSetNeedsLayout(_firstItem);
 }
 
+static BOOL isEdge(NSLayoutAttribute attribute) {
+   switch(attribute){
+    case NSLayoutAttributeLeft: case NSLayoutAttributeRight: case NSLayoutAttributeTop: case NSLayoutAttributeBottom:
+    case NSLayoutAttributeLeading: case NSLayoutAttributeTrailing:
+     return YES;
+    default:
+     return NO;
+   }
+}
+
+/* A standard space, as the reference resolves Interface Builder's: 20
+   from a view's edge to the same edge of the view that contains it, 8
+   between siblings. */
+static CGFloat standardSpace(id first, NSLayoutAttribute firstAttribute, id second, NSLayoutAttribute secondAttribute) {
+   if(firstAttribute==secondAttribute && isEdge(firstAttribute) &&
+      [first isKindOfClass:[NSView class]] && [second isKindOfClass:[NSView class]] &&
+      ([first superview]==second || [second superview]==first))
+    return 20;
+   return 8;
+}
+
 -(CGFloat)constant {
+   if(_symbolicConstant){
+    CGFloat space=standardSpace(_firstItem,_firstAttribute,_secondItem,_secondAttribute);
+    /* Its sign as the nib's: a negative constant is the space the other way. */
+    return _constant<0?-space:space;
+   }
    return _constant;
 }
 
 -(void)setConstant:(CGFloat)constant {
+   _symbolicConstant=NO;
    _constant=constant;
    if(_active)
     NSLayoutSetNeedsLayout(_firstItem);

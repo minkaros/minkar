@@ -82,6 +82,7 @@ typedef NS_OPTIONS(NSUInteger, NSLayoutFormatOptions) {
     NSString *_identifier;
     BOOL _active;
     BOOL _shouldBeArchived;
+    BOOL _symbolicConstant;       /* a nib's standard space, resolved when read */
     void *_engineConstraint;
 }
 

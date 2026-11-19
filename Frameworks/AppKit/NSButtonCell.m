@@ -118,7 +118,10 @@ static const float kImageMargin = 2.;
 
     _isBordered=(flags&0x00800000)?YES:NO; // err, this flag is in NSCell too
 
-    _bezelStyle=(flags2&0x7)|(flags2&0x20>>2);
+    // Minkar: bit 5 is the style's fourth bit ((flags2&0x20)>>2: it was
+    // read as flags2&(0x20>>2), bit 3, so a help button was a push button
+    // and one showing its border on hover had a style it was not given).
+    _bezelStyle=(flags2&0x7)|((flags2&0x20)>>2);
 
     if (_bezelStyle==0)  // this is how textured buttons are encoded by IB
      _bezelStyle=NSTexturedSquareBezelStyle;
@@ -126,6 +129,9 @@ static const float kImageMargin = 2.;
      _bezelStyle=NSTexturedRoundedBezelStyle;
     if (_bezelStyle==4)
      _bezelStyle=NSRoundRectBezelStyle;
+    // Newer nibs say it too, as the style itself.
+    if([keyed containsValueForKey:@"NSBezelStyle"])
+     _bezelStyle=[keyed decodeIntegerForKey:@"NSBezelStyle"];
 
     _isTransparent=(flags&0x00008000)?YES:NO;
     _imageDimsWhenDisabled=(flags&0x00002000)?NO:YES;
