@@ -1,3 +1,4 @@
+#import "NSManagedObject-Private.h"
 #import "NSXMLPersistentStore.h"
 #import <Foundation/Foundation.h>
 #import "NSManagedObjectModel-Private.h"
@@ -458,7 +459,7 @@ static id reverseTransformedValue(NSAttributeDescription *attribute,NSData *data
     NSXMLElement              *relationshipElement=[NSXMLNode elementWithName:@"relationship"];
     NSString                  *relationshipType=[NSString stringWithFormat:@"%d/%d",[relationshipDescription minCount],[relationshipDescription maxCount]];
     NSEntityDescription       *destinationEntity=[relationshipDescription destinationEntity];
-    id                         value=[managedObject primitiveValueForKey:relationshipName];
+    id                         value=[managedObject _primitiveValueForKey:relationshipName];
     NSSet                     *valueSet;
     NSMutableSet              *cacheNodeSet=[NSMutableSet set];
     

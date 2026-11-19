@@ -288,6 +288,69 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
 @end
 
 
+@interface NSManagedObject (NSManagedObjectPrimitiveSet)
+-(id)_primitiveValueForKey:(NSString *)key;
+-(NSMutableSet *)_mutableIDSetForKey:(NSString *)key;
+@end
+
+/* A to-many relationship's primitive value: a mutable set of its objects
+   over the IDs the object keeps (an accessor written by hand adds to it,
+   as on the reference). */
+@interface _NSManagedObjectPrimitiveSet : NSMutableSet {
+   NSManagedObject *_object;
+   NSString        *_key;
+}
+-initWithObject:(NSManagedObject *)object key:(NSString *)key;
+@end
+
+@implementation _NSManagedObjectPrimitiveSet
+
+-initWithObject:(NSManagedObject *)object key:(NSString *)key {
+   _object=[object retain];
+   _key=[key copy];
+   return self;
+}
+
+-(void)dealloc {
+   [_object release];
+   [_key release];
+   [super dealloc];
+}
+
+-(NSSet *)_ids {
+   return [_object _primitiveValueForKey:_key];
+}
+
+-(NSUInteger)count {
+   return [[self _ids] count];
+}
+
+-member:object {
+   id objectID=[object isKindOfClass:[NSManagedObject class]]?[object objectID]:object;
+
+   return [[self _ids] member:objectID]?object:nil;
+}
+
+-(NSEnumerator *)objectEnumerator {
+   NSMutableArray *objects=[NSMutableArray array];
+
+   for(NSManagedObjectID *objectID in [[[self _ids] copy] autorelease])
+    [objects addObject:[[_object managedObjectContext] objectWithID:objectID]];
+   return [objects objectEnumerator];
+}
+
+-(void)addObject:object {
+   if(object!=nil)
+    [[_object _mutableIDSetForKey:_key] addObject:[object isKindOfClass:[NSManagedObject class]]?[object objectID]:object];
+}
+
+-(void)removeObject:object {
+   if(object!=nil)
+    [[_object _mutableIDSetForKey:_key] removeObject:[object isKindOfClass:[NSManagedObject class]]?[object objectID]:object];
+}
+
+@end
+
 @implementation NSManagedObject
 
 // The entity of a coordinator's model whose class this is.
@@ -540,7 +603,7 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
    if([property isKindOfClass:[NSAttributeDescription class]]){
     [self willAccessValueForKey:propertyName];
     
-    id result=[self primitiveValueForKey:propertyName];
+    id result=[self _primitiveValueForKey:propertyName];
     
     [self didAccessValueForKey:propertyName];
     
@@ -551,7 +614,7 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
     
     [self willAccessValueForKey:propertyName];
 
-    id result=[self primitiveValueForKey:propertyName];
+    id result=[self _primitiveValueForKey:propertyName];
     
     if(result!=nil){
      if([relationship isToMany])
@@ -598,7 +661,7 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
     }
 
     if(inverse!=nil){
-     id primitivePrevious=[self primitiveValueForKey:key];
+     id primitivePrevious=[self _primitiveValueForKey:key];
      
      if(primitivePrevious!=nil){
       NSSet *allPrevious=[relationship isToMany]?primitivePrevious:[NSSet setWithObject:primitivePrevious];
@@ -610,7 +673,7 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
        [previous willChangeValueForKey:inverseName];
 
        if([inverse isToMany])
-        [[previous primitiveValueForKey:inverseName] removeObject:[self objectID]];
+        [[previous _mutableIDSetForKey:inverseName] removeObject:[self objectID]];
        else
         [previous setPrimitiveValue:nil forKey:inverseName];
       
@@ -633,14 +696,7 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
       [value willChangeValueForKey:inverseName];
      
       if([inverse isToMany]){
-       NSMutableSet *set=[value primitiveValueForKey:inverseName];
-    
-       if(set==nil){
-        set=[NSMutableSet set];
-        [value setPrimitiveValue:set forKey:inverseName];
-       }
-
-       [set addObject:[self objectID]];
+       [[value _mutableIDSetForKey:inverseName] addObject:[self objectID]];
       }
       else{
        [value setPrimitiveValue:[self objectID] forKey:inverseName];
@@ -659,7 +715,9 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
    return [[[NSManagedObjectMutableSet alloc] initWithManagedObject:self key:key] autorelease];
 }
 
--primitiveValueForKey:(NSString *) key {
+/* Minkar: the value as kept, a relationship's by object ID (a to-many's
+   a set of them). */
+-(id)_primitiveValueForKey:(NSString *)key {
    id result=[_changedValues objectForKey:key];
    
    if(result==nil)
@@ -668,7 +726,110 @@ static NSString *parseAccessor(Class class,const char *name,int *kind) {
    return result;
 }
 
+/* A to-many's IDs, changeable: the committed set copied into the changes
+   the first time. */
+-(NSMutableSet *)_mutableIDSetForKey:(NSString *)key {
+   id set=[_changedValues objectForKey:key];
+
+   if(![set isKindOfClass:[NSMutableSet class]]){
+    set=[NSMutableSet setWithSet:[self _primitiveValueForKey:key] ?: [NSSet set]];
+    [_changedValues setObject:set forKey:key];
+   }
+   return set;
+}
+
+static id objectIDOf(id value) {
+   return [value isKindOfClass:[NSManagedObject class]]?[value objectID]:value;
+}
+
+/* A to-many relationship changed by a set mutation (an accessor written by
+   hand, through its primitive set): the inverse relationship of each
+   object added or removed follows, as Core Data keeps inverses on the
+   reference (a store keeps a to-many by its inverse, so it was lost). */
+-(void)didChangeValueForKey:(NSString *)key withSetMutation:(NSKeyValueSetMutationKind)mutation usingObjects:(NSSet *)objects {
+   NSPropertyDescription *property=[[[self entity] propertiesByName] objectForKey:key];
+   NSRelationshipDescription *inverse=[property isKindOfClass:[NSRelationshipDescription class]]?[(NSRelationshipDescription *)property inverseRelationship]:nil;
+   NSString *inverseName=[inverse name];
+
+   if(inverse!=nil && (mutation==NSKeyValueUnionSetMutation || mutation==NSKeyValueMinusSetMutation)){
+    BOOL adding=(mutation==NSKeyValueUnionSetMutation);
+
+    for(id object in objects){
+     if(![object isKindOfClass:[NSManagedObject class]] || [object managedObjectContext]!=_context)
+      continue;
+     if([inverse isToMany]){
+      NSMutableSet *ids=[object _mutableIDSetForKey:inverseName];
+      BOOL          has=[ids containsObject:[self objectID]];
+
+      if(adding!=has){
+       [object willChangeValueForKey:inverseName];
+       if(adding)
+        [ids addObject:[self objectID]];
+       else
+        [ids removeObject:[self objectID]];
+       [object didChangeValueForKey:inverseName];
+      }
+     }
+     else {
+      id previousID=[object _primitiveValueForKey:inverseName];
+
+      if(adding && ![previousID isEqual:[self objectID]]){
+       /* Its previous owner no longer has it. */
+       if(previousID!=nil){
+        NSManagedObject *previous=[_context objectWithID:previousID];
+
+        [previous willChangeValueForKey:key];
+        [[previous _mutableIDSetForKey:key] removeObject:[object objectID]];
+        [previous didChangeValueForKey:key];
+       }
+       [object willChangeValueForKey:inverseName];
+       [object setPrimitiveValue:[self objectID] forKey:inverseName];
+       [object didChangeValueForKey:inverseName];
+      }
+      else if(!adding && [previousID isEqual:[self objectID]]){
+       [object willChangeValueForKey:inverseName];
+       [object setPrimitiveValue:nil forKey:inverseName];
+       [object didChangeValueForKey:inverseName];
+      }
+     }
+    }
+   }
+   [super didChangeValueForKey:key withSetMutation:mutation usingObjects:objects];
+}
+
+/* As on the reference: a to-one relationship's value is its object, a
+   to-many's a mutable set of its objects (changing it changes the
+   relationship, without notifications), an attribute's its value. */
+-primitiveValueForKey:(NSString *) key {
+   NSPropertyDescription *property=[[[self entity] propertiesByName] objectForKey:key];
+
+   if([property isKindOfClass:[NSRelationshipDescription class]]){
+    if([(NSRelationshipDescription *)property isToMany])
+     return [[[_NSManagedObjectPrimitiveSet alloc] initWithObject:self key:key] autorelease];
+    else {
+     id objectID=[self _primitiveValueForKey:key];
+
+     return (objectID!=nil)?[_context objectWithID:objectID]:nil;
+    }
+   }
+   return [self _primitiveValueForKey:key];
+}
+
+/* A relationship's objects (or their IDs) kept by ID. */
 -(void)setPrimitiveValue:value forKey:(NSString *)key {
+   NSPropertyDescription *property=[[[self entity] propertiesByName] objectForKey:key];
+
+   if(value!=nil && [property isKindOfClass:[NSRelationshipDescription class]]){
+    if([(NSRelationshipDescription *)property isToMany]){
+     NSMutableSet *ids=[NSMutableSet set];
+
+     for(id object in value)
+      [ids addObject:objectIDOf(object)];
+     value=ids;
+    }
+    else
+     value=objectIDOf(value);
+   }
    if(value==nil)
     [_changedValues removeObjectForKey:key];
    else {
