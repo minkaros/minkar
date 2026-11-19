@@ -19,6 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSToolbar (Private)
 -(NSArray *)_allowedToolbarItems;
+-(NSArray *)_defaultToolbarItemsIntoToolbar:(BOOL)intoToolbar;
 -(NSArray *)_defaultToolbarItems;
 @end
 
@@ -54,7 +55,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSArray *)toolbarItems {
    if(_isDefaultSetView)
-    return [_toolbar _defaultToolbarItems];
+    return [_toolbar _defaultToolbarItemsIntoToolbar:NO];
    else
     return [_toolbar _allowedToolbarItems];
 }

@@ -122,12 +122,17 @@ NSString * const NSToolbarChangeAppearanceNotification = @"__NSToolbarChangeAppe
    return [_view frame].size.height;
 }
 
+/* The user default it is saved as, the reference's name. */
 -(NSString *)_configurationKey {
-   return [NSString stringWithFormat:@"NSToolbar identifier=%@", _identifier];
+   return [NSString stringWithFormat:@"NSToolbar Configuration %@", _identifier];
 }
 
 -(BOOL)loadConfiguration {
    NSDictionary *dictionary=[[NSUserDefaults standardUserDefaults] objectForKey:[self _configurationKey]];
+
+   /* One Minkar saved under its old name. */
+   if(dictionary==nil)
+    dictionary=[[NSUserDefaults standardUserDefaults] objectForKey:[NSString stringWithFormat:@"NSToolbar identifier=%@", _identifier]];
     
    if(dictionary!=nil){
     _isLoadingConfiguration=YES;
@@ -196,15 +201,22 @@ NSString * const NSToolbarChangeAppearanceNotification = @"__NSToolbarChangeAppe
    return [_items valueForKey:@"itemIdentifier"];
 }
 
+/* Minkar: the reference's keys and values: the display and size modes in
+   effect (the default ones as icon and label, and regular), whether it is
+   shown, and its items' identifiers when they are not the default set's. */
 -(NSDictionary *)configurationDictionary {
-    NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:
-        [NSNumber numberWithInt:_displayMode], @"displayMode",
-        [NSNumber numberWithInt:_sizeMode], @"sizeMode",
-        [NSNumber numberWithBool:_visible], @"isVisible",
-        [NSNumber numberWithBool:_autosavesConfiguration], @"autosavesConfiguration",
-        [self itemIdentifiers], @"itemIdentifiers",
-        nil];    
-        
+    NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
+    NSInteger displayMode = (_displayMode == NSToolbarDisplayModeDefault) ? NSToolbarDisplayModeIconAndLabel : _displayMode;
+    NSInteger sizeMode = (_sizeMode == NSToolbarSizeModeDefault) ? NSToolbarSizeModeRegular : _sizeMode;
+    NSArray *identifiers = [self itemIdentifiers];
+    NSArray *defaults = [_delegate respondsToSelector:@selector(toolbarDefaultItemIdentifiers:)] ? [_delegate toolbarDefaultItemIdentifiers:self] : nil;
+
+    [dictionary setObject:[NSNumber numberWithInteger:displayMode] forKey:@"TB Display Mode"];
+    [dictionary setObject:[NSNumber numberWithInteger:sizeMode] forKey:@"TB Size Mode"];
+    [dictionary setObject:[NSNumber numberWithInteger:sizeMode] forKey:@"TB Icon Size Mode"];
+    [dictionary setObject:[NSNumber numberWithBool:_visible] forKey:@"TB Is Shown"];
+    if(identifiers != nil && ![identifiers isEqualToArray:defaults ?: @[]])
+     [dictionary setObject:identifiers forKey:@"TB Item Identifiers"];
     return dictionary;
 }
 
@@ -227,39 +239,44 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
    return NO;
 }
 
+/* Minkar: as on the reference, each item is made for its place: the
+   delegate asked each time (willBeInsertedIntoToolbar: YES for the
+   toolbar, NO for the customization palette), a standard item made anew;
+   only a nib's items (no delegate for them) are kept and shared. They were
+   all asked with NO and one instance shared by the palette and the
+   toolbar, so an item that acts only when inserted (its target and action
+   set then) did nothing. */
 -(NSToolbarItem *)_itemForItemIdentifier:(NSString *)identifier willBeInsertedIntoToolbar:(BOOL)intoToolbar {
-   NSToolbarItem *item=[_identifiedItems objectForKey:identifier];
-   
-   if(item==nil){
-    // The delegate does not get toolbar:itemForItemIdentifier:willBeInsertedIntoToolbar: for the standard items
-    BOOL standardItem=isStandardItemIdentifier(identifier);
-    
-    if(_delegate==nil || standardItem)
-     item=[[[[self toolbarItemClass] alloc] initWithItemIdentifier:identifier] autorelease];
-    else {
-     item=[_delegate toolbar:self itemForItemIdentifier:identifier willBeInsertedIntoToolbar:intoToolbar];
-    }
-    
-    if(item!=nil){
-     [_identifiedItems setObject:item forKey:identifier];
-     [item _setToolbar:self];
-    }
-   }
-   
+   NSToolbarItem *item=nil;
+   BOOL           standardItem=isStandardItemIdentifier(identifier);
+
+   if(standardItem)
+    item=[[[[self toolbarItemClass] alloc] initWithItemIdentifier:identifier] autorelease];
+   else if([_delegate respondsToSelector:@selector(toolbar:itemForItemIdentifier:willBeInsertedIntoToolbar:)])
+    item=[_delegate toolbar:self itemForItemIdentifier:identifier willBeInsertedIntoToolbar:intoToolbar];
+   if(item==nil)
+    item=[_identifiedItems objectForKey:identifier];
+   if(item==nil && _delegate==nil)
+    item=[[[[self toolbarItemClass] alloc] initWithItemIdentifier:identifier] autorelease];
+   [item _setToolbar:self];
    return item;
 }
 
--(NSArray *)_itemsWithIdentifiers:(NSArray*)identifiers {   
+-(NSArray *)_itemsWithIdentifiers:(NSArray*)identifiers intoToolbar:(BOOL)intoToolbar {
    NSMutableArray *result=[NSMutableArray array];
-   
+
    for (NSString *identifier in identifiers) {
-    NSToolbarItem *item=[self _itemForItemIdentifier:identifier willBeInsertedIntoToolbar:NO];
-    
+    NSToolbarItem *item=[self _itemForItemIdentifier:identifier willBeInsertedIntoToolbar:intoToolbar];
+
     if(item!=nil)
      [result addObject:item];
    }
-   
+
    return result;
+}
+
+-(NSArray *)_itemsWithIdentifiers:(NSArray*)identifiers {
+   return [self _itemsWithIdentifiers:identifiers intoToolbar:YES];
 }
 
 -(void)_insertItem:(NSToolbarItem *)item atIndex:(NSInteger)index {
@@ -336,10 +353,15 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
 }
 
 -(NSArray *)_defaultToolbarItems {
+   return [self _defaultToolbarItemsIntoToolbar:YES];
+}
+
+/* The default set's items, for the toolbar or (NO) the palette. */
+-(NSArray *)_defaultToolbarItemsIntoToolbar:(BOOL)intoToolbar {
    NSArray *result=nil;
 
    if([_delegate respondsToSelector:@selector(toolbarDefaultItemIdentifiers:)])
-    result=[self _itemsWithIdentifiers:[_delegate toolbarDefaultItemIdentifiers:self]];
+    result=[self _itemsWithIdentifiers:[_delegate toolbarDefaultItemIdentifiers:self] intoToolbar:intoToolbar];
 
    if(result==nil)
     result=_defaultItems;
@@ -444,21 +466,27 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
    [self didChangeAppearanceGlobal:YES];
 }
 
+/* Only the keys there are set, as on the reference; the reference's keys,
+   and the ones Minkar saved before. */
 -(void)setConfigurationFromDictionary:(NSDictionary *)dictionary {
-   NSToolbarDisplayMode displayMode = [[dictionary objectForKey:@"displayMode"] intValue];
-   NSToolbarSizeMode    sizeMode = [[dictionary objectForKey:@"sizeMode"] intValue];
-   BOOL                 visible = [[dictionary objectForKey:@"isVisible"] boolValue];
-   BOOL                 autosavesConfiguration = [[dictionary objectForKey:@"autosavesConfiguration"] boolValue];
-   NSArray             *identifiers = [dictionary objectForKey:@"itemIdentifiers"];
-    
+   id displayMode = [dictionary objectForKey:@"TB Display Mode"] ?: [dictionary objectForKey:@"displayMode"];
+   id sizeMode = [dictionary objectForKey:@"TB Size Mode"] ?: [dictionary objectForKey:@"sizeMode"];
+   id visible = [dictionary objectForKey:@"TB Is Shown"] ?: [dictionary objectForKey:@"isVisible"];
+   id autosaves = [dictionary objectForKey:@"autosavesConfiguration"];
+   NSArray *identifiers = [dictionary objectForKey:@"TB Item Identifiers"] ?: [dictionary objectForKey:@"itemIdentifiers"];
 
-   [self setDisplayMode:displayMode];
-   [self setSizeMode:sizeMode];
-   
-   _items=[[self _itemsWithIdentifiers:identifiers] mutableCopy];
-
-   [self setVisible:visible];
-   [self setAutosavesConfiguration:autosavesConfiguration];
+   if(displayMode != nil)
+    [self setDisplayMode:[displayMode integerValue]];
+   if(sizeMode != nil)
+    [self setSizeMode:[sizeMode integerValue]];
+   if([identifiers isKindOfClass:[NSArray class]]){
+    [_items release];
+    _items=[[self _itemsWithIdentifiers:identifiers] mutableCopy];
+   }
+   if(visible != nil)
+    [self setVisible:[visible boolValue]];
+   if(autosaves != nil)
+    [self setAutosavesConfiguration:[autosaves boolValue]];
 }
 
 -(void)setAutosavesConfiguration:(BOOL)flag {
@@ -523,7 +551,7 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
    NSArray *result=nil;
    
    if([_delegate respondsToSelector:@selector(toolbarAllowedItemIdentifiers:)])
-    result=[self _itemsWithIdentifiers:[_delegate toolbarAllowedItemIdentifiers:self]];
+    result=[self _itemsWithIdentifiers:[_delegate toolbarAllowedItemIdentifiers:self] intoToolbar:NO];
 
    if(result==nil)
     result=_allowedItems;

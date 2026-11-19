@@ -365,13 +365,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return rect;
 }
 
+/* Minkar: drawn in the frame it is given, as on the reference (its
+   cellSize is its natural size, what sizeToFit uses): a box wider than its
+   text was drawn only as wide as the text, the rest left unpainted. The
+   bezel keeps the old inset, 3 across and 2 down. */
+-(NSRect)_drawingFrame:(NSRect)frame {
+   frame.size.width-=3.0;
+   frame.size.height-=2.0;
+   return frame;
+}
+
 -(void)drawInteriorWithFrame:(NSRect)frame inView:(NSView *)controlView {
-   frame.size = [self cellSize];
+   frame=[self _drawingFrame:frame];
    [super drawInteriorWithFrame:frame inView:controlView];
 }
 
 -(void)drawWithFrame:(NSRect)frame inView:(NSView *)controlView {
-   frame.size = [self cellSize];
+   frame=[self _drawingFrame:frame];
    [super drawWithFrame:frame inView:controlView];
 
    [[controlView graphicsStyle] drawComboBoxButtonInRect:[self buttonRectForBounds:frame] enabled:_buttonEnabled bordered:_isButtonBordered pressed:_buttonPressed];
