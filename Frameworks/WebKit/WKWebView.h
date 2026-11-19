@@ -223,6 +223,15 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property (nullable, readonly, strong) WKBackForwardListItem *forwardItem;
 @property (readonly, copy) NSArray<WKBackForwardListItem *> *backList;
 @property (readonly, copy) NSArray<WKBackForwardListItem *> *forwardList;
+- (nullable WKBackForwardListItem *)itemAtIndex:(NSInteger)index;
+@end
+
+/* What a snapshot takes: a rectangle of the view (null: all of it), and
+   the width the image is scaled to (nil: the rectangle's). */
+@interface WKSnapshotConfiguration : NSObject <NSCopying>
+@property CGRect rect;
+@property (nullable, copy) NSNumber *snapshotWidth;
+@property BOOL afterScreenUpdates API_AVAILABLE(macos(10.15));
 @end
 
 @interface WKWebView : NSView
@@ -252,11 +261,17 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 - (nullable WKNavigation *)goBack;
 - (nullable WKNavigation *)goForward;
 - (nullable WKNavigation *)reload;
+- (nullable WKNavigation *)reloadFromOrigin;
+- (nullable WKNavigation *)goToBackForwardListItem:(WKBackForwardListItem *)item;
+- (void)takeSnapshotWithConfiguration:(nullable WKSnapshotConfiguration *)snapshotConfiguration
+                    completionHandler:(void (^)(NSImage *_Nullable snapshotImage, NSError *_Nullable error))completionHandler
+    API_AVAILABLE(macos(10.13));
 - (void)stopLoading;
 - (void)evaluateJavaScript:(NSString *)javaScriptString completionHandler:(void (^_Nullable)(_Nullable id, NSError *_Nullable error))completionHandler;
 - (IBAction)goBack:(nullable id)sender;
 - (IBAction)goForward:(nullable id)sender;
 - (IBAction)reload:(nullable id)sender;
+- (IBAction)reloadFromOrigin:(nullable id)sender;
 - (IBAction)stopLoading:(nullable id)sender;
 /* The page's text, waiting for it (for searches and tests). */
 - (NSString *)_text;

@@ -571,6 +571,23 @@ SECURE
 @implementation WKNavigationResponse
 @end
 
+@implementation WKSnapshotConfiguration
+- (instancetype)init {
+    if ((self = [super init])) {
+        _rect = CGRectNull;
+        _afterScreenUpdates = YES;
+    }
+    return self;
+}
+- (id)copyWithZone:(NSZone *)zone {
+    WKSnapshotConfiguration *copy = [[WKSnapshotConfiguration allocWithZone:zone] init];
+    copy.rect = _rect;
+    copy.snapshotWidth = _snapshotWidth;
+    copy.afterScreenUpdates = _afterScreenUpdates;
+    return copy;
+}
+@end
+
 @interface WKOpenPanelParameters ()
 @property (readwrite) BOOL allowsMultipleSelection;
 @property (readwrite) BOOL allowsDirectories;
@@ -672,14 +689,32 @@ static WKNavigationAction *actionFrom(WebKitNavigationAction *webAction, BOOL ne
 @property (readwrite, copy) NSString *title;
 @property (readwrite, copy) NSURL *initialURL;
 @end
-@implementation WKBackForwardListItem
+/* Each holds WebKit's entry, to go back to it; one object an entry, as
+   long as the app keeps it. */
+@implementation WKBackForwardListItem {
+@public
+    WebKitBackForwardListItem *_item;
+}
+- (void)dealloc {
+    if (_item)
+        g_object_unref(_item);
+}
 @end
 
 static WKBackForwardListItem *itemFrom(WebKitBackForwardListItem *item)
 {
+    static NSMapTable *items;
     if (item == NULL)
         return nil;
-    WKBackForwardListItem *result = [WKBackForwardListItem new];
+    if (items == nil)
+        items = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
+                                      valueOptions:NSPointerFunctionsWeakMemory];
+    WKBackForwardListItem *result = [items objectForKey:(__bridge id)(void *)item];
+    if (result == nil) {
+        result = [WKBackForwardListItem new];
+        result->_item = g_object_ref(item);
+        [items setObject:result forKey:(__bridge id)(void *)item];
+    }
     result.URL = URLOrNil(webkit_back_forward_list_item_get_uri(item));
     const char *title = webkit_back_forward_list_item_get_title(item);
     result.title = title && *title ? [NSString stringWithUTF8String:title] : nil;
@@ -704,12 +739,30 @@ static NSArray *itemsFrom(GList *list)
 - (WKBackForwardListItem *)currentItem { return itemFrom(webkit_back_forward_list_get_current_item(self._list)); }
 - (WKBackForwardListItem *)backItem { return itemFrom(webkit_back_forward_list_get_back_item(self._list)); }
 - (WKBackForwardListItem *)forwardItem { return itemFrom(webkit_back_forward_list_get_forward_item(self._list)); }
-/* Oldest first, as the reference platform gives them. */
+/* In the list's order, as the reference platform gives them: back from
+   the oldest, forward from the nearest (WebKit gives both the other way). */
 - (NSArray *)backList { return itemsFrom(g_list_reverse(webkit_back_forward_list_get_back_list(self._list))); }
-- (NSArray *)forwardList { return itemsFrom(webkit_back_forward_list_get_forward_list(self._list)); }
+- (NSArray *)forwardList { return itemsFrom(g_list_reverse(webkit_back_forward_list_get_forward_list(self._list))); }
+/* 0 the current item, negative back, positive forward. */
+- (WKBackForwardListItem *)itemAtIndex:(NSInteger)index {
+    return itemFrom(webkit_back_forward_list_get_nth_item(self._list, (gint)index));
+}
 @end
 
 #pragma mark - The web view
+
+/* The user agent sites see, in the reference's form (sites tell engines
+   and systems by it): the system's version as the Cocoa API's, WebKit's
+   frozen version, then the app's name for it. */
+static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
+{
+    NSOperatingSystemVersion v = [[NSProcessInfo processInfo] operatingSystemVersion];
+    NSString *system = v.patchVersion ? [NSString stringWithFormat:@"%ld_%ld_%ld", (long)v.majorVersion, (long)v.minorVersion, (long)v.patchVersion]
+                                      : [NSString stringWithFormat:@"%ld_%ld", (long)v.majorVersion, (long)v.minorVersion];
+    NSString *agent = [NSString stringWithFormat:@"Mozilla/5.0 (Macintosh; Intel Mac OS X %@) AppleWebKit/605.1.15 (KHTML, like Gecko)", system];
+    NSString *name = configuration.applicationNameForUserAgent;
+    return name.length ? [agent stringByAppendingFormat:@" %@", name] : agent;
+}
 
 @implementation WKWebView {
     WKWebViewConfiguration *_configuration;
@@ -848,9 +901,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         /* WebKit's one switch: a gesture for any media, when any is asked. */
         webkit_settings_set_media_playback_requires_user_gesture(settings,
             _configuration.mediaTypesRequiringUserActionForPlayback != WKAudiovisualMediaTypeNone);
-        if (_configuration.applicationNameForUserAgent.length)
-            webkit_settings_set_user_agent_with_application_details(settings,
-                _configuration.applicationNameForUserAgent.UTF8String, NULL);
+        webkit_settings_set_user_agent(settings, standardUserAgent(_configuration).UTF8String);
 
         WKUserContentController *controller = _configuration.userContentController;
         [controller _addWebView:self];
@@ -992,6 +1043,56 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 }
 
 /* The last frame drawn (for tests and snapshots). */
+/* The last frame drawn: the configuration's rectangle of the view
+   (top-left origin, as the view is flipped), scaled to its width; the
+   image's size in points. On the main queue, later, as on the reference. */
+- (void)takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)configuration
+                    completionHandler:(void (^)(NSImage *, NSError *))completionHandler {
+    void (^handler)(NSImage *, NSError *) = [completionHandler copy];
+    NSRect bounds = self.bounds;
+    NSRect rect = (configuration == nil || CGRectIsNull(configuration.rect)) ? bounds : NSRectFromCGRect(configuration.rect);
+    CGFloat width = configuration.snapshotWidth != nil ? configuration.snapshotWidth.doubleValue : rect.size.width;
+    CGImageRef frame = _frame ? CGImageRetain(_frame) : NULL;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (frame == NULL || rect.size.width <= 0 || rect.size.height <= 0 || width <= 0 || bounds.size.width <= 0) {
+            if (frame)
+                CGImageRelease(frame);
+            handler(nil, [NSError errorWithDomain:WKErrorDomain code:WKErrorUnknown
+                userInfo:@{ NSLocalizedDescriptionKey: @"The web view has nothing to take a snapshot of." }]);
+            return;
+        }
+        CGFloat scale = CGImageGetWidth(frame) / bounds.size.width;
+        CGRect pixels = CGRectIntegral(CGRectMake(rect.origin.x * scale, rect.origin.y * scale,
+                                                  rect.size.width * scale, rect.size.height * scale));
+        CGImageRef cropped = CGImageCreateWithImageInRect(frame, pixels);
+        CGImageRelease(frame);
+        CGFloat height = rect.size.height * width / rect.size.width;
+        size_t pw = (size_t)lround(width * scale), ph = (size_t)lround(height * scale);
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGContextRef context = CGBitmapContextCreate(NULL, pw, ph, 8, 0, space, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGColorSpaceRelease(space);
+        if (cropped && context) {
+            CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
+            CGContextDrawImage(context, CGRectMake(0, 0, pw, ph), cropped);
+        }
+        CGImageRef scaled = context ? CGBitmapContextCreateImage(context) : NULL;
+        if (context)
+            CGContextRelease(context);
+        if (cropped)
+            CGImageRelease(cropped);
+        if (scaled == NULL) {
+            handler(nil, [NSError errorWithDomain:WKErrorDomain code:WKErrorUnknown userInfo:nil]);
+            return;
+        }
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:scaled];
+        CGImageRelease(scaled);
+        rep.size = NSMakeSize(width, height);
+        NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
+        [image addRepresentation:rep];
+        handler(image, nil);
+    });
+}
+
 - (NSBitmapImageRep *)_lastFrame {
     return _frame ? [[NSBitmapImageRep alloc] initWithCGImage:_frame] : nil;
 }
@@ -1150,12 +1251,13 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     return webkit_web_view_get_tls_info(_webView, &certificate, &errors) && errors == 0;
 }
 
-- (NSString *)customUserAgent { return _customUserAgent; }
+/* Empty, not nil, when none is set, as on the reference. */
+- (NSString *)customUserAgent { return _customUserAgent ?: @""; }
 
 - (void)setCustomUserAgent:(NSString *)agent {
     _customUserAgent = [agent copy];
     WebKitSettings *settings = webkit_web_view_get_settings(_webView);
-    webkit_settings_set_user_agent(settings, agent.length ? agent.UTF8String : NULL);
+    webkit_settings_set_user_agent(settings, (agent.length ? agent : standardUserAgent(_configuration)).UTF8String);
 }
 
 - (CGFloat)magnification { return _magnification; }
@@ -1368,6 +1470,23 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     webkit_web_view_go_forward(_webView);
     return navigation;
 }
+
+- (WKNavigation *)goToBackForwardListItem:(WKBackForwardListItem *)item {
+    if (item == nil || item->_item == NULL)
+        return nil;
+    WKNavigation *navigation = [self _start];
+    webkit_web_view_go_to_back_forward_list_item(_webView, item->_item);
+    return navigation;
+}
+
+/* Again from the server, not the cache. */
+- (WKNavigation *)reloadFromOrigin {
+    WKNavigation *navigation = [self _start];
+    webkit_web_view_reload_bypass_cache(_webView);
+    return navigation;
+}
+
+- (IBAction)reloadFromOrigin:(id)sender { [self reloadFromOrigin]; }
 
 - (WKNavigation *)reload {
     WKNavigation *navigation = [self _start];
