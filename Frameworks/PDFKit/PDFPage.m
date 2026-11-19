@@ -140,6 +140,9 @@
     CGContextClipToRect(context, b);
     CGContextSetRGBFillColor(context, 1, 1, 1, 1);
     CGContextFillRect(context, b);
+    /* The content starts with the PDF's initial state: black. */
+    CGContextSetRGBFillColor(context, 0, 0, 0, 1);
+    CGContextSetRGBStrokeColor(context, 0, 0, 0, 1);
     if (_pageRef != NULL)
         CGContextDrawPDFPage(context, _pageRef);
     else if (_image != nil) {
@@ -231,7 +234,29 @@
             }
         } else
             lineSize = c.fontSize;
-        append(c.unicode, boxOf(c, c.origin.x, c.advance));
+        /* Its compatibility decomposition, as the reference gives the text
+           (an accented letter and its mark, a ligature's letters); each part
+           a share of its width. */
+        NSString *parts = [[NSString stringWithCharacters:&c.unicode length:1] decomposedStringWithCompatibilityMapping];
+        NSCharacterSet *marks = [NSCharacterSet nonBaseCharacterSet];
+        NSUInteger spacing = 0, k;
+
+        if (parts.length == 0)
+            parts = [NSString stringWithCharacters:&c.unicode length:1];
+        for (k = 0; k < parts.length; k++)
+            if (![marks characterIsMember:[parts characterAtIndex:k]])
+                spacing++;
+        /* Letters share the width; a combining mark is as wide as nothing,
+           at the end of its letter. */
+        CGFloat x = c.origin.x, share = c.advance / MAX(spacing, (NSUInteger)1);
+        for (k = 0; k < parts.length; k++) {
+            unichar part = [parts characterAtIndex:k];
+            BOOL mark = [marks characterIsMember:part] && spacing > 0;
+
+            append(part, boxOf(c, x, mark ? 0 : share));
+            if (!mark)
+                x += share;
+        }
         lineSize = MAX(lineSize, c.fontSize);
         previous = c;
         started = YES;
