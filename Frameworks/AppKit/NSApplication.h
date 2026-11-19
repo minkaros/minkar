@@ -30,6 +30,26 @@
 
 @class NSWindow, NSImage, NSMenu, NSPasteboard, NSDisplay, NSDockTile, DKConnection, DKMenu;
 
+/* The AppKit release, to compare with the constants below. */
+typedef double NSAppKitVersion;
+APPKIT_EXPORT const NSAppKitVersion NSAppKitVersionNumber;
+static const NSAppKitVersion NSAppKitVersionNumber10_0=577;
+static const NSAppKitVersion NSAppKitVersionNumber10_1=620;
+static const NSAppKitVersion NSAppKitVersionNumber10_2=663;
+static const NSAppKitVersion NSAppKitVersionNumber10_3=743;
+static const NSAppKitVersion NSAppKitVersionNumber10_4=824;
+static const NSAppKitVersion NSAppKitVersionNumber10_5=949;
+static const NSAppKitVersion NSAppKitVersionNumber10_6=1038;
+static const NSAppKitVersion NSAppKitVersionNumber10_7=1138;
+static const NSAppKitVersion NSAppKitVersionNumber10_8=1187;
+static const NSAppKitVersion NSAppKitVersionNumber10_9=1265;
+static const NSAppKitVersion NSAppKitVersionNumber10_10=1343;
+static const NSAppKitVersion NSAppKitVersionNumber10_11=1404;
+static const NSAppKitVersion NSAppKitVersionNumber10_12=1504;
+static const NSAppKitVersion NSAppKitVersionNumber10_13=1561;
+static const NSAppKitVersion NSAppKitVersionNumber10_14=1671;
+static const NSAppKitVersion NSAppKitVersionNumber10_15=1894;
+
 APPKIT_EXPORT NSString *const NSModalPanelRunLoopMode;
 
 /* The About window's options (-orderFrontStandardAboutPanelWithOptions:). */

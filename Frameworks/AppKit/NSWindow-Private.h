@@ -52,6 +52,7 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)_setSheetContext:(NSSheetContext *)sheetContext;
 - (NSSheetContext *)_sheetContext;
 - (void)_detachSheetContextAnimateAndOrderOut;
+- (void)_detachSheetContextAnimateAndOrderOutNotifying:(BOOL)notify;
 - (void)_attachDrawer:(NSDrawer *)drawer;
 - (void)_detachDrawer:(NSDrawer *)drawer;
 - (NSView *)_backgroundView;

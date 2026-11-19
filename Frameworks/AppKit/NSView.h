@@ -68,6 +68,7 @@ enum {
 typedef NSInteger NSViewLayerContentsRedrawPolicy;
 
 APPKIT_EXPORT NSString *const NSViewFrameDidChangeNotification;
+APPKIT_EXPORT NSString *const NSViewDidUpdateTrackingAreasNotification;
 APPKIT_EXPORT NSString *const NSViewBoundsDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewGlobalFrameDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;

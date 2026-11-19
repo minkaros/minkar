@@ -1,5 +1,6 @@
 #import <AppKit/NSAccessibility.h>
 #import <AppKit/NSView.h>
+#import <AppKit/NSControl.h>
 #import <AppKit/NSWindow.h>
 #import <objc/runtime.h>
 
@@ -328,6 +329,7 @@ NSString * const NSAccessibilityException=@"NSAccessibilityException";
 NSString * const NSAccessibilityAnnouncementRequestedNotification=@"AXAnnouncementRequested";
 NSString * const NSAccessibilityAnnouncementKey=@"AXAnnouncementKey";
 NSString * const NSAccessibilityPriorityKey=@"AXPriorityKey";
+NSString * const NSAccessibilityUIElementsKey=@"AXUIElementsKey";
 NSString * const NSAccessibilityLayoutChangedNotification=@"AXLayoutChanged";
 
 /* No assistive application listens yet. */
@@ -374,6 +376,62 @@ NSString *NSAccessibilityRoleDescriptionForUIElement(id element) {
 
 NSString *NSAccessibilityActionDescription(NSString *action) {
    return ([action length]>0)?wordsOfName(action):nil;
+}
+
+/* Minkar: an element is ignored when it says it is not an accessibility
+   element (an NSView is not, an NSButton is), or, with only the older
+   protocol, when accessibilityIsIgnored says so; as on the reference. */
+static BOOL elementIsIgnored(id element) {
+   if([element respondsToSelector:@selector(isAccessibilityElement)])
+    return ![element isAccessibilityElement];
+   if([element respondsToSelector:@selector(accessibilityIsIgnored)])
+    return [element accessibilityIsIgnored];
+   return NO;
+}
+
+static NSArray *elementChildren(id element) {
+   if([element respondsToSelector:@selector(accessibilityChildren)])
+    return [element accessibilityChildren];
+   if([element respondsToSelector:@selector(accessibilityAttributeValue:)])
+    return [element accessibilityAttributeValue:NSAccessibilityChildrenAttribute];
+   return nil;
+}
+
+static void addUnignored(NSMutableArray *result,id element) {
+   if(!elementIsIgnored(element))
+    [result addObject:element];
+   else {
+    for(id child in elementChildren(element))
+     addUnignored(result,child);
+   }
+}
+
+/* The children, each ignored one replaced by its unignored children. */
+NSArray *NSAccessibilityUnignoredChildren(NSArray *originalChildren) {
+   NSMutableArray *result=[NSMutableArray array];
+
+   for(id child in originalChildren)
+    addUnignored(result,child);
+   return result;
+}
+
+NSArray *NSAccessibilityUnignoredChildrenForOnlyChild(id originalChild) {
+   NSMutableArray *result=[NSMutableArray array];
+
+   if(originalChild!=nil)
+    addUnignored(result,originalChild);
+   return result;
+}
+
+/* The element if it is not ignored, else its only unignored descendant
+   (nil when there are none or several). */
+id NSAccessibilityUnignoredDescendant(id element) {
+   NSArray *unignored;
+
+   if(element==nil || !elementIsIgnored(element))
+    return element;
+   unignored=NSAccessibilityUnignoredChildren(elementChildren(element));
+   return ([unignored count]==1)?[unignored objectAtIndex:0]:nil;
 }
 
 /* The element itself, or the first ancestor that is not ignored. */
@@ -502,7 +560,15 @@ static void accessibilitySet(id object,NSString *key,id value) {
 
 @implementation NSObject (NSAccessibilityProperties)
 
--(BOOL)isAccessibilityElement { return [accessibilityGet(self,@"element") boolValue]; }
+/* Minkar: unless set, a control is an accessibility element and any
+   other view is not, as on the reference. */
+-(BOOL)isAccessibilityElement {
+   NSNumber *own=accessibilityGet(self,@"element");
+
+   if(own!=nil)
+    return [own boolValue];
+   return [self isKindOfClass:[NSControl class]];
+}
 -(void)setAccessibilityElement:(BOOL)flag { accessibilitySet(self,@"element",[NSNumber numberWithBool:flag]); }
 
 AX_OBJECT(accessibilityLabel,setAccessibilityLabel,@"label")
@@ -513,7 +579,18 @@ AX_OBJECT(accessibilitySubrole,setAccessibilitySubrole,@"subrole")
 AX_OBJECT(accessibilityIdentifier,setAccessibilityIdentifier,@"identifier")
 AX_OBJECT(accessibilityValue,setAccessibilityValue,@"value")
 AX_OBJECT(accessibilityValueDescription,setAccessibilityValueDescription,@"valueDescription")
-AX_OBJECT(accessibilityChildren,setAccessibilityChildren,@"children")
+/* Unless set, a view's children are its subviews (an ignored one stands
+   for its own, see NSAccessibilityUnignoredChildren). */
+-(NSArray *)accessibilityChildren {
+   NSArray *own=accessibilityGet(self,@"children");
+
+   if(own!=nil)
+    return own;
+   if([self isKindOfClass:[NSView class]])
+    return [(NSView *)self subviews];
+   return nil;
+}
+-(void)setAccessibilityChildren:(NSArray *)value { accessibilitySet(self,@"children",value); }
 AX_OBJECT(accessibilitySharedFocusElements,setAccessibilitySharedFocusElements,@"sharedFocusElements")
 AX_OBJECT(accessibilityCustomRotors,setAccessibilityCustomRotors,@"customRotors")
 AX_WEAK(accessibilityTitleUIElement,setAccessibilityTitleUIElement,@"titleUIElement")

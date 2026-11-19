@@ -78,6 +78,8 @@ NSString * const NSWindowWillMiniaturizeNotification=@"NSWindowWillMiniaturizeNo
 NSString * const NSWindowDidMiniaturizeNotification=@"NSWindowDidMiniaturizeNotification";
 NSString * const NSWindowDidDeminiaturizeNotification=@"NSWindowDidDeminiaturizeNotification";
 NSString * const NSWindowDidMoveNotification=@"NSWindowDidMoveNotification";
+NSString * const NSWindowWillBeginSheetNotification=@"NSWindowWillBeginSheetNotification";
+NSString * const NSWindowDidEndSheetNotification=@"NSWindowDidEndSheetNotification";
 NSString * const NSWindowDidResizeNotification=@"NSWindowDidResizeNotification";
 NSString * const NSWindowDidUpdateNotification=@"NSWindowDidUpdateNotification";
 NSString * const NSWindowWillCloseNotification=@"NSWindowWillCloseNotification";
@@ -920,6 +922,8 @@ static char representedURLKey;
     { NSWindowWillCloseNotification,@selector(windowWillClose:) },
     { NSWindowWillMiniaturizeNotification,@selector(windowWillMiniaturize:) },
     { NSWindowWillMoveNotification,@selector(windowWillMove:) },
+    { NSWindowWillBeginSheetNotification,@selector(windowWillBeginSheet:) },
+    { NSWindowDidEndSheetNotification,@selector(windowDidEndSheet:) },
     { nil, NULL }
    };
    int i;
@@ -2430,6 +2434,16 @@ static BOOL hasKeyViewLoop(NSView *view) {
    // Rebuild it on demand.
    [_trackingAreas release];
    _trackingAreas=nil;
+   /* Minkar: and on the next pass of the run loop while shown, so views
+      are asked to update their areas when their geometry changes (and
+      tell NSViewDidUpdateTrackingAreasNotification), as on the reference,
+      not only when the pointer next moves. */
+   if([self isVisible]){
+    NSArray *modes=[NSArray arrayWithObjects:NSDefaultRunLoopMode,NSModalPanelRunLoopMode,NSEventTrackingRunLoopMode,nil];
+
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(_resetTrackingAreas) object:nil];
+    [self performSelector:@selector(_resetTrackingAreas) withObject:nil afterDelay:0 inModes:modes];
+   }
 }
 
 // Never send this directly, except you actually need _trackingAreas.
@@ -2598,6 +2612,8 @@ static void sendAppearance(NSView *view,SEL selector) {
        SLSOrderWindow(slsWindowFor(_number), place == NSWindowAbove ? kSLSOrderAbove : kSLSOrderBelow,
            relativeTo ? slsWindowFor(relativeTo) : 0);
        [slsShown addObject:key];
+       /* Shown: its views' tracking areas are updated next. */
+       [self _invalidateTrackingAreas];
    }
 
    [self postNotificationName:NSWindowDidMoveNotification];
@@ -3252,6 +3268,10 @@ static NSMutableSet *hiddenByHide;
    NSWindow *sheet = [sheetContext sheet];
    NSRect    sheetFrame;
 
+   /* Told on the window the sheet goes on, as it begins (the delegate
+      first, as on the reference). */
+   [self postNotificationName:NSWindowWillBeginSheetNotification];
+
    if ([sheet styleMask] != NSDocModalWindowMask)
     [sheet setStyleMask:NSDocModalWindowMask];
 
@@ -3284,6 +3304,10 @@ static NSMutableSet *hiddenByHide;
 }
 
 -(void)_detachSheetContextAnimateAndOrderOut {
+    [self _detachSheetContextAnimateAndOrderOutNotifying:YES];
+}
+
+-(void)_detachSheetContextAnimateAndOrderOutNotifying:(BOOL)notify {
     NSWindow *sheet = [_sheetContext sheet];
     NSRect sheetFrame = [sheet frame];
 
@@ -3296,6 +3320,9 @@ static NSMutableSet *hiddenByHide;
      [self makeKeyWindow];
     [_sheetContext release];
     _sheetContext=nil;
+    /* Told once the sheet is off the window. */
+    if(notify)
+     [self postNotificationName:NSWindowDidEndSheetNotification];
     return;
 }
 

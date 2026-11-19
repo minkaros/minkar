@@ -136,6 +136,8 @@ APPKIT_EXPORT NSString *const NSWindowDidMiniaturizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidDeminiaturizeNotification;
 APPKIT_EXPORT NSString *const NSWindowWillMoveNotification;
 APPKIT_EXPORT NSString *const NSWindowDidMoveNotification;
+APPKIT_EXPORT NSString *const NSWindowWillBeginSheetNotification;
+APPKIT_EXPORT NSString *const NSWindowDidEndSheetNotification;
 APPKIT_EXPORT NSString *const NSWindowDidResizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidUpdateNotification;
 APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;

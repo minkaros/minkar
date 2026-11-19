@@ -66,6 +66,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <unistd.h>
 
 
+/* Minkar: API 19's release, as the reference's last one reports it. */
+const NSAppKitVersion NSAppKitVersionNumber=1894.7;
 NSString * const NSModalPanelRunLoopMode=@"NSModalPanelRunLoopMode";
 NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";
 
@@ -1944,8 +1946,13 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
 
     if([context sheet]==sheet){
      [[context retain] autorelease];
+     [[sheet retain] autorelease];
 
-     [check _detachSheetContextAnimateAndOrderOut];
+     /* The sheet goes, then its delegate (its completion handler) is
+        told, then NSWindowDidEndSheetNotification: the handler first,
+        as on the reference, with the window already free of the sheet
+        (a handler closing the window or beginning another sheet). */
+     [check _detachSheetContextAnimateAndOrderOutNotifying:NO];
      [sheet _setSheetParent:nil];
 
      function=[[context modalDelegate] methodForSelector:[context didEndSelector]];
@@ -1953,6 +1960,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
      if(function!=NULL)
       ((endfunction_t)function)([context modalDelegate],[context didEndSelector],sheet,returnCode,[context contextInfo]);
 
+     [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidEndSheetNotification object:check];
      return;
     }
    }

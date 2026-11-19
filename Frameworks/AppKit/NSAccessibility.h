@@ -339,6 +339,9 @@ APPKIT_EXPORT NSString *NSAccessibilityRoleDescription(
     NSString *role,
     NSString *subrole);
 
+APPKIT_EXPORT NSArray *NSAccessibilityUnignoredChildren(NSArray *originalChildren);
+APPKIT_EXPORT NSArray *NSAccessibilityUnignoredChildrenForOnlyChild(id originalChild);
+APPKIT_EXPORT id NSAccessibilityUnignoredDescendant(id element);
 APPKIT_EXPORT id NSAccessibilityUnignoredAncestor(
     id element);
 
@@ -348,6 +351,7 @@ APPKIT_EXPORT NSString *const NSAccessibilityException;
 APPKIT_EXPORT NSString *const NSAccessibilityAnnouncementRequestedNotification;
 APPKIT_EXPORT NSString *const NSAccessibilityAnnouncementKey;
 APPKIT_EXPORT NSString *const NSAccessibilityPriorityKey;
+APPKIT_EXPORT NSString *const NSAccessibilityUIElementsKey;
 APPKIT_EXPORT NSString *const NSAccessibilityLayoutChangedNotification;
 
 typedef NS_ENUM(NSInteger, NSAccessibilityPriorityLevel) {

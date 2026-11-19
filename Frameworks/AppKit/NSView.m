@@ -49,6 +49,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <QuartzCore/CAMetalLayerPrivate.h>
 
 NSString * const NSViewFrameDidChangeNotification=@"NSViewFrameDidChangeNotification";
+NSString * const NSViewDidUpdateTrackingAreasNotification=@"NSViewDidUpdateTrackingAreasNotification";
 NSString * const NSViewBoundsDidChangeNotification=@"NSViewBoundsDidChangeNotification";
 NSString * const NSViewGlobalFrameDidChangeNotification=@"NSViewGlobalFrameDidChangeNotification";
 
@@ -1707,6 +1708,8 @@ static NSView *framingView;
       */
      [self updateTrackingAreas];
      _validTrackingAreas=YES;
+     /* Each time the view is asked to update them, as on the reference. */
+     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewDidUpdateTrackingAreasNotification object:self];
     }
 
     count=[_trackingAreas count];
