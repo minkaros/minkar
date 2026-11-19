@@ -597,7 +597,45 @@ static const float kImageMargin = 2.;
    }
 }
 
+/* A check box or radio button (its image Atlas's NSSwitch or
+   NSRadioButton, its title to the right, no border): laid out as the
+   reference's, an 18-point square for the image (the 14-point box in its
+   middle) and the title 20 points in, 2 short of the right edge. */
+-(BOOL)_isToggleLayout {
+   NSString *name=[[self image] name];
+
+   if([self isBordered] || [self imagePosition]!=NSImageLeft || name==nil)
+    return NO;
+   return [name isEqualToString:@"NSSwitch"] || [name isEqualToString:@"NSHighlightedSwitch"] ||
+          [name isEqualToString:@"NSRadioButton"] || [name isEqualToString:@"NSHighlightedRadioButton"];
+}
+
+/* A line of the title: the font's ascender and descender (and leading)
+   rounded up, as a label's. */
+-(CGFloat)_toggleLineHeight {
+   NSFont *font=[self font];
+
+   if(font==nil)
+    return ceil([[self attributedTitle] size].height);
+   return ceil([font ascender]-[font descender]+[font leading]);
+}
+
+-(NSRect)titleRectForBounds:(NSRect)rect {
+   if([self _isToggleLayout]){
+    NSAttributedString *title=[self attributedTitle];
+    CGFloat             line=[self _toggleLineHeight];
+
+    /* No title, no rectangle; else a line's height, in the middle. */
+    if([title length]==0)
+     return NSZeroRect;
+    return NSMakeRect(rect.origin.x+20,rect.origin.y+floor((rect.size.height-line)/2),MAX(0,rect.size.width-22),line);
+   }
+   return [super titleRectForBounds:rect];
+}
+
 -(NSRect)imageRectForBounds:(NSRect)rect {
+    if([self _isToggleLayout])
+     return NSMakeRect(rect.origin.x,rect.origin.y,18,18);
     // Make sure we use the same image as will be drawn!
     NSImage *image = [self imageForHighlight];
 
@@ -986,6 +1024,14 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
      break;
 
     case NSImageLeft:
+     if([self _isToggleLayout]){
+      /* The box in the middle of its 18-point square; titleRect is
+         already 20 points in. */
+      imageSize=[[[self controlView] graphicsStyle] sizeOfButtonImage:image enabled:enabled mixed:mixed];
+      imageOrigin.x=frame.origin.x+floor((18-imageSize.width)/2);
+      imageOrigin.y=frame.origin.y+floor((frame.size.height-imageSize.height)/2);
+      break;
+     }
      imageOrigin.x=frame.origin.x+kImageMargin;
      titleRect.origin.x+=imageSize.width+4;
      titleRect.size.width-=imageSize.width+4;
@@ -1090,6 +1136,10 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
     }else {
         titleSize=[title size];
    }
+   /* A check box or radio button: its 18-point square, the title 20 points
+      in and 2 after it (the reference's: 18 high for a 13-point title). */
+   if([self _isToggleLayout])
+    return NSMakeSize(([title length]==0)?22:ceil(22+titleSize.width),MAX(18,[self _toggleLineHeight]+2));
    switch([self imagePosition]){
 
     case NSNoImage:

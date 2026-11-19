@@ -404,7 +404,8 @@ static CGFloat titleWidth(NSControl *control,NSString *title) {
    NSFont *font=[control font];
    NSDictionary *attributes=(font!=nil)?[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]:nil;
 
-   return (title!=nil)?ceil([title sizeWithAttributes:attributes].width):0;
+   /* No title takes no room (an empty string measured a point). */
+   return ([title length]>0)?ceil([title sizeWithAttributes:attributes].width):0;
 }
 
 /* A view's own content hugging, as measured on the reference: a control
