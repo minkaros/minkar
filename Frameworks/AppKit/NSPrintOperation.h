@@ -58,6 +58,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* Minkar: the operation run as a sheet of a window; the delegate's
    selector is called with whether it succeeded (API 10.0). */
+@interface NSPrintOperation (NSPrintOperationJobTitle)
+/* The print job's title (API 10.5); nil: the view's window's title. */
+@property (copy) NSString *jobTitle;
+@end
+
 @interface NSPrintOperation (MinkarSheet)
 - (void)runOperationModalForWindow:(NSWindow *)docWindow delegate:(id)delegate didRunSelector:(SEL)didRunSelector contextInfo:(void *)contextInfo;
 @end

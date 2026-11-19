@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSPrintOperation.h>
+#import <objc/runtime.h>
 #import <AppKit/NSPrintInfo.h>
 #import <AppKit/NSPrintPanel.h>
 #import <AppKit/NSView.h>
@@ -226,7 +227,7 @@ static NSPrintOperation *_currentOperation=nil;
      int           panelResult;
 
 		// We can't assume that there are valid titles on every window
-		NSString* title = [[_view window] title];
+		NSString* title = [self jobTitle] ?: [[_view window] title];
 		if (title == nil) {
 			title = @"Printing View";
 		}
@@ -249,7 +250,7 @@ static NSPrintOperation *_currentOperation=nil;
     if((context=(CGContextRef)[[_printInfo dictionary] objectForKey:@"_KGContext"])==nil)
      return nil;
    } else if(_type==NSPrintOperationPDFInRect){
-    NSDictionary *auxiliaryInfo=[NSDictionary dictionaryWithObject:[[_view window] title] forKey:(NSString *)kCGPDFContextTitle];
+    NSDictionary *auxiliaryInfo=[NSDictionary dictionaryWithObject:[self jobTitle] ?: [[_view window] title] ?: @"" forKey:(NSString *)kCGPDFContextTitle];
     
     CGDataConsumerRef consumer=CGDataConsumerCreateWithCFData((CFMutableDataRef)_mutableData);
     
@@ -364,4 +365,18 @@ static NSPrintOperation *_currentOperation=nil;
     function(delegate,didRunSelector,self,success,contextInfo);
    }
 }
+@end
+
+@implementation NSPrintOperation (NSPrintOperationJobTitle)
+
+static char jobTitleKey;
+
+-(NSString *)jobTitle {
+   return objc_getAssociatedObject(self,&jobTitleKey);
+}
+
+-(void)setJobTitle:(NSString *)title {
+   objc_setAssociatedObject(self,&jobTitleKey,title,OBJC_ASSOCIATION_COPY);
+}
+
 @end

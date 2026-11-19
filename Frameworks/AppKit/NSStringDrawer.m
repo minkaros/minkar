@@ -153,7 +153,14 @@ const float NSStringDrawerLargeDimension=1000000.;
 			size = [string size];
 		} while ([clippedTitle length] && size.width > rect.size.width);
 	}
-	[[NSStringDrawer sharedStringDrawer] drawAttributedString:string inRect:rect];
+	/* Minkar: laid out at least as high as the text, clipped to rect: a
+	   rect shorter than a line (a combo box at its natural height, under its
+	   insets) showed nothing; it is clipped at the bottom, as on the
+	   reference. */
+	NSRect layoutRect = rect;
+	if (layoutRect.size.height < size.height)
+		layoutRect.size.height = size.height;
+	[[NSStringDrawer sharedStringDrawer] drawAttributedString:string inRect:layoutRect];
    CGContextRestoreGState(graphicsPort);
 }
 
