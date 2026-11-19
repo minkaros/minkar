@@ -56,6 +56,8 @@ SUBDIR += AddressBook
 SUBDIR += AudioToolbox
 SUBDIR += OSAKit
 SUBDIR += Carbon
+# PDF documents (Quartz re-exports it).
+SUBDIR += PDFKit
 SUBDIR += Quartz
 # Frameworks Firefox links (13 Nov 2026): what it needs to load, each with
 # what Minkar can do today (see each Makefile).
@@ -128,7 +130,8 @@ AddressBook: Foundation
 AudioToolbox: CoreFoundation CoreAudio
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
-Quartz: AppKit QuickLook
+PDFKit: AppKit CoreGraphics
+Quartz: AppKit QuickLook PDFKit
 CoreAudio: CoreFoundation ../Kernel/IOKitUser
 AudioUnit: AudioToolbox
 CoreMedia: CoreFoundation CoreVideo CoreAudio AudioToolbox

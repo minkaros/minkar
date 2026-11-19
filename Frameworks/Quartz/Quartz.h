@@ -9,4 +9,5 @@
 /* Quartz's frameworks import QuartzCore, so it comes with Quartz. */
 #import <QuartzCore/QuartzCore.h>
 #import <Quartz/QLPreviewPanel.h>
+#import <PDFKit/PDFKit.h>
 #endif

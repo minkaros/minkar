@@ -3,7 +3,7 @@
 # Part of Minkar.
 #
 # Quartz.framework: Quick Look's preview panel; QuickLook.framework (the
-# requests generators answer), which it re-exports.
+# requests generators answer) and PDFKit.framework, which it re-exports.
 
 MK_WERROR = no
 FRAMEWORK = Quartz
@@ -16,7 +16,8 @@ SUBDIR =
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 CFLAGS += -I${.CURDIR:H} -F${FMWKS} -fobjc-arc
 LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Foundation -lobjc \
-	-Wl,-reexport_framework,QuickLook -Wl,-reexport_framework,QuartzCore
+	-Wl,-reexport_framework,QuickLook -Wl,-reexport_framework,QuartzCore \
+	-Wl,-reexport_framework,PDFKit
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
