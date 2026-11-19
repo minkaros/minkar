@@ -163,6 +163,12 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
   NSMapInsert(_nameToClass,class,className);
 }
 
+-(NSString *)_mappedNameOfClass:(Class)class {
+   NSString *name=NSMapGet(_nameToClass,(void *)class);
+
+   return (name!=nil)?name:NSMapGet(_globalNameToClass,(void *)class);
+}
+
 -(void)setOutputFormat:(NSPropertyListFormat)format {
    _outputFormat=format;
 }
@@ -292,19 +298,27 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
         
         [object encodeWithCoder:self];
 		
+	/* Minkar: a name set with setClassName:forClass: (this archiver's,
+	   then every archiver's) is written as the class's, alone, as the
+	   reference writes it (no $classes); a superclass's is not used. */
+	NSString *archName = [self _mappedNameOfClass:archClassObject];
 	NSMutableArray *supers = [[NSMutableArray alloc] init];
-	[supers addObject:archClass];
-	Class sup = class_getSuperclass([object classForKeyedArchiver]);
-	while( sup != nil )
-	{
-		[supers addObject:NSStringFromClass(sup)];
-		sup = class_getSuperclass(sup);
-	}
-		
-	NSDictionary *classMap = [NSDictionary dictionaryWithObjectsAndKeys:
+	NSDictionary *classMap;
+	if (archName != nil)
+		classMap = [NSDictionary dictionaryWithObject:archName forKey:@"$classname"];
+	else {
+		[supers addObject:archClass];
+		Class sup = class_getSuperclass(archClassObject);
+		while( sup != nil )
+		{
+			[supers addObject:NSStringFromClass(sup)];
+			sup = class_getSuperclass(sup);
+		}
+		classMap = [NSDictionary dictionaryWithObjectsAndKeys:
 				    supers, @"$classes",
                                     archClass, @"$classname",
                                     nil];
+	}
 		
 	[supers release];
                                     
