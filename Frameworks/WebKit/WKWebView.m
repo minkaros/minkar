@@ -115,6 +115,22 @@ static NSError *loadError(GError *error, const char *uri)
         case WEBKIT_NETWORK_ERROR_TRANSPORT: code = NSURLErrorCannotConnectToHost; break;
         default: code = NSURLErrorUnknown; break;
         }
+    } else if (error->domain == G_IO_ERROR) {
+        /* Errors of the connection itself, as Foundation's. */
+        switch (error->code) {
+        case G_IO_ERROR_CONNECTION_REFUSED: code = NSURLErrorCannotConnectToHost; break;
+        case G_IO_ERROR_HOST_NOT_FOUND: code = NSURLErrorCannotFindHost; break;
+        case G_IO_ERROR_HOST_UNREACHABLE:
+        case G_IO_ERROR_NETWORK_UNREACHABLE: code = NSURLErrorNotConnectedToInternet; break;
+        case G_IO_ERROR_TIMED_OUT: code = NSURLErrorTimedOut; break;
+        case G_IO_ERROR_CANCELLED: code = NSURLErrorCancelled; break;
+        case G_IO_ERROR_CONNECTION_CLOSED: code = NSURLErrorNetworkConnectionLost; break;   /* also a broken pipe */
+        default: code = NSURLErrorUnknown; break;
+        }
+    } else if (error->domain == G_RESOLVER_ERROR) {
+        code = NSURLErrorCannotFindHost;
+    } else if (error->domain == G_TLS_ERROR) {
+        code = NSURLErrorSecureConnectionFailed;
     } else if (error->domain == WEBKIT_POLICY_ERROR) {
         domain = @"WebKitErrorDomain";
         code = 100 + error->code;        /* 102: frame load interrupted */
@@ -504,6 +520,50 @@ SECURE
 - (id)copyWithZone:(NSZone *)zone { return self; }
 @end
 
+@interface WKNavigationResponse ()
+@property (readwrite, getter=isForMainFrame) BOOL forMainFrame;
+@property (readwrite, copy) NSURLResponse *response;
+@property (readwrite) BOOL canShowMIMEType;
+@end
+
+@implementation WKNavigationResponse
+@end
+
+/* A response as WebKit has it, as the Foundation response a delegate
+   reads: an HTTP one with its status and headers. */
+static NSURLResponse *responseFrom(WebKitURIResponse *response)
+{
+    NSURL *url = [NSURL URLWithString:@(webkit_uri_response_get_uri(response) ?: "about:blank")];
+    guint status = webkit_uri_response_get_status_code(response);
+    SoupMessageHeaders *headers = webkit_uri_response_get_http_headers(response);
+    if (status != 0 && headers != NULL) {
+        NSMutableDictionary *fields = [NSMutableDictionary dictionary];
+        SoupMessageHeadersIter iter;
+        const char *name, *value;
+        soup_message_headers_iter_init(&iter, headers);
+        while (soup_message_headers_iter_next(&iter, &name, &value))
+            fields[@(name)] = @(value);
+        if (fields[@"Content-Type"] == nil && webkit_uri_response_get_mime_type(response))
+            fields[@"Content-Type"] = @(webkit_uri_response_get_mime_type(response));
+        return [[NSHTTPURLResponse alloc] initWithURL:url statusCode:status HTTPVersion:@"HTTP/1.1" headerFields:fields];
+    }
+    const char *mime = webkit_uri_response_get_mime_type(response);
+    return [[NSURLResponse alloc] initWithURL:url MIMEType:mime ? @(mime) : nil
+                        expectedContentLength:(NSInteger)webkit_uri_response_get_content_length(response)
+                             textEncodingName:nil];
+}
+
+/* The sender of a challenge the delegate answers by its completion
+   handler; the sender's own methods are not used for a web view's. */
+@interface _WKAuthenticationSender : NSObject <NSURLAuthenticationChallengeSender>
+@end
+
+@implementation _WKAuthenticationSender
+- (void)useCredential:(NSURLCredential *)credential forAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge {}
+- (void)continueWithoutCredentialForAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge {}
+- (void)cancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge {}
+@end
+
 @interface WKNavigationAction ()
 @property (readwrite, copy) WKFrameInfo *sourceFrame;
 @property (readwrite, copy) WKFrameInfo *targetFrame;
@@ -615,7 +675,23 @@ static NSArray *itemsFrom(GList *list)
     BOOL _openedByPage;
     /* The load failed: WebKit's "finished" after it is not passed on. */
     BOOL _loadFailed;
+    /* What key-value observers saw last: each changes, with its old
+       value, only when WebKit's does. */
+    NSString *_kvoTitle;
+    NSURL *_kvoURL;
+    double _kvoProgress;
+    BOOL _kvoLoading, _kvoCanGoBack, _kvoCanGoForward, _kvoSecure;
+    /* The page loaded something over an insecure connection. */
+    BOOL _insecureContent;
+    /* A load's end held until the page's title has come (see
+       _syncEndOfLoad), and the finished navigation waiting for it. */
+    BOOL _endSyncing, _finishWaiting;
+    NSUInteger _syncGeneration;
+    WKNavigation *_finishedNavigation;
+    NSString *_pageTitle;                 /* the page's own answer */
 }
+
+static void evaluated(GObject *object, GAsyncResult *result, gpointer data);
 
 static void frameArrived(void *context, const guint8 *pixels, int width, int height, guint stride,
                          const WPERectangle *damage, guint damageCount)
@@ -648,6 +724,26 @@ static void propertyChanged(GObject *object, GParamSpec *pspec, gpointer data)
 {
     (void)object;
     [(__bridge WKWebView *)data _propertyChanged:pspec->name];
+}
+
+static void backForwardChanged(WebKitBackForwardList *list, WebKitBackForwardListItem *added, gpointer removed, gpointer data)
+{
+    (void)list; (void)added; (void)removed;
+    /* Forward first, as on the reference. */
+    [(__bridge WKWebView *)data _refreshKey:@"canGoForward"];
+    [(__bridge WKWebView *)data _refreshKey:@"canGoBack"];
+}
+
+static void insecureContentDetected(WebKitWebView *webView, WebKitInsecureContentEvent event, gpointer data)
+{
+    (void)webView; (void)event;
+    [(__bridge WKWebView *)data _insecureContentDetected];
+}
+
+static gboolean authenticate(WebKitWebView *webView, WebKitAuthenticationRequest *request, gpointer data)
+{
+    (void)webView;
+    return [(__bridge WKWebView *)data _authenticate:request];
 }
 
 static WebKitWebView *createWebView(WebKitWebView *webView, WebKitNavigationAction *action, gpointer data)
@@ -746,6 +842,10 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
                                         "notify::is-loading" };
         for (size_t i = 0; i < sizeof(notifications) / sizeof(*notifications); i++)
             g_signal_connect(_webView, notifications[i], G_CALLBACK(propertyChanged), me);
+        g_signal_connect(webkit_web_view_get_back_forward_list(_webView), "changed", G_CALLBACK(backForwardChanged), me);
+        g_signal_connect(_webView, "insecure-content-detected", G_CALLBACK(insecureContentDetected), me);
+        g_signal_connect(_webView, "authenticate", G_CALLBACK(authenticate), me);
+        _kvoTitle = @"";
 
         _wpeView = webkit_web_view_get_wpe_view(_webView);
         _WebWPEViewSetFrameFunction(_wpeView, frameArrived, me);
@@ -973,12 +1073,25 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 
 - (WKWebViewConfiguration *)configuration { return [_configuration copy]; }
 - (WKBackForwardList *)backForwardList { return _backForwardList; }
-- (NSString *)title { return stringOrNil(webkit_web_view_get_title(_webView)); }
-- (NSURL *)URL { return URLOrNil(webkit_web_view_get_uri(_webView)); }
-- (BOOL)isLoading { return webkit_web_view_is_loading(_webView); }
-- (double)estimatedProgress { return webkit_web_view_get_estimated_load_progress(_webView); }
-- (BOOL)canGoBack { return webkit_web_view_can_go_back(_webView); }
-- (BOOL)canGoForward { return webkit_web_view_can_go_forward(_webView); }
+/* As key-value observers last saw them (they follow WebKit's own). */
+- (NSString *)title { return _kvoTitle; }
+- (NSURL *)URL { return _kvoURL; }
+- (BOOL)isLoading { return _kvoLoading; }
+- (double)estimatedProgress { return _kvoProgress; }
+- (BOOL)canGoBack { return _kvoCanGoBack; }
+- (BOOL)canGoForward { return _kvoCanGoForward; }
+- (BOOL)hasOnlySecureContent { return _kvoSecure; }
+
+/* Secure: an https page whose certificate WebKit took without errors,
+   and nothing it loaded since came over an insecure connection. */
+- (BOOL)_liveSecure {
+    const char *uri = webkit_web_view_get_uri(_webView);
+    GTlsCertificate *certificate = NULL;
+    GTlsCertificateFlags errors = 0;
+    if (uri == NULL || strncmp(uri, "https:", 6) != 0 || _insecureContent)
+        return NO;
+    return webkit_web_view_get_tls_info(_webView, &certificate, &errors) && errors == 0;
+}
 
 - (NSString *)customUserAgent { return _customUserAgent; }
 
@@ -995,27 +1108,150 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     webkit_web_view_set_zoom_level(_webView, magnification);
 }
 
-/* Key-value observing sees these change as WebKit's properties do. */
-- (void)_propertyChanged:(const char *)property {
-    NSString *key = nil;
-    if (!strcmp(property, "title")) key = @"title";
-    else if (!strcmp(property, "uri")) key = @"URL";
-    else if (!strcmp(property, "estimated-load-progress")) key = @"estimatedProgress";
-    else if (!strcmp(property, "is-loading")) key = @"loading";
-    if (key == nil)
-        return;
-    [self willChangeValueForKey:key];
-    [self didChangeValueForKey:key];
-    if ([key isEqualToString:@"URL"]) {
-        [self willChangeValueForKey:@"canGoBack"];
-        [self didChangeValueForKey:@"canGoBack"];
-        [self willChangeValueForKey:@"canGoForward"];
-        [self didChangeValueForKey:@"canGoForward"];
+/* Key-value observing sees these change as WebKit's properties do: once,
+   with the old value, as on the reference (the title empty, not nil, while
+   a page has none). */
+- (void)_refreshKey:(NSString *)key {
+    if ([key isEqualToString:@"title"]) {
+        NSString *now = stringOrNil(webkit_web_view_get_title(_webView)) ?: @"";
+        if ([now isEqualToString:_kvoTitle])
+            return;
+        [self willChangeValueForKey:key];
+        _kvoTitle = [now copy];
+        [self didChangeValueForKey:key];
+    } else if ([key isEqualToString:@"URL"]) {
+        NSURL *now = URLOrNil(webkit_web_view_get_uri(_webView));
+        if (now == _kvoURL || [now isEqual:_kvoURL])
+            return;
+        [self willChangeValueForKey:key];
+        _kvoURL = [now copy];
+        [self didChangeValueForKey:key];
+    } else if ([key isEqualToString:@"estimatedProgress"]) {
+        double now = webkit_web_view_get_estimated_load_progress(_webView);
+        if (now == _kvoProgress)
+            return;
+        [self willChangeValueForKey:key];
+        _kvoProgress = now;
+        [self didChangeValueForKey:key];
+    } else {
+        BOOL *slot;
+        BOOL now;
+        if ([key isEqualToString:@"loading"]) {
+            slot = &_kvoLoading;
+            now = webkit_web_view_is_loading(_webView);
+        } else if ([key isEqualToString:@"canGoBack"]) {
+            slot = &_kvoCanGoBack;
+            now = webkit_web_view_can_go_back(_webView);
+        } else if ([key isEqualToString:@"canGoForward"]) {
+            slot = &_kvoCanGoForward;
+            now = webkit_web_view_can_go_forward(_webView);
+        } else if ([key isEqualToString:@"hasOnlySecureContent"]) {
+            slot = &_kvoSecure;
+            now = [self _liveSecure];
+        } else
+            return;
+        if (now == *slot)
+            return;
+        [self willChangeValueForKey:key];
+        *slot = now;
+        [self didChangeValueForKey:key];
     }
 }
 
+/* WebKit tells its properties in an order of its own; observers see them
+   as on the reference: as a load starts, the progress, the URL, then
+   loading; as it ends, the title, the progress and the URL (back where it
+   was, after a failure), then loading. */
+- (void)_propertyChanged:(const char *)property {
+    if (!strcmp(property, "title")) {
+        [self _refreshKey:@"title"];
+        return;
+    }
+    BOOL liveLoading = webkit_web_view_is_loading(_webView);
+    /* A load that completes: its end waits for the title. */
+    if (_kvoLoading && webkit_web_view_get_estimated_load_progress(_webView) >= 1.0 &&
+        (!strcmp(property, "estimated-load-progress") || (!strcmp(property, "is-loading") && !liveLoading))) {
+        [self _syncEndOfLoad];
+        return;
+    }
+    if (_endSyncing) {
+        if (!(!strcmp(property, "is-loading") && liveLoading))
+            return;                       /* told when the end is */
+        [self _flushEndOfLoad];           /* a new load: the last one ends first */
+    }
+    if (!strcmp(property, "uri")) [self _refreshKey:@"URL"];
+    else if (!strcmp(property, "estimated-load-progress")) [self _refreshKey:@"estimatedProgress"];
+    else if (!strcmp(property, "is-loading")) {
+        [self _refreshKey:@"title"];
+        [self _refreshKey:@"estimatedProgress"];
+        [self _refreshKey:@"URL"];
+        [self _refreshKey:@"loading"];
+    }
+}
+
+/* WebKit tells a page's title a moment after its load has finished; on
+   the reference the title is there as the load ends, before the delegate
+   hears of it (an app reads it then, a browser for its history). The
+   page is asked for its title, and the end is told with it: title,
+   progress, URL, loading, then the delegate's didFinishNavigation:
+   (WebKit's own notice of the same title, later, changes nothing). A
+   second at most; without an answer (scripts off), WebKit's title. */
+- (void)_syncEndOfLoad {
+    if (_endSyncing)
+        return;
+    _endSyncing = YES;
+    NSUInteger generation = ++_syncGeneration;
+    __weak WKWebView *weakSelf = self;
+    void (^done)(void) = ^{
+        WKWebView *me = weakSelf;
+        if (me != nil && me->_syncGeneration == generation)
+            [me _flushEndOfLoad];
+    };
+    webkit_web_view_evaluate_javascript(_webView, "document.title", -1, NULL, NULL, NULL, evaluated,
+                                        (__bridge_retained void *)[^(id result, NSError *error) {
+                                            WKWebView *me = weakSelf;
+                                            if (me != nil && me->_syncGeneration == generation &&
+                                                error == nil && [result isKindOfClass:[NSString class]])
+                                                me->_pageTitle = [result copy];
+                                            done();
+                                        } copy]);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), done);
+}
+
+- (void)_flushEndOfLoad {
+    if (!_endSyncing)
+        return;
+    _endSyncing = NO;
+    _syncGeneration++;
+    NSString *pageTitle = _pageTitle;
+    _pageTitle = nil;
+    if (pageTitle != nil && ![pageTitle isEqualToString:_kvoTitle]) {
+        [self willChangeValueForKey:@"title"];
+        _kvoTitle = pageTitle;
+        [self didChangeValueForKey:@"title"];
+    } else
+        [self _refreshKey:@"title"];
+    [self _refreshKey:@"estimatedProgress"];
+    [self _refreshKey:@"URL"];
+    [self _refreshKey:@"loading"];
+    if (_finishWaiting) {
+        _finishWaiting = NO;
+        WKNavigation *navigation = _finishedNavigation;
+        _finishedNavigation = nil;
+        id<WKNavigationDelegate> d = self.navigationDelegate;
+        if ([d respondsToSelector:@selector(webView:didFinishNavigation:)])
+            [d webView:self didFinishNavigation:navigation];
+    }
+}
+
+- (void)_insecureContentDetected {
+    _insecureContent = YES;
+    [self _refreshKey:@"hasOnlySecureContent"];
+}
+
 + (BOOL)automaticallyNotifiesObserversForKey:(NSString *)key {
-    NSSet *ours = [NSSet setWithObjects:@"title", @"URL", @"estimatedProgress", @"loading", @"canGoBack", @"canGoForward", nil];
+    NSSet *ours = [NSSet setWithObjects:@"title", @"URL", @"estimatedProgress", @"loading", @"canGoBack", @"canGoForward",
+                   @"hasOnlySecureContent", nil];
     return [ours containsObject:key] ? NO : [super automaticallyNotifiesObserversForKey:key];
 }
 
@@ -1097,10 +1333,17 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     switch (event) {
     case WEBKIT_LOAD_STARTED:
         _loadFailed = NO;
+        _insecureContent = NO;
         if ([d respondsToSelector:@selector(webView:didStartProvisionalNavigation:)])
             [d webView:self didStartProvisionalNavigation:_navigation];
         break;
+    case WEBKIT_LOAD_REDIRECTED:
+        [self _refreshKey:@"URL"];
+        if ([d respondsToSelector:@selector(webView:didReceiveServerRedirectForProvisionalNavigation:)])
+            [d webView:self didReceiveServerRedirectForProvisionalNavigation:_navigation];
+        break;
     case WEBKIT_LOAD_COMMITTED:
+        [self _refreshKey:@"hasOnlySecureContent"];
         if ([d respondsToSelector:@selector(webView:didCommitNavigation:)])
             [d webView:self didCommitNavigation:_navigation];
         break;
@@ -1109,6 +1352,11 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         _navigation = nil;
         if (_loadFailed) {
             _loadFailed = NO;
+            break;
+        }
+        if (_endSyncing) {                /* told with the title */
+            _finishWaiting = YES;
+            _finishedNavigation = navigation;
             break;
         }
         if ([d respondsToSelector:@selector(webView:didFinishNavigation:)])
@@ -1134,9 +1382,9 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 
 /* A navigation the delegate decides on, now or later: WebKit waits. */
 - (gboolean)_decidePolicy:(WebKitPolicyDecision *)decision type:(WebKitPolicyDecisionType)type {
-    if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE)
-        return FALSE;                    /* WebKit's own choice */
     id<WKNavigationDelegate> d = self.navigationDelegate;
+    if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE)
+        return [self _decideResponse:WEBKIT_RESPONSE_POLICY_DECISION(decision)];
     if (![d respondsToSelector:@selector(webView:decidePolicyForNavigationAction:decisionHandler:)])
         return FALSE;
 
@@ -1155,6 +1403,90 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         else
             webkit_policy_decision_ignore(decision);
         g_object_unref(decision);
+    }];
+    return TRUE;
+}
+
+/* A response: the delegate's decision, now or later; without one,
+   WebKit's own (show what it can). */
+- (gboolean)_decideResponse:(WebKitResponsePolicyDecision *)decision {
+    id<WKNavigationDelegate> d = self.navigationDelegate;
+    SEL selector = @selector(webView:decidePolicyForNavigationResponse:decisionHandler:);
+    if (![d respondsToSelector:selector])
+        return FALSE;
+    WKNavigationResponse *response = [WKNavigationResponse new];
+    response.response = responseFrom(webkit_response_policy_decision_get_response(decision));
+    response.forMainFrame = webkit_response_policy_decision_is_main_frame_main_resource(decision);
+    response.canShowMIMEType = webkit_response_policy_decision_is_mime_type_supported(decision);
+
+    g_object_ref(decision);
+    __block BOOL decided = NO;
+    [d webView:self decidePolicyForNavigationResponse:response decisionHandler:^(WKNavigationResponsePolicy policy) {
+        if (decided)
+            return;
+        decided = YES;
+        if (policy == WKNavigationResponsePolicyAllow)
+            webkit_policy_decision_use(WEBKIT_POLICY_DECISION(decision));
+        else
+            webkit_policy_decision_ignore(WEBKIT_POLICY_DECISION(decision));
+        g_object_unref(decision);
+    }];
+    return TRUE;
+}
+
+/* A server asks who the user is: the delegate answers, now or later,
+   with a credential, the default handling (none: the request goes on
+   without one) or a cancellation. Without a delegate, as the default. */
+- (gboolean)_authenticate:(WebKitAuthenticationRequest *)request {
+    id<WKNavigationDelegate> d = self.navigationDelegate;
+    SEL selector = @selector(webView:didReceiveAuthenticationChallenge:completionHandler:);
+    if (![d respondsToSelector:selector])
+        return FALSE;
+    NSString *method;
+    switch (webkit_authentication_request_get_scheme(request)) {
+    case WEBKIT_AUTHENTICATION_SCHEME_HTTP_BASIC: method = NSURLAuthenticationMethodHTTPBasic; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_HTTP_DIGEST: method = NSURLAuthenticationMethodHTTPDigest; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_HTML_FORM: method = NSURLAuthenticationMethodHTMLForm; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_NTLM: method = NSURLAuthenticationMethodNTLM; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_NEGOTIATE: method = NSURLAuthenticationMethodNegotiate; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_CLIENT_CERTIFICATE_REQUESTED: method = NSURLAuthenticationMethodClientCertificate; break;
+    case WEBKIT_AUTHENTICATION_SCHEME_SERVER_TRUST_EVALUATION_REQUESTED: method = NSURLAuthenticationMethodServerTrust; break;
+    default: method = NSURLAuthenticationMethodDefault; break;
+    }
+    const char *uri = webkit_web_view_get_uri(_webView);
+    NSString *protocol = (uri != NULL && strncmp(uri, "https:", 6) == 0) ? @"https" : @"http";
+    NSURLProtectionSpace *space = [[NSURLProtectionSpace alloc]
+        initWithHost:@(webkit_authentication_request_get_host(request) ?: "")
+                port:webkit_authentication_request_get_port(request)
+            protocol:protocol
+               realm:stringOrNil(webkit_authentication_request_get_realm(request))
+authenticationMethod:method];
+    NSURLAuthenticationChallenge *challenge = [[NSURLAuthenticationChallenge alloc]
+        initWithProtectionSpace:space proposedCredential:nil
+           previousFailureCount:webkit_authentication_request_is_retry(request) ? 1 : 0
+                failureResponse:nil error:nil sender:[_WKAuthenticationSender new]];
+
+    g_object_ref(request);
+    __block BOOL answered = NO;
+    [d webView:self didReceiveAuthenticationChallenge:challenge
+        completionHandler:^(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
+        if (answered)
+            return;
+        answered = YES;
+        if (disposition == NSURLSessionAuthChallengeUseCredential && credential.user != nil) {
+            WebKitCredentialPersistence persistence =
+                credential.persistence == NSURLCredentialPersistencePermanent ? WEBKIT_CREDENTIAL_PERSISTENCE_PERMANENT
+                : credential.persistence == NSURLCredentialPersistenceForSession ? WEBKIT_CREDENTIAL_PERSISTENCE_FOR_SESSION
+                : WEBKIT_CREDENTIAL_PERSISTENCE_NONE;
+            WebKitCredential *answer = webkit_credential_new(credential.user.UTF8String,
+                                                             (credential.password ?: @"").UTF8String, persistence);
+            webkit_authentication_request_authenticate(request, answer);
+            webkit_credential_free(answer);
+        } else if (disposition == NSURLSessionAuthChallengePerformDefaultHandling)
+            webkit_authentication_request_authenticate(request, NULL);   /* go on without one */
+        else
+            webkit_authentication_request_cancel(request);
+        g_object_unref(request);
     }];
     return TRUE;
 }

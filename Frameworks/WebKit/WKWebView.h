@@ -36,6 +36,11 @@ typedef NS_ENUM(NSInteger, WKNavigationActionPolicy) {
     WKNavigationActionPolicyAllow
 };
 
+typedef NS_ENUM(NSInteger, WKNavigationResponsePolicy) {
+    WKNavigationResponsePolicyCancel,
+    WKNavigationResponsePolicyAllow
+};
+
 typedef NS_ENUM(NSInteger, WKNavigationType) {
     WKNavigationTypeLinkActivated,
     WKNavigationTypeFormSubmitted,
@@ -145,6 +150,14 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property (readonly) NSInteger buttonNumber;
 @end
 
+/* A response the delegate decides on before it is shown (or downloaded
+   by the app, when the web view cannot show its type). */
+@interface WKNavigationResponse : NSObject
+@property (readonly, getter=isForMainFrame) BOOL forMainFrame;
+@property (readonly, copy) NSURLResponse *response;
+@property (readonly) BOOL canShowMIMEType;
+@end
+
 @protocol WKNavigationDelegate <NSObject>
 @optional
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction
@@ -154,6 +167,12 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 - (void)webView:(WKWebView *)webView didFinishNavigation:(null_unspecified WKNavigation *)navigation;
 - (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(null_unspecified WKNavigation *)navigation withError:(NSError *)error;
 - (void)webView:(WKWebView *)webView didFailNavigation:(null_unspecified WKNavigation *)navigation withError:(NSError *)error;
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationResponse:(WKNavigationResponse *)navigationResponse
+    decisionHandler:(void (^)(WKNavigationResponsePolicy))decisionHandler;
+- (void)webView:(WKWebView *)webView didReceiveServerRedirectForProvisionalNavigation:(null_unspecified WKNavigation *)navigation;
+- (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
+    completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *_Nullable credential))completionHandler;
+- (void)webViewWebContentProcessDidTerminate:(WKWebView *)webView API_AVAILABLE(macos(10.11));
 @end
 
 /* What a page asked of a window it opens; nil where it said nothing. */
@@ -208,6 +227,8 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property (readonly) double estimatedProgress;
 @property (readonly) BOOL canGoBack;
 @property (readonly) BOOL canGoForward;
+/* Every resource of the page came over a secure connection. */
+@property (readonly) BOOL hasOnlySecureContent;
 @property (nullable, copy) NSString *customUserAgent;
 @property BOOL allowsBackForwardNavigationGestures;
 @property BOOL allowsMagnification;
