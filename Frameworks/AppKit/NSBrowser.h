@@ -85,6 +85,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setDoubleAction:(SEL)action;
 - (void)setMatrixClass:(Class)aClass;
 - (void)setCellClass:(Class)aClass;
+- (id)cellPrototype;
+- (void)setCellPrototype:(NSCell *)cell;
 - (void)setMaxVisibleColumns:(NSInteger)count;
 - (void)setHasHorizontalScroller:(BOOL)flag;
 - (void)setSeparatesColumns:(BOOL)flag;

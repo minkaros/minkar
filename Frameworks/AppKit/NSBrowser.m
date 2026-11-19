@@ -370,7 +370,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _matrixClass=class;
 }
 
+/* Minkar: the cell new columns' cells are copied from: by default one of
+   the cell class (never nil), as on the reference. */
+-(id)cellPrototype {
+   if(_cellPrototype==nil)
+    _cellPrototype=[[_cellClass alloc] init];
+   return _cellPrototype;
+}
+
+-(void)setCellPrototype:(NSCell *)cell {
+   cell=[cell retain];
+   [_cellPrototype release];
+   _cellPrototype=cell;
+}
+
 -(void)setCellClass:(Class)class {
+   [_cellPrototype release];
+   _cellPrototype=nil;
    _cellClass=class;
 }
 
@@ -624,6 +640,7 @@ static char pathSeparatorKey;
     [matrix setDoubleAction:@selector(doDoubleClick:)];
 
     [matrix setCellClass:[self cellClass]];
+    [matrix setPrototype:[self cellPrototype]];
     [matrix setCellSize:NSMakeSize(frame.size.width,16)];
     [matrix setAutoresizingMask:NSViewWidthSizable];
     [matrix setAutosizesCells:YES];
