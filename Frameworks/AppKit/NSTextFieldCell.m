@@ -81,8 +81,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _backgroundColor;
 }
 
+/* Minkar: controlTextColor when none is set, as on the reference. */
 -(NSColor *)textColor {
-   return _textColor;
+   return (_textColor!=nil)?_textColor:[NSColor controlTextColor];
 }
 
 -(BOOL)drawsBackground {
@@ -191,10 +192,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     if(font!=nil)
      [attributes setObject:font forKey:NSFontAttributeName];
 
+    /* Always a color: none drew in the context's current one (a combo
+       box's bezel gray). */
     if([self isEnabled]){
-     if(_textColor!=nil)
-      [attributes setObject:_textColor
-                     forKey:NSForegroundColorAttributeName];
+     [attributes setObject:(_textColor!=nil)?_textColor:[NSColor controlTextColor]
+                    forKey:NSForegroundColorAttributeName];
     }
     else {
      [attributes setObject:[NSColor disabledControlTextColor]
