@@ -1338,6 +1338,12 @@ static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
     NSMutableArray<_WKURLSchemeTask *> *_schemeTasks;
     NSMutableDictionary<NSString *, NSError *> *_schemeErrors;
     NSEvent *_menuEvent;                  /* the click a context menu is for */
+    /* The page's vertical scroller, from its scroll position and height
+       (asked of the page), and those last seen. */
+    NSScroller *_verticalScroller;
+    NSTimer *_scrollerTimer;
+    BOOL _scrollerQueryPending;
+    double _pageScrollY, _pageHeight, _pageViewHeight, _pageScrollX;
 }
 
 /* Each WebKit view's web view, to find it from WebKit's requests. */
@@ -1567,8 +1573,96 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 
         _backForwardList = [WKBackForwardList new];
         _backForwardList.webView = self;
+        [self _makeScroller];
     }
     return self;
+}
+
+#pragma mark Scroller
+
+/* A legacy scroller at the right edge, as the reference shows one with a
+   mouse attached, over a page taller than the view. */
+- (void)_makeScroller {
+    CGFloat width = [NSScroller scrollerWidthForControlSize:NSControlSizeRegular scrollerStyle:NSScrollerStyleLegacy];
+    NSRect bounds = self.bounds;
+
+    _verticalScroller = [[NSScroller alloc] initWithFrame:NSMakeRect(NSMaxX(bounds) - width, 0, width, NSHeight(bounds))];
+    _verticalScroller.autoresizingMask = NSViewMinXMargin | NSViewHeightSizable;
+    _verticalScroller.target = self;
+    _verticalScroller.action = @selector(_scrollerMoved:);
+    _verticalScroller.enabled = YES;
+    _verticalScroller.hidden = YES;
+    [self addSubview:_verticalScroller];
+}
+
+/* The page's scroll position and sizes, asked for; the scroller set from
+   them. One question at a time. */
+- (void)_updateScroller {
+    if (_scrollerQueryPending || _webView == NULL)
+        return;
+    _scrollerQueryPending = YES;
+    __weak WKWebView *weakSelf = self;
+    [self evaluateJavaScript:@"[window.scrollY, Math.max(document.documentElement ? document.documentElement.scrollHeight : 0, document.body ? document.body.scrollHeight : 0), window.innerHeight, window.scrollX]"
+           completionHandler:^(id result, NSError *error) {
+        WKWebView *me = weakSelf;
+
+        if (me == nil)
+            return;
+        me->_scrollerQueryPending = NO;
+        if (![result isKindOfClass:[NSArray class]] || [result count] < 4)
+            return;
+        [me _setScrollY:[result[0] doubleValue] height:[result[1] doubleValue] viewHeight:[result[2] doubleValue] scrollX:[result[3] doubleValue]];
+    }];
+}
+
+- (void)_setScrollY:(double)y height:(double)height viewHeight:(double)viewHeight scrollX:(double)x {
+    BOOL scrolls = height > viewHeight + 1 && viewHeight > 0;
+
+    _pageScrollY = y;
+    _pageHeight = height;
+    _pageViewHeight = viewHeight;
+    _pageScrollX = x;
+    _verticalScroller.hidden = !scrolls;
+    if (scrolls) {
+        _verticalScroller.knobProportion = viewHeight / height;
+        _verticalScroller.doubleValue = MAX(0, MIN(1, y / (height - viewHeight)));
+        [_verticalScroller setNeedsDisplay:YES];
+    }
+}
+
+- (void)_scrollPageTo:(double)y {
+    y = MAX(0, MIN(_pageHeight - _pageViewHeight, y));
+    [self evaluateJavaScript:[NSString stringWithFormat:@"window.scrollTo(%g, %g)", _pageScrollX, y] completionHandler:nil];
+    [self _setScrollY:y height:_pageHeight viewHeight:_pageViewHeight scrollX:_pageScrollX];
+}
+
+/* The scroller moved: its knob dragged or its slot or arrows clicked. */
+- (void)_scrollerMoved:(NSScroller *)scroller {
+    double range = _pageHeight - _pageViewHeight;
+
+    switch (scroller.hitPart) {
+    case NSScrollerDecrementPage: [self _scrollPageTo:_pageScrollY - _pageViewHeight * 0.9]; break;
+    case NSScrollerIncrementPage: [self _scrollPageTo:_pageScrollY + _pageViewHeight * 0.9]; break;
+    case NSScrollerDecrementLine: [self _scrollPageTo:_pageScrollY - 40]; break;
+    case NSScrollerIncrementLine: [self _scrollPageTo:_pageScrollY + 40]; break;
+    default: [self _scrollPageTo:scroller.doubleValue * range]; break;
+    }
+}
+
+/* Asked again now and then while shown (a page's height changes as it
+   loads and runs). */
+- (void)_startScrollerTimer {
+    [_scrollerTimer invalidate];
+    _scrollerTimer = nil;
+    if (self.window == nil)
+        return;
+    __weak WKWebView *weakSelf = self;
+    _scrollerTimer = [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer *timer) {
+        WKWebView *me = weakSelf;
+        if (me == nil || me.window == nil) { [timer invalidate]; return; }
+        if (!me.isHiddenOrHasHiddenAncestor)
+            [me _updateScroller];
+    }];
 }
 
 - (instancetype)initWithFrame:(NSRect)frame {
@@ -1581,6 +1675,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_scrollerTimer invalidate];
     if (_wpeView)
         _WebWPEViewSetFrameFunction(_wpeView, NULL, NULL);
     if (_webView) {
@@ -1722,6 +1817,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         [center addObserver:self selector:@selector(_windowKeyChanged:) name:NSWindowDidResignKeyNotification object:window];
     }
     _WebWPEViewSetActive(_wpeView, window.isKeyWindow);
+    [self _startScrollerTimer];
 }
 
 - (void)viewDidHide { [super viewDidHide]; _WebWPEViewSetMapped(_wpeView, NO); }
@@ -1832,8 +1928,14 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 - (void)otherMouseDown:(NSEvent *)event { [self _send:event]; }
 - (void)otherMouseUp:(NSEvent *)event { [self _send:event]; }
 - (void)otherMouseDragged:(NSEvent *)event { [self _send:event]; }
-- (void)scrollWheel:(NSEvent *)event { [self _send:event]; }
-- (void)keyDown:(NSEvent *)event { [self _send:event]; }
+- (void)scrollWheel:(NSEvent *)event {
+    [self _send:event];
+    [self performSelector:@selector(_updateScroller) withObject:nil afterDelay:0.05];
+}
+- (void)keyDown:(NSEvent *)event {
+    [self _send:event];
+    [self performSelector:@selector(_updateScroller) withObject:nil afterDelay:0.1];
+}
 - (void)keyUp:(NSEvent *)event { [self _send:event]; }
 
 - (void)flagsChanged:(NSEvent *)event {
