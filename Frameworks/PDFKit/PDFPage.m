@@ -6,6 +6,7 @@
 
 #import "PDFKitPrivate.h"
 #import <Onyx2D/O2PDFTextExtractor.h>
+#import <Onyx2D/O2PDFRaw.h>
 
 @interface PDFDocument (PDFPageLabels)
 - (nullable NSString *)_labelForPage:(PDFPage *)page;
@@ -20,6 +21,7 @@
     NSData *_characterBounds;                              // a PDFRect per character
     BOOL _textRead;
     NSMutableArray<PDFAnnotation *> *_annotations;         // once read
+    BOOL _annotationsChanged;                              // added, removed or changed
 }
 
 /* A blank page, US Letter. */
@@ -191,20 +193,40 @@
         CGPDFArrayRef annots;
 
         _annotations = [NSMutableArray array];
-        if (_pageRef != NULL && CGPDFDictionaryGetArray(CGPDFPageGetDictionary(_pageRef), "Annots", &annots))
+        if (_pageRef != NULL && CGPDFDictionaryGetArray(CGPDFPageGetDictionary(_pageRef), "Annots", &annots)) {
+            NSArray *references = O2PDFDictionaryCopyAnnotationReferences((__bridge O2PDFDictionary *)(void *)CGPDFPageGetDictionary(_pageRef));
+
             for (size_t i = 0; i < CGPDFArrayGetCount(annots); i++) {
                 CGPDFDictionaryRef dictionary;
                 PDFAnnotation *annotation;
 
-                if (CGPDFArrayGetDictionary(annots, i, &dictionary) && (annotation = [PDFAnnotation _annotationWithDictionary:dictionary page:self]) != nil)
+                if (CGPDFArrayGetDictionary(annots, i, &dictionary) && (annotation = [PDFAnnotation _annotationWithDictionary:dictionary page:self]) != nil) {
+                    id reference = (i < references.count) ? references[i] : nil;
+
+                    [annotation _setSourceReference:[reference isKindOfClass:[NSArray class]] ? reference : nil];
                     [_annotations addObject:annotation];
+                }
             }
+        }
     }
     return _annotations;
 }
 
 - (NSArray<PDFAnnotation *> *)annotations {
     return [[self _annotationList] copy];
+}
+
+- (void)_annotationChanged {
+    _annotationsChanged = YES;
+    [_document _annotationsChanged];
+}
+
+- (BOOL)_annotationsChangedSinceRead {
+    return _annotationsChanged;
+}
+
+- (NSArray<PDFAnnotation *> *)_readAnnotations {
+    return _annotations;
 }
 
 - (void)addAnnotation:(PDFAnnotation *)annotation {
@@ -215,7 +237,7 @@
     [[self _annotationList] addObject:annotation];
     [self didChangeValueForKey:@"annotations"];
     annotation.page = self;
-    [_document _annotationsChanged];
+    [self _annotationChanged];
 }
 
 /* The annotation keeps its page, as on the reference. */
@@ -225,7 +247,7 @@
     [self willChangeValueForKey:@"annotations"];
     [[self _annotationList] removeObjectIdenticalTo:annotation];
     [self didChangeValueForKey:@"annotations"];
-    [_document _annotationsChanged];
+    [self _annotationChanged];
 }
 
 - (PDFAnnotation *)annotationAtPoint:(PDFPoint)point {

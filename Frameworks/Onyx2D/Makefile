@@ -77,6 +77,7 @@ SRCS = \
 	O2PDFOperators.m \
 	O2PDFPage.m \
 	O2PDFTextExtractor.m \
+	O2PDFRaw.m \
 	O2PDFScanner.m \
 	O2PDFStream.m \
 	O2PDFString.m \
@@ -172,6 +173,7 @@ HEADERS = \
 	O2PDFObject_const.h \
 	O2PDFPage.h \
 	O2PDFTextExtractor.h \
+	O2PDFRaw.h \
 	O2PDFObject_identifier.h \
 	O2PDFOperatorTable.h \
 	O2PDFOperators.h \

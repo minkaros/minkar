@@ -22,7 +22,13 @@
 
 @implementation PDFAnnotation {
     NSMutableDictionary *_values;
+    NSArray *_sourceReference;   // @[number, generation] as read, or nil
+    BOOL _modified;              // changed since it was read
 }
+
+- (NSArray *)_sourceReference { return _sourceReference; }
+- (void)_setSourceReference:(NSArray *)reference { _sourceReference = reference; _modified = NO; }
+- (BOOL)_isModified { return _modified || _sourceReference == nil; }
 
 static NSColor *defaultYellow(void) {
     return [NSColor colorWithDeviceRed:1 green:1 blue:0 alpha:1];
@@ -95,7 +101,9 @@ static NSColor *defaultYellow(void) {
         value = [NSValue valueWithRect:[value rectValue]];
     [self willChangeValueForKey:@"annotationKeyValues"];
     _values[key] = value;
+    _modified = YES;
     [self didChangeValueForKey:@"annotationKeyValues"];
+    [self.page _annotationChanged];
     return YES;
 }
 
@@ -109,6 +117,8 @@ static NSColor *defaultYellow(void) {
 
 - (void)removeValueForAnnotationKey:(PDFAnnotationKey)key {
     [_values removeObjectForKey:key];
+    _modified = YES;
+    [self.page _annotationChanged];
 }
 
 /* ---- common properties ---- */
@@ -828,6 +838,200 @@ static CGPDFObjectRef inheritedObject(CGPDFDictionaryRef dictionary, const char 
             [values removeObjectForKey:key];
     annotation.page = page;
     return annotation;
+}
+
+@end
+
+/* ---- written to a PDF ---- */
+
+static NSString *pdfNumber(CGFloat value) {
+    NSString *text = [NSString stringWithFormat:@"%.4f", value];
+
+    while ([text containsString:@"."] && ([text hasSuffix:@"0"] || [text hasSuffix:@"."]))
+        text = [text substringToIndex:text.length - 1];
+    return [text isEqual:@"-0"] ? @"0" : text;
+}
+
+/* Text as a PDF string: hex, UTF-16 with its mark when not ASCII. */
+static NSString *pdfText(NSString *text) {
+    NSMutableString *result = [NSMutableString stringWithString:@"<"];
+    BOOL ascii = YES;
+
+    for (NSUInteger i = 0; i < text.length && ascii; i++)
+        ascii = [text characterAtIndex:i] < 0x80;
+
+    if (ascii) {
+        NSData *bytes = [text dataUsingEncoding:NSASCIIStringEncoding];
+        for (NSUInteger i = 0; i < bytes.length; i++)
+            [result appendFormat:@"%02X", ((const unsigned char *)bytes.bytes)[i]];
+    } else {
+        [result appendString:@"FEFF"];
+        for (NSUInteger i = 0; i < text.length; i++)
+            [result appendFormat:@"%04X", [text characterAtIndex:i]];
+    }
+    [result appendString:@">"];
+    return result;
+}
+
+static NSString *pdfName(NSString *name) {
+    NSMutableString *result = [NSMutableString stringWithString:@"/"];
+    NSData *bytes = [([name hasPrefix:@"/"] ? [name substringFromIndex:1] : name) dataUsingEncoding:NSUTF8StringEncoding];
+
+    for (NSUInteger i = 0; i < bytes.length; i++) {
+        unsigned char c = ((const unsigned char *)bytes.bytes)[i];
+
+        if (c <= ' ' || c >= 0x7F || strchr("#()<>[]{}/%", c) != NULL)
+            [result appendFormat:@"#%02X", c];
+        else
+            [result appendFormat:@"%c", c];
+    }
+    return result;
+}
+
+static NSString *pdfColor(NSColor *color) {
+    NSColor *rgb = [color colorUsingColorSpaceName:NSDeviceRGBColorSpace];
+
+    if (rgb == nil)
+        return @"[]";
+    return [NSString stringWithFormat:@"[%@ %@ %@]", pdfNumber(rgb.redComponent), pdfNumber(rgb.greenComponent), pdfNumber(rgb.blueComponent)];
+}
+
+static NSString *pdfDate(NSDate *date) {
+    NSDateFormatter *formatter = [NSDateFormatter new];
+
+    formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    formatter.timeZone = [NSTimeZone timeZoneForSecondsFromGMT:0];
+    formatter.dateFormat = @"'D:'yyyyMMddHHmmss'Z'";
+    return pdfText([formatter stringFromDate:date]);
+}
+
+/* The keys whose strings are names (PDF 1.7, table 164 and the subtypes'). */
+static NSSet *nameKeys(void) {
+    static NSSet *keys;
+
+    if (keys == nil)
+        keys = [NSSet setWithObjects:@"/Subtype", @"/Type", @"/Name", @"/H", @"/FT", @"/AS", @"/IT", @"/S", nil];
+    return keys;
+}
+
+static NSString *pdfDestination(PDFDestination *destination, NSString *_Nullable (^references)(PDFPage *)) {
+    NSString *page = destination.page ? references(destination.page) : nil;
+    PDFPoint point = destination.point;
+
+    if (page == nil)
+        return nil;
+    return [NSString stringWithFormat:@"[%@ /XYZ %@ %@ %@]", page,
+            point.x == kPDFDestinationUnspecifiedValue ? @"null" : pdfNumber(point.x),
+            point.y == kPDFDestinationUnspecifiedValue ? @"null" : pdfNumber(point.y),
+            destination.zoom == kPDFDestinationUnspecifiedValue ? @"null" : pdfNumber(destination.zoom)];
+}
+
+static NSString *pdfAction(PDFAction *action, NSString *_Nullable (^references)(PDFPage *)) {
+    if ([action isKindOfClass:[PDFActionGoTo class]]) {
+        NSString *destination = pdfDestination([(PDFActionGoTo *)action destination], references);
+        return destination ? [NSString stringWithFormat:@"<< /S /GoTo /D %@ >>", destination] : nil;
+    }
+    if ([action isKindOfClass:[PDFActionURL class]])
+        return [NSString stringWithFormat:@"<< /S /URI /URI %@ >>", pdfText([(PDFActionURL *)action URL].absoluteString ?: @"")]; 
+    if ([action isKindOfClass:[PDFActionNamed class]]) {
+        static NSString *names[] = { @"", @"NextPage", @"PrevPage", @"FirstPage", @"LastPage", @"GoBack", @"GoForward", @"GoToPage", @"Find", @"Print", @"ZoomIn", @"ZoomOut" };
+        NSInteger name = [(PDFActionNamed *)action name];
+        return (name > 0 && name < 12) ? [NSString stringWithFormat:@"<< /S /Named /N /%@ >>", names[name]] : nil;
+    }
+    return nil;
+}
+
+static NSString *pdfValue(id value, NSString *key, NSString *_Nullable (^references)(PDFPage *)) {
+    if ([value isKindOfClass:[NSString class]])
+        return [nameKeys() containsObject:key] ? pdfName(value) : pdfText(value);
+    if ([value isKindOfClass:[NSNumber class]]) {
+        const char *type = [value objCType];
+        if (strcmp(type, @encode(BOOL)) == 0 || strcmp(type, "c") == 0 || strcmp(type, "B") == 0)
+            return [value boolValue] ? @"true" : @"false";
+        return pdfNumber([value doubleValue]);
+    }
+    if ([value isKindOfClass:[NSColor class]])
+        return pdfColor(value);
+    if ([value isKindOfClass:[NSDate class]])
+        return pdfDate(value);
+    if ([value isKindOfClass:[NSArray class]]) {
+        NSMutableArray *items = [NSMutableArray array];
+        for (id item in value) {
+            NSString *written = [item isKindOfClass:[NSString class]] && [item hasPrefix:@"/"] ? pdfName(item) : pdfValue(item, @"", references);
+            if (written) [items addObject:written];
+        }
+        return [NSString stringWithFormat:@"[%@]", [items componentsJoinedByString:@" "]];
+    }
+    if ([value isKindOfClass:[NSDictionary class]]) {
+        NSMutableString *result = [NSMutableString stringWithString:@"<<"];
+        for (NSString *subkey in value) {
+            NSString *written = pdfValue(value[subkey], subkey, references);
+            if (written) [result appendFormat:@" %@ %@", pdfName(subkey), written];
+        }
+        [result appendString:@" >>"];
+        return result;
+    }
+    return nil;
+}
+
+@implementation PDFAnnotation (PDFKitWriting)
+
+- (NSData *)_pdfDataWithPageReference:(NSString *)page pageReferences:(NSString *_Nullable (^)(PDFPage *page))references {
+    NSMutableString *out = [NSMutableString stringWithString:@"<< /Type /Annot"];
+    NSDictionary *values = self.annotationKeyValues;
+    CGRect b = self.bounds;
+    NSSet *skipped = [NSSet setWithObjects:@"/Type", @"/Rect", @"/Popup", @"/P", @"/AP", @"/Parent", @"_onState", nil];
+
+    [out appendFormat:@" /Rect [%@ %@ %@ %@]", pdfNumber(CGRectGetMinX(b)), pdfNumber(CGRectGetMinY(b)), pdfNumber(CGRectGetMaxX(b)), pdfNumber(CGRectGetMaxY(b))];
+    if (page)
+        [out appendFormat:@" /P %@", page];
+    for (NSString *key in [values.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        id value = values[key];
+        NSString *written = nil;
+
+        if ([skipped containsObject:key] || ![key hasPrefix:@"/"])
+            continue;
+        if ([key isEqual:PDFAnnotationKeyBorder] && [value isKindOfClass:[PDFBorder class]]) {
+            PDFBorder *border = value;
+            NSDictionary *style = border.borderKeyValues;
+            [out appendFormat:@" /Border [0 0 %@] /BS << /W %@ /S /%@ >>", pdfNumber(border.lineWidth), pdfNumber(border.lineWidth), style[PDFBorderKeyStyle]];
+            continue;
+        }
+        if ([key isEqual:PDFAnnotationKeyQuadPoints] || [key isEqual:PDFAnnotationKeyLinePoints]) {
+            NSMutableArray *numbers = [NSMutableArray array];
+            for (NSValue *point in value) {
+                [numbers addObject:pdfNumber(point.pointValue.x + b.origin.x)];
+                [numbers addObject:pdfNumber(point.pointValue.y + b.origin.y)];
+            }
+            written = [NSString stringWithFormat:@"[%@]", [numbers componentsJoinedByString:@" "]];
+        } else if ([key isEqual:PDFAnnotationKeyInklist]) {
+            NSMutableArray *strokes = [NSMutableArray array];
+            for (NSBezierPath *path in value) {
+                NSMutableArray *numbers = [NSMutableArray array];
+                NSPoint points[3];
+                for (NSInteger i = 0; i < path.elementCount; i++) {
+                    NSBezierPathElement element = [path elementAtIndex:i associatedPoints:points];
+                    NSPoint p = (element == NSCurveToBezierPathElement) ? points[2] : points[0];
+                    if (element == NSClosePathBezierPathElement) continue;
+                    [numbers addObject:pdfNumber(p.x + b.origin.x)];
+                    [numbers addObject:pdfNumber(p.y + b.origin.y)];
+                }
+                [strokes addObject:[NSString stringWithFormat:@"[%@]", [numbers componentsJoinedByString:@" "]]];
+            }
+            written = [NSString stringWithFormat:@"[%@]", [strokes componentsJoinedByString:@" "]];
+        } else if ([value isKindOfClass:[PDFDestination class]])
+            written = pdfDestination(value, references);
+        else if ([value isKindOfClass:[PDFAction class]])
+            written = pdfAction(value, references);
+        else if ([value isKindOfClass:[PDFAnnotation class]] || [value isKindOfClass:[PDFBorder class]])
+            written = nil;
+        else
+            written = pdfValue(value, key, references);
+        if (written)
+            [out appendFormat:@" %@ %@", pdfName(key), written];
+    }
+    [out appendString:@" >>"];
+    return [out dataUsingEncoding:NSASCIIStringEncoding];
 }
 
 @end

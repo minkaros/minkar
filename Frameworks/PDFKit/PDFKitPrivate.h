@@ -32,6 +32,21 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)_addRange:(NSRange)range onPage:(PDFPage *)page;
 @end
 
+@interface PDFAnnotation (PDFKitWriting)
+- (nullable NSArray *)_sourceReference;
+- (void)_setSourceReference:(nullable NSArray *)reference;
+- (BOOL)_isModified;
+/* As a PDF dictionary, its page and destinations by their objects
+   (a page's object number for its index). */
+- (NSData *)_pdfDataWithPageReference:(NSString *)page pageReferences:(NSString *_Nullable (^)(PDFPage *page))references;
+@end
+
+@interface PDFPage (PDFKitWriting)
+- (void)_annotationChanged;
+- (BOOL)_annotationsChangedSinceRead;
+- (nullable NSArray<PDFAnnotation *> *)_readAnnotations;
+@end
+
 @interface PDFAnnotation (PDFKitReading)
 + (nullable PDFAnnotation *)_annotationWithDictionary:(CGPDFDictionaryRef)dictionary page:(PDFPage *)page;
 @end

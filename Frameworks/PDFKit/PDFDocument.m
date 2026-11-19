@@ -10,6 +10,8 @@
 
 #import "PDFKitPrivate.h"
 #import <objc/message.h>
+#import <Onyx2D/O2PDFRaw.h>
+#import <Onyx2D/O2PDFDocument.h>
 
 NSNotificationName const PDFDocumentDidUnlockNotification = @"PDFDocumentDidUnlock";
 NSNotificationName const PDFDocumentDidBeginFindNotification = @"PDFDidBeginDocumentFind";
@@ -808,9 +810,96 @@ static CGPDFObjectRef lookUpNameTree(CGPDFDictionaryRef node, const char *name, 
 /* The document as read, or, once changed or given options, its pages drawn
    into a new PDF with its attributes. Not written yet: the outline, the
    annotations, and encryption (the password options are not applied). */
+/* The document as read with an incremental update appended (PDF 1.7,
+   7.5.6): each page whose annotations changed written again with its
+   Annots, the annotations added or changed written as new objects, those
+   as read kept by reference (with their appearances); a cross-reference
+   section and a trailer whose Prev is the last one. */
+- (NSData *)_incrementalUpdate {
+    O2PDFDocument *document = (__bridge O2PDFDocument *)(void *)_documentRef;
+    O2PDFDictionary *trailer = O2PDFDocumentGetTrailer(document);
+    NSMutableData *out = [_data mutableCopy];
+    NSMutableArray *objects = [NSMutableArray array];   // @[number, generation, data]
+    CGPDFInteger size = 0;
+    long previous = -1;
+
+    /* The last cross-reference section, from the file's startxref. */
+    const char *bytes = _data.bytes;
+    for (NSInteger i = (NSInteger)_data.length - 9; i >= 0 && i > (NSInteger)_data.length - 2048; i--)
+        if (memcmp(bytes + i, "startxref", 9) == 0) {
+            previous = strtol(bytes + i + 9, NULL, 10);
+            break;
+        }
+    if (trailer == nil || previous < 0 || !CGPDFDictionaryGetInteger((CGPDFDictionaryRef)(__bridge void *)trailer, "Size", &size))
+        return nil;
+    __block NSInteger next = size;
+
+    NSString *_Nullable (^references)(PDFPage *) = ^NSString *(PDFPage *page) {
+        NSUInteger index = [self indexForPage:page];
+        int number, generation;
+
+        if (index == NSNotFound || !O2PDFDocumentGetPageReference(document, (unsigned)index, &number, &generation))
+            return nil;
+        return [NSString stringWithFormat:@"%d %d R", number, generation];
+    };
+
+    for (NSUInteger i = 0; i < self.pageCount; i++) {
+        PDFPage *page = (_pages[i] == [NSNull null]) ? nil : _pages[i];
+        int pageNumber, pageGeneration;
+        NSMutableArray *annots = [NSMutableArray array];
+
+        if (page == nil || ![page _annotationsChangedSinceRead] || page.pageRef == NULL ||
+            !O2PDFDocumentGetPageReference(document, (unsigned)i, &pageNumber, &pageGeneration))
+            continue;
+        NSString *pageReference = [NSString stringWithFormat:@"%d %d R", pageNumber, pageGeneration];
+        for (PDFAnnotation *annotation in [page _readAnnotations]) {
+            NSArray *source = [annotation _sourceReference];
+
+            if (source != nil && ![annotation _isModified]) {
+                [annots addObject:[NSString stringWithFormat:@"%@ %@ R", source[0], source[1]]];
+                continue;
+            }
+            NSInteger number = source ? [source[0] integerValue] : next++;
+            NSInteger generation = source ? [source[1] integerValue] : 0;
+            [objects addObject:@[ @(number), @(generation), [annotation _pdfDataWithPageReference:pageReference pageReferences:references] ]];
+            [annots addObject:[NSString stringWithFormat:@"%ld %ld R", (long)number, (long)generation]];
+        }
+        NSMutableData *pageData = [O2PDFDictionaryCopyRawEncoding((__bridge O2PDFDictionary *)(void *)CGPDFPageGetDictionary(page.pageRef), @[ @"Annots" ]) mutableCopy];
+        [pageData setLength:pageData.length - 2];   // its closing ">>"
+        [pageData appendData:[[NSString stringWithFormat:@"/Annots [%@] >>", [annots componentsJoinedByString:@" "]] dataUsingEncoding:NSASCIIStringEncoding]];
+        [objects addObject:@[ @(pageNumber), @(pageGeneration), pageData ]];
+    }
+    if (objects.count == 0)
+        return _data;
+
+    if (out.length > 0 && ((const char *)out.bytes)[out.length - 1] != '\n')
+        [out appendBytes:"\n" length:1];
+    NSMutableDictionary *offsets = [NSMutableDictionary dictionary];
+    NSInteger highest = size - 1;
+    for (NSArray *object in objects) {
+        offsets[object[0]] = @[ @(out.length), object[1] ];
+        [out appendData:[[NSString stringWithFormat:@"%@ %@ obj\n", object[0], object[1]] dataUsingEncoding:NSASCIIStringEncoding]];
+        [out appendData:object[2]];
+        [out appendBytes:"\nendobj\n" length:8];
+        highest = MAX(highest, [object[0] integerValue]);
+    }
+    NSUInteger xref = out.length;
+    NSMutableString *table = [NSMutableString stringWithString:@"xref\n"];
+    for (NSNumber *number in [offsets.allKeys sortedArrayUsingSelector:@selector(compare:)])
+        [table appendFormat:@"%@ 1\n%010lu %05ld n\r\n", number, [offsets[number][0] unsignedLongValue], [offsets[number][1] longValue]];
+    NSMutableData *trailerData = [O2PDFDictionaryCopyRawEncoding(trailer, @[ @"Size", @"Prev", @"XRefStm", @"Type", @"W", @"Index", @"Filter", @"DecodeParms", @"Length" ]) mutableCopy];
+    [trailerData setLength:trailerData.length - 2];
+    [table appendString:@"trailer\n"];
+    [out appendData:[table dataUsingEncoding:NSASCIIStringEncoding]];
+    [out appendData:trailerData];
+    [out appendData:[[NSString stringWithFormat:@"/Size %ld /Prev %ld >>\nstartxref\n%lu\n%%%%EOF\n", (long)(highest + 1), previous, (unsigned long)xref]
+                       dataUsingEncoding:NSASCIIStringEncoding]];
+    return out;
+}
+
 - (NSData *)dataRepresentationWithOptions:(NSDictionary *)options {
     if (!_changed && _data != nil && options.count == 0)
-        return _data;
+        return _annotationsChanged ? ([self _incrementalUpdate] ?: _data) : _data;
 
     NSMutableData *data = [NSMutableData data];
     CGDataConsumerRef consumer = CGDataConsumerCreateWithCFData((__bridge CFMutableDataRef)data);
