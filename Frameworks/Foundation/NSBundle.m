@@ -371,10 +371,10 @@ static NSMapTable *pathToObject=NULL;
     }
     [_resourcePath retain];
 
-    _pluginPath = [[_path stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"PlugIns"];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:_pluginPath]) {
-        _pluginPath = [_path stringByAppendingPathComponent:@"PlugIns"];
-    }
+    /* Minkar: Contents/PlugIns for a bundle with a Contents folder, whether
+     * PlugIns is there or not, as on the reference; the bundle's own
+     * PlugIns for a flat one. */
+    _pluginPath = [[self _contentsPath] stringByAppendingPathComponent:@"PlugIns"];
     [_pluginPath retain];
 
     _infoDictionary = nil;
@@ -583,17 +583,26 @@ static NSString *baseLanguage(NSString *name) {
       [available addObject:development];
    return [NSBundle preferredLocalizationsFromArray:available];
 }
+/* Minkar: the bundle's Contents folder if it has one, else the bundle. */
+-(NSString *)_contentsPath {
+   NSString *contents=[_path stringByAppendingPathComponent:@"Contents"];
+   BOOL      directory=NO;
+
+   if([[NSFileManager defaultManager] fileExistsAtPath:contents isDirectory:&directory] && directory)
+    return contents;
+   return _path;
+}
+
 -(NSString *)privateFrameworksPath {
-   NSUnimplementedMethod();
-   return 0;
+   return [[self _contentsPath] stringByAppendingPathComponent:@"Frameworks"];
 }
+
 -(NSString *)sharedFrameworksPath {
-   NSUnimplementedMethod();
-   return 0;
+   return [[self _contentsPath] stringByAppendingPathComponent:@"SharedFrameworks"];
 }
+
 -(NSString *)sharedSupportPath {
-   NSUnimplementedMethod();
-   return 0;
+   return [[self _contentsPath] stringByAppendingPathComponent:@"SharedSupport"];
 }
 
 -(NSString *)pathForAuxiliaryExecutable:(NSString *)executable {
