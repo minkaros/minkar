@@ -29,7 +29,7 @@ WPE_LIBS !=	${WPE_PKG_ENV} pkg-config --libs ${WPE_MODULES} || echo WPE-WEBKIT-M
 .endif
 .endif
 CFLAGS += -I${.CURDIR:H} -I${.CURDIR} -F${FMWKS} -fobjc-arc ${WPE_CFLAGS}
-LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Foundation -lobjc ${WPE_LIBS}
+LDFLAGS += -F${FMWKS} -framework AppKit -framework CoreGraphics -framework Foundation -framework Security -lobjc ${WPE_LIBS}
 
 # The web process extension (WebScriptingExtension.c): a module WebKit's
 # web processes load, in the framework (WebScriptBridge.m tells WebKit

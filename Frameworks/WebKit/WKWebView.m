@@ -10,6 +10,7 @@
 #import <WebKit/WKWebView.h>
 #import "WKWebViewInternal.h"
 #import <objc/message.h>
+#import <Security/Security.h>
 
 #include <wpe/webkit.h>
 #include "WebGLibRunLoop.h"
@@ -620,6 +621,58 @@ static NSURLResponse *responseFrom(WebKitURIResponse *response)
                              textEncodingName:nil];
 }
 
+/* A certificate WebKit has, with its issuers, as a trust for a TLS
+   server named host, evaluated (it says what failed). */
+static SecTrustRef trustFromCertificate(GTlsCertificate *certificate, const char *host)
+{
+    CFMutableArrayRef certificates = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    for (GTlsCertificate *c = certificate; c != NULL; c = g_tls_certificate_get_issuer(c)) {
+        GByteArray *der = NULL;
+        g_object_get(c, "certificate", &der, NULL);
+        if (der == NULL)
+            break;
+        CFDataRef data = CFDataCreate(NULL, der->data, der->len);
+        g_byte_array_unref(der);
+        SecCertificateRef sec = SecCertificateCreateWithData(NULL, data);
+        CFRelease(data);
+        if (sec == NULL)
+            break;
+        CFArrayAppendValue(certificates, sec);
+        CFRelease(sec);
+    }
+    SecTrustRef trust = NULL;
+    if (CFArrayGetCount(certificates) > 0) {
+        CFStringRef name = host ? CFStringCreateWithCString(NULL, host, kCFStringEncodingUTF8) : NULL;
+        SecPolicyRef policy = SecPolicyCreateSSL(true, name);
+        if (SecTrustCreateWithCertificates(certificates, policy, &trust) == errSecSuccess)
+            SecTrustEvaluateWithError(trust, NULL);
+        CFRelease(policy);
+        if (name)
+            CFRelease(name);
+    }
+    CFRelease(certificates);
+    return trust;
+}
+
+static NSData *derOf(GTlsCertificate *certificate)
+{
+    GByteArray *der = NULL;
+    g_object_get(certificate, "certificate", &der, NULL);
+    if (der == NULL)
+        return nil;
+    NSData *data = [NSData dataWithBytes:der->data length:der->len];
+    g_byte_array_unref(der);
+    return data;
+}
+
+@interface NSURLProtectionSpace (WebKitTrust)
+- (void)_setServerTrust:(SecTrustRef)trust;
+@end
+
+@interface NSURLCredential (WebKitTrust)
+- (SecTrustRef)_trust;
+@end
+
 /* The sender of a challenge the delegate answers by its completion
    handler; the sender's own methods are not used for a web view's. */
 @interface _WKAuthenticationSender : NSObject <NSURLAuthenticationChallengeSender>
@@ -792,6 +845,11 @@ static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
     NSUInteger _syncGeneration;
     WKNavigation *_finishedNavigation;
     NSString *_pageTitle;                 /* the page's own answer */
+    /* A load tried again once the delegate took its server's certificate:
+       its start is not told again. */
+    char *_tlsRetryURI;
+    /* Certificates the delegate took (their DER), for hasOnlySecureContent. */
+    NSMutableSet<NSData *> *_acceptedCertificates;
 }
 
 static void evaluated(GObject *object, GAsyncResult *result, gpointer data);
@@ -847,6 +905,13 @@ static gboolean runFileChooser(WebKitWebView *webView, WebKitFileChooserRequest 
 {
     (void)webView;
     return [(__bridge WKWebView *)data _runFileChooser:request];
+}
+
+static gboolean loadFailedWithTLSErrors(WebKitWebView *webView, char *uri, GTlsCertificate *certificate,
+                                        GTlsCertificateFlags errors, gpointer data)
+{
+    (void)webView; (void)errors;
+    return [(__bridge WKWebView *)data _serverTrustFailedFor:uri certificate:certificate];
 }
 
 static gboolean authenticate(WebKitWebView *webView, WebKitAuthenticationRequest *request, gpointer data)
@@ -953,6 +1018,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         g_signal_connect(_webView, "insecure-content-detected", G_CALLBACK(insecureContentDetected), me);
         g_signal_connect(_webView, "authenticate", G_CALLBACK(authenticate), me);
         g_signal_connect(_webView, "run-file-chooser", G_CALLBACK(runFileChooser), me);
+        g_signal_connect(_webView, "load-failed-with-tls-errors", G_CALLBACK(loadFailedWithTLSErrors), me);
         _kvoTitle = @"";
 
         _wpeView = webkit_web_view_get_wpe_view(_webView);
@@ -1248,7 +1314,25 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     GTlsCertificateFlags errors = 0;
     if (uri == NULL || strncmp(uri, "https:", 6) != 0 || _insecureContent)
         return NO;
-    return webkit_web_view_get_tls_info(_webView, &certificate, &errors) && errors == 0;
+    if (!webkit_web_view_get_tls_info(_webView, &certificate, &errors))
+        return NO;
+    return errors == 0 || [_acceptedCertificates containsObject:derOf(certificate)];
+}
+
+/* The server's certificates, as a trust (what the delegate was shown, or
+   the page's own when it loaded without one). */
+- (SecTrustRef)serverTrust {
+    GTlsCertificate *certificate = NULL;
+    GTlsCertificateFlags errors = 0;
+    const char *uri = webkit_web_view_get_uri(_webView);
+    if (uri == NULL || strncmp(uri, "https:", 6) != 0 || !webkit_web_view_get_tls_info(_webView, &certificate, &errors) ||
+        certificate == NULL)
+        return NULL;
+    GUri *parsed = g_uri_parse(uri, G_URI_FLAGS_NONE, NULL);
+    SecTrustRef trust = trustFromCertificate(certificate, parsed ? g_uri_get_host(parsed) : NULL);
+    if (parsed)
+        g_uri_unref(parsed);
+    return trust ? (SecTrustRef)CFAutorelease(trust) : NULL;
 }
 
 /* Empty, not nil, when none is set, as on the reference. */
@@ -1510,6 +1594,14 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     case WEBKIT_LOAD_STARTED:
         _loadFailed = NO;
         _insecureContent = NO;
+        if (_tlsRetryURI != NULL) {
+            /* The same navigation going on with the certificate taken. */
+            BOOL same = !g_strcmp0(_tlsRetryURI, webkit_web_view_get_uri(_webView));
+            g_free(_tlsRetryURI);
+            _tlsRetryURI = NULL;
+            if (same)
+                break;
+        }
         if ([d respondsToSelector:@selector(webView:didStartProvisionalNavigation:)])
             [d webView:self didStartProvisionalNavigation:_navigation];
         break;
@@ -1606,6 +1698,94 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         else
             webkit_policy_decision_ignore(WEBKIT_POLICY_DECISION(decision));
         g_object_unref(decision);
+    }];
+    return TRUE;
+}
+
+/* A server's certificate WebKit does not trust: a server trust challenge
+   for the delegate, as on the reference. Taken (a credential for the
+   trust), the certificate is allowed for the host and the load goes on;
+   the default handling fails it as untrusted (NSURLErrorDomain -1202,
+   with the trust and the chain), a cancellation as cancelled (-999).
+   Without a delegate, the default. */
+- (gboolean)_serverTrustFailedFor:(const char *)uri certificate:(GTlsCertificate *)certificate {
+    id<WKNavigationDelegate> d = self.navigationDelegate;
+    _loadFailed = YES;                    /* WebKit's end of this load is not told */
+    GUri *parsed = g_uri_parse(uri, G_URI_FLAGS_NONE, NULL);
+    NSString *host = parsed && g_uri_get_host(parsed) ? @(g_uri_get_host(parsed)) : @"";
+    gint port = parsed ? g_uri_get_port(parsed) : -1;
+    if (parsed)
+        g_uri_unref(parsed);
+    SecTrustRef trust = trustFromCertificate(certificate, host.UTF8String);
+    NSURL *url = URLOrNil(uri);
+    NSString *uriString = @(uri);
+    g_object_ref(certificate);
+
+    __weak WKWebView *weakSelf = self;
+    void (^answer)(NSURLSessionAuthChallengeDisposition, NSURLCredential *) =
+        ^(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
+        WKWebView *me = weakSelf;
+        if (me != nil) {
+            if (disposition == NSURLSessionAuthChallengeUseCredential && credential._trust != NULL) {
+                if (me->_acceptedCertificates == nil)
+                    me->_acceptedCertificates = [NSMutableSet set];
+                NSData *der = derOf(certificate);
+                if (der)
+                    [me->_acceptedCertificates addObject:der];
+                webkit_network_session_allow_tls_certificate_for_host(webkit_web_view_get_network_session(me->_webView),
+                                                                      certificate, host.UTF8String);
+                g_free(me->_tlsRetryURI);
+                me->_tlsRetryURI = g_strdup(uriString.UTF8String);
+                webkit_web_view_load_uri(me->_webView, uriString.UTF8String);
+            } else {
+                NSMutableDictionary *info = [NSMutableDictionary dictionary];
+                if (url) {
+                    info[NSURLErrorFailingURLErrorKey] = url;
+                    info[NSURLErrorFailingURLStringErrorKey] = url.absoluteString;
+                }
+                NSInteger code = NSURLErrorCancelled;
+                if (disposition != NSURLSessionAuthChallengeCancelAuthenticationChallenge) {
+                    code = NSURLErrorServerCertificateUntrusted;
+                    info[NSLocalizedDescriptionKey] = @"The certificate for this server is invalid.";
+                    info[@"NSErrorClientCertificateStateKey"] = @0;
+                    if (trust) {
+                        info[@"NSURLErrorFailingURLPeerTrustErrorKey"] = (__bridge id)trust;
+                        NSMutableArray *chain = [NSMutableArray array];
+                        for (CFIndex i = 0; i < SecTrustGetCertificateCount(trust); i++)
+                            [chain addObject:(__bridge id)SecTrustGetCertificateAtIndex(trust, i)];
+                        info[@"NSErrorPeerCertificateChainKey"] = chain;
+                    }
+                } else
+                    info[NSLocalizedDescriptionKey] = @"cancelled";
+                me->_loadFailed = YES;
+                id<WKNavigationDelegate> delegate = me.navigationDelegate;
+                if ([delegate respondsToSelector:@selector(webView:didFailProvisionalNavigation:withError:)])
+                    [delegate webView:me didFailProvisionalNavigation:me->_navigation
+                            withError:[NSError errorWithDomain:NSURLErrorDomain code:code userInfo:info]];
+            }
+        }
+        g_object_unref(certificate);
+        if (trust)
+            CFRelease(trust);
+    };
+
+    SEL selector = @selector(webView:didReceiveAuthenticationChallenge:completionHandler:);
+    if (![d respondsToSelector:selector]) {
+        answer(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+        return TRUE;
+    }
+    NSURLProtectionSpace *space = [[NSURLProtectionSpace alloc] initWithHost:host port:port > 0 ? port : 443
+        protocol:@"https" realm:nil authenticationMethod:NSURLAuthenticationMethodServerTrust];
+    [space _setServerTrust:trust];
+    NSURLAuthenticationChallenge *challenge = [[NSURLAuthenticationChallenge alloc] initWithProtectionSpace:space
+        proposedCredential:nil previousFailureCount:0 failureResponse:nil error:nil sender:[_WKAuthenticationSender new]];
+    __block BOOL answered = NO;
+    [d webView:self didReceiveAuthenticationChallenge:challenge
+        completionHandler:^(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
+        if (answered)
+            return;
+        answered = YES;
+        answer(disposition, credential);
     }];
     return TRUE;
 }

@@ -7,6 +7,7 @@
 // shared memory (IOSurfaces later).
 
 #import <AppKit/AppKit.h>
+#import <Security/Security.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -247,6 +248,8 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property (readonly) BOOL canGoForward;
 /* Every resource of the page came over a secure connection. */
 @property (readonly) BOOL hasOnlySecureContent;
+/* The server's certificates, as a trust: an https page's. */
+@property (nullable, readonly) SecTrustRef serverTrust API_AVAILABLE(macos(10.12));
 @property (nullable, copy) NSString *customUserAgent;
 @property BOOL allowsBackForwardNavigationGestures;
 @property BOOL allowsMagnification;
