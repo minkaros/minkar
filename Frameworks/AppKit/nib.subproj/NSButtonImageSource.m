@@ -12,9 +12,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSImage.h>
 
+extern void _NSGraphicsStyleRegisterButtonImages(void);
+
 @implementation NSButtonImageSource
 
 -initWithCoder:(NSCoder *)coder {
+   /* A nib's check box or radio button names its image (NSSwitch,
+      NSRadioButton): Atlas's, named before the old artwork of the same
+      names can load. */
+   _NSGraphicsStyleRegisterButtonImages();
    if([coder allowsKeyedCoding]){
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
     
