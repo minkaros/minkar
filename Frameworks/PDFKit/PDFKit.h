@@ -14,3 +14,7 @@
 #import <PDFKit/PDFOutline.h>
 #import <PDFKit/PDFPage.h>
 #import <PDFKit/PDFSelection.h>
+#import <PDFKit/PDFAnnotation.h>
+#import <PDFKit/PDFAnnotationSubclasses.h>
+#import <PDFKit/PDFAnnotationUtilities.h>
+#import <PDFKit/PDFBorder.h>

@@ -19,11 +19,13 @@
     NSString *_string;                                     // its text, once read
     NSData *_characterBounds;                              // a PDFRect per character
     BOOL _textRead;
+    NSMutableArray<PDFAnnotation *> *_annotations;         // once read
 }
 
 /* A blank page, US Letter. */
 - (instancetype)init {
     if ((self = [super init])) {
+        _displaysAnnotations = YES;
         _bounds = [NSMutableDictionary dictionary];
         _bounds[@(kPDFDisplayBoxMediaBox)] = [NSValue valueWithRect:NSMakeRect(0, 0, 612, 792)];
     }
@@ -152,6 +154,7 @@
         [_image drawInRect:[_bounds[@(kPDFDisplayBoxMediaBox)] rectValue] fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
         [NSGraphicsContext setCurrentContext:saved];
     }
+    [self _drawAnnotationsWithBox:box inContext:context];
     CGContextRestoreGState(context);
 }
 
@@ -179,6 +182,65 @@
     [self drawWithBox:box toContext:context];
     [image unlockFocus];
     return image;
+}
+
+/* ---- annotations ---- */
+
+- (NSMutableArray<PDFAnnotation *> *)_annotationList {
+    if (_annotations == nil) {
+        CGPDFArrayRef annots;
+
+        _annotations = [NSMutableArray array];
+        if (_pageRef != NULL && CGPDFDictionaryGetArray(CGPDFPageGetDictionary(_pageRef), "Annots", &annots))
+            for (size_t i = 0; i < CGPDFArrayGetCount(annots); i++) {
+                CGPDFDictionaryRef dictionary;
+                PDFAnnotation *annotation;
+
+                if (CGPDFArrayGetDictionary(annots, i, &dictionary) && (annotation = [PDFAnnotation _annotationWithDictionary:dictionary page:self]) != nil)
+                    [_annotations addObject:annotation];
+            }
+    }
+    return _annotations;
+}
+
+- (NSArray<PDFAnnotation *> *)annotations {
+    return [[self _annotationList] copy];
+}
+
+- (void)addAnnotation:(PDFAnnotation *)annotation {
+    if (annotation == nil || [[self _annotationList] containsObject:annotation])
+        return;
+    [annotation.page removeAnnotation:annotation];
+    [self willChangeValueForKey:@"annotations"];
+    [[self _annotationList] addObject:annotation];
+    [self didChangeValueForKey:@"annotations"];
+    annotation.page = self;
+    [_document _annotationsChanged];
+}
+
+/* The annotation keeps its page, as on the reference. */
+- (void)removeAnnotation:(PDFAnnotation *)annotation {
+    if (annotation == nil || ![[self _annotationList] containsObject:annotation])
+        return;
+    [self willChangeValueForKey:@"annotations"];
+    [[self _annotationList] removeObjectIdenticalTo:annotation];
+    [self didChangeValueForKey:@"annotations"];
+    [_document _annotationsChanged];
+}
+
+- (PDFAnnotation *)annotationAtPoint:(PDFPoint)point {
+    for (PDFAnnotation *annotation in [self _annotationList].reverseObjectEnumerator)
+        if (![annotation.type isEqual:@"Popup"] && annotation.shouldDisplay && CGRectContainsPoint(annotation.bounds, point))
+            return annotation;
+    return nil;
+}
+
+- (void)_drawAnnotationsWithBox:(PDFDisplayBox)box inContext:(CGContextRef)context {
+    if (!_displaysAnnotations)
+        return;
+    for (PDFAnnotation *annotation in [self _annotationList])
+        if (![annotation.type isEqual:@"Popup"])
+            [annotation drawWithBox:box inContext:context];
 }
 
 /* ---- text ---- */

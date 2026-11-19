@@ -38,8 +38,16 @@ NSString *PDFKitString(CGPDFStringRef string) {
     return (string != NULL) ? (__bridge_transfer NSString *)CGPDFStringCopyTextString(string) : nil;
 }
 
+/* An NSDate made from the CFDate (not bridged toll-free in Minkar). */
 NSDate *PDFKitDate(CGPDFStringRef string) {
-    return (string != NULL) ? (__bridge_transfer NSDate *)CGPDFStringCopyDate(string) : nil;
+    CFDateRef date = (string != NULL) ? CGPDFStringCopyDate(string) : NULL;
+    NSDate *result;
+
+    if (date == NULL)
+        return nil;
+    result = [NSDate dateWithTimeIntervalSinceReferenceDate:CFDateGetAbsoluteTime(date)];
+    CFRelease(date);
+    return result;
 }
 
 /* ---- page labels ---- */
@@ -104,6 +112,7 @@ static void collectNumberTree(CGPDFDictionaryRef node, NSMutableArray *entries, 
     NSDictionary *_documentAttributes;
     PDFOutline *_outlineRoot;
     BOOL _isFinding;
+    BOOL _annotationsChanged;
     BOOL _findCancelled;
 }
 
@@ -327,6 +336,10 @@ static void collectNumberTree(CGPDFDictionaryRef node, NSMutableArray *entries, 
     [_pages exchangeObjectAtIndex:indexA withObjectAtIndex:indexB];
     _changed = YES;
     _pageIndexByDictionary = nil;
+}
+
+- (void)_annotationsChanged {
+    _annotationsChanged = YES;
 }
 
 /* ---- text ---- */

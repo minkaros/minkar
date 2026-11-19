@@ -6,7 +6,7 @@
 
 #import <PDFKit/PDFKitPlatform.h>
 
-@class PDFDocument, PDFSelection;
+@class PDFDocument, PDFSelection, PDFAnnotation;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -35,6 +35,14 @@ PDFKIT_CLASS_AVAILABLE(10_4, 11_0)
 - (void)setBounds:(PDFRect)bounds forBox:(PDFDisplayBox)box;
 /* Degrees, a multiple of 90. */
 @property (nonatomic) NSInteger rotation;
+
+/* Its annotations: those in its Annots as read, and those added. */
+@property (nonatomic, readonly) NSArray<PDFAnnotation *> *annotations;
+@property (nonatomic) BOOL displaysAnnotations;
+- (void)addAnnotation:(PDFAnnotation *)annotation;
+- (void)removeAnnotation:(PDFAnnotation *)annotation;
+/* The topmost annotation at point (not a popup), or nil. */
+- (nullable PDFAnnotation *)annotationAtPoint:(PDFPoint)point;
 
 - (CGAffineTransform)transformForBox:(PDFDisplayBox)box;
 - (void)drawWithBox:(PDFDisplayBox)box toContext:(CGContextRef)context;

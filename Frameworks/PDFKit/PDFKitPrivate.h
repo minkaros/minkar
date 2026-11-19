@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 /* A destination: an explicit array, or a name to look up. */
 - (nullable PDFDestination *)_destinationForObject:(CGPDFObjectRef)object;
 - (nullable PDFAction *)_actionForDictionary:(CGPDFDictionaryRef)dictionary;
+/* A page's annotations were added or removed (the document has changed). */
+- (void)_annotationsChanged;
 @end
 
 @interface PDFPage (PDFKitPrivate)
@@ -28,6 +30,10 @@ NS_ASSUME_NONNULL_BEGIN
 @interface PDFSelection (PDFKitPrivate)
 /* Characters on a page added (clipped to its text). */
 - (void)_addRange:(NSRange)range onPage:(PDFPage *)page;
+@end
+
+@interface PDFAnnotation (PDFKitReading)
++ (nullable PDFAnnotation *)_annotationWithDictionary:(CGPDFDictionaryRef)dictionary page:(PDFPage *)page;
 @end
 
 @interface PDFOutline (PDFKitPrivate)
