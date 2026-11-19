@@ -114,4 +114,16 @@ typedef NS_ENUM(NSInteger, NSScrollElasticity) {
 @property NSScrollElasticity verticalScrollElasticity;
 @property NSScrollElasticity horizontalScrollElasticity;
 
+/* Magnification (API 10.8): the content view's bounds scaled from its
+   frame, the document view's frame as it is. */
+@property BOOL allowsMagnification;
+@property CGFloat magnification;
+@property CGFloat maxMagnification;
+@property CGFloat minMagnification;
+- (void)magnifyToFitRect:(NSRect)rect;
+- (void)setMagnification:(CGFloat)magnification centeredAtPoint:(NSPoint)point;
+
 @end
+
+APPKIT_EXPORT NSString *const NSScrollViewWillStartLiveMagnifyNotification;
+APPKIT_EXPORT NSString *const NSScrollViewDidEndLiveMagnifyNotification;

@@ -18,6 +18,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSCursor.h>
 #import <AppKit/NSRaise.h>
 
+NSString *const NSScrollViewWillStartLiveMagnifyNotification=@"NSScrollViewWillStartLiveMagnifyNotification";
+NSString *const NSScrollViewDidEndLiveMagnifyNotification=@"NSScrollViewDidEndLiveMagnifyNotification";
+
 @implementation NSScrollView
 
 static Class _rulerViewClass = nil;
@@ -1050,6 +1053,103 @@ static char horizontalElasticityKey;
 }
 -(void)setHorizontalScrollElasticity:(NSScrollElasticity)value {
    objc_setAssociatedObject(self,&horizontalElasticityKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* ---- magnification (Minkar, as on the reference) ---- */
+
+static char minMagnificationKey,maxMagnificationKey,allowsMagnificationKey;
+
+-(BOOL)allowsMagnification {
+   return [objc_getAssociatedObject(self,&allowsMagnificationKey) boolValue];
+}
+
+-(void)setAllowsMagnification:(BOOL)allows {
+   objc_setAssociatedObject(self,&allowsMagnificationKey,[NSNumber numberWithBool:allows],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(CGFloat)minMagnification {
+   NSNumber *value=objc_getAssociatedObject(self,&minMagnificationKey);
+
+   return (value!=nil)?[value doubleValue]:0.25;
+}
+
+-(void)setMinMagnification:(CGFloat)value {
+   objc_setAssociatedObject(self,&minMagnificationKey,[NSNumber numberWithDouble:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(CGFloat)maxMagnification {
+   NSNumber *value=objc_getAssociatedObject(self,&maxMagnificationKey);
+
+   return (value!=nil)?[value doubleValue]:4.0;
+}
+
+-(void)setMaxMagnification:(CGFloat)value {
+   objc_setAssociatedObject(self,&maxMagnificationKey,[NSNumber numberWithDouble:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(CGFloat)magnification {
+   NSClipView *clip=[self contentView];
+   CGFloat     width=[clip bounds].size.width;
+
+   return (width>0)?[clip frame].size.width/width:1;
+}
+
+-(CGFloat)_clampedMagnification:(CGFloat)magnification {
+   return MAX([self minMagnification],MIN([self maxMagnification],magnification));
+}
+
+/* The content view's bounds: size at magnification, origin kept within the
+   document (its start when the document is smaller). */
+-(void)_setClipBoundsWithOrigin:(NSPoint)origin magnification:(CGFloat)magnification {
+   NSClipView *clip=[self contentView];
+   NSRect      frame=[clip frame];
+   NSRect      document=[[self documentView] frame];
+   NSSize      size=NSMakeSize(frame.size.width/magnification,frame.size.height/magnification);
+
+   if(size.width>=NSWidth(document))
+    origin.x=NSMinX(document);
+   else
+    origin.x=MAX(NSMinX(document),MIN(origin.x,NSMaxX(document)-size.width));
+   if(size.height>=NSHeight(document))
+    origin.y=NSMinY(document);
+   else
+    origin.y=MAX(NSMinY(document),MIN(origin.y,NSMaxY(document)-size.height));
+   [clip setBoundsSize:size];
+   [clip setBoundsOrigin:origin];
+   [self reflectScrolledClipView:clip];
+   [clip setNeedsDisplay:YES];
+}
+
+/* The visible center kept. */
+-(void)setMagnification:(CGFloat)magnification {
+   NSRect bounds=[[self contentView] bounds];
+   NSSize frame=[[self contentView] frame].size;
+
+   magnification=[self _clampedMagnification:magnification];
+   [self _setClipBoundsWithOrigin:NSMakePoint(NSMidX(bounds)-frame.width/magnification/2,NSMidY(bounds)-frame.height/magnification/2)
+                    magnification:magnification];
+}
+
+/* point, in the document view, kept where it is. */
+-(void)setMagnification:(CGFloat)magnification centeredAtPoint:(NSPoint)point {
+   NSRect  bounds=[[self contentView] bounds];
+   CGFloat old=[self magnification];
+
+   magnification=[self _clampedMagnification:magnification];
+   [self _setClipBoundsWithOrigin:NSMakePoint(point.x-(point.x-NSMinX(bounds))*old/magnification,point.y-(point.y-NSMinY(bounds))*old/magnification)
+                    magnification:magnification];
+}
+
+/* The magnification that fits rect, rect in the middle. */
+-(void)magnifyToFitRect:(NSRect)rect {
+   NSSize  frame=[[self contentView] frame].size;
+   CGFloat magnification;
+
+   if(NSWidth(rect)<=0 || NSHeight(rect)<=0)
+    return;
+   magnification=[self _clampedMagnification:MIN(frame.width/NSWidth(rect),frame.height/NSHeight(rect))];
+   [self _setClipBoundsWithOrigin:NSMakePoint(NSMidX(rect)-frame.width/magnification/2,NSMidY(rect)-frame.height/magnification/2)
+                    magnification:magnification];
 }
 
 @end
