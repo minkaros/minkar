@@ -137,6 +137,7 @@ SRCS = 	NSFormatter.m \
 	NSKeyValueCoding/NSKeyValueObserving.m \
 	NSKeyValueCoding/NSKeyObserver.m \
 	NSKeyValueCoding/NSArray+KVC.m \
+	NSKeyValueCoding/NSSet+KVC.m \
 	NSKeyValueCoding/NSKeyPathObserver.m \
 	NSPointerFunctions.m \
 	NSOrthography.m \
