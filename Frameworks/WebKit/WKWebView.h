@@ -109,10 +109,70 @@ typedef NS_ENUM(NSInteger, WKNavigationType) {
 @interface WKProcessPool : NSObject <NSSecureCoding>
 @end
 
+/* The kinds of data a site keeps. */
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeFetchCache API_AVAILABLE(macos(10.13.4));
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeDiskCache;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeMemoryCache;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeOfflineWebApplicationCache;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeCookies;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeSessionStorage;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeLocalStorage;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeWebSQLDatabases;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeIndexedDBDatabases;
+FOUNDATION_EXPORT NSString *const WKWebsiteDataTypeServiceWorkerRegistrations API_AVAILABLE(macos(10.13.4));
+
+/* A site's data: its name (its domain) and what kinds of data it has. */
+@interface WKWebsiteDataRecord : NSObject
+@property (readonly, copy) NSString *displayName;
+@property (readonly, copy) NSSet<NSString *> *dataTypes;
+@end
+
+@class WKHTTPCookieStore;
+
+@protocol WKHTTPCookieStoreObserver <NSObject>
+@optional
+- (void)cookiesDidChangeInCookieStore:(WKHTTPCookieStore *)cookieStore;
+@end
+
+/* The cookies of a data store's web views (not the app's
+   NSHTTPCookieStorage, as on the reference). Handlers on the main queue. */
+API_AVAILABLE(macos(10.13))
+@interface WKHTTPCookieStore : NSObject
+- (void)getAllCookies:(void (^)(NSArray<NSHTTPCookie *> *))completionHandler;
+- (void)setCookie:(NSHTTPCookie *)cookie completionHandler:(nullable void (^)(void))completionHandler;
+- (void)deleteCookie:(NSHTTPCookie *)cookie completionHandler:(nullable void (^)(void))completionHandler;
+- (void)addObserver:(id<WKHTTPCookieStoreObserver>)observer;
+- (void)removeObserver:(id<WKHTTPCookieStoreObserver>)observer;
+@end
+
 @interface WKWebsiteDataStore : NSObject <NSSecureCoding>
 + (WKWebsiteDataStore *)defaultDataStore;
 + (WKWebsiteDataStore *)nonPersistentDataStore;
 @property (readonly, getter=isPersistent) BOOL persistent;
+@property (readonly) WKHTTPCookieStore *httpCookieStore API_AVAILABLE(macos(10.13));
++ (NSSet<NSString *> *)allWebsiteDataTypes;
+- (void)fetchDataRecordsOfTypes:(NSSet<NSString *> *)dataTypes
+              completionHandler:(void (^)(NSArray<WKWebsiteDataRecord *> *))completionHandler;
+- (void)removeDataOfTypes:(NSSet<NSString *> *)dataTypes forDataRecords:(NSArray<WKWebsiteDataRecord *> *)dataRecords
+        completionHandler:(void (^)(void))completionHandler;
+- (void)removeDataOfTypes:(NSSet<NSString *> *)dataTypes modifiedSince:(NSDate *)date
+        completionHandler:(void (^)(void))completionHandler;
+@end
+
+/* A load of a URL in a scheme of the app's own: the handler answers it
+   with a response, data and an end, or an error. */
+@protocol WKURLSchemeTask <NSObject>
+@property (readonly, copy) NSURLRequest *request;
+- (void)didReceiveResponse:(NSURLResponse *)response;
+- (void)didReceiveData:(NSData *)data;
+- (void)didFinish;
+- (void)didFailWithError:(NSError *)error;
+@end
+
+API_AVAILABLE(macos(10.13))
+@protocol WKURLSchemeHandler <NSObject>
+- (void)webView:(WKWebView *)webView startURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask;
+- (void)webView:(WKWebView *)webView stopURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask;
 @end
 
 typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
@@ -132,6 +192,11 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 /* Media a page may play only after the user acts (None by default). */
 @property WKAudiovisualMediaTypes mediaTypesRequiringUserActionForPlayback;
 @property BOOL allowsAirPlayForMediaPlayback;
+/* A handler for a scheme WebKit does not handle itself (see +[WKWebView
+   handlesURLScheme:]); one a scheme. */
+- (void)setURLSchemeHandler:(nullable id<WKURLSchemeHandler>)urlSchemeHandler forURLScheme:(NSString *)urlScheme
+    API_AVAILABLE(macos(10.13));
+- (nullable id<WKURLSchemeHandler>)urlSchemeHandlerForURLScheme:(NSString *)urlScheme API_AVAILABLE(macos(10.13));
 @end
 
 @interface WKNavigation : NSObject
@@ -256,6 +321,8 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property CGFloat magnification;
 
 - (instancetype)initWithFrame:(NSRect)frame configuration:(WKWebViewConfiguration *)configuration NS_DESIGNATED_INITIALIZER;
+/* The schemes WebKit loads itself (no handler may be set for them). */
++ (BOOL)handlesURLScheme:(NSString *)urlScheme API_AVAILABLE(macos(10.13));
 - (nullable WKNavigation *)loadRequest:(NSURLRequest *)request;
 - (nullable WKNavigation *)loadFileURL:(NSURL *)URL allowingReadAccessToURL:(NSURL *)readAccessURL;
 - (nullable WKNavigation *)loadHTMLString:(NSString *)string baseURL:(nullable NSURL *)baseURL;

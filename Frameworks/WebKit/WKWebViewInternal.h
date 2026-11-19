@@ -19,6 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface WKWebViewConfiguration (WebKitInternal)
 @property (nullable, weak) WKWebView *_relatedWebView;
+/* The scheme handlers set, by lowercase scheme. */
+- (nullable NSDictionary<NSString *, id<WKURLSchemeHandler>> *)_schemeHandlers;
 @end
 
 NS_ASSUME_NONNULL_END

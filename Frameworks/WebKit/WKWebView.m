@@ -487,9 +487,184 @@ SECURE
 
 /* Website data in ~/Library/WebKit/<the app's identifier>, its cache in
    ~/Library/Caches/<identifier>/WebKit, or kept in memory only. */
+NSString *const WKWebsiteDataTypeFetchCache = @"WKWebsiteDataTypeFetchCache";
+NSString *const WKWebsiteDataTypeDiskCache = @"WKWebsiteDataTypeDiskCache";
+NSString *const WKWebsiteDataTypeMemoryCache = @"WKWebsiteDataTypeMemoryCache";
+NSString *const WKWebsiteDataTypeOfflineWebApplicationCache = @"WKWebsiteDataTypeOfflineWebApplicationCache";
+NSString *const WKWebsiteDataTypeCookies = @"WKWebsiteDataTypeCookies";
+NSString *const WKWebsiteDataTypeSessionStorage = @"WKWebsiteDataTypeSessionStorage";
+NSString *const WKWebsiteDataTypeLocalStorage = @"WKWebsiteDataTypeLocalStorage";
+NSString *const WKWebsiteDataTypeWebSQLDatabases = @"WKWebsiteDataTypeWebSQLDatabases";
+NSString *const WKWebsiteDataTypeIndexedDBDatabases = @"WKWebsiteDataTypeIndexedDBDatabases";
+NSString *const WKWebsiteDataTypeServiceWorkerRegistrations = @"WKWebsiteDataTypeServiceWorkerRegistrations";
+
+/* The API's data types as WebKit's (Web SQL is not WebKit's here). */
+static const struct { NSString *const *name; WebKitWebsiteDataTypes type; } dataTypes[] = {
+    { &WKWebsiteDataTypeFetchCache, WEBKIT_WEBSITE_DATA_DOM_CACHE },
+    { &WKWebsiteDataTypeDiskCache, WEBKIT_WEBSITE_DATA_DISK_CACHE },
+    { &WKWebsiteDataTypeMemoryCache, WEBKIT_WEBSITE_DATA_MEMORY_CACHE },
+    { &WKWebsiteDataTypeOfflineWebApplicationCache, WEBKIT_WEBSITE_DATA_OFFLINE_APPLICATION_CACHE },
+    { &WKWebsiteDataTypeCookies, WEBKIT_WEBSITE_DATA_COOKIES },
+    { &WKWebsiteDataTypeSessionStorage, WEBKIT_WEBSITE_DATA_SESSION_STORAGE },
+    { &WKWebsiteDataTypeLocalStorage, WEBKIT_WEBSITE_DATA_LOCAL_STORAGE },
+    { &WKWebsiteDataTypeWebSQLDatabases, 0 },
+    { &WKWebsiteDataTypeIndexedDBDatabases, WEBKIT_WEBSITE_DATA_INDEXEDDB_DATABASES },
+    { &WKWebsiteDataTypeServiceWorkerRegistrations, WEBKIT_WEBSITE_DATA_SERVICE_WORKER_REGISTRATIONS },
+};
+
+static WebKitWebsiteDataTypes webKitDataTypes(NSSet<NSString *> *types)
+{
+    WebKitWebsiteDataTypes mask = 0;
+    for (size_t i = 0; i < sizeof(dataTypes) / sizeof(*dataTypes); i++)
+        if ([types containsObject:*dataTypes[i].name])
+            mask |= dataTypes[i].type;
+    return mask;
+}
+
+static NSSet<NSString *> *apiDataTypes(WebKitWebsiteDataTypes mask)
+{
+    NSMutableSet *types = [NSMutableSet set];
+    for (size_t i = 0; i < sizeof(dataTypes) / sizeof(*dataTypes); i++)
+        if (dataTypes[i].type && (mask & dataTypes[i].type))
+            [types addObject:*dataTypes[i].name];
+    return types;
+}
+
+@interface WKWebsiteDataRecord ()
+@property (readwrite, copy) NSString *displayName;
+@property (readwrite, copy) NSSet<NSString *> *dataTypes;
+@end
+
+/* Each holds WebKit's record, to remove it. */
+@implementation WKWebsiteDataRecord {
+@public
+    WebKitWebsiteData *_data;
+}
+- (void)dealloc {
+    if (_data)
+        webkit_website_data_unref(_data);
+}
+- (NSString *)description {
+    return [NSString stringWithFormat:@"<%@: %p; displayName = %@; dataTypes = { %@ }>", self.class, self, _displayName,
+            [_dataTypes.allObjects componentsJoinedByString:@", "]];
+}
+@end
+
+/* A cookie as Foundation's, and back. */
+static NSHTTPCookie *foundationCookie(SoupCookie *cookie)
+{
+    NSMutableDictionary *properties = [NSMutableDictionary dictionary];
+    properties[NSHTTPCookieName] = @(soup_cookie_get_name(cookie) ?: "");
+    properties[NSHTTPCookieValue] = @(soup_cookie_get_value(cookie) ?: "");
+    properties[NSHTTPCookieDomain] = @(soup_cookie_get_domain(cookie) ?: "");
+    properties[NSHTTPCookiePath] = @(soup_cookie_get_path(cookie) ?: "/");
+    GDateTime *expires = soup_cookie_get_expires(cookie);
+    if (expires)
+        properties[NSHTTPCookieExpires] = [NSDate dateWithTimeIntervalSince1970:g_date_time_to_unix(expires)];
+    if (soup_cookie_get_secure(cookie))
+        properties[NSHTTPCookieSecure] = @"TRUE";
+    if (soup_cookie_get_http_only(cookie))
+        properties[@"HttpOnly"] = @"TRUE";
+    return [NSHTTPCookie cookieWithProperties:properties];
+}
+
+static SoupCookie *soupCookie(NSHTTPCookie *cookie)
+{
+    SoupCookie *result = soup_cookie_new(cookie.name.UTF8String ?: "", cookie.value.UTF8String ?: "",
+                                         cookie.domain.UTF8String ?: "", (cookie.path.length ? cookie.path : @"/").UTF8String, -1);
+    if (cookie.expiresDate != nil && !cookie.sessionOnly) {
+        GDateTime *expires = g_date_time_new_from_unix_utc((gint64)cookie.expiresDate.timeIntervalSince1970);
+        soup_cookie_set_expires(result, expires);
+        g_date_time_unref(expires);
+    }
+    soup_cookie_set_secure(result, cookie.secure);
+    soup_cookie_set_http_only(result, cookie.HTTPOnly);
+    return result;
+}
+
+@interface WKHTTPCookieStore ()
+- (instancetype)_initWithManager:(WebKitCookieManager *)manager;
+@end
+
+@implementation WKHTTPCookieStore {
+    WebKitCookieManager *_manager;
+    NSHashTable<id<WKHTTPCookieStoreObserver>> *_observers;
+}
+
+static void cookiesChanged(WebKitCookieManager *manager, gpointer data)
+{
+    (void)manager;
+    WKHTTPCookieStore *store = (__bridge WKHTTPCookieStore *)data;
+    for (id<WKHTTPCookieStoreObserver> observer in store->_observers.allObjects)
+        if ([observer respondsToSelector:@selector(cookiesDidChangeInCookieStore:)])
+            [observer cookiesDidChangeInCookieStore:store];
+}
+
+- (instancetype)_initWithManager:(WebKitCookieManager *)manager {
+    if ((self = [super init])) {
+        _manager = g_object_ref(manager);
+        _observers = [NSHashTable weakObjectsHashTable];
+        g_signal_connect(_manager, "changed", G_CALLBACK(cookiesChanged), (__bridge void *)self);
+    }
+    return self;
+}
+
+- (void)dealloc {
+    g_signal_handlers_disconnect_by_data(_manager, (__bridge void *)self);
+    g_object_unref(_manager);
+}
+
+static void gotAllCookies(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^handler)(NSArray *) = (__bridge_transfer void (^)(NSArray *))data;
+    GList *cookies = webkit_cookie_manager_get_all_cookies_finish(WEBKIT_COOKIE_MANAGER(object), result, NULL);
+    NSMutableArray *array = [NSMutableArray array];
+    for (GList *l = cookies; l != NULL; l = l->next)
+        [array addObject:foundationCookie(l->data)];
+    g_list_free_full(cookies, (GDestroyNotify)soup_cookie_free);
+    handler(array);
+}
+
+- (void)getAllCookies:(void (^)(NSArray<NSHTTPCookie *> *))completionHandler {
+    void (^handler)(NSArray *) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^(NSArray *cookies) { (void)cookies; };
+    webkit_cookie_manager_get_all_cookies(_manager, NULL, gotAllCookies, (__bridge_retained void *)handler);
+}
+
+static void cookieChangeDone(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^handler)(void) = (__bridge_transfer void (^)(void))data;
+    (void)object; (void)result;
+    handler();
+}
+
+- (void)setCookie:(NSHTTPCookie *)cookie completionHandler:(void (^)(void))completionHandler {
+    void (^handler)(void) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^{};
+    SoupCookie *soup = soupCookie(cookie);
+    webkit_cookie_manager_add_cookie(_manager, soup, NULL, cookieChangeDone, (__bridge_retained void *)handler);
+    soup_cookie_free(soup);
+}
+
+- (void)deleteCookie:(NSHTTPCookie *)cookie completionHandler:(void (^)(void))completionHandler {
+    void (^handler)(void) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^{};
+    SoupCookie *soup = soupCookie(cookie);
+    webkit_cookie_manager_delete_cookie(_manager, soup, NULL, cookieChangeDone, (__bridge_retained void *)handler);
+    soup_cookie_free(soup);
+}
+
+- (void)addObserver:(id<WKHTTPCookieStoreObserver>)observer { [_observers addObject:observer]; }
+- (void)removeObserver:(id<WKHTTPCookieStoreObserver>)observer { [_observers removeObject:observer]; }
+@end
+
 @implementation WKWebsiteDataStore {
     BOOL _persistent;
     WebKitNetworkSession *_session;
+    WKHTTPCookieStore *_cookieStore;
 }
 SECURE
 + (WKWebsiteDataStore *)defaultDataStore {
@@ -516,12 +691,86 @@ SECURE
     }
     return _session;
 }
+
+- (WKHTTPCookieStore *)httpCookieStore {
+    if (_cookieStore == nil)
+        _cookieStore = [[WKHTTPCookieStore alloc] _initWithManager:webkit_network_session_get_cookie_manager([self _session])];
+    return _cookieStore;
+}
+
++ (NSSet<NSString *> *)allWebsiteDataTypes {
+    NSMutableSet *types = [NSMutableSet set];
+    for (size_t i = 0; i < sizeof(dataTypes) / sizeof(*dataTypes); i++)
+        [types addObject:*dataTypes[i].name];
+    return types;
+}
+
+- (WebKitWebsiteDataManager *)_dataManager {
+    return webkit_network_session_get_website_data_manager([self _session]);
+}
+
+static void fetchedRecords(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^handler)(NSArray *) = (__bridge_transfer void (^)(NSArray *))data;
+    GList *list = webkit_website_data_manager_fetch_finish(WEBKIT_WEBSITE_DATA_MANAGER(object), result, NULL);
+    NSMutableArray *records = [NSMutableArray array];
+    for (GList *l = list; l != NULL; l = l->next) {
+        WKWebsiteDataRecord *record = [WKWebsiteDataRecord new];
+        record->_data = webkit_website_data_ref(l->data);
+        record.displayName = @(webkit_website_data_get_name(l->data) ?: "");
+        record.dataTypes = apiDataTypes(webkit_website_data_get_types(l->data));
+        [records addObject:record];
+    }
+    g_list_free_full(list, (GDestroyNotify)webkit_website_data_unref);
+    handler(records);
+}
+
+- (void)fetchDataRecordsOfTypes:(NSSet<NSString *> *)types completionHandler:(void (^)(NSArray<WKWebsiteDataRecord *> *))completionHandler {
+    void (^handler)(NSArray *) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^(NSArray *records) { (void)records; };
+    webkit_website_data_manager_fetch([self _dataManager], webKitDataTypes(types), NULL, fetchedRecords,
+                                      (__bridge_retained void *)handler);
+}
+
+static void removedData(GObject *object, GAsyncResult *result, gpointer data)
+{
+    void (^handler)(void) = (__bridge_transfer void (^)(void))data;
+    (void)object; (void)result;
+    handler();
+}
+
+- (void)removeDataOfTypes:(NSSet<NSString *> *)types forDataRecords:(NSArray<WKWebsiteDataRecord *> *)records
+        completionHandler:(void (^)(void))completionHandler {
+    void (^handler)(void) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^{};
+    GList *list = NULL;
+    for (WKWebsiteDataRecord *record in records)
+        if (record->_data)
+            list = g_list_prepend(list, record->_data);
+    webkit_website_data_manager_remove([self _dataManager], webKitDataTypes(types), list, NULL, removedData,
+                                       (__bridge_retained void *)handler);
+    g_list_free(list);
+}
+
+/* What was kept since the date (all of it, for a date in the past). */
+- (void)removeDataOfTypes:(NSSet<NSString *> *)types modifiedSince:(NSDate *)date completionHandler:(void (^)(void))completionHandler {
+    void (^handler)(void) = [completionHandler copy];
+    if (handler == nil)
+        handler = ^{};
+    NSTimeInterval age = date ? -date.timeIntervalSinceNow : 0;
+    GTimeSpan span = (date == nil || age > 100.0 * 365 * 86400) ? 0 : (GTimeSpan)(age * G_TIME_SPAN_SECOND);
+    webkit_website_data_manager_clear([self _dataManager], webKitDataTypes(types), span, NULL, removedData,
+                                      (__bridge_retained void *)handler);
+}
 @end
 
 /* _relatedWebView (WKWebViewInternal.h): the web view whose page opens
    the one made with this configuration. */
 @implementation WKWebViewConfiguration {
     __weak WKWebView *_related;
+    NSMutableDictionary<NSString *, id<WKURLSchemeHandler>> *_schemeHandlers;
 }
 SECURE
 - (WKWebView *)_relatedWebView { return _related; }
@@ -546,8 +795,26 @@ SECURE
     copy.mediaTypesRequiringUserActionForPlayback = self.mediaTypesRequiringUserActionForPlayback;
     copy.allowsAirPlayForMediaPlayback = self.allowsAirPlayForMediaPlayback;
     copy._relatedWebView = self._relatedWebView;
+    copy->_schemeHandlers = [_schemeHandlers mutableCopy];
     return copy;
 }
+/* As on the reference: not for WebKit's own schemes, and once a scheme. */
+- (void)setURLSchemeHandler:(id<WKURLSchemeHandler>)handler forURLScheme:(NSString *)scheme {
+    NSString *key = scheme.lowercaseString;
+    if ([WKWebView handlesURLScheme:key])
+        [NSException raise:NSInvalidArgumentException format:@"'%@' is a URL scheme that WKWebView handles natively", scheme];
+    if (_schemeHandlers[key] != nil)
+        [NSException raise:NSInvalidArgumentException format:@"URL scheme '%@' already has a registered URL scheme handler", scheme];
+    if (handler == nil)
+        return;
+    if (_schemeHandlers == nil)
+        _schemeHandlers = [NSMutableDictionary dictionary];
+    _schemeHandlers[key] = handler;
+}
+- (id<WKURLSchemeHandler>)urlSchemeHandlerForURLScheme:(NSString *)scheme {
+    return _schemeHandlers[scheme.lowercaseString];
+}
+- (NSDictionary *)_schemeHandlers { return _schemeHandlers; }
 @end
 
 @implementation WKNavigation
@@ -671,6 +938,113 @@ static NSData *derOf(GTlsCertificate *certificate)
 
 @interface NSURLCredential (WebKitTrust)
 - (SecTrustRef)_trust;
+@end
+
+@class _WKURLSchemeTask;
+@interface WKWebView (WebKitSchemeTasks)
+- (void)_schemeTaskEnded:(_WKURLSchemeTask *)task error:(NSError *)error;
+@end
+
+/* A load in a scheme of the app's: WebKit's request, answered once the
+   handler has given the response and all the data (or an error). Calls
+   after it ended or was stopped are ignored. */
+@interface _WKURLSchemeTask : NSObject <WKURLSchemeTask>
+@end
+
+@implementation _WKURLSchemeTask {
+@public
+    WebKitURISchemeRequest *_request;
+    NSURLRequest *_urlRequest;
+    NSURLResponse *_response;
+    NSMutableData *_data;
+    BOOL _ended;
+    __weak WKWebView *_webView;
+    __weak id<WKURLSchemeHandler> _handler;
+}
+
+- (instancetype)_initWithRequest:(WebKitURISchemeRequest *)request {
+    if ((self = [super init])) {
+        _request = g_object_ref(request);
+        NSURL *url = [NSURL URLWithString:@(webkit_uri_scheme_request_get_uri(request) ?: "")];
+        NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:url];
+        urlRequest.HTTPMethod = @(webkit_uri_scheme_request_get_http_method(request) ?: "GET");
+        SoupMessageHeaders *headers = webkit_uri_scheme_request_get_http_headers(request);
+        if (headers) {
+            SoupMessageHeadersIter iter;
+            const char *name, *value;
+            soup_message_headers_iter_init(&iter, headers);
+            while (soup_message_headers_iter_next(&iter, &name, &value))
+                [urlRequest setValue:@(value) forHTTPHeaderField:@(name)];
+        }
+        _urlRequest = [urlRequest copy];
+        _data = [NSMutableData data];
+    }
+    return self;
+}
+
+- (void)dealloc {
+    if (!_ended) {
+        GError *error = g_error_new_literal(g_quark_from_static_string("WKURLSchemeTask"), 1, "abandoned");
+        webkit_uri_scheme_request_finish_error(_request, error);
+        g_error_free(error);
+    }
+    g_object_unref(_request);
+}
+
+- (NSURLRequest *)request { return _urlRequest; }
+- (void)didReceiveResponse:(NSURLResponse *)response { if (!_ended) _response = [response copy]; }
+- (void)didReceiveData:(NSData *)data { if (!_ended && data) [_data appendData:data]; }
+
+- (void)didFinish {
+    if (_ended)
+        return;
+    _ended = YES;
+    GBytes *bytes = g_bytes_new(_data.bytes, _data.length);
+    GInputStream *stream = g_memory_input_stream_new_from_bytes(bytes);
+    WebKitURISchemeResponse *response = webkit_uri_scheme_response_new(stream, (gint64)_data.length);
+    NSString *type = _response.MIMEType;
+    if (type.length) {
+        NSString *contentType = _response.textEncodingName.length ? [NSString stringWithFormat:@"%@; charset=%@", type, _response.textEncodingName] : type;
+        webkit_uri_scheme_response_set_content_type(response, contentType.UTF8String);
+    }
+    if ([_response isKindOfClass:[NSHTTPURLResponse class]]) {
+        NSHTTPURLResponse *http = (NSHTTPURLResponse *)_response;
+        SoupMessageHeaders *headers = soup_message_headers_new(SOUP_MESSAGE_HEADERS_RESPONSE);
+        [http.allHeaderFields enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
+            (void)stop;
+            soup_message_headers_append(headers, name.UTF8String, value.UTF8String);
+        }];
+        webkit_uri_scheme_response_set_status(response, (guint)http.statusCode, NULL);
+        webkit_uri_scheme_response_set_http_headers(response, headers);   /* takes them */
+    }
+    webkit_uri_scheme_request_finish_with_response(_request, response);
+    g_object_unref(response);
+    g_object_unref(stream);
+    g_bytes_unref(bytes);
+    [_webView _schemeTaskEnded:self error:nil];
+}
+
+- (void)didFailWithError:(NSError *)error {
+    if (_ended)
+        return;
+    _ended = YES;
+    [_webView _schemeTaskEnded:self error:error];
+    GError *gerror = g_error_new_literal(g_quark_from_static_string("WKURLSchemeTask"), (gint)error.code,
+                                         (error.localizedDescription ?: @"").UTF8String);
+    webkit_uri_scheme_request_finish_error(_request, gerror);
+    g_error_free(gerror);
+}
+
+/* WebKit dropped it (the page went away): the handler is told. */
+- (void)_stop {
+    if (_ended)
+        return;
+    _ended = YES;
+    id<WKURLSchemeHandler> handler = _handler;
+    WKWebView *webView = _webView;
+    if (handler && webView)
+        [handler webView:webView stopURLSchemeTask:self];
+}
 @end
 
 /* The sender of a challenge the delegate answers by its completion
@@ -850,6 +1224,53 @@ static NSString *standardUserAgent(WKWebViewConfiguration *configuration)
     char *_tlsRetryURI;
     /* Certificates the delegate took (their DER), for hasOnlySecureContent. */
     NSMutableSet<NSData *> *_acceptedCertificates;
+    /* Scheme tasks going on, and the errors of failed ones by URL (the
+       navigation fails with the handler's own error). */
+    NSMutableArray<_WKURLSchemeTask *> *_schemeTasks;
+    NSMutableDictionary<NSString *, NSError *> *_schemeErrors;
+}
+
+/* Each WebKit view's web view, to find it from WebKit's requests. */
+static NSMapTable *webViews(void)
+{
+    static NSMapTable *table;
+    if (table == nil)
+        table = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
+                                      valueOptions:NSPointerFunctionsWeakMemory];
+    return table;
+}
+
+/* A request in a scheme registered for a handler: the requesting web
+   view's handler for it, as a task. */
+static void schemeRequested(WebKitURISchemeRequest *request, gpointer data)
+{
+    (void)data;
+    WebKitWebView *view = webkit_uri_scheme_request_get_web_view(request);
+    WKWebView *webView = view ? [webViews() objectForKey:(__bridge id)(void *)view] : nil;
+    NSString *scheme = @(webkit_uri_scheme_request_get_scheme(request) ?: "");
+    id<WKURLSchemeHandler> handler = [webView.configuration urlSchemeHandlerForURLScheme:scheme];
+    if (handler == nil) {
+        GError *error = g_error_new_literal(g_quark_from_static_string("WKURLSchemeTask"), 1, "no handler");
+        webkit_uri_scheme_request_finish_error(request, error);
+        g_error_free(error);
+        return;
+    }
+    [webView _startSchemeTask:request handler:handler];
+}
+
+/* The schemes a context sends to schemeRequested (each once). */
+static void registerSchemes(WebKitWebContext *context, NSArray<NSString *> *schemes)
+{
+    static NSMutableSet *registered;
+    if (registered == nil)
+        registered = [NSMutableSet set];
+    for (NSString *scheme in schemes) {
+        NSString *key = [NSString stringWithFormat:@"%p:%@", context, scheme];
+        if ([registered containsObject:key])
+            continue;
+        [registered addObject:key];
+        webkit_web_context_register_uri_scheme(context, scheme.UTF8String, schemeRequested, NULL, NULL);
+    }
 }
 
 static void evaluated(GObject *object, GAsyncResult *result, gpointer data);
@@ -1021,6 +1442,8 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         g_signal_connect(_webView, "load-failed-with-tls-errors", G_CALLBACK(loadFailedWithTLSErrors), me);
         _kvoTitle = @"";
 
+        [webViews() setObject:self forKey:(__bridge id)(void *)_webView];
+        registerSchemes(webkit_web_view_get_context(_webView), _configuration._schemeHandlers.allKeys);
         _wpeView = webkit_web_view_get_wpe_view(_webView);
         _WebWPEViewSetFrameFunction(_wpeView, frameArrived, me);
         _WebWPEViewResize(_wpeView, (int)NSWidth(frame), (int)NSHeight(frame));
@@ -1638,7 +2061,11 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 
 - (void)_loadFailed:(WebKitLoadEvent)event uri:(const char *)uri error:(GError *)error {
     id<WKNavigationDelegate> d = self.navigationDelegate;
-    NSError *nsError = loadError(error, uri);
+    NSString *key = uri ? @(uri) : nil;
+    /* A scheme handler's failure: its own error, as on the reference. */
+    NSError *nsError = (key && _schemeErrors[key]) ? _schemeErrors[key] : loadError(error, uri);
+    if (key)
+        [_schemeErrors removeObjectForKey:key];
     _loadFailed = YES;
     if (event == WEBKIT_LOAD_COMMITTED) {
         if ([d respondsToSelector:@selector(webView:didFailNavigation:withError:)])
@@ -1646,6 +2073,46 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     } else if ([d respondsToSelector:@selector(webView:didFailProvisionalNavigation:withError:)]) {
         [d webView:self didFailProvisionalNavigation:_navigation withError:nsError];
     }
+    /* A load cancelled (the page left for another): its scheme tasks are
+       stopped, after the delegate heard, as on the reference. */
+    if ([nsError.domain isEqualToString:NSURLErrorDomain] && nsError.code == NSURLErrorCancelled)
+        [self _stopSchemeTasks];
+}
+
+#pragma mark Scheme handlers
+
++ (BOOL)handlesURLScheme:(NSString *)scheme {
+    static NSSet *own;
+    if (own == nil)
+        own = [NSSet setWithObjects:@"about", @"blob", @"data", @"file", @"ftp", @"http", @"https", @"javascript",
+               @"ws", @"wss", @"webkit", nil];
+    return [own containsObject:scheme.lowercaseString];
+}
+
+- (void)_startSchemeTask:(WebKitURISchemeRequest *)request handler:(id<WKURLSchemeHandler>)handler {
+    _WKURLSchemeTask *task = [[_WKURLSchemeTask alloc] _initWithRequest:request];
+    task->_webView = self;
+    task->_handler = handler;
+    if (_schemeTasks == nil)
+        _schemeTasks = [NSMutableArray array];
+    [_schemeTasks addObject:task];
+    [handler webView:self startURLSchemeTask:task];
+}
+
+- (void)_schemeTaskEnded:(_WKURLSchemeTask *)task error:(NSError *)error {
+    if (error != nil && task.request.URL.absoluteString) {
+        if (_schemeErrors == nil)
+            _schemeErrors = [NSMutableDictionary dictionary];
+        _schemeErrors[task.request.URL.absoluteString] = error;
+    }
+    [_schemeTasks removeObjectIdenticalTo:task];
+}
+
+- (void)_stopSchemeTasks {
+    NSArray *tasks = [_schemeTasks copy];
+    [_schemeTasks removeAllObjects];
+    for (_WKURLSchemeTask *task in tasks)
+        [task _stop];
 }
 
 /* A navigation the delegate decides on, now or later: WebKit waits. */
