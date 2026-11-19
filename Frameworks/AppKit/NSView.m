@@ -1762,17 +1762,24 @@ static NSView *framingView;
    if(assumeInside==YES)
     options|=NSTrackingAssumeInside;
 
-   area=[[NSTrackingArea alloc] _initWithRect:rect options:options owner:owner userData:NULL retainUserData:NO isToolTip:NO isLegacy:NO];
+   area=[[NSTrackingArea alloc] _initWithRect:rect options:options owner:owner userData:userData retainUserData:NO isToolTip:NO isLegacy:NO];
    [_trackingAreas addObject:area];
    [area release];
 
    [self _trackingAreasChanged];
 
-   return area;
+   /* Its tag is the area's address, as its events' trackingNumber is:
+      positive, never 0. */
+   return (NSTrackingRectTag)(intptr_t)area;
 }
 
+/* Only an area of this view's: another tag does nothing. */
 -(void)removeTrackingRect:(NSTrackingRectTag)tag {
-   [self removeTrackingArea:tag];
+   for(NSTrackingArea *area in [[_trackingAreas copy] autorelease])
+    if((NSTrackingRectTag)(intptr_t)area==tag){
+     [self removeTrackingArea:area];
+     return;
+    }
 }
 
 static char inputContextKey;

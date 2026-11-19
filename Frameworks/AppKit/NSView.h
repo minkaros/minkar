@@ -21,7 +21,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @class NSWindow, NSMenu, NSMenuItem, NSCursor, NSClipView, NSPasteboard, NSTextInputContext, NSImage, NSBitmapImageRep, NSScrollView, NSTrackingArea, NSShadow, NSScreen, CALayer, CIFilter, CALayerContext;
 
 // See Cocoa Event Handling Guide : Using Tracking-Area Objects : Compatibility Issues
-typedef NSTrackingArea *NSTrackingRectTag;
+/* An integer, as on the reference (a tracking rectangle's tag, its
+   events' trackingNumber); 0 is no tag. */
+typedef NSInteger NSTrackingRectTag;
 typedef NSTrackingArea *NSToolTipTag;
 
 typedef NS_OPTIONS(NSUInteger, NSAutoresizingMaskOptions) {
