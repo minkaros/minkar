@@ -187,12 +187,21 @@ typedef NS_OPTIONS(NSUInteger, WKAudiovisualMediaTypes) {
 @property (nullable, readonly) NSNumber *height;
 @end
 
+/* What a file input asks of an open panel. */
+@interface WKOpenPanelParameters : NSObject
+@property (readonly) BOOL allowsMultipleSelection;
+@property (readonly) BOOL allowsDirectories API_AVAILABLE(macos(10.13.4));
+@end
+
 @protocol WKUIDelegate <NSObject>
 @optional
 /* The web view must be made with the configuration given. */
 - (nullable WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration
             forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures;
 - (void)webViewDidClose:(WKWebView *)webView;
+- (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters
+    initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSArray<NSURL *> *_Nullable URLs))completionHandler
+    API_AVAILABLE(macos(10.12));
 - (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message
     initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler;
 - (void)webView:(WKWebView *)webView runJavaScriptConfirmPanelWithMessage:(NSString *)message

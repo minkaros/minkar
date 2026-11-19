@@ -133,7 +133,7 @@ static NSError *loadError(GError *error, const char *uri)
         code = NSURLErrorSecureConnectionFailed;
     } else if (error->domain == WEBKIT_POLICY_ERROR) {
         domain = @"WebKitErrorDomain";
-        code = 100 + error->code;        /* 102: frame load interrupted */
+        code = error->code;              /* 100 on, as WebKit's: 102 frame load interrupted */
     }
     NSMutableDictionary *info = [NSMutableDictionary dictionary];
     info[NSLocalizedDescriptionKey] = stringOrNil(error->message) ?: @"The page did not load.";
@@ -177,6 +177,28 @@ SECURE
 @end
 
 
+@interface WKUserContentController ()
+- (BOOL)_fileInputTakesDirectories;
+@end
+
+static void fileInputClicked(WebKitUserContentManager *manager, JSCValue *value, gpointer data);
+
+/* The world of WebKit.framework's own scripts: pages do not see it. */
+static const char *const kWKInternalWorld = "org.minkar.WebKit";
+
+/* What WebKit's file chooser request does not say: whether the file input
+   that asked takes directories. Each click on one (a script's click() and
+   the keyboard's included) is told from the internal world, as it
+   happens: the message comes before the request, on the same
+   connection, so the delegate is asked at once, as on the reference. */
+static const char *const kWKFileInputHandler = "org.minkar.WebKit.fileInput";
+static const char *const kWKFileInputScript =
+    "document.addEventListener('click', function (event) {"
+    "  var input = event.target;"
+    "  if (input instanceof HTMLInputElement && input.type === 'file')"
+    "    window.webkit.messageHandlers['org.minkar.WebKit.fileInput'].postMessage(input.hasAttribute('webkitdirectory'));"
+    "}, true);";
+
 /* The scripts and handlers of every web view using it: a WebKit user
    content manager, made with the controller. */
 @implementation WKUserContentController {
@@ -184,6 +206,7 @@ SECURE
     NSMutableDictionary<NSString *, id<WKScriptMessageHandler>> *_handlers;
     WebKitUserContentManager *_manager;
     NSHashTable<WKWebView *> *_webViews;
+    BOOL _fileInputTakesDirectories;     /* the last file input clicked */
 }
 SECURE
 - (instancetype)init {
@@ -204,6 +227,10 @@ SECURE
     if (_manager == NULL) {
         _WebGLibRunLoopStart();
         _manager = webkit_user_content_manager_new();
+        webkit_user_content_manager_register_script_message_handler(_manager, kWKFileInputHandler, kWKInternalWorld);
+        NSString *signal = [@"script-message-received::" stringByAppendingString:@(kWKFileInputHandler)];
+        g_signal_connect(_manager, signal.UTF8String, G_CALLBACK(fileInputClicked), (__bridge void *)self);
+        [self _addInternalScripts];
         for (WKUserScript *script in _scripts)
             [self _addToManager:script];
         for (NSString *name in _handlers)
@@ -212,6 +239,19 @@ SECURE
     return _manager;
 }
 - (void)_addWebView:(WKWebView *)webView { [_webViews addObject:webView]; }
+static void fileInputClicked(WebKitUserContentManager *manager, JSCValue *value, gpointer data)
+{
+    (void)manager;
+    WKUserContentController *controller = (__bridge WKUserContentController *)data;
+    controller->_fileInputTakesDirectories = jsc_value_is_boolean(value) && jsc_value_to_boolean(value);
+}
+- (BOOL)_fileInputTakesDirectories { return _fileInputTakesDirectories; }
+- (void)_addInternalScripts {
+    WebKitUserScript *script = webkit_user_script_new_for_world(kWKFileInputScript, WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
+        WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, kWKInternalWorld, NULL, NULL);
+    webkit_user_content_manager_add_script(_manager, script);
+    webkit_user_script_unref(script);
+}
 - (void)_addToManager:(WKUserScript *)script {
     WebKitUserScript *userScript = webkit_user_script_new(script.source.UTF8String,
         script.forMainFrameOnly ? WEBKIT_USER_CONTENT_INJECT_TOP_FRAME : WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
@@ -263,8 +303,10 @@ static void scriptMessageReceived(WebKitUserContentManager *manager, JSCValue *v
 }
 - (void)removeAllUserScripts {
     [_scripts removeAllObjects];
-    if (_manager)
+    if (_manager) {
         webkit_user_content_manager_remove_all_scripts(_manager);
+        [self _addInternalScripts];      /* the app's go, not WebKit.framework's */
+    }
 }
 - (void)addScriptMessageHandler:(id<WKScriptMessageHandler>)handler name:(NSString *)name {
     if (_handlers[name] != nil)
@@ -529,6 +571,14 @@ SECURE
 @implementation WKNavigationResponse
 @end
 
+@interface WKOpenPanelParameters ()
+@property (readwrite) BOOL allowsMultipleSelection;
+@property (readwrite) BOOL allowsDirectories;
+@end
+
+@implementation WKOpenPanelParameters
+@end
+
 /* A response as WebKit has it, as the Foundation response a delegate
    reads: an HTTP one with its status and headers. */
 static NSURLResponse *responseFrom(WebKitURIResponse *response)
@@ -740,6 +790,12 @@ static void insecureContentDetected(WebKitWebView *webView, WebKitInsecureConten
     [(__bridge WKWebView *)data _insecureContentDetected];
 }
 
+static gboolean runFileChooser(WebKitWebView *webView, WebKitFileChooserRequest *request, gpointer data)
+{
+    (void)webView;
+    return [(__bridge WKWebView *)data _runFileChooser:request];
+}
+
 static gboolean authenticate(WebKitWebView *webView, WebKitAuthenticationRequest *request, gpointer data)
 {
     (void)webView;
@@ -845,6 +901,7 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
         g_signal_connect(webkit_web_view_get_back_forward_list(_webView), "changed", G_CALLBACK(backForwardChanged), me);
         g_signal_connect(_webView, "insecure-content-detected", G_CALLBACK(insecureContentDetected), me);
         g_signal_connect(_webView, "authenticate", G_CALLBACK(authenticate), me);
+        g_signal_connect(_webView, "run-file-chooser", G_CALLBACK(runFileChooser), me);
         _kvoTitle = @"";
 
         _wpeView = webkit_web_view_get_wpe_view(_webView);
@@ -1434,6 +1491,60 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
     return TRUE;
 }
 
+/* A file input asks for files: the UI delegate's open panel, answered
+   now or later with URLs (nil: cancelled, the input keeps what it had).
+   Without one, nothing is chosen. Whether the input takes directories was
+   told as it was clicked (see kWKFileInputScript). */
+- (gboolean)_runFileChooser:(WebKitFileChooserRequest *)request {
+    id<WKUIDelegate> d = self.UIDelegate;
+    SEL selector = @selector(webView:runOpenPanelWithParameters:initiatedByFrame:completionHandler:);
+    if (![d respondsToSelector:selector]) {
+        webkit_file_chooser_request_cancel(request);
+        return TRUE;
+    }
+    g_object_ref(request);
+    BOOL multiple = webkit_file_chooser_request_get_select_multiple(request);
+    __weak WKWebView *weakSelf = self;
+    void (^ask)(BOOL) = ^(BOOL directories) {
+        WKWebView *me = weakSelf;
+        id<WKUIDelegate> delegate = me.UIDelegate;
+        if (me == nil || ![delegate respondsToSelector:selector]) {
+            webkit_file_chooser_request_cancel(request);
+            g_object_unref(request);
+            return;
+        }
+        WKOpenPanelParameters *parameters = [WKOpenPanelParameters new];
+        parameters.allowsMultipleSelection = multiple;
+        parameters.allowsDirectories = directories;
+        WKFrameInfo *frame = [WKFrameInfo new];
+        frame.mainFrame = YES;
+        frame.request = [NSURLRequest requestWithURL:me.URL ?: [NSURL URLWithString:@"about:blank"]];
+        __block BOOL answered = NO;
+        [delegate webView:me runOpenPanelWithParameters:parameters initiatedByFrame:frame
+            completionHandler:^(NSArray<NSURL *> *URLs) {
+            if (answered)
+                return;
+            answered = YES;
+            NSMutableArray *paths = [NSMutableArray array];
+            for (NSURL *url in URLs)
+                if (url.isFileURL && url.path != nil)
+                    [paths addObject:url.path];
+            if (URLs == nil || paths.count == 0)
+                webkit_file_chooser_request_cancel(request);
+            else {
+                const char **files = calloc(paths.count + 1, sizeof(char *));
+                for (NSUInteger i = 0; i < paths.count; i++)
+                    files[i] = [paths[i] fileSystemRepresentation];
+                webkit_file_chooser_request_select_files(request, files);
+                free(files);
+            }
+            g_object_unref(request);
+        }];
+    };
+    ask([_configuration.userContentController _fileInputTakesDirectories]);
+    return TRUE;
+}
+
 /* A server asks who the user is: the delegate answers, now or later,
    with a credential, the default handling (none: the request goes on
    without one) or a cancellation. Without a delegate, as the default. */
@@ -1597,7 +1708,9 @@ static void evaluated(GObject *object, GAsyncResult *result, gpointer data)
         return;
     }
     id foundation = nil;
-    if (foundationValue(value, &foundation))
+    if (jsc_value_is_undefined(value))
+        handler(nil, nil);               /* no result, no error: as on the reference */
+    else if (foundationValue(value, &foundation))
         handler(foundation, nil);
     else
         handler(nil, [NSError errorWithDomain:WKErrorDomain code:WKErrorJavaScriptResultTypeIsUnsupported
