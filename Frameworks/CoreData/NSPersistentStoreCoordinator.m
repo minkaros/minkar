@@ -12,20 +12,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreData/NSManagedObject.h>
 #import <CoreData/NSEntityDescription.h>
 #import "NSXMLPersistentStore.h"
+#import "NSSQLitePersistentStore.h"
+#import <CoreData/CoreDataErrors.h>
 #import "NSManagedObjectModel.h"
 #import "NSManagedObject.h"
 #import "NSInMemoryPersistentStore.h"
 #import "NSManagedObjectID-Private.h"
 #import <Foundation/NSRaise.h>
 
-NSString * const NSStoreTypeKey=@"NSStoreTypeKey";
-NSString * const NSStoreUUIDKey=@"NSStoreUUIDKey";
-NSString * const NSStoreModelVersionHashesKey=@"NSStoreModelVersionHashesKey";
-NSString * const NSStoreModelVersionIdentifiersKey=@"NSStoreModelVersionIdentifiersKey";
+// Minkar: the reference's values (a store's metadata is read by them).
+NSString * const NSStoreTypeKey=@"NSStoreType";
+NSString * const NSStoreUUIDKey=@"NSStoreUUID";
+NSString * const NSStoreModelVersionHashesKey=@"NSStoreModelVersionHashes";
+NSString * const NSStoreModelVersionIdentifiersKey=@"NSStoreModelVersionIdentifiers";
 
-NSString * const NSXMLStoreType=@"NSXMLStoreType";
-NSString * const NSInMemoryStoreType=@"NSInMemoryStoreType";
+NSString * const NSSQLiteStoreType=@"SQLite";
+NSString * const NSXMLStoreType=@"XML";
+NSString * const NSBinaryStoreType=@"Binary";
+NSString * const NSInMemoryStoreType=@"InMemory";
 NSString * const NSMigratePersistentStoresAutomaticallyOption=@"NSMigratePersistentStoresAutomaticallyOption";
+NSString * const NSInferMappingModelAutomaticallyOption=@"NSInferMappingModelAutomaticallyOption";
+NSString * const NSReadOnlyPersistentStoreOption=@"NSReadOnlyPersistentStoreOption";
+NSString * const NSSQLitePragmasOption=@"NSSQLitePragmasOption";
 
 NSString * const NSPersistentStoreCoordinatorStoresDidChangeNotification=@"NSPersistentStoreCoordinatorStoresDidChangeNotification";
 NSString * const NSAddedPersistentStoresKey=@"NSAddedPersistentStoresKey";
@@ -41,6 +49,7 @@ static NSMutableDictionary *_storeTypes=nil;
     _storeTypes=[NSMutableDictionary new];
     [_storeTypes setObject:[NSInMemoryPersistentStore class] forKey:NSInMemoryStoreType];
     [_storeTypes setObject:[NSXMLPersistentStore class] forKey:NSXMLStoreType];
+    [_storeTypes setObject:[NSSQLitePersistentStore class] forKey:NSSQLiteStoreType];
    }
 }
 
@@ -87,9 +96,18 @@ static NSMutableDictionary *_storeTypes=nil;
    }
    
    Class          class=[[[self class] registeredStoreTypes] objectForKey:storeType];
+
+   /* A type no store class is registered for, as on the reference. */
+   if(class==Nil){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSPersistentStoreInvalidTypeError
+       userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"Unsupported store type %@",storeType] forKey:NSLocalizedDescriptionKey]];
+    return nil;
+   }
+
    NSAtomicStore *store=[[[class alloc] initWithPersistentStoreCoordinator:self configurationName:configuration URL:storeURL options:options] autorelease];
 
-   if(![store load:error])
+   if(store==nil || ![store load:error])
     return nil;
 
    [_stores addObject:store];
@@ -170,6 +188,10 @@ static NSMutableDictionary *_storeTypes=nil;
    Class check=[[self registeredStoreTypes] objectForKey:storeType];
    
    return [check metadataForPersistentStoreWithURL:url error:error];
+}
+
++(NSDictionary *)metadataForPersistentStoreOfType:(NSString *)storeType URL:(NSURL *)url options:(NSDictionary *)options error:(NSError **)error {
+   return [self metadataForPersistentStoreOfType:storeType URL:url error:error];
 }
 
 -(NSPersistentStore *)_persistentStoreWithIdentifier:(NSString *)identifier {

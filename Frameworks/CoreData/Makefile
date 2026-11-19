@@ -24,6 +24,7 @@ NSPersistentStore.m \
 NSPersistentStoreCoordinator.m \
 NSPropertyDescription.m \
 NSRelationshipDescription.m \
+NSSQLitePersistentStore.m \
 NSXMLPersistentStore.m 
 
 HEADERS= \
@@ -61,7 +62,7 @@ RESOURCES_FILES = Info.plist
 RESOURCES_DIRS = English.lproj
 
 CFLAGS = -I${.CURDIR:H} -fblocks
-LDFLAGS = -framework Foundation -framework CoreFoundation -lobjc
+LDFLAGS = -framework Foundation -framework CoreFoundation -lobjc -lsqlite3
 
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

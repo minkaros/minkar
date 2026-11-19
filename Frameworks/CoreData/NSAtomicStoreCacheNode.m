@@ -20,8 +20,12 @@
    return [_objectID hash];
 }
 
+// Minkar: equal to a node of the same object (it compared its object
+// ID with the node itself, so no node was equal even to itself).
 -(BOOL)isEqual:other {
-   return [_objectID isEqual:other];
+   if(other==self)
+    return YES;
+   return [other isKindOfClass:[NSAtomicStoreCacheNode class]] && [_objectID isEqual:[other objectID]];
 }
 
 -(NSManagedObjectID *)objectID {

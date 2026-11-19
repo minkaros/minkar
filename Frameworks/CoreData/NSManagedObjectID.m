@@ -52,7 +52,9 @@
 }
 
 -(NSURL *)URIRepresentation {
-   NSString *path=[[_entity name] stringByAppendingPathComponent:_referenceObject];
+   // Minkar: an absolute path (x-coredata://store/Entity/p1, as on the
+   // reference); without its slash the entity was left out.
+   NSString *path=[@"/" stringByAppendingString:[[_entity name] stringByAppendingPathComponent:[_referenceObject description]]];
    NSString *host=_isTemporaryID?@"":_storeIdentifier;
    
    return [[[NSURL alloc] initWithScheme:@"x-coredata" host:host path:path] autorelease];

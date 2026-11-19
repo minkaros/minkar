@@ -18,9 +18,14 @@ COREDATA_EXPORT NSString *const NSStoreUUIDKey;
 COREDATA_EXPORT NSString *const NSStoreModelVersionHashesKey;
 COREDATA_EXPORT NSString *const NSStoreModelVersionIdentifiersKey;
 
+COREDATA_EXPORT NSString *const NSSQLiteStoreType;
 COREDATA_EXPORT NSString *const NSXMLStoreType;
+COREDATA_EXPORT NSString *const NSBinaryStoreType;
 COREDATA_EXPORT NSString *const NSInMemoryStoreType;
 COREDATA_EXPORT NSString *const NSMigratePersistentStoresAutomaticallyOption;
+COREDATA_EXPORT NSString *const NSInferMappingModelAutomaticallyOption;
+COREDATA_EXPORT NSString *const NSReadOnlyPersistentStoreOption;
+COREDATA_EXPORT NSString *const NSSQLitePragmasOption;
 
 COREDATA_EXPORT NSString *const NSPersistentStoreCoordinatorStoresDidChangeNotification;
 COREDATA_EXPORT NSString *const NSAddedPersistentStoresKey;
@@ -60,6 +65,8 @@ COREDATA_EXPORT NSString *const NSUUIDChangedPersistentStoresKey;
 - (void)setMetadata:(nullable NSDictionary<NSString *, id> *)metadata forPersistentStore:(NSPersistentStore *)store;
 + (BOOL)setMetadata:(nullable NSDictionary<NSString *, id> *)metadata forPersistentStoreOfType:(NSString *)storeType URL:(NSURL *)url error:(NSError **)error;
 + (nullable NSDictionary<NSString *, id> *)metadataForPersistentStoreOfType:(NSString *)storeType URL:(NSURL *)url error:(NSError **)error;
++ (nullable NSDictionary<NSString *, id> *)metadataForPersistentStoreOfType:(NSString *)storeType URL:(NSURL *)url
+    options:(nullable NSDictionary *)options error:(NSError **)error API_AVAILABLE(macos(10.11));
 
 @end
 
