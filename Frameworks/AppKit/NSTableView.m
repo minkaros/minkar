@@ -680,12 +680,16 @@ static float rowHeightAtIndex(NSTableView *self,int index){
 
 -(id)dataSourceObjectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
 
-    if (_dataSource!=nil &&
+    id binder = [tableColumn _binderForBinding:@"value"];
+
+    /* Minkar: a bound column's value is the binding's, the data source
+       notwithstanding (it is still asked for drag and drop), as on the
+       reference. */
+    if (binder==nil && _dataSource!=nil &&
         [_dataSource
 respondsToSelector:@selector(tableView:objectValueForTableColumn:row:)]==YES)
         return [_dataSource tableView:self objectValueForTableColumn:tableColumn row:row];
 
-    id binder = [tableColumn _binderForBinding:@"value"];
     id vals = [[binder destination] valueForKeyPath:[binder valueForKey:@"keyPath"]];
     if (vals != nil){
         return [vals objectAtIndex:row];

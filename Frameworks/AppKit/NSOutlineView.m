@@ -65,7 +65,7 @@ NSString * const NSOutlineViewSelectionIsChangingNotification=@"NSOutlineViewSel
 -(void)_delegateDidRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
 @end
 
-/* An outline view with no data source whose content is bound (to a tree
+/* An outline view whose content is bound (to a tree
    controller's arranged objects): its items are the tree's nodes, a
    column's value its value binding's key path (after arrangedObjects) on
    the node's object, as on the reference. */
@@ -140,7 +140,11 @@ static id outlineSource(NSOutlineView *self) {
     id source = [self dataSource];
     _NSOutlineTreeAdapter *adapter;
 
-    if(source != nil || [self _binderForBinding:@"content"] == nil)
+    /* Minkar: with its content bound, the outline's items and values
+       come from the binding even when it has a data source (which is
+       still asked for drag and drop and the rest), as on the reference:
+       a tree controller set as the data source answers 0 children. */
+    if([self _binderForBinding:@"content"] == nil)
         return source;
     adapter = objc_getAssociatedObject(self, &treeAdapterKey);
     if(adapter == nil) {
