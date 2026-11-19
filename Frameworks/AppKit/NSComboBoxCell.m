@@ -257,11 +257,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return nil;
 }
 
+/* Minkar: its natural size, as on the reference: its text (none: no
+   width) and the arrow button, 28 wide and 24 high (26 and 22 small, 24
+   and 19 mini). It was the control's frame less (3, 2), negative for a
+   combo box made with an empty frame. */
 -(NSSize)cellSize {
-   NSSize size=[_controlView frame].size;
-   size.width  -= 3.0;
-   size.height -= 2.0;
-   return size;
+   NSControlSize size=[self controlSize];
+   CGFloat       extra=(size==NSControlSizeSmall)?26:(size==NSControlSizeMini)?24:28;
+   CGFloat       height=(size==NSControlSizeSmall)?22:(size==NSControlSizeMini)?19:24;
+   NSString     *string=[self stringValue];
+   CGFloat       text=0;
+
+   if([string length]>0){
+    NSFont       *font=[self font];
+    NSDictionary *attributes=(font!=nil)?[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]:nil;
+
+    text=ceil([string sizeWithAttributes:attributes].width);
+   }
+   return NSMakeSize(text+extra,height);
 }
 
 -(NSRect)buttonRectForBounds:(NSRect)rect {

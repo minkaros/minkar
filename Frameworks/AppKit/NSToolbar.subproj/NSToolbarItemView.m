@@ -68,6 +68,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         // Center the subview within the bounds
         NSRect availableRect = [self availableRectForSubview];
         NSRect viewRect = [view frame];
+        NSSize minSize = [_toolbarItem minSize], maxSize = [_toolbarItem maxSize];
+
+        /* Minkar: the view sized as the item says, as on the reference:
+           as wide as there is room, between its minimum and maximum
+           widths, as high as its maximum height. It kept the size it was
+           given (a field fitted while empty was a few points wide). */
+        if (maxSize.width > 0 || minSize.width > 0) {
+            CGFloat width = NSWidth(availableRect);
+
+            if (maxSize.width > 0 && width > maxSize.width)
+                width = maxSize.width;
+            if (width < minSize.width)
+                width = minSize.width;
+            viewRect.size.width = floor(width);
+        }
+        if (maxSize.height > 0)
+            viewRect.size.height = maxSize.height;
+        else if (minSize.height > 0 && viewRect.size.height < minSize.height)
+            viewRect.size.height = minSize.height;
         
         // Center the subview within the available bounds
         viewRect.origin.x=NSMinX(availableRect) + (NSWidth(availableRect) - NSWidth(viewRect)) / 2.f;
