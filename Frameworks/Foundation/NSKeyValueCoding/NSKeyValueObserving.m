@@ -375,7 +375,11 @@ static void willChangeValueForKey(id object,NSString *key,NSDictionary *changeIn
      NSIndexSet *idxs=[changeInfo objectForKey:NSKeyValueChangeIndexesKey];
 
      if(idxs==nil)
-      [changeDictionary setValue:[rootObject valueForKeyPath:rootKeyPath] forKey:NSKeyValueChangeOldKey];
+      {
+       /* A nil value as NSNull, as on the reference: the key is there. */
+       id old=[rootObject valueForKeyPath:rootKeyPath];
+       [changeDictionary setObject:(old!=nil)?old:[NSNull null] forKey:NSKeyValueChangeOldKey];
+      }
      else {
 // FIXME: this is wrong, the type of change will depend on the position in the key path
       int type=[[changeDictionary objectForKey:NSKeyValueChangeKindKey] intValue];
@@ -509,7 +513,10 @@ static void didChangeValueForKey(id object,NSString *key)  {
      NSIndexSet *idxs=[changeDictionary objectForKey:NSKeyValueChangeIndexesKey];
 
      if(idxs==nil)
-      [changeDictionary setValue:[rootObject valueForKeyPath:rootKeyPath] forKey:NSKeyValueChangeNewKey];
+      {
+       id now=[rootObject valueForKeyPath:rootKeyPath];
+       [changeDictionary setObject:(now!=nil)?now:[NSNull null] forKey:NSKeyValueChangeNewKey];
+      }
      else {
       int type=[[changeDictionary objectForKey:NSKeyValueChangeKindKey] intValue];
 				// for to-many relationships, newvalue is only sensible for replace and insert
