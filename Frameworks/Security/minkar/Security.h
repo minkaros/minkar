@@ -23,5 +23,6 @@
 #include "SecTransform.h"
 #include "SecCode.h"
 #include "SecPolicy.h"
+#include "SecTrust.h"
 
 #endif

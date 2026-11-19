@@ -329,6 +329,10 @@ OSStatus SecCertificateCreateFromData(const CSSM_DATA *data, CSSM_CERT_TYPE type
     return *certificate != NULL ? errSecSuccess : errSecDecode;
 }
 
+void *_SecCertificateGetX509(SecCertificateRef certificate) {
+    return certificate != NULL ? ((struct __SecCertificate *)certificate)->x509 : NULL;
+}
+
 CFDataRef SecCertificateCopyData(SecCertificateRef certificate) {
     return certificate != NULL ? CFRetain(((struct __SecCertificate *)certificate)->der) : NULL;
 }

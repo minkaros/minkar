@@ -21,4 +21,16 @@ CF_EXPORT const CFStringRef kSecPolicyClient;
 CF_EXPORT const CFStringRef kSecPolicyAppleX509Basic;
 CF_EXPORT const CFStringRef kSecPolicyAppleSSL;
 
+CF_EXPORT CFTypeID SecPolicyGetTypeID(void);
+/* The basic checks: a chain to a trusted anchor, each certificate valid
+   now. */
+CF_EXPORT SecPolicyRef SecPolicyCreateBasicX509(void);
+/* A TLS server's (server true) or client's: the basic checks, and for a
+   server its name (hostname, if given) in the leaf's subject alternative
+   names, serverAuth in its extended key usage, and a validity of at most
+   825 days, as the reference requires of certificates issued since 1 July
+   2019. */
+CF_EXPORT SecPolicyRef SecPolicyCreateSSL(Boolean server, CFStringRef hostname);
+CF_EXPORT CFDictionaryRef SecPolicyCopyProperties(SecPolicyRef policyRef);
+
 #endif

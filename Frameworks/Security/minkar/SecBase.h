@@ -82,7 +82,15 @@ enum {
     errSecCSSignatureFailed = -67061,
     errSecCSReqFailed = -67050,
     errSecCSReqInvalid = -67052,
-    errSecCSStaticCodeNotFound = -67068
+    errSecCSStaticCodeNotFound = -67068,
+    /* Trust evaluation (SecTrust), as the reference reports them. */
+    errSecCreateChainFailed = -25318,
+    errSecHostNameMismatch = -67602,
+    errSecInvalidExtendedKeyUsage = -67609,
+    errSecCertificateExpired = -67818,
+    errSecCertificateNotValidYet = -67819,
+    errSecNotTrusted = -67843,
+    errSecCertificateValidityPeriodTooLong = -67901
 };
 
 /* A sentence for the result code. */
