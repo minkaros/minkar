@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTableRowView.h>
 #import <sys/param.h>
 #import <AppKit/NSOutlineView.h>
+#import <AppKit/NSTreeController.h>
 #import "NSKeyValueBinding/NSObject+BindingSupport.h"
 #import <objc/runtime.h>
 #import <AppKit/NSInterfaceStyle.h>
@@ -150,7 +151,81 @@ static id outlineSource(NSOutlineView *self) {
     return adapter;
 }
 
+@interface NSTableView (NSOutlineViewBindings)
+-(void)_establishBindingsWithDestinationIfUnbound:(id)destination;
+-(id)_replacementKeyPathForBinding:(id)binding;
+@end
+
 @implementation NSOutlineView
+
+/* Bound to a tree controller (through a column), an outline binds its
+   content, sort descriptors and selection by index paths, as on the
+   reference (a table binds selectionIndexes, which a tree controller has
+   not). */
+-(void)_establishBindingsWithDestinationIfUnbound:(id)destination {
+   if([destination isKindOfClass:[NSTreeController class]]){
+    if([[self _allUsedBinders] count]==0){
+     [self bind:@"content" toObject:destination withKeyPath:@"arrangedObjects" options:nil];
+     [self bind:@"sortDescriptors" toObject:destination withKeyPath:@"sortDescriptors" options:nil];
+     [self bind:NSSelectionIndexPathsBinding toObject:destination withKeyPath:@"selectionIndexPaths" options:nil];
+    }
+    return;
+   }
+   [super _establishBindingsWithDestinationIfUnbound:destination];
+}
+
+-(id)_replacementKeyPathForBinding:(id)binding {
+   if([binding isEqual:NSSelectionIndexPathsBinding])
+    return @"_selectionIndexPaths";
+   return [super _replacementKeyPathForBinding:binding];
+}
+
++(NSSet *)keyPathsForValuesAffecting_selectionIndexPaths {
+   return [NSSet setWithObject:@"selectedRowIndexes"];
+}
+
+/* The selected rows' nodes' index paths. */
+-(NSArray *)_selectionIndexPaths {
+   NSMutableArray *paths=[NSMutableArray array];
+   NSIndexSet     *rows=[self selectedRowIndexes];
+
+   for(NSUInteger row=[rows firstIndex];row!=NSNotFound;row=[rows indexGreaterThanIndex:row]){
+    id item=[self itemAtRow:row];
+
+    if([item respondsToSelector:@selector(indexPath)])
+     [paths addObject:[item indexPath]];
+   }
+   return paths;
+}
+
+/* Each path's node selected, its ancestors expanded to show it. */
+-(void)set_selectionIndexPaths:(NSArray *)paths {
+   id               binder=[self _binderForBinding:@"content"];
+   id               destination=[binder valueForKey:@"destination"];
+   NSString        *keyPath=[binder valueForKey:@"keyPath"];
+   id               root=(destination!=nil && keyPath!=nil)?[destination valueForKeyPath:keyPath]:nil;
+   NSMutableIndexSet *rows=[NSMutableIndexSet indexSet];
+
+   if(![paths isKindOfClass:[NSArray class]])
+    paths=nil;
+   for(NSIndexPath *path in paths){
+    id node=[root respondsToSelector:@selector(descendantNodeAtIndexPath:)]?[root descendantNodeAtIndexPath:path]:nil;
+    NSMutableArray *ancestors=[NSMutableArray array];
+    NSInteger row;
+
+    if(node==nil)
+     continue;
+    for(id parent=[node parentNode];parent!=nil && parent!=root;parent=[parent parentNode])
+     [ancestors insertObject:parent atIndex:0];
+    for(id parent in ancestors)
+     [self expandItem:parent];
+    if((row=[self rowForItem:node])>=0)
+     [rows addIndex:row];
+   }
+   if(![rows isEqualToIndexSet:[self selectedRowIndexes]])
+    [self selectRowIndexes:rows byExtendingSelection:NO];
+}
+
 
 static inline BOOL isItemExpanded(NSOutlineView *self,id item){
    return (BOOL)((unsigned)NSMapGet(self->_itemToExpansionState, item));
