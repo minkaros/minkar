@@ -387,13 +387,16 @@ extern NSSize _NSToolbarIconSizeSmall;
 {
     BOOL enabled = NO;
 
+    /* Minkar: an item with a view is not validated (a subclass may do
+       it), as on the reference: its target is not asked and its view's
+       enabled state is the app's. Its action is its control's, so it was
+       asked, and a NO disabled the control. */
+    if ([self view] != nil)
+        return;
+
     id target=[NSApp targetForAction:[self action] to:[self target] from:nil];
 
-    if ([self action] == nil && [self view] != nil) {
-        // Views can be arbitrarily complex - so let's not try to figure out what they
-        // want. Apple docs say use a subclass to do more sophisticated validation in this case.
-        enabled = YES;
-    } else if ((target == nil) || ![target respondsToSelector:[self action]]) {
+    if ((target == nil) || ![target respondsToSelector:[self action]]) {
         enabled = NO;
     } else if ([target respondsToSelector:@selector(validateToolbarItem:)]) {
         enabled = [target validateToolbarItem:self];
