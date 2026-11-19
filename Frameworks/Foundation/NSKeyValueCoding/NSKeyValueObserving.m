@@ -371,7 +371,13 @@ static void willChangeValueForKey(id object,NSString *key,NSDictionary *changeIn
     //void                *rootContext=[keyPathObserver context];
     NSMutableDictionary *changeDictionary=[keyPathObserver changeDictionaryWithInfo:changeInfo];
 
-    if(observingOptions&NSKeyValueObservingOptionOld && ![changeDictionary objectForKey:NSKeyValueChangeOldKey]){
+    /* A set's insertion has no old value, its removal no new one (as on
+       the reference): only an ordered change's indexes call for them. */
+    int changeKind=[[changeDictionary objectForKey:NSKeyValueChangeKindKey] intValue];
+    BOOL setChange=(changeKind==NSKeyValueChangeInsertion || changeKind==NSKeyValueChangeRemoval) &&
+                   [changeDictionary objectForKey:NSKeyValueChangeIndexesKey]==nil;
+
+    if(observingOptions&NSKeyValueObservingOptionOld && !setChange && ![changeDictionary objectForKey:NSKeyValueChangeOldKey]){
      NSIndexSet *idxs=[changeInfo objectForKey:NSKeyValueChangeIndexesKey];
 
      if(idxs==nil)
@@ -436,30 +442,34 @@ static void willChangeValueForKey(id object,NSString *key,NSDictionary *changeIn
     NSMutableSet* changeSet;
     NSMutableDictionary* changeInfo=[[NSMutableDictionary allocWithZone:NULL] init];
     
+    /* Minkar: as on the reference, a union is an insertion of the objects
+       not there yet (new only), a minus or intersection a removal of those
+       that were (old only), a set a setting (both). */
     switch (mutation) {
         case NSKeyValueUnionSetMutation:
             changeSet = [objects mutableCopy];
             [changeSet minusSet:[self valueForKey:key]];
+            [changeInfo setValue:[NSNumber numberWithUnsignedInteger:NSKeyValueChangeInsertion] forKey:NSKeyValueChangeKindKey];
             [changeInfo setValue:changeSet forKey:NSKeyValueChangeNewKey];
-            [changeInfo setValue:[NSSet set] forKey:NSKeyValueChangeOldKey];
             [changeSet release];
             break;
         case NSKeyValueMinusSetMutation:
             changeSet = [objects mutableCopy];
             [changeSet intersectSet:[self valueForKey:key]];
+            [changeInfo setValue:[NSNumber numberWithUnsignedInteger:NSKeyValueChangeRemoval] forKey:NSKeyValueChangeKindKey];
             [changeInfo setValue:changeSet forKey:NSKeyValueChangeOldKey];
-            [changeInfo setValue:[NSSet set] forKey:NSKeyValueChangeNewKey];
             [changeSet release];
             break;
         case NSKeyValueIntersectSetMutation:
             changeSet = [[self valueForKey:key] mutableCopy];
             [changeSet minusSet:objects];
+            [changeInfo setValue:[NSNumber numberWithUnsignedInteger:NSKeyValueChangeRemoval] forKey:NSKeyValueChangeKindKey];
             [changeInfo setValue:changeSet forKey:NSKeyValueChangeOldKey];
-            [changeInfo setValue:[NSSet set] forKey:NSKeyValueChangeNewKey];
             [changeSet release];
             break;
         case NSKeyValueSetSetMutation:
-            [changeInfo setValue:[self valueForKey:key] forKey:NSKeyValueChangeOldKey];
+            [changeInfo setValue:[NSNumber numberWithUnsignedInteger:NSKeyValueChangeSetting] forKey:NSKeyValueChangeKindKey];
+            [changeInfo setValue:[[[self valueForKey:key] copy] autorelease] forKey:NSKeyValueChangeOldKey];
             [changeInfo setValue:objects forKey:NSKeyValueChangeNewKey];
             break;
     }
@@ -509,7 +519,11 @@ static void didChangeValueForKey(id object,NSString *key)  {
     //void                *rootContext=[keyPathObserver context];
     NSMutableDictionary *changeDictionary=[keyPathObserver changeDictionary];
 
-    if(observerOptions&NSKeyValueObservingOptionNew && ![changeDictionary objectForKey:NSKeyValueChangeNewKey]){
+    int changeKind=[[changeDictionary objectForKey:NSKeyValueChangeKindKey] intValue];
+    BOOL setChange=(changeKind==NSKeyValueChangeInsertion || changeKind==NSKeyValueChangeRemoval) &&
+                   [changeDictionary objectForKey:NSKeyValueChangeIndexesKey]==nil;
+
+    if(observerOptions&NSKeyValueObservingOptionNew && !setChange && ![changeDictionary objectForKey:NSKeyValueChangeNewKey]){
      NSIndexSet *idxs=[changeDictionary objectForKey:NSKeyValueChangeIndexesKey];
 
      if(idxs==nil)
@@ -746,30 +760,44 @@ CHANGE_DECLARATION(SEL)
 	[key release];
 }
 
+/* add<Key>Object: and remove<Key>Object: are an unordered to-many's
+   mutators (the ordered ones are insertObject:in<Key>AtIndex: and
+   removeObjectFrom<Key>AtIndex:): a set mutation of the one object, as on
+   the reference (its change's new or old the objects that really went in
+   or out). They asked an ordered count of a set before, and failed. */
+static NSString *setMutatorKey(SEL cmd,const char *prefix,const char *suffix) {
+   const char *name=sel_getName(cmd);
+   size_t      length=strlen(name)-strlen(prefix)-strlen(suffix);
+   char       *key=__builtin_alloca(length+1);
+
+   memcpy(key,name+strlen(prefix),length);
+   key[length]='\0';
+   key[0]=tolower(key[0]);
+   return [[NSString allocWithZone:NULL] initWithCString:key];
+}
+
+/* Whether add<Key>: or remove<Key>: (methodName, prefix) is a to-many's:
+   object answers <key> or countOf<Key>. */
+static BOOL _KVOHasToManyGetter(id object,NSString *methodName,NSString *prefix) {
+   NSString *Key=[methodName substringWithRange:NSMakeRange([prefix length],[methodName length]-[prefix length]-1)];
+   NSString *key;
+
+   if([Key length]==0)
+    return NO;
+   key=[[[Key substringToIndex:1] lowercaseString] stringByAppendingString:[Key substringFromIndex:1]];
+   return [object respondsToSelector:NSSelectorFromString(key)] ||
+          [object respondsToSelector:NSSelectorFromString([@"countOf" stringByAppendingString:Key])];
+}
+
 -(void)KVO_notifying_change_addKeyObject:(id)object {
-    const char* origName = sel_getName(_cmd);
-    
-	size_t selLen=strlen(origName);
-	char *sel=__builtin_alloca(selLen+1);
-	strcpy(sel, origName);
-	sel[selLen-1]='\0';
-	sel+=strlen("add");
-	sel[strlen(sel)-strlen("Object:")+1]='\0';
-    
-    char *countSelName=__builtin_alloca(strlen(sel)+strlen("countOf")+1);
-    strcpy(countSelName, "countOf");
-    strcat(countSelName, sel);
-    
-    NSUInteger idx=(NSUInteger)[self performSelector:sel_getUid(countSelName)];
-    
-    sel[0]=tolower(sel[0]);
-    
-    NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
-    [self willChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
+    NSString *key=setMutatorKey(_cmd,"add","Object:");
+    NSSet    *objects=(object!=nil)?[NSSet setWithObject:object]:[NSSet set];
+
+    [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
     typedef id (*sender)(id obj, SEL selector, id value);
     sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
-    [self didChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
+    [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
     [key release];
 }
 
@@ -795,29 +823,14 @@ CHANGE_DECLARATION(SEL)
 }
 
 -(void)KVO_notifying_change_removeKeyObject:(id)object {
-    const char* origName = sel_getName(_cmd);
-    
-	size_t selLen=strlen(origName);
-	char *sel=__builtin_alloca(selLen+1);
-	strcpy(sel, origName);
-	sel[selLen-1]='\0';
-	sel+=strlen("remove");
-	sel[strlen(sel)-strlen("Object:")+1]='\0';
-    
-    char *countSelName=__builtin_alloca(strlen(sel)+strlen("countOf")+1);
-    strcpy(countSelName, "countOf");
-    strcat(countSelName, sel);
-    
-    NSUInteger idx=(NSUInteger)[self performSelector:sel_getUid(countSelName)];
-    
-    sel[0]=tolower(sel[0]);
-    
-    NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
-    [self willChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
+    NSString *key=setMutatorKey(_cmd,"remove","Object:");
+    NSSet    *objects=(object!=nil)?[NSSet setWithObject:object]:[NSSet set];
+
+    [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
     typedef id (*sender)(id obj, SEL selector, id value);
     sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
-    [self didChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
+    [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
     [key release];
 }
 
@@ -1142,13 +1155,15 @@ static BOOL methodIsAutoNotifyingSetter(Class class,const char *methodCString){
                     kvoSelector = @selector(KVO_notifying_change_removeKeyObject:);
                 } else if (numberOfArguments == 3 && [methodName _KVC_isSetterForSelectorNameStartingWith:@"add" endingWith:@"Object:"]) {
                     kvoSelector = @selector(KVO_notifying_change_addKeyObject:);
-#if 0
-// Disabled - this is wrong - this is expecting any addXXX: removeXXX: methods to play with NSSet
-                } else if (numberOfArguments == 3 && [methodName _KVC_isSetterForSelectorNameStartingWith:@"remove" endingWith:@":"]) {
+                /* add<Key>: and remove<Key>: take a set, but only when the
+                   class has the property (its getter): any other addX: or
+                   removeX: (addSubview:) is not a to-many's. */
+                } else if (numberOfArguments == 3 && [methodName _KVC_isSetterForSelectorNameStartingWith:@"remove" endingWith:@":"] &&
+                           _KVOHasToManyGetter(self, methodName, @"remove")) {
                     kvoSelector = @selector(KVO_notifying_change_removeKey:);
-                } else if (numberOfArguments == 3 && [methodName _KVC_isSetterForSelectorNameStartingWith:@"add" endingWith:@":"]) {
+                } else if (numberOfArguments == 3 && [methodName _KVC_isSetterForSelectorNameStartingWith:@"add" endingWith:@":"] &&
+                           _KVOHasToManyGetter(self, methodName, @"add")) {
                     kvoSelector = @selector(KVO_notifying_change_addKey:);
-#endif
                 }
             }
 
