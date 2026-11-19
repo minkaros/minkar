@@ -765,6 +765,17 @@ CHANGE_DECLARATION(SEL)
    removeObjectFrom<Key>AtIndex:): a set mutation of the one object, as on
    the reference (its change's new or old the objects that really went in
    or out). They asked an ordered count of a set before, and failed. */
+/* Whether add<Key>: or remove<Key>: is a to-many set's mutation: a set of
+   objects for a key whose value is a set (or none yet). */
+static BOOL _KVOIsSetMutation(id object,NSString *key,id objects) {
+   id value;
+
+   if(![objects isKindOfClass:[NSSet class]])
+    return NO;
+   value=[object valueForKey:key];
+   return value==nil || [value isKindOfClass:[NSSet class]];
+}
+
 static NSString *setMutatorKey(SEL cmd,const char *prefix,const char *suffix) {
    const char *name=sel_getName(cmd);
    size_t      length=strlen(name)-strlen(prefix)-strlen(suffix);
@@ -792,12 +803,19 @@ static BOOL _KVOHasToManyGetter(id object,NSString *methodName,NSString *prefix)
 -(void)KVO_notifying_change_addKeyObject:(id)object {
     NSString *key=setMutatorKey(_cmd,"add","Object:");
     NSSet    *objects=(object!=nil)?[NSSet setWithObject:object]:[NSSet set];
+    BOOL      setMutation=[key length]>0 && _KVOIsSetMutation(self,key,objects);
 
-    [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    if(setMutation)
+     [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    else if([key length]>0)
+     [self willChangeValueForKey:key];
     typedef id (*sender)(id obj, SEL selector, id value);
     sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
-    [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    if(setMutation)
+     [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    else if([key length]>0)
+     [self didChangeValueForKey:key];
     [key release];
 }
 
@@ -814,23 +832,41 @@ static BOOL _KVOHasToManyGetter(id object,NSString *methodName,NSString *prefix)
 	sel[0]=tolower(sel[0]);
 	NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
     
-    [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    /* A set mutation only for a set added to a set; any other add<Key>:
+       (an NSIndexSet to selectionIndexes, an array of index paths) is a
+       setting of the key, as on the reference. */
+    BOOL setMutation=_KVOIsSetMutation(self,key,objects);
+
+    if(setMutation)
+     [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    else
+     [self willChangeValueForKey:key];
 	typedef id (*sender)(id obj, SEL selector, NSSet* objects);
 	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, objects);
-    [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    if(setMutation)
+     [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
+    else
+     [self didChangeValueForKey:key];
 	[key release];
 }
 
 -(void)KVO_notifying_change_removeKeyObject:(id)object {
     NSString *key=setMutatorKey(_cmd,"remove","Object:");
     NSSet    *objects=(object!=nil)?[NSSet setWithObject:object]:[NSSet set];
+    BOOL      setMutation=[key length]>0 && _KVOIsSetMutation(self,key,objects);
 
-    [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    if(setMutation)
+     [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    else if([key length]>0)
+     [self willChangeValueForKey:key];
     typedef id (*sender)(id obj, SEL selector, id value);
     sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
-    [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    if(setMutation)
+     [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    else if([key length]>0)
+     [self didChangeValueForKey:key];
     [key release];
 }
 
@@ -847,11 +883,19 @@ static BOOL _KVOHasToManyGetter(id object,NSString *methodName,NSString *prefix)
 	sel[0]=tolower(sel[0]);
 	NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
     
-    [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    BOOL setMutation=_KVOIsSetMutation(self,key,objects);
+
+    if(setMutation)
+     [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    else
+     [self willChangeValueForKey:key];
 	typedef id (*sender)(id obj, SEL selector, NSSet* objects);
 	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, objects);
-    [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    if(setMutation)
+     [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
+    else
+     [self didChangeValueForKey:key];
 	[key release];
 }
 

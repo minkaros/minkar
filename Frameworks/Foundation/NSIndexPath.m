@@ -44,7 +44,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL) isEqual:  other {
 	if ([other isKindOfClass: [NSIndexPath class]]) {
 		NSIndexPath* otherPath = other;
-		return _length == otherPath->_length && memcmp(_indexes, otherPath->_indexes, _length);
+		/* Minkar: equal when their indexes are (memcmp's 0 was taken for
+		   different, and only _length bytes were compared). */
+		return _length == otherPath->_length && memcmp(_indexes, otherPath->_indexes, _length * sizeof(NSUInteger)) == 0;
 	}
 	return NO;
 }
