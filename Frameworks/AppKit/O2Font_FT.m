@@ -8,6 +8,8 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import "O2Font_FT.h"
+#import <Onyx2D/O2Encoding.h>
+#import <Onyx2D/O2Context.h>
 #import <Onyx2D/O2Font_freetype.h>
 #include FT_TRUETYPE_TABLES_H
 
@@ -230,8 +232,23 @@ static void readFace(O2Font_FT *self,NSString *name) {
    self->_ascent=face->ascender;
    self->_descent=face->descender;
    self->_leading=0;
-   self->_capHeight=face->height;
-   self->_xHeight=face->height;
+   /* Minkar: the cap and x heights from the font's OS/2 table, or, when
+      it has none, measured on H and x; they were the line's height. */
+   {
+    TT_OS2 *os2=FT_Get_Sfnt_Table(face,FT_SFNT_OS2);
+    FT_UInt glyph;
+
+    self->_capHeight=(os2!=NULL && os2->version>=2 && os2->sCapHeight>0)?os2->sCapHeight:0;
+    self->_xHeight=(os2!=NULL && os2->version>=2 && os2->sxHeight>0)?os2->sxHeight:0;
+    if(self->_capHeight==0 && (glyph=FT_Get_Char_Index(face,'H'))!=0 && FT_Load_Glyph(face,glyph,FT_LOAD_NO_SCALE)==0)
+     self->_capHeight=face->glyph->metrics.horiBearingY;
+    if(self->_xHeight==0 && (glyph=FT_Get_Char_Index(face,'x'))!=0 && FT_Load_Glyph(face,glyph,FT_LOAD_NO_SCALE)==0)
+     self->_xHeight=face->glyph->metrics.horiBearingY;
+    if(self->_capHeight==0)
+     self->_capHeight=face->ascender*0.7;
+    if(self->_xHeight==0)
+     self->_xHeight=face->ascender*0.5;
+   }
    self->_italicAngle=0;
    self->_stemV=0;
    self->_bbox.origin.x=face->bbox.xMin;
@@ -435,6 +452,36 @@ static void readFace(O2Font_FT *self,NSString *name) {
 -(O2Glyph)glyphWithGlyphName:(NSString *)name {
 // FIXME: implement
    return 0;
+}
+
+/* Minkar: a PDF font's byte codes: each byte's character from the text
+   encoding's table (WinAnsi, MacRoman, MacExpert; a font that names none
+   has the byte itself), and the glyph the font's character map gives it
+   (a symbol font's own codes are at U+F000 plus the byte). The default
+   took each byte for a glyph number, so a PDF's text was measured, and
+   drawn, with the wrong glyphs. */
+-(O2Encoding *)createEncodingForTextEncoding:(O2TextEncoding)encoding {
+   unichar unicode[256];
+   O2Glyph glyphs[256];
+   int     i;
+
+   switch(encoding){
+    case kO2EncodingWinAnsi: O2EncodingGetWinAnsiUnicode(unicode); break;
+    case kO2EncodingMacRoman: O2EncodingGetMacRomanUnicode(unicode); break;
+    case kO2EncodingMacExpert: O2EncodingGetMacExpertUnicode(unicode); break;
+    default:
+     for(i=0;i<256;i++)
+      unicode[i]=i;
+     break;
+   }
+   for(i=0;i<256;i++){
+    FT_UInt glyph=(_face!=NULL)?FT_Get_Char_Index(_face,unicode[i]):0;
+
+    if(glyph==0 && _face!=NULL && encoding==kO2EncodingFontSpecific)
+     glyph=FT_Get_Char_Index(_face,0xF000+i);
+    glyphs[i]=glyph;
+   }
+   return [[O2Encoding alloc] initWithGlyphs:glyphs unicode:unicode];
 }
 
 /* Minkar: every glyph's advance in font units, read from the font's
