@@ -396,6 +396,14 @@ static const float kImageMargin = 2.;
    _alternateTitle=title;
 }
 
+/* Minkar: an image given to a cell that shows none shows it alone, the
+   title kept, as on the reference; removing it keeps the position. */
+-(void)setImage:(NSImage *)image {
+   if(image!=nil && _imagePosition==NSNoImage)
+    _imagePosition=NSImageOnly;
+   [super setImage:image];
+}
+
 -(void)setAlternateImage:(NSImage *)image {
    image=[image retain];
    [_alternateImage release];
