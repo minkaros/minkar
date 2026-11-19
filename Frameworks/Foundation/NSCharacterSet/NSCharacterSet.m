@@ -92,14 +92,44 @@ static NSString *pathForCharacterSet(NSString *name){
    return path;
 }
 
+/* Minkar: a set with no bitmap of its own (non-base, decomposable,
+   symbol, capitalized letters), from CoreFoundation's Unicode data; it
+   raised NSCharacterSetFailedException. */
+static NSData *coreFoundationBitmap(NSString *name){
+   static const struct { const char *name; CFCharacterSetPredefinedSet set; } sets[]={
+    {"nonBaseCharacterSet",kCFCharacterSetNonBase},
+    {"decomposableCharacterSet",kCFCharacterSetDecomposable},
+    {"symbolCharacterSet",kCFCharacterSetSymbol},
+    {"capitalizedLetterCharacterSet",kCFCharacterSetCapitalizedLetter},
+   };
+
+   for(size_t i=0;i<sizeof(sets)/sizeof(sets[0]);i++)
+    if([name isEqualToString:[NSString stringWithUTF8String:sets[i].name]])
+    {
+     NSData *bitmap=[(NSData *)CFCharacterSetCreateBitmapRepresentation(NULL,CFCharacterSetGetPredefined(sets[i].set)) autorelease];
+
+     /* The basic plane's 8192 bytes: the bitmap sets here hold no more. */
+     return ([bitmap length]>8192)?[bitmap subdataWithRange:NSMakeRange(0,8192)]:bitmap;
+    }
+   return nil;
+}
+
+static NSCharacterSet *setWithName(Class cls,NSString *name){
+   NSData *bitmap=coreFoundationBitmap(name);
+
+   if(bitmap!=nil)
+    return [cls characterSetWithBitmapRepresentation:bitmap];
+   return [cls characterSetWithContentsOfFile:pathForCharacterSet(name)];
+}
+
 static NSCharacterSet *sharedSetWithName(Class cls,NSString *name){
    NSCharacterSet *result;
 
    if(cls!=[NSCharacterSet class])
-    result=[cls characterSetWithContentsOfFile:pathForCharacterSet(name)];
+    result=setWithName(cls,name);
    else {
     if((result=NSMapGet(nameToSet,name))==nil){
-     if((result=[NSCharacterSet characterSetWithContentsOfFile:pathForCharacterSet(name)])!=nil)
+     if((result=setWithName([NSCharacterSet class],name))!=nil)
       NSMapInsert(nameToSet,name,result);
     }
    }
@@ -145,6 +175,14 @@ static NSCharacterSet *sharedSetWithName(Class cls,NSString *name){
 
 +uppercaseLetterCharacterSet {
    return sharedSetWithName(self,@"uppercaseLetterCharacterSet");
+}
+
++symbolCharacterSet {
+   return sharedSetWithName(self,@"symbolCharacterSet");
+}
+
++capitalizedLetterCharacterSet {
+   return sharedSetWithName(self,@"capitalizedLetterCharacterSet");
 }
 
 +newlineCharacterSet {

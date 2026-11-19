@@ -13,7 +13,9 @@ enum {
 };
 
 static inline BOOL bitmapIsSet(uint8_t bitmap[8192], unichar character) {
-    return bitmap[character >> 3] & (1 << (character & 0x07));
+    /* Minkar: YES or NO, as on the reference (it was the bit's value:
+       2, 4... 128, which as a BOOL is negative). */
+    return (bitmap[character >> 3] & (1 << (character & 0x07))) != 0;
 }
 
 static inline void bitmapSet(uint8_t bitmap[8192], unichar character) {
