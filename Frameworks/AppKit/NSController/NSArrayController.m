@@ -400,10 +400,10 @@ static BOOL removingForContext;
 - (BOOL)setSelectionIndexes:(NSIndexSet *)value
 {
 	
-	if(_flags.avoidsEmptySelection && [value count]==0 && [[self arrangedObjects] count]) {
-		value=[NSIndexSet indexSetWithIndex:0];
-	}
-	
+	/* Minkar: a selection set is the one there is, empty too, as on the
+	   reference (avoidsEmptySelection is for content changes). */
+	if (value == nil)
+		value = [NSIndexSet indexSet];
 	if ([_selectionIndexes isEqualToIndexSet: value]) {
 		// The selection isn't going to change
 		return NO;
