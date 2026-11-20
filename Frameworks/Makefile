@@ -69,6 +69,7 @@ SUBDIR += CoreMedia
 SUBDIR += VideoToolbox
 SUBDIR += CoreMIDI
 SUBDIR += Metal
+SUBDIR += MetalKit
 SUBDIR += LocalAuthentication
 SUBDIR += CoreLocation
 SUBDIR += Vision
@@ -141,6 +142,7 @@ CoreMedia: CoreFoundation CoreVideo CoreAudio AudioToolbox
 VideoToolbox: CoreMedia CoreVideo
 CoreMIDI: CoreFoundation
 Metal: Foundation
+MetalKit: Metal QuartzCore AppKit
 LocalAuthentication: Foundation
 CoreLocation: Foundation
 Vision: Foundation CoreGraphics
