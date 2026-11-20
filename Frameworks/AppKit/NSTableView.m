@@ -809,6 +809,20 @@ _dataSource);
     return _selectedRowIndexes;
 }
 
+/* Minkar: the table's own changes of its selection are told after the
+   setter returns, once key-value observing has carried the selection to
+   a bound controller, so a delegate reading the controller sees the new
+   one, as on the reference. A selection set through the binding is told
+   from the setter (the controller has it already). */
+static NSUInteger selectionNoteDeferred;
+
+-(void)_setSelectedRowIndexesNotingAfter:(NSIndexSet *)value {
+   selectionNoteDeferred++;
+   [self _setSelectedRowIndexes:value];
+   selectionNoteDeferred--;
+   [self noteSelectionDidChange];
+}
+
 // Use this so that KVO/Bindings notifications work automatically
 -(void)_setSelectedRowIndexes:(NSIndexSet *)value {
    value=[value copy];
@@ -828,7 +842,8 @@ _dataSource);
    }
 
     [self _updateRowViewSelection];
-    [self noteSelectionDidChange];
+    if(selectionNoteDeferred==0)
+     [self noteSelectionDidChange];
 }
 
 // That's the setter for _selectedRowIndexes.
@@ -889,7 +904,7 @@ _dataSource);
      }
 
    if(changed)
-    [self _setSelectedRowIndexes:newIndexes];
+    [self _setSelectedRowIndexesNotingAfter:newIndexes];
 }
 
 -(NSInteger)selectedRow {
@@ -1102,7 +1117,7 @@ _dataSource);
    FIXME: investigate whether _setSelectedRowIndexes: should do this check or not.
   */
     if(![selection isEqualToIndexSet:_selectedRowIndexes])
-     [self _setSelectedRowIndexes:selection];
+     [self _setSelectedRowIndexesNotingAfter:selection];
 }
 
 -(void)reloadData {
