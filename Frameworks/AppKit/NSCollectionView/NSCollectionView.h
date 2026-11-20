@@ -8,6 +8,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSView.h>
 #import <AppKit/NSCollectionViewItem.h>
+#import <AppKit/NSCollectionViewLayout.h>
+
+@class NSNib;
+@protocol NSCollectionViewDataSource, NSCollectionViewDelegate;
 
 @interface NSCollectionView : NSView {
     NSArray *_content;
@@ -56,3 +60,57 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isSelectable) BOOL selectable;
 @end
+
+NS_ASSUME_NONNULL_BEGIN
+
+/* The collection view with a data source (API 19): its items by section
+   and index path, made from registered classes or nibs, placed by its
+   layout. */
+@interface NSCollectionView (NSCollectionViewDataSourceItems)
+@property (nullable, assign) id<NSCollectionViewDataSource> dataSource;
+@property (nullable, assign) id<NSCollectionViewDelegate> delegate;
+@property (nullable, strong) NSCollectionViewLayout *collectionViewLayout;
+@property (readonly) NSInteger numberOfSections;
+- (NSInteger)numberOfItemsInSection:(NSInteger)section;
+- (void)reloadData;
+- (void)registerClass:(nullable Class)itemClass forItemWithIdentifier:(NSUserInterfaceItemIdentifier)identifier;
+- (void)registerNib:(nullable NSNib *)nib forItemWithIdentifier:(NSUserInterfaceItemIdentifier)identifier;
+- (__kindof NSCollectionViewItem *)makeItemWithIdentifier:(NSUserInterfaceItemIdentifier)identifier forIndexPath:(NSIndexPath *)indexPath;
+- (nullable NSCollectionViewItem *)itemAtIndexPath:(NSIndexPath *)indexPath;
+- (nullable NSCollectionViewItem *)itemAtIndex:(NSUInteger)index;
+- (nullable NSIndexPath *)indexPathForItem:(NSCollectionViewItem *)item;
+- (NSArray<NSCollectionViewItem *> *)visibleItems;
+- (NSSet<NSIndexPath *> *)indexPathsForVisibleItems;
+- (nullable NSCollectionViewLayoutAttributes *)layoutAttributesForItemAtIndexPath:(NSIndexPath *)indexPath;
+- (NSRect)frameForItemAtIndex:(NSUInteger)index;
+@property (copy) NSSet<NSIndexPath *> *selectionIndexPaths;
+@end
+
+@protocol NSCollectionViewDataSource <NSObject>
+@required
+- (NSInteger)collectionView:(NSCollectionView *)collectionView numberOfItemsInSection:(NSInteger)section;
+- (NSCollectionViewItem *)collectionView:(NSCollectionView *)collectionView itemForRepresentedObjectAtIndexPath:(NSIndexPath *)indexPath;
+@optional
+- (NSInteger)numberOfSectionsInCollectionView:(NSCollectionView *)collectionView;
+- (NSView *)collectionView:(NSCollectionView *)collectionView viewForSupplementaryElementOfKind:(NSCollectionViewSupplementaryElementKind)kind atIndexPath:(NSIndexPath *)indexPath;
+@end
+
+@protocol NSCollectionViewDelegate <NSObject>
+@optional
+- (void)collectionView:(NSCollectionView *)collectionView didSelectItemsAtIndexPaths:(NSSet<NSIndexPath *> *)indexPaths;
+- (void)collectionView:(NSCollectionView *)collectionView didDeselectItemsAtIndexPaths:(NSSet<NSIndexPath *> *)indexPaths;
+@end
+
+@protocol NSCollectionViewDelegateFlowLayout <NSCollectionViewDelegate>
+@optional
+- (NSSize)collectionView:(NSCollectionView *)collectionView layout:(NSCollectionViewLayout *)collectionViewLayout sizeForItemAtIndexPath:(NSIndexPath *)indexPath;
+@end
+
+/* An item's place: its section and its index in it. */
+@interface NSIndexPath (NSCollectionViewAdditions)
++ (NSIndexPath *)indexPathForItem:(NSInteger)item inSection:(NSInteger)section;
+@property (readonly) NSInteger item;
+@property (readonly) NSInteger section;
+@end
+
+NS_ASSUME_NONNULL_END

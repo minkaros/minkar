@@ -34,6 +34,8 @@ SRCS = \
     NSCellUndoManager.m \
     NSClipView.m \
     NSCollectionView/NSCollectionView.m \
+    NSCollectionView/NSCollectionViewLayout.m \
+    NSCollectionView/NSCollectionViewDataSource.m \
     NSCollectionView/NSCollectionViewItem.m \
     NSColor.subproj/NSColor.m \
     NSColor.subproj/NSColor_CGColor.m \
@@ -264,6 +266,9 @@ SRCS = \
     NSSharingService.m \
     NSHapticFeedback.m \
     NSAccessibilityCustomAction.m \
+    NSScrubberItemView.m \
+    NSScrubberLayout.m \
+    NSScrubber.m \
     NSAccessibilityElement.m \
     NSSearchToolbarItem.m \
     NSColorPickerTouchBarItem.m \
@@ -341,6 +346,7 @@ HEADERS = \
     NSCellUndoManager.h \
     NSClipView.h \
     NSCollectionView/NSCollectionView.h \
+    NSCollectionView/NSCollectionViewLayout.h \
     NSCollectionView/NSCollectionViewItem.h \
     NSColor.subproj/NSColor.h \
     NSColor.subproj/NSColor_CGColor.h \
@@ -571,6 +577,9 @@ HEADERS = \
     NSSharingService.h \
     NSHapticFeedback.h \
     NSAccessibilityCustomAction.h \
+    NSScrubberItemView.h \
+    NSScrubberLayout.h \
+    NSScrubber.h \
     NSAccessibilityElement.h \
     NSSearchToolbarItem.h \
     NSColorPickerTouchBarItem.h \

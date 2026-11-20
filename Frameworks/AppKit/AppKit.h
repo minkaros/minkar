@@ -177,6 +177,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSFilePromiseProvider.h>
 #import <AppKit/NSColorPickerTouchBarItem.h>
 #import <AppKit/NSSearchToolbarItem.h>
+#import <AppKit/NSScrubber.h>
 #import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
 #import <AppKit/NSGridView.h>
