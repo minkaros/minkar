@@ -12,6 +12,7 @@ float powf(float, float);
 #import <Foundation/NSObjCRuntime.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSKeyedUnarchiver.h>
+#import "../NSPredicate/NSPredicateArchiving.h"
 #import <Foundation/NSPropertyListReader.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
@@ -97,7 +98,9 @@ static inline int integerFromCFUID(id object){
 
    if((result=[_nameToReplacementClass objectForKey:className])==Nil)
     if((result=NSClassFromString(className))==Nil)
-     [NSException raise:NSInvalidArgumentException format:@"Unable to find class named %@",className];
+     /* The reference's own classes of archived predicates. */
+     if((result=_NSPredicateArchiveClassForName(className))==Nil)
+      [NSException raise:NSInvalidArgumentException format:@"Unable to find class named %@",className];
 
    return result;
 }

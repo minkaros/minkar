@@ -228,6 +228,7 @@ SRCS = 	NSFormatter.m \
 	NSPredicate/NSExpression_assignment.m \
 	NSPredicate/NSExpression_function.m \
 	NSPredicate/NSPredicate.m \
+	NSPredicate/NSPredicateArchiving.m \
 	NSPredicate/NSComparisonPredicate.m \
 	NSPredicate/NSExpression.m \
 	NSPredicate/NSExpression_self.m \
@@ -420,6 +421,7 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSPredicateArchiving.m = -fobjc-arc
 CFLAGS.NSScriptClassDescription.m = -fobjc-arc
 CFLAGS.NSScriptCommandDescription.m = -fobjc-arc
 CFLAGS.NSScriptSuiteRegistry.m = -fobjc-arc

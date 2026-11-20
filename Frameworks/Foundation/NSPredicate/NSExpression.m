@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSDictionary.h>
 #import "NSExpression_constant.h"
 #import "NSExpression_self.h"
+#import "NSExpression_array.h"
 #import "NSExpression_function.h"
 #import "NSExpression_variable.h"
 #import "NSExpression_keypath.h"
@@ -102,6 +103,11 @@ static NSExpression *leftOf(NSPredicate *predicate) {
 
 +(NSExpression *)expressionForKeyPath:(NSString *)keyPath {
    return [[[NSExpression_keypath allocWithZone:NULL] initWithKeyPath:keyPath] autorelease];
+}
+
+/* A collection of expressions (an array literal). */
++(NSExpression *)expressionForAggregate:(NSArray *)subexpressions {
+   return [NSExpression_array expressionForArray:(subexpressions!=nil)?subexpressions:[NSArray array]];
 }
 
 +(NSExpression *)expressionForFunction:(NSString *)name arguments:(NSArray *)arguments {

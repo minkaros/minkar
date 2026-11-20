@@ -40,6 +40,7 @@ typedef NS_ENUM(NSUInteger, NSExpressionType) {
 + (NSExpression *)expressionForVariable:(NSString *)string;
 + (NSExpression *)expressionForKeyPath:(NSString *)keyPath;
 + (NSExpression *)expressionForFunction:(NSString *)name arguments:(NSArray *)arguments;
++ (NSExpression *)expressionForAggregate:(NSArray *)subexpressions;
 
 @property (readonly) NSExpressionType expressionType;
 

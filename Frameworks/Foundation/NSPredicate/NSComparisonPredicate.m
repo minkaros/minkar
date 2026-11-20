@@ -19,6 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRegularExpression.h>
 #import <Foundation/NSCoder.h>
 #import "NSExpression_operator.h"
+#import "NSPredicateArchiving.h"
 #import <stdlib.h>
 
 @implementation NSComparisonPredicate
@@ -50,7 +51,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 // Read back from its format, as NSPredicate does.
+/* The reference's archive (left and right expressions, an operator
+   object), or Minkar's (a format). */
 -initWithCoder:(NSCoder *)coder {
+   if([coder allowsKeyedCoding] && [coder containsValueForKey:@"NSPredicateOperator"]){
+    NSExpression                 *left=[coder decodeObjectForKey:@"NSLeftExpression"];
+    NSExpression                 *right=[coder decodeObjectForKey:@"NSRightExpression"];
+    _NSArchivedPredicateOperator *operator=[coder decodeObjectForKey:@"NSPredicateOperator"];
+
+    if(left==nil || right==nil || ![operator isKindOfClass:[_NSArchivedPredicateOperator class]]){
+     [self release];
+     return nil;
+    }
+    if([operator customSelector]!=NULL)
+     return [self initWithLeftExpression:left rightExpression:right customSelector:[operator customSelector]];
+    return [self initWithLeftExpression:left rightExpression:right modifier:(NSComparisonPredicateModifier)[operator modifier]
+                                   type:[operator predicateOperatorType] options:(NSComparisonPredicateOptions)[operator options]];
+   }
    return [super initWithCoder:coder];
 }
 

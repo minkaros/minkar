@@ -21,7 +21,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
+/* The reference's archive (its type and subpredicates), or Minkar's. */
 -initWithCoder:(NSCoder *)coder {
+   if([coder allowsKeyedCoding] && [coder containsValueForKey:@"NSSubpredicates"]){
+    NSArray *subpredicates=[coder decodeObjectForKey:@"NSSubpredicates"];
+
+    return [self initWithType:(NSCompoundPredicateType)[coder decodeIntegerForKey:@"NSCompoundPredicateType"]
+                subpredicates:(subpredicates!=nil)?subpredicates:[NSArray array]];
+   }
    return [super initWithCoder:coder];
 }
 
