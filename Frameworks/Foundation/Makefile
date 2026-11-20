@@ -6,7 +6,7 @@ FRAMEWORK = Foundation
 FMWK_VERSION = C
 INFO_PLIST = Info.plist
 RESOURCES_DIRS = English.lproj
-RESOURCES_FILES != cd ${.CURDIR}; echo NSCharacterSet/*.bitmap
+RESOURCES_FILES != cd ${.CURDIR}; echo NSCharacterSet/*.bitmap NSScript/Suites/*.plist
 HEADERS != cd ${.CURDIR}; echo Headers/Foundation/* Headers/*.h \
 	platform_posix/NSSocket_bsd.h
 SLF = /System/Library/Frameworks
@@ -56,6 +56,12 @@ SRCS = 	NSFormatter.m \
 	NSInvocation.m \
 	NSIndexPath.m \
 	NSScript/NSScriptWhoseTests.m \
+	NSScript/NSScriptClassDescription.m \
+	NSScript/NSScriptCommandDescription.m \
+	NSScript/NSScriptSuiteRegistry.m \
+	NSScript/NSScriptDefinitionReader.m \
+	NSScript/NSScriptCoercionHandler.m \
+	NSScript/NSScriptObjectSpecifiers.m \
 	NSEnumerator.m \
 	NSException/debugHelpers.m \
 	NSException/NSException.m \
@@ -414,6 +420,12 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSScriptClassDescription.m = -fobjc-arc
+CFLAGS.NSScriptCommandDescription.m = -fobjc-arc
+CFLAGS.NSScriptSuiteRegistry.m = -fobjc-arc
+CFLAGS.NSScriptDefinitionReader.m = -fobjc-arc
+CFLAGS.NSScriptCoercionHandler.m = -fobjc-arc
+CFLAGS.NSScriptObjectSpecifiers.m = -fobjc-arc
 CFLAGS.NSFileCoordinator.m = -fobjc-arc
 CFLAGS.NSUserActivity.m = -fobjc-arc
 CFLAGS.NSURLFileTypeMappings.m = -fobjc-arc
