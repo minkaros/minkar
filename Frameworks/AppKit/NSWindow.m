@@ -1107,16 +1107,10 @@ static char representedURLKey;
     [self setFrame:newFrame display:display animate:animate tellWS:YES];
 }
 
+/* Any size the application sets is taken: minSize and maxSize bound the
+   user's resizing only, as on the reference (setFrame:display:,
+   setContentSize: and the rest measured there). */
 -(void)setFrame:(NSRect)newFrame display:(BOOL)display animate:(BOOL)animate tellWS:(BOOL)tellWS {
-    if (NSEqualSizes([self minSize], NSMakeSize(0, 0)) == NO) {
-       newFrame.size.width = MAX(NSWidth(newFrame), [self minSize].width);
-       newFrame.size.height = MAX(NSHeight(newFrame), [self minSize].height);
-    }
-
-    if (NSEqualSizes([self maxSize], NSMakeSize(FLT_MAX, FLT_MAX)) == NO) {
-       newFrame.size.width = MIN(NSWidth(newFrame), [self maxSize].width);
-       newFrame.size.height = MIN(NSHeight(newFrame), [self maxSize].height);
-    }
 
     /* A negative size (an app's arithmetic, or its limits, can give one)
        makes the whole frame empty, as on the reference (measured there). */
