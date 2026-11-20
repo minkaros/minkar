@@ -79,6 +79,17 @@ static void setUpObjectController(NSObjectController *self_, NSString **objectCl
      @try { predicate=[[proxy valueForKey:@"_fetchRequest"] predicate]; } @catch(NSException *e) { predicate=nil; }
      [self setFetchPredicate:predicate];
     }
+    /* Older nibs keep the entity and fetch predicate on the controller
+       itself, with no managed proxy. */
+    else if([coder containsValueForKey:@"NSEntityName"] || [coder containsValueForKey:@"NSFetchPredicate"]){
+     NSString    *entityName=[coder decodeObjectForKey:@"NSEntityName"];
+     NSPredicate *predicate=[coder decodeObjectForKey:@"NSFetchPredicate"];
+
+     if([entityName isKindOfClass:[NSString class]])
+      [self setEntityName:entityName];
+     if([predicate isKindOfClass:[NSPredicate class]])
+      [self setFetchPredicate:predicate];
+    }
     if([coder containsValueForKey:@"NSUsesLazyFetching"])
      [self setUsesLazyFetching:[coder decodeBoolForKey:@"NSUsesLazyFetching"]];
      
