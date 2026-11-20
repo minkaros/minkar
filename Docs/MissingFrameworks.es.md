@@ -9,6 +9,7 @@ no ofrece, para elegir qué implementar después de los bloques ya planificados
 Cómo leerlo:
 
 * **Estado:** *Plan* — ya está en [ROADMAP.es.md](ROADMAP.es.md);
+  *Parcial* — el framework existe con parte de su API (las notas dicen cuál);
   *Decidir* — sin plan todavía; *Fuera* — fuera del alcance decidido
   (servicios en la nube del fabricante de la plataforma de referencia,
   SwiftUI) o en desuso.
@@ -50,7 +51,7 @@ una.
 | Capa | Lo que Minkar tiene | Lo que falta |
 | --- | --- | --- |
 | **Kernel y núcleo del sistema** | XNU (Darwin 19.6.0: Mach y BSD), I/O Kit, HFS+, FAT y exFAT, la pila de red BSD con Ethernet (I219, I211, Broadcom), sonido HDA y audio por HDMI, la política de sandbox, pantallas AMD (R1, R2 en la RX 6600) | Audio USB (AU7), drivers de Wi-Fi y Bluetooth, los motores de la GPU (G1–G5, en curso), firma de código obligatoria (decidida: trust cache estática y kext MAC propio), APFS (después de 19.6.0) |
-| **Servicios básicos** | CoreFoundation, CoreGraphics, CoreText, ImageIO, QuartzCore, CoreServices (LaunchServices, `AppleEvent`, FSEvents), CFNetwork, un subconjunto de Security, CoreAudio, CoreMedia, AVFoundation, VideoToolbox (decodificación), OpenGL | Metal con dispositivo (pista GPU), Accelerate, CoreImage, Network, CryptoKit, ColorSync, un indexador de búsqueda, las fuentes APSL de Security |
+| **Servicios básicos** | CoreFoundation, CoreGraphics, CoreText, ImageIO, QuartzCore, CoreServices (LaunchServices, `AppleEvent`, FSEvents), CFNetwork, un subconjunto de Security, CoreAudio, CoreMedia, AVFoundation, VideoToolbox (decodificación), OpenGL | Metal con dispositivo (pista GPU), Accelerate, CoreImage (la mayoría de filtros y los kernels), Network, CryptoKit, ColorSync, un indexador de búsqueda, las fuentes APSL de Security |
 | **Frameworks de aplicación** | Cocoa: AppKit y Foundation, partes de Carbon, WebKit (W2–W4), AVKit, PrintCore e impresión | Las vistas web de las apps de referencia (W5), PDFKit y el resto de la lista de abajo; SwiftUI está fuera del alcance para API 19–21 |
 | **Experiencia de usuario** | Atlas, con su propio lenguaje visual: ventana de inicio de sesión, barra de menús, Dock, Files, Preferencias, el centro de notificaciones (N1, N2) | El escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10), búsqueda, accesibilidad (lector de pantalla) |
 
@@ -76,7 +77,7 @@ una.
 | --- | --- | --- | --- |
 | Metal (un dispositivo), MetalKit | Plan (pista GPU) | | darling-metal e Indium; la API de Metal existe sin dispositivo |
 | Accelerate | Plan (AU9) | | vDSP, BLAS y LAPACK (OpenBLAS, BSD-3); muy usado, conviene adelantarlo |
-| CoreImage | Decidir | | Muy usado por las apps de imagen |
+| CoreImage | Parcial | | Lo necesita Skim. Framework propio desde el 19 nov 2026 (QuartzCore lo reexporta): CIFilter con su registro, atributos y unidades de imagen (CIPlugIn), las constantes públicas y un contexto que dibuja en luz lineal sobre CoreGraphics; filtros integrados solo los que dibuja (CIBoxBlur, CILinearGradient). Faltan los kernels (CIKernel) y el resto de filtros |
 | MetalPerformanceShaders | Decidir | | |
 | SceneKit, SpriteKit, ModelIO, GameplayKit, RealityKit | Decidir | | |
 | ColorSync | Decidir | | Little CMS ya está previsto |
