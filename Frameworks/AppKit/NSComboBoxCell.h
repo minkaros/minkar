@@ -77,3 +77,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSObject (NSComboBoxCell_dataSource)
 - (NSString *)comboBoxCell:(NSComboBoxCell *)cell completedString:(NSString *)string;
 @end
+
+/* What gives a combo box cell its items when it uses a data source. */
+@protocol NSComboBoxCellDataSource <NSObject>
+@optional
+- (NSInteger)numberOfItemsInComboBoxCell:(NSComboBoxCell *)comboBoxCell;
+- (id)comboBoxCell:(NSComboBoxCell *)comboBoxCell objectValueForItemAtIndex:(NSInteger)index;
+- (NSUInteger)comboBoxCell:(NSComboBoxCell *)comboBoxCell indexOfItemWithStringValue:(NSString *)string;
+- (NSString *)comboBoxCell:(NSComboBoxCell *)comboBoxCell completedString:(NSString *)uncompletedString;
+@end

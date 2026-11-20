@@ -14,6 +14,25 @@ APPKIT_EXPORT NSString *const NSComboBoxSelectionIsChangingNotification;
 APPKIT_EXPORT NSString *const NSComboBoxWillDismissNotification;
 APPKIT_EXPORT NSString *const NSComboBoxWillPopUpNotification;
 
+@class NSComboBox;
+
+/* What gives a combo box its items when it uses a data source. */
+@protocol NSComboBoxDataSource <NSObject>
+@optional
+- (NSInteger)numberOfItemsInComboBox:(NSComboBox *)comboBox;
+- (id)comboBox:(NSComboBox *)comboBox objectValueForItemAtIndex:(NSInteger)index;
+- (NSUInteger)comboBox:(NSComboBox *)comboBox indexOfItemWithStringValue:(NSString *)string;
+- (NSString *)comboBox:(NSComboBox *)comboBox completedString:(NSString *)string;
+@end
+
+@protocol NSComboBoxDelegate <NSTextFieldDelegate>
+@optional
+- (void)comboBoxWillPopUp:(NSNotification *)notification;
+- (void)comboBoxWillDismiss:(NSNotification *)notification;
+- (void)comboBoxSelectionDidChange:(NSNotification *)notification;
+- (void)comboBoxSelectionIsChanging:(NSNotification *)notification;
+@end
+
 @interface NSComboBox : NSTextField
 
 - dataSource;

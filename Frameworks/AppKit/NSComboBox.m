@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Original - Christopher Lloyd <cjwl@objc.net>
 #import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSComboBox.h>
+#import <objc/runtime.h>
 #import <AppKit/NSComboBoxCell.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSTextView.h>
@@ -233,6 +234,39 @@ NSString * const NSComboBoxWillPopUpNotification=@"NSComboBoxWillPopUpNotificati
         *index = -1;
         return nil;
     }
+}
+
+/* Minkar: completing as the user types, as on the reference: each
+   character typed at the end asks for a completion (completedString:), and
+   the editor shows it with the part added selected, which more typing
+   replaces and a backspace removes (no completion then). */
+static char typedLengthKey;
+static BOOL completing;
+
+-(void)textDidChange:(NSNotification *)note {
+   NSText  *editor=[note object];
+
+   if(completing){
+    [super textDidChange:note];
+    return;
+   }
+   NSString *typed=[[[editor string] copy] autorelease];	/* the editor's own string changes with it */
+   NSRange  selection=[editor selectedRange];
+   NSUInteger previous=[objc_getAssociatedObject(self,&typedLengthKey) unsignedIntegerValue];
+
+   objc_setAssociatedObject(self,&typedLengthKey,[NSNumber numberWithUnsignedInteger:[typed length]],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   if([self completes] && [typed length]>previous && selection.length==0 && selection.location==[typed length]){
+    NSString *completed=[[self cell] completedString:typed];
+
+    if([completed length]>[typed length] &&
+       [[completed substringToIndex:[typed length]] caseInsensitiveCompare:typed]==NSOrderedSame){
+     completing=YES;
+     [editor setString:completed];
+     [editor setSelectedRange:NSMakeRange([typed length],[completed length]-[typed length])];
+     completing=NO;
+    }
+   }
+   [super textDidChange:note];
 }
 
 @end

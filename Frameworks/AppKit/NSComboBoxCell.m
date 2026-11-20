@@ -237,9 +237,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSString *)completedString:(NSString *)string {
     int i, count = [_objectValues count];
     
-    if (_usesDataSource == YES)		// not supported yet, well...
+    /* With a data source, its completion: the cell's data source's, or the
+       combo box's (NSComboBoxDataSource); none without one, as on the
+       reference. */
+    if (_usesDataSource == YES) {
         if ([_dataSource respondsToSelector:@selector(comboBoxCell:completedString:)] == YES)
             return [_dataSource comboBoxCell:self completedString:string];
+        if ([_dataSource respondsToSelector:@selector(comboBox:completedString:)] && [[self controlView] isKindOfClass:[NSComboBox class]])
+            return [(id)_dataSource comboBox:(NSComboBox *)[self controlView] completedString:string];
+        return nil;
+    }
 
     for (i = 0; i < count; ++i) {
         NSString *stringValue;
