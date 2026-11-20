@@ -27,6 +27,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _windowClass=[[keyed decodeObjectForKey:@"NSWindowClass"] retain];
     _windowRect=[keyed decodeRectForKey:@"NSWindowRect"];
     _windowStyleMask=[keyed decodeIntForKey:@"NSWindowStyleMask"];
+    /* A resizable window of a nib has a title bar, as on the reference
+       (measured: older nibs leave the bit out); closable or
+       miniaturizable alone add none. */
+    if(_windowStyleMask&NSResizableWindowMask)
+     _windowStyleMask|=NSTitledWindowMask;
     _windowTitle=[[keyed decodeObjectForKey:@"NSWindowTitle"] retain];
     _windowView=[[keyed decodeObjectForKey:@"NSWindowView"] retain];
    _windowAutosave=[[keyed decodeObjectForKey:@"NSFrameAutosaveName"] retain];
