@@ -1,0 +1,37 @@
+WebCore: no image atlases on Minkar
+
+Skia's tile recording packs a layer's images into one GL texture atlas
+when it paints four or more (8 px or larger). On Minkar the tile painters
+sample that atlas as opaque black, so every such image (a page's no-repeat
+backgrounds, icons) showed as a black box. The images are drawn one by
+one instead, as with fewer than four.
+
+--- a/Source/WebCore/platform/graphics/skia/SkiaImageAtlasLayoutBuilder.cpp	2026-11-19 19:05:48.314490768 -0500
+--- a/Source/WebCore/platform/graphics/skia/SkiaImageAtlasLayoutBuilder.cpp	2026-11-19 19:05:48.314490768 -0500
++++ b/Source/WebCore/platform/graphics/skia/SkiaImageAtlasLayoutBuilder.cpp	2026-11-19 19:05:59.782935992 -0500
+@@ -93,6 +93,12 @@
+     return shelfResult;
+ }
+ 
++#if OS(DARWIN)
++static constexpr bool usesNoAtlases = true;
++#else
++static constexpr bool usesNoAtlases = false;
++#endif
++
+ Vector<Ref<SkiaImageAtlasLayout>> SkiaImageAtlasLayoutBuilder::finalize()
+ {
+     ASSERT(!m_finalized);
+@@ -102,6 +108,12 @@
+     if (m_collectedImages.size() < minImagesForAtlas)
+         return { };
+ 
++    // Minkar: no atlases. An atlas texture is sampled as opaque black by
++    // the tile painters here, so the images are drawn one by one, as when
++    // there are fewer than minImagesForAtlas.
++    if (usesNoAtlases)
++        return { };
++
+     // Extract sizes for packing.
+     Vector<IntSize> sizes(m_collectedImages.size(), [&](size_t index) {
+         return m_collectedImages[index].size;

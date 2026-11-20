@@ -32,7 +32,8 @@ EXTLIB_PATCHES = ${JSC_PATCHES:@p@../../javascriptcore/patches/${p}@} \
 		0009-skia-sources-the-library-uses.patch \
 		0010-webkit-ipc-glib-stream-sockets-on-darwin.patch \
 		0011-webkit-glib-content-types-as-mime-types.patch \
-		0012-webcore-media-on-minkar-avfoundation.patch
+		0012-webcore-media-on-minkar-avfoundation.patch \
+		0013-webcore-skia-no-image-atlases-on-minkar.patch
 # Libraries of WebKit's own (BSD/lib, private) are in the SDK's
 # usr/local/webkit and /usr/lib/webkit.
 EXTLIB_OPTIONS = -DPORT=WPE -DDEVELOPER_MODE=OFF \
