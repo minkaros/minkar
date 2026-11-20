@@ -2158,12 +2158,20 @@ NSString *const NSTableViewRowViewKey=@"NSTableViewRowViewKey";
    BOOL            group=[self _delegateIsGroupRow:row];
 
    rowView=[self _delegateRowViewForRow:row];
-   /* The row view the nib gives for NSTableViewRowViewKey, as on the
-      reference, before a plain one. */
+   /* The row view the table's nib holds for NSTableViewRowViewKey, as on
+      the reference, before a plain one: from that nib alone (not through
+      makeViewWithIdentifier:, which a subclass may answer for its own
+      views, nor from the views waiting for reuse). */
    if(rowView==nil){
-    id view=[self makeViewWithIdentifier:NSTableViewRowViewKey owner:_delegate];
-    if([view isKindOfClass:[NSTableRowView class]])
-     rowView=view;
+    NSNib   *nib=[_registeredNibs objectForKey:NSTableViewRowViewKey];
+    NSArray *objects=nil;
+
+    if(nib!=nil && [nib instantiateWithOwner:_delegate topLevelObjects:&objects])
+     for(id object in objects)
+      if([object isKindOfClass:[NSTableRowView class]]){
+       rowView=object;
+       break;
+      }
    }
    if(rowView==nil)
     rowView=[[[NSTableRowView alloc] initWithFrame:NSZeroRect] autorelease];
