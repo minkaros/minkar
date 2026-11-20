@@ -1282,8 +1282,14 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    if([event type]==NSKeyDown){
     NSEventModifierFlags modifierFlags=[event modifierFlags];
 
-    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))
+    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask)){
      if([self _performKeyEquivalent:event])
+      return;
+    }
+    /* A function key (F8 alone) is the main menu's key equivalent before
+       it is typed, as on the reference; other keys alone are typed. */
+    else if((modifierFlags&NSFunctionKeyMask) && [[event charactersIgnoringModifiers] length]>0)
+     if([[self mainMenu] performKeyEquivalent:event])
       return;
    }
    if([event type]==NSAppKitDefined && [event subtype]==kNSMenuBarFocusEventSubtype){

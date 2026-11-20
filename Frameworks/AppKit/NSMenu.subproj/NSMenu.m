@@ -470,6 +470,10 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
     if(![key isEqualToString:[key lowercaseString]])
         itemModifiers|=NSShiftKeyMask;
     modifiers&=relevant;
+    /* A function key (F1, arrows, Home...) with exactly its modifiers, as
+       on the reference: Shift-F8 is not F8. */
+    if([key length]==1 && [key characterAtIndex:0]>=0xF700 && [key characterAtIndex:0]<=0xF8FF)
+        return [key isEqualToString:characters] && modifiers==itemModifiers;
     /* A symbol (no upper and lower case: ?, +, :) is what Shift typed:
        Shift is not one of its modifiers. */
     if([key isEqualToString:characters] || [key isEqualToString:typed])
