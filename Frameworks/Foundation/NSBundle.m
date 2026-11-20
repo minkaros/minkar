@@ -758,6 +758,7 @@ static NSString *baseLanguage(NSString *name) {
             NSString *localeid = nil;
             NSString *language = nil;
             NSString *longlang = nil;
+            NSString *chosen = nil;	/* the localization the preferences pick */
 
             // NSUserDefaults uses the NSBundle system during initialization so to avoid a recursion
             // of doom we'll only check the preferred language once the defaults are available.
@@ -772,6 +773,9 @@ static NSString *baseLanguage(NSString *name) {
                 if ([languages isKindOfClass:[NSArray class]] && [languages count] > 0 &&
                     [[languages objectAtIndex:0] isKindOfClass:[NSString class]]) {
                     NSString *preferred = [languages objectAtIndex:0];
+                    /* Minkar: the bundle's localization the languages pick,
+                     * "es" finding Spanish.lproj, as on the reference. */
+                    chosen = [[[self class] preferredLocalizationsFromArray:[self localizations] forPreferences:languages] firstObject];
                     NSRange separator = [preferred rangeOfCharacterFromSet:
                         [NSCharacterSet characterSetWithCharactersInString:@"-_"]];
                     if (separator.location != NSNotFound) {
@@ -807,6 +811,12 @@ static NSString *baseLanguage(NSString *name) {
                 lookInDirectories = [NSArray arrayWithObjects:@"English.lproj", @"en.lproj", @"", nil];
             else
                 lookInDirectories = [NSArray arrayWithObjects:[language stringByAppendingPathExtension:@"lproj"], @"en.lproj", @"English.lproj", @"", nil];
+
+            if (chosen != nil && ![lookInDirectories containsObject:[chosen stringByAppendingPathExtension:@"lproj"]]) {
+                NSMutableArray *first = [NSMutableArray arrayWithObject:[chosen stringByAppendingPathExtension:@"lproj"]];
+                [first addObjectsFromArray:lookInDirectories];
+                lookInDirectories = first;
+            }
 
             /* Base.lproj (base internationalization: an app's nibs and
                storyboards for every language) after the languages', before
