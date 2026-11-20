@@ -1,0 +1,27 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Lane ARM's ARM0 (Docs/ROADMAP.md): the compiler the arm64 compile check
+# gives bmake as CC and CXX (arm64-c++ links here). It runs ARM64_CLANG (an
+# arm64-capable clang: the tree's own is built for x86 only so far) on the
+# same command line for arm64-apple-macosx11.0, with the arm64 headers
+# that tools/ci/arm64-compile.sh installs from Kernel/xnu (ARM64_INCLUDE)
+# after Minkar.sdk's own. Objects only: nothing is linked.
+
+: "${ARM64_CLANG:?}" "${ARM64_INCLUDE:?}"
+case $0 in *++) cc=${ARM64_CLANG}++ ;; *) cc=$ARM64_CLANG ;; esac
+skip=0
+for a in "$@"; do
+	shift
+	if [ $skip = 1 ]; then skip=0; continue; fi
+	case $a in
+	-target|-arch) skip=1 ;;
+	--target=*|-mmacos-version-min=*|-mmacosx-version-min=*|-march=*|-mtune=*|-msse*|-mavx*) ;;
+	*) set -- "$@" "$a" ;;
+	esac
+done
+exec "$cc" -target arm64-apple-macosx11.0 -D__MINKAR__=1 -I "$ARM64_INCLUDE/first" \
+    -idirafter "$ARM64_INCLUDE" -F "$ARM64_INCLUDE/frameworks" \
+    -Wno-incompatible-sysroot "$@"

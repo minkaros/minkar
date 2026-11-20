@@ -532,6 +532,24 @@ Sobre el kernel nuevo, y solo en máquina virtual por el momento (D4).
 
 Pendiente: el trabajo de plataforma que necesita el XNU publicado para arm64, y las páginas de 16 KB que asumen los binarios arm64. Los equipos físicos arm64 se decidirán más adelante.
 
+**ARM0 (20 nov 2026).** La CI compila para arm64, solo objetos, los directorios de `tools/ci/arm64-dirs.txt` (`tools/ci/arm64-compile.sh`, después del build x86-64): con el clang de la versión de swift.org que el toolchain ya usa como herramienta de build, y los headers arm64 copiados de `Kernel/xnu`. Medido el 20 nov 2026: cerca del 96 % de los objetos del userland y de los frameworks ya compilan para arm64. Pendiente, en orden de dependencias:
+
+1. El toolchain: AArch64 en los destinos de LLVM (`Developer/Default.xctoolchain/llvm/Makefile`), y después clang, lld y el compilador de Swift compilados de nuevo; un solo nombre para la arquitectura (`aarch64` arriba, `arm64` en Libc).
+2. El SDK: los headers de XNU instalados para ARM64 (`mach/arm`, `mach/arm64`, `arm`, `libkern/arm`, el `arm` de System), el `TargetConditionals.h` de BSD/include y un `architecture/arm/asm_help.h` de sala limpia.
+3. compiler-rt, libunwind, libc++abi y libc++ para arm64.
+4. libsystem_kernel: un mapa de llamadas al sistema para arm64 y MIG para arm64.
+5. libsystem_platform: fuentes por arquitectura (setjmp, atómicos, control de caché; ucontext).
+6. Libc: `mcount` y el fichero gdtoa de arm64.
+7. libm: las fuentes `aarch64` de msun, sin long double de x87, un `fenv` de arm64.
+8. El transporte Mach de libxpc.
+9. objc4: messengers y trampolines por arquitectura.
+10. CoreFoundation: `HALT` y la prueba de orden de bytes de las tablas Unicode.
+11. Foundation: `NSInvocation` y el reenvío para la convención de llamadas de arm64 (sin `_stret`).
+12. launchd, `leaks` y `sample`: el estado de hilo de arm64.
+13. El runtime y la biblioteca estándar de Swift para arm64, y después los overlays, Combine y XCTest.
+14. Los ports que se compilan con su propio configure (`minkar.extlib.mk`).
+15. Los directorios que leen ficheros generados en los directorios de objetos x86-64 (libdispatch, libmacho, Onyx2D) entran en la comprobación de la CI cuando esos ficheros se generen también para arm64.
+
 ## Carril KX — Kernel nuevo: Darwin 25
 
 Decidido el 20 nov 2026 (D5). El cómo es el [ADR 0003](ADR/0003-Kernel-Upgrade.es.md).

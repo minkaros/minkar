@@ -257,6 +257,18 @@ bc-check: .PHONY
 	    --apps ${BC_APPS} --log ${ROOT_BINARY_DIR}/boottest-BC.log \
 	    ${BC_UPDATE:Myes:S/yes/--update/} ${BC_ARGS}
 
+# Lane ARM's ARM0: tools/ci/arm64-compile.sh compiles the objects of
+# ARM64_DIRS for arm64 with ARM64_CC and ARM64_CXX, into ARM64_OBJ; nothing
+# is linked.
+arm64-objs: .PHONY
+.for d in ${ARM64_DIRS}
+	@objs=$$(${MAKE} -C ${.CURDIR}/${d} -V OBJS | tr ' ' '\n' | grep -E '\.(o|pieo|pico)$$' | sort -u); \
+	echo "arm64-objs: ${d}: $$(echo $$objs | wc -w) objects"; \
+	[ -n "$$objs" ] || { echo "arm64-objs: ${d} has no OBJS" >&2; exit 1; }; \
+	${MAKE} -C ${.CURDIR}/${d} MAKEOBJDIRPREFIX=${ARM64_OBJ} CC=${ARM64_CC} \
+	    CXX=${ARM64_CXX} OBJC=${ARM64_CC} $$objs
+.endfor
+
 # Gallery (Tests/Gallery): a development app with every AppKit control and
 # a report of what AppKit lacks, for test images only: 'bmake gallery'
 # before 'bmake image' puts it in /Applications/Developer.

@@ -532,6 +532,24 @@ On the new kernel, and only in a virtual machine for now (D4).
 
 Pending: the platform work the published arm64 XNU needs, and the 16 KB pages that arm64 binaries assume. Physical arm64 machines will be decided later.
 
+**ARM0 (2026-11-20).** The CI compiles for arm64, objects only, the directories of `tools/ci/arm64-dirs.txt` (`tools/ci/arm64-compile.sh`, after the x86-64 build): with the clang of the swift.org release the toolchain already uses as a build tool, and the arm64 headers copied from `Kernel/xnu`. Measured on 2026-11-20: about 96 % of the userland's and the frameworks' objects compile for arm64 already. Pending, in dependency order:
+
+1. The toolchain: AArch64 in LLVM's targets (`Developer/Default.xctoolchain/llvm/Makefile`), then clang, lld and the Swift compiler built again; one name for the architecture (`aarch64` at the top, `arm64` in Libc).
+2. The SDK: XNU's headers installed for ARM64 (`mach/arm`, `mach/arm64`, `arm`, `libkern/arm`, System's `arm`), BSD/include's `TargetConditionals.h`, and a clean-room `architecture/arm/asm_help.h`.
+3. compiler-rt, libunwind, libc++abi and libc++ for arm64.
+4. libsystem_kernel: a system call map for arm64 and MIG for arm64.
+5. libsystem_platform: per-architecture sources (setjmp, atomics, cache control; ucontext).
+6. Libc: `mcount` and the arm64 gdtoa file.
+7. libm: msun's `aarch64` sources, no x87 long double, an arm64 `fenv`.
+8. libxpc's Mach transport.
+9. objc4: per-architecture messengers and trampolines.
+10. CoreFoundation: `HALT` and the byte-order test for the Unicode tables.
+11. Foundation: `NSInvocation` and forwarding for the arm64 calling convention (no `_stret`).
+12. launchd, `leaks` and `sample`: arm64 thread state.
+13. The Swift runtime and standard library for arm64, then the overlays, Combine and XCTest.
+14. The ports built with their own configure (`minkar.extlib.mk`).
+15. Directories that read files generated in the x86-64 object directories (libdispatch, libmacho, Onyx2D) join the CI check once those are generated for arm64 too.
+
 ## Lane KX — New kernel: Darwin 25
 
 Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md).

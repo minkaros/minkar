@@ -160,6 +160,16 @@ jobs:
           tools/toolchain/manifest.sh check \
             "$BUILD_DIR/Developer/Platforms/Minkar.platform/Developer/Toolchains/Default.xctoolchain"
 
+      - name: Compile for arm64 (lane ARM, ARM0)
+        # Objects only, of the directories in tools/ci/arm64-dirs.txt: the
+        # ones that already compile for arm64. To be widened as the lane's
+        # pending items close (Docs/ROADMAP.md, lane ARM).
+        run: |
+          sudo --preserve-env=BUILD_DIR env JOBS=4 tools/ci/arm64-compile.sh \
+            > "$BUILD_DIR/logs/arm64-compile.log" 2>&1 || {
+              grep -m 20 "error:" "$BUILD_DIR/logs/arm64-compile.log"; exit 1; }
+          tail -n 1 "$BUILD_DIR/logs/arm64-compile.log"
+
       - name: Symbol coverage of the reference apps
         # A report, not a gate: a download that fails does not fail the run.
         continue-on-error: true
