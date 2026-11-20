@@ -76,7 +76,8 @@ static void setUpObjectController(NSObjectController *self_, NSString **objectCl
      NSPredicate     *predicate=nil;
 
      [self setEntityName:[proxy entityName]];
-     @try { predicate=[[proxy valueForKey:@"_fetchRequest"] predicate]; } @catch(NSException *e) { predicate=nil; }
+     if([proxy respondsToSelector:@selector(fetchPredicate)])
+      predicate=[proxy fetchPredicate];
      [self setFetchPredicate:predicate];
     }
     /* Older nibs keep the entity and fetch predicate on the controller

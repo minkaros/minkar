@@ -70,6 +70,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 
+/* The fetch predicate the nib gave it. */
+- (NSPredicate *) fetchPredicate {
+    return [_fetchRequest predicate];
+}
+
 - (NSString *) entityName {
     return _entityName;
 }

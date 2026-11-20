@@ -42,6 +42,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (id)initWithParent:(_NSManagedProxy *)parent object:(NSManagedObject *)object;
 - (id)representedObject;
 - (NSString *)entityName;
+- (NSPredicate *)fetchPredicate;
 - (NSEntityDescription *)entity;
 - (NSManagedObjectContext *)managedObjectContext;
 - (void)setManagedObjectContext:(NSManagedObjectContext *)context;
