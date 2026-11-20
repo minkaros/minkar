@@ -132,6 +132,7 @@ APPKIT_EXPORT NSPasteboardReadingOptionKey const NSPasteboardURLReadingContentsC
 - (BOOL)setString:(NSString *)string forType:(NSPasteboardType)type;
 - (BOOL)setPropertyList:(id)plist forType:(NSPasteboardType)type;
 
+- (BOOL)canReadItemWithDataConformingToTypes:(NSArray<NSString *> *)types;
 @end
 
 @interface NSObject (NSPasteboard)

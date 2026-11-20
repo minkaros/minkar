@@ -201,3 +201,8 @@ APPKIT_EXPORT NSString *const NSControlTintDidChangeNotification;
 - (void)writeToPasteboard:(NSPasteboard *)pasteboard;
 
 @end
+
+/* Minkar: read from and written to a pasteboard by its types. */
+#import <AppKit/NSPasteboard.h>
+@interface NSColor (NSPasteboardSupport) <NSPasteboardWriting, NSPasteboardReading>
+@end

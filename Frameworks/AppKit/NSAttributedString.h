@@ -209,3 +209,8 @@ APPKIT_EXPORT NSColor *NSForegroundColorAttributeInDictionary(NSDictionary *dict
 APPKIT_EXPORT NSParagraphStyle *NSParagraphStyleAttributeInDictionary(NSDictionary *dictionary);
 
 #import <AppKit/NSMutableAttributedString.h>
+
+/* Minkar: read from and written to a pasteboard by its types. */
+#import <AppKit/NSPasteboard.h>
+@interface NSAttributedString (NSPasteboardSupport) <NSPasteboardWriting, NSPasteboardReading>
+@end

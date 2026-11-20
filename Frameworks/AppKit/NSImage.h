@@ -284,3 +284,8 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 - (NSImage *)imageForResource:(NSString *)name;
 
 @end
+
+/* Minkar: read from and written to a pasteboard by its types. */
+#import <AppKit/NSPasteboard.h>
+@interface NSImage (NSPasteboardSupport) <NSPasteboardWriting, NSPasteboardReading>
+@end
