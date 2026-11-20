@@ -1,0 +1,42 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 20, 2026
+.Dt SAMPLE 1
+.Os Minkar
+.Sh NAME
+.Nm sample
+.Nd show where a running process spends its time
+.Sh SYNOPSIS
+.Nm
+.Ar pid | name
+.Op Ar duration Op Ar interval
+.Op Fl file Ar path
+.Op Fl mayDie
+.Sh DESCRIPTION
+.Nm
+stops the process again and again for
+.Ar duration
+seconds (10 by default), every
+.Ar interval
+milliseconds (1 by default), and takes the stack of each of its threads by
+following their frame pointers.
+It then prints, for each thread, a call tree with how many samples each
+frame was in, the frames most often at the top of a stack, and the images
+the process has loaded.
+Frames are named from the symbol tables of those images.
+.Pp
+A process given by name must be the only one whose name contains it.
+Examining another user's process needs root.
+.Bl -tag -width indent
+.It Fl file Ar path
+Write the analysis to
+.Ar path
+instead of the standard output.
+.It Fl mayDie
+Say nothing if the process exits before the sampling ends.
+.El
+.Sh SEE ALSO
+.Xr leaks 1 ,
+.Xr dtrace 1
+.Sh BUGS
+Frames of code built without frame pointers are missed.
