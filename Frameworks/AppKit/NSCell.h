@@ -199,6 +199,7 @@ enum {
 - (BOOL)isContinuous;
 - (BOOL)showsFirstResponder;
 - (BOOL)refusesFirstResponder;
+- (NSColor *)highlightColorWithFrame:(NSRect)frame inView:(NSView *)view;
 - (BOOL)isHighlighted;
 
 - (BOOL)hasValidObjectValue;

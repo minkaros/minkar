@@ -77,8 +77,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSTextCellType;
 }
 
+/* Minkar: textBackgroundColor when none is set, as on the reference. */
 -(NSColor *)backgroundColor {
-   return _backgroundColor;
+   return (_backgroundColor!=nil)?_backgroundColor:[NSColor textBackgroundColor];
 }
 
 /* Minkar: controlTextColor when none is set, as on the reference. */
@@ -195,8 +196,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     /* Always a color: none drew in the context's current one (a combo
        box's bezel gray). */
     if([self isEnabled]){
-     [attributes setObject:(_textColor!=nil)?_textColor:[NSColor controlTextColor]
-                    forKey:NSForegroundColorAttributeName];
+     NSColor *color=(_textColor!=nil)?_textColor:[NSColor controlTextColor];
+
+     /* On a dark background (a selected, emphasized table row) the
+        standard text colors draw light, as on the reference. */
+     if([self backgroundStyle]==NSBackgroundStyleDark &&
+        ([color isEqual:[NSColor controlTextColor]] || [color isEqual:[NSColor textColor]] || [color isEqual:[NSColor labelColor]]))
+      color=[NSColor alternateSelectedControlTextColor];
+     [attributes setObject:color forKey:NSForegroundColorAttributeName];
     }
     else {
      [attributes setObject:[NSColor disabledControlTextColor]
@@ -205,7 +212,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #if 0
     if([self drawsBackground]/* && ![self isBezeled]*/){
-     NSColor *color=(_backgroundColor==nil)?[NSColor controlColor]:_backgroundColor;
+     NSColor *color=[self backgroundColor];
      [attributes setObject:color
                     forKey:NSBackgroundColorAttributeName];
     }
@@ -353,7 +360,7 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 
    if([self drawsBackground]){
     if(!([self isBezeled] && [self bezelStyle]==NSTextFieldRoundedBezel)){
-    NSColor *color=(_backgroundColor==nil)?[NSColor controlColor]:_backgroundColor;
+    NSColor *color=[self backgroundColor];
 
     [color setFill];
     NSRectFill(backRect);

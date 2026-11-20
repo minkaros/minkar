@@ -1223,14 +1223,16 @@ static NSUInteger selectionNoteDeferred;
         [dataCell setObjectValue: value];
     }
 
-   if ([dataCell respondsToSelector:@selector(setTextColor:)]) {
-      if ([self isRowSelected:row] || [self isColumnSelected:columnNumber]){
-       [(NSTextFieldCell *)dataCell setDrawsBackground:NO]; // so the selection shows properly, dont just set the color so custom background works
-         [(NSTextFieldCell *)dataCell setTextColor:[self _isEmphasized]?[NSColor alternateSelectedControlTextColor]:[NSColor textColor]];
-      }
-      else
-         [(NSTextFieldCell *)dataCell setTextColor:[NSColor textColor]];
-   }
+   /* Minkar: a selected row's cell is highlighted, with a dark background
+      style while the selection is emphasized (the table first responder
+      in the key window), and draws its text for it; its text color is
+      left as it is, as on the reference. */
+   BOOL selected=[self isRowSelected:row] || [self isColumnSelected:columnNumber];
+
+   [dataCell setHighlighted:selected];
+   [dataCell setBackgroundStyle:(selected && [self _isEmphasized])?NSBackgroundStyleDark:NSBackgroundStyleLight];
+   if (selected && [dataCell respondsToSelector:@selector(setDrawsBackground:)])
+    [(NSTextFieldCell *)dataCell setDrawsBackground:NO]; // so the selection shows
 
    [column prepareCell:dataCell inRow:row];
 

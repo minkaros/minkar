@@ -78,6 +78,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_cell setEditable:YES];
    [_cell setSelectable:YES];
    [_cell setBezeled:YES];
+   /* Its background drawn (textBackgroundColor), as on the reference. */
+   [_cell setDrawsBackground:YES];
    [self registerForDraggedTypes:[NSArray arrayWithObject:NSStringPboardType]];
    return self;
 }

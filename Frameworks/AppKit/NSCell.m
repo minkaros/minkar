@@ -319,6 +319,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _refusesFirstResponder;
 }
 
+/* The color a highlighted cell is drawn on: the selection's, emphasized
+   while its view is first responder in the key window. */
+-(NSColor *)highlightColorWithFrame:(NSRect)frame inView:(NSView *)view {
+   NSWindow *window=[view window];
+   BOOL      emphasized=[window isKeyWindow] && [window firstResponder]==view;
+
+   return emphasized?[NSColor alternateSelectedControlColor]:[NSColor secondarySelectedControlColor];
+}
+
 -(BOOL)isHighlighted {
    return _isHighlighted;
 }
@@ -872,10 +881,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [editor setString: strValue];
    [editor setFont:[self font]];
    [editor setAlignment:[self alignment]];
-   if([self respondsToSelector:@selector(drawsBackground)])
-    [editor setDrawsBackground:(BOOL)(int)[self performSelector:@selector(drawsBackground)]];
-   if([self respondsToSelector:@selector(backgroundColor)])
-    [editor setBackgroundColor:[self performSelector:@selector(backgroundColor)]];
+   /* Minkar: the cell draws its background under the editor, which
+      draws none (white, as on the reference): a cell's nil color made the
+      editor paint black. */
+   [editor setDrawsBackground:NO];
+   [editor setBackgroundColor:[NSColor whiteColor]];
 
    return editor;
 }
