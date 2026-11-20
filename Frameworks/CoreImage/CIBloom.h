@@ -1,4 +1,4 @@
-#import <QuartzCore/CIFilter.h>
+#import <CoreImage/CIFilter.h>
 
 @interface CIBloom : CIFilter {
     double _inputRadius;

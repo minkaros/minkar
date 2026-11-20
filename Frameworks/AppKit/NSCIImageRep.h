@@ -1,5 +1,5 @@
 #import <AppKit/NSImageRep.h>
-#import <QuartzCore/CIImage.h>
+#import <CoreImage/CIImage.h>
 
 @class NSBitmapImageRep;
 

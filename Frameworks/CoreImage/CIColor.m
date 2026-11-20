@@ -1,4 +1,4 @@
-#import <QuartzCore/CIColor.h>
+#import <CoreImage/CIColor.h>
 
 @implementation CIColor 
 

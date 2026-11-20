@@ -23,16 +23,7 @@ SRCS= \
 	CATransform3D.m \
 	CATransition.m \
 	CAValueFunction.m \
-	CAWindowOpenGLContext.m \
-	CIAffineTransform.m \
-	CIBloom.m \
-	CIBoxBlur.m \
-	CIColor.m \
-	CIContext.m \
-	CIFilter.m \
-	CIImage.m \
-	CILinearGradient.m \
-	CIVector.m
+	CAWindowOpenGLContext.m
 
 HEADERS= \
 	CAAction.h \
@@ -49,7 +40,6 @@ HEADERS= \
 	CAMediaTiming.h \
 	CAMediaTimingFunction.h \
 	CAPropertyAnimation.h \
-	CIBloom.h \
 	CARenderer.h \
 	CATransaction.h \
 	CATransactionGroup.h \
@@ -57,14 +47,6 @@ HEADERS= \
 	CATransition.h \
 	CAValueFunction.h \
 	CAWindowOpenGLContext.h \
-	CIAffineTransform.h \
-	CIBoxBlur.h \
-	CIColor.h \
-	CIContext.h \
-	CIFilter.h \
-	CIImage.h \
-	CILinearGradient.h \
-	CIVector.h \
 	CoreAnimation.h \
 	CoreImage.h \
 	CoreVideo.h \
@@ -79,12 +61,13 @@ CFLAGS.CAYUVImage.c = -O2
 LDFLAGS = -framework IOSurface \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
 	-framework OpenGL -framework Onyx2D -framework CoreGraphics \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks -Wl,-reexport_framework,CoreImage \
 	-framework Foundation -framework CoreFoundation -lobjc
 
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
-	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
 .include <minkar.framework.mk>

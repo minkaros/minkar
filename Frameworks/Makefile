@@ -44,6 +44,8 @@ SUBDIR += CoreData
 SUBDIR += CoreVideo
 # Quick Look's generators (Quartz re-exports it).
 SUBDIR += QuickLook
+# Core Image (QuartzCore re-exports it).
+SUBDIR += CoreImage
 SUBDIR += QuartzCore
 SUBDIR += AppKit
 # Security: Minkar's own subset for now (the APSL sources beside it are
@@ -120,7 +122,8 @@ CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation
-QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D
+CoreImage: CoreGraphics
+QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D CoreImage
 CoreVideo: OpenGL Foundation CoreGraphics IOSurface
 AppKit: CoreData QuartzCore ApplicationServices CoreServices AudioToolbox
 UserNotifications: Foundation

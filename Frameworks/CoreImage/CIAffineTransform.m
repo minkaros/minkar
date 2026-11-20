@@ -1,4 +1,4 @@
-#import <QuartzCore/CIAffineTransform.h>
+#import <CoreImage/CIAffineTransform.h>
 #import <Foundation/NSKeyedUnarchiver.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSRaise.h>

@@ -1,4 +1,4 @@
-#import <QuartzCore/CIVector.h>
+#import <CoreImage/CIVector.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSString.h>
 

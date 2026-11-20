@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSBitmapImageRep-Private.h>
 #import <AppKit/NSRaise.h>
 #import <ApplicationServices/ApplicationServices.h>
-#import <QuartzCore/CIContext.h>
+#import <CoreImage/CIContext.h>
 
 @class NSColor;
 
