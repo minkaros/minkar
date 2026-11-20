@@ -760,15 +760,22 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return result;
 }
 
-/* Minkar: its color space: the image's, or the named one's. */
+/* Minkar: its color space: the image it was made from's, or the one its
+   color space name names. No image is made for it (making one keeps the
+   pixels as they are then). */
 -(NSColorSpace *)colorSpace {
-   CGImageRef image=[self CGImage];
-   CGColorSpaceRef space=(image!=NULL)?CGImageGetColorSpace(image):NULL;
+   CGColorSpaceRef space=(_cgImage!=NULL)?CGImageGetColorSpace(_cgImage):NULL;
 
    if(space!=NULL)
     return [[[NSColorSpace alloc] initWithCGColorSpace:space] autorelease];
-   if([_colorSpaceName isEqualToString:NSCalibratedWhiteColorSpace] || [_colorSpaceName isEqualToString:NSDeviceWhiteColorSpace])
+   if([_colorSpaceName isEqualToString:NSCalibratedWhiteColorSpace])
     return [NSColorSpace genericGrayColorSpace];
+   if([_colorSpaceName isEqualToString:NSDeviceWhiteColorSpace])
+    return [NSColorSpace deviceGrayColorSpace];
+   if([_colorSpaceName isEqualToString:NSDeviceRGBColorSpace])
+    return [NSColorSpace deviceRGBColorSpace];
+   if([_colorSpaceName isEqualToString:NSDeviceCMYKColorSpace])
+    return [NSColorSpace deviceCMYKColorSpace];
    return [NSColorSpace sRGBColorSpace];
 }
 
