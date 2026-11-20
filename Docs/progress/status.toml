@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-17"
-commit  = "1185b94021"
+updated = "2026-11-20"
+commit  = "1aaa4bfb8b"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -88,23 +88,17 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["mb", "dock", "files", "apps", "webkit"]
+rows = ["mb", "dock", "files", "apps", "webkit", "audio", "bc"]
 
+# Minkar 25.x: every gate on Darwin 25 (KX3). M7 is gone (2026-11-20): the
+# lanes BC, ARM, KX and SU carry their own milestones as stations.
 [[gate]]
-id = "R21"
-title = "Minkar 21.0"
-label = "21.0"
+id = "R25"
+title = "Minkar 25.x"
+label = "25.x"
 state = "todo"
-x = 1060
-rows = ["ws", "gpu"]
-
-[[gate]]
-id = "M7"
-title = "M7 Compat, arm64"
-label = "M7"
-state = "todo"
-x = 1150
-rows = ["compat"]
+x = 1110
+rows = ["kx"]
 
 # Lines of the metro map, top to bottom. Each station: [label, x, state].
 
@@ -191,10 +185,11 @@ name = "Apps · DMG"
 color = "green"
 doc = "Atlas.md#5-applications"
 doc_es = "Atlas.es.md#5-aplicaciones"
-# Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
+# Atlas's apps for 19.6.0 (A0 to A4, chapter 5; A5 to A10 moved to 19.6.x
+# on 2026-11-20) and DMG installs (Phase 6).
 stations = [
   ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "partial"],
-  ["A3–A10 · DMG", 970, "partial"],
+  ["A3–A4 · DMG", 970, "partial"], ["A5–A10", 1025, "todo"],
 ]
 
 [[line]]
@@ -238,12 +233,60 @@ stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 8
   ["G4–G5", 1060, "current"]]
 
 [[line]]
-id = "compat"
-name = "Compat · arm64"
+id = "audio"
+name = "Audio"
+color = "teal"
+doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+# AU1 to AU6 done (14–15 Nov); AU7 to AU10 part of Minkar 19.6.0 since
+# 2026-11-20 (D3), inside M6.
+stations = [["AU1–AU6", 865, "done"], ["AU7–AU10", 970, "todo"]]
+
+[[line]]
+id = "bc"
+name = "Lane BC"
 color = "gray"
-doc = "ROADMAP.md#phase-7--binary-compatibility-and-arm64"
-doc_es = "ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64"
-stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
+doc = "ROADMAP.md#lane-bc--binary-compatibility"
+doc_es = "ROADMAP.es.md#carril-bc--compatibilidad-binaria"
+# Done before the lane had a name: Firefox 160 and Hex Fiend 2.18.1 from
+# their published binaries, binary nibs, third-party signatures.
+# BC0 to BC4 are part of M6; BC5 on raises ProductVersion by app groups.
+stations = [
+  ["Published apps", 700, "done"], ["BC0 gate", 760, "current"], ["BC1 matrix", 815, "current"],
+  ["BC2 loader", 865, "partial"], ["BC3 ABI", 915, "todo"], ["BC4 set 19", 970, "todo"],
+  ["BC5…", 1060, "todo"],
+]
+
+[[line]]
+id = "kx"
+name = "Lane KX"
+color = "slate"
+doc = "ROADMAP.md#lane-kx--new-kernel-darwin-25"
+doc_es = "ROADMAP.es.md#carril-kx--kernel-nuevo-darwin-25"
+# Darwin 25 (D5): the ADR now, the prototype after 19.6.0.
+stations = [["KX0 ADR", 915, "current"], ["KX1 M2", 1010, "todo"], ["KX2 all", 1060, "todo"],
+  ["KX3", 1110, "todo"]]
+
+[[line]]
+id = "arm"
+name = "Lane ARM"
+color = "orange"
+doc = "ROADMAP.md#lane-arm--arm64"
+doc_es = "ROADMAP.es.md#carril-arm--arm64"
+# arm64 in QEMU only for now (D4): the CI build now, booting on Darwin 25.
+stations = [["ARM0 build", 915, "current"], ["ARM1 M2", 1060, "todo"], ["ARM2 desktop", 1110, "todo"],
+  ["ARM3 apps", 1160, "todo"]]
+
+[[line]]
+id = "su"
+name = "Lane SU"
+color = "purple"
+doc = "ROADMAP.md#lane-su--swiftui-on-openswiftui"
+doc_es = "ROADMAP.es.md#carril-su--swiftui-sobre-openswiftui"
+# SwiftUI on OpenSwiftUI (D6): the report and the clean-room review now,
+# the import after 19.6.0.
+stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "current"], ["SU1 import", 1020, "todo"],
+  ["SU2", 1070, "todo"], ["SU3 ABI", 1120, "todo"], ["SU4 app", 1170, "todo"]]
 
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
@@ -257,8 +300,13 @@ line = "webkit"
 
 [[board.now]]
 title = "GPU: clocks, then G5"
-note = "G4 measured on PC 2; its clocks, then the 3D path, for 21.0's performance gate"
+note = "G4 measured on PC 2; its clocks, then the 3D path, for the performance gate"
 line = "gpu"
+
+[[board.now]]
+title = "Roadmap v2: gate BC"
+note = "the designated apps' published binaries run at every gate; the compatibility matrix"
+line = "bc"
 
 [[board.next]]
 title = "Desktop design and icons"
@@ -277,17 +325,16 @@ line = "gpu"
 
 [[board.later]]
 group = "Minkar 19.6.0"
-items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
+items = [["App A2: the text editor", "apps"], ["AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices", "audio"],
+  ["BC2–BC4: the loader, the ABI audit, the API 19 set", "bc"],
   ["MB3: Lock Screen with the graphical login", "mb"], ["Security: the APSL sources replace the subset", "fw"],
   ["The system installer: USB medium, first start", "apps"]]
 
 [[board.later]]
-group = "Minkar 21.0"
-items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"]]
-
-[[board.later]]
 group = "After 19.6.0"
-items = [["x86-64 binaries, arm64", "compat"]]
+items = [["Apps A5–A10 (19.6.x)", "apps"], ["Darwin 25 (KX1–KX3, Minkar 25.x)", "kx"],
+  ["arm64 boot in QEMU (ARM1–ARM3)", "arm"], ["SwiftUI on OpenSwiftUI (SU1–SU4)", "su"],
+  ["Performance ≥ the reference system", "gpu"]]
 
 [[board.done]]
 title = "DMG installs"

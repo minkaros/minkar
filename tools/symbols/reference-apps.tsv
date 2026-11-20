@@ -1,7 +1,9 @@
-# Reference apps for the API 19 stage (plan, principle 6): open
-# source Cocoa apps whose system imports drive the framework work.
-# Only parsed by symbol-inventory.py, never run. A new version is a new
-# line here with its sha256 (sha256sum of the download).
+# Reference apps (plan, principle 6, and lane BC): open source Cocoa
+# apps whose system imports drive the framework work. symbol-inventory.py
+# parses them, and gate BC (boottest GATE=BC) runs their published
+# binaries, downloaded on the build host and never copied into the
+# repository or the released images. A new version is a new line here
+# with its sha256 (sha256sum of the download).
 #
 # name	version	minimum macOS	url	sha256
 TextMate	2.0.23	10.12	https://github.com/textmate/textmate/releases/download/v2.0.23/TextMate_2.0.23.tbz	f8dba933209bd01070028892474bf0b72f36c673f7bcb8da5973f93ddc387420

@@ -11,8 +11,8 @@ Cómo leerlo:
 * **Estado:** *Plan* — ya está en [ROADMAP.es.md](ROADMAP.es.md);
   *Parcial* — el framework existe con parte de su API (las notas dicen cuál);
   *Decidir* — sin plan todavía; *Fuera* — fuera del alcance decidido
-  (servicios en la nube del fabricante de la plataforma de referencia,
-  SwiftUI) o en desuso.
+  (servicios en la nube del fabricante de la plataforma de referencia) o en
+  desuso.
 * **Apps:** cuántas de las apps de referencia importan el framework
   (`tools/symbols/symbol-inventory.py`), y cuántos símbolos. Un framework que
   ninguna app de referencia importa puede importar igual: las apps medidas son
@@ -52,7 +52,7 @@ una.
 | --- | --- | --- |
 | **Kernel y núcleo del sistema** | XNU (Darwin 19.6.0: Mach y BSD), I/O Kit, HFS+, FAT y exFAT, la pila de red BSD con Ethernet (I219, I211, Broadcom), sonido HDA y audio por HDMI, la política de sandbox, pantallas AMD (R1, R2 en la RX 6600) | Audio USB (AU7), drivers de Wi-Fi y Bluetooth, los motores de la GPU (G1–G5, en curso), firma de código obligatoria (decidida: trust cache estática y kext MAC propio), APFS (después de 19.6.0) |
 | **Servicios básicos** | CoreFoundation, CoreGraphics, CoreText, ImageIO, QuartzCore, CoreServices (LaunchServices, `AppleEvent`, FSEvents), CFNetwork, un subconjunto de Security, CoreAudio, CoreMedia, AVFoundation, VideoToolbox (decodificación), OpenGL | Metal con dispositivo (pista GPU), Accelerate, CoreImage (la mayoría de filtros y los kernels), Network, CryptoKit, ColorSync, un indexador de búsqueda, las fuentes APSL de Security, un intérprete de PostScript (CGPSConverter existe y avisa de que no puede convertir) |
-| **Frameworks de aplicación** | Cocoa: AppKit y Foundation, partes de Carbon, WebKit (W2–W4), AVKit, PrintCore e impresión | Las vistas web de las apps de referencia (W5), PDFKit y el resto de la lista de abajo; SwiftUI está fuera del alcance para API 19–21 |
+| **Frameworks de aplicación** | Cocoa: AppKit y Foundation, partes de Carbon, WebKit (W2–W4), AVKit, PrintCore e impresión | Las vistas web de las apps de referencia (W5), PDFKit y el resto de la lista de abajo; SwiftUI llega a través de OpenSwiftUI (carril SU) |
 | **Experiencia de usuario** | Atlas, con su propio lenguaje visual: ventana de inicio de sesión, barra de menús, Dock, Files, Preferencias, el centro de notificaciones (N1, N2) | El escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10), búsqueda, accesibilidad (lector de pantalla) |
 
 ## Frameworks que faltan
@@ -88,7 +88,7 @@ una.
 
 | Framework | Estado | Apps | Notas |
 | --- | --- | --- | --- |
-| SwiftUI | Fuera | | Decidido para API 19–21; se sigue OpenSwiftUI |
+| SwiftUI | Plan (carril SU) | | Decidido el 20 nov 2026 (D6): OpenSwiftUI y OpenAttributeGraph tras una revisión de sala limpia (SU0b), instalados como `SwiftUI.framework` (SU1–SU2), los símbolos de los binarios designados (SU3–SU4); SU0 informa de qué apps lo enlazan |
 | PDFKit | Decidir | | Lo necesita el visor de documentos de Atlas |
 | QuickLookThumbnailing | Decidir | | QuickLook existe |
 | ScreenSaver, InputMethodKit, LinkPresentation, PencilKit | Decidir | | |

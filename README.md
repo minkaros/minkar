@@ -8,8 +8,12 @@ fill the gaps.
 
 The main design goals are:
 
-- Source compatibility with the reference platform's applications: a Cocoa
-  application can be compiled on Minkar and run. Binary compatibility later.
+- Binary compatibility with the reference platform's applications, the
+  main goal: Minkar already runs the published binaries of Cocoa apps
+  (Firefox, Hex Fiend), and a set of designated apps measures how far it
+  goes ([Docs/Compatibility.md](Docs/Compatibility.md)).
+- Source compatibility: a Cocoa application can be compiled on Minkar and
+  run.
 - Familiar GUI metaphors and UX (file manager, application launcher, a top
   menu bar that reflects the active application) built on the Cocoa APIs
   applications expect.

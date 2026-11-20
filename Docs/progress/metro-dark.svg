@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="862" viewBox="0 0 1200 862" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-17">
-<title>Minkar milestones by plan, 2026-11-17</title>
-<rect width="1200" height="862" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1118" viewBox="0 0 1200 1118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-20">
+<title>Minkar milestones by plan, 2026-11-20</title>
+<rect width="1200" height="1118" fill="#0d1117"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-17 · devel 1185b94021</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-20 · devel 1aaa4bfb8b</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#e6edf3" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#0d1117" text-anchor="middle">M0</text>
@@ -28,18 +28,14 @@
 <rect x="944" y="282" width="52" height="200" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <line x1="970" y1="482" x2="970" y2="538" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="944" y="538" width="52" height="136" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line x1="970" y1="674" x2="970" y2="730" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="944" y="730" width="52" height="136" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="919.4" y="72" width="101.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="970" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M6 · 19.6.0</text>
-<line x1="1060" y1="95" x2="1060" y2="218" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="1034" y="218" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
-<line x1="1060" y1="290" x2="1060" y2="666" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="1034" y="666" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
-<rect x="1035.9" y="72" width="48.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
-<text x="1060" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">21.0</text>
-<line x1="1150" y1="95" x2="1150" y2="730" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="1124" y="730" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
-<rect x="1129" y="72" width="42" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
-<text x="1150" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M7</text>
+<line x1="1110" y1="95" x2="1110" y2="858" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="1084" y="858" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="1085.9" y="72" width="48.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
+<text x="1110" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">25.x</text>
 <path d="M555 304 V378 H687" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
 <path d="M490 240 V442 H687" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
 <path d="M590 240 V634 H637" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
@@ -149,7 +145,7 @@
 <circle cx="760" cy="506" r="8" fill="#0d1117" stroke="#f778ba" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="760" y="535" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">Visual design</text>
 <text x="20" y="575" font-size="15" font-weight="700" fill="#3fb950" text-anchor="start">Apps · DMG</text>
-<line x1="805" y1="570" x2="970" y2="570" stroke="#3fb950" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="805" y1="570" x2="1025" y2="570" stroke="#3fb950" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="805" y1="570" x2="970" y2="570" stroke="#3fb950" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
 <line x1="805" y1="570" x2="860" y2="570" stroke="#3fb950" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="805" cy="570" r="10" fill="#3fb950" stroke="#0d1117" stroke-width="3"/><path d="M800.5 570 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -159,7 +155,9 @@
 <circle cx="915" cy="570" r="9" fill="#0d1117" stroke="#3fb950" stroke-width="3"/><path d="M915 564 A6 6 0 0 0 915 576 Z" fill="#3fb950"/>
 <text x="915" y="599" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A2 Text Editor</text>
 <circle cx="970" cy="570" r="9" fill="#0d1117" stroke="#3fb950" stroke-width="3"/><path d="M970 564 A6 6 0 0 0 970 576 Z" fill="#3fb950"/>
-<text x="970" y="552" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A3–A10 · DMG</text>
+<text x="970" y="552" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A3–A4 · DMG</text>
+<circle cx="1025" cy="570" r="8" fill="#0d1117" stroke="#3fb950" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1025" y="599" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">A5–A10</text>
 <text x="20" y="639" font-size="15" font-weight="700" fill="#4493f8" text-anchor="start">WebKit</text>
 <line x1="650" y1="634" x2="970" y2="634" stroke="#4493f8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="650" y1="634" x2="970" y2="634" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
@@ -189,22 +187,79 @@
 <text x="820" y="680" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G3 Mesa</text>
 <circle cx="1060" cy="698" r="17" fill="#f85149" fill-opacity=".2"/><circle cx="1060" cy="698" r="10" fill="#0d1117" stroke="#f85149" stroke-width="5"/>
 <text x="1060" y="727" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">G4–G5</text>
-<text x="20" y="767" font-size="15" font-weight="700" fill="#8b949e" text-anchor="start">Compat · arm64</text>
-<line x1="1082" y1="762" x2="1150" y2="762" stroke="#8b949e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<circle cx="1082" cy="762" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1082" y="791" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">x86-64 apps</text>
-<circle cx="1150" cy="762" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1150" y="791" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">arm64</text>
-<circle cx="30" cy="832" r="8" fill="#e6edf3"/>
-<text x="46" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">done</text>
-<circle cx="99.1" cy="832" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="4"/>
-<text x="115.1" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">in progress</text>
-<circle cx="219.2" cy="832" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="2.5"/><path d="M219.2 827.5 A4.5 4.5 0 0 0 219.2 836.5 Z" fill="#e6edf3"/>
-<text x="235.2" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">partial</text>
-<circle cx="310.2" cy="832" r="7" fill="#0d1117" stroke="#9198a1" stroke-width="2.5"/>
-<text x="326.2" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">to do</text>
-<rect x="380.6" y="823" width="26" height="18" rx="7" fill="none" stroke="#e6edf3" stroke-opacity=".6" stroke-dasharray="4 3"/>
-<text x="414.6" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">gate: the lines it needs pass through it</text>
-<path d="M719.8 832 h28" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
-<text x="755.8" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">starts after</text>
+<text x="20" y="767" font-size="15" font-weight="700" fill="#3bc4b5" text-anchor="start">Audio</text>
+<line x1="865" y1="762" x2="970" y2="762" stroke="#3bc4b5" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="865" y1="762" x2="865" y2="762" stroke="#3bc4b5" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="865" y1="762" x2="865" y2="762" stroke="#3bc4b5" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<circle cx="865" cy="762" r="10" fill="#3bc4b5" stroke="#0d1117" stroke-width="3"/><path d="M860.5 762 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="865" y="791" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">AU1–AU6</text>
+<circle cx="970" cy="762" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="970" y="791" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">AU7–AU10</text>
+<text x="20" y="831" font-size="15" font-weight="700" fill="#8b949e" text-anchor="start">Lane BC</text>
+<line x1="700" y1="826" x2="1060" y2="826" stroke="#8b949e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="826" x2="865" y2="826" stroke="#8b949e" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="826" x2="700" y2="826" stroke="#8b949e" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<circle cx="700" cy="826" r="10" fill="#8b949e" stroke="#0d1117" stroke-width="3"/><path d="M695.5 826 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="700" y="855" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Published apps</text>
+<circle cx="760" cy="826" r="17" fill="#8b949e" fill-opacity=".2"/><circle cx="760" cy="826" r="10" fill="#0d1117" stroke="#8b949e" stroke-width="5"/>
+<text x="760" y="808" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">BC0 gate</text>
+<circle cx="815" cy="826" r="17" fill="#8b949e" fill-opacity=".2"/><circle cx="815" cy="826" r="10" fill="#0d1117" stroke="#8b949e" stroke-width="5"/>
+<text x="815" y="855" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">BC1 matrix</text>
+<circle cx="865" cy="826" r="9" fill="#0d1117" stroke="#8b949e" stroke-width="3"/><path d="M865 820 A6 6 0 0 0 865 832 Z" fill="#8b949e"/>
+<text x="865" y="808" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">BC2 loader</text>
+<circle cx="915" cy="826" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="915" y="855" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">BC3 ABI</text>
+<circle cx="970" cy="826" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="970" y="808" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">BC4 set 19</text>
+<circle cx="1060" cy="826" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1060" y="855" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">BC5…</text>
+<text x="20" y="895" font-size="15" font-weight="700" fill="#9198a1" text-anchor="start">Lane KX</text>
+<line x1="915" y1="890" x2="1110" y2="890" stroke="#9198a1" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="915" y1="890" x2="915" y2="890" stroke="#9198a1" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<circle cx="915" cy="890" r="17" fill="#9198a1" fill-opacity=".2"/><circle cx="915" cy="890" r="10" fill="#0d1117" stroke="#9198a1" stroke-width="5"/>
+<text x="915" y="919" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">KX0 ADR</text>
+<circle cx="1010" cy="890" r="8" fill="#0d1117" stroke="#9198a1" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1010" y="919" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">KX1 M2</text>
+<circle cx="1060" cy="890" r="8" fill="#0d1117" stroke="#9198a1" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1060" y="872" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">KX2 all</text>
+<circle cx="1110" cy="890" r="8" fill="#0d1117" stroke="#9198a1" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1110" y="919" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">KX3</text>
+<text x="20" y="959" font-size="15" font-weight="700" fill="#f0883e" text-anchor="start">Lane ARM</text>
+<line x1="915" y1="954" x2="1160" y2="954" stroke="#f0883e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="915" y1="954" x2="915" y2="954" stroke="#f0883e" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<circle cx="915" cy="954" r="17" fill="#f0883e" fill-opacity=".2"/><circle cx="915" cy="954" r="10" fill="#0d1117" stroke="#f0883e" stroke-width="5"/>
+<text x="915" y="983" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">ARM0 build</text>
+<circle cx="1060" cy="954" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1060" y="983" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">ARM1 M2</text>
+<circle cx="1110" cy="954" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1110" y="936" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">ARM2 desktop</text>
+<circle cx="1160" cy="954" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1160" y="983" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">ARM3 apps</text>
+<text x="20" y="1023" font-size="15" font-weight="700" fill="#ab7df8" text-anchor="start">Lane SU</text>
+<line x1="915" y1="1018" x2="1170" y2="1018" stroke="#ab7df8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="915" y1="1018" x2="970" y2="1018" stroke="#ab7df8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<circle cx="915" cy="1018" r="17" fill="#ab7df8" fill-opacity=".2"/><circle cx="915" cy="1018" r="10" fill="#0d1117" stroke="#ab7df8" stroke-width="5"/>
+<text x="915" y="1047" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">SU0 report</text>
+<circle cx="970" cy="1018" r="17" fill="#ab7df8" fill-opacity=".2"/><circle cx="970" cy="1018" r="10" fill="#0d1117" stroke="#ab7df8" stroke-width="5"/>
+<text x="970" y="1000" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">SU0b review</text>
+<circle cx="1020" cy="1018" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1020" y="1047" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">SU1 import</text>
+<circle cx="1070" cy="1018" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1070" y="1000" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">SU2</text>
+<circle cx="1120" cy="1018" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1120" y="1047" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">SU3 ABI</text>
+<circle cx="1170" cy="1018" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1170" y="1000" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">SU4 app</text>
+<circle cx="30" cy="1088" r="8" fill="#e6edf3"/>
+<text x="46" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">done</text>
+<circle cx="99.1" cy="1088" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="4"/>
+<text x="115.1" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">in progress</text>
+<circle cx="219.2" cy="1088" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="2.5"/><path d="M219.2 1083.5 A4.5 4.5 0 0 0 219.2 1092.5 Z" fill="#e6edf3"/>
+<text x="235.2" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">partial</text>
+<circle cx="310.2" cy="1088" r="7" fill="#0d1117" stroke="#9198a1" stroke-width="2.5"/>
+<text x="326.2" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">to do</text>
+<rect x="380.6" y="1079" width="26" height="18" rx="7" fill="none" stroke="#e6edf3" stroke-opacity=".6" stroke-dasharray="4 3"/>
+<text x="414.6" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">gate: the lines it needs pass through it</text>
+<path d="M719.8 1088 h28" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
+<text x="755.8" y="1092.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">starts after</text>
 </svg>
