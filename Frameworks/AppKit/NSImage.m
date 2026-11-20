@@ -683,15 +683,22 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
                 if([check isKindOfClass:[NSBitmapImageRep class]]) {
                         [bitmaps addObject:check];
                 } else if([check isKindOfClass:[NSCachedImageRep class]]) {
-                        // We don't use the general case else we get flipped results for flipped images since lockFocusOnRepresentation is flipping and the Cache content
-                        // is already flipped
-                        NSRect r = { .origin = NSZeroPoint, .size = check.size };
-                        [self lockFocus];
-                        NSBitmapImageRep *image = [[NSBitmapImageRep alloc] initWithFocusedViewRect: r];
-                        [self unlockFocus];
+                        /* Minkar: the cache's own pixels, as they are (an image
+                           painted with lockFocus): capturing them through
+                           lockFocus and initWithFocusedViewRect: crashed. */
+                        CGContextRef port=[(NSCachedImageRep *)check _graphicsPort];
+                        CGImageRef   cgImage=(port!=NULL)?CGBitmapContextCreateImage(port):NULL;
 
-                        [bitmaps addObject:image];
-                        [image release];
+                        if(cgImage!=NULL){
+                                NSBitmapImageRep *image=[[NSBitmapImageRep alloc] initWithCGImage:cgImage];
+
+                                CGImageRelease(cgImage);
+                                if(image!=nil){
+                                        [image setSize:[check size]];
+                                        [bitmaps addObject:image];
+                                        [image release];
+                                }
+                        }
                 } else {
                         NSSize size=[check size];
                         NSBitmapImageRep *image=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:size.width pixelsHigh:size.height bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:32];
@@ -901,11 +908,11 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
                         // move to the origin of the source rect - remember we've locked focus so we've got a fresh CTM to work with
                         CGContextTranslateCTM(context,-source.origin.x,-source.origin.y);
                 }
-                if (_isFlipped) {
-                        // Flip the CTM so the image is drawn the right way up in the cache
-                        CGContextTranslateCTM(context, 0, uncachedSize.height);
-                        CGContextScaleCTM(context, 1, -1);
-                }
+                /* Minkar: a flipped image (setFlipped:YES) is drawn into its
+                   cache in the flipped coordinates lockFocus gives it, so it
+                   is drawn the other way up from an unflipped one, in every
+                   context, as on the reference. It was flipped again here,
+                   which undid it. */
                 // Draw into the new cache rep
                 [self drawRepresentation:uncached inRect:NSMakeRect(0,0,uncachedSize.width,uncachedSize.height)];
 
