@@ -231,6 +231,23 @@ static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface) {
 	   nearest weight (a hint; 9 when bold is asked for). */
 	NSFontFamily *family=[NSFontFamily fontFamilyWithName:familyName];
 	NSArray      *typefaces=[family typefaces];
+
+	/* Minkar: a family asked for by a face's name, or by its name without
+	   spaces ("DejaVuSans" for "DejaVu Sans", as a substituted font's
+	   family comes back). */
+	if([typefaces count]==0 && familyName!=nil){
+		NSFontFamily *byFace=[NSFontFamily fontFamilyWithTypefaceName:familyName];
+		NSString     *compact=[familyName stringByReplacingOccurrencesOfString:@" " withString:@""];
+
+		if([[byFace typefaces] count]>0)
+			family=byFace;
+		else for(NSString *name in [NSFontFamily allFontFamilyNames])
+			if([[name stringByReplacingOccurrencesOfString:@" " withString:@""] caseInsensitiveCompare:compact]==NSOrderedSame){
+				family=[NSFontFamily fontFamilyWithName:name];
+				break;
+			}
+		typefaces=[family typefaces];
+	}
 	NSString     *fontName=nil;
 	int           target=(traits&NSBoldFontMask)?9:weight,bestDistance=0;
 
@@ -261,6 +278,8 @@ static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface) {
 		font = [NSFont fontWithName:fontName size:size];
 	} else {
 		NSLog(@"unable to match any font in faces '%@' of family '%@' with traits mask: %d", typefaces, familyName, traits);
+		/* The family by its own name rather than no font. */
+		font = [NSFont fontWithName:familyName size:size];
 	}
 	
 	return font;
