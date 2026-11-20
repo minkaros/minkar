@@ -22,6 +22,13 @@ enum {
 };
 typedef NSInteger NSSegmentStyle;
 
+typedef NS_ENUM(NSInteger, NSSegmentDistribution) {
+    NSSegmentDistributionFit = 0,
+    NSSegmentDistributionFill,
+    NSSegmentDistributionFillEqually,
+    NSSegmentDistributionFillProportionally,
+};
+
 typedef NS_ENUM(NSUInteger, NSSegmentSwitchTracking) {
     NSSegmentSwitchTrackingSelectOne = 0,
     NSSegmentSwitchTrackingSelectAny = 1,
@@ -68,4 +75,5 @@ typedef NS_ENUM(NSUInteger, NSSegmentSwitchTracking) {
 - (void)setSelected:(BOOL)flag forSegment:(NSInteger)segment;
 - (void)setSelectedSegment:(NSInteger)segment;
 
+@property NSSegmentDistribution segmentDistribution;
 @end

@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSImageRep.h>
 #import <AppKit/NSGraphics.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <AppKit/NSGraphicsContext.h>
+@class NSColorSpace;
 
 typedef NS_ENUM(NSUInteger, NSBitmapImageFileType) {
     NSBitmapImageFileTypeTIFF,
@@ -119,4 +121,7 @@ APPKIT_EXPORT NSString *NSImageCompressionFactor;
 
 - (CGImageRef)CGImage;
 
+@property (readonly, strong) NSColorSpace *colorSpace;
+- (NSBitmapImageRep *)bitmapImageRepByRetaggingWithColorSpace:(NSColorSpace *)newSpace;
+- (NSBitmapImageRep *)bitmapImageRepByConvertingToColorSpace:(NSColorSpace *)targetSpace renderingIntent:(NSColorRenderingIntent)renderingIntent;
 @end

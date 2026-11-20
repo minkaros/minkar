@@ -3215,6 +3215,11 @@ drawn:
     return [NSString stringWithFormat:@"<%@[0x%lx] frame: %@>", [self class], self, NSStringFromRect(_frame)];
 }
 
+/* Minkar: the focus ring (drawn around the view's mask) drawn again. */
+-(void)noteFocusRingMaskChanged {
+   [self setKeyboardFocusRingNeedsDisplayInRect:[self bounds]];
+}
+
 @end
 
 /* Minkar: a view's reading direction (API 10.8), kept beside the view;

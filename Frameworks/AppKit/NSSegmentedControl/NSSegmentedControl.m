@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSSegmentedControl.h>
+#import <objc/runtime.h>
 #import <AppKit/NSSegmentedCell.h>
 
 @interface NSSegmentedCell (PrivateToControlView)
@@ -133,6 +134,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)drawRect:(NSRect)rect {
    [super drawRect:rect];
    [_cell _wasDrawnWithFrame:rect inView:self];
+}
+
+/* Minkar: how the segments share the control's width (fill, as on the
+   reference, until set). */
+static char segmentDistributionKey;
+
+-(NSSegmentDistribution)segmentDistribution {
+   NSNumber *own=objc_getAssociatedObject(self,&segmentDistributionKey);
+   return (own!=nil)?[own integerValue]:NSSegmentDistributionFill;
+}
+
+-(void)setSegmentDistribution:(NSSegmentDistribution)value {
+   objc_setAssociatedObject(self,&segmentDistributionKey,[NSNumber numberWithInteger:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   [self setNeedsDisplay:YES];
 }
 
 @end

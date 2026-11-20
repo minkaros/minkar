@@ -375,9 +375,14 @@ renderingIntent:(O2ColorRenderingIntent)renderingIntent {
    return [self retain];
 }
 
+/* Minkar: the same pixels in another color space of as many components
+   (nil otherwise): the same data, layout and decoding. */
 -(O2Image *)copyWithColorSpace:(O2ColorSpaceRef)colorSpace {
-   O2UnimplementedMethod();
-   return nil;
+   O2DataProviderRef provider=O2ImageGetDataProvider(self);
+
+   if(colorSpace==NULL || O2ColorSpaceGetNumberOfComponents(colorSpace)!=O2ColorSpaceGetNumberOfComponents(_colorSpace) || provider==NULL)
+    return nil;
+   return [[O2Image alloc] initWithWidth:_width height:_height bitsPerComponent:_bitsPerComponent bitsPerPixel:_bitsPerPixel bytesPerRow:_bytesPerRow colorSpace:colorSpace bitmapInfo:_bitmapInfo decoder:NULL provider:provider decode:_decode interpolate:_interpolate renderingIntent:_renderingIntent];
 }
 
 -(void)setMask:(O2Image *)image {

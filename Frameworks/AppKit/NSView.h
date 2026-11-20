@@ -433,6 +433,7 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 @property(readonly) BOOL wantsUpdateLayer;
 - (void)updateLayer;
 
+- (void)noteFocusRingMaskChanged;
 @end
 
 @class NSGestureRecognizer;

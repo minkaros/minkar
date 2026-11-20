@@ -760,4 +760,59 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return result;
 }
 
+/* Minkar: its color space: the image's, or the named one's. */
+-(NSColorSpace *)colorSpace {
+   CGImageRef image=[self CGImage];
+   CGColorSpaceRef space=(image!=NULL)?CGImageGetColorSpace(image):NULL;
+
+   if(space!=NULL)
+    return [[[NSColorSpace alloc] initWithCGColorSpace:space] autorelease];
+   if([_colorSpaceName isEqualToString:NSCalibratedWhiteColorSpace] || [_colorSpaceName isEqualToString:NSDeviceWhiteColorSpace])
+    return [NSColorSpace genericGrayColorSpace];
+   return [NSColorSpace sRGBColorSpace];
+}
+
+/* The same pixels in another color space of as many components (nil
+   otherwise), as on the reference. */
+-(NSBitmapImageRep *)bitmapImageRepByRetaggingWithColorSpace:(NSColorSpace *)newSpace {
+   CGImageRef image=[self CGImage],copy;
+   NSBitmapImageRep *result;
+
+   if(newSpace==nil || image==NULL || [newSpace numberOfColorComponents]!=CGColorSpaceGetNumberOfComponents(CGImageGetColorSpace(image)))
+    return nil;
+   if(CFEqual([newSpace CGColorSpace],CGImageGetColorSpace(image)))
+    return self;
+   copy=CGImageCreateCopyWithColorSpace(image,[newSpace CGColorSpace]);
+   if(copy==NULL)
+    return nil;
+   result=[[[NSBitmapImageRep alloc] initWithCGImage:copy] autorelease];
+   CGImageRelease(copy);
+   [result setSize:[self size]];
+   return result;
+}
+
+/* The pixels drawn into the other color space, as many components as
+   it has. */
+-(NSBitmapImageRep *)bitmapImageRepByConvertingToColorSpace:(NSColorSpace *)targetSpace renderingIntent:(NSColorRenderingIntent)intent {
+   CGImageRef image=[self CGImage];
+   size_t width=CGImageGetWidth(image),height=CGImageGetHeight(image);
+   CGContextRef context;
+   CGImageRef converted;
+   NSBitmapImageRep *result;
+   BOOL rgb=[targetSpace numberOfColorComponents]>=3;
+
+   if(targetSpace==nil || image==NULL)
+    return nil;
+   context=CGBitmapContextCreate(NULL,width,height,8,0,[targetSpace CGColorSpace],rgb?kCGImageAlphaPremultipliedLast:kCGImageAlphaNone);
+   if(context==NULL)
+    return nil;
+   CGContextDrawImage(context,CGRectMake(0,0,width,height),image);
+   converted=CGBitmapContextCreateImage(context);
+   CGContextRelease(context);
+   result=(converted!=NULL)?[[[NSBitmapImageRep alloc] initWithCGImage:converted] autorelease]:nil;
+   CGImageRelease(converted);
+   [result setSize:[self size]];
+   return result;
+}
+
 @end

@@ -393,6 +393,7 @@ typedef NS_ENUM(short, NSEventSubtype) {
 - (void)trackSwipeEventWithOptions:(NSEventSwipeTrackingOptions)options dampenAmountThresholdMin:(CGFloat)minDampenThreshold max:(CGFloat)maxDampenThreshold usingHandler:(void (^)(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop))trackingHandler;
 + (BOOL)isSwipeTrackingFromScrollEventsEnabled;
 
+@property (readonly, getter=isEnteringProximity) BOOL enteringProximity;
 @end
 
 APPKIT_EXPORT NSEventMask NSEventMaskFromType(NSEventType type);

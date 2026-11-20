@@ -266,6 +266,7 @@ SRCS = \
     NSSharingService.m \
     NSHapticFeedback.m \
     NSAccessibilityCustomAction.m \
+    NSPasteboardSupport.m \
     NSScrubberItemView.m \
     NSScrubberLayout.m \
     NSScrubber.m \

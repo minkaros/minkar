@@ -526,6 +526,12 @@ static NSTimer *_periodicTimer=nil;
 }
 
 
+/* Minkar: a tablet proximity event's direction; there are no tablet
+   events yet, so no event is one entering. */
+-(BOOL)isEnteringProximity {
+   return NO;
+}
+
 @end
 
 NSEventMask NSEventMaskFromType(NSEventType type){

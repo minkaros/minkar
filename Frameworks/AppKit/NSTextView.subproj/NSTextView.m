@@ -3597,4 +3597,29 @@ static char textCompletionKey;
    objc_setAssociatedObject(self,&textCompletionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
 }
 
+/* Minkar: image attachments editable in place, and grammar checked as
+   one types: both off, as on the reference, until set (there is no
+   grammar checker yet, so it is only remembered). */
+static char allowsImageEditingKey, grammarCheckingKey;
+
+-(BOOL)allowsImageEditing {
+   return [objc_getAssociatedObject(self,&allowsImageEditingKey) boolValue];
+}
+
+-(void)setAllowsImageEditing:(BOOL)value {
+   objc_setAssociatedObject(self,&allowsImageEditingKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(BOOL)isGrammarCheckingEnabled {
+   return [objc_getAssociatedObject(self,&grammarCheckingKey) boolValue];
+}
+
+-(void)setGrammarCheckingEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&grammarCheckingKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(void)toggleGrammarChecking:(id)sender {
+   [self setGrammarCheckingEnabled:![self isGrammarCheckingEnabled]];
+}
+
 @end

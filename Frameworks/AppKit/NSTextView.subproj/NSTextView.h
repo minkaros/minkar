@@ -230,6 +230,9 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 @property (getter=isAutomaticSpellingCorrectionEnabled) BOOL automaticSpellingCorrectionEnabled;
 @property (getter=isContinuousSpellCheckingEnabled) BOOL continuousSpellCheckingEnabled;
 @property (getter=isRulerVisible) BOOL rulerVisible;
+@property BOOL allowsImageEditing;
+@property (getter=isGrammarCheckingEnabled) BOOL grammarCheckingEnabled;
+- (void)toggleGrammarChecking:(id)sender;
 @end
 
 @interface NSObject (NSTextView_undoManager)
