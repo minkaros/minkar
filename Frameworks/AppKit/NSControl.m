@@ -195,6 +195,9 @@ static NSMutableDictionary *cellClassDictionary = nil;
    cell=[cell retain];
    [_cell release];
    _cell=cell;
+   /* Minkar: the cell knows its control from the start, as on the
+      reference (not only once drawn). */
+   [_cell setControlView:self];
 }
 
 -(void)setTarget:target {
