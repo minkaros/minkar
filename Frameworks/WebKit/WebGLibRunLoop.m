@@ -45,6 +45,9 @@ static PollState pollState = PollIdle;
 static struct pollfd *pfds;      /* GLib's descriptors, then the wake pipe */
 static gint pollTimeout;
 static int wakePipe[2];
+/* The main thread cut the poll short itself (and waits for it): the run
+   loop is not woken for that. */
+static gboolean cutShort;
 
 /* The main thread's: the iteration being run. */
 static GPollFD *fds;
@@ -74,8 +77,16 @@ static void *pollThread(void *unused)
         pthread_mutex_lock(&lock);
         pollState = PollDone;
         pthread_cond_broadcast(&changed);
-        CFRunLoopSourceSignal(pollDoneSource);
-        CFRunLoopWakeUp(mainRunLoop);
+        /* Woken only for what GLib waits on: a poll the main thread cut
+           short as the run loop went to sleep woke the run loop again,
+           which went to sleep again and cut the next one short, without
+           end (a busy main thread, a hidden web view at full CPU). */
+        if (cutShort)
+            cutShort = FALSE;
+        else {
+            CFRunLoopSourceSignal(pollDoneSource);
+            CFRunLoopWakeUp(mainRunLoop);
+        }
     }
     return NULL;
 }
@@ -148,6 +159,7 @@ static BOOL aboutToWait(void)
     pthread_mutex_lock(&lock);
     if (pollState == PollRunning) {
         char byte = 0;
+        cutShort = TRUE;
         (void)!write(wakePipe[1], &byte, 1);
         while (pollState == PollRunning)
             pthread_cond_wait(&changed, &lock);
