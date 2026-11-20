@@ -206,7 +206,13 @@ def undmg(archive, dest):
     """A disk image's file system, through 7z (HFS+), into dest; links that
     leave dest (the usual one to /Applications) are dropped."""
     with tempfile.TemporaryDirectory() as work:
-        for image in dmg_partitions(archive, work):
+        try:
+            images = dmg_partitions(archive, work)
+        except ValueError:
+            # A chunk type read here does not cover (LZFSE): 7z reads the
+            # disk image itself.
+            images = [archive]
+        for image in images:
             tree = os.path.join(work, 'tree')
             # 7z warns (and exits 2) for parts of an HFS+ volume it skips,
             # the volume's own metadata: what it unpacked is what counts.

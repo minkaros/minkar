@@ -4,7 +4,8 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Symbol coverage of the reference apps (tools/symbols), after the build:
+# Symbol coverage of the reference apps (tools/symbols), after the build,
+# with lane SU's SwiftUI report (which apps link it, what they import):
 # downloads the apps, writes the report to $BUILD_DIR/symbols and, under
 # GitHub Actions, adds the per-app table to the run's summary. Run from
 # the top of the source tree with BUILD_DIR set.
@@ -27,7 +28,12 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
 		echo
 		sed -n '/^Imported symbols found in Minkar/p' "$out/coverage.md"
 		echo
-		sed -n '/^| App |/,/^$/p' "$out/coverage.md"
+		sed -n '/^| App | macOS |/,/^$/p' "$out/coverage.md"
+		echo "### SwiftUI (lane SU, SU0)"
+		echo
+		sed -n '/^Apps that link SwiftUI/p' "$out/coverage.md"
+		echo
+		sed -n '/^| App | Links SwiftUI |/,/^$/p' "$out/coverage.md"
 		echo "The full report (per library, missing symbols) is in the"
 		echo "symbol-coverage artifact."
 	} >> "$GITHUB_STEP_SUMMARY"

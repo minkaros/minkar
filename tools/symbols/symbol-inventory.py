@@ -46,6 +46,9 @@ Output, in --out:
   coverage.json  the numbers below, for scripts
   coverage.md    per library: imported symbols, how many Minkar exports,
                  the missing ones most used first
+  swiftui.tsv    app, binary, library, symbol: what each app imports from
+                 SwiftUI (lane SU, SU0); coverage.md says which apps link
+                 it, and how (a load command for SwiftUI.framework)
 
 Only symbols are compared: Objective-C classes show up as
 _OBJC_CLASS_$_Name imports, but methods are looked up at run time and are
@@ -273,6 +276,13 @@ def resolve_exports(libs):
 
 
 SYSTEM_PREFIXES = ('/System/Library/', '/usr/lib/')
+# SwiftUI and the frameworks it is split into on later API levels.
+SWIFTUI_FRAMEWORKS = ('/System/Library/Frameworks/SwiftUI.framework/',
+                      '/System/Library/Frameworks/SwiftUICore.framework/')
+
+
+def is_swiftui(install):
+    return install.startswith(SWIFTUI_FRAMEWORKS)
 
 
 def app_roots(roots):
@@ -288,13 +298,15 @@ def app_roots(roots):
 
 
 def scan_apps(tools, roots):
-    """([(app, binary, library install name, symbol, weak)], {app: minos}).
+    """([(app, binary, library install name, symbol, weak)], {app: minos},
+    {app: [(binary, load command, SwiftUI install name)]}).
 
     Only imports from system libraries count: frameworks and dylibs that an
     app carries inside its bundle (@rpath/..., @loader_path/...) are its
     own business, though their imports from the system do count."""
-    rows, minos = [], {}
+    rows, minos, swiftui = [], {}, {}
     for app, root in app_roots(roots):
+        swiftui.setdefault(app, [])
         for path in walk_machos(root):
             _, _, dylibs = tools.load_commands(path)
             if path == root or '/Contents/MacOS/' in path:
@@ -303,13 +315,14 @@ def scan_apps(tools, roots):
             for _, d in dylibs:
                 by_short.setdefault(short_name(d), d)
             rel = os.path.relpath(path, os.path.dirname(root))
+            swiftui[app] += [(rel, cmd, d) for cmd, d in dylibs if is_swiftui(d)]
             for sym, lib, weak in tools.imports(path):
                 if lib is None:
                     continue    # flat namespace or the binary's own symbols
                 install = by_short.get(lib, lib)
                 if install.startswith(SYSTEM_PREFIXES):
                     rows.append((app, rel, install, sym, weak))
-    return rows, minos
+    return rows, minos, swiftui
 
 
 def write_tsv(path, header, rows):
@@ -329,7 +342,28 @@ APPKIT = '/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit'
 MOVED = {COREFOUNDATION: FOUNDATION, FOUNDATION: APPKIT}
 
 
-def report(sysroot, libs, exported, imports, minos, out, top):
+def swiftui_report(imports, swiftui, out):
+    """Lane SU's SU0: per app, whether it links SwiftUI (strongly, or only
+    weakly) and the SwiftUI symbols it imports; swiftui.tsv lists them."""
+    rows = sorted({(a, b, l, s) for a, b, l, s, _ in imports if is_swiftui(l)})
+    write_tsv(os.path.join(out, 'swiftui.tsv'), ('app', 'binary', 'library', 'symbol'), rows)
+    per_app = []
+    for app in sorted(swiftui):
+        links = swiftui[app]
+        if not links:
+            how = 'no'
+        elif any(cmd != 'LC_LOAD_WEAK_DYLIB' for _, cmd, _ in links):
+            how = 'strong'
+        else:
+            how = 'weak'
+        syms = sorted({s for a, _, _, s in rows if a == app})
+        per_app.append({'app': app, 'links': how,
+                        'binaries': sorted({b for b, _, _ in links}),
+                        'symbols': len(syms), 'symbol_list': syms})
+    return per_app
+
+
+def report(sysroot, libs, exported, imports, minos, out, top, swiftui=None):
     # library -> symbol -> set of apps
     used = collections.defaultdict(lambda: collections.defaultdict(set))
     weak_only = collections.defaultdict(lambda: collections.defaultdict(lambda: True))
@@ -398,6 +432,7 @@ def report(sysroot, libs, exported, imports, minos, out, top):
         'minkar_libraries': len(libs),
         'minkar_exports': sum(len(v) for v in exported.values()),
         'install_names_not_found': [{'install_name': n, 'file': f} for n, f in bad_names],
+        'swiftui': swiftui_report(imports, swiftui or {}, out),
     }
     with open(os.path.join(out, 'coverage.json'), 'w') as f:
         json.dump(data, f, indent=1, sort_keys=True)
@@ -443,6 +478,16 @@ def report(sysroot, libs, exported, imports, minos, out, top):
             f.write('| %s | %d | %d | %d | %d | %.1f%% |\n'
                     % (name, s['apps'], s['imported'], s['present'], s['missing'],
                        s['coverage']))
+        f.write('\n## SwiftUI (lane SU, SU0)\n\n'
+                'Apps that link SwiftUI: %d of %d. "strong" means the app does '
+                'not start without it; the symbols are in swiftui.tsv.\n\n'
+                '| App | Links SwiftUI | SwiftUI symbols | Binaries |\n'
+                '| --- | --- | ---: | --- |\n'
+                % (sum(a['links'] != 'no' for a in data['swiftui']), len(data['swiftui'])))
+        for a in data['swiftui']:
+            f.write('| %s | %s | %d | %s |\n'
+                    % (a['app'], a['links'], a['symbols'],
+                       ', '.join('`%s`' % b for b in a['binaries']) or '—'))
         f.write('\n## Most used missing symbols\n\n'
                 'Up to %d per library, the most used first; all of them are in '
                 'missing.tsv.\n' % top)
@@ -476,18 +521,22 @@ def main(argv=None):
     write_tsv(os.path.join(args.out, 'exports.tsv'), ('library', 'symbol'),
               ((lib, s) for lib in sorted(exported) for s in sorted(exported[lib])))
 
-    imports, minos = scan_apps(tools, args.apps)
+    imports, minos, swiftui = scan_apps(tools, args.apps)
     write_tsv(os.path.join(args.out, 'imports.tsv'),
               ('app', 'binary', 'library', 'symbol', 'weak'),
               ((a, b, l, s, 'weak' if w else '') for a, b, l, s, w in imports))
 
-    data = report(args.sysroot, libs, exported, imports, minos, args.out, args.top)
+    data = report(args.sysroot, libs, exported, imports, minos, args.out, args.top, swiftui)
     print('symbol-inventory: %d libraries, %d exports' %
           (data['minkar_libraries'], data['minkar_exports']))
     if imports:
         print('symbol-inventory: %d apps, %d of %d imported symbols in Minkar (%.1f%%)'
               % (len(data['apps']), data['total']['present'], data['total']['imported'],
                  data['total']['coverage']))
+    if imports:
+        print('symbol-inventory: %d apps link SwiftUI, %d SwiftUI symbols imported'
+              % (sum(a['links'] != 'no' for a in data['swiftui']),
+                 sum(a['symbols'] for a in data['swiftui'])))
     print('symbol-inventory: report in %s' % os.path.join(args.out, 'coverage.md'))
     return 0
 
