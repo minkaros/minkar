@@ -72,6 +72,7 @@ typedef NS_ENUM(NSInteger, NSScrollerKnobStyle) {
 }
 
 +(NSScrollerStyle)preferredScrollerStyle;
++(BOOL)isCompatibleWithOverlayScrollers;
 +(CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize scrollerStyle:(NSScrollerStyle)scrollerStyle;
 -(NSScrollerStyle)scrollerStyle;
 -(void)setScrollerStyle:(NSScrollerStyle)scrollerStyle;

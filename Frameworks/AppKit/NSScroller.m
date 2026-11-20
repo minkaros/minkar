@@ -27,6 +27,12 @@ NSString * const NSPreferredScrollerStyleDidChangeNotification=@"NSPreferredScro
 }
 
 /* Minkar's scrollers always take their room: legacy, whatever was asked. */
+/* Minkar: a scroller class that draws only through the scroller's own
+   parts can be shown as an overlay. */
++(BOOL)isCompatibleWithOverlayScrollers {
+   return self==[NSScroller class];
+}
+
 +(NSScrollerStyle)preferredScrollerStyle {
    return NSScrollerStyleLegacy;
 }

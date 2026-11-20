@@ -1152,4 +1152,38 @@ static char minMagnificationKey,maxMagnificationKey,allowsMagnificationKey;
                     magnification:magnification];
 }
 
+/* Minkar: its scrollers' style (the preferred one until set: legacy,
+   Minkar's own); set, it is given to both. */
+-(NSScrollerStyle)scrollerStyle {
+   NSScroller *scroller=[self verticalScroller];
+
+   if(scroller==nil)
+    scroller=[self horizontalScroller];
+   return (scroller!=nil)?[scroller scrollerStyle]:[NSScroller preferredScrollerStyle];
+}
+
+-(void)setScrollerStyle:(NSScrollerStyle)style {
+   [[self verticalScroller] setScrollerStyle:style];
+   [[self horizontalScroller] setScrollerStyle:style];
+   [self tile];
+}
+
+/* Where a find bar goes: above the content, as on the reference. */
+static char findBarPositionKey;
+
+-(NSScrollViewFindBarPosition)findBarPosition {
+   NSNumber *own=objc_getAssociatedObject(self,&findBarPositionKey);
+   return (own!=nil)?[own integerValue]:NSScrollViewFindBarPositionAboveContent;
+}
+
+-(void)setFindBarPosition:(NSScrollViewFindBarPosition)position {
+   objc_setAssociatedObject(self,&findBarPositionKey,[NSNumber numberWithInteger:position],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+/* A view that stays put along an axis while the content scrolls: kept
+   in the scroll view itself, over the clip view. */
+-(void)addFloatingSubview:(NSView *)view forAxis:(NSEventGestureAxis)axis {
+   [self addSubview:view positioned:NSWindowAbove relativeTo:[self contentView]];
+}
+
 @end

@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSClipView.h>
+#import <objc/runtime.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSScrollView.h>
@@ -281,6 +282,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if([[self superview] isKindOfClass:[NSScrollView class]])
             [[self superview] reflectScrolledClipView:self];
     }
+}
+
+/* Minkar: the space around the document that its contents scroll under
+   (none, adjusted automatically, as on the reference until set). */
+static char contentInsetsKey, automaticallyAdjustsKey;
+
+-(NSEdgeInsets)contentInsets {
+   NSValue *own=objc_getAssociatedObject(self,&contentInsetsKey);
+   NSEdgeInsets insets={0,0,0,0};
+
+   if(own!=nil)
+    [own getValue:&insets];
+   return insets;
+}
+
+-(void)setContentInsets:(NSEdgeInsets)insets {
+   objc_setAssociatedObject(self,&contentInsetsKey,[NSValue valueWithBytes:&insets objCType:@encode(NSEdgeInsets)],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)automaticallyAdjustsContentInsets {
+   NSNumber *own=objc_getAssociatedObject(self,&automaticallyAdjustsKey);
+   return (own!=nil)?[own boolValue]:YES;
+}
+
+-(void)setAutomaticallyAdjustsContentInsets:(BOOL)value {
+   objc_setAssociatedObject(self,&automaticallyAdjustsKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+/* A bounds rectangle kept over the document, as scrolling keeps it: its
+   origin no further than the document lets it go. */
+-(NSRect)constrainBoundsRect:(NSRect)proposed {
+   NSRect docFrame=[[self documentView] frame];
+
+   if(NSWidth(docFrame)<=NSWidth(proposed))
+    proposed.origin.x=NSMinX(docFrame);
+   else
+    proposed.origin.x=MAX(NSMinX(docFrame),MIN(proposed.origin.x,NSMaxX(docFrame)-NSWidth(proposed)));
+   if(NSHeight(docFrame)<=NSHeight(proposed))
+    proposed.origin.y=NSMinY(docFrame);
+   else
+    proposed.origin.y=MAX(NSMinY(docFrame),MIN(proposed.origin.y,NSMaxY(docFrame)-NSHeight(proposed)));
+   return proposed;
 }
 
 @end

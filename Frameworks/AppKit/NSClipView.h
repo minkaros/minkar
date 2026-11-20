@@ -37,6 +37,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSRect)documentVisibleRect;
 
 - (NSPoint)constrainScrollPoint:(NSPoint)point;
+- (NSRect)constrainBoundsRect:(NSRect)proposedBounds;
+@property NSEdgeInsets contentInsets;
+@property BOOL automaticallyAdjustsContentInsets;
 
 - (void)viewBoundsChanged:(NSNotification *)note;
 - (void)viewFrameChanged:(NSNotification *)note;

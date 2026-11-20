@@ -17,6 +17,12 @@ typedef NS_ENUM(NSInteger, NSScrollElasticity) {
     NSScrollElasticityAllowed = 2
 };
 
+typedef NS_ENUM(NSInteger, NSScrollViewFindBarPosition) {
+    NSScrollViewFindBarPositionAboveHorizontalRuler = 0,
+    NSScrollViewFindBarPositionAboveContent = 1,
+    NSScrollViewFindBarPositionBelowContent = 2
+};
+
 @interface NSScrollView : NSView {
     NSClipView *_clipView;
     NSClipView *_headerClipView;
@@ -111,6 +117,9 @@ typedef NS_ENUM(NSInteger, NSScrollElasticity) {
 @property NSEdgeInsets scrollerInsets;
 @property BOOL automaticallyAdjustsContentInsets;
 @property NSScrollerKnobStyle scrollerKnobStyle;
+@property NSScrollerStyle scrollerStyle;
+@property NSScrollViewFindBarPosition findBarPosition;
+- (void)addFloatingSubview:(NSView *)view forAxis:(NSEventGestureAxis)axis;
 @property NSScrollElasticity verticalScrollElasticity;
 @property NSScrollElasticity horizontalScrollElasticity;
 
