@@ -264,6 +264,11 @@ SRCS = \
     NSSharingService.m \
     NSHapticFeedback.m \
     NSAccessibilityCustomAction.m \
+    NSAccessibilityElement.m \
+    NSSearchToolbarItem.m \
+    NSColorPickerTouchBarItem.m \
+    NSFilePromiseProvider.m \
+    NSTableViewRowAction.m \
     NSTextInputContext.m \
     NSTitlebarAccessoryViewController.m \
     NSGridView.m \
@@ -566,6 +571,11 @@ HEADERS = \
     NSSharingService.h \
     NSHapticFeedback.h \
     NSAccessibilityCustomAction.h \
+    NSAccessibilityElement.h \
+    NSSearchToolbarItem.h \
+    NSColorPickerTouchBarItem.h \
+    NSFilePromiseProvider.h \
+    NSTableViewRowAction.h \
     NSTextInputContext.h \
     NSTitlebarAccessoryViewController.h \
     NSGridView.h \

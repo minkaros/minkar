@@ -172,6 +172,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSSharingService.h>
 #import <AppKit/NSHapticFeedback.h>
 #import <AppKit/NSAccessibilityCustomAction.h>
+#import <AppKit/NSAccessibilityElement.h>
+#import <AppKit/NSTableViewRowAction.h>
+#import <AppKit/NSFilePromiseProvider.h>
+#import <AppKit/NSColorPickerTouchBarItem.h>
+#import <AppKit/NSSearchToolbarItem.h>
 #import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
 #import <AppKit/NSGridView.h>
