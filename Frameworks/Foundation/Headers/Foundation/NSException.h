@@ -50,6 +50,7 @@ FOUNDATION_EXPORT NSString *const NSInconsistentArchiveException;
 - (NSDictionary *)userInfo;
 
 - (NSArray *)callStackReturnAddresses;
+- (NSArray<NSString *> *)callStackSymbols;
 
 @end
 

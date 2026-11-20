@@ -215,6 +215,26 @@ static void NSExceptionUncaught(id exception) {
    return _userInfo;
 }
 
+/* Minkar: where it was raised, as symbols (one line a frame). */
+-(NSArray *)callStackSymbols {
+   NSArray        *stack=[self callStackReturnAddresses];
+   NSUInteger      count=[stack count];
+   NSMutableArray *result=[NSMutableArray arrayWithCapacity:count];
+   void          **addresses;
+   char          **symbols;
+
+   if(count==0 || (addresses=malloc(count*sizeof(void *)))==NULL)
+    return result;
+   for(NSUInteger i=0;i<count;i++)
+    addresses[i]=(void *)[[stack objectAtIndex:i] unsignedIntegerValue];
+   symbols=backtrace_symbols(addresses,(int)count);
+   for(NSUInteger i=0;symbols!=NULL && i<count;i++)
+    [result addObject:[NSString stringWithCString:symbols[i] encoding:NSISOLatin1StringEncoding]];
+   free(symbols);
+   free(addresses);
+   return result;
+}
+
 -(NSArray *)callStackReturnAddresses {
    return _callStack;
 }
