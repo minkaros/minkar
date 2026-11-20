@@ -287,6 +287,7 @@ SRCS = 	NSFormatter.m \
 	NSTimer/NSTimer_block.m \
 	NSClassDescription.m \
 	NSTask.m \
+	NSUserScriptTask.m \
 	NSFileHandleErrors.m \
 	NSSet/NSSet_placeholder.m \
 	NSSet/NSMutableSet_concrete.m \
