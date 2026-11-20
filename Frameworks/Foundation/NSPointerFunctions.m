@@ -80,4 +80,10 @@
     return copy;
 }
 
+/* Minkar: the options it was made with, for the collections built on
+   it (NSMapTable, NSHashTable). */
+- (NSPointerFunctionsOptions)_options {
+    return _options;
+}
+
 @end

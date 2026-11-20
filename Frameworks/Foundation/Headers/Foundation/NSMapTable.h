@@ -61,6 +61,7 @@ typedef NSUInteger NSMapTableOptions;
     unsigned long mutations;
 }
 
+- (instancetype)initWithKeyPointerFunctions:(NSPointerFunctions *)keyFunctions valuePointerFunctions:(NSPointerFunctions *)valueFunctions capacity:(NSUInteger)initialCapacity;
 - (instancetype)initWithKeyOptions:(NSPointerFunctionsOptions)keyOptions
                       valueOptions:(NSPointerFunctionsOptions)valueOptions
                           capacity:(NSUInteger)initialCapacity;

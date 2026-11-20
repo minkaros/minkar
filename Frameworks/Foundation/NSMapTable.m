@@ -15,6 +15,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSException.h>
 #import <objc/runtime.h>
 
+@interface NSPointerFunctions (NSMapTablePrivate)
+-(NSPointerFunctionsOptions)_options;
+@end
+
+
 // Minkar: weak keys and values are zeroing weak references (objc_storeWeak
 // in the node), and every access goes through keyOf()/valueOf(); a node
 // whose weak key or value is gone is dropped where it is met. Tables made
@@ -577,6 +582,15 @@ static void _NSMapCopyInRetain(NSMapTable *table,const void *object){
 
 -(instancetype)init {
    return [self initWithKeyOptions:NSPointerFunctionsStrongMemory valueOptions:NSPointerFunctionsStrongMemory capacity:0];
+}
+
+/* Minkar: a table from pointer functions, as their options make it (the
+   custom hash and equality functions are those of the options). */
+-(instancetype)initWithKeyPointerFunctions:(NSPointerFunctions *)keyFunctions valuePointerFunctions:(NSPointerFunctions *)valueFunctions capacity:(NSUInteger)capacity {
+   NSPointerFunctionsOptions kOptions=[keyFunctions respondsToSelector:@selector(_options)]?[keyFunctions _options]:NSPointerFunctionsStrongMemory;
+   NSPointerFunctionsOptions vOptions=[valueFunctions respondsToSelector:@selector(_options)]?[valueFunctions _options]:NSPointerFunctionsStrongMemory;
+
+   return [self initWithKeyOptions:kOptions valueOptions:vOptions capacity:capacity];
 }
 
 +(NSMapTable *)mapTableWithKeyOptions:(NSPointerFunctionsOptions)kOptions valueOptions:(NSPointerFunctionsOptions)vOptions {

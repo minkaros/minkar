@@ -17,6 +17,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSPropertyListReader.h>
 #import <Foundation/NSPropertyList.h>
+#import <Foundation/NSError.h>
+#import <Foundation/FoundationErrors.h>
 #import <Foundation/NSKeyedUnarchiver.h>
 #import <Foundation/NSKeyedArchiver.h>
 #import <Foundation/NSPredicate.h>
@@ -552,6 +554,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	state->mutationsPtr=(unsigned long *)self;
 
 	return numObjects;
+}
+
+/* Minkar: a property list file read with the error that kept it from
+   being read, or that it was not an NSArray (API 19). */
+-(instancetype)initWithContentsOfURL:(NSURL *)url error:(NSError **)error {
+   NSData *data=[NSData dataWithContentsOfURL:url options:0 error:error];
+   id contents;
+
+   if(data==nil){
+    [self dealloc];
+    return nil;
+   }
+   contents=[NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:error];
+   if(contents==nil || ![contents isKindOfClass:[NSArray class]]){
+    if(contents!=nil && error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSPropertyListReadCorruptError userInfo:[NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey]];
+    [self dealloc];
+    return nil;
+   }
+   return [self initWithArray: contents];
+}
+
++(instancetype)arrayWithContentsOfURL:(NSURL *)url error:(NSError **)error {
+   return [[[self allocWithZone:NULL] initWithContentsOfURL:url error:error] autorelease];
 }
 
 @end

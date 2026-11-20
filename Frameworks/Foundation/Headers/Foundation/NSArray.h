@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRange.h>
 #import <Foundation/NSEnumerator.h>
 
-@class NSString, NSPredicate, NSIndexSet, NSURL;
+@class NSString, NSPredicate, NSIndexSet, NSURL, NSError;
 @class NSDictionary<KeyType, ObjectType>;
 
 @interface NSArray<__covariant ObjectType> : NSObject <NSCopying, NSMutableCopying, NSCoding, NSFastEnumeration>
@@ -26,6 +26,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (instancetype)array;
 + (instancetype)arrayWithContentsOfFile:(NSString *)path;
 + (instancetype)arrayWithContentsOfURL:(NSURL *)url;
++ (nullable instancetype)arrayWithContentsOfURL:(NSURL *)url error:(NSError **)error;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url error:(NSError **)error;
 + (instancetype)arrayWithObject:(ObjectType)object;
 + (instancetype)arrayWithObjects:(ObjectType)object, ...;
 

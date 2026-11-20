@@ -15,6 +15,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSEnumerator_dictionaryObjects.h>
 #import <Foundation/NSPropertyListReader.h>
 #import <Foundation/NSPropertyList.h>
+#import <Foundation/NSError.h>
+#import <Foundation/FoundationErrors.h>
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSKeyedUnarchiver.h>
@@ -465,6 +467,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [self description];
 }
 
+
+/* Minkar: a property list file read with the error that kept it from
+   being read, or that it was not a NSDictionary (API 19). */
+-(instancetype)initWithContentsOfURL:(NSURL *)url error:(NSError **)error {
+   NSData *data=[NSData dataWithContentsOfURL:url options:0 error:error];
+   id contents;
+
+   if(data==nil){
+    [self dealloc];
+    return nil;
+   }
+   contents=[NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:error];
+   if(contents==nil || ![contents isKindOfClass:[NSDictionary class]]){
+    if(contents!=nil && error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSPropertyListReadCorruptError userInfo:[NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey]];
+    [self dealloc];
+    return nil;
+   }
+   return [self initWithDictionary: contents];
+}
+
++(instancetype)dictionaryWithContentsOfURL:(NSURL *)url error:(NSError **)error {
+   return [[[self allocWithZone:NULL] initWithContentsOfURL:url error:error] autorelease];
+}
 
 @end
 

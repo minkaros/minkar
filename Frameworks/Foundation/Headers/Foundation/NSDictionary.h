@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSEnumerator.h>
 
-@class NSArray<ObjectType>, NSURL;
+@class NSArray<ObjectType>, NSURL, NSError;
 
 @interface NSDictionary<__covariant KeyType, __covariant ObjectType> : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
@@ -30,6 +30,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (instancetype)dictionaryWithObject:(ObjectType)object forKey:(KeyType)key;
 + (instancetype)dictionaryWithContentsOfFile:(NSString *)path;
 + (instancetype)dictionaryWithContentsOfURL:(NSURL *)url;
++ (nullable instancetype)dictionaryWithContentsOfURL:(NSURL *)url error:(NSError **)error;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url error:(NSError **)error;
 
 - (ObjectType)objectForKey:(KeyType)key;
 @property (readonly) NSUInteger count;

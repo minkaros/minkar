@@ -165,6 +165,66 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	return [self _kvo_operator_count];
 }
 
+/* Minkar: the other collection operators. Nil values (NSNull) are left
+   out, as on the reference. */
+static NSArray *_KVCValuesWithoutNull(NSArray *values)
+{
+	NSMutableArray *result=[NSMutableArray arrayWithCapacity:[values count]];
+	for(id value in values)
+		if(value!=[NSNull null])
+			[result addObject:value];
+	return result;
+}
+
+-(id)_kvo_operator_unionOfObjects:(NSString*)parameter
+{
+	return _KVCValuesWithoutNull([self valueForKeyPath:parameter]);
+}
+
+/* Each value once, in the order it first came. */
+-(id)_kvo_operator_distinctUnionOfObjects:(NSString*)parameter
+{
+	NSMutableArray *result=[NSMutableArray array];
+	NSMutableSet *seen=[NSMutableSet set];
+	for(id value in _KVCValuesWithoutNull([self valueForKeyPath:parameter]))
+		if(![seen containsObject:value]){
+			[seen addObject:value];
+			[result addObject:value];
+		}
+	return result;
+}
+
+/* The elements' collections (arrays or sets) at the key path, joined. */
+-(id)_kvo_operator_unionOfArrays:(NSString*)parameter
+{
+	NSMutableArray *result=[NSMutableArray array];
+	for(id collection in self){
+		id values=(parameter!=nil)?[collection valueForKeyPath:parameter]:collection;
+		if([values isKindOfClass:[NSArray class]])
+			[result addObjectsFromArray:_KVCValuesWithoutNull(values)];
+		else if([values isKindOfClass:[NSSet class]])
+			[result addObjectsFromArray:_KVCValuesWithoutNull([values allObjects])];
+	}
+	return result;
+}
+
+-(id)_kvo_operator_distinctUnionOfArrays:(NSString*)parameter
+{
+	NSMutableArray *result=[NSMutableArray array];
+	NSMutableSet *seen=[NSMutableSet set];
+	for(id value in [self _kvo_operator_unionOfArrays:parameter])
+		if(![seen containsObject:value]){
+			[seen addObject:value];
+			[result addObject:value];
+		}
+	return result;
+}
+
+-(id)_kvo_operator_distinctUnionOfSets:(NSString*)parameter
+{
+	return [NSSet setWithArray:[self _kvo_operator_unionOfArrays:parameter]];
+}
+
 -(id)_kvo_operator_sum:(NSString*)parameter
 {
 	NSArray* objects=[self valueForKeyPath:parameter];
@@ -225,6 +285,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	{
 		[[self objectAtIndex:idx] removeObserver:observer
 									  forKeyPath:keyPath];
+		idx=[indexes indexGreaterThanIndex:idx];
+	}
+}
+
+/* Minkar: with the context it was added with, from each object. */
+- (void)removeObserver:(NSObject *)observer fromObjectsAtIndexes:(NSIndexSet *)indexes forKeyPath:(NSString *)keyPath context:(void *)context
+{
+	NSUInteger idx=[indexes firstIndex];
+	while(idx!=NSNotFound)
+	{
+		[[self objectAtIndex:idx] removeObserver:observer
+									  forKeyPath:keyPath
+										 context:context];
 		idx=[indexes indexGreaterThanIndex:idx];
 	}
 }
