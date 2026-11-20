@@ -61,7 +61,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	@catch(id ex)
 	{
-		NSLog(@"exception %@ raised during delayed perform", ex);
+		/* Minkar: with where it was raised, when it says. */
+		NSArray *stack=[ex respondsToSelector:@selector(callStackSymbols)]?[ex callStackSymbols]:nil;
+		NSLog(@"exception %@ raised during delayed perform%@%@", ex,
+		      [stack count]?@"\n":@"", [stack count]?[stack componentsJoinedByString:@"\n"]:@"");
 	}
 }
 
