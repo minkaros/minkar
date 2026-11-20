@@ -1867,6 +1867,17 @@ static char inputContextKey;
    // Default implementation does nothing
 }
 
+/* Told when its window's scale or color space changes; nothing by
+   default. */
+-(void)viewDidChangeBackingProperties {
+}
+
+-(void)_viewDidChangeBackingPropertiesTree {
+   [self viewDidChangeBackingProperties];
+   for(NSView *subview in [[_subviews copy] autorelease])
+    [subview _viewDidChangeBackingPropertiesTree];
+}
+
 -(BOOL)shouldDelayWindowOrderingForEvent:(NSEvent *)event {
    NSUnimplementedMethod();
    return NO;

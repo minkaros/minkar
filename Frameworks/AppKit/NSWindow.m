@@ -69,6 +69,10 @@
 #include <SkyLight/SkyLight.h>
 #import "O2Context_builtin_FT.h"
 
+@interface NSView (NSViewBackingPropertiesTree)
+-(void)_viewDidChangeBackingPropertiesTree;
+@end
+
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";
 NSString * const NSWindowDidExposeNotification=@"NSWindowDidExposeNotification";
 NSString * const NSWindowDidResignKeyNotification=@"NSWindowDidResignKeyNotification";
@@ -80,6 +84,9 @@ NSString * const NSWindowDidDeminiaturizeNotification=@"NSWindowDidDeminiaturize
 NSString * const NSWindowDidMoveNotification=@"NSWindowDidMoveNotification";
 NSString * const NSWindowWillBeginSheetNotification=@"NSWindowWillBeginSheetNotification";
 NSString * const NSWindowDidEndSheetNotification=@"NSWindowDidEndSheetNotification";
+NSString * const NSWindowDidChangeBackingPropertiesNotification=@"NSWindowDidChangeBackingPropertiesNotification";
+NSString * const NSBackingPropertyOldScaleFactorKey=@"NSBackingPropertyOldScaleFactorKey";
+NSString * const NSBackingPropertyOldColorSpaceKey=@"NSBackingPropertyOldColorSpaceKey";
 NSString * const NSWindowDidResizeNotification=@"NSWindowDidResizeNotification";
 NSString * const NSWindowDidUpdateNotification=@"NSWindowDidUpdateNotification";
 NSString * const NSWindowWillCloseNotification=@"NSWindowWillCloseNotification";
@@ -924,6 +931,7 @@ static char representedURLKey;
     { NSWindowWillMoveNotification,@selector(windowWillMove:) },
     { NSWindowWillBeginSheetNotification,@selector(windowWillBeginSheet:) },
     { NSWindowDidEndSheetNotification,@selector(windowDidEndSheet:) },
+    { NSWindowDidChangeBackingPropertiesNotification,@selector(windowDidChangeBackingProperties:) },
     { nil, NULL }
    };
    int i;
@@ -2614,6 +2622,7 @@ static void sendAppearance(NSView *view,SEL selector) {
        [slsShown addObject:key];
        /* Shown: its views' tracking areas are updated next. */
        [self _invalidateTrackingAreas];
+       [self _checkBackingProperties];
    }
 
    [self postNotificationName:NSWindowDidMoveNotification];
@@ -4132,5 +4141,23 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
    NSScreen *screen=[self screen]?[self screen]:[NSScreen mainScreen];
    CGFloat scale=[screen backingScaleFactor];
    return scale>0?scale:1;
+}
+
+/* Minkar: the window's scale, as last seen; a new one is told
+   (NSWindowDidChangeBackingPropertiesNotification with the old scale,
+   and each view's viewDidChangeBackingProperties), as on the reference
+   when a window moves to a screen of another scale. */
+static char lastBackingScaleKey;
+
+-(void)_checkBackingProperties {
+   CGFloat   scale=[self backingScaleFactor];
+   NSNumber *last=objc_getAssociatedObject(self,&lastBackingScaleKey);
+
+   objc_setAssociatedObject(self,&lastBackingScaleKey,[NSNumber numberWithDouble:scale],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   if(last==nil || [last doubleValue]==scale)
+    return;
+   [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidChangeBackingPropertiesNotification object:self
+     userInfo:[NSDictionary dictionaryWithObject:last forKey:NSBackingPropertyOldScaleFactorKey]];
+   [[self _backgroundView] _viewDidChangeBackingPropertiesTree];
 }
 @end

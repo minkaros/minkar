@@ -287,6 +287,7 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 
 - (void)viewWillMoveToWindow:(NSWindow *)window;
 - (void)viewDidMoveToWindow;
+- (void)viewDidChangeBackingProperties;
 
 - (BOOL)shouldDelayWindowOrderingForEvent:(NSEvent *)event;
 

@@ -138,6 +138,9 @@ APPKIT_EXPORT NSString *const NSWindowWillMoveNotification;
 APPKIT_EXPORT NSString *const NSWindowDidMoveNotification;
 APPKIT_EXPORT NSString *const NSWindowWillBeginSheetNotification;
 APPKIT_EXPORT NSString *const NSWindowDidEndSheetNotification;
+APPKIT_EXPORT NSString *const NSWindowDidChangeBackingPropertiesNotification;
+APPKIT_EXPORT NSString *const NSBackingPropertyOldScaleFactorKey;
+APPKIT_EXPORT NSString *const NSBackingPropertyOldColorSpaceKey;
 APPKIT_EXPORT NSString *const NSWindowDidResizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidUpdateNotification;
 APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;
@@ -642,6 +645,7 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 
 - (void)windowWillBeginSheet:(NSNotification *)note;
 - (void)windowDidEndSheet:(NSNotification *)note;
+- (void)windowDidChangeBackingProperties:(NSNotification *)note;
 - (NSRect)window:(NSWindow *)window willPositionSheet:(NSWindow *)sheet usingRect:(NSRect)rect;
 
 - (void)windowDidChangeScreen:(NSNotification *)note;
@@ -675,6 +679,7 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 
 - (void)windowWillBeginSheet:(NSNotification *)note;
 - (void)windowDidEndSheet:(NSNotification *)note;
+- (void)windowDidChangeBackingProperties:(NSNotification *)note;
 - (NSRect)window:(NSWindow *)window willPositionSheet:(NSWindow *)sheet usingRect:(NSRect)rect;
 
 - (void)windowDidChangeScreen:(NSNotification *)note;
