@@ -2521,4 +2521,14 @@ static char styleKey, localMaskKey, remoteMaskKey;
 -(void)draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint { }
 -(void)draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation { }
 
+/* Minkar: the row actions shown (by a swipe; a pointer has none to
+   show, so they are hidden until set). */
+-(BOOL)rowActionsVisible {
+   return [objc_getAssociatedObject(self,@selector(rowActionsVisible)) boolValue];
+}
+
+-(void)setRowActionsVisible:(BOOL)value {
+   objc_setAssociatedObject(self,@selector(rowActionsVisible),[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 @end

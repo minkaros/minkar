@@ -290,6 +290,8 @@ typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
 - (NSImage *)indicatorImageInTableColumn:(NSTableColumn *)tableColumn;
 - (void)setIndicatorImage:(NSImage *)image inTableColumn:(NSTableColumn *)tableColumn;
 
+/* Whether the row actions of a row (swiped) are shown. */
+@property BOOL rowActionsVisible;
 @end
 
 /* The formal protocols of API 19 (all optional), beside the informal ones. */
@@ -301,8 +303,16 @@ typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
 - (void)tableView:(NSTableView *)tableView sortDescriptorsDidChange:(NSArray *)oldDescriptors;
 @end
 
+typedef NS_ENUM(NSInteger, NSTableViewRowActionEdge) {
+    NSTableViewRowActionEdgeLeading,
+    NSTableViewRowActionEdgeTrailing,
+};
+
+@class NSTableViewRowAction;
+
 @protocol NSTableViewDelegate <NSObject>
 @optional
+- (NSArray<NSTableViewRowAction *> *)tableView:(NSTableView *)tableView rowActionsForRow:(NSInteger)row edge:(NSTableViewRowActionEdge)edge;
 - (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row;
 - (void)tableView:(NSTableView *)tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn;
