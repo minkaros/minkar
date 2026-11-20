@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <sys/param.h>
 #import <AppKit/NSSegmentedCell.h>
+#import <AppKit/NSAccessibilityElement.h>
 #import <AppKit/NSRaise.h>
 #import "NSSegmentItem.h"
 #import <AppKit/NSButtonCell.h>
@@ -568,6 +569,32 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
     if([binding isEqual:@"selectedIndex"])
       return @"selectedSegment";
     return [super _replacementKeyPathForBinding:binding];
+}
+
+/* Minkar: a segment as an accessibility element, as on the reference:
+   a radio button labeled and titled with its label, the cell its parent;
+   made again each time they are asked for. */
+-(NSArray *)accessibilityChildren {
+   NSArray *own=[super accessibilityChildren];
+   NSMutableArray *result;
+   NSInteger i,count=[self segmentCount];
+
+   if(own!=nil)
+    return own;
+   result=[NSMutableArray arrayWithCapacity:count];
+   for(i=0;i<count;i++){
+    NSAccessibilityElement *segment=[[[NSAccessibilityElement alloc] init] autorelease];
+    NSString *label=[self labelForSegment:i];
+
+    [segment setAccessibilityRole:NSAccessibilityRadioButtonRole];
+    if([label length]>0){
+     [segment setAccessibilityLabel:label];
+     [segment setAccessibilityTitle:label];
+    }
+    [segment setAccessibilityParent:self];
+    [result addObject:segment];
+   }
+   return result;
 }
 
 @end

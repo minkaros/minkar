@@ -1,6 +1,7 @@
 #import <AppKit/NSAccessibility.h>
 #import <AppKit/NSView.h>
 #import <AppKit/NSControl.h>
+#import <AppKit/NSCell.h>
 #import <AppKit/NSWindow.h>
 #import <objc/runtime.h>
 
@@ -560,14 +561,19 @@ static void accessibilitySet(id object,NSString *key,id value) {
 
 @implementation NSObject (NSAccessibilityProperties)
 
-/* Minkar: unless set, a control is an accessibility element and any
-   other view is not, as on the reference. */
+/* Minkar: unless set, as on the reference: a cell is an accessibility
+   element, and so is a control without one (a color well); a control with
+   a cell stands aside for it, and any other view is not one. */
 -(BOOL)isAccessibilityElement {
    NSNumber *own=accessibilityGet(self,@"element");
 
    if(own!=nil)
     return [own boolValue];
-   return [self isKindOfClass:[NSControl class]];
+   if([self isKindOfClass:[NSCell class]])
+    return YES;
+   if([self isKindOfClass:[NSControl class]])
+    return [(NSControl *)self cell]==nil;
+   return NO;
 }
 -(void)setAccessibilityElement:(BOOL)flag { accessibilitySet(self,@"element",[NSNumber numberWithBool:flag]); }
 
@@ -586,6 +592,9 @@ AX_OBJECT(accessibilityValueDescription,setAccessibilityValueDescription,@"value
 
    if(own!=nil)
     return own;
+   /* A control's cell is its child, before its subviews. */
+   if([self isKindOfClass:[NSControl class]] && [(NSControl *)self cell]!=nil)
+    return [[NSArray arrayWithObject:[(NSControl *)self cell]] arrayByAddingObjectsFromArray:[(NSView *)self subviews]];
    if([self isKindOfClass:[NSView class]])
     return [(NSView *)self subviews];
    return nil;
@@ -594,7 +603,17 @@ AX_OBJECT(accessibilityValueDescription,setAccessibilityValueDescription,@"value
 AX_OBJECT(accessibilitySharedFocusElements,setAccessibilitySharedFocusElements,@"sharedFocusElements")
 AX_OBJECT(accessibilityCustomRotors,setAccessibilityCustomRotors,@"customRotors")
 AX_WEAK(accessibilityTitleUIElement,setAccessibilityTitleUIElement,@"titleUIElement")
-AX_WEAK(accessibilityParent,setAccessibilityParent,@"parent")
+/* Unless set, a cell's parent is its control. */
+-(id)accessibilityParent {
+   NSValue *own=accessibilityGet(self,@"parent");
+
+   if(own!=nil)
+    return [own nonretainedObjectValue];
+   if([self isKindOfClass:[NSCell class]])
+    return [(NSCell *)self controlView];
+   return nil;
+}
+-(void)setAccessibilityParent:(id)value { accessibilitySet(self,@"parent",(value!=nil)?[NSValue valueWithNonretainedObject:value]:nil); }
 
 /* Its own, or the role's description. */
 -(NSString *)accessibilityRoleDescription {
