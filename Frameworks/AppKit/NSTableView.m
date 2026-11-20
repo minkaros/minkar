@@ -99,6 +99,15 @@ const float NSTableViewDefaultRowHeight=16.0f;
     [_headerView setTableView:self];
     _cornerView=[[keyed decodeObjectForKey:@"NSCornerView"] retain];
     _tableColumns=[[NSMutableArray alloc] initWithArray:[keyed decodeObjectForKey:@"NSTableColumns"]];
+    /* Minkar: the nibs of its views by identifier (cell views, the row
+       view), as the nib keeps them. */
+    NSDictionary *reusable=[keyed decodeObjectForKey:@"NSTableViewArchivedReusableViewsKey"];
+    if([reusable isKindOfClass:[NSDictionary class]])
+     for(NSString *identifier in reusable){
+      id nib=[reusable objectForKey:identifier];
+      if([nib isKindOfClass:[NSNib class]])
+       [self registerNib:nib forIdentifier:identifier];
+     }
     [_tableColumns makeObjectsPerformSelector:@selector(setTableView:) withObject:self];
     _backgroundColor=[[keyed decodeObjectForKey:@"NSBackgroundColor"] retain];
     _gridColor=[[keyed decodeObjectForKey:@"NSGridColor"] retain];
@@ -1912,9 +1921,10 @@ static NSUInteger selectionNoteDeferred;
         BOOL result;
         int proposedRow = [self _getDraggedRow:info];
 
+        [self _setRetargetedDropRow:nil operation:NSTableViewDropAbove];
         if([_dataSource respondsToSelector:@selector( tableView:validateDrop:proposedRow:proposedDropOperation:)]){
         if((result = [_dataSource tableView:self validateDrop:info proposedRow:proposedRow proposedDropOperation:NSTableViewDropAbove]))
-                _draggingRow = proposedRow;
+                _draggingRow = [self _retargetedDropRow:proposedRow];
         else
                 _draggingRow = -1;
         }
@@ -1960,7 +1970,8 @@ static NSUInteger selectionNoteDeferred;
 }
 
 - (BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
-        return [_dataSource tableView:self acceptDrop:sender row:[self _getDraggedRow:sender] dropOperation:NSTableViewDropAbove];
+        NSInteger row=[self _retargetedDropRow:[self _getDraggedRow:sender]];
+        return [_dataSource tableView:self acceptDrop:sender row:row dropOperation:[self _retargetedDropOperation]];
 }
 
 -(NSString *)description {
@@ -2017,7 +2028,7 @@ static NSUInteger selectionNoteDeferred;
 
 #pragma mark View-based tables
 
-NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
+NSString *const NSTableViewRowViewKey=@"NSTableViewRowViewKey";
 
 -(BOOL)_isViewBased {
    return [_delegate respondsToSelector:@selector(tableView:viewForTableColumn:row:)];
@@ -2147,6 +2158,13 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
    BOOL            group=[self _delegateIsGroupRow:row];
 
    rowView=[self _delegateRowViewForRow:row];
+   /* The row view the nib gives for NSTableViewRowViewKey, as on the
+      reference, before a plain one. */
+   if(rowView==nil){
+    id view=[self makeViewWithIdentifier:NSTableViewRowViewKey owner:_delegate];
+    if([view isKindOfClass:[NSTableRowView class]])
+     rowView=view;
+   }
    if(rowView==nil)
     rowView=[[[NSTableRowView alloc] initWithFrame:NSZeroRect] autorelease];
    [rowView setFrame:[self rectOfRow:row]];
@@ -2481,6 +2499,40 @@ static char indicatorImagesKey;
     [images removeObjectForKey:column];
    else
     [images setObject:image forKey:column];
+   [[self headerView] setNeedsDisplay:YES];
+}
+
+/* Minkar: a drop retargeted by the data source while validating it
+   (setDropRow:dropOperation:), used when it is accepted. */
+static char retargetedRowKey, retargetedOperationKey, highlightedColumnKey;
+
+-(void)_setRetargetedDropRow:(NSNumber *)row operation:(NSTableViewDropOperation)operation {
+   objc_setAssociatedObject(self,&retargetedRowKey,row,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+   objc_setAssociatedObject(self,&retargetedOperationKey,[NSNumber numberWithInteger:operation],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+-(NSInteger)_retargetedDropRow:(NSInteger)proposed {
+   NSNumber *row=objc_getAssociatedObject(self,&retargetedRowKey);
+   return (row!=nil)?[row integerValue]:proposed;
+}
+
+-(NSTableViewDropOperation)_retargetedDropOperation {
+   return [objc_getAssociatedObject(self,&retargetedOperationKey) integerValue];
+}
+
+-(void)setDropRow:(NSInteger)row dropOperation:(NSTableViewDropOperation)operation {
+   [self _setRetargetedDropRow:[NSNumber numberWithInteger:row] operation:operation];
+   _draggingRow=row;
+   [self setNeedsDisplay:YES];
+}
+
+/* The column shown as the one sorted by (none unless set). */
+-(NSTableColumn *)highlightedTableColumn {
+   return objc_getAssociatedObject(self,&highlightedColumnKey);
+}
+
+-(void)setHighlightedTableColumn:(NSTableColumn *)column {
+   objc_setAssociatedObject(self,&highlightedColumnKey,column,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
    [[self headerView] setNeedsDisplay:YES];
 }
 

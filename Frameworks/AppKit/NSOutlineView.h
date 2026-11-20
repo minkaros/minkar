@@ -89,6 +89,7 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 - (void)removeItemsAtIndexes:(NSIndexSet *)indexes inParent:(id)parent withAnimation:(NSTableViewAnimationOptions)animationOptions;
 - (void)moveItemAtIndex:(NSInteger)fromIndex inParent:(id)oldParent toIndex:(NSInteger)toIndex inParent:(id)newParent;
 
+@property BOOL stronglyReferencesItems;
 @end
 
 @interface NSObject (NSOutlineView_dataSource)

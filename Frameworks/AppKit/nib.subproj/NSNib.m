@@ -100,6 +100,23 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
    return self;
 }
 
+/* Minkar: a nib inside a nib (a table's cell views): its data, in the
+   bundle of the nib it is decoded from when it uses its parent's. */
+static NSBundle *decodingBundle;
+
+-initWithCoder:(NSCoder *)coder {
+   NSData *data=[coder decodeObjectForKey:@"NSNibFileData"];
+   BOOL    parent=[coder decodeBoolForKey:@"NSNibFileUseParentBundle"];
+
+   return [self initWithNibData:data bundle:(parent || decodingBundle!=nil)?decodingBundle:nil];
+}
+
+-(void)encodeWithCoder:(NSCoder *)coder {
+   [coder encodeObject:_data forKey:@"NSNibFileData"];
+   [coder encodeBool:YES forKey:@"NSNibFileIsKeyed"];
+   [coder encodeBool:(_bundle!=nil) forKey:@"NSNibFileUseParentBundle"];
+}
+
 -(void)dealloc {
    [_bundle release];
    [_data release];
@@ -131,6 +148,8 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
     NIBDEBUG(@"instantiateNibWithExternalNameTable: %@", nameTable);
     
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
+   NSBundle *outerBundle=decodingBundle;
+   decodingBundle=_bundle;
    _nameTable=[nameTable retain];
     // Minkar: a binary nib (NIBArchive) or a keyed archive.
     NSKeyedUnarchiver *unarchiver=[NSNibArchiveUnarchiver isNibArchive:_data] ?
@@ -139,6 +158,7 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
 
     if(unarchiver==nil){
      NSLog(@"NSNib: the nib's data cannot be read");
+     decodingBundle=outerBundle;
      [pool release];
      return NO;
     }
@@ -201,6 +221,7 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
     
     [_nameTable release];
     _nameTable=nil;
+    decodingBundle=outerBundle;
 
     [pool release];
 

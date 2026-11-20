@@ -1092,4 +1092,17 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
    }
 }
 
+/* Minkar: whether it keeps its items (the data source's) alive, YES as on
+   the reference; the items are kept by the rows either way. */
+static char stronglyReferencesItemsKey;
+
+-(BOOL)stronglyReferencesItems {
+   NSNumber *own=objc_getAssociatedObject(self,&stronglyReferencesItemsKey);
+   return (own!=nil)?[own boolValue]:YES;
+}
+
+-(void)setStronglyReferencesItems:(BOOL)value {
+   objc_setAssociatedObject(self,&stronglyReferencesItemsKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 @end

@@ -292,6 +292,8 @@ typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
 
 /* Whether the row actions of a row (swiped) are shown. */
 @property BOOL rowActionsVisible;
+- (void)setDropRow:(NSInteger)row dropOperation:(NSTableViewDropOperation)dropOperation;
+@property (retain) NSTableColumn *highlightedTableColumn;
 @end
 
 /* The formal protocols of API 19 (all optional), beside the informal ones. */
