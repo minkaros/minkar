@@ -1044,6 +1044,21 @@ static NSString *NSStringFromCellType(NSCellType type) {
     _allowsEditingTextAttributes=YES;
 }
 
+/* Minkar: its own identifier, or its control's, as on the reference. */
+static char cellIdentifierKey;
+
+-(NSString *)identifier {
+   NSString *own=objc_getAssociatedObject(self,&cellIdentifierKey);
+
+   if(own!=nil)
+    return own;
+   return [[self controlView] respondsToSelector:@selector(identifier)]?[(NSView *)[self controlView] identifier]:nil;
+}
+
+-(void)setIdentifier:(NSString *)identifier {
+   objc_setAssociatedObject(self,&cellIdentifierKey,identifier,OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+
 @end
 
 void NSDrawThreePartImage(NSRect frame,NSImage *startCap,NSImage *centerFill,NSImage *endCap,BOOL vertical,NSCompositingOperation operation,CGFloat alpha,BOOL flipped) {

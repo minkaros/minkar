@@ -314,6 +314,7 @@ enum {
 - (NSRect)focusRingMaskBoundsForFrame:(NSRect)cellFrame inView:(NSView *)controlView;
 - (void)drawFocusRingMaskWithFrame:(NSRect)cellFrame inView:(NSView *)controlView;
 
+@property (copy) NSString *identifier;
 @end
 
 /* Minkar: the events a cell sends its action on, and its contextual menu. */
