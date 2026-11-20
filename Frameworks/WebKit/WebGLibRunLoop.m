@@ -135,7 +135,11 @@ static void startIteration(void)
     pthread_mutex_unlock(&lock);
 }
 
-/* The poll thread's wake-up: its results, once ready. */
+/* The poll thread's wake-up: its results, once ready, and the next poll
+   started at once. It was started only before the run loop sleeps: a run
+   loop that never sleeps (a spinning progress indicator redrawn while each
+   window display is slow) never polled GLib again, and pages never
+   loaded. */
 static void pollDonePerform(void *info)
 {
     (void)info;
@@ -144,8 +148,14 @@ static void pollDonePerform(void *info)
     pthread_mutex_lock(&lock);
     PollState state = pollState;
     pthread_mutex_unlock(&lock);
-    if (state == PollDone)
+    if (state == PollDone) {
         finishIteration();
+        pthread_mutex_lock(&lock);
+        state = pollState;
+        pthread_mutex_unlock(&lock);
+        if (state == PollIdle)
+            startIteration();
+    }
 }
 
 /* Before the run loop sleeps: a poll still running is cut short (the main
