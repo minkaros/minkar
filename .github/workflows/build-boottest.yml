@@ -118,8 +118,10 @@ jobs:
   build-boot:
     needs: toolchain
     runs-on: ubuntu-24.04
-    # Gate BC adds its apps' runs to the build and gate M2 (see the step).
-    timeout-minutes: 330
+    # Gate BC adds its apps' runs to the build and gate M2: measured on
+    # 2026-11-20 under TCG, about 3 minutes to boot and 3 to 4 per small
+    # app, so 2 to 3 hours for all of them; GitHub's limit for a job is 6.
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
         with:
@@ -226,7 +228,7 @@ jobs:
           start=$(date +%s)
           BC_WAIT=120 python3 -B tools/compat/bc-gate.py --image "$BUILD_DIR/Minkar.img" \
             --apps "$RUNNER_TEMP/reference-apps" --log "$BUILD_DIR/boottest-BC.log" \
-            --out "$BUILD_DIR/bc-results.tsv" --timeout 10800 \
+            --out "$BUILD_DIR/bc-results.tsv" --timeout 14400 \
             --password "$BOOTTEST_PASSWORD" --ssh-key "$RUNNER_TEMP/id_ed25519"
           echo "Gate BC took $(( ($(date +%s) - start) / 60 )) minutes" >> "$GITHUB_STEP_SUMMARY"
 
