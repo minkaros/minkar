@@ -206,7 +206,8 @@ enum {
     errAEReplyNotArrived = -1718,
     errAEIllegalIndex = -1719,
     errAEEventFailed = -10000,
-    errAEEventWouldRequireUserConsent = -1744
+    errAEEventWouldRequireUserConsent = -1744,
+    errAEEventNotPermitted = -1743
 };
 
 /* Descriptors. */

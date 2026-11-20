@@ -198,3 +198,15 @@ OSStatus AESendMessage(const AppleEvent *event, AppleEvent *reply, AESendMode se
         AEDisposeDesc(&answer);
     return (err == errAEEventNotHandled) ? err : noErr;
 }
+
+/* Minkar keeps no record of the user's consent to automation yet, so
+   every process may send events to another; a target that is not
+   addressed at all is a parameter error. */
+OSStatus AEDeterminePermissionToAutomateTarget(const AEAddressDesc *target, AEEventClass theAEEventClass, AEEventID theAEEventID, Boolean askUserIfNeeded) {
+    (void)theAEEventClass;
+    (void)theAEEventID;
+    (void)askUserIfNeeded;
+    if (target == NULL || target->descriptorType == typeNull)
+        return paramErr;
+    return noErr;
+}

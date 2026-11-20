@@ -36,6 +36,11 @@ OSStatus AESendMessage(const AppleEvent *event, AppleEvent *reply, AESendMode se
 /* Hands an event to this process's handler for it. */
 OSErr AEDispatchAppleEvent(const AppleEvent *theAppleEvent, AppleEvent *reply);
 
+/* Whether this process may send the target events of a class and ID:
+   noErr when it may; errAEEventNotPermitted, errAEEventWouldRequireUserConsent
+   or procNotFound otherwise. */
+OSStatus AEDeterminePermissionToAutomateTarget(const AEAddressDesc *target, AEEventClass theAEEventClass, AEEventID theAEEventID, Boolean askUserIfNeeded);
+
 /* Keys of the editor suite's events (a document's position and the text
    searched for in it). */
 enum {
