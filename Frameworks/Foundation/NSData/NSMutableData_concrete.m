@@ -41,7 +41,7 @@ static inline void setLength(NSMutableData_concrete *self,NSUInteger length){
 }
 
 static inline void replaceBytesInRange(NSMutableData_concrete *self,NSRange range,const void *bytes){
-   NSInteger   i,loc=range.location,len=range.length;
+   NSInteger   loc=range.location,len=range.length;
 
    if(loc>self->_length)
     NSRaiseException(NSRangeException,self,@selector(replaceBytesInRange:withBytes:),@"location %d beyond length %d",loc,self->_length);
@@ -49,8 +49,8 @@ static inline void replaceBytesInRange(NSMutableData_concrete *self,NSRange rang
    if(loc+len>self->_length)
     setLength(self,loc+len);
 
-   for(i=0;i<len;i++)
-    ((char *)self->_bytes)[i+loc]=((char *)bytes)[i];
+   if(len>0)
+    memmove((char *)self->_bytes+loc,bytes,len);
 }
 
 -(void)setLength:(NSUInteger)length {
