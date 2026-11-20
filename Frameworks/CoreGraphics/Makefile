@@ -12,6 +12,7 @@ SRCS= \
 	CGColorSpaceICC.c \
 	CGContext.m \
 	CGDataConsumer.m \
+	CGPSConverter.m \
 	CGDataProvider.m \
 	CGDirectDisplay.m \
 	CGDisplayStream.m \
@@ -44,6 +45,7 @@ HEADERS= \
 	CGContext.h \
 	CGConversions.h \
 	CGDataConsumer.h \
+	CGPSConverter.h \
 	CGDataProvider.h \
 	CGDirectDisplay.h \
 	CGError.h \

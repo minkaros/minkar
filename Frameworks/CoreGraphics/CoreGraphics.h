@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGColorSpace.h>
 #import <CoreGraphics/CGContext.h>
 #import <CoreGraphics/CGDataConsumer.h>
+#import <CoreGraphics/CGPSConverter.h>
 #import <CoreGraphics/CGDataProvider.h>
 #import <CoreGraphics/CGFont.h>
 #import <CoreGraphics/CGFunction.h>
