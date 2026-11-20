@@ -926,14 +926,14 @@ int NSConvertGlyphsToPackedGlyphs(NSGlyph *glyphs,int length,NSMultibyteGlyphPac
    [self _widenDigits:(CGSize *)advancements glyphs:cgGlyphs count:count];
 }
 
-/* The typesetter gets each glyph's advance here (current's, kerned with
-   previous): a digit's is the widest digit's. */
+/* The typesetter gets each glyph's place after the previous one here
+   (the previous glyph's advance): after a digit, the widest digit's. */
 -(NSPoint)positionOfGlyph:(NSGlyph)current precededByGlyph:(NSGlyph)previous isNominal:(BOOL *)isNominalp {
    NSPoint result=[super positionOfGlyph:current precededByGlyph:previous isNominal:isNominalp];
    int     d;
 
    for(d=0;d<10;d++)
-    if(current==_digits[d] && _digits[d]!=0){
+    if(previous==_digits[d] && _digits[d]!=0){
      result.x=_digitAdvance;
      if(isNominalp!=NULL)
       *isNominalp=YES;
