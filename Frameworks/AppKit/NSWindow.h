@@ -482,6 +482,9 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 
 - (BOOL)isDocumentEdited;
 - (BOOL)isZoomed;
+@property (readonly, getter=isResizable) BOOL resizable;
+@property (readonly, getter=isMiniaturizable) BOOL miniaturizable;
+@property (readonly, getter=isZoomable) BOOL zoomable;
 - (BOOL)isVisible;
 - (BOOL)isKeyWindow;
 - (BOOL)isMainWindow;

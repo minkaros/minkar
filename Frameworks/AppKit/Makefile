@@ -19,6 +19,7 @@ SRCS = \
     NSAnimation/NSAnimationContext.m \
     NSAnimation/NSViewAnimation.m \
     NSApplication.m \
+    NSApplicationScripting.m \
     NSAttributedString.m \
     NSBezierPath.m \
     NSBitmapImageRep.m \

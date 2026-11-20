@@ -623,7 +623,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
   if(info==NULL){
    // WindowServer unreachable: fall back to creation order.
    for(NSWindow *window in [self windows])
-    if(![window isKindOfClass:[NSPanel class]])
+    if(![window isKindOfClass:[NSPanel class]] && ![window _isInternalWindow])
      [result addObject:window];
    return result;
   }
@@ -631,7 +631,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
   for(NSNumber *number in _NSWindowNumbersFromWindowInfo(info,NO)){
    NSWindow *window=[self windowWithWindowNumber:[number integerValue]];
 
-   if(window!=nil && ![window isKindOfClass:[NSPanel class]])
+   if(window!=nil && ![window isKindOfClass:[NSPanel class]] && ![window _isInternalWindow])
     [result addObject:window];
   }
   CFRelease(info);
