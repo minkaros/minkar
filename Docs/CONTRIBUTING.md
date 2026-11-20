@@ -54,6 +54,13 @@ code. Documentation is written in English; a document may also have a
 Spanish copy next to it as `<name>.es.md`, which says that the English one
 is the reference and is updated in the same commit.
 
+### Branches
+
+Work goes to `devel`. `devel` is brought to `main` when a milestone
+closes or, at the latest, once a week, and only by fast-forward
+(`git push origin devel:main`, no merge commits), so the CI, which runs on
+`main`, checks small batches.
+
 ### Development shortcuts
 
 A temporary solution taken during development is marked in the code with
