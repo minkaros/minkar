@@ -61,6 +61,7 @@ SRCS = 	NSFormatter.m \
 	NSScript/NSScriptSuiteRegistry.m \
 	NSScript/NSScriptDefinitionReader.m \
 	NSScript/NSScriptCoercionHandler.m \
+	NSScript/NSScriptKeyValueCoding.m \
 	NSScript/NSScriptObjectSpecifiers.m \
 	NSEnumerator.m \
 	NSException/debugHelpers.m \

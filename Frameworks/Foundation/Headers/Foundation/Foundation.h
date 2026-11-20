@@ -168,6 +168,7 @@
 #import <Foundation/NSScriptClassDescription.h>
 #import <Foundation/NSScriptSuiteRegistry.h>
 #import <Foundation/NSScriptCoercionHandler.h>
+#import <Foundation/NSScriptKeyValueCoding.h>
 #import <Foundation/NSScriptObjectSpecifiers.h>
 #import <Foundation/NSPipe.h>
 #import <Foundation/NSPort.h>
