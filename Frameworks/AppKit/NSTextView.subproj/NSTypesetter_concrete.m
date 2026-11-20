@@ -206,6 +206,13 @@ static BOOL lineMayBreakAfter(NSTypesetter_concrete *self,NSUInteger index) {
     NSRange  wordWrapRange=NSMakeRange(_nextGlyphLocation,0);
         float    wordWrapWidth=0;
         NSGlyph  wordWrapPreviousGlyph=NSNullGlyph;
+        /* Minkar: the wrap location before the latest one: a break after
+           the glyph being placed (the end of the text, after a hyphen) is
+           no use when that glyph itself does not fit. */
+        NSRange  earlierWrapRange=wordWrapRange;
+        float    earlierWrapWidth=0;
+        NSGlyph  earlierWrapPreviousGlyph=NSNullGlyph;
+        BOOL     wrapsAfterThisGlyph=NO;
         NSRect   fragmentRect = NSZeroRect;
         BOOL     isNominal = YES, advanceScanRect=NO, endOfString=NO, endOfLine=NO;
 
@@ -242,7 +249,12 @@ static BOOL lineMayBreakAfter(NSTypesetter_concrete *self,NSUInteger index) {
 
                 glyph=_glyphCache[glyphIndex-_glyphCacheRange.location];
                 character=_characterCache[glyphIndex-_glyphCacheRange.location];
+                wrapsAfterThisGlyph=NO;
                 if(character==' ' || lineMayBreakAfter(self,glyphIndex)){
+                        earlierWrapRange=wordWrapRange;
+                        earlierWrapWidth=wordWrapWidth;
+                        earlierWrapPreviousGlyph=wordWrapPreviousGlyph;
+                        wrapsAfterThisGlyph=(character!=' ');
 
 #if DEBUG_GETLINEFRAGMENTRECT
             NSLog(@"found a space char");
@@ -373,6 +385,14 @@ static BOOL lineMayBreakAfter(NSTypesetter_concrete *self,NSUInteger index) {
 #if DEBUG_GETLINEFRAGMENTRECT
                         NSLog(@"cumulative width is too large: %f > %f", fragmentWidth+glyphAdvance+glyphMaxWidth, _scanRect.size.width);
 #endif
+                                                if(wrapsAfterThisGlyph){
+                                                        wordWrapRange=earlierWrapRange;
+                                                        wordWrapWidth=earlierWrapWidth;
+                                                        wordWrapPreviousGlyph=earlierWrapPreviousGlyph;
+                                                        _wordWrapWidth=wordWrapWidth;
+                                                        _wordWrapRange=wordWrapRange;
+                                                        _wordWrapPreviousGlyph=wordWrapPreviousGlyph;
+                                                }
                                                 if(wordWrapWidth>0){
                                                         // Break the line at previously found wrap location
                                                         _lineRange.length=NSMaxRange(wordWrapRange)-_lineRange.location;
