@@ -72,7 +72,7 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Framework | Status | Apps | Notes |
 | --- | --- | --- | --- |
-| Metal (a device), MetalKit | Plan (GPU track) | | darling-metal and Indium; Metal's API exists without a device |
+| Metal (a device), MetalKit | Plan (GPU track) | | darling-metal and Indium; Metal's API exists without a device, and MetalKit's MTKView (since 19 Nov 2026, which Skim needs) draws for its delegate without a drawable, as on the reference without a device |
 | Accelerate | Plan (AU9) | | vDSP, BLAS and LAPACK (OpenBLAS, BSD-3); used widely, worth moving earlier |
 | CoreImage | Partial | | Skim needs it. Its own framework since 19 Nov 2026 (QuartzCore re-exports it): CIFilter with its registry, attributes and image units (CIPlugIn), the public constants, and a context drawing in linear light over CoreGraphics; built-in filters only those it draws (CIBoxBlur, CILinearGradient). Kernels (CIKernel) and the rest of the filters to come |
 | MetalPerformanceShaders | Decide | | |

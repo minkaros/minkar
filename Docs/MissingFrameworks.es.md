@@ -75,7 +75,7 @@ una.
 
 | Framework | Estado | Apps | Notas |
 | --- | --- | --- | --- |
-| Metal (un dispositivo), MetalKit | Plan (pista GPU) | | darling-metal e Indium; la API de Metal existe sin dispositivo |
+| Metal (un dispositivo), MetalKit | Plan (pista GPU) | | darling-metal e Indium; la API de Metal existe sin dispositivo, y MTKView de MetalKit (desde el 19 nov 2026, la necesita Skim) dibuja para su delegado sin drawable, como en la referencia sin dispositivo |
 | Accelerate | Plan (AU9) | | vDSP, BLAS y LAPACK (OpenBLAS, BSD-3); muy usado, conviene adelantarlo |
 | CoreImage | Parcial | | Lo necesita Skim. Framework propio desde el 19 nov 2026 (QuartzCore lo reexporta): CIFilter con su registro, atributos y unidades de imagen (CIPlugIn), las constantes públicas y un contexto que dibuja en luz lineal sobre CoreGraphics; filtros integrados solo los que dibuja (CIBoxBlur, CILinearGradient). Faltan los kernels (CIKernel) y el resto de filtros |
 | MetalPerformanceShaders | Decidir | | |
