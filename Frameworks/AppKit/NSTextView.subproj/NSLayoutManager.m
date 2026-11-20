@@ -1860,6 +1860,16 @@ static inline void _appendRectToCache(NSLayoutManager *self,NSRect rect){
                 NSFont *font = NSFontAttributeInDictionary(attributes);
                 [font setInContext: context];
 
+                /* Minkar: each part's width from the advances its glyphs are
+                   drawn with (showPackedGlyphs), so the parts around a
+                   selection or temporary attributes join with no gap. */
+                NSSize advances[range.length > 0 ? range.length : 1];
+                if (range.length > 0)
+                        [font getAdvancements:advances forGlyphs:glyphs count:range.length];
+                for (NSUInteger g = 0; g < range.length; g++)
+                        if (glyphs[g] == NSControlGlyph || glyphs[g] == NSNullGlyph)
+                                advances[g].width = 0;
+
                 // We intersect with the selection so we apparently need to tread carefully...
                 if (intersectRange.length > 0){
             BOOL ltor = fragment->leftToRight;
@@ -1932,7 +1942,8 @@ static inline void _appendRectToCache(NSLayoutManager *self,NSRect rect){
                                 BOOL ignore = NO;
 
                                 // Make sure we keep track of how many points we've used with each one
-                                partWidth += [font positionOfGlyph:glyph precededByGlyph:previousGlyph isNominal:&ignore].x;
+                                if (i > 0)
+                                        partWidth += advances[i - 1].width;
 
                                 if (showGlyphs) {
                                         // Show the range of glyphs specifed by offset and length
@@ -1963,7 +1974,8 @@ static inline void _appendRectToCache(NSLayoutManager *self,NSRect rect){
                                 if (glyph == NSControlGlyph) {
                                         glyph = NSNullGlyph;
                                 }
-                                partWidth += [font positionOfGlyph:glyph precededByGlyph:previousGlyph isNominal:&ignore].x;
+                                if (i > 0)
+                                        partWidth += advances[i - 1].width;
                                 previousGlyph = glyph;
                         }
 

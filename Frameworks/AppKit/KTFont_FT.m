@@ -130,12 +130,17 @@ static CGFloat cachedAdvance(KTFont_FT *self,CGGlyph glyph) {
    return NSMakeSize(cachedAdvance(self,(CGGlyph)glyph),0);
 }
 
+/* Where the current glyph goes after the previous one: the previous
+   glyph's advance (none after no glyph), as the typesetter and layout
+   manager expect. It was the current glyph's, which put each part of a
+   line drawn in pieces (around a selection) one glyph too far. */
 -(CGPoint)positionOfGlyph:(CGGlyph)current precededByGlyph:(CGGlyph)previous isNominal:(BOOL *)isNominalp {
-   *isNominalp=YES;
+   if(isNominalp!=NULL)
+      *isNominalp=YES;
 
-   if(!current)
+   if(!previous)
       return NSZeroPoint;
-   return NSMakePoint(cachedAdvance(self,current),0);
+   return NSMakePoint(cachedAdvance(self,previous),0);
 }
 
 -(void)dealloc {
