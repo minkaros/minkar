@@ -145,7 +145,8 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | WebKit (W0–W5) | partial: W0's libraries built and their own tests passing on PC 2 (21 of 23); JavaScriptCore with its JIT, gate W1 running (es6 605 of 605); WebCore and the processes on WPE, gate W2 passed; `WKWebView` (W3) and the older `WebView` (W4) on WPE | FreeType's and WOFF2's own tests; W1's other suites; the reference apps' web views (W5) | 3 and Minkar 19.6.0 |
 | AppKit | Partial (Cocotron) | The API's recent pieces and the Atlas visual language | 5 |
 | DMG, base apps | `hdiutil attach` already mounts through DiskArbitration | `DiskImages.framework` (UDIF), apps | 6 |
-| Binary compatibility, arm64 | Future; install names already the same as the originals | The rest | 7 |
+| Binary compatibility | Firefox 160 and Hex Fiend 2.18.1 run from their published binaries; binary nibs; third-party signatures; install names the same as the originals | Gate BC, the matrix, the loader cases, the ABI audit (BC0–BC4) | BC |
+| arm64 | Not started | A build in the CI (ARM0); booting on Darwin 25 (ARM1–ARM3) | ARM |
 
 ## Phase 0 — Build, toolchain and CI
 
@@ -261,7 +262,7 @@ Goal: a command-line app in Objective-C or Swift, written for API 19, builds and
 - [x] **CoreFoundation: CF-Lite (APSL), decided 2026-10-25.** It is the current CF in `Frameworks/CoreFoundation`, with its own toll-free bridging (`CFBridging.c`, `CFRuntime.c`) and CF ↔ XPC bridge. It is not replaced by Swift's CF. The public CF-Lite predates API 19: the CF APIs missing up to API 21 are added by hand, with swift-corelibs CF (Apache 2.0) as reference. `Frameworks/CoreFoundation.old` was removed on 2026-10-26.
 - [x] **Foundation for Swift: Objective-C Foundation plus the `libswiftFoundation` overlay, decided 2026-10-25.** It is API 21's model. Base: the last open version of the Darwin overlay (Apache 2.0) in `swiftlang/swift`'s history, updated to Swift 6.0. swift-foundation is only a reference for new APIs.
 - [x] **Swift runtime: Swift 6.0 in `/usr/lib/swift`, decided 2026-10-25.** The same version as the tree's LLVM (swiftlang's fork, branch `swift-6.0-release`). Starting point: no Swift compiler, stdlib or overlays in the tree; only the Dispatch overlay (`libdispatch/src/swift`) and the Swift annotations in the CF headers.
-- [x] **Combine and SwiftUI, decided 2026-10-25.** Both belong to API 19. Combine enters API 19 on OpenCombine (MIT), renamed as the `Combine` module and installed as `Combine.framework`; it depends on the Swift toolchain gate. API 19, 20 and 21 close explicitly without SwiftUI. OpenSwiftUI (MIT, early development) is watched, and the decision is revisited by measuring how many reference apps need it.
+- [x] **Combine and SwiftUI, decided 2026-10-25.** Both belong to API 19. Combine enters API 19 on OpenCombine (MIT), renamed as the `Combine` module and installed as `Combine.framework`; it depends on the Swift toolchain gate. API 19, 20 and 21 close explicitly without SwiftUI. OpenSwiftUI (MIT, early development) is watched, and the decision is revisited by measuring how many reference apps need it. *Replaced on 2026-11-20 by D6:* SwiftUI enters through OpenSwiftUI, after a clean-room review (lane SU); Combine stays on OpenCombine.
 
 Decision order: CoreFoundation constrains Foundation for Swift, which constrains the Swift runtime.
 
@@ -471,7 +472,7 @@ Minkar's first release installs from its own medium, without the build tree or a
 
 The everyday apps are planned in [Atlas.md](Atlas.md), chapter 5: an app foundation (A0), then Terminal, Text Editor, System Monitor, Logs, Screenshot, Image Viewer and Document Viewer, Disks, System Information, Calculator and Archive Manager (A1–A10). A0–A4 are required for Minkar 19.6.0; A5–A10 move to 19.6.x (2026-11-20), with Fonts, Passwords and Keys, Color Picker, Script Editor, Help and Characters; the browser (Firefox) and an IDE in the long term.
 
-A risk to flag: many current Cocoa apps use SwiftUI, which is not on the roadmap. It is better tracked as an open decision than found out late.
+Many current Cocoa apps use SwiftUI: since 2026-11-20 they are lane SU's (D6), measured by SU0.
 
 Commands that come with this phase (moved from Phase 2):
 
@@ -484,30 +485,87 @@ Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through Disk
 
 **Exit gate (M6):** Minkar is installed on a physical machine from its own USB medium by the system installer; a DMG is downloaded, mounted, the app copied to `/Applications` and run; and the Atlas desktop is complete for daily use, as section 6 of [Atlas.md](Atlas.md) sets it: MB2 and MB3, D2 and D3, K2 and K3, and the apps A0–A4, used daily on the development machine itself; WebKit through W5, the reference apps' web views working; audio and media complete, AU1–AU10, sound in the system and `<video>` in WebKit; and gate BC passes with the API 19 set complete (BC4). MB4, D4, K4 and the apps A5–A10 follow in 19.6.x; the web browser is not required (criterion changed 2026-11-20).
 
-## Phase 7 — Binary compatibility and arm64
+## Lane BC — Binary compatibility
 
-Goal after Minkar 19.6.0: run x86-64 binaries built for the reference platform without recompiling, and port the system to arm64. It does not block the critical path, but some decisions must be taken now so as not to close it off.
+Goal: the published x86-64 binaries of the designated apps start and work on Minkar without recompiling (D1, 2026-11-20). It is no longer after M6: its first milestones are part of Minkar 19.6.0.
 
-**Decisions that protect this phase from today**
+**Already done**
+
+- Firefox 160, Mozilla's own build for the reference platform, runs sandboxed with its media, OpenGL views, printing and notifications (local test `firefox`, 25 checks; `b7d59fd37d`, `4bcb5f9dd7`, `e2ff5e9d75`, `e4be7cf05b`, `15d55aab70`, documented in `2f3c03dc26`).
+- Hex Fiend 2.18.1 from its own DMG: attached, copied to `/Applications`, started, staying up with its menus and document window (local test `hexfiend-dmg`; `66f91c083d`, `1185b94021`).
+- Binary nibs (NIBArchive), as Interface Builder compiles them, load for the apps' windows (`e1d404ea77`).
+- Third-party signatures and entitlements: with a valid signature, the identity and provisioning-profile entitlements let an app start without giving it any privilege (`3da59e4afc`, Phase 4).
+
+**Decisions that protect this lane from today**
 
 - Dylib and framework install names identical to the originals (`/System/Library/Frameworks/...`). *Done 2026-10-25* for every framework (AppKit in `Versions/C`), `libobjc.A.dylib` and `libbz2.1.0.dylib`, with the original compatibility versions, checked with dyld in the image; `libicucore` exports ICU's plain names (`u_strlen`).
-- Each dylib's compatibility and current versions aligned with the closed API (API 19 → 20 → 21), not with the Minkar release: since 2026-10-31 `libsystem_info` and the pthread kext keep their own versions instead of `PROD_VERSION` (`d2b559759f`).
+- Each dylib's compatibility and current versions follow the API level `ProductVersion` reports, not the Minkar release: since 2026-10-31 `libsystem_info` and the pthread kext keep their own versions instead of `PROD_VERSION` (`d2b559759f`).
 - No changes to the layout of public ivars or to the sizes of structs exposed in headers.
 - `ProductVersion` and `uname -r` are documented together; the compatibility matrix records which apps fail by deriving the platform version from Darwin.
 
-**Work (after M6)**
+| Milestone | Content | Criterion |
+| --- | --- | --- |
+| BC0 | The tests that run published binaries are a gate of the repository: `boottest GATE=BC` | It runs in the CI with every designated app and fails if an app stops starting |
+| BC1 | The matrix [Compatibility.md](Compatibility.md), generated | Regenerated by `bmake progress` |
+| BC2 | Loader: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, third-party signatures and hardened runtime, `SYSTEM_VERSION_COMPAT` | One test per case |
+| BC3 | ABI audit: method types from the encodings the binaries carry, against Minkar's headers; enums and constants against open sources | A report with no differences for the API 19 set |
+| BC4 | The API 19 set green | Part of M6's criterion |
+| BC5… | The next designated apps, grouped by the minimum version they require; one group per rise of `ProductVersion` | Each group green raises the version |
 
-1. Load binaries built for the reference platform in dyld: code signatures ignored or verified without the original certificate chain, hardened runtime tolerated.
-2. A compatibility matrix with real x86-64 apps: starts, works, fails and why.
-3. arm64: bootloader, XNU arm64 platform and cross toolchain; start in QEMU `virt`.
+The API 19 set: the apps in `tools/symbols/reference-apps.tsv` whose minimum version is 10.15 or lower (Firefox, Thunderbird, Hex Fiend, TextMate, Platypus, KeepingYouAwake, Sloth).
 
-**Exit gate (M7):** a set of x86-64 apps downloaded from third parties runs without recompiling; the arm64 image boots to M2 in QEMU.
+The next designated apps (2026-11-20): iTerm2, Skim, Transmission, Firefox (later versions), VLC, KeePassXC, IINA, Cyberduck, UTM, LibreOffice and VSCodium.
+
+The BC3 audit does not use the vendor's SDK headers.
+
+## Lane ARM — arm64
+
+On the new kernel, and only in a virtual machine for now (D4).
+
+| Milestone | Content | When |
+| --- | --- | --- |
+| ARM0 | The userland and the frameworks build for arm64 in the CI; nothing boots | Now |
+| ARM1 | Darwin 25 boots on arm64 in QEMU `virt` up to gate M2 | After KX1 |
+| ARM2 | The desktop on arm64 in QEMU (gates M4 and M5) | After ARM1 and KX2 |
+| ARM3 | The designated apps' arm64 binaries start in QEMU | After ARM2 and BC4 |
+
+Pending: the platform work the published arm64 XNU needs, and the 16 KB pages that arm64 binaries assume. Physical arm64 machines will be decided later.
+
+## Lane KX — New kernel: Darwin 25
+
+Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md).
+
+| Milestone | Content | Criterion | When |
+| --- | --- | --- | --- |
+| KX0 | ADR 0003 | ADR approved by the maintainer | Now; it does not block 19.6.0 |
+| KX1 | A prototype on a branch: Darwin 25 boots on x86-64 in QEMU up to M2, with the minimal own kexts ported | `boottest GATE=M2` on the branch | After 19.6.0 |
+| KX2 | The whole system on Darwin 25: the other kexts, WindowServer, Atlas | Every gate in QEMU, on PC 1 and on PC 2 | After KX1 |
+| KX3 | `devel` moves to Darwin 25; Darwin 19 stays on a maintenance branch for 19.6.x | Minkar 25.x | After KX2 |
+
+Until KX3, new framework and desktop work must build on both kernels.
+
+## Lane SU — SwiftUI on OpenSwiftUI
+
+Decided 2026-11-20 (D6).
+
+| Milestone | Content | Criterion | When |
+| --- | --- | --- | --- |
+| SU0 | The symbol inventory reports, per app, whether it links SwiftUI and which symbols it asks for | The report comes out in the CI | Now |
+| SU0b | Clean-room review of OpenSwiftUI, OpenAttributeGraph and their dependencies | A report approved by the maintainer | Before SU1 |
+| SU1 | Import OpenSwiftUI, OpenAttributeGraph and their dependencies, at versions pinned by SHA-256 | They build for Minkar and pass their tests in the image | After 19.6.0 and SU0b |
+| SU2 | Installed as the `SwiftUI` module in `SwiftUI.framework`, with library evolution, on Minkar's AppKit and Core Animation | An open source SwiftUI app builds and shows its window | After SU1 |
+| SU3 | ABI: the SwiftUI symbols the designated binaries import exist with the same name and layout | 100 % coverage according to SU0 | After SU2 |
+| SU4 | The published binary of a designated app that links SwiftUI starts (candidate: iTerm2; SU0 will say if there are more) | Part of gate BC | After SU3 |
+
+- If SU0b concludes that OpenSwiftUI, or parts of it, do not meet the clean-room rule, those parts are not imported and the decision goes back to the maintainer.
+- OpenSwiftUI declares itself in early development and aims at source compatibility, so ABI compatibility (SU3–SU4) is Minkar's own work.
+- What Minkar fixes is sent upstream to those projects.
 
 ## Milestones, dependencies and critical path
 
-Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0); Phase 7 (M7) and Minkar 21.0's performance run apart.
+Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0). The lanes BC, ARM, KX and SU have their own milestones (M7 is gone, 2026-11-20): BC0–BC4 are part of M6; KX0, ARM0, SU0 and SU0b start now; KX1 and the rest of the lanes come after 19.6.0; the performance requirement belongs to a release after 25.x.
 
-M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05), and Phase 2 is closed (2026-10-31). Active work is in Phase 5, Atlas ([Atlas.md](Atlas.md): MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 and the notification center N0–N2 done), and in what Minkar 19.6.0 needs besides (WebKit W2–W4 and audio and media AU1–AU6 done). The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05), and Phase 2 is closed (2026-10-31). Active work is in Phase 5, Atlas ([Atlas.md](Atlas.md): MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 and the notification center N0–N2 done), and in what Minkar 19.6.0 needs besides (WebKit W2–W4 and audio and media AU1–AU6 done). The GPU track runs in parallel and feeds the performance requirement: equal to or better than the reference system on the same machine, from a release after 25.x. Lane BC runs now, as part of M6.
 
 - [x] M0 — Build, toolchain, CI
 - [x] M1 — Darwin boot
@@ -516,10 +574,12 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 - [x] M4 — Graphics and WindowServer (met 3 Nov 2026: gate M4)
 - [ ] M5 — Atlas desktop
 - [ ] M6 — Apps and distribution (Minkar 19.6.0)
-- [ ] Minkar 21.0 — API 21 complete and performance
-- [ ] M7 — Binary compatibility, arm64
+- [ ] BC0–BC4 — Binary compatibility, the API 19 set (part of M6)
+- [ ] Minkar 25.x — KX3: every gate on Darwin 25
+- [ ] ARM1–ARM3, SU1–SU4 and BC5 on — after Minkar 19.6.0
+- [ ] Performance ≥ the reference system (a release after 25.x)
 
-| Gate | Phase | State on 2026-11-16 |
+| Gate | Phase or lane | State on 2026-11-20 |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
 | M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2 (NVMe, 24 threads; 2026-11-01) |
@@ -528,8 +588,11 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
 | M5 | Atlas desktop | Under way: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 and the notification center (N0–N2) done ([Atlas.md](Atlas.md)) |
 | M6 (Minkar 19.6.0) | Apps and distribution, the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio and media (AU1–AU10), and gate BC with the API 19 set (BC4) | Under way: WebKit W2–W4 and audio and media AU1–AU6 done; `hdiutil attach` already mounts |
-| Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
-| M7 | Binary compatibility, arm64 | After Minkar 19.6.0 |
+| BC | Binary compatibility | Under way: Firefox 160 and Hex Fiend 2.18.1 run from their published binaries (local tests `firefox`, `hexfiend-dmg`); BC0 and BC1 started 2026-11-20 |
+| KX | Darwin 25 | KX0 (ADR 0003) proposed 2026-11-20; KX1 after Minkar 19.6.0 |
+| ARM | arm64 | ARM0 (the build in the CI) started 2026-11-20 |
+| SU | SwiftUI on OpenSwiftUI | SU0 (the report) and SU0b (the clean-room review) started 2026-11-20 |
+| Performance | ≥ the reference system on a physical machine, on the new kernel | Not started; depends on the GPU track and KX; a release after 25.x |
 
 ## Risks and mitigations
 
@@ -540,10 +603,15 @@ The dominant risk is people, not technology: a small team with many layers open 
 | Few developers experienced with XNU and kexts | Phase 1 drags on and blocks everything | Document the boot step by step; only QEMU hardware until M2 |
 | The public CF-Lite predates API 19 | CF APIs missing for API 20 and 21 | Add them by hand with swift-corelibs CF as reference; bridging tests on every change |
 | Heterogeneous real hardware | Bugs that cannot be reproduced | A short reference hardware list; the rest "best effort" |
-| GPU drivers: the longest block, and now a requirement | Minkar 21.0 does not match the reference system | A parallel track from now; one GPU family; a KMS prototype before committing; a compositor designed for the GPU |
-| SwiftUI off the roadmap | Many modern apps do not build | Decided: API 19–21 close without SwiftUI; OpenSwiftUI watched; measure how many reference apps use it |
+| GPU drivers: the longest block, and now a requirement | The performance release does not match the reference system | A parallel track from now; one GPU family; a KMS prototype before committing; a compositor designed for the GPU |
+| Apps that link SwiftUI | Their published binaries do not start | Decided 2026-11-20 (D6): lane SU on OpenSwiftUI after a clean-room review; SU0 measures which designated apps link it and what they import |
+| `ProductVersion` raised with the API incomplete (D2) | `@available` takes a missing API as present and an app takes a path that fails | The noisy stubs log each first call; gate BC runs the group's apps before each rise; `SYSTEM_VERSION_COMPAT` for old binaries |
+| Designated apps that are not representative | Gate BC green while other apps fail | Groups by minimum version and by the frameworks they use; apps added from the stub log and the matrix; the list reviewed at each rise |
+| OpenSwiftUI against the clean room | Code that has to be removed, or cannot be imported | The SU0b review before any import; a part whose origin is unclear is not imported; the decision goes back to the maintainer |
+| Pieces of the new kernel that are not published | KX1 slips; pieces written from scratch | ADR 0003 lists them before starting; a prototype on a branch; 19.6.x stays on Darwin 19 |
+| AU7–AU10 inside Minkar 19.6.0 | 19.6.0 slips | Audio runs in parallel, outside the two-lane limit; its gates measured early on PC 1 |
 | Licenses and clean room | Code that has to be removed | A license review on every third-party import; a clean-room statement on every PR |
-| Work scattered across many layers | Nothing becomes usable | A public board per phase and lane; at most two active lanes at once, plus audio and the GPU (2026-11-20) |
+| Too many fronts: phases, four lanes, audio and the GPU | Nothing closes; nothing becomes usable | A public board per phase and lane; at most two active lanes at once, plus audio and the GPU; scope frozen per version (principle 7) (2026-11-20) |
 | Out-of-date documentation (archived wiki) | Contributors work from old information | The roadmap and state in `Docs/` in the repo, updated at each milestone |
 
 ## Next steps

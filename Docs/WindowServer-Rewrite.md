@@ -668,7 +668,7 @@ source, so no Minkar process has entitlements today. Decided 2026-10-31:
 - **Names.** Entitlement names stay as the kernel and the frameworks check
   them.
 - **Later.** Certificate-based signatures, verified with corecrypto, for what
-  is signed outside the build and for third-party apps (Phase 7); the policy
+  is signed outside the build and for third-party apps (lane BC); the policy
   kext keeps a place for that check. A user-space validation daemon only if
   provisioning profiles or expensive checks need it.
 - **Milestone.** Its own ADR first (`Docs/ADR/0001-Kernel-Entitlements.md`,

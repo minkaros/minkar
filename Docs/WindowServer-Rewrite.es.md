@@ -722,7 +722,7 @@ Minkar tiene entitlements. Decidido el 31 oct 2026:
 - **Nombres.** Los nombres de los entitlements se quedan como los comprueban
   el kernel y los frameworks.
 - **Después.** Firmas con certificado, verificadas con corecrypto, para lo que
-  se firme fuera del build y para las apps de terceros (Fase 7); el kext de
+  se firme fuera del build y para las apps de terceros (carril BC); el kext de
   política deja sitio para esa comprobación. Un daemon de validación en espacio
   de usuario solo si lo necesitan provisioning profiles o comprobaciones caras.
 - **Hito.** Primero su propio ADR (`Docs/ADR/0001-Kernel-Entitlements.es.md`,
