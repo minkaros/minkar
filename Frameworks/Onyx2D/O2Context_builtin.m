@@ -249,7 +249,7 @@ ONYX2D_STATIC O2Context_builtin *O2ContextCreateClipMask_builtin(O2Context_built
     return nil;
    mask=[[O2Context_builtin alloc] initWithSurface:surface flipped:NO];
    [surface release];
-   O2ContextClearRect(mask,O2RectMake(0,0,width,height));
+   /* A new surface is zeroed already: no clear over all of it. */
    mask->_clipContext=[previous retain];
 
    paint=[[O2Paint_color alloc] initWithGray:1 alpha:1 surfaceToPaintTransform:O2AffineTransformIdentity];
@@ -287,7 +287,7 @@ ONYX2D_STATIC O2Context_builtin *O2ContextCreateClipMaskFromImage_builtin(O2Cont
     return nil;
    mask=[[O2Context_builtin alloc] initWithSurface:surface flipped:NO];
    [surface release];
-   O2ContextClearRect(mask,O2RectMake(0,0,width,height));
+   /* A new surface is zeroed already: no clear over all of it. */
    mask->_clipContext=[previous retain];
 
    gState=O2ContextCurrentGState(mask);
