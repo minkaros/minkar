@@ -4,65 +4,83 @@
 
 ## Resumen ejecutivo
 
-La meta de Minkar es un sistema sobre Darwin 19.6.0 que compile y ejecute apps Cocoa. La primera versión, **Minkar 19.6.0**, entrega la API 19 con el escritorio Atlas y su propio lenguaje visual; Minkar 20.0 y 21.0 completan las API 20 y 21 sin cambiar el kernel. La ruta crítica es estrictamente ascendente: arranque Darwin → launchd → userland → frameworks → WindowServer → Atlas → apps. Objective-C y Swift completo, DMG, compatibilidad binaria y arm64 se paralelizan o se difieren para no bloquear esa ruta.
+La meta de Minkar es ejecutar sin recompilar las apps hechas para la plataforma de referencia, manteniéndose una versión de API por detrás de la actual de esa plataforma: hoy la meta es la API 25, y la actual es la API 26, que solo existe para arm64. Se mide por un conjunto de apps designadas cuyos binarios publicados deben arrancar y funcionar en Minkar (decidido el 20 nov 2026). La primera versión, **Minkar 19.6.0**, corre sobre Darwin 19.6.0 y entrega el escritorio Atlas para el uso diario con su propio lenguaje visual, el instalador del sistema, el gate de binarios con el conjunto de apps de la API 19, WebKit hasta W5, todo el audio (AU1–AU10) y la GPU tal como estaba planificada. Después, Minkar salta a Darwin 25, que trae arm64. La ruta crítica es estrictamente ascendente: arranque Darwin → launchd → userland → frameworks → WindowServer → Atlas → apps. La compatibilidad binaria, arm64, el kernel nuevo y SwiftUI son carriles junto a esa ruta, cada uno con sus hitos.
 
-El plan tiene 8 fases (0–7), cada una con entregables y un criterio de salida verificable en CI. Ninguna fase superior se da por cerrada si la inferior no pasa su gate. Desde el 29 oct 2026 rige además un requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo físico, exigido desde Minkar 21.0 (ver Requisitos de rendimiento).
+El plan tiene 7 fases (0–6) y cuatro carriles (BC, ARM, KX y SU), cada uno con entregables y un criterio de salida verificable en CI. Ninguna fase superior se da por cerrada si la inferior no pasa su gate. Desde el 29 oct 2026 rige además un requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo físico, exigido desde una versión posterior a Minkar 25.x y medido sobre el kernel nuevo (ver Requisitos de rendimiento).
 
 **Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español, y [Progress.es.md](Progress.es.md) resume su estado: una tabla, un mapa de metro de los hitos por plan y un tablero de trabajo, generados desde `progress/status.toml`; verificado contra la rama `devel` en `82c5f3e8f8` (31 oct 2026), 140 commits por delante de `main`.
 
 ### Principios arquitectónicos
 
 1. **Gates verificables, de abajo arriba.** Cada fase termina con una prueba automatizada que arranca la ISO en QEMU. Sin prueba verde no hay fase cerrada.
-2. **El contrato es la API pública Cocoa, por números de API.** Primero la API 19, luego la 20 y la 21. Cada símbolo se clasifica como implementado, stub o ausente, y se mide.
+2. **El contrato es que los binarios publicados corran.** Los números de API nombran niveles; la matriz de compatibilidad ([Compatibility.es.md](Compatibility.es.md)) ordena el trabajo en frameworks. Cada símbolo se sigue clasificando como implementado, stub o ausente, y se mide (decidido el 20 nov 2026).
 3. **Stubs ruidosos.** Todo stub registra su primera llamada en el log del sistema. Así las apps reales dicen qué falta, en orden de uso.
 4. **Reutilizar antes que escribir.** Primero código abierto APSL (xnu, dyld, launchd, hfs), luego swift-corelibs, luego userland FreeBSD. Código nuevo solo para los huecos.
 5. **Licencias limpias.** El código escrito desde cero para Minkar va bajo BSD-2-Clause o MIT; las bibliotecas y frameworks de terceros que modificamos conservan su licencia original. Regla de sala limpia: nadie que haya visto código cerrado de la plataforma de referencia aporta código. Las marcas de terceros no se usan en nombres, iconos ni textos públicos; un único TRADEMARKS.md lo declara. Una excepción, aceptada por el mantenedor porque no existe un juego de iconos del mismo alcance con licencia BSD o MIT: los iconos de Atlas son los temas Faience y Faenza (GPL-3), ficheros de datos separados en `SystemLibrary/Icons` que conservan su licencia GPL-3; ningún código se enlaza con ellos y el resto de esta regla sigue igual.
-6. **Apps de referencia como pruebas de aceptación.** Un conjunto fijo de apps de código abierto escritas para la API Cocoa se compila en cada hito; su lista de símbolos importados prioriza el trabajo en frameworks.
+6. **Apps de referencia como pruebas de aceptación.** Un conjunto fijo de apps de código abierto escritas para la API Cocoa se compila en cada hito, y el binario publicado de cada app designada se ejecuta en cada gate, además de analizarse (gate BC); su lista de símbolos importados prioriza el trabajo en frameworks.
+7. **Alcance congelado por versión.** Un framework o una app nuevos entran en una versión solo si los pide un binario designado o el log de stubs. Audio y GPU quedan exentos: las apps los necesitan (decidido el 20 nov 2026).
+
+**Trabajo en curso:** dos carriles activos como máximo, más audio y GPU en paralelo (decidido el 20 nov 2026; sustituye a «máximo dos fases activas»).
 
 ## Decisión de versiones
 
-Minkar separa tres capas que en la plataforma de referencia van juntas. El kernel se queda en Darwin 19.6.0; la API y el aspecto avanzan por su cuenta.
+Minkar separa tres capas que en la plataforma de referencia van juntas. El kernel se queda en Darwin 19.6.0 hasta publicar Minkar 19.6.0 y luego salta a Darwin 25; la API y el aspecto avanzan por su cuenta.
 
 | Capa | Decisión | Nota |
 | --- | --- | --- |
-| Kernel y base BSD | Darwin 19.6.0 | Se toca solo cuando una API nueva necesite una interfaz del kernel |
-| API | API 19 primero; luego API 20 y 21 | Cada API guiada por los imports de las apps de referencia |
+| Kernel y base BSD | Darwin 19.6.0 para Minkar 19.6.0 y 19.6.x; después Darwin 25 (carril KX) | Hasta KX3, una interfaz del kernel que necesite una API nueva se resuelve sobre Darwin 19.6.0 con un parche acotado o en userland |
+| API | Niveles nombrados por número de API; la meta es un nivel por detrás del actual de la plataforma de referencia (hoy la API 25) | El trabajo lo ordenan las apps designadas y la matriz de compatibilidad |
 | Aspecto | Lenguaje visual Atlas desde la Fase 5 | Diseño propio con su guía; sin iconos, fuentes ni recursos gráficos de terceros |
 
-**Números de API (decidido el 30 oct 2026).** «API N» nombra la API pública Cocoa de Darwin N; no es el kernel, que sigue en Darwin 19.6.0. En código, plists y macros de disponibilidad se usa el número de versión de la tabla; en el texto, «API N».
+**Números de API (decidido el 30 oct 2026).** «API N» nombra la API pública Cocoa de Darwin N; no es el kernel. En código, plists y macros de disponibilidad se usa el número de versión de la tabla; en el texto, «API N».
 
 | API | Versión en código (`API_AVAILABLE`, `ProductVersion`) | Año |
 | --- | --- | --- |
 | API 19 | 10.15 | 2019 |
 | API 20 | 11.0 | 2020 |
 | API 21 | 12.0 | 2021 |
-| API 22–26 | 13.0 a 27.0 | 2022–2026, fuera del alcance |
+| API 22–24 | 13.0 a 15.0 | 2022–2024 |
+| API 25 | 26.0 | 2025, la meta actual |
+| API 26 | 27.0 | 2026, el nivel actual de la plataforma de referencia (solo arm64) |
 
-**Versiones de Minkar (decidido el 30 oct 2026).** La versión principal de Minkar es la API que entrega; el kernel no cambia con ella.
+**Decisiones (20 nov 2026).** Sustituyen a las reglas que nombran; el resto de esta sección las sigue.
 
-| Minkar | Entrega | Kernel (`uname -r`) | `ProductVersion` |
-| --- | --- | --- | --- |
-| 19.6.0 | API 19, escritorio Atlas completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5), audio y medios (AU1–AU6), DMG y el instalador del sistema; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
-| 19.6.x | Correcciones, y MB4, D4 y K4, y audio profesional (AU7–AU10); pueden traer partes de API 20 | 19.6.0 | 10.15 |
-| 20.0 | API 20 completa y probada | 19.6.0 | 11.0 |
-| 21.0 | API 21 completa y probada, más los gates de rendimiento | 19.6.0 | 12.0 |
+| # | Decisión |
+| --- | --- |
+| D1 | Una versión la cierra un conjunto de apps designadas: sus binarios publicados arrancan y funcionan en Minkar sin recompilar. Ya no la cierra «API N completa». |
+| D2 | `ProductVersion` sube cuando el conjunto de apps que exige esa versión pasa su gate. Sustituye al criterio anterior (subir solo con la API cerrada). El riesgo conocido, que `@available` dé por presente una API que falta, se mitiga con los stubs ruidosos. |
+| D3 | Minkar 19.6.0 entrega el escritorio Atlas para el uso diario, el instalador, el gate de binarios, WebKit hasta W5, todo el audio (AU1–AU10) y la GPU tal como estaba planificada. Las apps propias A5–A10 pasan a 19.6.x. |
+| D4 | arm64 empieza ya como compilación en la CI; su arranque llega después de 19.6.0, sobre el kernel nuevo, y solo en máquina virtual (QEMU) por el momento. |
+| D5 | Minkar salta a Darwin 25, para cumplir el objetivo de arm64. 19.6.0 sale sobre Darwin 19.6.0; el salto se hace después de publicarla. Sustituye a la decisión de mantener Darwin 19.6.0 para las API 20 y 21. |
+| D6 | SwiftUI entra en Minkar integrando OpenSwiftUI (MIT), con el modelo de OpenCombine como `Combine`, manteniendo la sala limpia: la importación queda condicionada a una revisión de sala limpia. Sustituye a la decisión del 25 oct 2026. |
 
-- El salto de versión lo decide un gate, no la fecha. Si algún día se actualiza el kernel, la versión sube a la que corresponda.
-- Equivalencias: la antigua «1.0» es Minkar 19.6.0 y la «2.0» pasa a ser el requisito de rendimiento de Minkar 21.0. La numeración 0.x (`PROD_VERSION = 0.7.1`) pasa a `19.6.0`, con `ProductFamily` Pre Alpha → Alpha → Beta.
+Audio y GPU no se recortan ni se aplazan (las apps los necesitan), y quedan fuera de la congelación de alcance.
+
+**Versiones de Minkar (decidido el 30 oct 2026; reescrito el 20 nov 2026 con D2 y D5).** Una versión la cierra un conjunto de apps designadas, no una API completa; el kernel cambia una vez, después de 19.6.0.
+
+| Minkar | Kernel | Qué la cierra |
+| --- | --- | --- |
+| 19.6.0 | Darwin 19.6.0 | M5, M6 (con AU1–AU10) y el conjunto 19 en verde (BC4) |
+| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, apps A5–A10; `ProductVersion` puede subir por conjuntos |
+| 25.x | Darwin 25 | KX3: todos los gates sobre el kernel nuevo |
+| siguientes | El Darwin que corresponda | Apps designadas, arm64, SwiftUI, rendimiento |
+
+- El salto de versión lo decide un gate, no la fecha. Las versiones 20.0 y 21.0 desaparecen como hitos (20 nov 2026).
+- Equivalencias: la antigua «1.0» es Minkar 19.6.0, y la «2.0» pasó a ser el requisito de rendimiento, primero de Minkar 21.0 y desde el 20 nov 2026 de una versión posterior a 25.x, medido sobre el kernel nuevo. La numeración 0.x (`PROD_VERSION = 0.7.1`) pasa a `19.6.0`, con `ProductFamily` Pre Alpha → Alpha → Beta.
 
 * **APIs que dependen del kernel.** Algunas APIs nuevas esperan interfaces que XNU 19.x no tiene; por ejemplo, libpthread y libdispatch modernos usan las interfaces de workqueue y kevent de un XNU más reciente. Cada caso se resuelve con un parche acotado al kernel o con una implementación en userland, y la decisión se documenta.
-* **Versión reportada (decidido el 25 oct; ampliado el 30 oct 2026).** `ProductVersion` en `SystemVersion.plist` reporta el valor de compatibilidad de la última API cerrada (10.15, 11.0, 12.0), nunca 19.6.0; `ProductUserVisibleVersion` muestra la versión de Minkar (19.6.0); `uname -r` sigue diciendo 19.6.0. `@available`, `sw_vers -productVersion`, `NSProcessInfo` y LaunchServices leen `ProductVersion`, y libSystem (`_availability_version_check`) toma el valor de ahí.
-  - Se arranca en 10.15 (API 19) y se sube a 11.0 y 12.0 solo al cerrar la API 20 y la API 21.
-  - Gate de cada API: un script verifica que ningún símbolo de su lista sea un stub, usando el inventario de símbolos de la Fase 0 y el log de stubs ruidosos.
+* **Versión reportada (decidido el 25 oct; ampliado el 30 oct 2026; su subida cambia el 20 nov 2026 por D2).** `ProductVersion` en `SystemVersion.plist` reporta un valor de compatibilidad (10.15, 11.0, 12.0...), nunca 19.6.0; `ProductUserVisibleVersion` muestra la versión de Minkar (19.6.0); `uname -r` dice 19.6.0 hasta KX3 y después la versión del kernel nuevo. `@available`, `sw_vers -productVersion`, `NSProcessInfo` y LaunchServices leen `ProductVersion`, y libSystem (`_availability_version_check`) toma el valor de ahí.
+  - Se arranca en 10.15 (API 19). Sube a la versión mínima que exige un grupo de apps designadas cuando ese grupo pasa el gate BC (carril BC, desde BC5); sustituye al criterio de subir solo al cerrar la API. El riesgo conocido, que `@available` dé por presente una API que falta, se mitiga con los stubs ruidosos.
+  - Gate de cada grupo: sus apps pasan el gate BC; el inventario de símbolos y el log de stubs ruidosos dicen cuáles de los símbolos que importan siguen siendo stubs.
   - Compatibilidad: mecanismo tipo `SystemVersionCompat.plist` y `SYSTEM_VERSION_COMPAT=1`. Los binarios enlazados con un SDK anterior reciben la versión antigua.
   - Descartado: subir `kern.osrelease` a 21.x, porque mentiría sobre la ABI del kernel; reportar 10.15 para siempre, porque bloquea las apps que exigen una API mayor en `LSMinimumSystemVersion`; y poner 19.6.0 en `ProductVersion`, porque `@available` daría por presentes APIs que faltan.
-* **Software que deduce la versión de la plataforma desde Darwin** (19 → API 19) se registra en la matriz de compatibilidad de la Fase 7. Ejemplo: un clang nativo con triple `darwin19.6.0` asume el deployment target de la API 19 (10.15); se corrige con `MACOSX_DEPLOYMENT_TARGET`.
+* **Software que deduce la versión de la plataforma desde Darwin** (19 → API 19) se registra en la matriz de compatibilidad (carril BC). Ejemplo: un clang nativo con triple `darwin19.6.0` asume el deployment target de la API 19 (10.15); se corrige con `MACOSX_DEPLOYMENT_TARGET`.
 
 ## Requisitos de rendimiento y hardware de referencia
 
 El rendimiento de Minkar debe ser igual o mejor que el del sistema de referencia en el mismo equipo físico (decidido el 29 oct 2026). Una solución que funciona pero es lenta no cierra un requisito: queda como parcial. El uso final es en equipos físicos; las máquinas virtuales son solo entorno de desarrollo.
 
-**Decidido (30 oct 2026):** Minkar 19.6.0 cierra los gates funcionales M0–M6; Minkar 21.0 exige además los gates de rendimiento de esta tabla. El frente de GPU empieza ya, en paralelo, porque es la pieza más larga y de ella depende el requisito.
+**Decidido (30 oct 2026; movido el 20 nov 2026):** Minkar 19.6.0 cierra los gates funcionales M0–M6; los gates de rendimiento de esta tabla, antes de Minkar 21.0, pasan a una versión posterior a 25.x y se miden sobre el kernel nuevo. El frente de GPU sigue ya, en paralelo, porque es la pieza más larga y de ella depende el requisito.
 
 | Métrica | Requisito, frente al sistema de referencia en el mismo equipo |
 | --- | --- |
@@ -258,7 +276,7 @@ Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta c
 4. LaunchServices: base de datos de bundles y tipos UTI; `open` y Files dependen de ella. *Hecho en WS4a:* el servicio de sesión, que guarda las apps en ejecución (`launchservicesd` y el cliente de la sesión en `LaunchServices.framework`, `996178d949`). *Hecho (4 nov 2026, `0331f57894`, `345636f2f5`):* launchservicesd guarda las apps instaladas, sus tipos de documento y los tipos que declaran, dice qué apps abren un archivo y entrega los documentos a una app (en el momento o después de su arranque); `LSOpenCFURLRef`, `LSOpenFromURLSpec`, `LSCopyDefaultApplicationURLForURL`, `LSCopyApplicationURLsForURL`, `LSRegisterURL`, `LSRevealInFiles`; AppKit entrega los documentos a `application:openURLs:` y NSWorkspace abre a través de él. Prueba local `launchservices` 24/0. Se fue el código de la base SQLite de ravynOS (`e7ae74a2e5`).
 5. CoreText y CoreData: implementación mínima guiada por uso real (ver la guía técnica de la pila gráfica).
 6. Swift 6: stdlib y runtime completos, con concurrencia en el sistema, y module maps para los frameworks.
-7. API 19 → 20 → 21, subiendo `ProductVersion` (10.15 → 11.0 → 12.0) al cerrar cada una; cada cierre es una versión de Minkar (19.6.0, 20.0, 21.0).
+7. Los niveles de API que pidan las apps designadas, subiendo `ProductVersion` (10.15 → 11.0 → ...) a medida que cada grupo de apps pasa el gate BC (D2, 20 nov 2026).
 
 Llegan de la Fase 2 (31 oct 2026):
 
@@ -372,7 +390,7 @@ El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido e
 - [x] `pbcopy` y `pbpaste` sobre el servidor de pasteboard, y `screencapture` sobre la captura de WindowServer (movidos desde la Fase 2; 3 nov 2026): el servidor de pasteboard `pboard` (`dd06e82755`), el `NSPasteboard` de AppKit sobre él con la API de 10.6 en adelante (`fec8a72732`), `pbcopy` y `pbpaste` (`a5ced9833e`), `screencapture` a PNG, TIFF o el pasteboard (`c536c7dbe9`). Para más adelante: los datos prometidos entre procesos, la selección interactiva, el cursor y JPEG en `screencapture`.
 - [x] Varias pantallas y cambio de resolución (3 nov 2026; probado en QEMU con dos pantallas, sin segundo monitor en los equipos de referencia): los cambios de modo llegan a las apps (WS5, `display-reconfigure`); un solo escritorio sobre las pantallas, primero la de arranque por su posición PCI (`e5720024f7`); el puntero se mueve sobre todas y nunca fuera de ellas, porque IOHIDSystem recibe las pantallas del servidor de ventanas (`e5720024f7`); cada pantalla se captura por separado (`93f2e9249a`); disposición y duplicación, y una pantalla que deja de duplicar vuelve junto a las demás (`9b6a9a3a2d`). Prueba local `multi-display` 19/0. Queda: marcar como pantalla de arranque el dispositivo que contiene el framebuffer del firmware, para que una GPU de arranque que no sea la primera del bus siga siendo la principal.
 - [x] ADR de GPU: familia, licencias (solo partes MIT/BSD de drm-kmod), capa tipo LinuxKPI para XNU y prototipo KMS en el equipo de referencia (ADR 0002 y G1, 2 nov 2026, `a42a1800b1`, `050acdb1ee`).
-- [ ] Gate de rendimiento de composición en el PC de referencia (requisito de Minkar 21.0).
+- [ ] Gate de rendimiento de composición en el PC de referencia (requisito de rendimiento de una versión posterior a 25.x).
 
 **Criterio de salida (M4):** en QEMU y en un PC de referencia, varias apps de AppKit abren ventanas, se arrastran, reciben teclado y redibujan sin artefactos.
 
@@ -525,7 +543,7 @@ El riesgo dominante es de personas, no técnico: un equipo pequeño con muchas c
 | Drivers de GPU: el bloque más largo, y ahora requisito | Minkar 21.0 no iguala al sistema de referencia | Frente paralelo desde ya; una sola familia de GPU; prototipo KMS antes de comprometerse; compositor diseñado para GPU |
 | SwiftUI fuera del roadmap | Muchas apps modernas no compilan | Decidido: las API 19–21 cierran sin SwiftUI; OpenSwiftUI en observación; medir cuántas apps de referencia lo usan |
 | Licencias y sala limpia | Código que hay que retirar | Revisión de licencia en cada importación de terceros; declaración de sala limpia en cada PR |
-| Trabajo disperso en muchas capas | Nada llega a usable | Tablero público por fase; máximo dos fases activas al mismo tiempo |
+| Trabajo disperso en muchas capas | Nada llega a usable | Tablero público por fase y carril; dos carriles activos como máximo, más audio y GPU (20 nov 2026) |
 | Documentación desfasada (wiki archivado) | Contribuidores trabajan sobre información vieja | Mover roadmap y estado a `Docs/` dentro del repo, actualizados en cada hito |
 
 ## Próximos pasos
@@ -546,7 +564,7 @@ Además, lo que este plan añade y aún no está en el repo:
 - [x] **`Docs/ROADMAP.md` al día (31 oct):** reescrito desde este plan, con Atlas y Files, el esquema API 19/20/21 → Minkar 19.6.0/20.0/21.0, el frente de GPU y el requisito de rendimiento.
 - [ ] **Compatibilidad de versión:** mecanismo tipo `SystemVersionCompat.plist` y `SYSTEM_VERSION_COMPAT=1` para binarios enlazados con un SDK anterior.
 - [x] **Decidir la familia del primer driver de GPU** y escribir el ADR: GCN 1.0, luego RDNA2, luego Gen9 ([ADR 0002](ADR/0002-GPU-First-Family.es.md), `69fed7cb81`). Un driver de pantalla es también lo que apaga la pantalla, que el framebuffer GOP no permite: hecho para GCN 1.0 con G1; la RX 6600 del PC 1 es la siguiente.
-- [ ] **Medición:** medir el sistema de referencia en hardware original (PC 2) y guardar los valores fuera del repo público, para los gates de rendimiento de Minkar 21.0.
+- [ ] **Medición:** medir el sistema de referencia en hardware original (PC 2) y guardar los valores fuera del repo público, para los gates de rendimiento (una versión posterior a 25.x).
 - [ ] **Rendimiento NVMe en QEMU:** las lecturas por el dispositivo de bloques van a 1 MB/s.
 
 ## Fuentes
