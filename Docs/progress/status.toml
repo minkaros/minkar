@@ -252,7 +252,7 @@ doc_es = "ROADMAP.es.md#carril-bc--compatibilidad-binaria"
 # their published binaries, binary nibs, third-party signatures.
 # BC0 to BC4 are part of M6; BC5 on raises ProductVersion by app groups.
 stations = [
-  ["Published apps", 700, "done"], ["BC0 gate", 760, "current"], ["BC1 matrix", 815, "current"],
+  ["Published apps", 700, "done"], ["BC0 gate", 760, "current"], ["BC1 matrix", 815, "done"],
   ["BC2 loader", 865, "partial"], ["BC3 ABI", 915, "todo"], ["BC4 set 19", 970, "todo"],
   ["BC5…", 1060, "todo"],
 ]

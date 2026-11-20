@@ -226,8 +226,10 @@ def undmg(archive, dest):
         for root, dirs, files in os.walk(tree):
             for name in dirs + files:
                 path = os.path.join(root, name)
-                # 7z writes extended attributes as files beside theirs.
-                if ':com.apple.' in name and not os.path.isdir(path):
+                # 7z writes extended attributes as files beside theirs, and
+                # the volume's journal, unreadable: neither is the app's.
+                if (':com.apple.' in name or name in ('.journal', '.journal_info_block')) \
+                        and not os.path.isdir(path):
                     os.unlink(path)
                     continue
                 if os.path.islink(path):

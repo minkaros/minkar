@@ -21,7 +21,7 @@ _Updated 2026-11-20, devel `1aaa4bfb8b`_
 | [WebKit](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟨🟦🟩🟩🟩🟨 | 3 / 6 | W1 JSC | — |
 | [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Audio](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩⬜ | 1 / 2 | — | AU7–AU10 |
-| [Lane BC](ROADMAP.md#lane-bc--binary-compatibility) | 🟩🟦🟦🟨⬜⬜⬜ | 1 / 7 | BC0 gate, BC1 matrix | BC3 ABI |
+| [Lane BC](ROADMAP.md#lane-bc--binary-compatibility) | 🟩🟦🟩🟨⬜⬜⬜ | 2 / 7 | BC0 gate | BC3 ABI |
 | [Lane KX](ROADMAP.md#lane-kx--new-kernel-darwin-25) | 🟦⬜⬜⬜ | 0 / 4 | KX0 ADR | KX1 M2 |
 | [Lane ARM](ROADMAP.md#lane-arm--arm64) | 🟦⬜⬜⬜ | 0 / 4 | ARM0 build | ARM1 M2 |
 | [Lane SU](ROADMAP.md#lane-su--swiftui-on-openswiftui) | 🟦🟦⬜⬜⬜⬜ | 0 / 6 | SU0 report, SU0b review | SU1 import |

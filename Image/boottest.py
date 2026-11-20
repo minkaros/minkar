@@ -109,6 +109,12 @@ class SSH(str):
     """
 
 
+class Put(str):
+    """A gate step that copies a file from the host into the guest (scp),
+    as "LOCAL\tREMOTE". It runs when it reaches the head of the steps, and
+    is retried while the copy fails (sshd may still be starting)."""
+
+
 # The shell echoes what it is sent, so the answer, not the command, is
 # what the next marker matches: "Minkar: 42" only appears in its output.
 SHELL_INPUT = [Send('echo "Minkar: $((6 * 7))"'), 'Minkar: 42']
@@ -335,6 +341,49 @@ GATES['M4'] = GATES['M2'] + [
         'pgrep -x WindowServerDemo >/dev/null || echo "boottest: the app quit"'),
     'session ended', 'boottest: the app quit',
 ]
+# Gate BC (Docs/ROADMAP.md, lane BC): the designated apps' published
+# binaries run in the image's desktop session. The apps are downloaded on
+# the host by tools/compat/bc-gate.py, which writes the steps for each one
+# (copy its archive in, run Tests/BC's runner, see its end) to a JSON file
+# given with --bc-plan; that script, not this one, judges the results.
+GATES['BC'] = GATES['M2'] + [
+    WS_STARTED, 'WindowServer: serving org.minkar.WindowServer',
+    SSH('sw_vers -productVersion | sed "s/^/bc: product-version /"'), 'bc: product-version',
+]
+PUT_ATTEMPTS = 5
+
+
+def bc_plan(path):
+    """The steps of a gate BC plan: [{"put": [local, remote]} | {"ssh": command} |
+    {"expect": marker}, ...]."""
+    with open(path) as f:
+        plan = json.load(f)
+    steps = []
+    for step in plan:
+        if 'put' in step:
+            steps.append(Put('%s\t%s' % tuple(step['put'])))
+        elif 'ssh' in step:
+            steps.append(SSH(step['ssh']))
+        else:
+            steps.append(step['expect'])
+    return steps
+
+
+def put(args, step):
+    local, remote = step.split('\t')
+    cmd = ['scp', '-q', '-i', args.ssh_key, '-P', str(args.ssh_port),
+           '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+           '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'LogLevel=ERROR',
+           local, 'root@127.0.0.1:%s' % remote]
+    for attempt in range(PUT_ATTEMPTS):
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if r.returncode == 0:
+            return 'boottest-put: copied %s' % os.path.basename(local)
+        time.sleep(5)
+    return 'boottest-put: failed to copy %s: %s' % (
+        os.path.basename(local), r.stdout.decode('utf-8', 'replace').strip()[-200:])
+
+
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
     'M2': ['Login incorrect'],
@@ -342,6 +391,7 @@ GATE_FAIL = {
     # "m3: every suite passed": fail then, not at the timeout.
     'M3': ['Login incorrect', 'suites failed'],
     'M4': ['Login incorrect', 'boottest-draw: the screen differs'],
+    'BC': ['Login incorrect', 'boottest-put: failed'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
@@ -605,13 +655,19 @@ def act(args, step, tmp):
 
 def run(args):
     expect = list(args.expect or GATES[args.gate])
+    if args.gate == 'BC' and not args.expect:
+        if not args.bc_plan:
+            print('boottest: gate BC needs --bc-plan (tools/compat/bc-gate.py writes it)',
+                  file=sys.stderr)
+            return 1
+        expect += bc_plan(args.bc_plan)
     if PASSWORD in expect:
         if not args.password:
             print('boottest: gate %s needs --password or $BOOTTEST_PASSWORD' % args.gate,
                   file=sys.stderr)
             return 1
         expect = [Send(args.password) if m is PASSWORD else m for m in expect]
-    if any(isinstance(m, SSH) for m in expect) and not (
+    if any(isinstance(m, (SSH, Put)) for m in expect) and not (
             args.ssh_key and os.path.exists(args.ssh_key)):
         print('boottest: gate %s needs --ssh-key or $BOOTTEST_SSH_KEY' % args.gate,
               file=sys.stderr)
@@ -674,6 +730,17 @@ def run(args):
 
     try:
         while time.monotonic() - start < args.timeout:
+            while pending and isinstance(pending[0], Put) and ssh is None and status != 1:
+                step = pending.pop(0)
+                print('boottest: [%6.1fs] put: %s' % (time.monotonic() - start,
+                      step.replace('\t', ' -> ')), file=sys.stderr)
+                text = put(args, step)
+                print('boottest: [%6.1fs] %s' % (time.monotonic() - start, text),
+                      file=sys.stderr)
+                if log:
+                    log.write(b'put| ' + text.encode() + b'\n')
+                    log.flush()
+                match(text, True)
             while pending and isinstance(pending[0], Act) and status != 1:
                 step = pending.pop(0)
                 print('boottest: [%6.1fs] qmp: %s' % (time.monotonic() - start, step),
@@ -688,7 +755,7 @@ def run(args):
             if status == 1 or (not pending and expect):
                 if not pending:
                     status, reason = 0, 'all %d markers seen' % sum(
-                        not isinstance(m, (Send, SSH, Act)) for m in expect)
+                        not isinstance(m, (Send, SSH, Act, Put)) for m in expect)
                 break
             if pending and isinstance(pending[0], SSH) and ssh is None and \
                     time.monotonic() >= ssh_retry:
@@ -746,7 +813,7 @@ def run(args):
             if status == 1 or not pending:
                 if not pending:
                     status, reason = 0, 'all %d markers seen' % sum(
-                        not isinstance(m, (Send, SSH, Act)) for m in expect)
+                        not isinstance(m, (Send, SSH, Act, Put)) for m in expect)
                 break
         if status == 1 and any(m in reason for m in PANIC_MARKERS):
             drain_panic(proc, sel, console, log, args.verbose)
@@ -769,7 +836,7 @@ def run(args):
         print_panic_report(args, console)
     if pending and status != 0:
         print('boottest: not seen: %s' % ', '.join(p for p in pending
-                                                  if not isinstance(p, (Send, Act))),
+                                                  if not isinstance(p, (Send, Act, Put))),
               file=sys.stderr)
     return status
 
@@ -834,6 +901,7 @@ def main(argv=None):
     p.add_argument('--update-reference', action='store_true',
                    help='gate M4: write the screens to their '
                         'references instead of comparing them (from a run checked by hand)')
+    p.add_argument('--bc-plan', help="gate BC: the apps' steps, from tools/compat/bc-gate.py")
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
     args = p.parse_args(argv)

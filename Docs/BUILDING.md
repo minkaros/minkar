@@ -215,6 +215,27 @@ Gates (see the architecture plan):
   and `ipconfig set en0 AUTOMATIC-V6|LINKLOCAL-V6|NONE-V6|MANUAL-V6 <addr> <prefixlen>`
   change its method, `ipconfig getsummary en0` shows what it has.
 
+* BC - M2 and the window server, then every designated app's published
+  binary (lane BC in [ROADMAP.md](ROADMAP.md); the apps of
+  `tools/symbols/reference-apps.tsv`). `bc-check` downloads them to
+  `../build/bc-apps` by their URL and SHA-256 (kept there; never put in the
+  repository or the image), and for each one copies its archive into the
+  VM, where `Tests/BC/bc-run.sh` installs it as a user would (a disk image
+  attached and the app copied to /Applications, a zip or a tar expanded)
+  and starts it with a probe. Each app's result is how far it got (from
+  `install` to `window`); one that gets less far than in
+  `Docs/progress/compatibility.tsv` fails the gate. `BC_UPDATE=yes` writes
+  the new results there, and `bmake progress` makes
+  [Compatibility.md](Compatibility.md) from them. The image needs the
+  probe (`bc-tools` before `image`):
+
+      sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk bc-tools
+      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret \
+          ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
+          bmake -m /work/minkar/BSD/share/mk image
+      env SUBDIR= BC_ARGS="--password secret --ssh-key ../build/boottest-ssh/id_ed25519 --accel kvm" \
+          bmake -m /work/minkar/BSD/share/mk bc-check
+
 Until launchd runs, PID 1 is `minkarinit` (`BSD/sbin/minkarinit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own

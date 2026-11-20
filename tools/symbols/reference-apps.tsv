@@ -15,3 +15,16 @@ Sloth	3.6	10.13	https://github.com/sveinbjornt/Sloth/releases/download/3.6/sloth
 Firefox	160.0	10.15	https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0/mac/en-US/Firefox%20160.0.dmg	b270ccc60eb899bd0277bd078d7bd8690f5c4fc3e44b4fa9ee78ed2a3e89f0ca
 Thunderbird	160.0	10.15	https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/160.0/mac/en-US/Thunderbird%20160.0.dmg	9741099ff0653382a3661bfb9fc9f588557e9a839dabda83b627a846fe85b215
 HexFiend	2.18.1	10.14.6	https://github.com/HexFiend/HexFiend/releases/download/v2.18.1/Hex_Fiend_2.18.1.dmg	837041623a21eaae59b9b6c0bb7f75533938ab96580861ee7e276bb926e0e076
+# Added 2026-11-20: the next designated apps (lane BC, BC5 on), each at its
+# current release from the project's official download; VSCodium is the
+# VSCodium project's own build.
+iTerm2	3.7.8	13.0	https://iterm2.com/downloads/stable/iTerm2-3_7_8.zip	c2cc95e9d072d8faec3527d06e4a8999d5f9800a505ccf2f02ec05a446d4a850
+Skim	1.7.19	10.13	https://sourceforge.net/projects/skim-app/files/Skim/Skim-1.7.19/Skim-1.7.19.dmg/download	559aadf86a60661517ed523289f0f81cb4e859ccdbb54191cc64d4be3d7781dc
+Transmission	4.1.4	12.0	https://github.com/transmission/transmission/releases/download/4.1.4/Transmission-4.1.4.dmg	495c5d21d515c8deb859b0db6692fd5606644a1613c2cac87c1d3e7672755a59
+VLC	3.0.24	10.7.5	https://download.videolan.org/pub/videolan/vlc/3.0.24/macosx/vlc-3.0.24-universal.dmg	2c8e89f7f42e53c2fb0e87b6dfa39b49f1364b25080aaa2e476ac74c0d7beb3c
+KeePassXC	2.8.0	12.0	https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-1-x86_64.dmg	28492c5535570020179150b2871b3c54abd032cbb8cdee2f1b3fa7c46cdba43e
+IINA	1.5.1	11	https://github.com/iina/iina/releases/download/v1.5.1/IINA.v1.5.1.dmg	f414507ec60bcfeda3a9f539f74470253e31b619d031e7a9e9a71519da1598cd
+Cyberduck	9.6.0	10.13	https://github.com/iterate-ch/cyberduck/releases/download/release-9-6-0/Cyberduck-9.6.0.46406.zip	a9195fb3dc904265dbb1b238d707e3ac4ac8a1ed356b188464e8773aad3a8ca8
+UTM	5.0.9	12.0	https://github.com/utmapp/UTM/releases/download/v5.0.9-2/UTM.dmg	1a76ddcf61ab424a5ae1d1b68a16a9b2e84b748716afce905ee77740d8e86127
+LibreOffice	26.8.3	11.0.0	https://download.documentfoundation.org/libreoffice/stable/26.8.3/mac/x86_64/LibreOffice_26.8.3_MacOS_x86-64.dmg	bb3c35d628780510915ad9e759d7ed898094d7985d01b2181bd1d4ecd94fd159
+VSCodium	1.143.17232	12.0	https://github.com/VSCodium/vscodium/releases/download/1.143.17232/VSCodium.x64.1.143.17232.dmg	a9df6a0aa4c17b3ba3c0e71a329d473ab54d570a8254b813739b185264e02920

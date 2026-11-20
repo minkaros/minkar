@@ -495,6 +495,7 @@ Objetivo: los binarios x86-64 publicados de las apps designadas arrancan y funci
 - Hex Fiend 2.18.1 desde su propio DMG: se conecta, se copia a `/Applications`, arranca y se queda abierta con sus menús y su ventana de documento (prueba local `hexfiend-dmg`; `66f91c083d`, `1185b94021`).
 - Nibs binarios (NIBArchive), tal como los compila Interface Builder, se cargan para las ventanas de las apps (`e1d404ea77`).
 - Firmas y entitlements de terceros: con una firma válida, los entitlements de identidad y de perfil de aprovisionamiento dejan arrancar la app sin darle ningún privilegio (`3da59e4afc`, Fase 4).
+- *20 nov 2026:* el gate BC (`boottest GATE=BC`, a través de `tools/compat/bc-gate.py` y `Tests/BC`) y la matriz generada [Compatibility.es.md](Compatibility.es.md) (BC1). Su primera ejecución: Firefox, Hex Fiend, Skim y TextMate muestran ventana; KeepingYouAwake, Platypus, Sloth, VLC y Cyberduck terminan al iniciar; Thunderbird no carga una biblioteca; las apps que exigen 11.0 o más se paran en el cargador, en la comprobación de firma (`keychain-access-groups` y `com.apple.vm.device-access` se rechazan como restringidos) o en la instalación (la imagen de disco de VSCodium no tiene un sistema de archivos que hdiutil monte). Las imágenes de disco de Firefox y Thunderbird (LZMA, ULMO) solo se instalan tras `hdiutil convert`.
 
 **Decisiones que protegen este carril desde hoy**
 
@@ -588,7 +589,7 @@ M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y l
 | M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Atlas | En curso: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones (N0–N2) hechos ([Atlas.es.md](Atlas.es.md)) |
 | M6 (Minkar 19.6.0) | Apps y distribución, el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio y medios (AU1–AU10) y el gate BC con el conjunto 19 (BC4) | En curso: WebKit W2–W4 y audio y medios AU1–AU6 hechos; `hdiutil attach` ya monta |
-| BC | Compatibilidad binaria | En curso: Firefox 160 y Hex Fiend 2.18.1 corren desde sus binarios publicados (pruebas locales `firefox`, `hexfiend-dmg`); BC0 y BC1 empezados el 20 nov 2026 |
+| BC | Compatibilidad binaria | En curso: el gate BC (`bmake bc-check`) ejecuta los binarios publicados de las 17 apps designadas (20 nov 2026, con KVM: 19 minutos); 4 muestran ventana (Firefox, Hex Fiend, Skim, TextMate), y [Compatibility.es.md](Compatibility.es.md) dice hasta dónde llega cada una de las demás. BC1 hecho; BC0 espera su primera ejecución en la CI |
 | KX | Darwin 25 | KX0 (ADR 0003) propuesto el 20 nov 2026; KX1 después de Minkar 19.6.0 |
 | ARM | arm64 | ARM0 (la compilación en la CI) empezado el 20 nov 2026 |
 | SU | SwiftUI sobre OpenSwiftUI | SU0 (el informe) y SU0b (la revisión de sala limpia) empezados el 20 nov 2026 |

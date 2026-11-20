@@ -155,10 +155,14 @@ version:
 	${MAKE} -C ${.CURDIR}/SystemLibrary SystemVersion.plist
 
 # The progress pages (Docs/Progress.md, Docs/Progress.es.md) and their
-# SVGs, from Docs/progress/status.toml. CI checks they are current.
+# SVGs, from Docs/progress/status.toml, and the compatibility matrix
+# (Docs/Compatibility.md, .es.md) from gate BC's results. CI checks they
+# are current.
 progress: .PHONY
 	python3 ${.CURDIR}/tools/progress/gen.py ${.CURDIR}/Docs/progress/status.toml \
 	    ${.CURDIR}/Docs/progress ${.CURDIR}/Docs/Progress.md ${.CURDIR}/Docs/Progress.es.md
+	python3 -B ${.CURDIR}/tools/compat/matrix.py ${.CURDIR}/Docs/progress/compatibility.tsv \
+	    ${.CURDIR}/Docs/Compatibility.md ${.CURDIR}/Docs/Compatibility.es.md
 
 # Bootable disk image and QEMU boot test (Image/Makefile). Not part of
 # "world": they need root, network access for the EFI loader, and time.
@@ -236,6 +240,22 @@ image-check: .PHONY
 # the image and runs their tests in it.
 m3-tools: .PHONY
 	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/M3 Tests/M3
+
+# Gate BC (Docs/ROADMAP.md, lane BC): the designated apps' published
+# binaries (tools/symbols/reference-apps.tsv) run in the image. 'bc-tools'
+# puts Tests/BC's probe and runner in the sysroot, before 'bmake image';
+# 'bc-check' downloads the apps to BC_APPS (kept between runs, never put
+# in the image), boots the image and runs each one, and fails on a
+# regression against Docs/progress/compatibility.tsv. BC_UPDATE=yes writes
+# the new results there (then 'bmake progress' for Docs/Compatibility.md).
+bc-tools: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/BC Tests/BC
+
+BC_APPS ?=	${ROOT_BINARY_DIR}/bc-apps
+bc-check: .PHONY
+	python3 -B ${.CURDIR}/tools/compat/bc-gate.py --image ${ROOT_BINARY_DIR}/Minkar.img \
+	    --apps ${BC_APPS} --log ${ROOT_BINARY_DIR}/boottest-BC.log \
+	    ${BC_UPDATE:Myes:S/yes/--update/} ${BC_ARGS}
 
 # Gallery (Tests/Gallery): a development app with every AppKit control and
 # a report of what AppKit lacks, for test images only: 'bmake gallery'

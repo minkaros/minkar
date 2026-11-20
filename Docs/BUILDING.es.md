@@ -229,6 +229,27 @@ Gates (ver el plan de arquitectura):
   <longitud de prefijo>` cambian su método, `ipconfig getsummary en0`
   muestra lo que tiene.
 
+* BC - M2 y el servidor de ventanas, y después el binario publicado de
+  cada app designada (carril BC en [ROADMAP.es.md](ROADMAP.es.md); las apps
+  de `tools/symbols/reference-apps.tsv`). `bc-check` las descarga en
+  `../build/bc-apps` por su URL y su SHA-256 (se quedan allí; nunca van al
+  repositorio ni a la imagen), y para cada una copia su archivo a la VM,
+  donde `Tests/BC/bc-run.sh` la instala como lo haría un usuario (se
+  conecta la imagen de disco y se copia la app a /Applications, o se
+  expande el zip o el tar) y la arranca con una sonda. El resultado de cada
+  app es hasta dónde llegó (de `install` a `window`); una que llega menos
+  lejos que en `Docs/progress/compatibility.tsv` hace fallar el gate.
+  `BC_UPDATE=yes` escribe allí los resultados nuevos, y `bmake progress`
+  genera con ellos [Compatibility.es.md](Compatibility.es.md). La imagen
+  necesita la sonda (`bc-tools` antes de `image`):
+
+      sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk bc-tools
+      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret \
+          ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
+          bmake -m /work/minkar/BSD/share/mk image
+      env SUBDIR= BC_ARGS="--password secret --ssh-key ../build/boottest-ssh/id_ed25519 --accel kvm" \
+          bmake -m /work/minkar/BSD/share/mk bc-check
+
 Hasta que launchd se ejecuta, el PID 1 es `minkarinit`
 (`BSD/sbin/minkarinit`), un pequeño init temporal que la imagen instala
 como `/sbin/launchd`, la única ruta que prueba un kernel RELEASE. Compila

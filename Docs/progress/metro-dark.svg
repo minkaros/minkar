@@ -198,13 +198,13 @@
 <text x="20" y="831" font-size="15" font-weight="700" fill="#8b949e" text-anchor="start">Lane BC</text>
 <line x1="700" y1="826" x2="1060" y2="826" stroke="#8b949e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="826" x2="865" y2="826" stroke="#8b949e" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="826" x2="700" y2="826" stroke="#8b949e" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="826" x2="815" y2="826" stroke="#8b949e" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="826" r="10" fill="#8b949e" stroke="#0d1117" stroke-width="3"/><path d="M695.5 826 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="700" y="855" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Published apps</text>
 <circle cx="760" cy="826" r="17" fill="#8b949e" fill-opacity=".2"/><circle cx="760" cy="826" r="10" fill="#0d1117" stroke="#8b949e" stroke-width="5"/>
 <text x="760" y="808" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">BC0 gate</text>
-<circle cx="815" cy="826" r="17" fill="#8b949e" fill-opacity=".2"/><circle cx="815" cy="826" r="10" fill="#0d1117" stroke="#8b949e" stroke-width="5"/>
-<text x="815" y="855" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">BC1 matrix</text>
+<circle cx="815" cy="826" r="10" fill="#8b949e" stroke="#0d1117" stroke-width="3"/><path d="M810.5 826 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="815" y="855" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">BC1 matrix</text>
 <circle cx="865" cy="826" r="9" fill="#0d1117" stroke="#8b949e" stroke-width="3"/><path d="M865 820 A6 6 0 0 0 865 832 Z" fill="#8b949e"/>
 <text x="865" y="808" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">BC2 loader</text>
 <circle cx="915" cy="826" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
