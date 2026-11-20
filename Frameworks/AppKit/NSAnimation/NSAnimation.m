@@ -15,6 +15,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSValue.h>
 #import <Foundation/NSTimer.h>
 #import <Foundation/NSRunLoop.h>
+#import <Foundation/NSThread.h>
+#import <Foundation/NSAutoreleasePool.h>
 
 NSString * const NSAnimationProgressMarkNotification=@"NSAnimationProgressMarkNotification";
 
@@ -28,7 +30,7 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
 -initWithDuration:(NSTimeInterval)duration animationCurve:(NSAnimationCurve)curve {
    _duration=duration;
    _curve=curve;
-   _frameRate=10;
+   _frameRate=0;	/* the default rate, as on the reference */
    _blockingMode=NSAnimationBlocking;
    _delegate=nil;
    _progressMarks=[NSMutableArray new];
@@ -41,6 +43,12 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
    [_progressMarks release];
    [_runLoopModes release];
    [super dealloc];
+}
+
+/* Minkar: the time between frames; a frame rate of 0 is the default,
+   60 a second. */
+-(NSTimeInterval)_frameInterval {
+   return (_frameRate>0)?1.0/_frameRate:1.0/60.0;
 }
 
 -copyWithZone:(NSZone *)zone {
@@ -161,6 +169,41 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
    NSUnimplementedMethod();
 }
 
+/* The threaded mode's frames: the progress set on the main thread (a
+   view animation moves its views there), the end told on this thread, as
+   on the reference. */
+-(void)_setProgressOnMainThread:(NSNumber *)progress {
+   if(_isAnimating)
+    [self setCurrentProgress:[progress floatValue]];
+}
+
+-(void)_runThreaded:(id)unused {
+   NSAutoreleasePool *pool=[NSAutoreleasePool new];
+
+   while(_isAnimating){
+    [NSThread sleepForTimeInterval:[self _frameInterval]];
+    if(!_isAnimating)
+     break;
+
+    float progress=([NSDate timeIntervalSinceReferenceDate]-_startTime)/_duration;
+
+    if(!(progress<1.0))
+     progress=1.0;
+    [self performSelectorOnMainThread:@selector(_setProgressOnMainThread:) withObject:[NSNumber numberWithFloat:progress] waitUntilDone:YES];
+    if(progress>=1.0){
+     /* No longer animating when told the end, as on the reference (the
+        thread holds the animation until it returns). */
+     [self performSelectorOnMainThread:@selector(stopAnimation) withObject:nil waitUntilDone:YES];
+     if([_delegate respondsToSelector:@selector(animationDidEnd:)])
+      [_delegate performSelector:@selector(animationDidEnd:) withObject:self];
+     break;
+    }
+    [pool release];
+    pool=[NSAutoreleasePool new];
+   }
+   [pool release];
+}
+
 -(void)_setCurrentProgressAndEndIfNeeded:(NSAnimationProgress)progress {
    if(_isAnimating){
       progress=MAX(0.0,MIN(1.0,progress));
@@ -197,7 +240,7 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
     switch(_blockingMode){
 
      case NSAnimationBlocking:
-      _timer=[NSTimer timerWithTimeInterval:1.0/_frameRate target:self selector:@selector(timer:) userInfo:nil repeats:YES];
+      _timer=[NSTimer timerWithTimeInterval:[self _frameInterval] target:self selector:@selector(timer:) userInfo:nil repeats:YES];
 
       [[NSRunLoop currentRunLoop] addTimer:_timer forMode:NSAnimationRunLoopMode];
 
@@ -208,11 +251,11 @@ NSString *NSAnimationRunLoopMode=@"NSAnimationRunLoopMode";
       break;
 
      case NSAnimationNonblocking:
-      _timer=[NSTimer scheduledTimerWithTimeInterval:1.0/_frameRate target:self selector:@selector(timer:) userInfo:nil repeats:YES];
+      _timer=[NSTimer scheduledTimerWithTimeInterval:[self _frameInterval] target:self selector:@selector(timer:) userInfo:nil repeats:YES];
       break;
 
      case NSAnimationNonblockingThreaded:
-      NSUnimplementedMethod();
+      [NSThread detachNewThreadSelector:@selector(_runThreaded:) toTarget:self withObject:nil];
       break;
    }
 

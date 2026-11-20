@@ -15,8 +15,11 @@ APPKIT_EXPORT NSString *const NSViewAnimationEffectKey;
 APPKIT_EXPORT NSString *const NSViewAnimationFadeInEffect;
 APPKIT_EXPORT NSString *const NSViewAnimationFadeOutEffect;
 
+@class NSMutableDictionary;
+
 @interface NSViewAnimation : NSAnimation {
     NSArray *_animations;
+    NSMutableDictionary *_startFrames;	/* the targets' frames as it began */
 }
 
 - initWithViewAnimations:(NSArray *)animations;

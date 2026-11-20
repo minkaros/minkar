@@ -110,4 +110,14 @@ APPKIT_EXPORT NSString *NSAnimationTriggerOrderOut;
 - (void)animationDidStop:(NSAnimation *)animation;
 @end
 
+/* The formal protocol of API 19 (the methods are optional). */
+@protocol NSAnimationDelegate <NSObject>
+@optional
+- (BOOL)animationShouldStart:(NSAnimation *)animation;
+- (void)animationDidStop:(NSAnimation *)animation;
+- (void)animationDidEnd:(NSAnimation *)animation;
+- (float)animation:(NSAnimation *)animation valueForProgress:(NSAnimationProgress)progress;
+- (void)animation:(NSAnimation *)animation didReachProgressMark:(NSAnimationProgress)progress;
+@end
+
 #import <AppKit/NSViewAnimation.h>

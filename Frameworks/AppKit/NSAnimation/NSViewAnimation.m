@@ -32,6 +32,7 @@ NSString * const NSViewAnimationFadeOutEffect=@"NSViewAnimationFadeOutEffect";
 
 -(void)dealloc {
    [_animations release];
+   [_startFrames release];
    [super dealloc];
 }
 
@@ -39,12 +40,20 @@ NSString * const NSViewAnimationFadeOutEffect=@"NSViewAnimationFadeOutEffect";
    NSViewAnimation *result=[super copyWithZone:zone];
    
    result->_animations=[_animations copy];
+   result->_startFrames=nil;
 
    return result;
 }
 
 -(NSArray *)viewAnimations {
    return _animations;
+}
+
+/* Each run starts from where its targets are then. */
+-(void)startAnimation {
+   [_startFrames release];
+   _startFrames=nil;
+   [super startAnimation];
 }
 
 -(void)setViewAnimations:(NSArray *)animations {
@@ -55,7 +64,6 @@ NSString * const NSViewAnimationFadeOutEffect=@"NSViewAnimationFadeOutEffect";
 
 -(void)setCurrentProgress:(NSAnimationProgress)progress {
    [super setCurrentProgress:progress];
-// For now some of the animations dont actually animate, they just perform the last frame
    BOOL isFinalFrame=(progress>=1.0)?YES:NO;
    
    NSInteger i,count=[_animations count];
@@ -63,10 +71,21 @@ NSString * const NSViewAnimationFadeOutEffect=@"NSViewAnimationFadeOutEffect";
     NSDictionary *info=[_animations objectAtIndex:i];
     id            target=[info objectForKey:NSViewAnimationTargetKey];
     NSValue      *startFrame=[info objectForKey:NSViewAnimationStartFrameKey];
+
+    /* Minkar: without a start frame, the target's frame as the animation
+       began, as on the reference; each frame is moved along the way. */
+    if(startFrame==nil && [info objectForKey:NSViewAnimationEndFrameKey]!=nil){
+     if(_startFrames==nil)
+      _startFrames=[NSMutableDictionary new];
+     NSNumber *key=[NSNumber numberWithInteger:i];
+     if([_startFrames objectForKey:key]==nil && ([target isKindOfClass:[NSView class]] || [target isKindOfClass:[NSWindow class]]))
+      [_startFrames setObject:[NSValue valueWithRect:[target frame]] forKey:key];
+     startFrame=[_startFrames objectForKey:key];
+    }
     NSValue      *endFrame=[info objectForKey:NSViewAnimationEndFrameKey];
     NSString     *effect=[info objectForKey:NSViewAnimationEffectKey];
     
-    if(isFinalFrame && startFrame!=nil && endFrame!=nil){
+    if(startFrame!=nil && endFrame!=nil){
      NSRect startRect=[startFrame rectValue];
      NSRect endRect=[endFrame rectValue];
      NSRect currentRect;
