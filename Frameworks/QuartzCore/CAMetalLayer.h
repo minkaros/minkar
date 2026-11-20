@@ -41,6 +41,8 @@
 #if __has_include(<Metal/MTLPixelFormat.h>)
 #import <Metal/MTLPixelFormat.h>
 #import <Metal/MTLDrawable.h>
+@protocol MTLDevice;
+@protocol MTLTexture;
 #else
 /* Metal's names this layer's interface uses, until Metal is there. */
 typedef NS_ENUM(NSUInteger, MTLPixelFormat) {

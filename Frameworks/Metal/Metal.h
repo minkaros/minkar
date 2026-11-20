@@ -4,4 +4,6 @@
  * Part of Minkar.
  */
 
+#import <Metal/MTLPixelFormat.h>
+#import <Metal/MTLDrawable.h>
 #import <Metal/MTLDescriptors.h>

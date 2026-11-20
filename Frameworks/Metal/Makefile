@@ -12,7 +12,7 @@ FRAMEWORK = Metal
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = MTLDescriptors.m
-HEADERS = Metal.h MTLDescriptors.h
+HEADERS = Metal.h MTLPixelFormat.h MTLDrawable.h MTLDescriptors.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
