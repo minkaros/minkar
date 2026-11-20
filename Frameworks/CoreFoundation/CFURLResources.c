@@ -494,6 +494,94 @@ CFURLCreateBookmarkDataFromFile(CFAllocatorRef allocator, CFURLRef fileURL, CFEr
     return result;
 }
 
+/* Minkar: the file an alias record (from the classic Alias Manager)
+   points to, as an absolute path: its extra fields hold the target's path
+   on its volume (field 18) and the volume's mount point (field 19); the
+   older colon-separated path (field 2) when they are not there. Returns
+   NULL when the record cannot be read. The record's fixed part is 150
+   bytes in version 2 and 58 in version 3. */
+CF_EXPORT CFStringRef
+_CFURLCopyPathFromAliasRecord(CFAllocatorRef allocator, const UInt8 *bytes, CFIndex length)
+{
+    CFStringRef relative = NULL, mount = NULL, colonPath = NULL, result = NULL;
+    CFIndex offset;
+    uint16_t version;
+
+    if (bytes == NULL || length < 8)
+        return NULL;
+    version = (uint16_t)((bytes[6] << 8) | bytes[7]);
+    if (version == 2)
+        offset = 150;
+    else if (version == 3)
+        offset = 58;
+    else
+        return NULL;
+    while (offset + 4 <= length) {
+        int16_t tag = (int16_t)((bytes[offset] << 8) | bytes[offset + 1]);
+        uint16_t size = (uint16_t)((bytes[offset + 2] << 8) | bytes[offset + 3]);
+        const UInt8 *data = bytes + offset + 4;
+
+        if (tag == -1 || offset + 4 + size > length)
+            break;
+        if (tag == 18 && relative == NULL)
+            relative = CFStringCreateWithBytes(allocator, data, size, kCFStringEncodingUTF8, false);
+        else if (tag == 19 && mount == NULL)
+            mount = CFStringCreateWithBytes(allocator, data, size, kCFStringEncodingUTF8, false);
+        else if (tag == 2 && colonPath == NULL)
+            colonPath = CFStringCreateWithBytes(allocator, data, size, kCFStringEncodingUTF8, false);
+        offset += 4 + size + (size & 1);
+    }
+    if (relative != NULL) {
+        Boolean slash = (mount != NULL && CFStringHasSuffix(mount, CFSTR("/")));
+        result = CFStringCreateWithFormat(allocator, NULL, CFSTR("%@%s%@"), (mount != NULL) ? mount : CFSTR("/"),
+            (mount == NULL || slash) ? "" : "/", relative);
+    } else if (colonPath != NULL) {
+        /* "Volume:dir:file" (or "/:dir:file" for the root volume): the
+           root volume's path with slashes. */
+        CFArrayRef parts = CFStringCreateArrayBySeparatingStrings(allocator, colonPath, CFSTR(":"));
+        if (parts != NULL && CFArrayGetCount(parts) > 1) {
+            CFMutableStringRef path = CFStringCreateMutable(allocator, 0);
+            for (CFIndex i = 1; i < CFArrayGetCount(parts); i++) {
+                CFStringAppend(path, CFSTR("/"));
+                CFStringAppend(path, (CFStringRef)CFArrayGetValueAtIndex(parts, i));
+            }
+            result = path;
+        }
+        if (parts != NULL)
+            CFRelease(parts);
+    }
+    if (relative != NULL)
+        CFRelease(relative);
+    if (mount != NULL)
+        CFRelease(mount);
+    if (colonPath != NULL)
+        CFRelease(colonPath);
+    return result;
+}
+
+/* A bookmark to what an alias record points to. */
+CFDataRef
+CFURLCreateBookmarkDataFromAliasRecord(CFAllocatorRef allocatorRef, CFDataRef aliasRecordDataRef)
+{
+    CFStringRef path;
+    CFURLRef url;
+    CFDataRef result;
+
+    if (aliasRecordDataRef == NULL)
+        return NULL;
+    path = _CFURLCopyPathFromAliasRecord(kCFAllocatorDefault, CFDataGetBytePtr(aliasRecordDataRef),
+        CFDataGetLength(aliasRecordDataRef));
+    if (path == NULL)
+        return NULL;
+    url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, path, kCFURLPOSIXPathStyle, false);
+    CFRelease(path);
+    if (url == NULL)
+        return NULL;
+    result = CFURLCreateBookmarkData(allocatorRef, url, 0, NULL, NULL, NULL);
+    CFRelease(url);
+    return result;
+}
+
 /* An alias file: a symbolic link to the bookmark's target. */
 Boolean
 CFURLWriteBookmarkDataToFile(CFDataRef bookmarkRef, CFURLRef fileURL, CFURLBookmarkFileCreationOptions options, CFErrorRef *errorRef)

@@ -670,6 +670,8 @@ CFURLBookmarkMatchResult _CFURLBookmarkDataCompare(CFDataRef bookmark1Ref, CFDat
 
 CF_EXPORT
 OSStatus _CFURLBookmarkDataToAliasHandle(CFDataRef bookmarkRef, void* aliasHandleP) CF_AVAILABLE(10_7, NA);
+/* Minkar: the absolute path an alias record points to, or NULL. */
+CF_EXPORT CFStringRef _CFURLCopyPathFromAliasRecord(CFAllocatorRef allocator, const UInt8 *bytes, CFIndex length);
 
 CF_EXPORT
 CFURLRef _CFURLCreateByResolvingAliasFile(CFAllocatorRef allocator, CFURLRef url, CFURLBookmarkResolutionOptions options, CFArrayRef propertiesToInclude, CFErrorRef *error ) CF_AVAILABLE(10_10, 8_0);
