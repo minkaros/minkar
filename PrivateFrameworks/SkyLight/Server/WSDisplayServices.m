@@ -656,7 +656,7 @@ currentBlend(BOOL *going)
  * the fade's blend; nil when it changes nothing (the identity, no fade).
  */
 NSData *
-WSDisplayColorTable(WSDisplay *d)
+WSDisplayColorTable(WSDisplay *d, BOOL *animating)
 {
 	const uint32_t cap = kSLSGammaTableCapacity;
 	float table[3 * kSLSGammaTableCapacity];
@@ -665,9 +665,11 @@ WSDisplayColorTable(WSDisplay *d)
 	BOOL identity = blend == 0;
 	uint8_t lut[3 * 256];
 
-	/* A fade going on draws the next frame too. */
-	if (going)
-		colorsChanged();
+	/* A fade going on draws the next frame too: the compositor asks for it
+	   once this frame's damage is taken (damaging the displays here was
+	   taken with this frame's, and the fade stopped at its first step). */
+	if (animating)
+		*animating = going;
 	[d getTransferTable:table];
 	for (uint32_t c = 0; c < 3; c++)
 		for (uint32_t v = 0; v < 256; v++) {

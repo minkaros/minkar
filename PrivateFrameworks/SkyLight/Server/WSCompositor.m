@@ -446,7 +446,8 @@ backendClass(void)
 		SLSPoint cursor;
 		WSCursorShape *shape = nil;
 		BOOL cursorVisible = WSCursorSnapshot(&cursor, &shape);
-		NSData *colors = WSDisplayColorTable(self->_display);
+		BOOL fading = NO;
+		NSData *colors = WSDisplayColorTable(self->_display, &fading);
 		pixman_region32_t *damage = malloc(sizeof(*damage));
 
 		pixman_region32_init(damage);
@@ -457,6 +458,9 @@ backendClass(void)
 		self->_damageSince = 0;
 		double ox = self->_originX, oy = self->_originY;
 		pthread_mutex_unlock(&self->_lock);
+		/* A fade going on: the next frame, the whole display again. */
+		if (fading)
+			[self damageAll];
 		/* The inputs this frame answers (the pointer's moves). */
 		pthread_mutex_lock(&statsLock);
 		uint64_t input = pendingInput;

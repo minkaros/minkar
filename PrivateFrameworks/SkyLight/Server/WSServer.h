@@ -56,7 +56,7 @@ void WSDisplaysWatch(dispatch_queue_t queue);
 BOOL WSIsDock(audit_token_t token);
 /* A display's colour table (transfer table and fade), 3 x 256 bytes, or
  * nil for none (IPC queue). */
-NSData *WSDisplayColorTable(WSDisplay *display);
+NSData *WSDisplayColorTable(WSDisplay *display, BOOL *animating);
 /* A connection's process exited: release what it held on the displays. */
 void WSDisplayServicesConnectionDied(WSConnection *connection);
 /* Applies the configuration last saved permanently (/var/db/WindowServer/
