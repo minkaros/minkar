@@ -739,8 +739,9 @@ Every shortcut is marked in the code with `// SHORTCUT(Dn):` or
 ### 5.1 Decision
 
 - **The apps a desktop for daily use needs, ours and in Cocoa.** A first
-  set is required for Minkar 19.6.0 (essential, 5.2); a second follows in
-  19.6.x; the browser and an IDE are long-term work.
+  set is required for Minkar 19.6.0 (essential, 5.2: A0–A4); A5–A10 and
+  a second set follow in 19.6.x (A5–A10 moved there on 2026-11-20); the
+  browser and an IDE are long-term work.
 - **Each app has a milestone** (A*n*) with tests in the image, as the
   session's parts do, and its dependencies listed (5.4).
 - **Shared foundations first** (A0), so every app gets the same About
@@ -765,7 +766,10 @@ The names, confirmed on 2026-11-05 (English, then Spanish):
 | A9 | Calculator (Calculadora) | Basic, scientific and programmer modes | AppKit |
 | A10 | Archive Manager (Gestor de archivadores) | Opens and makes zip, tar and xz archives from Files | `tar` (libarchive), `ditto` |
 
-After 19.6.0 (19.6.x):
+A0–A4 are required for Minkar 19.6.0; A5–A10 move to 19.6.x (decided
+2026-11-20, roadmap decision D3).
+
+Also after 19.6.0 (19.6.x):
 
 | App | What it does | Waits for |
 | --- | --- | --- |
@@ -960,6 +964,7 @@ written for it expect them); W4 waits for its decision.
   app opens from the Dock, Files browses, and the resolution changes from
   Preferences, with the visual language K1 needs; MB1 is part of it.
 - **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and
-  D3, K2 and K3, the essential apps A0–A10 and notifications N0–N1; the
-  browser is not required.
-- **19.6.x:** MB4, D4, K4, N2 and the apps of 5.2's second table.
+  D3, K2 and K3, the apps A0–A4 and notifications N0–N1; the browser is
+  not required.
+- **19.6.x:** MB4, D4, K4, N2, the apps A5–A10 (moved on 2026-11-20) and
+  the apps of 5.2's second table.

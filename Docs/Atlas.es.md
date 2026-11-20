@@ -784,8 +784,9 @@ Cada atajo queda marcado en el código con `// SHORTCUT(Dn):` o
 
 - **Las apps que necesita un escritorio de uso diario, propias y en
   Cocoa.** Un primer conjunto es obligatorio para Minkar 19.6.0
-  (esenciales, 5.2); un segundo llega en 19.6.x; el navegador y un IDE son
-  trabajo a largo plazo.
+  (esenciales, 5.2: A0–A4); A5–A10 y un segundo conjunto llegan en 19.6.x
+  (A5–A10 pasaron allí el 20 nov 2026); el navegador y un IDE son trabajo
+  a largo plazo.
 - **Cada app tiene su hito** (A*n*) con pruebas en la imagen, como las
   piezas de la sesión, y sus dependencias listadas (5.4).
 - **Primero la base común** (A0), para que todas las apps tengan la misma
@@ -811,7 +812,10 @@ Los nombres, confirmados el 5 nov 2026 (en inglés, y en español):
 | A9 | Calculator (Calculadora) | Modos básico, científico y de programador | AppKit |
 | A10 | Archive Manager (Gestor de archivadores) | Abre y crea archivos zip, tar y xz desde Files | `tar` (libarchive), `ditto` |
 
-Después de 19.6.0 (19.6.x):
+A0–A4 son obligatorias para Minkar 19.6.0; A5–A10 pasan a 19.6.x
+(decidido el 20 nov 2026, decisión D3 del roadmap).
+
+También después de 19.6.0 (19.6.x):
 
 | App | Qué hace | Espera a |
 | --- | --- | --- |
@@ -1022,6 +1026,7 @@ escritas para ella cuentan con ellos); W4 espera su decisión.
   la resolución desde Preferencias, con el lenguaje visual que necesita
   K1; MB1 forma parte de ella.
 - **M6 y Minkar 19.6.0** (un escritorio de uso diario): MB2 y MB3, D2 y
-  D3, K2 y K3, las apps esenciales A0–A10 y las notificaciones N0–N1; el
-  navegador no es obligatorio.
-- **19.6.x:** MB4, D4, K4, N2 y las apps de la segunda tabla de 5.2.
+  D3, K2 y K3, las apps A0–A4 y las notificaciones N0–N1; el navegador
+  no es obligatorio.
+- **19.6.x:** MB4, D4, K4, N2, las apps A5–A10 (movidas el 20 nov 2026) y
+  las apps de la segunda tabla de 5.2.
