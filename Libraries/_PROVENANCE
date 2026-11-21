@@ -1,16 +1,27 @@
-Imported from GitHub: apple-oss-distributions/distribution-macOS.git
-Branch: rel/macOS-12
-- libpthread (SPDX:APSL-2.0)
-- libdispatch (SPDX:APSL-2.0)
-- CommonCrypto (SPDX:APSL-2.0)
-- libplatform (SPDX:APSL-2.0)
-- libmalloc (SPDX:APSL-2.0)
-- Libinfo (SPDX:APSL-2.0)
-- Libnotify (SPDX:APSL-2.0)
-- Libsystem (SPDX:APSL-2.0)
+Imported from GitHub: apple-oss-distributions (each project's own
+repository, at the tag the distribution-macOS repository lists for
+Darwin 19.6.0, tag macos-10156). Corrected on 2026-11-20 by comparing
+these trees blob by blob with each project's tags (identical files of
+the total in parentheses; the rest are Minkar's changes); this file said
+"Branch: rel/macOS-12" and dyld-1066.8 before, but no component comes
+from them.
+- libpthread: libpthread-416.100.3 (105 of 115) (SPDX:APSL-2.0)
+- libdispatch: libdispatch-1173.100.2 (133 of 144) (SPDX:Apache-2.0)
+- CommonCrypto: CommonCrypto-60165.120.1 (SPDX:APSL-2.0)
+- libplatform: libplatform-220.100.1 (77 of 83) (SPDX:APSL-2.0)
+- libmalloc: libmalloc-283.100.6 (279 of 284) (SPDX:APSL-2.0)
+- Libinfo: Libinfo-538 (175 of 190) (SPDX:APSL-2.0)
+- Libnotify: Libnotify-241.100.2 (35 of 39) (SPDX:APSL-2.0)
+- Libsystem: Libsystem-1281.100.1 (its own 13 files; the directory holds
+  the other components too) (SPDX:APSL-2.0)
+- Libc: Libc-1353.100.2 (930 of 971) (SPDX:APSL-2.0, with BSD files)
+- objc4: objc4-787.1 (363 of 379) (SPDX:APSL-2.0)
+- libsystem_blocks is not libclosure: it is swift-corelibs' BlocksRuntime
+  (SPDX:Apache-2.0 WITH Swift-exception)
 
 Imported from GitHub: apple-oss-distributions/dyld.git
-Tag: dyld-1066.8
+Tag: dyld-750.6, Darwin 19.6.0's (1243 of 1291 files identical; the tree
+moved to it in 47603124d4, and this file still said dyld-1066.8)
 - dyld (SPDX:APSL-2.0)
 
 Imported from icu4c-78.3-sources.tgz
