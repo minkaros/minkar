@@ -102,6 +102,9 @@ dmesg > "$work/dmesg.before"
 cd /
 # The session's owner is the Dock's.
 user=$(ps -o user= -p "$(pgrep -x Dock | head -1)" 2>/dev/null | tr -d ' ')
+# A session owned by root (test images): the first local user, whose
+# apps the window server shows in that session just as well.
+[ "$user" = root ] && user=$(id -nu 501 2>/dev/null || echo root)
 if [ -n "$user" ] && [ "$user" != root ] && id "$user" > /dev/null 2>&1; then
 	chown -R "$user" "$work"
 	su -m "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
@@ -111,13 +114,16 @@ else
 	    "$app/Contents/MacOS/$exe" > "$work/out.txt" 2>&1 < /dev/null &
 fi
 launcher=$!
-# The app's own process (su runs it as its child).
+# The app's own process: su's child (its command line names the app
+# too, so it is not looked up by name).
 pid=$launcher
-for i in 1 2 3 4 5; do
-	p=$(pgrep -n -f "$app/Contents/MacOS/$exe")
-	[ -n "$p" ] && { pid=$p; break; }
-	sleep 0.2
-done
+if [ -n "$user" ] && [ "$user" != root ]; then
+	for i in $(seq 25); do
+		p=$(pgrep -P "$launcher" | head -1)
+		[ -n "$p" ] && { pid=$p; break; }
+		sleep 0.2
+	done
+fi
 
 window=no menus=no
 for i in $(seq "$wait"); do
