@@ -1,687 +1,219 @@
-# Minkar — Plan de acción arquitectónico
+# Hoja de ruta
 
-31 oct 2026
+Qué busca Minkar, cómo se mide, qué está hecho y qué queda abierto. Última revisión:
+21 nov 2026. Es una copia de [ROADMAP.md](ROADMAP.md) y se actualiza en el mismo commit.
 
-## Resumen ejecutivo
+El estado de un vistazo está en [Progress.md](Progress.md), generada desde
+`progress/status.toml`; hasta dónde llega cada app designada, en
+[Compatibility.es.md](Compatibility.es.md); por qué las cosas son como son, en
+[Decisions.md](Decisions.md).
 
-La meta de Minkar es ejecutar sin recompilar las apps hechas para la plataforma de referencia, manteniéndose una versión de API por detrás de la actual de esa plataforma: hoy la meta es la API 25, y la actual es la API 26, que solo existe para arm64. Se mide por un conjunto de apps designadas cuyos binarios publicados deben arrancar y funcionar en Minkar (decidido el 20 nov 2026). La primera versión, **Minkar 19.6.0**, corre sobre Darwin 19.6.0 y entrega el escritorio Atlas para el uso diario con su propio lenguaje visual, el instalador del sistema, el gate de binarios con el conjunto de apps de la API 19, WebKit hasta W5, todo el audio (AU1–AU10) y la GPU tal como estaba planificada. Después, Minkar salta a Darwin 25, que trae arm64. La ruta crítica es estrictamente ascendente: arranque Darwin → launchd → userland → frameworks → WindowServer → Atlas → apps. La compatibilidad binaria, arm64, el kernel nuevo y SwiftUI son carriles junto a esa ruta, cada uno con sus hitos.
+## Objetivo
 
-El plan tiene 7 fases (0–6) y cuatro carriles (BC, ARM, KX y SU), cada uno con entregables y un criterio de salida verificable en CI. Ninguna fase superior se da por cerrada si la inferior no pasa su gate. Desde el 29 oct 2026 rige además un requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo físico, exigido desde una versión posterior a Minkar 25.x y medido sobre el kernel nuevo (ver Requisitos de rendimiento).
+Minkar ejecuta los binarios publicados de las apps hechas para la plataforma de
+referencia, sin modificarlos ni recompilarlos, un nivel de API por detrás del actual de la
+plataforma: hoy el nivel actual es la API 26 (solo arm64), así que el objetivo es la
+API 25. El avance se mide por las apps designadas, no por «API N completa»: una versión se
+cierra cuando su conjunto de apps designadas arranca y funciona desde los binarios
+publicados (gate BC).
 
-**Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español, y [Progress.es.md](Progress.es.md) resume su estado: una tabla, un mapa de metro de los hitos por plan y un tablero de trabajo, generados desde `progress/status.toml`; verificado contra la rama `devel` en `82c5f3e8f8` (31 oct 2026), 140 commits por delante de `main`.
+«API N» nombra la API Cocoa pública de Darwin N; no es el kernel. El código, los plists y
+las macros de disponibilidad usan el número de versión.
 
-### Principios arquitectónicos
-
-1. **Gates verificables, de abajo arriba.** Cada fase termina con una prueba automatizada que arranca la ISO en QEMU. Sin prueba verde no hay fase cerrada.
-2. **El contrato es que los binarios publicados corran.** Los números de API nombran niveles; la matriz de compatibilidad ([Compatibility.es.md](Compatibility.es.md)) ordena el trabajo en frameworks. Cada símbolo se sigue clasificando como implementado, stub o ausente, y se mide (decidido el 20 nov 2026).
-3. **Stubs ruidosos.** Todo stub registra su primera llamada en el log del sistema. Así las apps reales dicen qué falta, en orden de uso.
-4. **Reutilizar antes que escribir.** Primero código abierto APSL (xnu, dyld, launchd, hfs), luego swift-corelibs, luego userland FreeBSD. Código nuevo solo para los huecos.
-5. **Licencias limpias.** El código escrito desde cero para Minkar va bajo BSD-2-Clause o MIT; las bibliotecas y frameworks de terceros que modificamos conservan su licencia original. Regla de sala limpia: nadie que haya visto código cerrado de la plataforma de referencia aporta código. Las marcas de terceros no se usan en nombres, iconos ni textos públicos; un único TRADEMARKS.md lo declara. Una excepción, aceptada por el mantenedor porque no existe un juego de iconos del mismo alcance con licencia BSD o MIT: los iconos de Atlas son los temas Faience y Faenza (GPL-3), ficheros de datos separados en `SystemLibrary/Icons` que conservan su licencia GPL-3; ningún código se enlaza con ellos y el resto de esta regla sigue igual.
-6. **Apps de referencia como pruebas de aceptación.** Un conjunto fijo de apps de código abierto escritas para la API Cocoa se compila en cada hito, y el binario publicado de cada app designada se ejecuta en cada gate, además de analizarse (gate BC); su lista de símbolos importados prioriza el trabajo en frameworks.
-7. **Alcance congelado por versión.** Un framework o una app nuevos entran en una versión solo si los pide un binario designado o el log de stubs. Audio y GPU quedan exentos: las apps los necesitan (decidido el 20 nov 2026).
-
-**Trabajo en curso:** dos carriles activos como máximo, más audio y GPU en paralelo (decidido el 20 nov 2026; sustituye a «máximo dos fases activas»).
-
-## Decisión de versiones
-
-Minkar separa tres capas que en la plataforma de referencia van juntas. El kernel se queda en Darwin 19.6.0 hasta publicar Minkar 19.6.0 y luego salta a Darwin 25; la API y el aspecto avanzan por su cuenta.
-
-| Capa | Decisión | Nota |
-| --- | --- | --- |
-| Kernel y base BSD | Darwin 19.6.0 para Minkar 19.6.0 y 19.6.x; después Darwin 25 (carril KX) | Hasta KX3, una interfaz del kernel que necesite una API nueva se resuelve sobre Darwin 19.6.0 con un parche acotado o en userland |
-| API | Niveles nombrados por número de API; la meta es un nivel por detrás del actual de la plataforma de referencia (hoy la API 25) | El trabajo lo ordenan las apps designadas y la matriz de compatibilidad |
-| Aspecto | Lenguaje visual Atlas desde la Fase 5 | Diseño propio con su guía; sin iconos, fuentes ni recursos gráficos de terceros |
-
-**Números de API (decidido el 30 oct 2026).** «API N» nombra la API pública Cocoa de Darwin N; no es el kernel. En código, plists y macros de disponibilidad se usa el número de versión de la tabla; en el texto, «API N».
-
-| API | Versión en código (`API_AVAILABLE`, `ProductVersion`) | Año |
+| API | Versión en el código | Año |
 | --- | --- | --- |
 | API 19 | 10.15 | 2019 |
 | API 20 | 11.0 | 2020 |
 | API 21 | 12.0 | 2021 |
 | API 22–24 | 13.0 a 15.0 | 2022–2024 |
-| API 25 | 26.0 | 2025, la meta actual |
+| API 25 | 26.0 | 2025, el objetivo |
 | API 26 | 27.0 | 2026, el nivel actual de la plataforma de referencia (solo arm64) |
 
-**Decisiones (20 nov 2026).** Sustituyen a las reglas que nombran; el resto de esta sección las sigue.
+## Versiones
 
-| # | Decisión |
-| --- | --- |
-| D1 | Una versión la cierra un conjunto de apps designadas: sus binarios publicados arrancan y funcionan en Minkar sin recompilar. Ya no la cierra «API N completa». |
-| D2 | `ProductVersion` sube cuando el conjunto de apps que exige esa versión pasa su gate. Sustituye al criterio anterior (subir solo con la API cerrada). El riesgo conocido, que `@available` dé por presente una API que falta, se mitiga con los stubs ruidosos. |
-| D3 | Minkar 19.6.0 entrega el escritorio Atlas para el uso diario, el instalador, el gate de binarios, WebKit hasta W5, todo el audio (AU1–AU10) y la GPU tal como estaba planificada. Las apps propias A5–A10 pasan a 19.6.x. |
-| D4 | arm64 empieza ya como compilación en la CI; su arranque llega después de 19.6.0, sobre el kernel nuevo, y solo en máquina virtual (QEMU) por el momento. |
-| D5 | Minkar salta a Darwin 25, para cumplir el objetivo de arm64. 19.6.0 sale sobre Darwin 19.6.0; el salto se hace después de publicarla. Sustituye a la decisión de mantener Darwin 19.6.0 para las API 20 y 21. |
-| D6 | SwiftUI entra en Minkar integrando OpenSwiftUI (MIT), con el modelo de OpenCombine como `Combine`, manteniendo la sala limpia: la importación queda condicionada a una revisión de sala limpia. Sustituye a la decisión del 25 oct 2026. *Sustituida el mismo día por D7, tras la revisión.* |
-| D7 | SwiftUI es una capa pública propia de Minkar (`SwiftUI.framework`, BSD-2-Clause, su superficie a partir de los símbolos que importan los binarios designados y de la documentación pública) sobre un motor privado adaptado de SwiftCrossUI (MIT). OpenSwiftUI y OpenAttributeGraph no se usan (carril SU). |
-| D8 | El núcleo del sistema sigue en un solo repositorio; el toolchain, las fuentes de terceros de BSD, las capas compiladas de la CI y las apps de Atlas salen de él en los pasos R1–R4, ninguno antes de publicar 19.6.0 (carril R). |
-
-Audio y GPU no se recortan ni se aplazan (las apps los necesitan), y quedan fuera de la congelación de alcance.
-
-**Versiones de Minkar (decidido el 30 oct 2026; reescrito el 20 nov 2026 con D2 y D5).** Una versión la cierra un conjunto de apps designadas, no una API completa; el kernel cambia una vez, después de 19.6.0.
+La versión de Minkar sigue el número de Darwin de su kernel. `ProductVersion` va aparte:
+indica el nivel de compatibilidad (hoy 10.15), nunca la versión de Minkar, y sube cuando
+las apps designadas que necesitan uno mayor pasan el gate BC.
 
 | Minkar | Kernel | Qué la cierra |
 | --- | --- | --- |
-| 19.6.0 | Darwin 19.6.0 | M5, M6 (con AU1–AU10) y el conjunto 19 en verde (BC4) |
-| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, apps A5–A10; `ProductVersion` puede subir por conjuntos |
-| 25.x | Darwin 25 | KX3: todos los gates sobre el kernel nuevo |
-| siguientes | El Darwin que corresponda | Apps designadas, arm64, SwiftUI, rendimiento |
+| 19.6.0 | Darwin 19.6.0 | Los gates M5 y M6 (con el audio AU1–AU10) y el conjunto de apps 19 en verde (BC4) |
+| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, las apps A5–A10; `ProductVersion` puede subir por conjuntos de apps |
+| 25.x | Darwin 25 | KX3: todos los gates pasan con el kernel nuevo |
+| Después | Su Darwin | Apps designadas, arm64, SwiftUI, rendimiento |
 
-- El salto de versión lo decide un gate, no la fecha. Las versiones 20.0 y 21.0 desaparecen como hitos (20 nov 2026).
-- Equivalencias: la antigua «1.0» es Minkar 19.6.0, y la «2.0» pasó a ser el requisito de rendimiento, primero de Minkar 21.0 y desde el 20 nov 2026 de una versión posterior a 25.x, medido sobre el kernel nuevo. La numeración 0.x (`PROD_VERSION = 0.7.1`) pasa a `19.6.0`, con `ProductFamily` Pre Alpha → Alpha → Beta.
+- `ProductUserVisibleVersion` muestra la versión (19.6.0); `sw_vers` imprime
+  `Minkar 19.6.0 (kernel Darwin 19.6.0)`; `uname -r` sigue en 19.6.0 hasta KX3.
+- `@available`, `NSProcessInfo` y `LSMinimumSystemVersion` leen `ProductVersion`; cada
+  símbolo que falta es un stub ruidoso, así que `@available` no oculta ningún hueco
+  silencioso. `SYSTEM_VERSION_COMPAT` para binarios enlazados con un SDK anterior está por
+  hacer.
+- Un gate decide una versión, no una fecha. El requisito de rendimiento (igual o mejor que
+  el sistema de referencia en la misma máquina física) es el gate de una versión posterior
+  a 25.x, medido con el kernel nuevo.
 
-* **APIs que dependen del kernel.** Algunas APIs nuevas esperan interfaces que XNU 19.x no tiene; por ejemplo, libpthread y libdispatch modernos usan las interfaces de workqueue y kevent de un XNU más reciente. Cada caso se resuelve con un parche acotado al kernel o con una implementación en userland, y la decisión se documenta.
-* **Versión reportada (decidido el 25 oct; ampliado el 30 oct 2026; su subida cambia el 20 nov 2026 por D2).** `ProductVersion` en `SystemVersion.plist` reporta un valor de compatibilidad (10.15, 11.0, 12.0...), nunca 19.6.0; `ProductUserVisibleVersion` muestra la versión de Minkar (19.6.0); `uname -r` dice 19.6.0 hasta KX3 y después la versión del kernel nuevo. `@available`, `sw_vers -productVersion`, `NSProcessInfo` y LaunchServices leen `ProductVersion`, y libSystem (`_availability_version_check`) toma el valor de ahí.
-  - Se arranca en 10.15 (API 19). Sube a la versión mínima que exige un grupo de apps designadas cuando ese grupo pasa el gate BC (carril BC, desde BC5); sustituye al criterio de subir solo al cerrar la API. El riesgo conocido, que `@available` dé por presente una API que falta, se mitiga con los stubs ruidosos.
-  - Gate de cada grupo: sus apps pasan el gate BC; el inventario de símbolos y el log de stubs ruidosos dicen cuáles de los símbolos que importan siguen siendo stubs.
-  - Compatibilidad: mecanismo tipo `SystemVersionCompat.plist` y `SYSTEM_VERSION_COMPAT=1`. Los binarios enlazados con un SDK anterior reciben la versión antigua.
-  - Descartado: subir `kern.osrelease` a 21.x, porque mentiría sobre la ABI del kernel; reportar 10.15 para siempre, porque bloquea las apps que exigen una API mayor en `LSMinimumSystemVersion`; y poner 19.6.0 en `ProductVersion`, porque `@available` daría por presentes APIs que faltan.
-* **Software que deduce la versión de la plataforma desde Darwin** (19 → API 19) se registra en la matriz de compatibilidad (carril BC). Ejemplo: un clang nativo con triple `darwin19.6.0` asume el deployment target de la API 19 (10.15); se corrige con `MACOSX_DEPLOYMENT_TARGET`.
+## Principios
 
-## Requisitos de rendimiento y hardware de referencia
+1. **Gates comprobables, de abajo arriba.** Sin prueba de arranque en verde, no se cierra una fase.
+2. **Los binarios publicados funcionan.** [Compatibility.es.md](Compatibility.es.md) y el registro de stubs ordenan el trabajo en frameworks, sea cual sea la API de un símbolo.
+3. **Stubs ruidosos.** Cada stub registra su primera llamada.
+4. **Reutilizar antes de escribir.** Primero código APSL, después swift-corelibs, después FreeBSD.
+5. **Licencias limpias y sala limpia.** El código propio de Minkar es BSD-2-Clause o MIT; nadie que haya visto el código cerrado de la plataforma de referencia contribuye código.
+6. **Alcance congelado por versión.** Un framework o una app entra solo si lo pide un binario designado o el registro de stubs; el audio y la GPU quedan fuera de la regla.
+7. **Trabajo en curso limitado.** Como mucho dos carriles activos, más el audio y la GPU.
 
-El rendimiento de Minkar debe ser igual o mejor que el del sistema de referencia en el mismo equipo físico (decidido el 29 oct 2026). Una solución que funciona pero es lenta no cierra un requisito: queda como parcial. El uso final es en equipos físicos; las máquinas virtuales son solo entorno de desarrollo.
+## Arquitectura
 
-**Decidido (30 oct 2026; movido el 20 nov 2026):** Minkar 19.6.0 cierra los gates funcionales M0–M6; los gates de rendimiento de esta tabla, antes de Minkar 21.0, pasan a una versión posterior a 25.x y se miden sobre el kernel nuevo. El frente de GPU sigue ya, en paralelo, porque es la pieza más larga y de ella depende el requisito.
+- Darwin 19.6.0 hasta KX3, después Darwin 25; objc4, CF-Lite, Foundation con el overlay `libswiftFoundation`, Swift 6.4.2, Combine desde OpenCombine.
+- Un AppKit basado en Cocotron, el [servidor de ventanas](WindowServer.md) y el escritorio propios, [Atlas](Atlas.md); WPE WebKit bajo un `WebKit.framework` propio.
+- Un compositor pensado para la GPU (Vulkan), Mesa, Metal sobre darling-metal e Indium ([GPU.md](GPU.md)); [SwiftUI](SwiftUI.md) sobre un motor adaptado de SwiftCrossUI.
 
-| Métrica | Requisito, frente al sistema de referencia en el mismo equipo |
-| --- | --- |
-| Arranque hasta la ventana de login | ≤ referencia |
-| Latencia de entrada a pixel en pantalla | ≤ referencia |
-| Composición con varias ventanas animadas | Refresco de la pantalla sin cuadros perdidos; CPU de WindowServer ≤ referencia |
-| Arranque de apps, en frío y en caliente | ≤ referencia |
-| Memoria en reposo | ≤ referencia |
-| Dibujo 2D y texto (Core Graphics, Core Text) | Benchmark de dibujo ≥ referencia |
-| 3D (Metal, Vulkan, OpenGL) | ≥ referencia con la misma GPU |
+## Fases cerradas
 
-| Entorno | Uso | Gates que aplica |
+| Fase | Gate | Cerrada en |
 | --- | --- | --- |
-| VM QEMU (TCG y KVM) | Desarrollo y CI | Funcionales; se permiten vías por software (pixman, lavapipe, llvmpipe) como andamio |
-| PC 1: Gigabyte H270N-WIFI, i7-7700 | Primer equipo físico; arranca a login desde SATA | Funcionales y de rendimiento frente al sistema de referencia |
-| PC 2 | Intel Xeon E5-2697 v2 (12 núcleos, 24 hilos), 40 GB, NVMe Samsung, xHCI Fresco Logic FL1100, Broadcom BCM57762, dos AMD FirePro D500 (Tahiti); hardware del propio fabricante (1 nov 2026): segundo PC de Minkar (gate M1) y hardware original del fabricante para medir la referencia | Ídem |
+| 0 — Compilación, toolchain y CI | M0: la CI compila el sistema y lo arranca | `05fa75cb65` |
+| 1 — Arranque de Darwin | M1: QEMU, PC 1 (SATA, NVMe, SMP) y PC 2 (NVMe, 24 hilos) | `9c3dbe9873` |
+| 2 — Userland base | M2: launchd como PID 1, DHCP, acceso por consola y por SSH, resolución de nombres | `71d99e9cdb` |
+| 3 — Frameworks base y Swift | M3: siete herramientas libres de línea de órdenes pasan sus pruebas | `22a0e67f0d` |
+| 4 — Gráficos y WindowServer | M4: ventanas de AppKit dibujadas, arrastradas y con texto, en QEMU y en el PC 2 | `9d510ec6c2` |
+
+Lo que quedó de estas fases:
+
+- Procesadores AMD, x2APIC, arrancar sin `pci_keep_console=1`; en el PC 1, DNS por IPv6, ACPI S3 y Wi-Fi.
+- Stubs ruidosos en todas partes, la caché compartida de dyld, libSystem optimizada; la prueba de velocidad de Rainbow en el gate M3.
+- Perfiles de aprovisionamiento comprobados; la fase 3 del sandbox (IOKit, mapeos, información de procesos, preferencias).
+- Lecturas NVMe a 1 MB/s en QEMU.
 
-- **Cómo se mide:** Minkar y el sistema de referencia en el mismo equipo (arranque dual), con los mismos benchmarks ejecutados por SSH. El sistema de referencia solo se mide en hardware original de su fabricante (candidato: PC 2), porque su licencia no permite otro, y sus valores se guardan fuera del repo público.
-- **Consecuencia:** si la referencia solo se mide en el PC 2, Minkar también debe medirse ahí, y sus GPU (dos AMD FirePro D500: Tahiti, GCN 1.0, PCI 1002:679e; la familia más antigua que tenemos y con soporte menos maduro) pasan a ser las del primer driver de alto rendimiento. La otra configuración del modelo, la FirePro D300, es Pitcairn: otro chip con su propio firmware, nunca probado (el driver conoce sus tablas y toma su microcódigo, `pitcairn_*.bin`; pendiente hasta tener una D300).
-- **Familias de GPU (decidido el 2026-11-01, [ADR 0002](ADR/0002-GPU-First-Family.es.md)):** primero GCN 1.0, la FirePro D500 (Tahiti) del PC 2, donde se mide la referencia; luego RDNA2, la tarjeta RX 6600 del PC 1 (Navi 23, que hoy lleva su pantalla con el framebuffer del firmware; sus pasos R0–R5 en [GPU-RDNA2.es.md](GPU-RDNA2.es.md), R0 y R1 hechos: la pantalla es del driver; R2 hecho: EDID, reposo, conexión en caliente, audio HDMI, el PSP y el SMU arrancados, 60 Hz; sigue R2b); luego Intel Gen9, la HD 630 integrada en el i7-7700 del PC 1.
+## Trabajo abierto
 
-## Línea base
+### Fase 5 — Escritorio Atlas
 
-Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compila como Mach-O y ya corre en un PC físico con sus ocho hilos de CPU y desde su SSD NVMe. La Fase 2 está cerrada; el hueco mayor está entre el kernel y el escritorio. Estado al 31 oct 2026:
+Gate M5: desde el arranque empieza una sesión gráfica, se abre una app desde el Dock, Files
+navega y la resolución cambia desde Preferencias del sistema, con el lenguaje visual de
+Atlas. Detalle: [Atlas.md](Atlas.md).
 
-| Componente | Estado | Qué falta | Fase |
-| --- | --- | --- | --- |
-| Cargador EFI + kernel Darwin | Arranca en QEMU (TCG y KVM), en el PC 1 desde SATA o NVMe y en el PC 2 desde NVMe; SMP con todas las CPU (24 hilos en el PC 2); el botón de encendido apaga de forma ordenada | Procesadores AMD, MSI-X | 1 |
-| Build del sistema | `world` completo; la CI compila y arranca en `main` y a mano | — (M0 cumplido) | 0 |
-| libSystem | Las apps de referencia encuentran todos sus imports de libSystem (308 de 308); `os_log` escribe en logd (`log show`); `@available` compara con `ProductVersion`; dyld con @rpath, @loader\_path y re-exports probado | Stubs ruidosos, `logd`, shared cache de dyld | 3 |
-| launchd / launchctl | launchd-842 como PID 1; launchctl con kickstart; `KeepAlive PathState`, `WatchPaths` y `QueueDirectories` | Nada | 2 (cerrada) |
-| Userland y herramientas del sistema | Todos los comandos de la Fase 2 (337 de 354 de la lista de referencia) | `open` y los comandos de fases posteriores | 2 (cerrada) |
-| DiskArbitration | Framework y `diskarbitrationd` originales (APSL); `diskutil` y `hdiutil` propios; monta HFS+, FAT y exFAT | — | 2 (cerrada) |
-| CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
-| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
-| Swift 6 | El runtime y la biblioteca estándar de Swift 6.0 en `/usr/lib/swift`, compilados desde `swift-6.0-RELEASE` con el compilador de Swift del propio toolchain; los overlays (Foundation, Dispatch, ObjectiveC...), OpenCombine como Combine y XCTest; gate M3 cumplido (5 nov 2026: siete herramientas de línea de comandos de código abierto pasan sus propios tests) | Swift Concurrency en el actor principal de las apps, SwiftUI (fuera de alcance hasta API 21) | 3 (M3 cumplido) |
-| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe. WS5 hecho (2 nov 2026): IOSurface con su registro `iosurfaced`, ventanas con IOSurface, un driver virtio-gpu 2D que vuelca por fotograma y cambia de modo, configuraciones de pantalla permanentes, `CGDisplayStream` | La GPU (WS6): G1 hecho en el PC 2 (driver de pantalla); G2 en marcha (su gate cumplido) | 4 |
-| Aceleración por GPU | En la AMD FirePro D500 del PC 2 (Tahiti, GCN 1.0, PCI 1002:679e): la pantalla en su modo nativo, DMA y el procesador de comandos, RADV de Mesa (Vulkan 1.3, un subconjunto del CTS sin fallos), y el servidor de ventanas compone en la GPU (G1 a G4) | Los relojes de la GPU, Pitcairn (FirePro D300) y otras familias, OpenGL, las mediciones frente a la referencia | 4 y Minkar 21.0 |
-| loginwindow | parcial: la ventana gráfica de inicio de sesión y el fondo de escritorio, una sesión por usuario | Autenticación con Directory Services, los LaunchAgents del usuario, el LoginWindow completo de la fase 5 | 5 |
-| SystemUIServer (barra de menús) | parcial: cada app dibuja su barra de menús (MB0); SystemUIServer se compila y muestra el reloj | Menu Extras y la API completa de status items (MB1), menús estándar (MB2), el menú del sistema completo (MB3), Servicios (MB4, 19.6.x) | 5 |
-| Dock | parcial: el núcleo nuevo con las claves de preferencias de la referencia, lanzar apps y las apps abiertas (D0, D1) | Interacción: reordenar, añadir, quitar, menús contextuales (D2); servicio de tiles, ventanas minimizadas, selector de apps (D3); pilas y Papelera (D4, 19.6.x) | 5 |
-| Files | parcial: navegar con barra lateral y vistas de iconos, lista y columnas, abrir archivos y apps, Obtener información básico (K1) | El resto de K0 (comprobar las vistas de AppKit), operaciones con archivos (K2), iconos del escritorio y volúmenes (K3); búsqueda, etiquetas y previsualizaciones (K4, 19.6.x) | 5 |
-| Text Editor | parcial: documentos de texto plano, abrir y guardar (con el panel de guardar), `open -e` | RTF, buscar y reemplazar, codificaciones, finales de línea, impresión (A2) | 5 y 6 |
-| System Preferences | parcial: la app, `PreferencePanes.framework` y cinco paneles (Pantallas, Dock, Fecha y hora, Teclado, Red) | El panel Usuarios (espera a Directory Services), el resto de paneles | 5 |
-| A0 Bases de las apps | hecho (8 nov: Acerca de, libros de ayuda, documentos con versiones, la plantilla; Atlas.es.md 5.3) | La plantilla de app: ventanas Acerca de y Preferencias, menú Ayuda, español e inglés, `NSDocument` | 6 |
-| Terminal (A1) | hecho (8 nov: libvterm, pestañas, Preferencias; `vttest` aún sin automatizar) | Toda la app: un emulador VT100/xterm sobre un pty, pestañas, historial, Agave | 6 |
-| Monitor del sistema (A3) | hecho salvo energía (8 nov; la energía por proceso espera los datos del driver de energía) | Toda la app: procesos, CPU, memoria, energía, disco, red, salir y forzar salida | 6 |
-| Registros (A4) | hecho salvo escribir informes de fallos (8 nov; la app los muestra, falta el generador de informes) | Toda la app, sobre `logd` y `os_log`; informes de fallos y de pánicos | 6 |
-| Captura de pantalla (A5) | falta | Toda la app, sobre `screencapture` y la lista de ventanas; los atajos del sistema | 19.6.x |
-| Visor de imágenes (A6a) | falta | Toda la app, e ImageIO | 19.6.x |
-| Visor de documentos (A6b) | falta | Toda la app, y PDFKit | 19.6.x |
-| Discos (A7) | falta | Toda la app, sobre DiskArbitration, `diskutil` y `hdiutil` | 19.6.x |
-| Información del sistema (A8) | falta | Toda la app, como `system_profiler` | 19.6.x |
-| Calculadora (A9) | falta | Toda la app: modos básico, científico y de programador | 19.6.x |
-| Gestor de archivadores (A10) | falta | Toda la app, sobre libarchive y `ditto` | 19.6.x |
-| Tipos de letra (19.6.x) | falta | Toda la app | 19.6.x |
-| Contraseñas y llaves (19.6.x) | falta | Toda la app, y el llavero que muestra | 19.6.x |
-| Selector de colores (19.6.x) | falta | Toda la app, y los selectores de `NSColorPanel` | 19.6.x |
-| Editor de scripts (19.6.x) | falta | Toda la app, y un entorno de scripts | 19.6.x |
-| Ayuda (19.6.x) | falta | Toda la app, y la búsqueda del menú Ayuda | 19.6.x |
-| Caracteres (19.6.x) | falta | Toda la app, y la paleta de caracteres | 19.6.x |
-| WebKit (W0–W5) | parcial: las bibliotecas de W0 compiladas y sus propios tests pasando en el PC 2 (21 de 23); JavaScriptCore con su JIT, gate W1 en marcha (es6 605 de 605); WebCore y los procesos sobre WPE, gate W2 superado; `WKWebView` (W3) y el `WebView` antiguo (W4) sobre WPE | Los tests propios de FreeType y WOFF2; las otras suites de W1; las vistas web de las apps de referencia (W5) | 3 y Minkar 19.6.0 |
-| AppKit | Parcial (Cocotron) | Piezas recientes de la API y lenguaje visual Atlas | 5 |
-| DMG, apps base | `hdiutil attach` ya monta por DiskArbitration | `DiskImages.framework` (UDIF), apps | 6 |
-| Compatibilidad binaria | Firefox 160 y Hex Fiend 2.18.1 corren desde sus binarios publicados; nibs binarios; firmas de terceros; install names idénticos a los originales | Gate BC, la matriz, los casos del cargador, la auditoría de ABI (BC0–BC4) | BC |
-| arm64 | Sin empezar | Compilación en la CI (ARM0); arranque sobre Darwin 25 (ARM1–ARM3) | ARM |
+- [ ] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
+- [ ] Menús: MB0–MB2 hechos; MB3 parcial (falta la pantalla bloqueada).
+- [x] Dock: D0–D3 hechos (D4 en 19.6.x).
+- [ ] Files: K1–K3 hechos; K0 parcial (comprobar las vistas de AppKit).
+- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios espera a Directory Services.
+- [ ] AppKit y el lenguaje visual de Atlas en todo el sistema.
+- [ ] Órdenes: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 
-## Fase 0 — Build, toolchain y CI
+### Fase 6 — Aplicaciones y distribución
 
-Objetivo: cualquier contribuidor obtiene una ISO arrancable desde cero con un solo comando, y cada PR se prueba arrancando en QEMU. Sin esto, todas las demás fases avanzan a ciegas.
+Gate M6, Minkar 19.6.0: instalado en una máquina física desde su propio medio USB; un DMG
+descargado, montado y su app ejecutada; Atlas completo para el uso diario (MB2–MB3,
+D2–D3, K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU10; el conjunto de
+apps 19 en verde (BC4).
 
-**Actividades**
+- [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
+- [ ] Compresión de HFS+ (decmpfs) con `MinkarFSCompression`; parcial.
+- [ ] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`).
+- [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada.
+- [ ] Apps: A0, A1, A3, A4 hechas; A2 parcial ([Atlas.md](Atlas.md#5-applications)).
+- [ ] Órdenes: `osascript`, `opendiff`, `tmutil`; las órdenes Tcl de git.
 
-- [x] Fijar el toolchain: `tools/toolchain/MANIFEST` fija la versión upstream, el árbol git y la línea de versión de cada componente (clang 17.0.6 de `swift-6.0-RELEASE`, ld64-609, y desde el 29 oct cctools con `ctf_insert` y las herramientas CTF de dtrace); `manifest.sh check` lo verifica en la CI y comprueba que una entrada compila, enlaza y archiva a los mismos bytes dos veces.
-- [x] Pasar todo el toolchain a `swift-6.4.2-RELEASE` (LLVM 21.1.6; decidido el 9 nov 2026): WPE WebKit necesita clang 18 o posterior, y el clang 17.0.6 fijado (`swift-6.0-RELEASE`) lo impide. Compilador, runtime y librería estándar de Swift, libc++, libunwind y compiler-rt suben juntos; los cambios de Minkar en LLVM se trasladan (`__MINKAR__`, el triple `minkar`, libSystem sin inicializadores estáticos en compiler-rt y libc++), y tapi-1600 se adapta a LLVM 21 (no hay un tapi posterior). Hecho cuando todo el sistema compile con él y pasen la suite completa y los gates M2 y M3. *Hecho (10 nov 2026, `38d3af4398`..`3a3052ab07`):* compilación desde cero sin pasos a mano, `manifest.sh check` (los mismos bytes dos veces), lote 1966/0 con los gates M2 y M3, suite completa sin fallos propios (tres fallan igual con clang 17: `display-reconfigure` dos veces y el ajuste de líneas de la consola). Por el camino: las cabeceras de libc++ 21 en el SDK, los stubs de arranque con `llvm-readtapi`, la capa de Darwin y `dispatch_async_swift_job` con importación débil para Swift 6.4, la versión del sistema leída sin CoreFoundation mientras se inicializan las librerías (todo programa con Combine fallaba), `isNSString__` y las demás comprobaciones de clase que envía el runtime de Swift 6.4 a Foundation, el cotejo Unicode de CoreServices (GLib lo usa en cuanto hay Carbon), y los archivos generados de un árbol autotools fechados después de sus fuentes.
-- [x] Targets de bmake por capa: `bmake <capa>` y `bmake <capa>-check`, `layers-check` e `image-check`. Los frameworks de terceros pasaron a la Fase 3.
-- [x] CI: `.github/workflows/build-boottest.yml` compila el toolchain (en caché), el sistema y la imagen, y pasa `boottest GATE=M2`. Desde el 29 oct corre en `main` y a mano, para no agotar los minutos de Actions de una cuenta gratuita.
-- [x] Inventario de símbolos: `tools/symbols/`; Minkar cubre el 72,0% de los imports de sistema de las cuatro apps de referencia (68,3% la mañana del 31 oct).
-- [x] Documentar el build: `BUILDING.md` con host, paquetes, tiempos medidos y 17 errores frecuentes.
+#### WebKit
 
-* [x] **Criterio de salida (M0):** cumplido en la CI (`05fa75cb65`, y de nuevo en `9191fe8458`, 29 oct 2026).
+- [ ] W0 — Sus dependencias en `/usr/lib`: parcial (21 de 23 pasan sus propias pruebas).
+- [ ] W1 — JavaScriptCore con su JIT: la batería ES6 pasa; faltan las demás.
+- [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
+- [x] W3 — `WKWebView`. `a5d929ebdd`
+- [x] W4 — El `WebView` antiguo. `86ed0b5d33`
+- [ ] W5 — Las vistas web de las apps designadas: funciona lo que usa su código (`ac148eb478`); faltan las propias apps.
 
-## Fase 1 — Arranque Darwin
+#### Audio y medios
 
-Objetivo: XNU arranca en PC x86-64 genérico hasta lanzar PID 1 con el disco raíz montado. Es la prioridad oficial número dos y bloquea todo lo demás.
+Frameworks propios de Minkar sobre FFmpeg (LGPL) y dav1d; sin GTK, Qt ni GStreamer.
 
-**Actividades**
+- [x] AU1–AU6 — IOAudioFamily y HDA, el servicio de audio y CoreAudio, AudioToolbox, FFmpeg y dav1d, CoreMedia y AVFoundation, los medios de WebKit. `f39b73ee62`
+- [ ] AU7 — USB Audio Class 2.0.
+- [ ] AU8 — CoreMIDI, framework y servicio.
+- [ ] AU9 — Alojar Audio Units, y Accelerate.
+- [ ] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia.
 
-- [x] Cargador EFI: kernel prelinkado, framebuffer GOP, mapa de memoria y tablas ACPI; desde el 30 oct pasa también las tablas de configuración (SMBIOS: modelo y UUID de la máquina).
-- [x] Plataforma XNU para PC genéricos: ACPI, APIC, TSC/HPET, sin SMC.
-- [x] Kexts mínimos:
-  - [x] AHCI con MSI (`MinkarAHCIPort`).
-  - [x] virtio-blk (`MinkarVirtio`).
-  - [x] NVMe (`MinkarNVMe`, escrito desde la especificación): el PC 1 arranca desde su SSD (unos 1,4 GB/s de lectura y 1,1 GB/s de escritura). *Pendiente:* en QEMU las lecturas por el dispositivo de bloques van a 1 MB/s.
-  - [x] USB xHCI + HID (`MinkarXHCIPort`, `IOUSBFamily`, `MinkarUSB`), en QEMU y en el PC 1.
-  - [x] e1000 y e1000e (`MinkarE1000`), con el código compartido de Intel para I219-V e I211.
-  - [x] virtio-net (`MinkarVirtio`).
-  - [x] Framebuffer GOP como consola, a resolución nativa por EDID (3440×1440 en el PC 1).
-- [x] Raíz HFS+ (APFS y ZFS, más adelante); FAT (`msdosfs`); exFAT con driver propio en lectura y escritura, `mount_exfat`, `fsck_exfat` y `newfs_exfat` (31 oct).
-- [x] Consola serie para los gates.
-- [x] Panic logs legibles: `tools/panic-report.py` simboliza cada frame; probado con un panic real.
-- [x] Arranque en QEMU con KVM y TCG. *Parcial:* en los runners de la CI todavía solo TCG.
-- [x] SMP (30 oct 2026): corren todas las CPU que la MADT habilita. En el PC 1, ocho hilos (`hw.ncpu` 8, 4 físicos); en QEMU probado con 2 a 64 procesadores y varias topologías.
-- [x] Botón de encendido (31 oct 2026): IOACPIFamily toma el evento fijo de ACPI o el dispositivo PNP0C0C y `powerd` pide un apagado ordenado; en el PC 1 el equipo se apaga. `shutdown` y `reboot` tardan unos 2 s (antes 20 s, por diskarbitrationd), y las imágenes de prueba arrancan con `msgbuf=1048576`.
-- [x] Lista de hardware de referencia (`Docs/Hardware.md`): PC 1 y PC 2 (1 nov 2026) documentados; AMD más abajo.
-- [ ] Más de 64 procesadores y x2APIC (después de Minkar 19.6.0); hoy una máquina mayor corre con sus primeras 64.
-- [ ] Procesadores AMD: el kernel los reconoce, pero Minkar nunca ha corrido en uno. Primero en QEMU con `-cpu EPYC`, luego en un PC AMD.
-- [ ] Arrancar sin `pci_keep_console=1`; IOKit tarda más de 30 s en quedar en reposo.
-- [ ] IPv6 en la red del PC 1: RDNSS y respuestas DNS sobre IPv6, que la red de usuario de QEMU no da (movido de la Fase 2 el 31 oct).
-- [ ] Wi-Fi del PC 1 (Intel, M.2): sin driver.
+### Carril BC — Compatibilidad binaria
 
-* [x] **Criterio de salida (M1):** cumplido en QEMU, en el PC 1 (desde SATA y desde NVMe, con SMP) y en el PC 2 (1 nov 2026: desde NVMe, 24 hilos con carga, 40 GB, disco y reinicio pasan en `minkar-hwcheck`; `9c3dbe9873`, `c129adf018`, `e9a4446222`).
+Los binarios x86-64 publicados de las apps designadas arrancan y funcionan sin
+recompilarlos; las apps y hasta dónde llega cada una están en
+[Compatibility.es.md](Compatibility.es.md). Los nombres de instalación, la disposición de
+las ivars públicas y los tamaños de las structs se mantienen como en la plataforma de
+referencia.
 
-## Fase 2 — Userland base
+- [ ] BC0 — El gate BC (`bmake bc-check`) en la CI con todas las apps designadas; espera su primera ejecución en la CI.
+- [x] BC1 — La matriz generada, [Compatibility.es.md](Compatibility.es.md).
+- [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas de terceros y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
+- [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin los headers del fabricante.
+- [ ] BC4 — El conjunto de apps 19 en verde; parte de M6.
+- [ ] BC5… — Un grupo de apps designadas por cada subida de `ProductVersion`.
 
-Objetivo: un sistema Unix multiusuario completo sobre Darwin, gestionado por launchd y con los servicios que luego necesitan Atlas y las apps.
+### Carril ARM — arm64
 
-**libSystem y dyld**
+Con el kernel nuevo, y por ahora solo en una máquina virtual.
 
-- [x] dyld real con `@rpath`, `@loader_path` y re-exports: es el dyld original (APSL); una prueba compila un programa, sus bibliotecas y una que reexporta, y los ejecuta (31 oct). El resto de libSystem, los stubs ruidosos y la shared cache pasaron a la Fase 3.
+- [ ] ARM0 — El userland y los frameworks compilan para arm64 en la CI (cerca del 96 % de los objetos); no se enlaza ni se arranca nada.
+- [ ] ARM1 — Darwin 25 arranca en arm64 en una VM hasta el gate M2; el destino de arranque no está decidido.
+- [ ] ARM2 — El escritorio en arm64 en QEMU.
+- [ ] ARM3 — Arrancan los binarios arm64 de las apps designadas.
 
-**launchd**
+### Carril KX — Kernel nuevo: Darwin 25
 
-- [x] Portar a Darwin la versión antigua con XPC usada en la era FreeBSD.
-- [x] `launchctl` con `load`, `bootstrap`, `list` y `kickstart` (`kickstart [-k] [-p]` desde el 31 oct, probado reiniciando notifyd).
-- [x] Plists XML además de JSON, para usar `LaunchDaemons` y `LaunchAgents` tal como los escriben las apps (sshd arranca desde `com.openssh.sshd.plist`).
+`xnu-12377.121.6`, primero x86-64; detalle en [ADR 0003](ADR/0003-Kernel-Upgrade.md).
+Hasta KX3, `devel` sigue en Darwin 19.6.0 y el código nuevo de frameworks y escritorio
+compila con los dos kernels.
 
-**Userland BSD, por lotes**
+- [x] KX0 — ADR 0003 aceptado para x86-64, con condiciones; una comprobación de que Darwin 25 compila.
+- [ ] KX1 — Darwin 25 arranca en QEMU hasta el gate M2 en una rama; después de publicar 19.6.0 y después de R1.
+- [ ] KX2 — Todos los gates en QEMU, en el PC 1 y en el PC 2.
+- [ ] KX3 — `devel` pasa a Darwin 25; Darwin 19 queda como la rama de mantenimiento de 19.6.x.
 
-- [x] Arranque: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
-- [x] Comandos genéricos de Unix desde FreeBSD `main` con una capa propia de compatibilidad: todos los BSD de la lista de referencia (27 oct). A `grep` le faltan `-Z` y `-J`.
-- [x] Herramientas que faltaban en la imagen: 337 de 354 comandos de la lista de referencia (`Docs/Commands.md`), entre ellos `dtrace` con tipos del kernel (CTF), `system_profiler`, `pmset` con `powerd`, `networksetup`, `kextload`/`kextstat`, `emond`, `fs_usage`, `leaks`, el servidor NFS con `rpcbind` y, desde el 31 oct, el driver exFAT propio (lectura y escritura), `mount_exfat` y el bundle `exfat.fs`: diskarbitrationd monta discos exFAT en lectura y escritura. Están todos los comandos de la fase.
-- [x] Movidos a fases posteriores (30 oct): `pbcopy`, `pbpaste` y `screencapture` a la Fase 4; `open`, `lsappinfo`, `say` y `mdfind`/`mdls`/`mdutil` a la Fase 5; `osascript`, `opendiff` y `tmutil` a la Fase 6.
-- [x] Fuera hasta después de Minkar 19.6.0 (decidido el 30 oct): APFS (no hay implementación abierta), SMB (Samba es GPL) y `fdesctl`.
-- [x] Usuario avanzado: `zsh`, `tar`, `ssh`, `curl`, `make` y `git` 2.56.0. Los comandos de git en Perl, Python y Tcl pasaron a la Fase 6.
-- [x] Herramientas del sistema: `plutil`, `defaults`, `sw_vers`, `ditto`, `hdiutil` y `diskutil`; `chmod` con la sintaxis de ACL de la referencia, y el kernel aplica las entradas allow además de las deny (28 oct).
+### Carril SU — SwiftUI
 
-**Daemons de soporte** (necesarios para las Fases 5 y 6)
+Detalle en [SwiftUI.md](SwiftUI.md).
 
-- [x] `notifyd`, con el `notifyutil` original (APSL) desde el 31 oct: se prueban posts, clientes en espera y estados, también después de un reinicio.
-- [x] DiskArbitration (30 oct 2026): framework y `diskarbitrationd` originales (APSL) con los bundles `hfs.fs`, `msdos.fs` y `exfat.fs`, y `diskutil` y `autodiskmount` propios; `hdiutil attach` monta a través de él. Sin Security, el daemon decide los permisos por sí mismo.
-- [x] `powerd` y `pmset` propios: ajustes, aserciones, eventos y el botón de encendido; el reposo se rechaza porque aún no hay ACPI S3.
-- [x] Movidos el 31 oct: `logd` pasa a la Fase 3 con `os_log` (mientras tanto, `syslogd` y `aslmanager`); la gestión de usuarios estilo Directory Services pasa a la Fase 5, con la ventana de login que la necesita.
+- [ ] SU0 — El inventario de símbolos informa de lo que importan de SwiftUI las apps designadas; en la CI.
+- [x] SU0b — La revisión de sala limpia y de licencias de SwiftCrossUI, aprobada el 21 nov 2026.
+- [ ] SU1 — El diseño, [SwiftUI.md](SwiftUI.md); propuesto.
+- [ ] SU2 — SwiftCrossUI importado; las apps de prueba de SwiftUI de Minkar muestran sus ventanas. Después de 19.6.0.
+- [ ] SU3 — Cada símbolo de SwiftUI que importan los binarios designados existe con el mismo nombre y la misma disposición.
+- [ ] SU4 — Arranca un binario publicado que enlaza SwiftUI (candidata: iTerm2).
 
-* [x] **Criterio de salida (M2):** arranque con launchd como PID 1, red por DHCP, login en consola y acceso por SSH.
+### Carril R — Estructura
 
-**Estado (31 oct 2026): Fase 2 cerrada.** M2 cumplido: `boottest GATE=M2` ve sus 13 marcadores en unos 75 s bajo QEMU sin KVM, e incluye la configuración DNS de configd (`scutil --dns`) y la resolución por mDNSResponder (`dscacheutil -q host`). Todos los comandos de la fase están en la imagen, y lo que no es un comando pasó a la fase que lo necesita.
+El núcleo se queda en un repositorio; el resto sale por pasos. Detalle en
+[Structure.md](Structure.md).
 
-- [x] launchd-842 arranca como PID 1.
-- [x] `dhcpclient` obtiene 10.0.2.15 para `en0`.
-- [x] root entra por la consola con PAM.
-- [x] root entra por SSH desde el anfitrión con una clave.
+- [ ] R0 — El inventario y Structure.md; no se mueve nada.
+- [ ] R1 — El toolchain a su propio repositorio, como artefacto fijado, con AArch64; justo después de 19.6.0, antes de KX1.
+- [ ] R2 — Las fuentes de terceros de BSD como descargas fijadas más parches; 19.6.x.
+- [ ] R3 — La CI publica cada capa compilada; 19.6.x, después de R1.
+- [ ] R4 — Las apps de Atlas a su propio repositorio, compiladas con el SDK publicado.
 
-Componentes:
+### Pista de la GPU
 
-- [x] **IONetworkingFamily propio** (BSD-2), con la API de IOKit.
-- [x] **Driver `MinkarE1000`** para las NIC Intel e1000 y e1000e.
-- [x] **`ifconfig`, `dhcpclient` e `ipconfig` propios.**
-- [x] **OpenSSH 10.6p1 sin OpenSSL**, con PAM.
-
-Cerrado después:
-
-- [x] MSI para disco y red.
-- [x] IPv6: direcciones link-local y SLAAC, `ping6` y consultas DNS sobre IPv6, probados en QEMU desde el 31 oct. RDNSS y las respuestas DNS sobre IPv6 se comprueban en el PC 1 (Fase 1), porque la red de usuario de QEMU no los da.
-- [x] DNS sobre IPv4 con `libresolv` y mDNSResponder (gate M2); sobre IPv6, como en el punto anterior.
-- [x] `getaddrinfo`, `id` y `dscacheutil`.
-- [x] El gate M2 también verifica la resolución de nombres.
-- [x] Corregida la carrera en el driver AHCI con MSI que hacía fallar launchd.
-
-Lo que quedaba de la Fase 2 sin ser un comando se movió el 31 oct: el resto de libSystem, los stubs ruidosos, la shared cache de dyld y `logd` a la Fase 3; Directory Services a la Fase 5; los comandos de git en Perl, Python y Tcl a la Fase 6.
-
-## Fase 3 — Frameworks base y Swift
-
-Objetivo: una app de línea de comandos en Objective-C o Swift, escrita para la API 19, compila y corre sin cambios; después se sube a la API 20 y a la 21. La Fase 2 ya está cerrada, así que esta fase no espera a nada.
-
-**Decisiones de arquitectura (tomar primero)**
-
-- [x] **Runtime Objective-C: objc4 (APSL), decidido.** Ya está en el árbol: `Libraries/Makefile` compila `objc4` antes de `Libsystem`, y `Minkar.sdk` toma sus headers. Es el ABI original en todo el sistema, requisito de la Fase 7. Falta solo confirmar `__objc_classlist` y `__objc_imageinfo` en un binario compilado.
-- [x] **CoreFoundation: CF-Lite (APSL), decidido el 25 oct 2026.** Es la CF actual de `Frameworks/CoreFoundation`, con toll-free bridging propio (`CFBridging.c`, `CFRuntime.c`) y puente CF ↔ XPC. No se reemplaza por la CF de Swift. La CF-Lite pública es anterior a la API 19: las APIs de CF que faltan hasta la API 21 se añaden a mano, con la CF de swift-corelibs (Apache 2.0) como referencia. `Frameworks/CoreFoundation.old` se eliminó el 26 oct 2026.
-- [x] **Foundation para Swift: Foundation de Objective-C más overlay `libswiftFoundation`, decidido el 25 oct 2026.** Es el modelo de la API 21. Base: la última versión abierta del overlay de Darwin (Apache 2.0) en el historial de `swiftlang/swift`, actualizada a Swift 6.0. swift-foundation queda solo como referencia para APIs nuevas.
-- [x] **Runtime de Swift: Swift 6.0 en `/usr/lib/swift`, decidido el 25 oct 2026.** Misma versión que el LLVM del árbol (fork de swiftlang, rama `swift-6.0-release`). Punto de partida: no hay compilador, stdlib ni overlays de Swift en el árbol; solo el overlay de Dispatch (`libdispatch/src/swift`) y las anotaciones Swift en los headers de CF.
-- [x] **Combine y SwiftUI, decidido el 25 oct 2026.** Ambos pertenecen a la API 19. Combine entra en la API 19 sobre OpenCombine (MIT), renombrado como módulo `Combine` e instalado como `Combine.framework`; depende del gate del toolchain Swift. Las API 19, 20 y 21 se cierran sin SwiftUI de forma explícita. OpenSwiftUI (MIT, desarrollo temprano) queda en observación y la decisión se revisa midiendo cuántas apps de referencia lo necesitan. *Sustituida el 20 nov 2026 por D6, y D6 el mismo día por D7:* SwiftUI es una capa pública propia de Minkar sobre un motor basado en SwiftCrossUI (carril SU); Combine sigue sobre OpenCombine.
-
-Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta condiciona el runtime de Swift.
-
-**Actividades**
-
-0. Traer los frameworks de terceros restantes (movido desde la Fase 0): 13 frameworks se compilan e instalan; CFNetwork está comentado, y Security y OpenDirectory no se compilan.
-1. Completar la CF-Lite hasta la API 21, con pruebas de bridging en cada cambio.
-   - [x] Las funciones de cadena de CF aceptan las cadenas propias de Foundation (`CFLocaleCreate`, `CFStringGetCString`... leían basura de las de `NSMutableString`) (`42a40ffab0`, prueba `foundation-cf-string-bridging`, suite completa 2888/0).
-   - [x] `CFArray` y `CFDictionary` tienen toll-free bridging con `NSArray` y `NSDictionary` en los dos sentidos: los objetos de CF aceptan mensajes de Objective-C (`__NSCFArray`, `__NSCFDictionary`) y las funciones de CF aceptan las colecciones de Foundation. Evidencia: commit "CoreFoundation and Foundation: arrays and dictionaries bridged both ways", prueba `foundation-cf-bridging` (13/0), suite completa 2761/0, M2 PASS.
-2. Auditar Foundation contra la API 19 empezando por lo que importan las apps de referencia. *Hecho (25–26 oct):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (con JSON5), `NSCache`, `NSInvocation` con la convención System V, `NSHashTable` y `NSMapTable` débiles, listas de propiedades binarias byte a byte como la referencia, `NSProgress` y la API moderna de `NSString`, además de decenas de fallos encontrados al probar. *Hecho (31 oct):* `NSProcessInfo` con `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, procesadores, memoria y `systemUptime` (`fb6e25b877`). *Hecho (31 oct):* `NSURLSession` sobre libcurl: configuración, tareas de datos, subida y descarga, delegado y bloques de finalización, redirecciones y retos de autenticación a través del delegado, datos de reanudación, URL `file:` y `data:` (`00617d5f6c`); el run loop del hilo principal ejecuta la cola principal de dispatch, que nunca se ejecutaba en un programa movido por `NSRunLoop` (`c88f713757`); `NSOperation`, `NSBlockOperation` y `NSOperationQueue` reescritas sobre dispatch, con `mainQueue`, `currentQueue`, límite de concurrencia, operaciones asíncronas y barreras (`3f886f812e`); Base64 y `rangeOfData:options:range:` en `NSData`, `NSHTTPURLResponse` (tipo MIME, charset, longitud desconocida), cuatro claves de `NSError` que no enlazaban, URL relativas que perdían el puerto, `MIN`/`MAX`/`ABS` (`81d2593fb7`). Pruebas `foundation-url-session` (30/0, con HTTPS), `foundation-operation-queue`, `foundation-main-queue`, `foundation-url-support`; suite completa 2826/0, M2 PASS. Después (`b48794b0dc`, `dc214ec2ce`, `852676bdeb`, `5671610ec9`): cookies HTTP (`NSHTTPCookie` y `NSHTTPCookieStorage` estaban vacíos), que `NSURLSession` envía y guarda; `pathComponents` no conservaba `/`, y `createDirectoryAtPath:withIntermediateDirectories:` volvía relativas las rutas absolutas; `addObserverForName:object:queue:usingBlock:`; el comportamiento por defecto de `NSDateFormatter` sobre CFDateFormatter (patrones Unicode, estilos, locales; solo funcionaban los formatos `%Y`). Pruebas `foundation-cookies`, `foundation-paths-blocks`, `foundation-date-formatter`; suite completa 2871/1 (una prueba intermitente, que volvió a pasar), M2 PASS. Después la API de ficheros por URL (`8b9592659f`, `4738af30ea`, `e2ebc901c5`): todos los directorios estándar en `NSSearchPathForDirectoriesInDomains` (conocía tres), URL de fichero como las hace la API (`file:///a%20b/`, `path` decodificado), valores de recursos y marcadores de NSURL, métodos de URL de NSFileManager y NSBundle; prueba `foundation-file-urls`; suite completa 2907/0, M2 PASS. `tools/symbols/selector-inventory.py` (`093bf4113e`) lista los mensajes de Objective-C que envían las apps de referencia y que ninguna clase de Minkar implementa: el 31 oct está el 80,0 % de 3305 (77,9 % antes de las URL de fichero). Después procesos, ficheros y formateadores (`2ebf423f7b` a `15c3a8fd96`, 9 commits): NSTask sobre posix_spawn con su API moderna (cerraba la salida estándar del hijo si no se le daba y recogía a todos los hijos del proceso); métodos con error y manejadores de lectura de NSFileHandle; temporizadores con bloque; el gestor de ficheros liberado en uso (se escribía su isa a mano) y escrituras que no truncaban; NSURLComponents y NSURLQueryItem; NSDateInterval; NSByteCountFormatter, NSDateComponentsFormatter y, sobre ICU, NSRelativeDateTimeFormatter, NSDateIntervalFormatter y NSListFormatter; NSDateComponentUndefined como NSIntegerMax. Pruebas `foundation-process-io`, `foundation-components-formatters`; suite completa 2943/0, M2 PASS; selectores 81,2 %. *Queda en `NSURLSession`:* la caché de URL, las métricas de tareas (necesitan `NSDateInterval`), tareas de stream y WebSocket, retos de confianza del servidor (necesitan Security). *Fallo conocido:* `NSKeyedUnarchiver` no lee la lista de propiedades XML que escribe `NSKeyedArchiver`. Sin probar: el comportamiento dependiente del locale (los datos de locale UTF-8 están en la imagen desde el 27 oct).
-3. Security (APSL) para certificados y keychain básico. TLS en `NSURLSession` funciona sin él (libcurl con mbedTLS y `/etc/ssl/cert.pem`); los retos de confianza del servidor (`SecTrust`) y los certificados de cliente lo necesitan.
-4. LaunchServices: base de datos de bundles y tipos UTI; `open` y Files dependen de ella. *Hecho en WS4a:* el servicio de sesión, que guarda las apps en ejecución (`launchservicesd` y el cliente de la sesión en `LaunchServices.framework`, `996178d949`). *Hecho (4 nov 2026, `0331f57894`, `345636f2f5`):* launchservicesd guarda las apps instaladas, sus tipos de documento y los tipos que declaran, dice qué apps abren un archivo y entrega los documentos a una app (en el momento o después de su arranque); `LSOpenCFURLRef`, `LSOpenFromURLSpec`, `LSCopyDefaultApplicationURLForURL`, `LSCopyApplicationURLsForURL`, `LSRegisterURL`, `LSRevealInFiles`; AppKit entrega los documentos a `application:openURLs:` y NSWorkspace abre a través de él. Prueba local `launchservices` 24/0. Se fue el código de la base SQLite de ravynOS (`e7ae74a2e5`).
-5. CoreText y CoreData: implementación mínima guiada por uso real (ver la guía técnica de la pila gráfica).
-6. Swift 6: stdlib y runtime completos, con concurrencia en el sistema, y module maps para los frameworks.
-7. Los niveles de API que pidan las apps designadas, subiendo `ProductVersion` (10.15 → 11.0 → ...) a medida que cada grupo de apps pasa el gate BC (D2, 20 nov 2026).
-
-Llegan de la Fase 2 (31 oct 2026):
-
-- [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). También están las demás bibliotecas de `/usr/lib` que importan: `libsqlite3` (SQLite 3.54.1, con el intérprete `sqlite3`, `bbe573a8a5`), `libxar` (xar-503) y nuestra `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto tiene `CCDigest` (`88e4800b96`). libxpc tiene conexiones reales desde el 31 oct (`b2a0bee6ce`): escuchas anónimas y endpoints, servicios Mach a través de launchd con interrupción y relanzamiento, respuestas, descriptores, puertos y memoria compartida en los mensajes, las credenciales del emisor; los arrays funcionan (antes no podían contener nada). Prueba `libxpc-connection` (14 comprobaciones). Desde el 3 nov: plists XML (`xpc_create_from_plist`), los entitlements del otro extremo (`xpc_connection_copy_entitlement_value`, de la copia de su firma que guarda el núcleo) y transacciones sobre las de liblaunch (`219ac6ca38`, `4709c75447`; pruebas `libxpc-plist`, `libxpc-transactions`). `xpc_set_event_stream_handler` sigue siendo un stub: la parte de launchd está, aún no hay proveedor de eventos. `NSObject` es solo `isa`, como en la ABI de referencia (llevaba los campos de la cabecera de CF; las clases puente los declaran ellas mismas, `a3a9d005fc`); lo que el runtime de Swift necesita del SDK: `<os/signpost.h>`, `os_system_version_get_current_version`, `_dyld_is_objc_constant` (`2f0c5038af`). Foundation reexporta CoreFoundation, como la referencia (`55ac68b1f0`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
-- [ ] Stubs ruidosos (log en la primera llamada). *Parcial (31 oct):* `<minkar/stub.h>` registra (`org.minkar.stubs`; en logd desde el 3 nov, se lee con `log show`) la primera llamada a un stub en cada proceso, con la imagen que lo llamó, y en stderr en modo DT; los 875 métodos y funciones sin implementar de Foundation, AppKit, CoreData y QuartzCore lo usan (antes escribían en stderr en cada llamada), y los 12 stubs silenciosos de libxpc ya avisan. `tools/symbols/trivial-functions.py` lista las funciones exportadas que no hacen nada (404 el 31 oct, muchas de terceros y vacías a propósito): el resto se revisa desde esa lista.
-- [ ] Shared cache de dyld (opcional al principio).
-- [x] `logd`, con `os_log` (3 nov 2026, `5d587b3d44`, `6e7a02196d`): `os_log` envía sus mensajes a logd, que guarda default, error y fault en disco e info (debug si se pide) en memoria; el comando `log` los muestra, sigue, configura y borra, con predicados de NSPredicate; cada usuario ve los suyos. Prueba `logd` 23/0. syslogd solo los recibe cuando no hay logd que los tome; `log show` y `log stream` muestran también los mensajes de `syslog(3)` (del almacén de syslogd).
-
-**Toolchain Swift** (el prototipo es gate antes del resto del trabajo de Swift)
-
-- [x] Prototipo 1: compilar `swiftc` (`swiftlang/swift`, rama `release/6.0`) en el host Ubuntu como compilador cruzado, contra el LLVM `swift-6.0-release` del árbol. *Hecho (3 nov 2026, `1d2b7e8d9d`):* `Developer/Default.xctoolchain/swift` compila `swift-frontend` (`swiftc`, `swift`) para el host contra el LLVM y el clang de la cadena de herramientas, desde el tarball de la versión de Swift fijado por SHA-256 (un parche: sin ASTGen cuando no hay swift-syntax); aún sin macros. Desde el 4 nov 2026, con swift-syntax y macros (`bf2464179d`).
-- [x] Prototipo 2: compilar `libswiftCore` para `x86_64-apple-macosx10.15` contra `Minkar.sdk` y ejecutar un "hello world" de Swift (no Embedded) en QEMU. *Hecho (3 nov 2026, `1d2b7e8d9d`):* `Libraries/swift` compila el runtime y la biblioteca estándar desde Linux en `/usr/lib/swift`; hizo falta NSObject con el tamaño de referencia (`a3a9d005fc`) y algunas piezas del SDK (`2f0c5038af`). Prueba `swift` 10/0: cadenas, protocolos, clases, genéricos, errores y colecciones.
-- [x] `libswift_Concurrency` y overlays de sistema: `Darwin`, `ObjectiveC`, `CoreFoundation` y `Dispatch` (desde `libdispatch/src/swift`). *Parcial (4 nov 2026, `283d9da3e1`):* Concurrency sobre libdispatch y el overlay `Darwin`; prueba `swift` 19/0 (main asíncrono, grupos de tareas, actores, cancelación, AsyncStream). *Hecho (4 nov 2026, `30f8226a8d`):* los overlays `ObjectiveC`, `Dispatch` y `CoreFoundation` de Swift 5.4, compilados con Swift 6.0 (no desde `libdispatch/src/swift`, decidido el 4 nov: el de Darwin es la ABI de las apps compiladas para la plataforma de referencia); CoreFoundation hace de los bloques y sus objetos objetos de Objective-C sin Foundation (`bc807ce599`). Prueba `swift` 26/0.
-- [x] Overlay `CoreGraphics`. *Hecho (4 nov 2026, `dc69c6b38f`):* de Swift 5.4 como los demás, con `CGFloat` generado por su plantilla gyb. Antes CoreGraphics pasó a los tipos de referencia: `CGFloat` es `double` en 64 bits y `CGContextRef` un tipo CF (`29f392e725`), los contadores son `size_t`, las enumeraciones tienen tipo, y se añadió la API que usa el overlay con sus nombres de Swift en las cabeceras (`f61dfd5b34`). Prueba `swift` 34/0 (geometría, transformaciones, colores, rutas, dibujo en un mapa de bits). Falta: nombres de Swift para el resto de CG y la nulabilidad de las cabeceras.
-- [x] Overlay `libswiftFoundation` a partir de la última versión abierta, actualizado a Swift 6.0. *Hecho (5 nov 2026, `7093882f38`):* el overlay de Swift 5.4 compilado con Swift 6.0 contra la Foundation de Minkar, con sus planificadores y publicadores de Combine (run loop, cola de operaciones, temporizador, notificaciones, KVO, sesión de URL; el de DispatchQueue en el overlay de Dispatch). Antes Foundation recibió lo que Swift lee de ella y lo que le faltaba (`a3b073f23b`): los tipos de referencia (`NSStringEncoding`, `NSComparisonResult`, `NSRectEdge`), enumeraciones de cadenas con tipo, propiedades, genéricos y nulabilidad en las cabeceras, y la API 19 que llama el overlay: NSCalendar y NSLocale sobre CF (`16ab71b9a3`), la aritmética de NSDecimal y NSDecimalNumber (`e25e40ac29`), NSOrderedSet, las diferencias de colecciones, unidades y medidas, NSPersonNameComponents, NSLinguisticTagger, NSISO8601DateFormatter y NSItemProvider (`df5cbb9610`). KVO entraba en recursión infinita en un setter observado y no tenía notificaciones iniciales (`7233b00fcd`). Pruebas `swift` 71/0 (Foundation y Combine desde Swift), `foundation-api19` 49/0; suite completa 3783/1 (una prueba de cursores intermitente, pasa sola), M2 PASS. *Falta:* la confianza del servidor en URLError y en las sesiones (necesitan Security); `URLSessionWebSocketTask` es un stub que falla como no soportado.
-- [x] Combine (API 19) desde OpenCombine. *Hecho (5 nov 2026, `7b305aa383`):* OpenCombine 0.14.0 (MIT) compilado como `Combine.framework`, un módulo con evolución de biblioteca que los programas enlazan como framework; `Optional.Publisher` y `Result.Publisher` anidados como en Combine. Probado con sujetos, operadores, `@Published`/`ObservableObject`, `Future`, `Zip`, decodificación, y los planificadores y publicadores de Foundation y Dispatch.
-- [x] XCTest, para las suites de tests del criterio. *Hecho (5 nov 2026, `78caf199df`):* swift-corelibs-xctest (Apache-2.0) en la versión de la toolchain, compilado sobre la Foundation de Minkar como `XCTest.framework` (en `Developer/Library/Frameworks` de la plataforma para compilar, en `/Library/Developer/Frameworks` de la imagen). Sin gestor de paquetes, `xctest-discover` escribe el main de un programa de tests a partir de sus fuentes (subclases, tests heredados, extensiones, tests asíncronos). Hizo falta `NSProcessInfo`, `NSFileHandle` y `NSDateFormatter` con la forma de la referencia, y `getCFRunLoop`, que devolvía el propio NSRunLoop (`bf327957e7`). Prueba local `xctest` 15/0.
-- [x] Instalar todo en `/usr/lib/swift` dentro de la imagen y añadir un gate de `boottest` que ejecute un binario Swift. *Hecho (`ea8f2964f1`):* el gate M3-swift ejecuta `swift-hello` sobre el runtime de `/usr/lib/swift`, y el gate M3 ejecuta los programas de test en Swift de las herramientas.
-
-**Criterio de salida (M3):** un conjunto fijo de herramientas CLI de código abierto escritas para la API Cocoa (ObjC y Swift) compila y pasa sus tests en Minkar. El conjunto (fijado el 5 nov 2026), compilado en el host y con sus tests ejecutados en la imagen (gate M3 de `boottest`):
-
-| Herramienta | Lenguaje | Licencia | Qué ejercita |
-|---|---|---|---|
-| swift-argument-parser, con sus ejemplos | Swift | Apache-2.0 | La base de casi todas las herramientas CLI en Swift |
-| SwiftFormat | Swift | MIT | Foundation a fondo; una suite de tests grande |
-| xcbeautify | Swift | MIT | Expresiones regulares, cadenas, Foundation |
-| Yams | Swift | MIT | Codable, y una biblioteca en C enlazada |
-| Rainbow y Files | Swift | MIT | Ficheros, rutas y la terminal |
-| mogenerator | Objective-C | MIT | CoreData y Foundation |
-| tag | Objective-C | MIT | Valores de recursos de NSURL y etiquetas de ficheros |
-
-Fuera: herramientas sin licencia o con una dudosa, y las que usan API privada.
-
-*Avance (5 nov 2026):* el criterio se ejecuta (`bmake m3-tools` y después `bmake m3-check`: `Tests/M3` compila cada herramienta y sus tests sin el gestor de paquetes, `/usr/local/tests/m3/run.sh` los ejecuta, `96f5f65249`). swift-argument-parser pasa sus cinco suites, 493 tests. Lo que necesitó: `NSTask`, `NSPipe` y `NSFileManager` tal como los lee Swift, el bundle de una herramienta de línea de comandos (apuntaba dos directorios más arriba), plantillas de expresiones regulares, valores de la línea de comandos que no son listas de propiedades sin error de análisis (`f21472a91d`); conjuntos de caracteres con puente a CF en ambos sentidos (`13a6cebd3d`); el calendario ISO 8601 (`5694846076`); la API con errores de FileHandle, y de la API 21 `FileHandle.bytes`, `lines` y las cargas asíncronas de URLSession (`89b9375fa7`). Pruebas locales `swift` 81/0. Después pasan Rainbow (139 tests) y Files (66 tests) (`7d07cc60c5`): AppKit no se podía importar desde Swift, porque CoreVideo, que importan las cabeceras de QuartzCore, nunca se compilaba (`d3ee485fac`); NSFileManager no se podía subclasificar (sus operaciones estaban en una subclase privada que devolvía toda reserva), a su cabecera le faltaba `NSFileAttributeKey`, una URL de fichero relativa conservaba sus segmentos `.`, y se ignoraba `CFFIXED_USER_HOME` (`987a49fad0`). Pruebas locales `swift` 86/0. Después pasa Yams, 192 tests (`11604bfcb9`; destinos en C en `Tests/M3`): la línea de un rango vacío era la anterior, así que recorrer líneas no avanzaba; los nombres de las codificaciones eran números; los estilos científico, de moneda y deletreado de NSNumberFormatter no estaban implementados y ahora pasan por CFNumberFormatter (`288eb57cd4`); la codificación con configuración, API 21 (`6b0d862c24`); la API de métricas de XCTest, y las clases de test disponibles desde sistemas posteriores solo se ejecutan en ellos (`7dbfad469a`). Pruebas locales `swift` y `xctest` 105/0. Después pasa xcbeautify, 643 tests (`d2eda99167`; paquetes que dependen de otros en `Tests/M3`): los recursos de un bundle plano se buscaban en una carpeta Resources que no tiene, `\` partía los nombres de fichero como `/`, los ficheros de texto sin marca de orden de bytes se leían como NEXTSTEP y no como UTF-8, y los métodos del delegado de NSXMLParser eran obligatorios (`d1c81abeff`); ListFormatter y RelativeDateTimeFormatter no tenían nombre en Swift (`de216ae5c0`). Pruebas locales `swift` y `xctest` 110/0. Después mogenerator, la primera herramienta en Objective-C, pasa sus tests en Objective-C y en Swift (`0c036fd389`; 11 comprobaciones: las clases que genera son las esperadas y sus programas guardan objetos): las clases de modelo de CoreData no se podían construir desde código ni archivar, las propiedades @dynamic no tenían accesores primitivos, el almacén XML perdía las fechas y sus cabeceras no tenían la forma que lee Swift (`484067beb4`); los predicados no tenían los operadores CONTAINS ni BETWEEN, IN buscaba subcadenas, LIKE y MATCHES no estaban implementados y no se podían archivar (`9bf58d789b`); NSKeyedArchiver perdía los objetos condicionales codificados más tarde, no se leía el Info.plist dentro del ejecutable de una herramienta, se ignoraba TMPDIR y KVC no tenía proxies de conjunto ni de conjunto ordenado (`3b7e4f8c30`). Pruebas locales `predicates`, `coredata` y `foundation-tools` 92/0; suite completa 3933/0. Después tag pasa sus 30 comprobaciones y SwiftFormat sus 4900 tests (`22a0e67f0d`; tag no trae tests propios, así que `tagTests` ejecuta cada una de sus órdenes): NSMetadataQuery y sus clases eran ficheros vacíos (`036fdb2fcf`); una ruta relativa daba una URL de fichero absoluta, `~` daba una URL nula, los nombres conocidos de NSTimeZone eran nulos y los errores de Swift tumbaban NSError (`a4875a6be4`); los nombres kMDItem (`708e61e7a7`). La suite de SwiftFormat mostró que el núcleo de release se compilaba con `-O0`: con `-O2` una llamada al sistema o un cambio de hilo cuesta la sexta parte, y la suite tarda 28 minutos en vez de 53 (`9db0205544`). *Cumplido (5 nov 2026):* el gate M3 pasa con las siete herramientas (22 marcadores); suite completa 3931/5 con el núcleo `-O2` (los cinco, corregidos o intermitentes conocidos).
-
-- [ ] La prueba del generador de cadenas de Rainbow pide 50.000 cadenas por segundo; el 7 nov 2026 la VM del gate hizo unas 44.500 en el mismo Xeon E5-2697 v2 donde pasaba el 5 nov, así que el gate la deja fuera (`SKIP_RainbowTests` en `Tests/M3/rainbow`). Averiguar qué la hizo más lenta (libSystem aún a `-O0`, el modelo de CPU Ivy Bridge de la VM desde el 7 nov, el kernel y QEMU del host Ubuntu 24.04), medirlo y volver a incluirla.
-
-**Siguiente: cobertura Cocoa.** Las herramientas del M3 son de línea de comandos y casi no usan AppKit. Medido contra las cuatro apps de referencia (5 nov 2026): selectores 83,5 %, símbolos importados 74,3 %, AppKit 70,2 %, CoreFoundation 60,3 %. El bloque trabaja desde las listas de lo que falta del inventario, con objetivos de selectores ≥ 90 %, AppKit ≥ 85 % y CoreFoundation ≥ 80 %, y añade más apps Cocoa de código abierto con las que medir. Primero: el layout por restricciones (`NSLayoutConstraint`, anclas, guías de layout, el lenguaje de formato visual, sobre el resolvedor kiwi) y `NSStackView`, que usan las cuatro apps; después WebKit, requisito de Minkar 19.6.0 (decidido el 5 nov 2026): WPE WebKit (LGPL y BSD, el port pensado para incrustar) bajo un `WebKit.framework` propio de Minkar con la API Cocoa (`WKWebView`, scripts y controladores de contenido, delegados de navegación y de interfaz, preferencias, y el antiguo `WebView`), que dibuja en vistas de AppKit; el navegador es Firefox (decidido el 11 nov 2026: Ladybird quitó su interfaz AppKit el 29 sep 2026 y en la plataforma de referencia se compila con Qt, mientras que la interfaz de Firefox es AppKit nativo y pide API 19). Después tablas basadas en vistas, `NSVisualEffectView`, los símbolos de clases puente de CF y Security.
-
-*Avance (6 nov 2026):* layout por restricciones y `NSStackView` en AppKit (`3d987fdf45`): restricciones con elementos, anclas y el lenguaje de formato visual, guías de layout, tamaños intrínsecos con sus prioridades, `fittingSize`, resueltas con kiwi 1.4.8 (BSD modificada, fijada); `NSEdgeInsets` en Foundation (`187850779e`); ejecutar un selector en un hilo principal que aún no había arrancado su bucle lanzaba una excepción (`c692e35c64`). Prueba local `autolayout` 28/0; los gates M2 y M3 pasan.
-
-*Avance (9 nov 2026):* medido de nuevo contra las cuatro apps de referencia: símbolos importados 85,5 % (74,3 %), AppKit 89,6 % (70,2 %), CoreFoundation 97,8 % (60,3 %), CoreGraphics 100 %, Foundation 89,7 %, selectores 88,5 % (83,5 %). Los métodos de AppKit reciben y devuelven los tipos de la API: 531 declaraciones tenían los `float`, `int` y `unsigned` de Cocotron donde la API tiene `CGFloat`, `NSInteger`, `NSUInteger` y tipos de opciones con nombre, de modo que Swift veía `Float` e `Int32` y los binarios de la referencia pasaban doubles donde AppKit leía floats; con ellos se corrigieron las llamadas que pasaban la dirección de una variable más estrecha (`4748eba480`, `dd3915777d`). `NSEvent` con la numeración y los nombres de la API, deltas `CGFloat`, monitores locales y eventos CG (`88ef154c9d`); etiquetas y estados `NSInteger` y controles creados en una llamada (`78f0e89df9`); texto medido en líneas y los tamaños de la fuente del sistema, 13, 11 y 10 (`7929fdd9b4`); `NSColor` y `NSColorSpace` de la API 19, la geometría de CoreGraphics exportada con las reglas de la referencia y espacios de color por nombre (`f2e2c89459`, `1bf753c030`); tablas basadas en vistas (`2164fd35bb`, `9e64c1274d`); controladores de vista con hijos y presentación, `NSSplitViewController` y `NSTabViewController` (`0be9785692`); `NSAppearance`, `NSVisualEffectView`, vistas capturadas en mapas de bits (`6c251265bb`); pesos de fuente y las fuentes monoespaciadas del sistema (`5afc0696f0`); los nombres de los bindings (`fc45d9647f`); `NSWorkspace` abre aplicaciones con una configuración y avisa de los volúmenes (`30acc8f2ef`). Los símbolos de clases puente de CF, como se decidió el 9 nov 2026 (opción A): dyld busca en Foundation lo que los binarios importan de CoreFoundation y Minkar guarda en Foundation (`8c06f071ed`); CoreFoundation gana `CFAttributedString`, `CFStringTransform`, marcadores de URL y archivos alias (`b828d839c7`, `059e7bc40e`). Foundation: valores por defecto de suites y preferencias escritas como listas de propiedades XML (el formato de texto antiguo perdía números y datos), actividades del proceso, `NSBackgroundActivityScheduler`, completado de rutas y los volúmenes montados (`f232ca582f`, `0e6eeaecc9`, `dd161c6ec8`). Pruebas locales `appkit-graphics-api`, `appkit-controls-api`, `appkit-view-tables`, `appkit-view-controllers`, `appkit-appearance-api`, `cf-api19-additions` y `foundation-api19-more`; las puertas M2 y M3 pasan.
-
-*Avance (9 nov 2026, segunda ronda):* símbolos importados 95,2 % (85,5 %), selectores 93,9 % (88,5 %); AppKit, CoreFoundation, CoreGraphics, Foundation, CoreServices, CoreText, QuartzCore y ApplicationServices no importan nada que falte (100 %). Siguen ausentes: Security (54 símbolos, el siguiente), WebKit (10, con su plan arriba) y las clases de API 20 y API 22 `UTType` y `SMAppService`. dyld busca en AppKit lo que los binarios importan de Foundation y Minkar guarda en AppKit (`b57ccbd06e`). Foundation: las clases de literales constantes que el compilador de la plataforma de referencia dispone en los binarios (`NSConstantArray`, `NSConstantDictionary`, los números constantes y las colecciones vacías), descriptores y manejadores `AppleEvent` (`NSAppleEventDescriptor`, `NSAppleEventManager`; `NSAppleScript` indica que no hay componente de scripting), directorios personales por usuario, tipos HFS como texto y la enumeración de tramos de atributos (`e03ced3524`, `852e608474`). CoreServices: un framework AE (descriptores, coerciones, manejadores en el mismo proceso), handles, recursos, `Gestalt`, `FSRef`, referencias de iconos, `MDItem`, información de elementos y manejadores por defecto (`5a5488ac29`, `65bb14584c`). CoreGraphics: el orden de bytes por defecto de los mapas de bits es el de los componentes en memoria, como en la plataforma de referencia (RGBA se guardaba A, B, G, R, y los programas que leían los píxeles de un contexto de mapa de bits veían los canales cambiados), formatos opacos e identificadores de tipo CF para sus tipos (`4a567351b9`, `8a4e9afeda`). CoreText: líneas, tramos, estilos de párrafo, fuentes por nombre y rasgos, `CTFontRef` como el tipo CF de la API (`c64e917b51`). QuartzCore: las capas dibujan (`display` no hacía nada), `renderInContext:`, `CAShapeLayer` (`46d7ca1a20`). ApplicationServices: números de serie de procesos y `UAZoom` (`dbada9a0a8`). AppKit: `NSAnimationContext` (no estaba implementado), `NSTextInputContext` y texto marcado en `NSTextView`, imágenes dibujadas por un bloque y como CGImage, rectángulos de ventana en la pantalla y pantalla completa, y unas 45 llamadas más de tablas, menús, paneles y vistas con desplazamiento (`1c8186c1c0`, `4d18786847`). Frameworks nuevos: UserNotifications, ServiceManagement, AddressBook, AudioToolbox, OSAKit, Carbon y Quartz (Quick Look) (`3d2be6b070`); donde Minkar aún no tiene el servicio (avisos en pantalla, salida de audio, una base de contactos, un componente de scripting), lo dicen en sus cabeceras y se comportan como si estuviera desactivado. Pruebas locales `coreservices-api19`, `foundation-literals-moved`, `coregraphics-byte-order`, `coretext-api19`, `quartzcore-layers-api`, `appkit-api19-more`, `frameworks-api19-small`, `imageio-api`, `appkit-more-api`; las puertas M2 y M3 pasan. Security (decidido el 9 nov 2026: subconjunto propio de Minkar ahora, las fuentes APSL de Security en `Frameworks/Security` después): autorización para administradores según regla (sin diálogo de autenticación aún), contraseñas del llavero por `SecItem` y las llamadas antiguas (en un archivo que solo lee el usuario, aún sin cifrar), claves y certificados sobre libcrypto, transformaciones de digest y verificación, y consultas de firma de código que informan que el código no está firmado (`d47c6ef6e3`, prueba `security-api19`). Los símbolos importados quedan en 99,0 %: falta WebKit (10), y `UTType` (API 20) y `SMAppService` (API 22). Después llegan las clases de la API de WebKit, con las páginas mostradas como texto hasta que WPE WebKit sea su motor: `WKWebView` con su configuración, scripts de usuario (guardados, no ejecutados: aún no hay JavaScript) y delegados, y el antiguo `WebView` (ver `webkit-utt-api`); y `UTType` de API 20 sobre las declaraciones de LaunchServices. Los objetivos del bloque se cumplen: símbolos importados 99,9 % (1414 de 1415; solo falta `SMAppService`, de API 22, fuera del alcance planeado), selectores 97,6 % (lo que queda son sobre todo los delegados del actualizador propio de las apps de referencia), y AppKit, CoreFoundation, CoreGraphics, Foundation, CoreServices, CoreText, QuartzCore, ApplicationServices y Security al 100 %.
-
-*Avance (16 nov 2026):* medido frente a ocho apps de referencia (Firefox, Thunderbird, HexFiend, iTerm2, TextMate, KeepingYouAwake, Platypus, Sloth): símbolos importados 80,2 %, selectores 86,0 %, AppKit 90,9 %, CoreFoundation 99,7 %, CoreGraphics 96,6 %, ApplicationServices 59,1 %. Las cifras bajan respecto al 9 nov porque entraron apps compiladas para API posteriores: iTerm2 3.7.7 está compilado con el SDK de API 26 y enlaza SwiftUI (fuera del alcance), y 591 de los 602 símbolos que faltan de Foundation son de su overlay de Swift; a Firefox (96,2 %) y Thunderbird (95,5 %) les falta sobre todo Metal y llamadas de API 20 en adelante. Firefox 160, la compilación de Mozilla, funciona con sandbox con sus medios, las vistas OpenGL, la impresión y las notificaciones distribuidas (prueba local `firefox`, 25 comprobaciones): VideoToolbox decodifica H.264, HEVC, VP9 y AV1 y AudioConverter AAC, MP3, ALAC, FLAC, Opus y AC-3 con FFmpeg en el proceso de la app (`b7d59fd37d`, `4bcb5f9dd7`); Core Animation dibuja superficies YCbCr y `AVSampleBufferDisplayLayer` muestra sus fotogramas (`e2ff5e9d75`, `e64cad3b9c`); `NSOpenGLContext`, `NSOpenGLView`, `NSOpenGLLayer` y `CAOpenGLLayer` dibujan en ventanas a través de las superficies de ventana de CGL (`b058d03718` a `1fe236acd7`); PrintCore y `NSPrinter`, con impresión a PDF (`e4be7cf05b`, `15d55aab70`); `NSDistributedNotificationCenter` sobre un `distnoted` nuevo (`918444e831`). Pruebas locales `videotoolbox-h264`, `audioconverter-aac`, `quartzcore-yuv-contents`, `avfoundation-sample-display`, `gl-view`, `printcore`, `distnotes`; los gates M2 y M3 pasan.
-
-**WebKit (cobertura Cocoa, requisito de Minkar 19.6.0; decidido el 5 nov 2026).** WPE WebKit 2.54 (LGPL y BSD, el port pensado para incrustar) compilado para Minkar como `PLATFORM(WPE)` sobre los servicios Darwin reales que WTF ya conoce (`OS(DARWIN)`: memoria virtual Mach, hilos, libdispatch), con una plataforma Minkar de su WPE Platform API, y encima el `WebKit.framework` propio de Minkar con la API Cocoa. Sus dependencias se descargan en versiones fijadas con su SHA-256 y se compilan como bibliotecas dinámicas (glib, libsoup y las partes LGPL como bibliotecas, sin enlazado estático). El navegador es Firefox (decidido el 11 nov 2026; Ladybird abandonó su interfaz AppKit). *11 nov 2026:* las apps de referencia crecen con apps Cocoa nativas que cubren más el sistema: Firefox y Thunderbird 160 (mínimo 10.15, API 19) y Hex Fiend 2.18.1, medidas desde sus imágenes de disco publicadas (`fetch-reference-apps.py` lee imágenes UDIF, su volumen HFS+ con 7z); después iTerm2, Skim y Transmission, y un reproductor de música y otro de vídeo cuando estén CoreAudio y los frameworks multimedia. Primera medida: Firefox 77,3 % de sus símbolos importados y 63,4 % de sus selectores, Hex Fiend 91,4 % y 93,5 %; casi todo lo que le falta a Firefox es la pila multimedia (CoreVideo, VideoToolbox, CoreMedia, AudioToolbox, AVFoundation), después AuthenticationServices, la impresión (`libcups`), Metal y partes de CoreText, Carbon y Security.
-- [ ] W0 — Las dependencias en `/usr/lib`, tal como las pide WPE 2.54.2 (`Source/cmake/OptionsWPE.cmake`; dibuja con el Skia que trae, así que sin cairo): glib (con pcre2 y libffi), libsoup 3 (con nghttp2, libpsl y brotli), glib-networking sobre OpenSSL, HarfBuzz con ICU, FreeType y fontconfig, libpng, libjpeg, libwebp, woff2, libxslt, libgcrypt (con libgpg-error), libtasn1, libxkbcommon y libepoxy (sobre Mesa); ICU y libxml2 son las de Minkar. Criterio: los tests propios de cada biblioteca que no necesitan red. *Parcial (6 nov 2026):* `minkar.extlib.mk` compila un proyecto fijado con Meson, CMake o autotools como bibliotecas dinámicas en el SDK y en `/usr/lib` (`c3129f586c`); ya están PCRE2 10.45, libffi 3.5.2 y GLib 2.86.1. GLib necesitó API 19 que faltaba: UTType y UTCoreTypes (`f8a4e037d9`), LaunchServices por tipo de contenido y por esquema de URL, con las URL que no son ficheros abiertas por la app de su esquema (`a25d499340`, `5767db4ce3`), ApplicationServices que incluye CoreServices (`cec5667897`), `NSUserNotification` (`cb38c88317`) y el puente toll-free CFURL/NSURL en ambos sentidos (`165dd272db`). Prueba local `glib-uti` 23/0 (bucle principal, PCRE2, GObject, GIO, procesos, UTType, LaunchServices, tipos de contenido y apps por defecto de GIO); `foundation-cf-bridging` 20/0 con URL. Después las herramientas de compilación de GLib para el host, con los subproyectos de Meson también fijados y sin descargas propias (`53ade2e20d`); nghttp2 1.66.0, Brotli 1.1.0, libpsl 0.21.5, libsoup 3.6.5 y glib-networking 2.80.1 (`2aadfd6d11`), que confía en el almacén de OpenSSL mientras Minkar no tenga framework Security. Prueba local `libsoup` 9/0: un servidor local responde a una sesión en HTTP y sobre TLS (certificado autofirmado), la lista de sufijos públicos, el decodificador de contenido. Después el resto (6 nov 2026): las cabeceras completas de ICU para las bibliotecas externas (`f394c90119`); HarfBuzz con ICU, libwebp, WOFF2 y Expat descargadas, y libpng, libjpeg-turbo, FreeType y Fontconfig como bibliotecas dinámicas a partir de las copias que Onyx2D y CoreText ya compilan en estático, con Fontconfig configurado como el de CoreText para que ambos compartan `/etc/fonts` y las cachés (`8cb321eac2`); Libgcrypt y libgpg-error, libtasn1, libxkbcommon con xkeyboard-config, libepoxy, y libxml2 y libxslt como `/usr/lib/libxml2.2.dylib` y `libxslt.1.dylib`, como las tiene la plataforma de referencia (`739fbc4e9a`). Pruebas locales `fonts-images` 9/0 y `crypto-xml` 7/0. Ya están todas las bibliotecas que pide W0; falta el criterio en sí: los tests propios de cada biblioteca, compilados para Minkar y ejecutados en la imagen. *Criterio, parcial (7 nov 2026):* `bmake w0-check W0_HOST=root@dirección` copia los tests propios de las bibliotecas (Tests/W0) a una máquina física con Minkar y los ejecuta allí como un usuario sin privilegios de root (`f9d9076530`, `be499de2d1`); en VM anidadas en otro hipervisor despertar un hilo cuesta cerca de un milisegundo y los tests de cerrojos de GLib no terminan, así que el criterio se comprueba en hardware. En el PC 2 pasan 16 bibliotecas todos los tests que tienen sin red: PCRE2, Expat, GLib (274 programas), glib-networking, libsoup (38, también los de Apache, con un Apache httpd compilado para Minkar, `6b43706af4`), nghttp2, libpsl, Brotli, HarfBuzz (374, sus ejecutores en Python pasados a sh), libxml2, libpng, Fontconfig, libxkbcommon (1.13.2, `367f638cd6`), Libgcrypt, libgpg-error y libtasn1; lo que cada una deja fuera está en su skip.txt, con la razón. Arreglado por el camino: el mutex ocupado de pthread_cond_wait leído dos veces (`109687faa2`), un descriptor cerrado en g_poll de GLib (`f20105085b`), getsockopt(SO_ACCEPTCONN) (`b717c9c263`), /etc/hosts leído después del DNS (`c99393d4b9`), una carrera en glib-networking 2.80 (ahora 2.90.1, `d416e917f9`). Después (7 nov 2026) pasan cinco más en el PC 2 (`89905161de`): libxslt (746 casos, en la ejecución de la puerta, ahora con 17 bibliotecas), libffi (726 programas de su suite de DejaGnu, compilados y comprobados sin DejaGnu), libjpeg-turbo (211), libepoxy (4; su test de CGL que dibuja necesita OpenGL, que aún no está) y libwebp (sus vectores de prueba, porque no tiene tests unitarios: cada vector decodificado a cinco formatos, con y sin hilos, contra sumas MD5). Falta: FreeType y WOFF2, que no tienen tests que funcionen sin descargas (el único de FreeType necesita una fuente de licencia dudosa); las dos las usan los tests de HarfBuzz y Fontconfig, que pasan.
-- [ ] W1 — JavaScriptCore: el shell `jsc` y las suites de JavaScript que no necesitan navegador, con el JIT. *Avance (7 nov 2026):* JavaScriptCore del repositorio de WebKit en el commit de WPE 2.54.2, compilado como su port JSCOnly con el JIT, un framework privado en `/usr/lib/webkit` con `jsc` (`3eba0388e3`); hizo falta CFNotificationCenter (`18735971e8`), `KERN_NOT_FOUND` (`854fb2e231`), `pthread_self_is_exiting_np` (`26838cbada`) y codesign para bundles (`9a6968b48a`). En el PC 2: la suite de ES6 pasa, 605 de 605; la suite stress ejecutó 13.967 de sus 20.174 tests antes de llenarse el disco, y solo fallaron dos (8 ejecuciones), por el `pow` de libm, desviado una ULP entera: ahora es el de Arm (de musl, MIT), con 0,52 ULP como máximo (`600343c267`), y pasan. Falta: el resto de la suite stress y las demás suites, en el PC 1.
-- [x] W2 — WebCore y los procesos de WebKit (interfaz, contenido web, red) sobre una plataforma WPE de Minkar: fotogramas en búferes de memoria compartida (más adelante IOSurface) y eventos de entrada. Criterio: una página HTML dibujada en una imagen y comparada con una de referencia. *Hecho (10 nov 2026):* WPE WebKit 2.54.2 compilado con el toolchain (clang 21) en `BSD/lib/wpewebkit` (las fuentes de WebKit en el commit de JavaScriptCore, sus seis parches y once propios: el puerto WPE en Darwin sin los bundles de los puertos Cocoa, IPC por sockets de flujo con cada mensaje enmarcado, porque los sockets Unix de Darwin no tienen `SOCK_SEQPACKET`, y los tipos de contenido de GLib convertidos en tipos MIME); plataforma WPE sin pantalla, Skia sobre el EGL de Mesa, sin GStreamer hasta AU6. Criterio superado: `bmake w2-check` (`Tests/W2`) dibuja `page.html` (bloques, flexbox, grid, bordes, transparencia, una caja añadida por JavaScript y texto) a 800x600 en la VM en 2 s, con 0 píxeles distintos de la referencia hecha con la geometría de la página y 3184 píxeles de tinta en el texto. Los eventos de entrada se prueban con las vistas de W3.
-- [x] W3 — `WebKit.framework`, la API moderna: `WKWebView` dibujando en su vista de AppKit, `loadHTMLString:baseURL:`, `loadRequest:`, `evaluateJavaScript:completionHandler:`, `WKWebViewConfiguration`, `WKPreferences`, `WKUserContentController` con `WKUserScript` y manejadores de mensajes de script, `WKNavigationDelegate` y `WKUIDelegate`; ratón, teclado, desplazamiento, foco, copiar y pegar. *Hecho (10 nov 2026, `e5e516dade`):* `WKWebView` es un WebKitWebView sobre la plataforma WPE de Minkar (una pantalla con un toplevel por vista, fotogramas de memoria compartida copiados a la vista a hasta 60 por segundo, el portapapeles en el pasteboard general, los cursores de AppKit); el contexto principal de GLib gira en los run loops del hilo principal; los eventos de ratón, desplazamiento y teclado de AppKit llegan a WebKit (códigos virtuales de tecla a los de entrada de Linux, símbolos a partir de los caracteres de AppKit). `WebKit.framework` se compila en una etapa propia después de BSD. Tests locales `webkit-wpe` 9/0 (una página dibujada derecha por `drawRect:`, los valores y errores de JavaScript, un script de usuario y un mensaje de script, un clic, escritura, copiar y pegar por el pasteboard, la rueda, alert, confirm, prompt y `window.open`/`close`) y `webkit-utt-api` 7/0. Encontrado por el camino: el `NSRunLoop` de Foundation no estaba construido sobre CFRunLoop (los observadores y fuentes de CF en el run loop principal no se ejecutaban bajo AppKit); ahora sí, como en el sistema de referencia, con `CFFileDescriptor` añadido a CoreFoundation (`2697cb9c54`, `9d085055d6`, `8756f51435`; pruebas de imagen 3877 de 3882, el resto falla como antes o solo con carga); `NSNull` se describe como `<null>` (`d1bd8f9cc9`). *Pendiente:* IOSurfaces en vez de copias, métodos de entrada y teclas muertas, arrastrar y soltar, impresión.
-- [x] W4 — La API antigua sobre el mismo motor: `WebView`, `WebFrame`, `WebPreferences` y los delegados de carga de marco, de política y de interfaz. *Hecho (10 nov 2026, `86ed0b5d33`):* un `WebView` muestra un `WKWebView` propio y convierte sus llamadas en las de los delegados antiguos: carga de marco (con el objeto window limpiado en cada página), política mediante `WebPolicyDecisionListener`, los paneles síncronos del delegado de interfaz, ventanas nuevas y cierre; `WebScriptObject` pasa valores a través de JavaScript (los objetos se guardan en una tabla de la página); `stringByEvaluatingJavaScriptFromString:`, `searchFor:`, la respuesta y los bytes de la fuente de datos, `WebPreferences` como ajustes de WebKit. Las llamadas síncronas de la API ejecutan GLib anidado cuando se hacen desde dentro de las devoluciones de llamada de WebKit (un script desde `webView:didFinishLoadForFrame:` funciona). El motor de texto ya no existe. Tests locales `webkit-legacy` 7/0, `webkit-utt-api` 7/0, `webkit-wpe` 9/0. *Pendiente:* la API del DOM (`DOMDocument` y el resto), marcos distintos del principal, descargas y objetos de Objective-C expuestos a los scripts.
-- [ ] W5 — Las vistas web de las apps de referencia funcionan (sus vistas HTML, scripts de usuario y ajustes). Pruebas locales para cada uno de W0–W5; los tests de API de WebKit donde funcionen. *Avance (10 nov 2026, `ac148eb478`):* lo que usa el código de las apps de referencia funciona, reproducido en el test local `webkit-reference-apps` 5/0: las notas de versión de Sparkle (KeepingYouAwake, Platypus, Sloth; scripts de la página desactivados pero los de usuario activos, `WKContentRuleListStore` bloqueando recursos externos, sin fondo) y la salida HTML de TextMate (un objeto de Objective-C en la página con las reglas del protocolo WebScripting, mediante una extensión del proceso web y un canal síncrono, con `webView:didClearWindowObject:forFrame:` antes de los scripts de la página; la selección copiada mediante la API del DOM, añadida como subconjunto). Los tests locales cubren ya W0–W5. NSBundle encuentra el bundle, el ejecutable y el Info.plist de un framework como la plataforma de referencia (`f1959c9a49`). Para las ventanas de las apps (11 nov, `e1d404ea77`): se cargan los nib binarios (NIBArchive, lo que compila Interface Builder), 165 de 165 compilados por las herramientas de referencia, con restricciones de Auto Layout y atributos de runtime; test local `appkit-nib-archive` 12/0. Compilador de xib propio de Minkar (`ibtool` en el toolchain, `3bfb3d775f`): compilan los 14 xib de TextMate y, de 165 documentos con los nib que hacen de ellos las herramientas de referencia, 69 cargan las mismas ventanas, vistas y menús; test de host `ibtool`. Las apps compiladas desde sus proyectos de Xcode (12 nov): KeepingYouAwake 1.6.8 se compila desde su código con `pbxbuild` del repositorio de pruebas (los objetivos del proyecto, los paquetes Swift locales, las interfaces, los catálogos de cadenas, su ayudante de inicio de sesión) y funciona en Minkar: su elemento de estado aparece y mantiene el sistema despierto (`caffeinate`). Lo que pedía, añadido: rejillas dispuestas con restricciones, `SMAppService` (API 22, adelantada porque la app la usa), `-[NSApplication activate]`, símbolos del sistema, las claves de las fuentes de energía; prueba local `appkit-newer-api` 12/0. Proyectos de Xcode compilados por el toolchain (12 nov): Swift Build (Apache-2.0, swift-6.4.2-RELEASE, `626166872b`) está en el toolchain y planifica y ejecuta la compilación a partir del PIF del proyecto, que escribe `xcodebuild -dumpPIF` (`431732360c`); el ayudante de inicio de sesión de KeepingYouAwake se compila así desde el `.xcodeproj` sin modificar (Mach-O, nib, `Assets.car`, Info.plist). *Pendiente:* un `xcodebuild` que compile mediante Swift Build (firma, paquetes Swift locales en el PIF) para sustituir a `pbxbuild`, que AppKit lea catálogos de recursos (`Assets.car`; las apps distribuidas ya compiladas solo traen ahí sus imágenes), iconos de Icon Composer, el objetivo Direct con Sparkle, Platypus y Sloth, más elementos de Interface Builder (vistas de texto, divididas, de pestañas y de pila, controles segmentados, steppers), los tests de API de WebKit.
-
-**Audio y medios (AU1–AU10; decidido el 9 nov 2026).** Sin GTK, Qt ni GStreamer: el audio y el vídeo de WebKit pasan por los frameworks propios de Minkar. Profesional desde el principio, para no rehacer el núcleo después: un camino de tiempo real sin copias extra (los clientes escriben en memoria compartida y el servicio de audio mezcla en el mismo ciclo, en hilos de tiempo real del kernel, con memoria bloqueada y sin bloqueos ni reservas de memoria en el camino del audio); canales, frecuencias de muestreo (de 44,1 a 192 kHz) y formatos sin valores fijos, varios dispositivos a la vez; un reloj por dispositivo (tiempo en muestras, hora del sistema y relación de velocidad) para corregir la deriva y para los dispositivos agregados; búferes de hasta 32 muestras; y un registro de componentes que carga bundles externos. Decodificación con FFmpeg (LGPL 2.1, librería dinámica, sin sus partes GPL ni no libres, recortada a decodificadores y demuxers) y dav1d (BSD-2) para AV1, fijados con su SHA-256 y en un proceso aparte. AU1–AU10 son todos necesarios para Minkar 19.6.0 (AU7–AU10 pasaron de 19.6.x a 19.6.0 el 20 nov 2026).
-- [x] AU1 — Kernel: IOAudioFamily y un driver HDA (el manejo de códecs portado de FreeBSD, BSD-2) para el `intel-hda` de QEMU, el PC 1, el Mac Pro y el audio por HDMI. Criterio: una onda senoidal reproducida en QEMU, grabada a WAV y comparada muestra a muestra; después, oída en el PC 1. *Hecho (14 nov 2026):* IOAudioFamily es propia (BSD-2) con la API pública de la familia, porque todas las versiones publicadas de la del sistema de referencia están bajo la Apple Public Source License 1.1, que Minkar no incorpora (decidido el 14 nov 2026; `d1f8529bc8`): dispositivos, motores con una marca de tiempo en cada vuelta del búfer en una página de estado que mapean los clientes, streams, controles de volumen y silencio, y un cliente de usuario del motor que mapea el búfer del hardware al servicio de audio de Minkar, sin mezcla en el kernel. MinkarHDA (`b759098be8`, `9420c7e396`, `32654e0490`) reinicia el controlador, maneja las colas de comandos, encuentra los códecs, sigue cada pin de salida analógica hasta su DAC y reproduce por el búfer DMA de un stream de salida, una vuelta por interrupción (MSI). La parte de QEMU del criterio se cumple: un seno reproducido por un programa de usuario durante dos segundos lo graba QEMU a 48 kHz y coincide muestra a muestra (96.348 tramas, ninguna diferencia; prueba local `audio-hda`). La parte del PC 1 del criterio también se cumple (14 nov 2026): en su Realtek ALC1220 el driver sigue cuatro salidas, y el seno, desde un programa de usuario y después desde una app por CoreAudio y audiod, se oyó por su salida de línea. La salida arranca 20 dB por debajo (`13560cc16a`). Cerrado con las partes del criterio de QEMU y del PC 1 (decidido el 14 nov 2026): el audio por HDMI y DisplayPort pasa a los drivers de pantalla (R2 de RDNA2 en [GPU-RDNA2.es.md](GPU-RDNA2.es.md), y el frente de GPU en GCN 1.0), porque necesita el ELD de la pantalla; el Mac Pro se comprueba cuando vuelva a correr Minkar; las particularidades de códecs de FreeBSD se añaden según las placas las pidan. El stream de entrada tiene su propia posición (`IOAudioEngine::getCurrentInputSampleFrame`), para controladores cuya entrada no va a la par que la salida.
-- [x] AU2 — Un servicio de audio (Mach/MIG) dueño de los dispositivos que mezcla, y `CoreAudio.framework`: `CoreAudioTypes.h`, propiedades y avisos de `AudioObject`, `AudioDeviceCreateIOProcID`/`Start`/`Stop`, hora del sistema; volumen en la barra de menús de Atlas. Criterio: dos apps sonando a la vez, pruebas de `AudioObject`, latencia de ida y vuelta y una prueba larga contando cortes. *Parcial (14 nov 2026):* `audiod` es dueño de los dispositivos de salida y mezcla a sus clientes en el mismo ciclo (512 tramas, dos ciclos y el desfase del motor por delante de la posición medida del hardware), desde una zona compartida y dos semáforos por cliente, en hilos de tiempo real (`6c2ddab01a`); CoreAudio tiene los dispositivos con su nombre, UID, formato, volumen y silencio (`c64b0eb923`), los IOProcs de las apps (`AudioDeviceCreateIOProcID`/`Start`/`Stop`, `AudioDeviceGetCurrentTime`) y avisos de volumen y silencio (`014398e97c`); `audiod` recuerda el volumen y el silencio de cada dispositivo entre arranques (`828a32bec9`); un panel Sonido (`3164dd573d`) y el volumen en la barra de menús de Atlas (`280fe19fa7`). Prueba local `audio-hda`: el seno de un usuario sin discontinuidades y dos apps mezcladas. La entrada del dispositivo (14 nov 2026): MinkarHDA graba desde una entrada de línea o un micrófono a la par que la salida (`738c02b45e`), audiod da a cada cliente las tramas grabadas y trabaja con ciclos de 64 a 1024 tramas (`9470edc8c7`), la unidad HAL graba y las colas de entrada funcionan (`af4db4dd5d`); prueba local `audio-hda`: ciclos de 128 tramas con tiempos de entrada continuos, un segundo grabado por la unidad HAL, los búferes de una cola de entrada devueltos en orden (la entrada de línea de QEMU, en silencio allí). Criterio cumplido (14 nov 2026): la ida y vuelta, con la salida de línea de QEMU devuelta a su entrada de línea por el bucle ALSA del host, un seno de 1 kHz de una cola de salida vuelve en una cola de entrada en 157 a 167 ms (por los búferes de QEMU y del host), sin ninguna discontinuidad (prueba local `audio-loop`); diez minutos de un seno por un procedimiento de E/S con el sistema ocupado, sin un solo corte, sin ciclos tarde ni resincronizaciones (prueba local `audio-long`). Para ello, audiod lee la entrada por detrás de su propia posición de DMA, con un margen que crece cuando la entrada llega a ráfagas, como la de un controlador emulado, y cuenta aparte las resincronizaciones de la entrada; las colas de entrada dan la hora del sistema de cada búfer.
-- [x] AU3 — AudioToolbox: AudioComponent y la unidad de salida por defecto, AudioQueue, AudioConverter (frecuencias con speexdsp, BSD), AudioFile y ExtAudioFile (WAV, AIFF, CAF), sonidos del sistema que suenan. Criterio: un reproductor de línea de comandos y las pruebas de API 19 de AudioToolbox. *Parcial (14 nov 2026):* componentes de audio y las unidades de salida por defecto, del sistema y HAL sobre los procedimientos de E/S de CoreAudio, con cualquier formato PCM lineal y frecuencia (`06fc5944c7`; speexdsp 1.2.1 incluido, con sus símbolos ocultos); AudioConverter para PCM lineal: formato de muestra, canales y frecuencia (`60084ede35`); colas de audio de salida, que devuelven sus búferes en el run loop de la app (`4c500abec6`); un arreglo de CoreAudio para que una función sirva a varios procedimientos de E/S (`760f530394`). Prueba local `audio-hda`: un seno por una unidad de salida, en float a 48 kHz y en 16 bits mono a 44,1 kHz, y por una cola, cada uno grabado sin discontinuidad; un segundo convertido de 44,1 kHz da 48.000 tramas a menos de 1e-4 del seno ideal. AudioFile y ExtAudioFile para PCM lineal en WAVE (con RF64), AIFF, AIFC y CAF (`5b51ccaaca`), y AudioFormat con disposiciones de canales (`a4fc421a6e`): cada contenedor, escrito desde 44,1 o 48 kHz y releído, es el seno a menos de 1e-4, y los lectores de WAVE y AIFF del propio host aceptan los ficheros de Minkar. Los sonidos del sistema suenan: los ocho sonidos propios de Minkar, generados en la compilación (`981a1703bb`), AudioServices (`24a052f119`), NSSound y NSBeep (`b49a41bba2`); prueba local `audio-hda`: los tonos de los sonidos aparecen en la grabación. El reproductor del criterio: `afplay` (`c5ac6c9ada`), con arreglos encontrados con él en la entrada de más de 1024 tramas de AudioConverter y en el final de una cola que termina de sonar. AudioFileStream para WAVE, AIFF, CAF, ADTS y MP3 entregados a trozos (`b23d87f767`): con él están todas las funciones de audio que importan Firefox y Thunderbird. Criterio cumplido (14 nov 2026): el reproductor es `afplay`, y la API 19 de AudioToolbox en el alcance de AU3 está entera (132 funciones, lista en las pruebas locales) y lo demás funciona: componentes que registra la app (`ab33e247d7`), colas con dispatch queue, render offline y processing taps (`4fbbf1823d`), datos de usuario en ficheros (`862141244e`); prueba local `audio-hda`, 140 comprobaciones. Las colas de entrada pasan a AU2, con la entrada del dispositivo; AUGraph, MusicPlayer y MusicSequence a AU9. Tras AU3, el centro de notificaciones de Atlas (N0–N2, [Atlas.es.md](Atlas.es.md) 5.6; decidido el 14 nov 2026).
-- [x] AU4 — FFmpeg y dav1d en `BSD/lib`. Criterio: un archivo de prueba de cada formato decodificado con su checksum. *Hecho (15 nov 2026):* FFmpeg 9.0.2 (LGPL 2.1 o posterior; la firma de su tarball comprobada con la clave de publicación de FFmpeg) y dav1d 1.5.4 (BSD-2), cada uno fijado por su SHA-256 y compilado como librerías dinámicas en `/usr/lib/media`, aparte de las de WebKit: FFmpeg recortado a decodificadores, demultiplexores y analizadores, solo leyendo ficheros, sin detectar nada por su cuenta y sin enlazar ninguno de los frameworks de medios del sistema (un parche a su configure), con dav1d para AV1 y los conversores de formato de muestra y de píxel. Las librerías externas pueden compilarse ahora con su propio script configure y guardarse para los frameworks de medios (`minkar.extlib.mk`). Criterio cumplido: vídeo H.264, HEVC, VP8, VP9, AV1, MPEG-4, ProRes y Motion JPEG, audio AAC, MP3, Vorbis, Opus, FLAC, ALAC, WAVE y AIFF, en MP4, QuickTime, Matroska, WebM, AVI, Ogg y sus propios ficheros, cada uno decodificado en Minkar con el checksum que dan el mismo FFmpeg y dav1d en el host de compilación (los fotogramas de vídeo en su formato de píxel, el audio en muestras de 16 bits); los decodificadores que calculan en coma flotante (AAC, Vorbis, Opus) toman los caminos propios de cada procesador, así que los suyos se comparan muestra a muestra, ninguna a más de 1, lo que se cumple en el PC 1 como en QEMU (prueba local `media-decode`, 21 pistas). La decodificación en un proceso aparte llega con AU5, que los usa.
-- [x] AU5 — CoreMedia (`CMTime`, `CMSampleBuffer`, descripciones de formato) y AVFoundation (`AVAsset`, `AVPlayer`, `AVPlayerItem`, `AVPlayerLayer` sobre Core Animation e IOSurface, `AVAudioPlayer`), y el `AVPlayerView` de AVKit. Criterio: un vídeo de referencia reproducido, con los fotogramas comparados y la sincronía de audio y vídeo medida. *Hecho (15 nov 2026):* CoreMedia (tiempos, rangos, adjuntos, block buffers, descripciones de formato con los conjuntos de parámetros de H.264 y HEVC, sample buffers, relojes y timebases, colas y memory pools) y CoreVideo (pools de pixel buffers, 70 descripciones de formato de píxel, tamaños y espacios de color de los image buffers). Los ficheros los demultiplexa y decodifica FFmpeg en `mediadecoder`, un proceso propio por sesión: la app entrega el fichero abierto (un fileport), así que una app con sandbox no lee nada más a través de él; los fotogramas vuelven en IOSurfaces retenidas por su contador de uso hasta que la app las suelta, el audio como PCM intercalado a cualquier frecuencia y número de canales; un decodificador que muere solo hace fallar su sesión. AVFoundation: `AVURLAsset` y `AVAssetTrack` (pistas, formatos, tamaños, rotación, idiomas, etiquetas como metadata items), las llamadas de carga asíncrona, los tipos MIME, `AVAssetReader`, `AVPlayer`, `AVQueuePlayer`, `AVPlayerItem` con su salida de vídeo, `AVPlayerLayer` y `AVAudioPlayer`; la reproducción toma su reloj de la cola de audio (cuyo tiempo es ahora la muestra que se oye). El `AVPlayerView` de AVKit con controles inline, floating y minimal. Una vista normal a la que se le pide capa aloja ahora un árbol de capas, así que una capa de reproductor añadida a ella se ve. Criterio cumplido (prueba local `avfoundation-sync`): un vídeo de referencia de 10 s a 30 fotogramas por segundo, H.264 y AAC, reproducido uno a uno en una ventana mientras el host captura la pantalla y la salida de la tarjeta de sonido de la VM con su propio reloj: cada fotograma visto es el fotograma de referencia de su número (mayor diferencia media 0,1 de 255), en orden, a 30,0 por segundo; se oyen todos los pitidos; el audio va de 8 a 12 ms por detrás de la imagen, con 29 ms de diferencia como mucho entre segundos. Pruebas `mediadecoder`, `avfoundation-asset`, `avfoundation-player`, `avfoundation-audioplayer`, `avkit-playerview`.
-- [x] AU6 — Los medios de WebKit sobre ellos: un reproductor para WPE sobre el AVFoundation de Minkar (`<audio>`, `<video>`) y Web Audio con salida por CoreAudio. Criterio: una página con `<video>` muestra los fotogramas esperados y suena; una prueba de Web Audio. *Hecho (15 nov 2026):* un motor de medios para el WebCore de WPE WebKit (parche 0012, `MediaPlayerPrivateMinkar`) reproduce `<audio>` y `<video>` con la reproducción privada de AVFoundation para el sistema (`AVMinkarPlayback.h`): el medio lo trae el propio cargador de WebKit (su proceso de red) a un fichero que el decodificador lee según llega (espera lo que aún no ha llegado y ve el final cuando acaba la descarga), y los fotogramas se pintan en la página un poco antes de su momento, lo que tardan del proceso web a la pantalla. Web Audio sale por una cola de audio, `decodeAudioData` pasa por el decodificador de medios y la FFT usa libavutil. El vídeo y Web Audio ya no necesitan GStreamer en WPE; Media Source queda desactivado. `WKWebViewConfiguration.mediaTypesRequiringUserActionForPlayback` fija la política de reproducción automática (con sonido cuando nada requiere acción del usuario, como es el valor por defecto de la API). Criterio cumplido (prueba local `webkit-media`, también en el lote con carga): el vídeo de referencia servido por HTTP y reproducido en una `WKWebView`: cada fotograma visto en la página es el fotograma de referencia de su número (mayor diferencia media 0,0), en orden, a 30 por segundo; se oyen todos los pitidos; el audio va de 5 a 32 ms por delante de la imagen; reproducción automática, un fotograma en pausa dibujado en un canvas; y la decodificación de Web Audio, el renderizado sin conexión, la FFT de un analizador y un tono de 440 Hz oído en la tarjeta de sonido. Visto y oído también en el PC 1.
-- [ ] AU7 — Driver USB Audio Class 2.0 (la mayoría de interfaces de estudio). *19.6.0.*
-- [ ] AU8 — CoreMIDI, framework y servicio. *19.6.0.*
-- [ ] AU9 — Alojar Audio Units, y Accelerate (vDSP; BLAS y LAPACK sobre OpenBLAS, BSD-3). *19.6.0.*
-- [ ] AU10 — Dispositivos agregados y plug-ins de dispositivo en espacio de usuario. *19.6.0.* Criterios medidos en la misma máquina física que el sistema de referencia: latencia de ida y vuelta con el búfer más pequeño, cortes en una prueba larga con carga, error y deriva del reloj, uso de CPU del servicio de audio.
-
-
-## Fase 4 — Gráficos y WindowServer
-
-Objetivo: WindowServer dibuja ventanas de AppKit y recibe teclado y ratón. En la VM basta el camino por software; en los equipos físicos el objetivo es la composición por GPU, porque el requisito de rendimiento lo exige.
-
-**Arquitectura propuesta**
-
-- Una interfaz de backend de pantalla dentro de WindowServer: `GOP` (software) → `virtio-gpu` (VMs) → acelerado. AppKit y Quartz nunca ven el backend.
-- Composición con Onyx2D y QuartzCore, igual que hoy; el puerto cambia la salida, no el modelo de dibujo.
-- Eventos: HID del kernel → WindowServer → cola de eventos de cada app, con el mismo modelo de `NSEvent`.
-- Comunicación app ↔ WindowServer por Mach/XPC, no por sockets ad hoc.
-
-**Decisión de backend (25 oct 2026)**
-
-El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido el 31 oct 2026: ver el [plan de reescritura de WindowServer](WindowServer-Rewrite.es.md). Las decisiones de salida, compositor y entrada de abajo son las que usa ese plan.
-
-- **Salida inicial:** `IOGOPFramebuffer.kext` con `IOFramebufferDisplay.m` y composición por software. Sirve para Minkar 19.6.0 y para la VM; en los equipos físicos es solo el punto de partida.
-- **Compositor (cambio del 29 oct 2026):** se diseña para GPU desde el inicio, con Vulkan como backend principal detrás de una interfaz propia. pixman queda para el arranque inicial y para VMs sin GPU.
-- **VMs:** driver virtio-gpu 2D como subclase de `IOFramebuffer`; los modos 3D de virtio-gpu (virgl, Venus) son opcionales para probar caminos acelerados.
-- **Entrada:** IOHIDFamily, con `ApplePS2Controller` en QEMU y xHCI + HID (`MinkarUSB`) en hardware real. libinput, libevdev y mtdev ya no se compilan.
-- **Teclado:** libxkbcommon como solución temporal; a largo plazo `UCKeyTranslate` y Text Input Sources (Fase 5).
-- **GPU (cambio del 29 oct 2026):** deja de estar diferida. Es un frente paralelo desde ya: driver del kernel para una familia, Mesa Vulkan/OpenGL, compositor en GPU y, a largo plazo, Metal nativo sobre el driver. La primera familia es una decisión abierta (ver Requisitos de rendimiento).
-
-**Actividades**
-
-- [x] Backend de salida sobre IOFramebuffer: WindowServer abre `IOGOPFramebuffer` y dibuja en él (31 oct 2026, `f10f778c78`: la profundidad es un índice; prueba `windowserver` 6/0).
-- [x] WindowServer arranca y dibuja en QEMU (WS0, 31 oct 2026): su job de launchd se instala desactivado y, activado, lo arranca y lo reinicia si muere (`f56c70bb88`, `9f46a761ac`); una ventana de AppKit de demostración se dibuja y recibe un clic y una tecla como `NSEvent` (`6888034ad2`, `70b62fe8bc`, `0e3d06ec35`, `dc931eeeb0`). El gate `M4-draw` (`cce7da92bc`) pasa con 0 de 786432 píxeles distintos de la referencia.
-- [x] Esqueleto e interfaz del núcleo nuevo (WS1, 31 oct 2026): `WindowServer.defs` (MIG), el cliente en `SkyLight.framework` y el servidor nuevo en sus `Resources`, junto al actual en `CoreServices/WindowServer/Legacy` (`9e48d1f62a`, `f9028e286a`). Las consultas de pantalla, los modos y configuraciones, las tablas de transferencia, la captura, el cursor, los fundidos y la lista de ventanas se sirven por MIG, y la salida de un cliente libera lo que tenía (`0e4d7293ff`, `8dab4060cc`, `37996817e4`, `41e37b7441`, `030dba37c7`). `skylight-test` 115/0.
-- [x] Ventanas, superficies y compositor por software (WS2, 1 nov 2026): superficies como entradas de memoria Mach con dos buffers y daño, un compositor pixman por pantalla guiado por el daño y la frecuencia de refresco, el cursor dibujado al final, `wsctl` (`6ca5e31aae`, `1aa140cdab`); ventanas de AppKit dibujadas a través de SkyLight (`b957c09fac`). El gate `M4-compose` (`8512fe60ba`) pasa con 0 de 786432 píxeles distintos, tres veces.
-- [x] Entrada (WS3, 1 nov 2026): el servidor nuevo lee IOHIDSystem y reparte a las ventanas, con repetición de teclas, número de clics, captura al arrastrar, la ventana clave y movimientos por la barra de título hechos por el servidor (`c3763a06a8`, `03bb7ed773`); `CGEventTapCreate`, `CGEventPost` y `CGGetEventTapList` (`fa7aae5e38`); AppKit a través de él (`13f99802d5`, `d0c63753c2`). El gate `M4-compose` con un clic, una tecla y un arrastre (`98237bf14e`); `eventtap-test` 15/0.
-- [x] El comportamiento del servidor del núcleo nuevo (WS4a, 1 nov 2026; `996178d949` a `e31dd0ef53`): su propio usuario (`_windowserver`), regiones de arrastre, el mapa de teclado en SkyLight, atajos simbólicos, apps en ejecución por la sesión de LaunchServices, la app del frente, el sitio de la barra de menús, la captura del puntero y los elementos de estado (lo que necesita MB0), ventanas minimizadas e imágenes de ventanas (lo que necesita el Dock), listas de ventanas, ventanas hijas y hojas, cursores y rectángulos de cursor, sombras, captura de pantallas, el estado de `CGEventSource`, tablas de transferencia y fundidos en pantalla, y la entrada en su propia cola sobre una instantánea del modelo. Gate `M4-compose` (40 marcadores); pruebas locales del servidor (117 pasadas); no queda ningún `SHORTCUT(WS4a)`.
-- [x] El cambio (WS4b, 2 nov 2026; `6c3b719a32` a `9d510ec6c2`): cada app dibuja sus propios menús (MB0: su barra de menús en su propia ventana, el seguimiento completo, los atajos de teclado y Control-F2, los menús contextuales y los botones emergentes, los elementos de estado como ventanas de su app, el menú del sistema); el `loginwindow` mínimo es dueño de la sesión (Cerrar sesión, Reiniciar, Apagar); el servidor nuevo es el de por defecto y arranca con el sistema (`-textconsole` mantiene la consola de texto); CoreGraphics y AppKit solo hablan con él (Quartz Display Services a través de SkyLight); el servidor anterior, libinput, libevdev y mtdev ya no existen. Gate `M4` (54 marcadores, con M4-draw y M4-compose dentro); suite local completa: 3192 pasadas; no queda ningún `SHORTCUT(WS4b)`.
-- [x] Validación de entitlements en el kernel (ADR 0001, 1 nov 2026; `57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`): la construcción de la imagen firma los ejecutables del sysroot y escribe una trust cache estática; el kext de política `MinkarCodeIntegrity` marca las firmas `CS_SIGNED`, y como binarios de plataforma las de la caché, y mata en el exec a un binario de fuera que lleve un entitlement restringido. Root ya no abre la conexión de servidor de IOHIDSystem sin el entitlement. Lo comprueba el gate M2 (17 marcadores); prueba local `codesign` 13/0; suite local completa de imagen: 2773 pasadas.
-- [ ] Validar los entitlements de perfil de las apps de terceros. *Ahora (13 nov 2026, decidido):* con una firma válida, los entitlements de identidad y de perfil de aprovisionamiento (`com.apple.application-identifier`, `com.apple.developer.*`, además de `com.apple.security.*`) dejan arrancar la app pero no le dan ningún privilegio: ningún servicio de Minkar concede acceso por ellos; los entitlements que dan poder siguen solo para la trust cache. Lo necesita Firefox 160 (`application-identifier`, `web-browser.public-key-credential`). *Más adelante, para más seguridad:* comprobar `embedded.provisionprofile` (su firma CMS y su cadena de certificados) y aceptar solo los entitlements que el perfil concede, como la plataforma de referencia.
-- [ ] Sandbox de apps (decidido el 13 nov 2026: propio de Minkar, por fases). Las apps se limitan con perfiles SBPL (`sandbox_init_with_parameters`); los procesos de Firefox lo necesitan. *Fase 1:* `libsystem_sandbox` compila SBPL (un Scheme pequeño: `define`, `if`, `param`, `string-append`, expresiones regulares, `require-*`, los filtros de rutas, nombres, direcciones y números) a un blob, con un evaluador y un motor de expresiones regulares compartidos con el kernel. *Fase 2:* la política `MinkarSandbox` guarda el perfil con la credencial del proceso (lo conservan sus hijos y tras exec, no se puede cambiar) y aplica ficheros, red, sysctl y señales; launchd comprueba las búsquedas y registros de servicios Mach con `sandbox_check`. Los usuarios y grupos los da `directoryd` por el módulo de directorio de libinfo y un `xpc_pipe` real, así que los procesos con sandbox los resuelven sin leer `/etc` (los hashes de contraseña solo para root fuera del sandbox, como con los ficheros). Cada usuario tiene sus propias carpetas en `/var/folders` (los directorios de usuario, temporal y de caché de `confstr`, creados por `dirhelper`), y CoreText lee su configuración de fontconfig de sus propios recursos con la caché en el directorio de caché del usuario: los procesos de contenido de Firefox corren con sandbox y dibujan páginas web. *Fase 3:* user clients de IOKit, proyecciones de ficheros, información de procesos, preferencias, y los nombres de servicios de la plataforma de referencia en los perfiles traducidos a los de Minkar. *Fase 3 en parte (16 nov 2026):* un perfil que permite el user client de IOSurface (`IOSurfaceRootUserClient`) deja al proceso buscar `iosurfaced` (`64f04f756e`), y los nombres de referencia del servicio de notificaciones distribuidas se traducen a `distnoted` (`4f04234e4a`); prueba local `sandbox` 34/0.
-- [x] Entrega de eventos de IOHIDSystem al espacio de usuario (31 oct 2026, `e2df542919`): la conexión del servidor de eventos mapea la cola compartida `EvGlobals` y recibe avisos por su puerto Mach; los dispositivos de puntero también llegan. Prueba `hid-events` 9/0. El bucle de despacho de `NEW_HID` sigue desactivado: alimenta las colas del sistema de eventos, que no se compilan.
-- [x] Lector de entrada IOHIDSystem en WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, puerto Mach), 31 oct 2026, `ab71ce75a4`: los movimientos, clics y teclas inyectados por QMP le llegan (prueba `windowserver` 6/0).
-  - [x] Teclado PS/2: sus teclas llegan a WindowServer y a una ventana de AppKit (el gate `M4-draw` escribe con él, 31 oct 2026).
-  - [x] Driver `ApplePS2Mouse` sobre `ApplePS2MouseDevice` (31 oct 2026, `2aa9a1da6e`): movimiento, tres botones y rueda (IntelliMouse); prueba `ps2-mouse` 12/0.
-  - [x] Headers `IOKit/hidsystem` en el SDK.
-  - [x] xHCI + HID (`MinkarUSB`), probado en QEMU y en el PC 1.
-- [x] Retirar `libinput`, `libevdev` y `mtdev` del árbol (con el servidor anterior, WS4b, `c192d0dc42`).
-- [x] virtio-gpu 2D como subclase de `IOFramebuffer` (`MinkarVirtioGPU`, 2 nov 2026, `3e73fce129`, `1f58b3fb44`).
-- [x] `pbcopy` y `pbpaste` sobre el servidor de pasteboard, y `screencapture` sobre la captura de WindowServer (movidos desde la Fase 2; 3 nov 2026): el servidor de pasteboard `pboard` (`dd06e82755`), el `NSPasteboard` de AppKit sobre él con la API de 10.6 en adelante (`fec8a72732`), `pbcopy` y `pbpaste` (`a5ced9833e`), `screencapture` a PNG, TIFF o el pasteboard (`c536c7dbe9`). Para más adelante: los datos prometidos entre procesos, la selección interactiva, el cursor y JPEG en `screencapture`.
-- [x] Varias pantallas y cambio de resolución (3 nov 2026; probado en QEMU con dos pantallas, sin segundo monitor en los equipos de referencia): los cambios de modo llegan a las apps (WS5, `display-reconfigure`); un solo escritorio sobre las pantallas, primero la de arranque por su posición PCI (`e5720024f7`); el puntero se mueve sobre todas y nunca fuera de ellas, porque IOHIDSystem recibe las pantallas del servidor de ventanas (`e5720024f7`); cada pantalla se captura por separado (`93f2e9249a`); disposición y duplicación, y una pantalla que deja de duplicar vuelve junto a las demás (`9b6a9a3a2d`). Prueba local `multi-display` 19/0. Queda: marcar como pantalla de arranque el dispositivo que contiene el framebuffer del firmware, para que una GPU de arranque que no sea la primera del bus siga siendo la principal.
-- [x] ADR de GPU: familia, licencias (solo partes MIT/BSD de drm-kmod), capa tipo LinuxKPI para XNU y prototipo KMS en el equipo de referencia (ADR 0002 y G1, 2 nov 2026, `a42a1800b1`, `050acdb1ee`).
-- [ ] Gate de rendimiento de composición en el PC de referencia (requisito de rendimiento de una versión posterior a 25.x).
-
-**Criterio de salida (M4):** en QEMU y en un PC de referencia, varias apps de AppKit abren ventanas, se arrastran, reciben teclado y redibujan sin artefactos.
-
-**Estado (3 nov 2026): M4 cumplido.** En QEMU, `boottest GATE=M4` ve sus 54 marcadores con la VGA estándar y con la virtio. En el PC 2, con el árbol de hoy (`c6d74fc756`) a 3440x1440 y 60 Hz, compuesto por el backend de Vulkan: las dos ventanas de AppKit de la demo recibieron clics y teclas del teclado y el ratón USB (a través de un KVM) y se arrastraron por su barra de título, sin parpadeos ni restos a la vista del mantenedor ni en la captura de la pantalla (frames p95 17,3 ms); una segunda app se abrió, pasó al frente y se cerró, y la primera lo vio por NSWorkspace. Queda para Minkar 21.0: la puerta de rendimiento de composición.
-
-## Pila gráfica: componentes y secuencia
-
-Del entorno gráfico ya existen la base de dibujo (Core Graphics con FreeType, y pixman, libpng, libjpeg y libtiff en `BSD/lib`), la consola GOP y la entrada USB. Faltan el servidor de composición, IOSurface y todo lo que depende de la GPU. Estado verificado en `devel` (`cce7da92bc`, 31 oct 2026): WS0 está hecho, el WindowServer actual dibuja ventanas de AppKit con entrada (gate `M4-draw`); WS1 también (`030dba37c7`): la interfaz y el servidor del núcleo nuevo, probados con `skylight-test`; WS2 (`8512fe60ba`): compone ventanas de AppKit (gate `M4-compose`); y WS3 (`98237bf14e`): entrada y event taps.
-
-Componentes, por estado:
-
-- **Existen:** Core Graphics con FreeType; pixman, libpng, libjpeg y libtiff (`BSD/lib`); la consola GOP (`IOGOPFramebuffer`); la entrada USB (xHCI + HID, `MinkarUSB`); los headers `IOKit/hidsystem`; la entrega de eventos de IOHIDSystem; `ApplePS2Mouse` y el teclado PS/2.
-- **Parciales:** WindowServer (WS0 a WS5 hechos: el núcleo nuevo es el servidor de ventanas, con IOSurface y virtio-gpu, en QEMU; WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
-- **Faltan:** el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
-
-El detalle técnico de cada pieza está en la guía técnica de la pila gráfica.
-
-Secuencia de desarrollo:
-
-1. Entrega de eventos de IOHIDSystem y ratón PS/2.
-2. WindowServer sobre el framebuffer GOP.
-3. virtio-gpu 2D (driver propio, BSD-2; hecho el 2 nov 2026).
-4. IOSurface (memoria compartida Mach; hecho el 2 nov 2026).
-5. Compositor de Core Animation, diseñado para GPU (backend Vulkan; pixman solo para el arranque y las VMs).
-6. HarfBuzz/FreeType para Core Text, giflib/libwebp, Little CMS para ColorSync.
-7. AppKit moderno con vistas respaldadas por capas.
-
-En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
-
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); y también WS5 (2 nov 2026, `9a472063c1`): los pasos 3 y 4 están hechos (virtio-gpu 2D, `3e73fce129` y `1f58b3fb44`; IOSurface, `b28eb5f413`). Sigue WS6. G1 está hecho (2 nov 2026, ADR 0002, `a42a1800b1` y `050acdb1ee`): en el PC 2, `MinkarAMDFramebuffer` toma la pantalla de la FirePro desde el firmware en la resolución nativa del monitor (3440x1440 a 50 Hz), muestra su propio framebuffer en VRAM, y `wsctl mode` cambia el modo con el escalador, con las tablas de la VBIOS ejecutadas por el intérprete AtomBIOS. Los modos con tiempos propios (reloj de píxel y enlace DisplayPort fijados por el driver) llegan con G2. G2 está en marcha y su gate se cumple en el PC 2 (2 nov 2026): el motor DMA ejecuta un búfer de comandos y su fence se señala, y copia entre superficies en VRAM (`6be0dcb84c`, `b9ac2e1f36`); un gestor de VRAM (`dfee0c87f3`), un user client con `minkar-gputest` (`d405ae35bf`), y la GART con búferes de sistema en las dos GPU, también la del monitor (`34f7974d13`, `2b11571625`). Desde entonces (2 nov 2026): las IOSurfaces llegan a la GPU por la GART (`e92fe4b7ff`), interrupciones con esperas de fence que duermen (`7e6621a639`), el servidor de ventanas presenta sus fotogramas con el motor DMA de la GPU (`38e8875af1`), IOSurfaces en VRAM compartidas entre procesos (`f13053f237`); y los modos con tiempos propios por HDMI: el EDID por DDC (`4dcbddbf47`, `de0233a02d`), el modo fijado con las tablas de la VBIOS (`8677a3bb9b`), la resolución nativa a su frecuencia más alta al arrancar, 60 Hz en el PC 2 (`59e0165082`), cada frecuencia como un modo propio (`e14a3fc4b6`, `e86385a4f3`), y la pantalla vuelve sola tras desconectar y conectar su cable (`6999c389ad`). Queda de G2: el anillo GFX (el procesador de comandos, con el microcódigo de AMD); los relojes de la GPU (aplazados por el mantenedor: se quedan los del arranque); y el entrenamiento del enlace DisplayPort, a la espera de una pantalla DisplayPort para probarlo. Desde entonces G2 también da a cada programa su propio espacio de direcciones en la GPU (contextos de memoria virtual 1 a 15, `1910d34651`, `78d6f046a3`): cualquier programa puede usar la GPU en él, y lo que va más allá queda para administradores o el servidor de ventanas (`84a8e4139b`); un búfer de comandos que nunca termina reinicia el procesador de comandos. G3 ha empezado (3 nov 2026): el inicio del bloque gráfico (tiling, backends de render, unidades de cómputo, `ee1c6210c9`) y el RLC con el estado inicial (`76e14432ee`), en las dos D500; y RADV de Mesa ya funciona sobre él (3 nov 2026): nuestra libdrm lleva sus contextos, envíos, mapeos de GPU y objetos de sincronización al user client (`3ef2fd2de9`), y Mesa 26.2.6 con cuatro parches propios (`8d911e7e1e`) encuentra las dos GPU como dispositivos Vulkan 1.3 y ejecuta en ellas escrituras de buffers, rellenos y copias por DMA y shaders de cómputo (`minkar-vktest`, 17 de 17). Desde entonces Mesa se compila en el árbol con sus herramientas fijadas (`f31988bb0b`), y RADV dibuja: un triángulo con un pipeline gráfico y shaders SPIR-V, fuera de pantalla, comprobado píxel a píxel (`minkar-vkdraw`, `7b62c1005e`). Y presenta en ventanas (3 nov 2026): `VK_EXT_metal_surface` sobre un `CAMetalLayer` propio cuyos drawables son IOSurfaces, como presentan las apps Vulkan en el sistema de referencia (`66db104abc`, `197aff60d2`, `80f271c9b8`, `1be99a691e`); el triángulo se vio en su ventana en la pantalla del PC 2. Esa presentación aún copia por la CPU y no tiene sincronía vertical: los drawables en VRAM mostrados por el compositor de GPU sin copias, al ritmo de la pantalla, son de WS6. G3 está hecho (3 nov 2026): su gate se cumple con el triángulo presentado en una ventana y las pruebas de conformidad de Khronos (CTS 1.4.7.1, a través del loader de Vulkan de Khronos, `18629db65a`, `b9eacfef5d`) pasando un subconjunto de 1.992 casos de la lista mustpass en el PC 2 sin ningún fallo (1.887 pasan, 105 no soportados); por el camino encontraron lo que les faltaba al driver y a libdrm: buffers por páginas, VRAM fuera de la ventana de la CPU, sitio para miles de buffers y mapeos, plazos de las fences y sync files (`f96d6be9cb`, `9981d713a5`). OpenGL viene después. G4 ha empezado (3 nov 2026): el compositor dibuja a través de una interfaz de backend (`4979a11f03`), y `WSVulkanBackend` compone con un compute shader en un frame en VRAM compartido con la GPU de la pantalla, presentado por su motor DMA; en el PC 2 sus frames coinciden bit a bit con los de pixman (G4.2, `c32fe22c13`). Las IOSurfaces que una app crea en VRAM se componen en su sitio, sin copias (G4.3, `7d973f778a`). Y los frames se muestran con cambios de página en el retrazado vertical de la pantalla, uno por refresco, sin cortes (G4.4, `f103270509`, `1601b4934e`). Los drawables de CAMetalLayer son IOSurfaces en VRAM que se muestran como capa de su ventana y se componen donde están, y las apps de Vulkan presentan al ritmo de la pantalla; la CPU ya no copia frames (G4.5, `9e74fdc214`, `58ab118eed`, `0822411404`). Queda una copia, de la GPU dentro de la VRAM, de la imagen del swapchain al drawable, como en la ruta de Metal de Mesa: 2,65 ms por frame a 3440x1440 medidos en G4.6 con la GPU a sus relojes de arranque (unos 0,3 ms esperados con sus relojes completos), que se mantiene por ahora; quitarla queda pendiente para la puerta de rendimiento de Minkar 21.0. G4 está hecho (3 nov 2026): G4.6 midió el servidor de ventanas con los dos backends (wsctl stats, `bfb9e26e4d`; minkar-vkcopy, `e487b84770`; las cifras en [Measurements.es.md](Measurements.es.md)): las apps de Vulkan se componen 14 veces más barato, con una décima parte de la CPU del servidor y al ritmo de la pantalla; los cambios de página cuestan un refresco de latencia (28 ms del ratón a la pantalla). La GPU aún funciona con los relojes que deja el firmware (la memoria a 150 MHz de 1.270), así que estas cifras son una línea base. El ratón y el teclado USB del PC 2 funcionan, a través de un KVM, desde que el driver xHCI codifica los intervalos de interrupción según la velocidad del dispositivo (`8f22e24b9a`). Sigue en el frente de GPU: los relojes de la GPU (si_dpm y su SMC), y después las mediciones otra vez; luego G5. Las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
-
-## Fase 5 — Escritorio Atlas
-
-Objetivo: una sesión gráfica completa con el lenguaje visual Atlas, con login, barra de menús global, Dock, escritorio con iconos y preferencias. El orden sigue lo que el usuario ve al arrancar. Plan del escritorio y sus apps: [Atlas.es.md](Atlas.es.md).
-
-1. **LoginWindow:** autenticación contra el servicio de usuarios de esta fase (Directory Services, más abajo) y arranque de la sesión (`LaunchAgents` del usuario).
-2. **Barra de menús y SystemUIServer:** el AppKit de cada app dibuja su propia barra de menús y sus menús; los status items son ventanas de sus apps; SystemUIServer aloja los Menu Extras. Plan: [Atlas.es.md](Atlas.es.md), capítulo 3 (MB0 en WS4b, MB1 a MB4 aquí).
-3. **Menu Extras básicos:** volumen, pantallas, red, reloj, notificaciones. Cada uno como bundle cargable, no compilado dentro de SystemUIServer. Plan: [Atlas.es.md](Atlas.es.md), capítulo 3 (MB1).
-4. **Dock:** lanzador, apps abiertas, minimizado y gestión del fondo de pantalla, sobre LaunchServices. Plan: [Atlas.es.md](Atlas.es.md), capítulo 4 (D0–D4).
-5. **Files:** app nueva en Cocoa puro. Navegación con LaunchServices, montaje vía DiskArbitration, iconos de escritorio, papelera y "Abrir con". Plan: [Atlas.es.md](Atlas.es.md), capítulo 4 (K0–K4).
-6. **System Preferences:** app contenedora + cargador de bundles `.prefPane` (`NSPreferencePane`). Paneles iniciales: Pantallas, Teclado, Usuarios, Red, Dock, Fecha y hora. *Parcial (4 nov 2026):* la app, `PreferencePanes.framework` y cinco paneles, Pantallas, Dock, Fecha y hora, Teclado y Red (`948e15445f`, `f5f26fc193`, `7c5f6cda8b`; prueba local `system-preferences` 12/0); Usuarios espera a Directory Services.
-7. **AppKit:** completar controles faltantes y dar a todo el sistema el lenguaje visual Atlas (diseño propio, sin recursos de terceros), priorizado por lo que usan Files y System Preferences. *4 nov 2026:* un panel de guardar (`1e4869b895`); la fuente del sistema, Inter, es también la del editor de texto hasta elegir una de ancho fijo (por revisar). *5 nov 2026:* la fuente de ancho fijo es Agave (SIL OFL 1.1), descargada en una versión fijada e instalada sin cambios; `userFixedPitchFont` sigue a `NSFixedPitchFont` y Text Editor muestra el texto plano con ella; las fuentes cuya familia lleva espacios se encuentran por su nombre PostScript (`642e6a1cda`), y los caracteres que cubre una fuente perdían el último de cada tramo, que el texto dibujaba entonces con otra fuente (`5e51bdc6ba`). Files tiene un icono de prueba, no el definitivo (`2194ff5695`); las imágenes dibujadas a menos de la mitad de su tamaño se promedian en lugar de muestrearse (`f474cc75a0`). Prueba local `fixed-pitch` 14/0. *11 nov 2026:* las fuentes que las aplicaciones piden por nombre y Minkar no tiene (las de la referencia) se dibujan con fuentes libres instaladas con sus propios nombres, que ocupan lo mismo: Liberation Sans, Serif y Mono (OFL 1.1), DejaVu Sans y Sans Mono (Bitstream Vera), Gelasio (OFL 1.1) y TeX Gyre Pagella (GUST), descargadas en versiones fijadas; una tabla en AppKit lleva cada nombre allí con el estilo pedido, los nombres desconocidos van por tipo (ancho fijo a Agave, con remates a Liberation Serif, el resto a Inter) y `fontName` es la fuente dibujada (aprobado el 11 nov 2026 como regla para cualquier fuente que necesite una aplicación). `isFixedPitch` responde bien para las fuentes de ancho fijo; una fuente pedida con tamaño 0 tiene el tamaño por defecto. Pruebas locales `appkit-font-substitutes` y `appkit-font-size-zero`.
-
-Criterio transversal: todos estos componentes son apps o bundles Cocoa normales. Así funcionan como prueba continua de AppKit.
-
-Comandos que llegan con esta fase (movidos desde la Fase 2):
-
-- [ ] `open` y `lsappinfo`, sobre LaunchServices. *Parcial (4 nov 2026):* `open` con `-a`, `-b`, `-e`, `-t`, `-R` y `-n` (`906f12eae4`); falta `lsappinfo`. Con él llegó el editor de texto, Text Editor (`b8b8906ab9`).
-- [ ] `mdfind`, `mdls` y `mdutil`, con un índice de metadatos para la búsqueda de Files.
-- [ ] Gestión de usuarios estilo Directory Services, para LoginWindow y el panel Usuarios (movida de la Fase 2 el 31 oct).
-- [ ] `say`, con un driver de audio y síntesis de voz.
-
-**Criterio de salida (M5):** desde el arranque se llega a una sesión gráfica, se abre una app desde el Dock, se navega con Files y se cambia la resolución desde Preferencias, con el lenguaje visual de Atlas que necesita K1 ([Atlas.es.md](Atlas.es.md), capítulo 4).
-
-## Fase 6 — Aplicaciones y distribución
-
-Objetivo: instalar software arrastrando la app desde una imagen de disco a `/Applications` y tener las apps básicas de trabajo. Esta fase es el primer uso real del sistema y la mejor fuente de bugs.
-
-**DMG**
-
-1. Lectura del formato UDIF con sus compresiones habituales, luego escritura. *Hecho (16 nov 2026), sin framework:* `hdiutil` lee la tabla de bloques de la imagen y el driver `MinkarDiskImage` del kernel sirve el disco a partir de ella, de solo lectura, descomprimiendo cada trozo al leerlo (guarda los cuatro últimos): ADC (UDCO), zlib (UDZO), bzip2 (UDBZ) y LZFSE (ULFO), con el zlib de libkern y las fuentes de bzip2 y LZFSE del árbol; un trozo roto es un error de lectura, no un pánico. `hdiutil convert` escribe UDZO, UDBZ, ULFO, UDRO, UDRW y UDTO (trozos de 1 MB, sumas CRC-32), y `create -format` los crea. Las imágenes LZMA (ULMO) se convierten pero aún no se conectan, y las segmentadas no se leen. Prueba local `dmg-compressed` 33/0: cada formato convertido, conectado y sus ficheros comparados; imágenes hechas fuera de hdiutil (varias entradas de bloques, ADC) se conectan; 7z lee lo que escribe hdiutil.
-2. Montaje vía DiskArbitration en `/Volumes/<etiqueta>`, usando el driver HFS+ de la Fase 1. *Hecho (30 oct 2026),* ver abajo.
-3. `hdiutil` mínimo (`attach`, `detach`, `create`, `convert`), y doble clic en Files. *Hecho:* `convert` el 16 nov 2026, el doble clic en Files con K3.
-4. Compresión HFS+ (decmpfs) en el kext de hfs: la plataforma de referencia guarda comprimidos muchos archivos de las apps y del sistema, y el hfs de Minkar (el hfs-556.60.1 de Darwin 20, adaptado al xnu de Darwin 19) se compila sin ella, así que esos archivos se leen vacíos. Criterio: una app copiada desde un DMG de la plataforma de referencia se ejecuta. *En parte (17 nov 2026):* hfs se compila con compresión y nuestro kext `MinkarFSCompression` (BSD-2) da al decmpfs del kernel los tipos zlib (3, 4), LZVN (7, 8) y LZFSE (11, 12), en el atributo o en bloques de 64 KB del resource fork; arranca cuando BSD está listo, y un fichero comprimido leído antes lo espera. Prueba local `hfs-compression` 13/0: cada tipo leído entero y por partes con su tamaño, un programa comprimido ejecutado, una escritura que descomprime antes el fichero, un bloque roto leído como ceros y anotado en el registro. *Criterio cumplido (17 nov 2026):* el DMG propio de Hex Fiend 2.18.1 (bzip2) se conecta, la app se copia a `/Applications` y arranca, y se queda abierta con sus menús y su ventana de documento (prueba local `hexfiend-dmg`); por el camino, NSArchiver/NSUnarchiver de Foundation, NSFileCoordinator, los recursos de Base.lproj, Tcl.framework 8.5 y las piezas de AppKit que pedía. Falta: un fichero descomprimido en su sitio conserva su resource fork antiguo (el kernel no exporta la llamada para quitarlo).
-5. El resto de la adaptación de hfs (encontrado el 10 nov 2026, ver `Kernel/_PROVENANCE`): encontrar y corregir el bucle del que `hfs_vfsutils.c` sale detectando duplicados (un apaño, según su propio comentario), y que `panic_on_assert` vuelva a salir de la configuración del kernel en vez de estar siempre activo.
-
-**Instalador del sistema** (necesario para Minkar 19.6.0; añadido el 16 nov 2026)
-
-La primera versión de Minkar se instala desde su propio medio, sin el árbol de compilación ni la máquina de un desarrollador. Hoy la imagen de disco se escribe a mano en un disco y trae las cuentas de prueba.
-
-1. Medio de instalación: una imagen USB arrancable (EFI) que inicia una sesión en vivo con el instalador, y la misma imagen para QEMU.
-2. La app instaladora (AppKit, con el aspecto de Atlas): elegir el disco, particionarlo (GPT con una partición de sistema EFI y un volumen HFS+), copiar el sistema, instalar el cargador EFI y el kernelcache, y fijar la entrada de arranque.
-3. Primer arranque: el idioma, la distribución del teclado, la zona horaria, el nombre del equipo y la primera cuenta de administrador, creada en OpenDirectory; sin cuentas ni contraseñas de prueba fijas en la imagen publicada.
-4. Un registro de la instalación y un mensaje claro cuando el disco o el firmware no están soportados (sin AVX, sin UEFI).
-5. Criterio: en el PC 1 y el PC 2, desde el medio USB hasta el escritorio Atlas con la cuenta nueva, sin otra máquina de por medio; y en QEMU como parte de la CI.
-
-**Aplicaciones**
-
-Las apps de uso diario se planifican en [Atlas.es.md](Atlas.es.md), capítulo 5: una base común (A0), y después Terminal, Text Editor (Editor de texto), System Monitor (Monitor del sistema), Logs (Registros), Screenshot (Captura de pantalla), Image Viewer y Document Viewer (visores de imágenes y de documentos), Disks (Discos), System Information (Información del sistema), Calculator (Calculadora) y Archive Manager (Gestor de archivadores) (A1–A10). A0–A4 son obligatorias para Minkar 19.6.0; A5–A10 pasan a 19.6.x (20 nov 2026), con Fonts, Passwords and Keys, Color Picker, Script Editor, Help y Characters; el navegador (Firefox) y un IDE a largo plazo.
-
-Muchas apps Cocoa actuales usan SwiftUI: desde el 20 nov 2026 son del carril SU (D6), medidas por SU0.
-
-Comandos que llegan con esta fase (movidos desde la Fase 2):
-
-- [ ] `osascript`, con una Open Scripting Architecture para las apps.
-- [ ] `opendiff`, con una app de comparación de archivos.
-- [ ] `tmutil`, con copias de seguridad.
-- [ ] Los comandos de git en Perl, Python y Tcl (`git send-email`, `gitk`…), con esos lenguajes (movidos de la Fase 2 el 31 oct). *Parcial (11 nov 2026):* los lenguajes están en la imagen, como los trae el sistema de referencia (decisión del maintainer, junto con Ruby): Ruby 3.3.9 (`9931a36e28`), Python 3.13.18 (`e6f45dd6a6`) y Perl 5.40.5 (`392f302d94`), cada uno descargado con versión fijada y compilado en cruzado para Minkar, sin compilador en la imagen. Pruebas locales `bsd-ruby` 14/0, `bsd-python` 12/0, `bsd-perl` 14/0. Falta: Tcl/Tk y después los comandos de git que los usan.
-
-Adelanto: `hdiutil attach` ya monta imágenes en `/Volumes` a través de DiskArbitration (30 oct 2026); los DMG comprimidos se leen desde el 16 nov 2026. Siguiente: compresión HFS+ (punto 4).
-
-**Criterio de salida (M6):** Minkar se instala en un equipo físico desde su propio medio USB con el instalador del sistema; se descarga un DMG, se monta, se copia la app a `/Applications` y corre; y el escritorio Atlas está completo para el uso diario, tal como lo fija la sección 6 de [Atlas.es.md](Atlas.es.md): MB2 y MB3, D2 y D3, K2 y K3, y las apps A0–A4, usadas a diario en la propia máquina de desarrollo; WebKit hasta W5, con las vistas web de las apps de referencia funcionando; audio y medios completos, AU1–AU10, con sonido en el sistema y `<video>` en WebKit; y el gate BC pasa con el conjunto 19 completo (BC4). MB4, D4, K4 y las apps A5–A10 llegan en 19.6.x; el navegador web no hace falta (criterio cambiado el 20 nov 2026).
-
-## Carril BC — Compatibilidad binaria
-
-Objetivo: los binarios x86-64 publicados de las apps designadas arrancan y funcionan en Minkar sin recompilar (D1, 20 nov 2026). Deja de ser posterior a M6: sus primeros hitos forman parte de Minkar 19.6.0.
-
-**Ya hecho**
-
-- Firefox 160, la compilación de Mozilla para la plataforma de referencia, corre con sandbox, con sus medios, vistas OpenGL, impresión y notificaciones (prueba local `firefox`, 25 comprobaciones; `b7d59fd37d`, `4bcb5f9dd7`, `e2ff5e9d75`, `e4be7cf05b`, `15d55aab70`, documentado en `2f3c03dc26`).
-- Hex Fiend 2.18.1 desde su propio DMG: se conecta, se copia a `/Applications`, arranca y se queda abierta con sus menús y su ventana de documento (prueba local `hexfiend-dmg`; `66f91c083d`, `1185b94021`).
-- Nibs binarios (NIBArchive), tal como los compila Interface Builder, se cargan para las ventanas de las apps (`e1d404ea77`).
-- Firmas y entitlements de terceros: con una firma válida, los entitlements de identidad y de perfil de aprovisionamiento dejan arrancar la app sin darle ningún privilegio (`3da59e4afc`, Fase 4).
-- *20 nov 2026:* el gate BC (`boottest GATE=BC`, a través de `tools/compat/bc-gate.py` y `Tests/BC`) y la matriz generada [Compatibility.es.md](Compatibility.es.md) (BC1). Su primera ejecución: Firefox, Hex Fiend, Skim y TextMate muestran ventana; KeepingYouAwake, Platypus, Sloth, VLC y Cyberduck terminan al iniciar; Thunderbird no carga una biblioteca; las apps que exigen 11.0 o más se paran en el cargador, en la comprobación de firma (`keychain-access-groups` y `com.apple.vm.device-access` se rechazan como restringidos) o en la instalación (la imagen de disco de VSCodium no tiene un sistema de archivos que hdiutil monte). Las imágenes de disco de Firefox y Thunderbird (LZMA, ULMO) solo se instalan tras `hdiutil convert`.
-
-**Decisiones que protegen este carril desde hoy**
-
-- Nombres de instalación de dylibs y frameworks idénticos a los originales (`/System/Library/Frameworks/...`). *Hecho el 25 oct* para todos los frameworks (AppKit en `Versions/C`), `libobjc.A.dylib` y `libbz2.1.0.dylib`, con las versiones de compatibilidad originales, comprobado con dyld en la imagen; `libicucore` exporta los nombres simples de ICU (`u_strlen`).
-- Las versiones de compatibilidad y actual de cada dylib siguen el nivel de API que reporta `ProductVersion`, no la versión de Minkar: desde el 31 oct 2026 `libsystem_info` y el kext de pthread conservan sus propias versiones en vez de `PROD_VERSION` (`d2b559759f`).
-- No cambiar la disposición de ivars públicos ni tamaños de structs expuestos en headers.
-- `ProductVersion` y `uname -r` se documentan juntos; la matriz de compatibilidad registra qué apps fallan por deducir la versión de la plataforma desde Darwin.
-
-| Hito | Contenido | Criterio |
-| --- | --- | --- |
-| BC0 | Las pruebas que ejecutan binarios publicados son un gate del repo: `boottest GATE=BC` | Corre en la CI con todas las apps designadas y falla si una app deja de arrancar |
-| BC1 | Matriz [Compatibility.es.md](Compatibility.es.md), generada | Se regenera con `bmake progress` |
-| BC2 | Cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks embebidos, firmas y hardened runtime de terceros, `SYSTEM_VERSION_COMPAT` | Una prueba por caso |
-| BC3 | Auditoría de ABI: los tipos de los métodos según las codificaciones que traen los binarios, frente a los headers de Minkar; enums y constantes frente a fuentes abiertas | Informe sin diferencias en el conjunto 19 |
-| BC4 | Conjunto 19 en verde | Entra en el criterio de M6 |
-| BC5… | Las apps designadas siguientes, agrupadas por la versión mínima que exigen; un grupo por cada subida de `ProductVersion` | Cada grupo en verde sube la versión |
-
-Conjunto 19: las apps de `tools/symbols/reference-apps.tsv` con versión mínima 10.15 o menor (Firefox, Thunderbird, Hex Fiend, TextMate, Platypus, KeepingYouAwake, Sloth).
-
-Apps designadas siguientes (20 nov 2026): iTerm2, Skim, Transmission, Firefox (versiones posteriores), VLC, KeePassXC, IINA, Cyberduck, UTM, LibreOffice y VSCodium.
-
-La auditoría BC3 no usa los headers del SDK del fabricante.
-
-## Carril ARM — arm64
-
-Sobre el kernel nuevo, y solo en máquina virtual por el momento (D4).
-
-| Hito | Contenido | Cuándo |
-| --- | --- | --- |
-| ARM0 | El userland y los frameworks compilan para arm64 en la CI; no se arranca nada | Ya |
-| ARM1 | Darwin 25 arranca en arm64 en una máquina virtual hasta el gate M2 | Sin decidir: el destino de arranque está abierto ([ADR 0003](ADR/0003-Kernel-Upgrade.es.md), sección 8); no antes de KX1 |
-| ARM2 | Escritorio en arm64 en QEMU (gates M4 y M5) | Tras ARM1 y KX2 |
-| ARM3 | Los binarios arm64 de las apps designadas arrancan en QEMU | Tras ARM2 y BC4 |
-
-Pendiente: el trabajo de plataforma que necesita el XNU publicado para arm64, y las páginas de 16 KB que asumen los binarios arm64. Los equipos físicos arm64 se decidirán más adelante.
-
-**ARM0 (20 nov 2026).** La CI compila para arm64, solo objetos, los directorios de `tools/ci/arm64-dirs.txt` (`tools/ci/arm64-compile.sh`, después del build x86-64): con el clang de la versión de swift.org que el toolchain ya usa como herramienta de build, y los headers arm64 copiados de `Kernel/xnu`. Medido el 20 nov 2026: cerca del 96 % de los objetos del userland y de los frameworks ya compilan para arm64. Pendiente, en orden de dependencias:
-
-1. El toolchain: AArch64 en los destinos de LLVM (`Developer/Default.xctoolchain/llvm/Makefile`), y después clang, lld y el compilador de Swift compilados de nuevo; un solo nombre para la arquitectura (`aarch64` arriba, `arm64` en Libc).
-2. El SDK: los headers de XNU instalados para ARM64 (`mach/arm`, `mach/arm64`, `arm`, `libkern/arm`, el `arm` de System), el `TargetConditionals.h` de BSD/include y un `architecture/arm/asm_help.h` de sala limpia.
-3. compiler-rt, libunwind, libc++abi y libc++ para arm64.
-4. libsystem_kernel: un mapa de llamadas al sistema para arm64 y MIG para arm64.
-5. libsystem_platform: fuentes por arquitectura (setjmp, atómicos, control de caché; ucontext).
-6. Libc: `mcount` y el fichero gdtoa de arm64.
-7. libm: las fuentes `aarch64` de msun, sin long double de x87, un `fenv` de arm64.
-8. El transporte Mach de libxpc.
-9. objc4: messengers y trampolines por arquitectura.
-10. CoreFoundation: `HALT` y la prueba de orden de bytes de las tablas Unicode.
-11. Foundation: `NSInvocation` y el reenvío para la convención de llamadas de arm64 (sin `_stret`).
-12. launchd, `leaks` y `sample`: el estado de hilo de arm64.
-13. El runtime y la biblioteca estándar de Swift para arm64, y después los overlays, Combine y XCTest.
-14. Los ports que se compilan con su propio configure (`minkar.extlib.mk`).
-15. Los directorios que leen ficheros generados en los directorios de objetos x86-64 (libdispatch, libmacho, Onyx2D) entran en la comprobación de la CI cuando esos ficheros se generen también para arm64.
-
-## Carril KX — Kernel nuevo: Darwin 25
-
-Decidido el 20 nov 2026 (D5). El cómo es el [ADR 0003](ADR/0003-Kernel-Upgrade.es.md), aceptado para x86-64 el 20 nov 2026: xnu-12377.121.6, definido y validado en x86-64 (QEMU, PC 1 y PC 2), independiente de arm64, y nunca con el Kernel Debug Kit.
-
-| Hito | Contenido | Criterio | Cuándo |
-| --- | --- | --- | --- |
-| KX0 | ADR 0003, y una prueba de solo compilación del kernel x86-64 de Darwin 25 con el clang del árbol | ADR aprobado por el mantenedor | Hecho el 20 nov 2026 (aceptado para x86-64, con condiciones) |
-| KX1 | Prototipo en una rama: Darwin 25 arranca en x86-64 en QEMU hasta M2, con los kexts propios mínimos portados. Sus experimentos: arrancar primero con la salida actual de `plktool` (un constructor de colecciones fileset solo si no arranca), todos los kexts en la colección de arranque, el cargador con la revisión 1 de `boot_args`, el mínimo de M2 hallado quitando kexts de uno en uno, launchd comprobado contra el libxpc de Darwin 25 | `boottest GATE=M2` en la rama | Tras publicar 19.6.0 y tras R1 (la condición del informe de corecrypto se cumplió el 21 nov 2026) |
-| KX2 | El sistema completo sobre Darwin 25: resto de kexts, WindowServer, Atlas | Todos los gates en QEMU, el PC 1 y el PC 2 | Tras KX1 |
-| KX3 | `devel` pasa a Darwin 25; Darwin 19 queda en una rama de mantenimiento para 19.6.x | Minkar 25.x | Tras KX2 |
-
-Hasta KX3, lo nuevo de frameworks y escritorio debe compilar sobre ambos kernels, y `devel` conserva `uname -r`, `kern.osrelease`, `DARWIN_VERSION` y `TARGET_TRIPLE` de Darwin 19.6.0; la rama toma los de Darwin 25. Si Darwin 26 deja de publicar x86-64, los PC x86-64 de Minkar se quedan en una rama de Darwin 25, la última para esa arquitectura (aceptado el 20 nov 2026); la continuidad más allá depende de arm64.
-
-## Carril SU — SwiftUI: capa pública propia de Minkar sobre un motor basado en SwiftCrossUI
-
-Decidido el 20 nov 2026; sustituye a la integración de OpenSwiftUI de D6. OpenSwiftUI y OpenAttributeGraph se revisaron el mismo día y se descartaron: la revisión encontró código verificado contra los binarios del fabricante y derivado de ellos, algo que la regla de sala limpia excluye (el informe de la revisión se guarda fuera del repositorio, con los demás informes del carril). Tampoco se usa Tokamak: está archivado y su origen no encaja con la sala limpia.
-
-SwiftUI entra en Minkar en dos partes:
-
-| Parte | Qué es | De dónde sale | Licencia |
-| --- | --- | --- | --- |
-| Capa pública | `SwiftUI.framework`, módulo `SwiftUI`, con library evolution | Escrita por Minkar. Su superficie sale solo de dos fuentes: los símbolos de SwiftUI que importan los binarios de las apps designadas (sus nombres llevan la firma completa de tipos) y la documentación pública para el comportamiento | BSD-2-Clause |
-| Motor interno | Layout, estado y dibujo sobre el AppKit y el Core Animation de Minkar | Adaptado de SwiftCrossUI (`github.com/moreSwift/swift-cross-ui`), sobre todo su layout y su backend de AppKit | MIT, la de origen; cada archivo adaptado la conserva y entra en NOTICE |
-
-- La capa pública es la que decide si un binario arranca; SwiftCrossUI no la aporta, porque su API no es la de SwiftUI. De SwiftCrossUI solo se aprovecha el motor.
-- El motor es privado. No se llama `SwiftUICore` ni con el nombre de ningún framework de la plataforma de referencia, salvo que los binarios designados importen símbolos de ese framework y Minkar los proporcione.
-- Lo que Minkar corrija en SwiftCrossUI y no sea específico de Minkar se envía a ese proyecto.
-
-| Hito | Contenido | Criterio | Cuándo |
-| --- | --- | --- | --- |
-| SU0 | El inventario informa, por app designada, si enlaza SwiftUI, desde qué framework y qué símbolos importa | El informe sale en la CI | Ya |
-| SU0b | Revisión de sala limpia y de licencias de SwiftCrossUI | Informe aprobado por el mantenedor | Ya |
-| SU1 | Diseño: [SwiftUI.es.md](SwiftUI.es.md) | Documento en estado Proposed, aprobado por el mantenedor | Ya |
-| SU2 | SwiftCrossUI importado en una versión fijada con SHA-256 y el framework instalado. Gate de código fuente: las apps de prueba SwiftUI de Minkar compilan y muestran su ventana | Prueba local y gate | Tras publicar 19.6.0 y con SU0b aprobado |
-| SU3 | ABI: cada símbolo de SwiftUI que importan los binarios designados existe con el mismo nombre y disposición | Cobertura del 100 % según SU0 | Tras SU2 |
-| SU4 | El binario publicado de una app que enlaza SwiftUI arranca (candidata: iTerm2) | Entra en el gate BC | Tras SU3 y la subida de ProductVersion que la app exija |
-
-## Carril R — Estructura
-
-Decidido el 20 nov 2026 (D8); el cómo es [Structure.es.md](Structure.es.md) (propuesto). El núcleo del sistema (Kernel, Libraries, Frameworks, WindowServer, los daemons de CoreServices, Dock, Files, loginwindow, SystemUIServer) sigue en un solo repositorio; lo que no evoluciona con él sale del árbol, un paso reversible cada vez, cada uno confirmado por el mantenedor antes de empezar.
-
-| Paso | Qué | Cuándo |
-| --- | --- | --- |
-| R0 | El inventario y [Structure.es.md](Structure.es.md); no se mueve nada | Ya |
-| R1 | El toolchain a su propio repositorio, usado como artefacto precompilado fijado por SHA-256; AArch64 entra en los destinos de LLVM | Justo después de publicar 19.6.0, antes de KX1 |
-| R2 | Las fuentes de terceros de BSD como descargas fijadas más parches, a través de `minkar.extlib.mk`, un componente por commit | Durante 19.6.x |
-| R3 | La CI publica cada capa compilada (toolchain, kernel y kexts, sysroot base) | Durante 19.6.x, después de R1 |
-| R4 | Las apps de Atlas a su propio repositorio, compiladas contra el `Minkar.sdk` publicado | Después de 19.6.0, con el SDK publicado |
-
-**Antes de publicar 19.6.0 no se hace nada de R1–R4.**
-
-## Hitos, dependencias y ruta crítica
-
-Ruta crítica: Fase 0 (M0) → Fase 1 (M1) → Fase 2 (M2) → Fase 3 (M3) → Fase 4 (M4) → Fase 5 (M5) → Fase 6 (M6, Minkar 19.6.0). Los carriles BC, ARM, KX y SU tienen sus propios hitos (M7 desaparece, 20 nov 2026): BC0–BC4 entran en M6; KX0, ARM0, SU0 y SU0b empiezan ya; KX1 y el resto de los carriles llegan después de 19.6.0; el requisito de rendimiento es de una versión posterior a 25.x. En el orden general, R1 va justo después de publicar 19.6.0 y antes de KX1.
-
-M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y la Fase 2 está cerrada (31 oct). El trabajo activo está en la Fase 5, Atlas ([Atlas.es.md](Atlas.es.md): MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones N0–N2 hechos), y en lo demás que necesita Minkar 19.6.0 (WebKit W2–W4 y audio y medios AU1–AU6 hechos). El frente de GPU sigue en paralelo y alimenta el requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo, desde una versión posterior a 25.x. El carril BC avanza ya, como parte de M6.
-
-- [x] M0 — Build, toolchain, CI
-- [x] M1 — Arranque Darwin
-- [x] M2 — Userland base
-- [x] M3 — Frameworks y Swift (cumplido el 5 nov 2026: gate M3)
-- [x] M4 — Gráficos y WindowServer (cumplido el 3 nov 2026: gate M4)
-- [ ] M5 — Escritorio Atlas
-- [ ] M6 — Apps y distribución (Minkar 19.6.0)
-- [ ] BC0–BC4 — Compatibilidad binaria, el conjunto 19 (entra en M6)
-- [ ] Minkar 25.x — KX3: todos los gates sobre Darwin 25
-- [ ] ARM1–ARM3, SU1–SU4 y BC5 en adelante — después de Minkar 19.6.0
-- [ ] Rendimiento ≥ sistema de referencia (una versión posterior a 25.x)
-
-| Gate | Fase o carril | Estado al 20 nov 2026 |
-| --- | --- | --- |
-| M0 | Build, toolchain, CI | Cumplido (CI verde desde `05fa75cb65`) |
-| M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2 (NVMe, 24 hilos; 1 nov 2026) |
-| M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
-| M3 | Frameworks y Swift | Cumplido (5 nov 2026): toolchain, runtime, overlays de Swift, Combine y XCTest; el gate M3 pasa con las siete herramientas (swift-argument-parser; Rainbow y Files; Yams; xcbeautify; mogenerator; tag; SwiftFormat) |
-| M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
-| M5 | Escritorio Atlas | En curso: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones (N0–N2) hechos ([Atlas.es.md](Atlas.es.md)) |
-| M6 (Minkar 19.6.0) | Apps y distribución, el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio y medios (AU1–AU10) y el gate BC con el conjunto 19 (BC4) | En curso: WebKit W2–W4 y audio y medios AU1–AU6 hechos; `hdiutil attach` ya monta |
-| BC | Compatibilidad binaria | En curso: el gate BC (`bmake bc-check`) ejecuta los binarios publicados de las 17 apps designadas (20 nov 2026, con KVM: 19 minutos); 4 muestran ventana (Firefox, Hex Fiend, Skim, TextMate), y [Compatibility.es.md](Compatibility.es.md) dice hasta dónde llega cada una de las demás. BC1 hecho; BC0 espera su primera ejecución en la CI |
-| KX | Darwin 25 | KX0 hecho el 20 nov 2026 (ADR 0003 aceptado para x86-64, con condiciones); KX1 después de Minkar 19.6.0 y de R1 |
-| ARM | arm64 | ARM0 (la compilación en la CI) empezado el 20 nov 2026 |
-| SU | SwiftUI: capa pública propia sobre un motor basado en SwiftCrossUI | SU0 (el informe) en la CI; SU0b (la revisión de SwiftCrossUI) aprobado el 21 nov 2026: su motor se puede importar en parte; SU1 ([SwiftUI.es.md](SwiftUI.es.md)) propuesto el 21 nov 2026 |
-| R | Estructura | R0 en curso desde el 20 nov 2026 (el inventario y [Structure.es.md](Structure.es.md)); R1–R4 después de 19.6.0 |
-| Rendimiento | ≥ sistema de referencia en equipo físico, sobre el kernel nuevo | Sin empezar; depende del frente de GPU y de KX; una versión posterior a 25.x |
-
-## Riesgos y mitigaciones
-
-El riesgo dominante es de personas, no técnico: un equipo pequeño con muchas capas abiertas a la vez. La mitigación general es cerrar gates en orden y limitar el trabajo en curso.
-
-| Riesgo | Impacto | Mitigación |
-| --- | --- | --- |
-| Pocos desarrolladores con experiencia en XNU y kexts | Fase 1 se alarga y bloquea todo | Documentar el arranque paso a paso; priorizar solo hardware de QEMU hasta M2 |
-| CF-Lite pública anterior a la API 19 | Faltan APIs de CF para las API 20 y 21 | Añadirlas a mano con la CF de swift-corelibs como referencia; pruebas de bridging en cada cambio |
-| Hardware real heterogéneo | Bugs imposibles de reproducir | Lista corta de hardware de referencia; lo demás, "best effort" |
-| Drivers de GPU: el bloque más largo, y ahora requisito | La versión de rendimiento no iguala al sistema de referencia | Frente paralelo desde ya; una sola familia de GPU; prototipo KMS antes de comprometerse; compositor diseñado para GPU |
-| Apps que enlazan SwiftUI | Sus binarios publicados no arrancan | Decidido el 20 nov 2026 (D7): capa pública propia de Minkar sobre un motor basado en SwiftCrossUI. El riesgo es el tamaño de la capa pública y de su compatibilidad de ABI; mitigación: avanzar app por app, en el orden que da SU0 |
-| `ProductVersion` subida con la API incompleta (D2) | `@available` da por presente una API que falta y una app toma un camino que falla | Los stubs ruidosos registran cada primera llamada; el gate BC ejecuta las apps del grupo antes de cada subida; `SYSTEM_VERSION_COMPAT` para binarios viejos |
-| Apps designadas poco representativas | Gate BC en verde mientras otras apps fallan | Grupos por versión mínima y por los frameworks que usan; apps añadidas desde el log de stubs y la matriz; la lista se revisa en cada subida |
-| Piezas no publicadas del kernel nuevo | KX1 se retrasa; piezas escritas desde cero | El ADR 0003 las lista antes de empezar; prototipo en una rama; 19.6.x sigue sobre Darwin 19 |
-| AU7–AU10 dentro de Minkar 19.6.0 | 19.6.0 se retrasa | El audio va en paralelo, fuera del límite de dos carriles; sus criterios se miden pronto en el PC 1 |
-| Licencias y sala limpia | Código que hay que retirar | Revisión de licencia en cada importación de terceros; declaración de sala limpia en cada PR |
-| Demasiados frentes: fases, cuatro carriles, audio y GPU | Nada se cierra; nada llega a usable | Tablero público por fase y carril; dos carriles activos como máximo, más audio y GPU; alcance congelado por versión (principio 7) (20 nov 2026) |
-| Documentación desfasada (wiki archivado) | Contribuidores trabajan sobre información vieja | Mover roadmap y estado a `Docs/` dentro del repo, actualizados en cada hito |
+En paralelo con todo, y base del requisito de rendimiento. GCN 1.0 (PC 2): G1–G4 hechos,
+falta G5 (Metal); lo siguiente, los relojes de la GPU. RDNA2 (PC 1): R0–R2 hechos; lo
+siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 ## Próximos pasos
 
-En el mismo orden que los próximos pasos de `Docs/ROADMAP.md` (ruta crítica):
+1. El gate BC en la CI (BC0), con las apps arrancadas como el usuario de la sesión.
+2. El conjunto de apps 19: que Platypus, KeepingYouAwake y Sloth pasen del arranque; la configuración de VLC.
+3. M5: LoginWindow con Directory Services, el panel de Usuarios, MB3, K0, el lenguaje visual.
+4. M6: el instalador, la compresión de HFS+, A2, W5, W0–W3.
+5. En paralelo: audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1).
 
-- [x] **PC 1 (Fase 1):** NVMe (arranca desde el SSD) y SMP (corren los ocho hilos), el 29 y 30 oct; botón de encendido y apagado ACPI S5, el 31 oct.
-- [ ] **PC 1 (Fase 1):** arranque sin `pci_keep_console`, IPv6 en la red (RDNSS, DNS sobre IPv6) y reposo ACPI S3; el equipo con la RX 6600 como otro equipo de pruebas. (El segundo PC del gate M1 es el PC 2, 1 nov 2026.)
-- [x] **Userland (Fase 2):** cerrada el 31 oct (exFAT en lectura y escritura, `launchctl kickstart`, rutas de dyld, notifyd e IPv6 probados; el resto pasó a las Fases 3, 5 y 6).
-- [x] **Fase 4:** entrega de eventos de IOHIDSystem en el kernel (`e2df542919`), el driver `ApplePS2Mouse` (`2aa9a1da6e`) y el lector de entrada de WindowServer (`ab71ce75a4`), 31 oct 2026; pruebas `hid-events` 9/0, `ps2-mouse` 12/0, `windowserver` 6/0; pasan las pruebas de consola y M2 (suite completa con 2991 pruebas superadas después de (a)).
-- [x] **Fase 4:** instalar el job de WindowServer y lograr el primer arranque que dibuje en `IOGOPFramebuffer` (WS0, 31 oct 2026): el job se instala desactivado (`f56c70bb88`); activado, WindowServer dibuja una ventana de AppKit de demostración que recibe un clic y una tecla; gate `M4-draw` (`cce7da92bc`).
-- [ ] **Fase 3:** las clases de Foundation que más faltan según el informe de símbolos (`NSURLSession` hecha el 31 oct, `00617d5f6c`, con cookies; quedan su caché y métricas; `NSXPCConnection`, `NSXPCListener` y `NSXPCInterface` hechas el 31 oct, `82c5f3e8f8`, prueba `foundation-xpc-connection` 20/0, suite completa 2977/0, M2 PASS; servicios XPC dentro de las apps: la app los lanza bajo demanda como hijos suyos, sin launchd, prueba `foundation-xpc-service` 9/0), y lo que llegó de la Fase 2 (libSystem, stubs ruidosos, `logd`).
-- [ ] **Fase 3:** los prototipos del toolchain Swift.
+## Riesgos
 
-Además, lo que este plan añade y aún no está en el repo:
-
-- [x] **Versiones (31 oct):** `PROD_VERSION = 19.6.0` para `ProductUserVisibleVersion`, `PROD_COMPAT_VERSION = 10.15` para `ProductVersion`, y `sw_vers` mostrando «Minkar 19.6.0 (kernel Darwin 19.6.0)», con su manual (`d2b559759f`). Probado en QEMU: `@available(10.15)` verdadero y `(11.0)` falso, `operatingSystemVersion` 10.15.0, `uname -r` 19.6.0. `libsystem_info` y el kext de pthread conservan sus propias versiones. En el mismo trabajo: `launch_activate_socket` (`5051c781b4`), `os_log` y `os_activity` (`0709544df7`), `_availability_version_check` (`c0923c1bc7`) y `NSProcessInfo` (`fb6e25b877`).
-- [x] **`Docs/ROADMAP.md` al día (31 oct):** reescrito desde este plan, con Atlas y Files, el esquema API 19/20/21 → Minkar 19.6.0/20.0/21.0, el frente de GPU y el requisito de rendimiento.
-- [ ] **Compatibilidad de versión:** mecanismo tipo `SystemVersionCompat.plist` y `SYSTEM_VERSION_COMPAT=1` para binarios enlazados con un SDK anterior.
-- [x] **Decidir la familia del primer driver de GPU** y escribir el ADR: GCN 1.0, luego RDNA2, luego Gen9 ([ADR 0002](ADR/0002-GPU-First-Family.es.md), `69fed7cb81`). Un driver de pantalla es también lo que apaga la pantalla, que el framebuffer GOP no permite: hecho para GCN 1.0 con G1; la RX 6600 del PC 1 es la siguiente.
-- [ ] **Medición:** medir el sistema de referencia en hardware original (PC 2) y guardar los valores fuera del repo público, para los gates de rendimiento (una versión posterior a 25.x).
-- [ ] **Rendimiento NVMe en QEMU:** las lecturas por el dispositivo de bloques van a 1 MB/s.
-
-## Fuentes
-
-- [El repositorio minkaros/minkar](https://github.com/minkaros/minkar), rama `devel`, verificada en `c7a066b196` (1 nov 2026).
-- [Hardware.md](Hardware.md): equipos de referencia.
-- [Commands.md](Commands.md): comandos de Minkar frente a la lista de referencia.
-- [Userland.md](Userland.md): historial de comandos portados (exFAT, `notifyutil`, `launchctl kickstart`).
-
-El estado sale del repositorio; las decisiones de arquitectura, los requisitos de rendimiento y la secuencia de la pila gráfica son propuestas de este plan, y las que se confirman se registran aquí.
+| Riesgo | Mitigación |
+| --- | --- |
+| Un equipo pequeño con muchas capas abiertas | Gates en orden; dos carriles más el audio y la GPU; alcance congelado por versión |
+| Poca gente con experiencia en XNU | El arranque documentado paso a paso; primero QEMU |
+| CF-Lite es anterior a las API que usan las apps | swift-corelibs CF como referencia; pruebas de puente en cada cambio |
+| Los drivers de GPU, el bloque más largo | Una pista en paralelo, una familia cada vez |
+| `ProductVersion` subida con la API incompleta | Stubs ruidosos; el gate BC antes de cada subida |
+| Apps designadas poco representativas | La lista se revisa en cada subida |
+| Piezas no publicadas del kernel nuevo | Listadas en el ADR 0003; un prototipo en una rama |
+| Licencias y sala limpia | Una revisión de licencia en cada importación |

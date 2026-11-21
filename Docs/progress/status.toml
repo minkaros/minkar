@@ -113,7 +113,7 @@ stations = [["Build · CI", 160, "done"], ["Boot", 235, "done"], ["Userland", 31
 id = "fw"
 name = "Frameworks"
 color = "brown"
-doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc = "ROADMAP.md#closed-phases"
 # CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
 # Cocoa coverage: the block after M3, met on 9 Nov: imported symbols 99.9 %,
 # selectors 97.6 % (only SMAppService, API 22, is missing). Security: Minkar's
@@ -188,7 +188,7 @@ stations = [
 id = "webkit"
 name = "WebKit"
 color = "blue"
-doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc = "ROADMAP.md#webkit"
 # Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
 # their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
 # W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
@@ -226,7 +226,7 @@ stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 8
 id = "audio"
 name = "Audio"
 color = "teal"
-doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc = "ROADMAP.md#audio-and-media"
 # AU1 to AU6 done (14–15 Nov); AU7 to AU10 part of Minkar 19.6.0 since
 # 2026-11-20 (D3), inside M6.
 stations = [["AU1–AU6", 865, "done"], ["AU7–AU10", 970, "todo"]]
@@ -267,7 +267,7 @@ stations = [["ARM0 build", 915, "current"], ["ARM1 M2", 1060, "todo"], ["ARM2 de
 id = "su"
 name = "Lane SU"
 color = "purple"
-doc = "ROADMAP.md#lane-su--swiftui-minkars-own-public-layer-on-a-swiftcrossui-based-engine"
+doc = "ROADMAP.md#lane-su--swiftui"
 # SwiftUI (D7): Minkar's own public layer on a SwiftCrossUI-based engine.
 # The report, SwiftCrossUI's review and the design now; the import after
 # 19.6.0 ships and the review is approved.
