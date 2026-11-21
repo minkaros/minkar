@@ -110,6 +110,9 @@ typedef NS_ENUM(NSInteger, NSDataCompressionAlgorithm) {
 - (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options;
 - (nullable instancetype)initWithBase64EncodedData:(NSData *)base64Data options:(NSDataBase64DecodingOptions)options;
 - (NSData *)base64EncodedDataWithOptions:(NSDataBase64EncodingOptions)options;
+/* The older names (10.6), deprecated: no options, unknown characters skipped. */
+- (nullable id)initWithBase64Encoding:(NSString *)base64String;
+- (NSString *)base64Encoding;
 @end
 
 @interface NSData (NSDataCompression)

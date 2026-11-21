@@ -152,4 +152,13 @@ fail:
     return [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
 }
 
+/* Minkar: the older names, as the newer ones without options. */
+- (id)initWithBase64Encoding:(NSString *)base64String {
+    return [self initWithBase64EncodedString:base64String options:NSDataBase64DecodingIgnoreUnknownCharacters];
+}
+
+- (NSString *)base64Encoding {
+    return [self base64EncodedStringWithOptions:0];
+}
+
 @end
