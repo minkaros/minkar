@@ -2758,6 +2758,30 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 
    rect=NSIntersectionRect(rect,visibleRect);
 
+   /* Minkar: nothing outside the window is drawn. A view thousands of
+      points tall (a document view with many rows) that no clip view
+      bounds would otherwise clip, and Onyx2D rasterize, all of itself. */
+   if(_window!=nil){
+    NSRect frame=[_window frame];
+
+    rect=NSIntersectionRect(rect,[self convertRect:NSMakeRect(0,0,NSWidth(frame),NSHeight(frame)) fromView:nil]);
+   }
+
+   /* Minkar: a rect that is not finite (a frame with NaN or infinity in
+      it) cannot be drawn, and its clip would make Onyx2D's rasterizer
+      grow without end: the view is left undrawn, and said once. */
+   if(!isfinite(rect.origin.x) || !isfinite(rect.origin.y) ||
+      !isfinite(rect.size.width) || !isfinite(rect.size.height)){
+    static BOOL said=NO;
+
+    if(!said){
+     said=YES;
+     NSLog(@"%@ not drawn: its visible rect %@ is not finite (frame %@)",
+       [self class],NSStringFromRect(visibleRect),NSStringFromRect([self frame]));
+    }
+    return;
+   }
+
    if(NSIsEmptyRect(rect))
     return;
 
