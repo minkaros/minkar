@@ -69,7 +69,9 @@ Aun así, puedes ayudar de otras formas.
 Todo lo que se sube está en inglés: código, comentarios, mensajes de commit y textos de la
 interfaz. La interfaz se traduce con paquetes `*.lproj` (el inglés es el idioma de
 desarrollo y la base de las pruebas y las capturas); una traducción nunca sustituye los
-textos en inglés del código. La documentación se escribe en inglés. Solo se traducen los
+textos en inglés del código.
+
+La documentación se escribe en inglés. Solo se traducen los
 documentos que llevan a alguien al proyecto: `README.md`, `Docs/ROADMAP.md`,
 `Docs/BUILDING.md`, `Docs/CONTRIBUTING.md` y `Docs/Compatibility.md`, cada uno con una
 copia en español al lado como `<nombre>.es.md`. Una traducción es una copia del documento

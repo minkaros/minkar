@@ -60,7 +60,9 @@ Everything committed is in English: code, comments, commit messages and
 user interface strings. The interface is translated through `*.lproj`
 bundles (English is the development language, and the base for tests and
 screenshots); a translation never replaces the English strings in the
-code. Documentation is written in English. Only the documents that bring
+code.
+
+Documentation is written in English. Only the documents that bring
 someone into the project are translated: `README.md`, `Docs/ROADMAP.md`,
 `Docs/BUILDING.md`, `Docs/CONTRIBUTING.md` and `Docs/Compatibility.md`, each
 with a Spanish copy next to it as `<name>.es.md`. A translation is a copy of
