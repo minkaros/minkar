@@ -89,7 +89,7 @@ The system's services and its desktop, Atlas ([Atlas.md](Atlas.md)):
 ## BSD
 
 The Unix commands and their libraries ([Userland.md](Userland.md),
-[Commands.md](Commands.md)): `bin`, `sbin`, `usr.bin`, `usr.sbin`, `libexec`,
+[Userland.md](Userland.md#command-line-tools)): `bin`, `sbin`, `usr.bin`, `usr.sbin`, `libexec`,
 `lib` (libraries, among them the external ones the media and WebKit use:
 FFmpeg, dav1d, Mesa, WPE WebKit and its dependencies), `etc`, `share` (also
 the `mk` files bmake builds with), `hier` (the file system's layout) and

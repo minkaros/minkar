@@ -214,7 +214,7 @@ Goal: a complete multi-user Unix system on Darwin, managed by launchd, with the 
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Generic Unix commands from FreeBSD `main` with our own compatibility layer: every BSD command on the reference list (2026-10-27). `grep` lacks `-Z` and `-J`.
-- [x] Tools missing from the image: 337 of the reference list's 354 commands ([Commands.md](Commands.md)), among them `dtrace` with kernel types (CTF), `system_profiler`, `pmset` with `powerd`, `networksetup`, `kextload`/`kextstat`, `emond`, `fs_usage`, `leaks`, the NFS server with `rpcbind` and, since 2026-10-31, our own exFAT driver (reading and writing), `mount_exfat` and the `exfat.fs` bundle: diskarbitrationd mounts exFAT disks read-write. Every command of the phase is there.
+- [x] Tools missing from the image: 337 of the reference list's 354 commands ([Userland.md](Userland.md#command-line-tools)), among them `dtrace` with kernel types (CTF), `system_profiler`, `pmset` with `powerd`, `networksetup`, `kextload`/`kextstat`, `emond`, `fs_usage`, `leaks`, the NFS server with `rpcbind` and, since 2026-10-31, our own exFAT driver (reading and writing), `mount_exfat` and the `exfat.fs` bundle: diskarbitrationd mounts exFAT disks read-write. Every command of the phase is there.
 - [x] Moved to later phases (2026-10-30): `pbcopy`, `pbpaste` and `screencapture` to Phase 4; `open`, `lsappinfo`, `say` and `mdfind`/`mdls`/`mdutil` to Phase 5; `osascript`, `opendiff` and `tmutil` to Phase 6.
 - [x] Out until after Minkar 19.6.0 (decided 2026-10-30): APFS (no open implementation), SMB (Samba is GPL) and `fdesctl`.
 - [x] Power user: `zsh`, `tar`, `ssh`, `curl`, `make` and `git` 2.56.0. git's Perl, Python and Tcl commands moved to Phase 6.
@@ -681,7 +681,7 @@ What this plan adds, and its state:
 
 - [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `c7a066b196` (2026-11-01).
 - [Hardware.md](Hardware.md): reference machines.
-- [Commands.md](Commands.md): Minkar's commands against the reference list.
+- [Userland.md](Userland.md#command-line-tools): Minkar's commands against the reference list.
 - [Userland.md](Userland.md): the history of ported commands (exFAT, `notifyutil`, `launchctl kickstart`).
 
 The state comes from the repository; the architecture decisions, performance requirements and graphics stack sequence are this plan's proposals, and the ones that are confirmed are recorded here.

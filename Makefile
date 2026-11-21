@@ -157,7 +157,8 @@ version:
 # The progress pages (Docs/Progress.md, Docs/Progress.es.md) and their
 # SVGs, from Docs/progress/status.toml, and the generated parts of
 # Docs/Compatibility.md and .es.md (the matrix from gate BC's results, the
-# frameworks the designated apps ask for from Docs/progress/frameworks.tsv).
+# frameworks the designated apps ask for from Docs/progress/frameworks.tsv),
+# and Docs/Userland.md's command tables from Docs/progress/commands.tsv.
 # CI checks they are current.
 progress: .PHONY
 	python3 ${.CURDIR}/tools/progress/gen.py ${.CURDIR}/Docs/progress/status.toml \
@@ -165,6 +166,8 @@ progress: .PHONY
 	python3 -B ${.CURDIR}/tools/compat/matrix.py ${.CURDIR}/Docs/progress/compatibility.tsv \
 	    ${.CURDIR}/Docs/progress/frameworks.tsv \
 	    ${.CURDIR}/Docs/Compatibility.md ${.CURDIR}/Docs/Compatibility.es.md
+	python3 -B ${.CURDIR}/tools/check/commands-report.py \
+	    --data ${.CURDIR}/Docs/progress/commands.tsv --page ${.CURDIR}/Docs/Userland.md
 
 # Bootable disk image and QEMU boot test (Image/Makefile). Not part of
 # "world": they need root, network access for the EFI loader, and time.
