@@ -11,7 +11,9 @@ ONLY_STAGE=<fase> <fase>` compila una sola):
 `SystemLibrary`; después `bmake image` crea la imagen de disco.
 
 [BUILDING.es.md](BUILDING.es.md) explica cómo compilar;
-[ROADMAP.es.md](ROADMAP.es.md), qué está hecho y qué viene después.
+[ROADMAP.es.md](ROADMAP.es.md), qué está hecho y qué viene después;
+[Structure.es.md](Structure.es.md), qué partes está previsto sacar del árbol, y
+cuándo.
 
 ## Kernel
 

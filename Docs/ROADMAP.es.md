@@ -54,6 +54,7 @@ Minkar separa tres capas que en la plataforma de referencia van juntas. El kerne
 | D5 | Minkar salta a Darwin 25, para cumplir el objetivo de arm64. 19.6.0 sale sobre Darwin 19.6.0; el salto se hace después de publicarla. Sustituye a la decisión de mantener Darwin 19.6.0 para las API 20 y 21. |
 | D6 | SwiftUI entra en Minkar integrando OpenSwiftUI (MIT), con el modelo de OpenCombine como `Combine`, manteniendo la sala limpia: la importación queda condicionada a una revisión de sala limpia. Sustituye a la decisión del 25 oct 2026. *Sustituida el mismo día por D7, tras la revisión.* |
 | D7 | SwiftUI es una capa pública propia de Minkar (`SwiftUI.framework`, BSD-2-Clause, su superficie a partir de los símbolos que importan los binarios designados y de la documentación pública) sobre un motor privado adaptado de SwiftCrossUI (MIT). OpenSwiftUI y OpenAttributeGraph no se usan (carril SU). |
+| D8 | El núcleo del sistema sigue en un solo repositorio; el toolchain, las fuentes de terceros de BSD, las capas compiladas de la CI y las apps de Atlas salen de él en los pasos R1–R4, ninguno antes de publicar 19.6.0 (carril R). |
 
 Audio y GPU no se recortan ni se aplazan (las apps los necesitan), y quedan fuera de la congelación de alcance.
 
@@ -588,9 +589,23 @@ SwiftUI entra en Minkar en dos partes:
 | SU3 | ABI: cada símbolo de SwiftUI que importan los binarios designados existe con el mismo nombre y disposición | Cobertura del 100 % según SU0 | Tras SU2 |
 | SU4 | El binario publicado de una app que enlaza SwiftUI arranca (candidata: iTerm2) | Entra en el gate BC | Tras SU3 y la subida de ProductVersion que la app exija |
 
+## Carril R — Estructura
+
+Decidido el 20 nov 2026 (D8); el cómo es [Structure.es.md](Structure.es.md) (propuesto). El núcleo del sistema (Kernel, Libraries, Frameworks, WindowServer, los daemons de CoreServices, Dock, Files, loginwindow, SystemUIServer) sigue en un solo repositorio; lo que no evoluciona con él sale del árbol, un paso reversible cada vez, cada uno confirmado por el mantenedor antes de empezar.
+
+| Paso | Qué | Cuándo |
+| --- | --- | --- |
+| R0 | El inventario y [Structure.es.md](Structure.es.md); no se mueve nada | Ya |
+| R1 | El toolchain a su propio repositorio, usado como artefacto precompilado fijado por SHA-256; AArch64 entra en los destinos de LLVM | Justo después de publicar 19.6.0, antes de KX1 |
+| R2 | Las fuentes de terceros de BSD como descargas fijadas más parches, a través de `minkar.extlib.mk`, un componente por commit | Durante 19.6.x |
+| R3 | La CI publica cada capa compilada (toolchain, kernel y kexts, sysroot base) | Durante 19.6.x, después de R1 |
+| R4 | Las apps de Atlas a su propio repositorio, compiladas contra el `Minkar.sdk` publicado | Después de 19.6.0, con el SDK publicado |
+
+**Antes de publicar 19.6.0 no se hace nada de R1–R4.**
+
 ## Hitos, dependencias y ruta crítica
 
-Ruta crítica: Fase 0 (M0) → Fase 1 (M1) → Fase 2 (M2) → Fase 3 (M3) → Fase 4 (M4) → Fase 5 (M5) → Fase 6 (M6, Minkar 19.6.0). Los carriles BC, ARM, KX y SU tienen sus propios hitos (M7 desaparece, 20 nov 2026): BC0–BC4 entran en M6; KX0, ARM0, SU0 y SU0b empiezan ya; KX1 y el resto de los carriles llegan después de 19.6.0; el requisito de rendimiento es de una versión posterior a 25.x.
+Ruta crítica: Fase 0 (M0) → Fase 1 (M1) → Fase 2 (M2) → Fase 3 (M3) → Fase 4 (M4) → Fase 5 (M5) → Fase 6 (M6, Minkar 19.6.0). Los carriles BC, ARM, KX y SU tienen sus propios hitos (M7 desaparece, 20 nov 2026): BC0–BC4 entran en M6; KX0, ARM0, SU0 y SU0b empiezan ya; KX1 y el resto de los carriles llegan después de 19.6.0; el requisito de rendimiento es de una versión posterior a 25.x. En el orden general, R1 va justo después de publicar 19.6.0 y antes de KX1.
 
 M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y la Fase 2 está cerrada (31 oct). El trabajo activo está en la Fase 5, Atlas ([Atlas.es.md](Atlas.es.md): MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones N0–N2 hechos), y en lo demás que necesita Minkar 19.6.0 (WebKit W2–W4 y audio y medios AU1–AU6 hechos). El frente de GPU sigue en paralelo y alimenta el requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo, desde una versión posterior a 25.x. El carril BC avanza ya, como parte de M6.
 
@@ -619,6 +634,7 @@ M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y l
 | KX | Darwin 25 | KX0 hecho el 20 nov 2026 (ADR 0003 aceptado para x86-64, con condiciones); KX1 después de Minkar 19.6.0, de R1 y de la decisión sobre corecrypto |
 | ARM | arm64 | ARM0 (la compilación en la CI) empezado el 20 nov 2026 |
 | SU | SwiftUI: capa pública propia sobre un motor basado en SwiftCrossUI | SU0 (el informe) en la CI; SU0b (la revisión de SwiftCrossUI) y SU1 ([SwiftUI.es.md](SwiftUI.es.md)) en curso desde el 20 nov 2026 |
+| R | Estructura | R0 en curso desde el 20 nov 2026 (el inventario y [Structure.es.md](Structure.es.md)); R1–R4 después de 19.6.0 |
 | Rendimiento | ≥ sistema de referencia en equipo físico, sobre el kernel nuevo | Sin empezar; depende del frente de GPU y de KX; una versión posterior a 25.x |
 
 ## Riesgos y mitigaciones

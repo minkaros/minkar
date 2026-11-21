@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-20, devel `4cf55f650d`_
+_Updated 2026-11-20, devel `4db859f704`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -25,6 +25,7 @@ _Updated 2026-11-20, devel `4cf55f650d`_
 | [Lane KX](ROADMAP.md#lane-kx--new-kernel-darwin-25) | 🟩⬜⬜⬜ | 1 / 4 | — | KX1 M2 |
 | [Lane ARM](ROADMAP.md#lane-arm--arm64) | 🟦⬜⬜⬜ | 0 / 4 | ARM0 build | ARM1 M2 |
 | [Lane SU](ROADMAP.md#lane-su--swiftui-minkars-own-public-layer-on-a-swiftcrossui-based-engine) | 🟦🟦🟦⬜⬜⬜ | 0 / 6 | SU0 report, SU0b review, SU1 design | SU2 engine |
+| [Lane R](ROADMAP.md#lane-r--structure) | 🟦⬜⬜⬜⬜ | 0 / 5 | R0 inventory | R1 toolchain |
 
 🟩 done · 🟦 in progress · 🟨 partial · ⬜ to do
 <!-- progress:summary:end -->

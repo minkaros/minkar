@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-20"
-commit  = "4cf55f650d"
+commit  = "4db859f704"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -288,6 +288,17 @@ doc_es = "ROADMAP.es.md#carril-su--swiftui-capa-pública-propia-de-minkar-sobre-
 # 19.6.0 ships and the review is approved.
 stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "current"], ["SU1 design", 1020, "current"],
   ["SU2 engine", 1070, "todo"], ["SU3 ABI", 1120, "todo"], ["SU4 app", 1170, "todo"]]
+
+[[line]]
+id = "r"
+name = "Lane R"
+color = "brown"
+doc = "ROADMAP.md#lane-r--structure"
+doc_es = "ROADMAP.es.md#carril-r--estructura"
+# The project's structure (D8, Structure.md): the inventory now; the
+# toolchain (R1) right after 19.6.0, before KX1; nothing of R1–R4 before.
+stations = [["R0 inventory", 915, "current"], ["R1 toolchain", 990, "todo"], ["R2 BSD", 1050, "todo"],
+  ["R3 layers", 1100, "todo"], ["R4 apps", 1150, "todo"]]
 
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
