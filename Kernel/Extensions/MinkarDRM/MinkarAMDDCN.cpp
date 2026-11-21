@@ -29,7 +29,7 @@
 /*
  * Navi 23's display engine (DCN 3.0.2), read only: what the firmware left
  * on each of the four pipes, published as MinkarDisplayPipes for the
- * driver that will take the display over (Docs/GPU-RDNA2.md, R0). Each
+ * driver that will take the display over (Docs/GPU.md, R0). Each
  * pipe is a timing generator (OTG) and a plane reader (HUBP); the plane's
  * address is in the engine's own address space, where VRAM starts at
  * DCN_VM_FB_LOCATION_BASE.

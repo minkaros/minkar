@@ -219,7 +219,7 @@ stations = [
 id = "gpu"
 name = "GPU track"
 color = "red"
-doc = "ROADMAP.md#graphics-stack-components-and-sequence"
+doc = "GPU.md"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # On PC 2: G1 done (2026-11-02); G2's gate met, the GPU's clocks
 # (deferred) and DisplayPort link training (no display to test it) left;
@@ -228,7 +228,7 @@ doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # backend composes on PC 2 (G4.2), IOSurfaces in VRAM without
 # copies (G4.3), page flips at the vertical blank (G4.4), CAMetalLayer's
 # drawables in VRAM, paced by the display (G4.5); G4 done with G4.6's
-# measurements (Docs/Measurements.md). Next: the GPU's clocks, then G5.
+# measurements (Docs/GPU.md). Next: the GPU's clocks, then G5.
 stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
   ["G4–G5", 1060, "current"]]
 

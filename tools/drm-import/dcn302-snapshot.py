@@ -28,7 +28,7 @@
 dcn302-snapshot.py: the display engine registers of Navi 23 (DCN 3.0.2)
 that hold a lit display's state, for MinkarDRM to save when the firmware
 lights a display and to set again when it must light that display itself
-(Docs/GPU-RDNA2.md, R2b): a pipe's blocks (the plane's reader, the pixel
+(Docs/GPU.md, R2b): a pipe's blocks (the plane's reader, the pixel
 processor, the blending tree's output, the output processor, the timing
 generator), a DIG's (its encoders and packet generators) and the
 engine's clocks and hub. Left out: status, interrupt, lock, trigger and

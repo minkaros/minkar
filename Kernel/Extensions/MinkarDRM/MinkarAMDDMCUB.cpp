@@ -27,7 +27,7 @@
  */
 
 /*
- * Navi 23's display microcontroller (DMCUB; Docs/GPU-RDNA2.md, R2). On
+ * Navi 23's display microcontroller (DMCUB; Docs/GPU.md, R2). On
  * DCN 3.0.2 the VBIOS keeps none of the display's command tables but the
  * power gating one: the transmitters, the pixel clocks and the timings
  * are the microcontroller's, which runs AMD's firmware. The firmware's GOP

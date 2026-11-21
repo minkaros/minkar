@@ -27,7 +27,7 @@
  */
 
 /*
- * A lit display's state on Navi 23 (Docs/GPU-RDNA2.md, R2b): when the
+ * A lit display's state on Navi 23 (Docs/GPU.md, R2b): when the
  * firmware lights a display, the registers of its pipe, its DIG and the
  * engine's clocks and hub (amd_dcn302_snapshot.h) are saved, under the
  * display's EDID, in /var/db; when the driver must light that display

@@ -26,7 +26,7 @@ planned to leave the tree, and when. In Spanish: [SourceMap.es.md](SourceMap.es.
     `MinkarXHCIPort` and `MinkarUSB` (USB, HID), `MinkarE1000` (Intel
     Ethernet), `MinkarBGE` (Broadcom Ethernet), `MinkarHDA` (sound),
     `MinkarVirtio`, `MinkarDRM` (AMD GPUs: displays and the GPU's
-    engines; [GPU-RDNA2.md](GPU-RDNA2.md)), `MinkarDiskImage`,
+    engines; [GPU.md](GPU.md#rdna2-pc-1)), `MinkarDiskImage`,
     `MinkarSandbox` (the sandbox policy), `MinkarCodeIntegrity`.
   * File systems: `hfs`, `msdosfs`, `exfat`; `AppleFileSystemDriver`.
   * Platform: `AppleAPIC`, `AppleI386PCI`, `AppleIntelPIIXATA`,

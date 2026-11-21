@@ -27,7 +27,7 @@
  */
 
 /*
- * MinkarAMDFramebuffer on Navi 23 (DCN 3.0.2; Docs/GPU-RDNA2.md, R1): the
+ * MinkarAMDFramebuffer on Navi 23 (DCN 3.0.2; Docs/GPU.md, R1): the
  * pipe the firmware's GOP lit keeps its timing, and its plane (HUBP) is
  * pointed at a framebuffer of the driver's own in VRAM. Only the plane's
  * address and pitch change, under the plane's update lock, taken at the

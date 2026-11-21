@@ -27,7 +27,7 @@
  */
 
 /*
- * Navi 23's display clocks (DCN 3.0.2; Docs/GPU-RDNA2.md, R2): DISPCLK and
+ * Navi 23's display clocks (DCN 3.0.2; Docs/GPU.md, R2): DISPCLK and
  * DPPCLK, which a faster mode needs raised before its pixel clock is set.
  * As amdgpu's dcn30_clk_mgr.c (MIT) raises them: a hard minimum asked of
  * the SMU through its display (DAL) mailbox, then the DENTIST's dividers

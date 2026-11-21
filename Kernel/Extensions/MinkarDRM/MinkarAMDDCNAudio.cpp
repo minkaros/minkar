@@ -27,7 +27,7 @@
  */
 
 /*
- * Audio over HDMI on Navi 23 (DCN 3.0.2; Docs/GPU-RDNA2.md, R2), the
+ * Audio over HDMI on Navi 23 (DCN 3.0.2; Docs/GPU.md, R2), the
  * display's half, as amdgpu's dce_audio.c, dcn30_afmt.c and the DCN
  * stream encoders (MIT) program it: the HD audio codec's endpoint told
  * what the sink plays (its ELD, from the EDID's CEA audio blocks) and

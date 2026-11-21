@@ -27,7 +27,7 @@
  */
 
 /*
- * The display engine's I2C on Navi 23 (DCN 3.0.2; Docs/GPU-RDNA2.md, R2):
+ * The display engine's I2C on Navi 23 (DCN 3.0.2; Docs/GPU.md, R2):
  * the hardware engine on one of the five DDC lines, as amdgpu's
  * dce_i2c_hw.c (MIT) drives it: the line's pads handed to the engine, a
  * write and a read queued as two transactions, both run with one GO, and

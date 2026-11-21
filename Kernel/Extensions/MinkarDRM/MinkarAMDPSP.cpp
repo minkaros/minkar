@@ -27,7 +27,7 @@
  */
 
 /*
- * Navi 23's security processor (PSP, MP0 11.0.11; Docs/GPU-RDNA2.md), as
+ * Navi 23's security processor (PSP, MP0 11.0.11; Docs/GPU.md), as
  * amdgpu's psp_v11_0.c and amdgpu_psp.c (MIT) start it: the bootloader
  * given, in turn, the key database, the SPL table, the system driver and
  * the secure OS, each copied to the firmware buffer in VRAM; then the
