@@ -1,5 +1,5 @@
-# Minkar's progress data: the single source of Docs/Progress.md,
-# Docs/Progress.es.md and the SVGs next to this file. After a change here,
+# Minkar's progress data: the single source of Docs/Progress.md
+# and the SVGs next to this file. After a change here,
 # run "bmake progress" at the top of the tree and commit what it rewrites.
 # ROADMAP.md and the plans stay the source of truth: every value here
 # summarizes them at the commit named below.
@@ -107,7 +107,6 @@ id = "base"
 name = "Phases 0–2"
 color = "slate"
 doc = "ROADMAP.md"
-doc_es = "ROADMAP.es.md"
 stations = [["Build · CI", 160, "done"], ["Boot", 235, "done"], ["Userland", 310, "done"]]
 
 [[line]]
@@ -115,7 +114,6 @@ id = "fw"
 name = "Frameworks"
 color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
-doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
 # Cocoa coverage: the block after M3, met on 9 Nov: imported symbols 99.9 %,
 # selectors 97.6 % (only SMAppService, API 22, is missing). Security: Minkar's
@@ -131,7 +129,6 @@ id = "ws"
 name = "WindowServer"
 color = "blue"
 doc = "WindowServer-Rewrite.md"
-doc_es = "WindowServer-Rewrite.es.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
   ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "done"],
@@ -143,7 +140,6 @@ id = "mb"
 name = "Menus"
 color = "purple"
 doc = "Atlas.md#3-menus"
-doc_es = "Atlas.es.md#3-menús"
 stations = [
   ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "partial"],
   ["MB4", 1025, "todo"],
@@ -154,7 +150,6 @@ id = "dock"
 name = "Dock"
 color = "orange"
 doc = "Atlas.md#4-dock-and-files"
-doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
   ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "done"], ["D3", 970, "done"],
   ["D4", 1025, "partial"],
@@ -165,7 +160,6 @@ id = "files"
 name = "Files"
 color = "teal"
 doc = "Atlas.md#4-dock-and-files"
-doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
   ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "done"], ["K3", 970, "done"],
   ["K4", 1025, "todo"],
@@ -176,7 +170,6 @@ id = "atlas"
 name = "Atlas"
 color = "pink"
 doc = "ROADMAP.md#phase-5--atlas-desktop"
-doc_es = "ROADMAP.es.md#fase-5--escritorio-atlas"
 stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "partial"], ["Visual design", 760, "todo"]]
 
 [[line]]
@@ -184,7 +177,6 @@ id = "apps"
 name = "Apps · DMG"
 color = "green"
 doc = "Atlas.md#5-applications"
-doc_es = "Atlas.es.md#5-aplicaciones"
 # Atlas's apps for 19.6.0 (A0 to A4, chapter 5; A5 to A10 moved to 19.6.x
 # on 2026-11-20) and DMG installs (Phase 6).
 stations = [
@@ -197,7 +189,6 @@ id = "webkit"
 name = "WebKit"
 color = "blue"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
-doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
 # their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
 # W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
@@ -220,7 +211,6 @@ id = "gpu"
 name = "GPU track"
 color = "red"
 doc = "GPU.md"
-doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # On PC 2: G1 done (2026-11-02); G2's gate met, the GPU's clocks
 # (deferred) and DisplayPort link training (no display to test it) left;
 # G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
@@ -237,7 +227,6 @@ id = "audio"
 name = "Audio"
 color = "teal"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
-doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # AU1 to AU6 done (14–15 Nov); AU7 to AU10 part of Minkar 19.6.0 since
 # 2026-11-20 (D3), inside M6.
 stations = [["AU1–AU6", 865, "done"], ["AU7–AU10", 970, "todo"]]
@@ -247,7 +236,6 @@ id = "bc"
 name = "Lane BC"
 color = "gray"
 doc = "ROADMAP.md#lane-bc--binary-compatibility"
-doc_es = "ROADMAP.es.md#carril-bc--compatibilidad-binaria"
 # Done before the lane had a name: Firefox 160 and Hex Fiend 2.18.1 from
 # their published binaries, binary nibs, third-party signatures.
 # BC0 to BC4 are part of M6; BC5 on raises ProductVersion by app groups.
@@ -262,7 +250,6 @@ id = "kx"
 name = "Lane KX"
 color = "slate"
 doc = "ROADMAP.md#lane-kx--new-kernel-darwin-25"
-doc_es = "ROADMAP.es.md#carril-kx--kernel-nuevo-darwin-25"
 # Darwin 25 (D5): the ADR now, the prototype after 19.6.0.
 stations = [["KX0 ADR", 915, "done"], ["KX1 M2", 1010, "todo"], ["KX2 all", 1060, "todo"],
   ["KX3", 1110, "todo"]]
@@ -272,7 +259,6 @@ id = "arm"
 name = "Lane ARM"
 color = "orange"
 doc = "ROADMAP.md#lane-arm--arm64"
-doc_es = "ROADMAP.es.md#carril-arm--arm64"
 # arm64 in QEMU only for now (D4): the CI build now, booting on Darwin 25.
 stations = [["ARM0 build", 915, "current"], ["ARM1 M2", 1060, "todo"], ["ARM2 desktop", 1110, "todo"],
   ["ARM3 apps", 1160, "todo"]]
@@ -282,7 +268,6 @@ id = "su"
 name = "Lane SU"
 color = "purple"
 doc = "ROADMAP.md#lane-su--swiftui-minkars-own-public-layer-on-a-swiftcrossui-based-engine"
-doc_es = "ROADMAP.es.md#carril-su--swiftui-capa-pública-propia-de-minkar-sobre-un-motor-basado-en-swiftcrossui"
 # SwiftUI (D7): Minkar's own public layer on a SwiftCrossUI-based engine.
 # The report, SwiftCrossUI's review and the design now; the import after
 # 19.6.0 ships and the review is approved.
@@ -294,7 +279,6 @@ id = "r"
 name = "Lane R"
 color = "brown"
 doc = "ROADMAP.md#lane-r--structure"
-doc_es = "ROADMAP.es.md#carril-r--estructura"
 # The project's structure (D8, Structure.md): the inventory now; the
 # toolchain (R1) right after 19.6.0, before KX1; nothing of R1–R4 before.
 stations = [["R0 inventory", 915, "current"], ["R1 toolchain", 990, "todo"], ["R2 BSD", 1050, "todo"],

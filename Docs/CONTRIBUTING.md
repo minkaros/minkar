@@ -50,9 +50,11 @@ Everything committed is in English: code, comments, commit messages and
 user interface strings. The interface is translated through `*.lproj`
 bundles (English is the development language, and the base for tests and
 screenshots); a translation never replaces the English strings in the
-code. Documentation is written in English; a document may also have a
-Spanish copy next to it as `<name>.es.md`, which says that the English one
-is the reference and is updated in the same commit.
+code. Documentation is written in English. Only the documents that bring
+someone into the project are translated: `README.md`, `Docs/ROADMAP.md`,
+`Docs/BUILDING.md`, `Docs/CONTRIBUTING.md` and `Docs/Compatibility.md`, each
+with a Spanish copy next to it as `<name>.es.md`. A translation is a copy of
+the English document and is updated in the same commit.
 
 ### Branches
 
@@ -76,7 +78,7 @@ closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 
 ### Progress pages
 
-[Progress.md](Progress.md) and [Progress.es.md](Progress.es.md) are
+[Progress.md](Progress.md) is
 generated from [progress/status.toml](progress/status.toml). The commit
 that closes a milestone also updates `status.toml` and runs
 `bmake progress`, which rewrites the pages' summary table and the SVGs in

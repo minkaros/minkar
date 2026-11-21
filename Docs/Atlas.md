@@ -1,7 +1,6 @@
 # Atlas plan
 
 Status: **accepted** (2026-11-05). Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
-Spanish version: [Atlas.es.md](Atlas.es.md).
 
 Atlas is Minkar's desktop: the session (login, menu bar, Dock, Files,
 System Preferences) and the applications a person needs every day. This

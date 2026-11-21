@@ -1,8 +1,7 @@
 # Minkar — Progress at a glance
 
 This page is generated from [progress/status.toml](progress/status.toml) by
-`bmake progress`; [ROADMAP.md](ROADMAP.md) is the source of truth. Spanish:
-[Progress.es.md](Progress.es.md).
+`bmake progress`; [ROADMAP.md](ROADMAP.md) is the source of truth.
 
 <!-- progress:summary:begin -->
 _Updated 2026-11-20, devel `4db859f704`_

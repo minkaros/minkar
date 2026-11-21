@@ -7,7 +7,7 @@ Status: **accepted for x86-64**, 2026-11-20, with two conditions:
 2. Questions 7.3, 7.4 and 7.10 are closed by KX1's experiments, as section 7 says.
 
 It is milestone KX0 of lane KX in `Docs/ROADMAP.md`, and it changes nothing in the
-kernel by itself. Spanish copy: [0003-Kernel-Upgrade.es.md](0003-Kernel-Upgrade.es.md).
+kernel by itself.
 
 **Frame (decided by the maintainer, 2026-11-20):**
 

@@ -1,7 +1,6 @@
 # WindowServer rewrite plan
 
 Status: **accepted** (2026-10-31). Phase 4 of [ROADMAP.md](ROADMAP.md).
-Spanish version: [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md).
 Checked against `devel` at `21fb25034`.
 
 This document is both the decision record and the work plan.

@@ -2,7 +2,7 @@
 
 Status: **proposed**, 2026-11-21. Milestone SU1 of lane SU in [ROADMAP.md](ROADMAP.md);
 the decision is D7 (2026-11-20). Nothing of it is built yet: SwiftCrossUI is imported,
-and SU2 starts, only after Minkar 19.6.0 ships. Spanish copy: [SwiftUI.es.md](SwiftUI.es.md).
+and SU2 starts, only after Minkar 19.6.0 ships.
 
 ## 1. Two parts, and their boundary
 

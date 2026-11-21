@@ -2,7 +2,7 @@
 
 Status: **proposed**, 2026-11-20. The decision is the maintainer's (2026-11-20); this
 document says how each step would be done, with the numbers of the inventory made the
-same day (step R0). Nothing has moved. Spanish copy: [Structure.es.md](Structure.es.md).
+same day (step R0). Nothing has moved.
 
 ## 1. The decision
 

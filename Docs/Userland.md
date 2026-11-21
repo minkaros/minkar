@@ -5,7 +5,6 @@ added for the reference system compatibility, and what was found and fixed while
 it. The [roadmap](ROADMAP.md) (Phase 2) tracks this work as a whole;
 [Command-line tools](#command-line-tools) counts the image's commands against the reference
 system's.
-In Spanish: [Userland.es.md](Userland.es.md).
 
 ## Policy
 

@@ -10,7 +10,7 @@ top-level `Makefile` builds these stages in turn (`bmake ONLY_STAGE=<stage>
 
 [BUILDING.md](BUILDING.md) says how to build; [ROADMAP.md](ROADMAP.md) what
 is done and what comes next; [Structure.md](Structure.md) which parts are
-planned to leave the tree, and when. In Spanish: [SourceMap.es.md](SourceMap.es.md).
+planned to leave the tree, and when.
 
 ## Kernel
 
