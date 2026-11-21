@@ -260,12 +260,14 @@ void __os_log_impl(void* dso,
 
 void __os_log_error_impl(void* dso,
     os_log_t log,
+    os_log_type_t type,
     const char* format,
     uint8_t* buffer,
     uint32_t buffer_size) __DARWIN_ALIAS(_os_log_error_impl);
 
 void __os_log_fault_impl(void* dso,
     os_log_t log,
+    os_log_type_t type,
     const char* format,
     uint8_t* buffer,
     uint32_t buffer_size) __DARWIN_ALIAS(_os_log_fault_impl);

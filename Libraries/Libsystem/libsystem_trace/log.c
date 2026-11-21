@@ -337,21 +337,29 @@ void __os_log_impl(void* dso,
 
 }
 
+/* Minkar: as binaries built for the reference platform call it, with the
+ * message's type before the format (it passes OS_LOG_TYPE_ERROR). */
 void __os_log_error_impl(void* dso,
     os_log_t log,
+    os_log_type_t type,
     const char* format,
     uint8_t* buffer,
     uint32_t buffer_size)
 {
+    (void)type;
     __os_log_impl(dso, log, OS_LOG_TYPE_ERROR, format, buffer, buffer_size);
 }
 
+/* Minkar: as binaries built for the reference platform call it, with the
+ * message's type before the format (it passes OS_LOG_TYPE_FAULT). */
 void __os_log_fault_impl(void* dso,
     os_log_t log,
+    os_log_type_t type,
     const char* format,
     uint8_t* buffer,
     uint32_t buffer_size)
 {
+    (void)type;
     __os_log_impl(dso, log, OS_LOG_TYPE_FAULT, format, buffer, buffer_size);
 }
 
