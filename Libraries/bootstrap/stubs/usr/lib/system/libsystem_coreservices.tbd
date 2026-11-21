@@ -11,6 +11,9 @@
           "global": [
             "_NSGetNextSearchPathEnumeration",
             "_NSStartSearchPathEnumeration",
+            "___dirhelper_create_user",
+            "__dirhelper",
+            "__libcoreservices_fork_child",
             "_sysdir_get_next_search_path_enumeration",
             "_sysdir_start_search_path_enumeration"
           ]

@@ -93,6 +93,7 @@
           "/usr/lib/system/libsystem_notify.dylib",
           "/usr/lib/system/libsystem_platform.dylib",
           "/usr/lib/system/libsystem_pthread.dylib",
+          "/usr/lib/system/libsystem_sandbox.dylib",
           "/usr/lib/system/libsystem_trace.dylib",
           "/usr/lib/system/libunwind.dylib",
           "/usr/lib/system/libxpc.dylib"
