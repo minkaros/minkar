@@ -20,6 +20,11 @@ typedef enum {
     NSImageCacheNever,
 } NSImageCacheMode;
 
+typedef NS_ENUM(NSInteger, NSImageResizingMode) {
+    NSImageResizingModeTile = 0,
+    NSImageResizingModeStretch = 1,
+};
+
 /* The standard images' names (API 19): AppKit has an image for each. */
 typedef NSString *NSImageName;
 
@@ -230,6 +235,11 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 - (void)addRepresentations:(NSArray *)array;
 - (void)removeRepresentation:(NSImageRep *)representation;
 - (NSImageRep *)bestRepresentationForDevice:(NSDictionary *)device;
+- (NSImageRep *)bestRepresentationForRect:(NSRect)rect context:(NSGraphicsContext *)context hints:(NSDictionary *)hints;
+/* The edges kept as they are when the image is drawn larger (10.10), and how
+   the part between them fills the rest. */
+@property NSEdgeInsets capInsets;
+@property NSImageResizingMode resizingMode;
 
 - (void)recache;
 - (void)cancelIncrementalLoad;

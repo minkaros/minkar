@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSMutableAttributedString.h>
 #import <AppKit/NSFontManager.h>
 #import <AppKit/NSFont.h>
+#import <AppKit/NSParagraphStyle.h>
 
 @implementation NSMutableAttributedString(NSMutableAttributedString_AppKit)
 
@@ -152,6 +153,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self setAttributes:attributes range:effectiveRange];
 
     location=NSMaxRange(effectiveRange);
+   }
+   [self endEditing];
+}
+
+/* Minkar: the alignment of every paragraph style in the range; text with
+   none gets the default style with that alignment. */
+-(void)setAlignment:(NSTextAlignment)alignment range:(NSRange)range {
+   NSUInteger location=range.location,limit=NSMaxRange(range);
+
+   [self beginEditing];
+   while(location<limit){
+    NSRange effective;
+    NSParagraphStyle *style=[self attribute:NSParagraphStyleAttributeName atIndex:location longestEffectiveRange:&effective inRange:NSMakeRange(location,limit-location)];
+    NSMutableParagraphStyle *changed=[(style!=nil?style:[NSParagraphStyle defaultParagraphStyle]) mutableCopy];
+
+    [changed setAlignment:alignment];
+    [self addAttribute:NSParagraphStyleAttributeName value:changed range:effective];
+    [changed release];
+    location=NSMaxRange(effective);
    }
    [self endEditing];
 }

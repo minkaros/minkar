@@ -583,6 +583,37 @@ static void setTemplateFromName(NSImage *image,NSString *name) {
    return nil;
 }
 
+/* Minkar: the representation for a rectangle, as for the context's device;
+   the hints only refine the choice on the reference, so they are not read. */
+-(NSImageRep *)bestRepresentationForRect:(NSRect)rect context:(NSGraphicsContext *)context hints:(NSDictionary *)hints {
+   return [self bestRepresentationForDevice:(context!=nil)?[context deviceDescription]:nil];
+}
+
+/* Kept for the app to read back; drawing does not use them yet: the image
+   is still scaled as a whole. */
+static char capInsetsKey,resizingModeKey;
+
+-(NSEdgeInsets)capInsets {
+   NSValue *value=objc_getAssociatedObject(self,&capInsetsKey);
+   NSEdgeInsets insets={0,0,0,0};
+
+   if(value!=nil)
+    [value getValue:&insets];
+   return insets;
+}
+
+-(void)setCapInsets:(NSEdgeInsets)insets {
+   objc_setAssociatedObject(self,&capInsetsKey,[NSValue valueWithBytes:&insets objCType:@encode(NSEdgeInsets)],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(NSImageResizingMode)resizingMode {
+   return [objc_getAssociatedObject(self,&resizingModeKey) integerValue];
+}
+
+-(void)setResizingMode:(NSImageResizingMode)mode {
+   objc_setAssociatedObject(self,&resizingModeKey,[NSNumber numberWithInteger:mode],OBJC_ASSOCIATION_RETAIN);
+}
+
 -(NSImageRep *)bestRepresentationForDevice:(NSDictionary *)device {
    if(device==nil)
     device=[[NSGraphicsContext currentContext] deviceDescription];
