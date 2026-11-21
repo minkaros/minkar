@@ -3,6 +3,7 @@
 Status: **accepted for x86-64**, 2026-11-20, with two conditions:
 
 1. The corecrypto license report (7.6) is resolved by the maintainer before KX1 starts.
+   *Met on 2026-11-21 (section 10).*
 2. Questions 7.3, 7.4 and 7.10 are closed by KX1's experiments, as section 7 says.
 
 It is milestone KX0 of lane KX in `Docs/ROADMAP.md`, and it changes nothing in the
@@ -371,6 +372,22 @@ Found while writing this version. None is answered here; each has a recommendati
    generated outputs and a clean-room generator.
 6. **firehose headers.** *Recommendation:* install Darwin 25's libdispatch firehose headers
    in the SDK when libdispatch moves (7.9).
+
+**Decided by the maintainer on 2026-11-21:**
+
+1. corecrypto: a clean-room `ccrsa.h` and the 13 GPL-3 headers removed (`433d7cc1ee`);
+   the fourteen files without a license grant replaced by Minkar's own digests and AES,
+   and the kext's vendor headers made identical to xnu's published ones again
+   (`d21db0b446`, `cd552fcb3a`). This meets condition 1 of this ADR.
+2. The APSL 1.1 files stay for now, listed in `NOTICE`, and are replaced in KX
+   (IOPCIFamily from Darwin 25 if it is APSL 2.0 there; the APIC, PCI host and PS/2
+   kexts by Minkar's own). AppleIntelPIIXATA stays until KX.
+3. `hfs_util` is replaced in KX by the hfs release KX adopts.
+4. A fallback in the headers for KX1, then the three builtins in the tree's clang,
+   clean room.
+5. MIG from Darwin 25's published release; for IIG, first find where the tree's
+   pre-generated DriverKit sources (`10f5a67837`) came from.
+6. The firehose headers move with libdispatch in KX.
 
 ## Consequences
 

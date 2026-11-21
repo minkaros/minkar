@@ -58,8 +58,8 @@ por hash de blob cuando fue posible; el informe se guarda fuera del repositorio)
   fichero añadido y los ficheros de build.
 - **La mitad de los bytes es salida de compilación subida por error:**
   `BSD/lib/ncurses/obj_s` tiene 10.786 volcados del compilador (3,03 GB), de antes del fork;
-  las fuentes de ncurses en sí están sin modificar. Quitarlos es una decisión aparte (no
-  reduce el historial).
+  las fuentes de ncurses en sí están sin modificar. Se quitaron el 21 nov 2026
+  (`723a0f77ba`; el historial los conserva).
 - **`Developer/Minkar.sdk` tiene 2.946 copias** de otros ficheros con seguimiento (headers
   de libc++ y de xnu, páginas de manual), que el build podría generar.
 - **Acoplamiento:** desde el fork, el 69 % de los commits toca solo una de las áreas Kernel,
@@ -78,7 +78,7 @@ por hash de blob cuando fue posible; el informe se guarda fuera del repositorio)
 mig, xar, gmake, unifdef, las herramientas CTF, rpcgen, plktool, xcbuild, ibtool, iig,
 codesign). `tools/toolchain` (su manifiesto y `manifest.sh`) se va con él.
 
-**Repositorio propuesto:** `minkaros/minkar-toolchain`.
+**Repositorio:** `minkaros/minkar-toolchain` (decidido el 21 nov 2026).
 
 **Cómo se publica:** la CI del repositorio nuevo compila el toolchain para el host de
 compilación (Ubuntu 24.04, x86-64) y publica un archivo por versión, con su SHA-256,
@@ -99,7 +99,7 @@ que el artefacto no cubra.
 **plktool y las herramientas propias del build del sistema:** `plktool` (el constructor del
 kernelcache) y `codesign` son herramientas del build del sistema, no del compilador: podrían
 quedarse en el repositorio principal (`tools/` o `Developer/`) y compilarse con el
-compilador del host. *Pregunta abierta 3.*
+compilador del host. Se quedan (decidido el 21 nov 2026).
 
 **AArch64:** en el mismo paso, `LLVM_TARGETS_TO_BUILD` pasa a `X86;AArch64`, con el triple
 por defecto todavía en x86-64. clang, lld y el compilador de Swift generan entonces código
@@ -134,11 +134,10 @@ por URL y SHA-256; WebKit y JavaScriptCore por commit de git).
 **Lo que no encaja:** los comandos de FreeBSD compilados con las reglas propias de bmake (la
 mayor parte de `BSD/bin`, `sbin` y `usr.bin`) no pueden pasar a descargas a través de
 `minkar.extlib.mk` tal como es: compila proyectos con su propio sistema de build.
-*Pregunta abierta 4.*
+Se quedan en el árbol (decidido el 21 nov 2026).
 
-**Sin referencias:** 21 componentes que no nombra ningún Makefile (entre ellos bash 5.2 y
-dmidecode de `GNU/`, y `BSD/lib/libutf8`) parecen candidatos a borrar más que a mover; hay
-que confirmarlo uno por uno.
+**Sin referencias:** los 21 componentes que no nombraba ningún Makefile (entre ellos bash 5.2
+y dmidecode de `GNU/`, y `BSD/lib/libutf8`) se quitaron el 21 nov 2026 (`1d3e679f11`).
 
 **Cómo se deshace:** revertir el commit del componente. **Qué lo valida:** el build de la
 fase, las pruebas del componente y las pruebas de lote a las que llegan sus ficheros.
@@ -163,7 +162,7 @@ completo (comparada fichero a fichero), y los gates pasan sobre ella.
 SystemMonitor, Logs y ForceQuit, y A5–A10 según lleguen. SystemPreferences también es
 candidata, pero sus paneles de Ratón y Teclado usan la interfaz privada de SkyLight, y sus
 paneles comparten claves de notificación y nombres de preferencias con el Dock y
-SystemUIServer. *Pregunta abierta 6.*
+SystemUIServer: se queda en el núcleo (decidido el 21 nov 2026).
 
 **Qué se queda:** el Dock, Files, loginwindow, SystemUIServer y los doce daemons.
 
@@ -186,20 +185,19 @@ las pruebas de lote.
   ncurses; solo una reescritura los quitaría, y el historial no se reescribe.
 - No divide el núcleo: los gates siguen arrancando una imagen hecha desde un repositorio.
 
-## 8. Preguntas abiertas para el mantenedor
+## 8. Decidido el 21 nov 2026
 
-1. El nombre del repositorio del toolchain y dónde se publica el artefacto (lo más sencillo
-   son las versiones de GitHub de ese repositorio).
-2. Si el artefacto cubre también un segundo host de compilación (por ejemplo Linux arm64) o
-   solo Ubuntu 24.04 en x86-64.
-3. Si `plktool`, `codesign` y las demás herramientas del build del sistema se quedan en el
+El mantenedor respondió las preguntas abiertas de la versión propuesta:
+
+1. El repositorio del toolchain es `minkaros/minkar-toolchain`, y su artefacto se publica
+   en las versiones de GitHub (Releases) de ese repositorio.
+2. El artefacto cubre por ahora solo Ubuntu 24.04 en x86-64.
+3. `plktool`, `codesign` y las demás herramientas del build del sistema se quedan en el
    repositorio principal, compiladas con el compilador del host.
-4. Qué pasa con los comandos de FreeBSD compilados con bmake: una instantánea fijada de
-   FreeBSD con parches, a través de una regla nueva junto a `minkar.extlib.mk`, o se quedan
-   en el árbol.
-5. Si la salida de compilación subida en `BSD/lib/ncurses/obj_s` (3 GB) se quita ya, con un
-   commit normal, antes de R2.
-6. Si SystemPreferences va con las apps en R4, lo que convierte sus interfaces privadas
-   (SkyLight, claves de notificación, nombres de preferencias) en un contrato publicado.
-7. Si las 2.946 copias de `Developer/Minkar.sdk` las genera el build en lugar de guardarse
-   en el árbol, y en qué paso.
+4. Los comandos de FreeBSD compilados con bmake se quedan en el árbol; R2 convierte solo
+   los proyectos con su propio sistema de build.
+5. La salida de compilación de `BSD/lib/ncurses/obj_s` se quitó ya (`723a0f77ba`).
+6. SystemPreferences se queda en el núcleo; R4 se lleva las demás apps.
+7. El build genera las copias de `Developer/Minkar.sdk` a partir de R1.
+8. Los 21 componentes que no construía ningún Makefile se revisaron uno por uno y se
+   quitaron (`1d3e679f11`).

@@ -3,6 +3,7 @@
 Estado: **aceptado para x86-64**, 20 nov 2026, con dos condiciones:
 
 1. El informe de licencias de corecrypto (7.6) queda resuelto por el mantenedor antes de empezar KX1.
+   *Cumplida el 21 nov 2026 (sección 10).*
 2. Las preguntas 7.3, 7.4 y 7.10 se cierran con los experimentos de KX1, como dice la sección 7.
 
 Es el hito KX0 del carril KX de `Docs/ROADMAP.md` y por sí mismo no cambia nada del
@@ -388,6 +389,23 @@ recomendación.
    decidir entre salidas generadas y un generador de sala limpia.
 6. **Headers de firehose.** *Recomendación:* instalar en el SDK los headers de firehose de
    la libdispatch de Darwin 25 cuando libdispatch suba (7.9).
+
+**Decidido por el mantenedor el 21 nov 2026:**
+
+1. corecrypto: un `ccrsa.h` de sala limpia y los 13 headers GPL-3 retirados
+   (`433d7cc1ee`); los catorce ficheros sin concesión de licencia sustituidos por
+   resúmenes y AES propios de Minkar, y los headers del fabricante del kext otra vez
+   idénticos a los publicados de xnu (`d21db0b446`, `cd552fcb3a`). Con esto se cumple
+   la condición 1 de este ADR.
+2. Los ficheros APSL 1.1 se quedan por ahora, listados en `NOTICE`, y se sustituyen en KX
+   (IOPCIFamily de Darwin 25 si allí es APSL 2.0; los kexts de APIC, puente PCI y PS/2 por
+   otros propios). AppleIntelPIIXATA se mantiene hasta KX.
+3. `hfs_util` se sustituye en KX por el de la versión de hfs que adopte KX.
+4. Una alternativa en los headers para KX1, y después los tres builtins en el clang del
+   árbol, en sala limpia.
+5. MIG de la versión publicada de Darwin 25; para IIG, averiguar primero de dónde salieron
+   las fuentes de DriverKit pregeneradas del árbol (`10f5a67837`).
+6. Los headers de firehose suben con libdispatch en KX.
 
 ## Consecuencias
 

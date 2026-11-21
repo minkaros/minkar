@@ -559,7 +559,7 @@ Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md
 | Milestone | Content | Criterion | When |
 | --- | --- | --- | --- |
 | KX0 | ADR 0003, and a compile-only check of Darwin 25's x86-64 kernel with the tree's clang | ADR approved by the maintainer | Done 2026-11-20 (accepted for x86-64, with conditions) |
-| KX1 | A prototype on a branch: Darwin 25 boots on x86-64 in QEMU up to M2, with the minimal own kexts ported. Its experiments: boot with `plktool`'s current output first (a fileset collection builder only if it does not boot), every kext in the boot collection, the loader on `boot_args` revision 1, the M2 minimum found by taking kexts out one at a time, launchd checked against Darwin 25's libxpc | `boottest GATE=M2` on the branch | After 19.6.0 ships, after R1, and once the maintainer decides on the corecrypto report |
+| KX1 | A prototype on a branch: Darwin 25 boots on x86-64 in QEMU up to M2, with the minimal own kexts ported. Its experiments: boot with `plktool`'s current output first (a fileset collection builder only if it does not boot), every kext in the boot collection, the loader on `boot_args` revision 1, the M2 minimum found by taking kexts out one at a time, launchd checked against Darwin 25's libxpc | `boottest GATE=M2` on the branch | After 19.6.0 ships and after R1 (the corecrypto report's condition was met on 2026-11-21) |
 | KX2 | The whole system on Darwin 25: the other kexts, WindowServer, Atlas | Every gate in QEMU, on PC 1 and on PC 2 | After KX1 |
 | KX3 | `devel` moves to Darwin 25; Darwin 19 stays on a maintenance branch for 19.6.x | Minkar 25.x | After KX2 |
 
@@ -631,7 +631,7 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | M5 | Atlas desktop | Under way: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 and the notification center (N0–N2) done ([Atlas.md](Atlas.md)) |
 | M6 (Minkar 19.6.0) | Apps and distribution, the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio and media (AU1–AU10), and gate BC with the API 19 set (BC4) | Under way: WebKit W2–W4 and audio and media AU1–AU6 done; `hdiutil attach` already mounts |
 | BC | Binary compatibility | Under way: gate BC (`bmake bc-check`) runs the 17 designated apps' published binaries (2026-11-20, under KVM: 19 minutes); 4 show a window (Firefox, Hex Fiend, Skim, TextMate), [Compatibility.md](Compatibility.md) says how far each other gets. BC1 done; BC0 waits for its first CI run |
-| KX | Darwin 25 | KX0 done 2026-11-20 (ADR 0003 accepted for x86-64, with conditions); KX1 after Minkar 19.6.0, R1 and the corecrypto decision |
+| KX | Darwin 25 | KX0 done 2026-11-20 (ADR 0003 accepted for x86-64, with conditions); KX1 after Minkar 19.6.0 and R1 |
 | ARM | arm64 | ARM0 (the build in the CI) started 2026-11-20 |
 | SU | SwiftUI: own public layer on a SwiftCrossUI-based engine | SU0 (the report) in the CI; SU0b (SwiftCrossUI's review) approved 2026-11-21: its engine can be imported in part; SU1 ([SwiftUI.md](SwiftUI.md)) proposed 2026-11-21 |
 | R | Structure | R0 under way since 2026-11-20 (the inventory and [Structure.md](Structure.md)); R1–R4 after 19.6.0 |
