@@ -35,8 +35,12 @@ SUBDIR += ../PrivateFrameworks/SkyLight
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
 SUBDIR += CoreText
-# The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
+# PrintCore and AppKit link libcups and include its headers; CUPS (with the
+# OpenSSL it uses for TLS) is built here, as the BSD stage comes later.
+SUBDIR += ../BSD/usr.bin/openssl
+SUBDIR += ../BSD/usr.bin/cups
 SUBDIR += ApplicationServices/PrintCore
+# The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
 SUBDIR += ApplicationServices
 SUBDIR += ImageIO
 SUBDIR += CoreData
@@ -155,7 +159,8 @@ AuthenticationServices: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
 UniformTypeIdentifiers: Foundation CoreServices
-ApplicationServices/PrintCore: CoreGraphics CoreServices
+../BSD/usr.bin/cups: ../BSD/usr.bin/openssl
+ApplicationServices/PrintCore: CoreGraphics CoreServices ../BSD/usr.bin/cups
 ApplicationServices: CoreGraphics CoreText ApplicationServices/PrintCore
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
