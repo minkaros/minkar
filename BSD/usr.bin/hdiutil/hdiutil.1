@@ -31,6 +31,7 @@
 .Op Fl readonly
 .Op Fl nomount
 .Op Fl mountpoint Ar path
+.Op Fl plist
 .Ar image
 .Nm
 .Cm detach | eject
@@ -125,7 +126,20 @@ the first at
 A read-only image file, a compressed or read-only UDIF image, or
 .Fl readonly ,
 attaches read-only.
-Prints the disk and its partitions, with their content and mount points.
+Prints the disk and its partitions, with their content and mount points;
+with
+.Fl plist ,
+as an XML property list: a
+.Li system-entities
+array with each one's
+.Li dev-entry ,
+.Li content-hint ,
+.Li unmapped-content-hint ,
+.Li potentially-mountable ,
+and, when mounted, its
+.Li mount-point
+and
+.Li volume-kind .
 .It Cm detach , eject
 Unmount the image's volumes (by force with
 .Fl force )

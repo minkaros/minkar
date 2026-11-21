@@ -681,8 +681,58 @@ print_media(const struct media *m, const char *mp)
 	    m->content[0] ? content_name(m->content) : "", mp ? mp : "");
 }
 
+/* One system entity of attach -plist: what Files and the scripts that
+ * attach images read (the key names as the reference prints them). */
+static CFDictionaryRef
+media_entity(const struct media *m, const char *mp)
+{
+	CFMutableDictionaryRef e = CFDictionaryCreateMutable(NULL, 0,
+	    &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	char dev[80];
+	CFStringRef s;
+
+#define PUT(key, cstr) do { \
+	s = CFStringCreateWithCString(NULL, (cstr), kCFStringEncodingUTF8); \
+	if (s != NULL) { CFDictionarySetValue(e, CFSTR(key), s); CFRelease(s); } \
+} while (0)
+	snprintf(dev, sizeof(dev), "/dev/%s", m->name);
+	PUT("dev-entry", dev);
+	if (m->content[0] != '\0') {
+		PUT("content-hint", content_name(m->content));
+		PUT("unmapped-content-hint", m->content);
+	}
+	CFDictionarySetValue(e, CFSTR("potentially-mountable"),
+	    m->leaf ? kCFBooleanTrue : kCFBooleanFalse);
+	if (mp != NULL) {
+		struct statfs sf;
+
+		PUT("mount-point", mp);
+		if (statfs(mp, &sf) == 0)
+			PUT("volume-kind", sf.f_fstypename);
+	}
+#undef PUT
+	return (e);
+}
+
+static void
+print_plist(CFArrayRef entities)
+{
+	const void *k[] = { CFSTR("system-entities") }, *v[] = { entities };
+	CFDictionaryRef root = CFDictionaryCreate(NULL, k, v, 1,
+	    &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	CFDataRef xml = CFPropertyListCreateData(NULL, root,
+	    kCFPropertyListXMLFormat_v1_0, 0, NULL);
+
+	if (xml != NULL) {
+		fwrite(CFDataGetBytePtr(xml), 1, (size_t)CFDataGetLength(xml), stdout);
+		CFRelease(xml);
+	}
+	CFRelease(root);
+}
+
 static int
-attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
+attach(const char *path, bool readonly, bool nomount, const char *mountpoint,
+    bool plist)
 {
 	char abspath[PATH_MAX], disk[64], mp[PATH_MAX];
 	uint64_t in[3], out[1] = { 0 };
@@ -790,8 +840,21 @@ attached:
 			fprintf(stderr, "hdiutil: attach failed - no mountable file systems\n");
 			return (1);
 		}
-		for (i = 0; i < n; i++)
-			print_media(&m[i], ok[i] ? mps[i] : NULL);
+		if (plist) {
+			CFMutableArrayRef entities = CFArrayCreateMutable(NULL, 0,
+			    &kCFTypeArrayCallBacks);
+
+			for (i = 0; i < n; i++) {
+				CFDictionaryRef e = media_entity(&m[i], ok[i] ? mps[i] : NULL);
+
+				CFArrayAppendValue(entities, e);
+				CFRelease(e);
+			}
+			print_plist(entities);
+			CFRelease(entities);
+		} else
+			for (i = 0; i < n; i++)
+				print_media(&m[i], ok[i] ? mps[i] : NULL);
 	}
 	(void)mp;
 	return (0);
@@ -1223,11 +1286,13 @@ main(int argc, char *argv[])
 		return (info());
 	if (strcmp(verb, "attach") == 0 || strcmp(verb, "mount") == 0) {
 		const char *image = NULL, *mountpoint = NULL;
-		bool ro = false, nomount = false;
+		bool ro = false, nomount = false, plist = false;
 
 		for (i = 2; i < argc; i++) {
 			if (strcmp(argv[i], "-readonly") == 0)
 				ro = true;
+			else if (strcmp(argv[i], "-plist") == 0)
+				plist = true;
 			else if (strcmp(argv[i], "-nomount") == 0)
 				nomount = true;
 			else if (strcmp(argv[i], "-mountpoint") == 0 && i + 1 < argc)
@@ -1239,7 +1304,7 @@ main(int argc, char *argv[])
 		}
 		if (image == NULL)
 			usage();
-		return (attach(image, ro, nomount, mountpoint));
+		return (attach(image, ro, nomount, mountpoint, plist));
 	}
 	if (strcmp(verb, "detach") == 0 || strcmp(verb, "eject") == 0) {
 		const char *target = NULL;
