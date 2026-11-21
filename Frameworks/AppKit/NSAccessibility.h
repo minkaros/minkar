@@ -68,6 +68,7 @@ APPKIT_EXPORT NSString *const NSAccessibilityDefaultButtonAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityGrowAreaAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityMainAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityMinimizeButtonAttribute;
+APPKIT_EXPORT NSString *const NSAccessibilityFullScreenButtonAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityMinimizedAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityModalAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityProxyAttribute;

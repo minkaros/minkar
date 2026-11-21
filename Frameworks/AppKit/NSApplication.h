@@ -413,6 +413,7 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationOcclusionState) {
 @end
 
 APPKIT_EXPORT int NSApplicationMain(int argc, const char *argv[]);
+APPKIT_EXPORT BOOL NSApplicationLoad(void);
 
 APPKIT_EXPORT void NSUpdateDynamicServices(void);
 APPKIT_EXPORT BOOL NSPerformService(NSString *itemName, NSPasteboard *pasteboard);

@@ -70,6 +70,7 @@ NSString * const NSAccessibilityDefaultButtonAttribute=@"AXDefaultButton";
 NSString * const NSAccessibilityGrowAreaAttribute=@"AXGrowArea";
 NSString * const NSAccessibilityMainAttribute=@"AXMain";
 NSString * const NSAccessibilityMinimizeButtonAttribute=@"AXMinimizeButton";
+NSString * const NSAccessibilityFullScreenButtonAttribute=@"AXFullScreenButton";
 NSString * const NSAccessibilityMinimizedAttribute=@"AXMinimized";
 NSString * const NSAccessibilityModalAttribute=@"AXModal";
 NSString * const NSAccessibilityProxyAttribute=@"AXProxy";

@@ -2328,6 +2328,14 @@ static char customizeTouchBarKey;
 @end
 
 
+/* Minkar: readies AppKit for code that is not a Cocoa application (a
+   crash reporter in a plain process, a plug-in): the shared application,
+   which loads the rest. */
+BOOL NSApplicationLoad(void) {
+   [NSApplication sharedApplication];
+   return YES;
+}
+
 int NSApplicationMain(int argc, const char *argv[]) {
     __NSInitializeProcess(argc, argv);
 
