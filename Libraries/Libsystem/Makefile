@@ -141,6 +141,14 @@ SUBDIR = libmacho copyfile removefile libdispatch libsystem_blocks libsystem_ker
 # built one after the other).
 all_subdir_${DIRPRFX}${SUBDIR:[1]}: ${.OBJDIR}/config.${CpuArch}.normal.h
 
+# os/activity.h is installed by libsystem_trace, which builds after
+# libsystem_info; libsystem_info includes it: in the SDK before the first
+# sub-library, so a build from scratch finds it.
+all_subdir_${DIRPRFX}${SUBDIR:[1]}: os-activity-header
+os-activity-header: .PHONY
+	mkdir -p ${MINKAR_SDKROOT}/usr/include/os
+	rsync -cL ${.CURDIR}/libsystem_trace/activity.h ${MINKAR_SDKROOT}/usr/include/os
+
 # libSystem re-exports them all: linked after them, also with -j (a new
 # one was not there yet when it was linked).
 .for d in ${SUBDIR}
