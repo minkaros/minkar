@@ -1193,6 +1193,44 @@ static CGFloat backingScale(NSView *self) {
    return NSMakeSize(fabs(result.width),fabs(result.height));
 }
 
+/* Minkar: one axis of a rectangle on whole backing pixels, as the
+   NSAlignmentOptions say for its edges and its size: inward rounds towards
+   the inside, outward towards the outside, nearest to the closest pixel. */
+static CGFloat NSAlignValue(CGFloat value,NSAlignmentOptions options,NSAlignmentOptions inward,NSAlignmentOptions outward,NSAlignmentOptions nearest,BOOL isMinimum) {
+   if(options&nearest) return round(value);
+   if(options&inward) return isMinimum?ceil(value):floor(value);
+   if(options&outward) return isMinimum?floor(value):ceil(value);
+   return value;
+}
+
+static void NSAlignAxis(CGFloat *minimum,CGFloat *size,NSAlignmentOptions options,int shift) {
+   NSAlignmentOptions minIn=NSAlignMinXInward<<shift,minOut=NSAlignMinXOutward<<shift,minNear=NSAlignMinXNearest<<shift;
+   NSAlignmentOptions maxIn=NSAlignMaxXInward<<shift,maxOut=NSAlignMaxXOutward<<shift,maxNear=NSAlignMaxXNearest<<shift;
+   NSAlignmentOptions sizeIn=NSAlignWidthInward<<shift,sizeOut=NSAlignWidthOutward<<shift,sizeNear=NSAlignWidthNearest<<shift;
+   BOOL     hasMin=(options&(minIn|minOut|minNear))!=0,hasMax=(options&(maxIn|maxOut|maxNear))!=0;
+   CGFloat  lo=*minimum,hi=*minimum+*size;
+
+   if(hasMin) lo=NSAlignValue(lo,options,minIn,minOut,minNear,YES);
+   if(hasMax) hi=NSAlignValue(hi,options,maxIn,maxOut,maxNear,NO);
+   if(hasMin && !hasMax) hi=lo+NSAlignValue(*size,options,sizeIn,sizeOut,sizeNear,NO);
+   if(hasMax && !hasMin) lo=hi-NSAlignValue(*size,options,sizeIn,sizeOut,sizeNear,NO);
+   *minimum=lo;
+   *size=MAX(0,hi-lo);
+}
+
+NSRect NSMinkarAlignRectToPixels(NSRect rect,NSAlignmentOptions options) {
+   /* MinY and MaxY options are one bit above the X ones, the sizes too. */
+   NSAlignAxis(&rect.origin.x,&rect.size.width,options,0);
+   NSAlignAxis(&rect.origin.y,&rect.size.height,options,1);
+   return rect;
+}
+
+-(NSRect)backingAlignedRect:(NSRect)rect options:(NSAlignmentOptions)options {
+   NSRect backing=[self convertRectToBacking:rect];
+
+   return [self convertRectFromBacking:NSMinkarAlignRectToPixels(backing,options)];
+}
+
 -(NSRect)convertRectToBacking:(NSRect)rect {
    NSRect  at=[self convertRect:rect toView:nil];
    NSPoint origin=[self convertPoint:[self bounds].origin toView:nil];

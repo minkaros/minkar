@@ -143,8 +143,14 @@ NSString * const NSScreenColorSpaceDidChangeNotification = @"NSScreenColorSpaceD
    return YES; // FIXME
 }
 
+extern NSRect NSMinkarAlignRectToPixels(NSRect rect,NSAlignmentOptions options);
+
 -(NSRect)backingAlignedRect:(NSRect)rect options:(NSAlignmentOptions)options {
-    return rect; // FIXME
+    CGFloat scale=[self backingScaleFactor];
+    NSRect  backing=NSMakeRect(NSMinX(rect)*scale,NSMinY(rect)*scale,NSWidth(rect)*scale,NSHeight(rect)*scale);
+
+    backing=NSMinkarAlignRectToPixels(backing,options);
+    return NSMakeRect(NSMinX(backing)/scale,NSMinY(backing)/scale,NSWidth(backing)/scale,NSHeight(backing)/scale);
 }
 
 -(NSRect)convertRectFromBacking:(NSRect)rect {

@@ -247,9 +247,12 @@ const float NSTableViewDefaultRowHeight=16.0f;
    return _gridColor;
 }
 
+/* Minkar: the name is kept for the app to read back; the columns' widths
+   and order are not saved under it yet. */
+static char autosaveNameKey;
+
 -(NSString *)autosaveName {
-   NSUnimplementedMethod();
-   return nil;
+   return objc_getAssociatedObject(self,&autosaveNameKey);
 }
 
 // deprecated in OS X >= 10.3
@@ -603,7 +606,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
 }
 
 -(void)setAutosaveName:(NSString *)name {
-   NSUnimplementedMethod();
+   objc_setAssociatedObject(self,&autosaveNameKey,name,OBJC_ASSOCIATION_COPY);
 }
 
 // deprecated in OS X >= 10.3

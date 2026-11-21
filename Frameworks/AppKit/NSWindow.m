@@ -1205,9 +1205,10 @@ static char representedURLKey;
    _maxSize=size;
 }
 
+/* Minkar: the content's minimum is the frame's minimum for that content. */
 -(void)setContentMinSize:(NSSize)value {
    _contentMinSize=value;
-   NSUnimplementedMethod();
+   [self setMinSize:[self frameRectForContentRect:NSMakeRect(0,0,value.width,value.height)].size];
 }
 
 -(void)setContentMaxSize:(NSSize)value {
@@ -1499,8 +1500,12 @@ static char representedURLKey;
 //   NSUnimplementedMethod();
 }
 
+/* Minkar: kept for the app to read back; Atlas has no workspaces or window overview,
+   so the behaviors change nothing yet. */
+static char collectionBehaviorKey;
+
 -(void)setCollectionBehavior:(NSWindowCollectionBehavior)behavior {
-   NSUnimplementedMethod();
+   objc_setAssociatedObject(self,&collectionBehaviorKey,[NSNumber numberWithUnsignedInteger:behavior],OBJC_ASSOCIATION_RETAIN);
 }
 
 -(void)setOpaque:(BOOL)value {
@@ -1811,8 +1816,7 @@ static char standardButtonsKey;
 }
 
 -(NSWindowCollectionBehavior)collectionBehavior {
-   NSUnimplementedMethod();
-   return 0;
+   return [objc_getAssociatedObject(self,&collectionBehaviorKey) unsignedIntegerValue];
 }
 
 -(NSPoint)convertBaseToScreen:(NSPoint)point {

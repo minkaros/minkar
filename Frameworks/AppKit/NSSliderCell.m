@@ -193,9 +193,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return closestValue;
 }
 
+/* Minkar: the bar's rectangle as last drawn, without the tick marks. */
 -(NSRect)trackRect {
-   NSUnimplementedMethod();
-   return NSZeroRect;
+   return [self _sliderRect];
 }
 
 -(NSRect)rectOfTickMarkAtIndex:(NSInteger)index {

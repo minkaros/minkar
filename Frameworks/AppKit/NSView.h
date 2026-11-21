@@ -209,6 +209,7 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 - (NSSize)convertSizeToBacking:(NSSize)size;
 - (NSSize)convertSizeFromBacking:(NSSize)size;
 - (NSRect)convertRectToBacking:(NSRect)rect;
+- (NSRect)backingAlignedRect:(NSRect)rect options:(NSAlignmentOptions)options;
 - (NSRect)convertRectFromBacking:(NSRect)rect;
 - (NSRect)convertRect:(NSRect)rect fromView:(NSView *)viewOrNil;
 - (NSRect)convertRect:(NSRect)rect toView:(NSView *)viewOrNil;
