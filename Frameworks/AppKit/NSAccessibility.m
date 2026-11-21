@@ -664,17 +664,51 @@ AX_WEAK(accessibilityTitleUIElement,setAccessibilityTitleUIElement,@"titleUIElem
 
 /* Minkar: the older API, as the reference platform maps it onto the
    properties (it was only declared). */
+/* Values an app sets for attributes with accessibilitySetOverrideValue:
+   forAttribute:, ahead of what the element says itself. */
+static char accessibilityOverridesKey;
+
+static NSDictionary *accessibilityOverrides(id object) {
+   return objc_getAssociatedObject(object,&accessibilityOverridesKey);
+}
+
 @implementation NSObject (NSAccessibility)
 
 -(NSArray *)accessibilityAttributeNames {
-   return [NSArray arrayWithObjects:NSAccessibilityRoleAttribute,NSAccessibilityRoleDescriptionAttribute,
+   NSArray *names=[NSArray arrayWithObjects:NSAccessibilityRoleAttribute,NSAccessibilityRoleDescriptionAttribute,
       NSAccessibilitySubroleAttribute,NSAccessibilityTitleAttribute,NSAccessibilityValueAttribute,
       NSAccessibilityHelpAttribute,NSAccessibilityParentAttribute,NSAccessibilityChildrenAttribute,
       NSAccessibilityEnabledAttribute,NSAccessibilityFocusedAttribute,NSAccessibilityPositionAttribute,
       NSAccessibilitySizeAttribute,nil];
+   NSDictionary *overrides=accessibilityOverrides(self);
+
+   for(NSString *name in overrides)
+    if(![names containsObject:name])
+     names=[names arrayByAddingObject:name];
+   return names;
+}
+
+-(BOOL)accessibilitySetOverrideValue:(id)value forAttribute:(NSString *)attribute {
+   NSMutableDictionary *overrides;
+
+   if(attribute==nil)
+    return NO;
+   overrides=objc_getAssociatedObject(self,&accessibilityOverridesKey);
+   if(overrides==nil){
+    overrides=[NSMutableDictionary dictionary];
+    objc_setAssociatedObject(self,&accessibilityOverridesKey,overrides,OBJC_ASSOCIATION_RETAIN);
+   }
+   if(value==nil)
+    [overrides removeObjectForKey:attribute];
+   else
+    [overrides setObject:value forKey:attribute];
+   return YES;
 }
 
 -accessibilityAttributeValue:(NSString *)attribute {
+   id override=[accessibilityOverrides(self) objectForKey:attribute];
+
+   if(override!=nil) return override;
    if([attribute isEqualToString:NSAccessibilityRoleAttribute]) return [self accessibilityRole];
    if([attribute isEqualToString:NSAccessibilityRoleDescriptionAttribute]) return [self accessibilityRoleDescription];
    if([attribute isEqualToString:NSAccessibilitySubroleAttribute]) return [self accessibilitySubrole];

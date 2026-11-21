@@ -471,6 +471,7 @@ typedef NS_ENUM(NSInteger, NSAccessibilityCustomRotorType) {
 - accessibilityAttributeValue:(NSString *)attribute;
 - (BOOL)accessibilityIsAttributeSettable:(NSString *)attribute;
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString *)attribute;
+- (BOOL)accessibilitySetOverrideValue:(id)value forAttribute:(NSString *)attribute;
 - (NSArray *)accessibilityParameterizedAttributeNames;
 - accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter;
 - (NSArray *)accessibilityActionNames;
