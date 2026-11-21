@@ -162,7 +162,8 @@ version:
 # CI checks they are current.
 progress: .PHONY
 	python3 ${.CURDIR}/tools/progress/gen.py ${.CURDIR}/Docs/progress/status.toml \
-	    ${.CURDIR}/Docs/progress ${.CURDIR}/Docs/Progress.md
+	    ${.CURDIR}/Docs/progress ${.CURDIR}/Docs/Progress.md ${.CURDIR}/README.md \
+	    ${.CURDIR}/README.es.md
 	python3 -B ${.CURDIR}/tools/compat/matrix.py ${.CURDIR}/Docs/progress/compatibility.tsv \
 	    ${.CURDIR}/Docs/progress/frameworks.tsv \
 	    ${.CURDIR}/Docs/Compatibility.md ${.CURDIR}/Docs/Compatibility.es.md

@@ -32,10 +32,11 @@
 Writes the metro map of milestones by plan and the work board to OUTDIR,
 each in a light and a dark version (metro-light.svg, metro-dark.svg,
 board-light.svg, board-dark.svg), and rewrites the summary table between
-the progress:summary markers of each PAGE.md. The table's header, legend
-and date line are in the page's language: Spanish for a page whose name
-ends in .es.md, English otherwise, unless --lang says which. Plan and
-milestone names, and the SVGs, stay in English.
+the progress:summary markers of each PAGE.md, and the README's status
+lists (status.toml's [readme]) between its progress:readme markers. The
+table's header, legend and date line are in the page's language: Spanish
+for a page whose name ends in .es.md, English otherwise, unless --lang
+says which. Plan and milestone names, and the SVGs, stay in English.
 
 Run through "bmake progress" at the top of the tree. Standard library
 only: tomllib from Python 3.11, else the small reader below for the TOML
@@ -454,14 +455,39 @@ def page_language(path, forced):
     return 'es' if path.endswith('.es.md') else 'en'
 
 
+# The README's status: three short lists from status.toml's [readme].
+README_BEGIN, README_END = '<!-- progress:readme:begin -->', '<!-- progress:readme:end -->'
+README_HEADS = {'en': ('Works today', 'In progress', 'Next'),
+                'es': ('Funciona hoy', 'En curso', 'Siguiente')}
+
+
+def readme_status(d, lang):
+    r = d['readme']
+    suffix = '_es' if lang == 'es' else ''
+    out = [README_BEGIN]
+    for head, key in zip(README_HEADS[lang], ('works', 'progress', 'next')):
+        out += ['**%s**' % head, '']
+        out += ['- %s' % item for item in r[key + suffix]]
+        out.append('')
+    out.append('_%s_' % (WORDS[lang]['updated'] % (d['updated'], d['commit'])))
+    return '\n'.join(out + [README_END])
+
+
+def splice(page, begin, end, text):
+    a, b = page.index(begin), page.index(end) + len(end)
+    return page[:a] + text + page[b:]
+
+
 def rewrite(path, d, lang):
     with open(path, encoding='utf-8') as f:
         page = f.read()
-    try:
-        a, b = page.index(BEGIN), page.index(END) + len(END)
-    except ValueError:
-        sys.exit('gen.py: %s has no %s ... %s block' % (path, BEGIN, END))
-    new = page[:a] + summary(d, lang) + page[b:]
+    new = page
+    if BEGIN in page and END in page:
+        new = splice(new, BEGIN, END, summary(d, lang))
+    if README_BEGIN in page and README_END in page:
+        new = splice(new, README_BEGIN, README_END, readme_status(d, lang))
+    if new == page and BEGIN not in page and README_BEGIN not in page:
+        sys.exit('gen.py: %s has no %s or %s block' % (path, BEGIN, README_BEGIN))
     if new != page:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(new)

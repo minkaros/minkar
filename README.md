@@ -1,45 +1,72 @@
 # Minkar
 
-Minkar is an open source operating system that aims to run Cocoa
-applications of the reference platform unmodified, with that platform's
-conventions, on x86-64 systems (and eventually arm64). It builds on the foundations of Darwin and
-FreeBSD, existing open source packages in the same space, and new code to
-fill the gaps.
+Minkar is an open source operating system for x86-64 PCs that runs the published binaries
+of apps made for the reference platform, unmodified and without recompiling. It is built
+on Darwin's kernel and runtime (XNU, objc4, CoreFoundation), its own Foundation and
+Cocotron-based AppKit, and FreeBSD's userland, with new code for the gaps. Its desktop is
+Atlas, with its own visual language.
 
-The main design goals are:
+Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 
-- Binary compatibility with the reference platform's applications, the
-  main goal: Minkar already runs the published binaries of Cocoa apps
-  (Firefox, Hex Fiend), and a set of designated apps measures how far it
-  goes ([Docs/Compatibility.md](Docs/Compatibility.md)).
-- Source compatibility: a Cocoa application can be compiled on Minkar and
-  run.
-- Familiar GUI metaphors and UX (file manager, application launcher, a top
-  menu bar that reflects the active application) built on the Cocoa APIs
-  applications expect.
-- The reference platform's folder layouts (/Library, /System, /Users,
-  /Volumes) and file
-  systems (HFS+, APFS), plus other useful ones such as FAT and NTFS.
-- Self-contained applications in app bundles, with support for DMG files
-  and other archive formats.
-- An up-to-date Unix environment with current tools and shells.
-- Pleasant to use, secure, stable and fast.
+## Status
 
-## Building
+<!-- progress:readme:begin -->
+**Works today**
 
-See [Docs/BUILDING.md](Docs/BUILDING.md). The source map is in
-[Docs/SourceMap.md](Docs/SourceMap.md).
+- Boots on generic x86-64 PCs (PC 1, PC 2) and in QEMU, from SATA, NVMe or virtio, on every CPU
+- A Unix base: launchd, networking, SSH, and 354 of the reference system's 367 commands
+- Objective-C, Swift 6.4, Foundation and Combine; seven open source tools pass their tests
+- A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications
+- Terminal, System Monitor and Logs; disk images, compressed ones included
+- WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)
+- Firefox, Hex Fiend, Skim and TextMate from their published binaries
 
-## Contributing
+**In progress**
 
-See [Docs/CONTRIBUTING.md](Docs/CONTRIBUTING.md) and the
-[Code of Conduct](Docs/CODE_OF_CONDUCT.md). What is done and what comes
-next is in [Docs/ROADMAP.md](Docs/ROADMAP.md); how many of the reference
-platform's command-line tools Minkar has, in [Docs/Userland.md](Docs/Userland.md#command-line-tools), and
-where each comes from, in [Docs/Userland.md](Docs/Userland.md); the
-machines it is tested on, in [Docs/Hardware.md](Docs/Hardware.md). Issues and
-discussion:
-https://github.com/minkaros/minkar
+- Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language
+- Gate BC in the CI and the API 19 app set (lane BC)
+- Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5
+- GPU drivers: the clocks on PC 2's GCN 1.0, the display modes on PC 1's RDNA2
+
+**Next**
+
+- Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices
+- After 19.6.0: the apps A5–A10, Darwin 25, arm64 in QEMU, SwiftUI
+
+_Updated 2026-11-20, devel `4db859f704`_
+<!-- progress:readme:end -->
+
+Every milestone: [Docs/Progress.md](Docs/Progress.md). Which apps run and how far:
+[Docs/Compatibility.md](Docs/Compatibility.md).
+
+## Features
+
+- **Binary compatibility**, the main goal: the published binaries of a set of designated
+  apps start and work, one API level behind the reference platform's current one.
+- **Source compatibility:** a Cocoa app can be compiled on Minkar and run.
+- **The Atlas desktop:** a menu bar that reflects the active app, a Dock, Files, System
+  Preferences and everyday apps, built on the Cocoa APIs apps expect.
+- **The reference platform's layout:** `/Library`, `/System`, `/Users`, `/Volumes`, apps
+  in bundles, installed from disk images.
+- **File systems:** HFS+ (the root), FAT and exFAT (read and write), NFS; APFS comes after
+  Minkar 19.6.0.
+- **GPU acceleration:** a compositor designed for the GPU, AMD drivers and Mesa's Vulkan,
+  with performance equal to or better than the reference system on the same machine as a
+  release gate.
+- **Security:** kernel-checked code signatures and entitlements, and an app sandbox.
+- **A current Unix environment:** today's shells and tools, from FreeBSD and their own
+  projects.
+
+## Try it
+
+There is no downloadable image yet. Build one and boot it in QEMU with the
+[quick start](Docs/BUILDING.md#quick-start).
+
+## Where to start
+
+- [Docs/README.md](Docs/README.md): the documentation, by reader.
+- [Docs/CONTRIBUTING.md](Docs/CONTRIBUTING.md): how to contribute, and the first tasks.
+- [Docs/Compatibility.md](Docs/Compatibility.md): which apps run and what they need.
 
 ## Credits
 

@@ -284,6 +284,49 @@ doc = "ROADMAP.md#lane-r--structure"
 stations = [["R0 inventory", 915, "current"], ["R1 toolchain", 990, "todo"], ["R2 BSD", 1050, "todo"],
   ["R3 layers", 1100, "todo"], ["R4 apps", 1150, "todo"]]
 
+# The README's status (README.md and README.es.md, between their
+# progress:readme markers): what works today, what is in progress and what
+# comes next, one short line each, in English and in Spanish.
+[readme]
+works = [
+  "Boots on generic x86-64 PCs (PC 1, PC 2) and in QEMU, from SATA, NVMe or virtio, on every CPU",
+  "A Unix base: launchd, networking, SSH, and 354 of the reference system's 367 commands",
+  "Objective-C, Swift 6.4, Foundation and Combine; seven open source tools pass their tests",
+  "A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications",
+  "Terminal, System Monitor and Logs; disk images, compressed ones included",
+  "WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)",
+  "Firefox, Hex Fiend, Skim and TextMate from their published binaries",
+]
+progress = [
+  "Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language",
+  "Gate BC in the CI and the API 19 app set (lane BC)",
+  "Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5",
+  "GPU drivers: the clocks on PC 2's GCN 1.0, the display modes on PC 1's RDNA2",
+]
+next = [
+  "Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices",
+  "After 19.6.0: the apps A5–A10, Darwin 25, arm64 in QEMU, SwiftUI",
+]
+works_es = [
+  "Arranca en PC x86-64 genéricos (PC 1, PC 2) y en QEMU, desde SATA, NVMe o virtio, con todas las CPU",
+  "Una base Unix: launchd, red, SSH y 354 de las 367 órdenes del sistema de referencia",
+  "Objective-C, Swift 6.4, Foundation y Combine; siete herramientas libres pasan sus pruebas",
+  "Un servidor de ventanas que compone en la GPU y el escritorio Atlas: barra de menús, Dock, Files, Preferencias, notificaciones",
+  "Terminal, Monitor del sistema y Registros; imágenes de disco, también las comprimidas",
+  "WebKit sobre WPE, audio y vídeo (CoreAudio, AVFoundation, los medios de WebKit)",
+  "Firefox, Hex Fiend, Skim y TextMate desde sus binarios publicados",
+]
+progress_es = [
+  "Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual",
+  "El gate BC en la CI y el conjunto de apps de la API 19 (carril BC)",
+  "Minkar 19.6.0 (gate M6): el instalador del sistema, la compresión de HFS+, el Editor de texto, W5 de WebKit",
+  "Drivers de GPU: los relojes de la GCN 1.0 del PC 2, los modos de pantalla de la RDNA2 del PC 1",
+]
+next_es = [
+  "Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados",
+  "Después de 19.6.0: las apps A5–A10, Darwin 25, arm64 en QEMU, SwiftUI",
+]
+
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
