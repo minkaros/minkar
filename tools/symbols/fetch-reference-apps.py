@@ -93,7 +93,9 @@ def download(url, dest, attempts=4):
     tmp = dest + '.part'
     for attempt in range(attempts):
         try:
-            with urllib.request.urlopen(url, timeout=120) as r, open(tmp, 'wb') as f:
+            # A plain client name: some servers refuse Python's default one.
+            req = urllib.request.Request(url, headers={'User-Agent': 'minkar-fetch/1.0'})
+            with urllib.request.urlopen(req, timeout=120) as r, open(tmp, 'wb') as f:
                 shutil.copyfileobj(r, f)
             os.replace(tmp, dest)
             return
