@@ -35,7 +35,7 @@ app=/Applications/$bundle
 
 report() {
 	# report STAGE WORD REASON
-	reason=$(printf '%s%s' "${note:-}" "$3" | tr '\t\n' '  ' | cut -c1-300)
+	reason=$(printf '%s%s%s' "${note:-}" "${user:+as $user; }" "$3" | tr '\t\n' '  ' | cut -c1-300)
 	echo "bc: $name stage=$1 result=$2 menus=${menus:-no} reason=$reason"
 	echo "bc: $name end"
 	cleanup
@@ -96,11 +96,12 @@ fi
 rm -f "$archive"
 [ -x "$app/Contents/MacOS/$exe" ] || report 0 install "no executable $exe in $bundle"
 
-# Start it as the user who owns the console's session, as a user would
+# Start it as the user who owns the desktop session, as a user would
 # (some apps refuse to run as root); as root when root owns it.
 dmesg > "$work/dmesg.before"
 cd /
-user=$(stat -f %Su /dev/console 2>/dev/null)
+# The session's owner is the Dock's.
+user=$(ps -o user= -p "$(pgrep -x Dock | head -1)" 2>/dev/null | tr -d ' ')
 if [ -n "$user" ] && [ "$user" != root ] && id "$user" > /dev/null 2>&1; then
 	chown -R "$user" "$work"
 	su -m "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
