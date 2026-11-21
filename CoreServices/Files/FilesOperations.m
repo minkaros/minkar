@@ -501,6 +501,10 @@ static NSURL *attachedVolumeOf(NSURL *image)
                     volume = [NSURL fileURLWithPath:entity[@"mount-point"] isDirectory:YES];
         } @catch (NSException *e) {
         }
+        /* An attach that mounted the volume but did not say where (an
+           hdiutil without -plist) is not a failure. */
+        if (volume == nil)
+            volume = attachedVolumeOf(image);
         dispatch_async(dispatch_get_main_queue(), ^{
             [attaching removeObject:key];
             if (volume == nil) {
