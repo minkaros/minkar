@@ -36,6 +36,10 @@ the data, so CI can check that the committed pages are current.
 
 import sys
 
+# The API 19 set (Docs/ROADMAP.md, lane BC, BC4): these apps by name, not
+# every app whose minimum is 10.15 or lower.
+SET_19 = ('Firefox', 'Thunderbird', 'HexFiend', 'TextMate', 'Platypus', 'KeepingYouAwake',
+          'Sloth')
 STAGES = ['install', 'signature', 'no-load', 'before-main', 'at-start', 'no-window', 'window']
 ORDER = STAGES[:6] + ['min-version', 'not-run', 'window']
 
@@ -49,7 +53,7 @@ TEXT = {
                'the image as a user would and started; the result is how far it got. '
                'Spanish: [Compatibility.es.md](Compatibility.es.md).'),
         checked='Checked: %s',
-        sets=('The API 19 set (minimum 10.15 or lower; BC4)', 'The next designated apps (BC5 on)'),
+        sets=('The API 19 set (BC4)', 'The next designated apps (BC5 on)'),
         head='| App | Version | Minimum | Architectures | Result | Menus | Reason |',
         summary='%d of %d apps show a window.',
         legend='Results, from the least far to the furthest:',
@@ -74,7 +78,7 @@ TEXT = {
                'dónde llegó. La referencia es la versión en inglés, '
                '[Compatibility.md](Compatibility.md).'),
         checked='Comprobado: %s',
-        sets=('El conjunto 19 (versión mínima 10.15 o menor; BC4)',
+        sets=('El conjunto 19 (BC4)',
               'Las apps designadas siguientes (BC5 en adelante)'),
         head='| App | Versión | Mínima | Arquitecturas | Resultado | Menús | Motivo |',
         summary='%d de %d apps muestran una ventana.',
@@ -120,8 +124,7 @@ def page(notes, rows, lang):
     if checked:
         out += ['_%s_' % (t['checked'] % checked[len('Checked '):]), '']
     out += [t['summary'] % (sum(r['result'] == 'window' for r in rows), len(rows)), '']
-    groups = ([r for r in rows if version_key(r['minimum']) <= version_key('10.15')],
-              [r for r in rows if version_key(r['minimum']) > version_key('10.15')])
+    groups = ([r for r in rows if r['app'] in SET_19], [r for r in rows if r['app'] not in SET_19])
     for title, group in zip(t['sets'], groups):
         out += ['## ' + title, '', t['head'], '| --- | --- | --- | --- | --- | --- | --- |']
         for r in sorted(group, key=lambda r: r['app'].lower()):
