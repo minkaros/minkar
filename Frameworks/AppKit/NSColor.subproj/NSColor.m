@@ -512,6 +512,12 @@ NSString *const NSControlTintDidChangeNotification = @"NSControlTintDidChangeNot
     return [NSColor colorWithCatalogName:@"System" colorName:@"systemGrayColor"];
 }
 
+/* Minkar: the tint of the controls; Atlas has one accent, so it is always
+   NSBlueControlTint (1), the default of the reference platform. */
++(NSUInteger)currentControlTint {
+    return 1;
+}
+
 +(NSColor *)controlAccentColor {
     return [NSColor colorWithCatalogName:@"System" colorName:@"controlAccentColor"];
 }

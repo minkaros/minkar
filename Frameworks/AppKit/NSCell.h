@@ -99,6 +99,12 @@ typedef NS_ENUM(NSUInteger, NSControlSize) {
 };
 
 typedef NSUInteger NSControlTint;
+enum {
+    NSDefaultControlTint = 0,
+    NSBlueControlTint = 1,
+    NSGraphiteControlTint = 6,
+    NSClearControlTint = 7,
+};
 
 enum {
     NSBackgroundStyleNormal = 0,
@@ -318,6 +324,10 @@ enum {
 @end
 
 /* Minkar: the events a cell sends its action on, and its contextual menu. */
+@interface NSCell (MinkarLayoutDirection)
+@property NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+@end
+
 @interface NSCell (MinkarCellExtras)
 - (NSInteger)cellAttribute:(NSCellAttribute)attribute;
 - (void)setCellAttribute:(NSCellAttribute)attribute to:(NSInteger)value;

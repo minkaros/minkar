@@ -47,6 +47,7 @@ APPKIT_EXPORT NSString *const NSControlTintDidChangeNotification;
 
 + (NSColor *)keyboardFocusIndicatorColor;
 + (NSColor *)controlAccentColor;
++ (NSUInteger)currentControlTint; /* an NSControlTint (NSCell.h) */
 
 /* Colors of the system palette (System.clr), API 19 and before. */
 + (NSColor *)labelColor;

@@ -1131,3 +1131,27 @@ static char sendMaskKey, menuKey, expansionKey;
 }
 
 @end
+
+/* Minkar: a cell's layout direction (10.8): as set, else its control
+   view's, else the application's. */
+static char cellLayoutDirectionKey;
+
+@implementation NSCell (MinkarLayoutDirection)
+
+-(NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection {
+   NSNumber *value=objc_getAssociatedObject(self,&cellLayoutDirectionKey);
+   NSView   *view=[self controlView];
+
+   if(value!=nil)
+    return [value integerValue];
+   if([view respondsToSelector:@selector(userInterfaceLayoutDirection)])
+    return [view userInterfaceLayoutDirection];
+   return (NSApp!=nil)?[NSApp userInterfaceLayoutDirection]:NSUserInterfaceLayoutDirectionLeftToRight;
+}
+
+-(void)setUserInterfaceLayoutDirection:(NSUserInterfaceLayoutDirection)direction {
+   objc_setAssociatedObject(self,&cellLayoutDirectionKey,[NSNumber numberWithInteger:direction],OBJC_ASSOCIATION_RETAIN);
+   [[self controlView] setNeedsDisplay:YES];
+}
+
+@end
