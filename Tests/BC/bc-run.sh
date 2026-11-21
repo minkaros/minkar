@@ -97,10 +97,12 @@ fi
 rm -f "$archive"
 [ -x "$app/Contents/MacOS/$exe" ] || report 0 install "no executable $exe in $bundle"
 
-# Start it as the user who owns the desktop session, as a user would, with
-# that user's login environment (su -l: its HOME, where apps keep their
-# profiles)
-# (some apps refuse to run as root); as root when root owns it.
+# Start it as the user who owns the desktop session, as a user would
+# (some apps refuse to run as root), in that user's launchd context
+# (launchctl asuser: a sandboxed helper may not look the per-user context
+# up itself; Firefox's GPU process then draws nothing) and with the user's
+# login environment (su -l: its HOME, where apps keep their profiles); as
+# root when root owns it.
 dmesg > "$work/dmesg.before"
 cd /
 # The session's owner is the Dock's.
@@ -110,19 +112,20 @@ user=$(ps -o user= -p "$(pgrep -x Dock | head -1)" 2>/dev/null | tr -d ' ')
 [ "$user" = root ] && user=$(id -nu 501 2>/dev/null || echo root)
 if [ -n "$user" ] && [ "$user" != root ] && id "$user" > /dev/null 2>&1; then
 	chown -R "$user" "$work"
-	su -l "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
+	launchctl asuser "$(id -u "$user")" /usr/bin/su -l "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
 	    > "$work/out.txt" 2>&1 < /dev/null &
 else
 	DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT=$work/probe.txt \
 	    "$app/Contents/MacOS/$exe" > "$work/out.txt" 2>&1 < /dev/null &
 fi
 launcher=$!
-# The app's own process: su's child (its command line names the app
-# too, so it is not looked up by name).
+# The app's own process: the child of su, launchctl's child (their
+# command lines name the app too, so it is not looked up by name).
 pid=$launcher
 if [ -n "$user" ] && [ "$user" != root ]; then
 	for i in $(seq 25); do
-		p=$(pgrep -P "$launcher" | head -1)
+		su_pid=$(pgrep -P "$launcher" | head -1)
+		p=${su_pid:+$(pgrep -P "$su_pid" | head -1)}
 		[ -n "$p" ] && { pid=$p; break; }
 		sleep 0.2
 	done
