@@ -11,7 +11,7 @@ _Updated 2026-11-20, devel `4db859f704`_
 | **Gates** | 🟩🟩🟩🟩🟩🟦⬜⬜ | 5 / 8 | M5 Atlas desktop | M6 Minkar 19.6.0 |
 | [Phases 0–2](ROADMAP.md) | 🟩🟩🟩 | 3 / 3 | — | — |
 | [Frameworks](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩🟨🟨🟨🟨🟩🟨🟩🟩 | 4 / 9 | libSystem, Foundation, CF-Lite, Security, Swift 6 | — |
-| [WindowServer](WindowServer-Rewrite.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
+| [WindowServer](WindowServer.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Atlas.md#3-menus) | 🟩🟩🟩🟨⬜ | 3 / 5 | MB3 | MB4 |
 | [Dock](Atlas.md#4-dock-and-files) | 🟩🟩🟩🟩🟨 | 4 / 5 | D4 | — |
 | [Files](Atlas.md#4-dock-and-files) | 🟨🟩🟩🟩⬜ | 3 / 5 | K0 | K4 |
@@ -36,7 +36,7 @@ _Updated 2026-11-20, devel `4db859f704`_
   <img alt="Minkar milestones by plan" src="progress/metro-light.svg">
 </picture>
 
-Plans: [ROADMAP.md](ROADMAP.md) · [WindowServer-Rewrite.md](WindowServer-Rewrite.md) ·
+Plans: [ROADMAP.md](ROADMAP.md) · [WindowServer.md](WindowServer.md) ·
 [Atlas.md](Atlas.md)
 
 ## Work board

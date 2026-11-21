@@ -71,8 +71,8 @@ the milestone that removes it:
     // SHORTCUT(<removed by>): <what and why>; taken in <milestone>.
 
 For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D3)`. Each
-shortcut also has a row in its plan's shortcut table (section 9 of
-[WindowServer-Rewrite.md](WindowServer-Rewrite.md), sections 3.10 and 4.10 of
+shortcut also has a row in its document's shortcut table
+([WindowServer.md](WindowServer.md#development-shortcuts-still-open), sections 3.5 and 4.5 of
 [Atlas.md](Atlas.md)). A milestone
 closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 

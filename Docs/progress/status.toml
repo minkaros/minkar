@@ -128,7 +128,7 @@ stations = [
 id = "ws"
 name = "WindowServer"
 color = "blue"
-doc = "WindowServer-Rewrite.md"
+doc = "WindowServer.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
   ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "done"],

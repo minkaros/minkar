@@ -361,7 +361,7 @@ Goal: WindowServer draws AppKit windows and receives keyboard and mouse. In the 
 
 **Backend decision (2026-10-25)**
 
-The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 2026-10-31: see the [WindowServer rewrite plan](WindowServer-Rewrite.md). The output, compositor and input choices below are the ones that plan builds on.
+The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 2026-10-31: see the [WindowServer rewrite plan](WindowServer.md). The output, compositor and input choices below are the ones that plan builds on.
 
 - **First output:** `IOGOPFramebuffer.kext` with `IOFramebufferDisplay.m` and software compositing. Enough for Minkar 19.6.0 and the VM; on physical machines only the starting point.
 - **Compositor (changed 2026-10-29):** designed for the GPU from the start, with Vulkan as the main backend behind our own interface. pixman stays for bring-up and for VMs without a GPU.
