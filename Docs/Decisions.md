@@ -9,6 +9,7 @@ recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-21 | Platypus and Sloth are pinned to 5.4.1 and 3.4, their last releases with a minimum of 10.15 or lower, so they stay in app set 19 | [tools/symbols/reference-apps.tsv](../tools/symbols/reference-apps.tsv) |
 | 2026-11-21 | Only the five entry documents (README, ROADMAP, BUILDING, CONTRIBUTING, Compatibility) have Spanish copies | [CONTRIBUTING.md](CONTRIBUTING.md#language) |
 | 2026-11-21 | The browser is Firefox; Shiira was analysed and is not in the plan | `65dab354d6` |
 | 2026-11-21 | Gate BC starts each app as the session's user, not as root | [Compatibility.md](Compatibility.md#the-matrix) |
