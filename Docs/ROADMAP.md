@@ -527,7 +527,7 @@ On the new kernel, and only in a virtual machine for now (D4).
 | Milestone | Content | When |
 | --- | --- | --- |
 | ARM0 | The userland and the frameworks build for arm64 in the CI; nothing boots | Now |
-| ARM1 | Darwin 25 boots on arm64 in QEMU `virt` up to gate M2 | After KX1 |
+| ARM1 | Darwin 25 boots on arm64 in a virtual machine up to gate M2 | Not decided: the boot target is open ([ADR 0003](ADR/0003-Kernel-Upgrade.md), section 8); not before KX1 |
 | ARM2 | The desktop on arm64 in QEMU (gates M4 and M5) | After ARM1 and KX2 |
 | ARM3 | The designated apps' arm64 binaries start in QEMU | After ARM2 and BC4 |
 
@@ -553,16 +553,16 @@ Pending: the platform work the published arm64 XNU needs, and the 16 KB pages th
 
 ## Lane KX — New kernel: Darwin 25
 
-Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md).
+Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md), accepted for x86-64 on 2026-11-20: xnu-12377.121.6, defined and validated on x86-64 (QEMU, PC 1 and PC 2), independent of arm64, and never with the Kernel Debug Kit.
 
 | Milestone | Content | Criterion | When |
 | --- | --- | --- | --- |
-| KX0 | ADR 0003 | ADR approved by the maintainer | Now; it does not block 19.6.0 |
-| KX1 | A prototype on a branch: Darwin 25 boots on x86-64 in QEMU up to M2, with the minimal own kexts ported | `boottest GATE=M2` on the branch | After 19.6.0 |
+| KX0 | ADR 0003, and a compile-only check of Darwin 25's x86-64 kernel with the tree's clang | ADR approved by the maintainer | Done 2026-11-20 (accepted for x86-64, with conditions) |
+| KX1 | A prototype on a branch: Darwin 25 boots on x86-64 in QEMU up to M2, with the minimal own kexts ported. Its experiments: boot with `plktool`'s current output first (a fileset collection builder only if it does not boot), every kext in the boot collection, the loader on `boot_args` revision 1, the M2 minimum found by taking kexts out one at a time, launchd checked against Darwin 25's libxpc | `boottest GATE=M2` on the branch | After 19.6.0 ships, after R1, and once the maintainer decides on the corecrypto report |
 | KX2 | The whole system on Darwin 25: the other kexts, WindowServer, Atlas | Every gate in QEMU, on PC 1 and on PC 2 | After KX1 |
 | KX3 | `devel` moves to Darwin 25; Darwin 19 stays on a maintenance branch for 19.6.x | Minkar 25.x | After KX2 |
 
-Until KX3, new framework and desktop work must build on both kernels.
+Until KX3, new framework and desktop work must build on both kernels, and `devel` keeps Darwin 19.6.0's `uname -r`, `kern.osrelease`, `DARWIN_VERSION` and `TARGET_TRIPLE`; the branch takes Darwin 25's. If Darwin 26 stops publishing x86-64, Minkar's x86-64 PCs stay on a Darwin 25 branch, the last for that architecture (accepted on 2026-11-20); continuity beyond it depends on arm64.
 
 ## Lane SU — SwiftUI: Minkar's own public layer on a SwiftCrossUI-based engine
 
@@ -616,7 +616,7 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | M5 | Atlas desktop | Under way: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 and the notification center (N0–N2) done ([Atlas.md](Atlas.md)) |
 | M6 (Minkar 19.6.0) | Apps and distribution, the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio and media (AU1–AU10), and gate BC with the API 19 set (BC4) | Under way: WebKit W2–W4 and audio and media AU1–AU6 done; `hdiutil attach` already mounts |
 | BC | Binary compatibility | Under way: gate BC (`bmake bc-check`) runs the 17 designated apps' published binaries (2026-11-20, under KVM: 19 minutes); 4 show a window (Firefox, Hex Fiend, Skim, TextMate), [Compatibility.md](Compatibility.md) says how far each other gets. BC1 done; BC0 waits for its first CI run |
-| KX | Darwin 25 | KX0 (ADR 0003) proposed 2026-11-20; KX1 after Minkar 19.6.0 |
+| KX | Darwin 25 | KX0 done 2026-11-20 (ADR 0003 accepted for x86-64, with conditions); KX1 after Minkar 19.6.0, R1 and the corecrypto decision |
 | ARM | arm64 | ARM0 (the build in the CI) started 2026-11-20 |
 | SU | SwiftUI: own public layer on a SwiftCrossUI-based engine | SU0 (the report) in the CI; SU0b (SwiftCrossUI's review) and SU1 ([SwiftUI.md](SwiftUI.md)) under way since 2026-11-20 |
 | Performance | ≥ the reference system on a physical machine, on the new kernel | Not started; depends on the GPU track and KX; a release after 25.x |

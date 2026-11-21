@@ -216,8 +216,9 @@
 <text x="20" y="895" font-size="15" font-weight="700" fill="#9198a1" text-anchor="start">Lane KX</text>
 <line x1="915" y1="890" x2="1110" y2="890" stroke="#9198a1" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="915" y1="890" x2="915" y2="890" stroke="#9198a1" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<circle cx="915" cy="890" r="17" fill="#9198a1" fill-opacity=".2"/><circle cx="915" cy="890" r="10" fill="#0d1117" stroke="#9198a1" stroke-width="5"/>
-<text x="915" y="919" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">KX0 ADR</text>
+<line x1="915" y1="890" x2="915" y2="890" stroke="#9198a1" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<circle cx="915" cy="890" r="10" fill="#9198a1" stroke="#0d1117" stroke-width="3"/><path d="M910.5 890 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="915" y="919" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">KX0 ADR</text>
 <circle cx="1010" cy="890" r="8" fill="#0d1117" stroke="#9198a1" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1010" y="919" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">KX1 M2</text>
 <circle cx="1060" cy="890" r="8" fill="#0d1117" stroke="#9198a1" stroke-opacity=".7" stroke-width="2.5"/>

@@ -1,11 +1,28 @@
 # ADR 0003: El salto del kernel a Darwin 25
 
-Estado: propuesto, 20 nov 2026. La versión está decidida (decisión D5 del
-roadmap, 20 nov 2026: Minkar salta a Darwin 25, después de publicar Minkar
-19.6.0); este ADR dice cómo. Es el hito KX0 del carril KX de
-`Docs/ROADMAP.md` y por sí mismo no cambia nada del kernel. La referencia
-es la versión en inglés, [0003-Kernel-Upgrade.md](0003-Kernel-Upgrade.md);
+Estado: **aceptado para x86-64**, 20 nov 2026, con dos condiciones:
+
+1. El informe de licencias de corecrypto (7.6) queda resuelto por el mantenedor antes de empezar KX1.
+2. Las preguntas 7.3, 7.4 y 7.10 se cierran con los experimentos de KX1, como dice la sección 7.
+
+Es el hito KX0 del carril KX de `Docs/ROADMAP.md` y por sí mismo no cambia nada del
+kernel. La referencia es la versión en inglés, [0003-Kernel-Upgrade.md](0003-Kernel-Upgrade.md);
 esta copia se actualiza en el mismo commit.
+
+**Marco (decidido por el mantenedor, 20 nov 2026):**
+
+- **Versión:** xnu-12377.121.6 (Darwin 25, distribución `macos-265`). Aprobada.
+- **Alcance:** el salto de kernel se define y se valida en x86-64 (QEMU, PC 1 y PC 2).
+  No depende de arm64.
+- **Momento:** KX1 empieza después de publicar Minkar 19.6.0 y después del paso R1 de la
+  reestructuración del proyecto (el toolchain como artefacto propio, con AArch64 en LLVM;
+  [Structure.es.md](../Structure.es.md)).
+- **Kernel Debug Kit:** no se usa nunca, ni para compilar ni como referencia.
+- **Cadenas de versión:** hasta KX3, `devel` sigue en Darwin 19.6.0 y no cambia
+  `kern.osrelease`, `uname -r`, `DARWIN_VERSION` ni `TARGET_TRIPLE`. El trabajo del kernel
+  nuevo vive en su rama, donde esos valores pasan a los de Darwin 25. La primera versión
+  sobre el kernel nuevo es Minkar 25.x; `ProductVersion` es independiente del kernel y sube
+  por conjuntos de apps.
 
 ## 1. Contexto
 
@@ -55,7 +72,7 @@ cerrado, y SPTM, TXM y Exclaves necesitan bibliotecas y headers cerrados
 ninguno. Así, Darwin 25 se puede usar como está decidido para x86-64 (KX1
 a KX3), pero arrancarlo en arm64 (ARM1) necesita una configuración de
 máquina, un platform expert, un controlador de interrupciones y un modo de
-pmap propios de Minkar, escritos a partir del árbol publicado: ver 7.1.
+pmap propios de Minkar, escritos a partir del árbol publicado: ver la sección 8.
 
 ## 3. Qué sube con el kernel
 
@@ -219,62 +236,166 @@ son unos pocos miles de líneas. El cargador EFI tiene 10 parches en
 | Firma de código y corecrypto | `39e9807e2c`, `e716c9e478`, `82b86ab6a4` | Lo sustituyen 4.4 a 4.7 |
 | Nombres y licencias | `fbe3410dae`, `da1633edf3`, `a0874f9817`, `35a7fe13ec` | Se traslada |
 
-## 7. Riesgos y preguntas abiertas
+## 7. Decisiones sobre las preguntas abiertas
 
-Para el mantenedor. Ninguna se decide aquí.
+La numeración es la de las preguntas de la versión propuesta.
 
-1. **Objetivo arm64.** El kernel arm64 publicado solo compila para los SoC
-   del fabricante y `VMAPPLE`, con una biblioteca de soporte cerrada.
-   ¿Entra en ARM1 escribir una configuración de máquina, un platform
-   expert, un controlador de interrupciones y un modo de pmap (sin SPTM ni
-   PPL) propios de Minkar, y en qué máquina: QEMU `virt` primero? No se
-   sabe si PPL, o un pmap sin monitor, funciona en núcleos que no sean del
-   fabricante.
-2. **x86-64 después de Darwin 25.** El fabricante dijo públicamente en
-   junio de 2025 que su versión 26.x es la última para sus equipos Intel.
-   Si Darwin 26 quita `osfmk/x86_64`, Minkar en x86-64 se queda en Darwin
-   25. ¿Se acepta?
-3. **El formato preenlazado antiguo en Darwin 25.** ¿Sigue arrancando lo
-   que escribe `plktool`, o hace falta un constructor de colecciones
-   fileset? Lo responde un arranque de prueba (KX1).
-4. **kxld.** ¿Reactivar `config_kxld` en x86-64, o pasar a colecciones
-   auxiliares?
-5. **Headers de sala limpia.** ¿Son aceptables sustitutos de
-   CoreEntitlements V2, TrustCache, los entitlements de CodeSignature e
-   image4 dlxk, escritos desde los puntos de llamada del árbol publicado?
-6. **Licencia de corecrypto.** El corecrypto de Minkar (de PureDarwin)
-   dice «All rights reserved» sin conceder licencia, y `Kernel/_PROVENANCE`
-   no lista ninguna. Conviene confirmar su origen y licencia antes de
-   cambiarlo para la tabla nueva.
-7. **Texto de licencia de hfs.** Su fichero `APPLE_LICENSE` es el texto de
-   la APSL 1.2, mientras que `Kernel/_PROVENANCE` dice APSL-2.0.
-8. **Procedencia desfasada.** `Libraries/_PROVENANCE` dice dyld-1066.8,
-   pero el árbol es dyld-750.6 (`47603124d4`), y nombra una rama de la que
-   no vienen los componentes de Libsystem.
-9. **El userland con el kernel.** ¿Pasan dyld, libsyscall, Libc,
-   libpthread, libplatform y libmalloc a Darwin 25 junto con el kernel
-   (números de llamadas al sistema, commpage, shims de pthread, workqueues)?
-   launchd-842 y CF-1153 no tienen versión de Darwin 25; no se comprobó
-   cómo encajan el bootstrap y el XPC de launchd con el libxpc de Darwin 25.
-10. **El mínimo del gate M2.** ¿Hacen falta AppleFileSystemDriver,
-    MinkarFSCompression, MinkarSandbox y msdosfs para M2? Hoy todos los
-    kexts se preenlazan juntos; un arranque de prueba sin ellos lo
-    responde.
-11. **Cadenas de versión.** `uname -r`, `kern.osrelease`,
-    `DARWIN_VERSION` y `TARGET_TRIPLE` (`x86_64-apple-darwin19`) cambian con
-    el kernel en KX3, y con ellos todas las reglas que suponían Darwin
-    19.6.0. ¿Qué valor toman en la rama de KX antes de KX3?
-12. **Toolchain.** La compilación de Darwin 25 sondea opciones del
-    compilador del fabricante (`-fbounds-safety`, desactivada en x86-64);
-    no se comprobó si el LLVM 21.1.6 del árbol compila todo el kernel sin
-    otras.
+1. **Hardware arm64 de destino.** arm64 no se elimina y no se cambia de versión de kernel
+   por él, pero su arranque queda fuera de este ADR y sin decidir: ver la sección 8. Sigue
+   ARM0 (solo compilar). No está en alcance, por ahora, escribir una configuración de
+   máquina arm64, una plataforma pexpert, un controlador de interrupciones ni un modo de
+   pmap, y ARM1 no empieza.
+2. **x86-64 después de Darwin 25.** Aceptado como consecuencia, no como riesgo abierto: si
+   Darwin 26 deja de publicar x86-64, los PC x86-64 de Minkar se quedan en una rama de
+   Darwin 25, que sería la última para esa arquitectura. La continuidad más allá de Darwin
+   25 dependerá de arm64.
+3. **El formato preenlazado antiguo.** No se decide sobre el papel: es el primer
+   experimento de KX1, arrancar Darwin 25 con la salida actual de `plktool`. Si arranca, se
+   conserva ese formato; si no, se escribe un constructor de colecciones fileset y se enseña
+   al cargador EFI a cargarlas. En ambos casos el cargador pasa a la revisión 1 de
+   `boot_args` (`KC_hdrs_vaddr` y los campos nuevos).
+4. **kxld.** Minkar preenlaza todos sus kexts en el kernelcache, así que la carga en
+   tiempo de ejecución no hace falta para ningún gate. En KX1 y KX2 todos los kexts van en
+   la colección de arranque. Reactivar `config_kxld`, o construir una colección auxiliar,
+   se decide después de KX2, y solo si aparece la necesidad.
+5. **Headers ausentes** (CoreEntitlements V2, TrustCache, `CodeSignature/Entitlements.h`,
+   image4 dlxk) y el proveedor de la interfaz de AMFI. Se aceptan sustitutos de sala
+   limpia: escritos solo a partir de los puntos de llamada del xnu publicado, bajo
+   BSD-2-Clause, cada uno con una nota de procedencia que cite los ficheros de xnu de los
+   que se dedujo su interfaz. Sin ninguna otra fuente.
+6. **Licencia de corecrypto.** Prioritaria e independiente del salto de kernel, porque
+   afecta al árbol público de hoy. Hay un informe sobre su origen y la licencia de cada
+   fichero (20 nov 2026); corecrypto no se cambia, ni se lleva a la tabla de funciones de
+   Darwin 25, hasta que el mantenedor decida con él. **KX1 no empieza antes.**
+7. **Texto de licencia de hfs.** Manda la cabecera de cada fichero. `Kernel/_PROVENANCE` y
+   `NOTICE` dicen ya lo que dicen las cabeceras (20 nov 2026): el kext es APSL 2.0;
+   `hfs_util` y `hfs_japanese` son APSL 1.2; el `APPLE_LICENSE` de hfs es el texto de la
+   APSL 1.2, y no se toca. Los ficheros bajo una APSL anterior a la 2.0, en hfs y en las
+   familias antiguas, se listan para el mantenedor (sección 10).
+8. **Procedencia desfasada.** `Libraries/_PROVENANCE` corregido (20 nov 2026): dyld-750.6
+   y la etiqueta real de Darwin 19 de cada componente.
+9. **El userland sube con el kernel.** dyld, libsyscall, Libc, libplatform, libpthread
+   (biblioteca y kext), libmalloc, libdispatch, objc4, Libinfo, Libnotify, IOKitUser,
+   kext_tools y configd suben a sus versiones de Darwin 25 junto con el kernel.
+   launchd-842 y CF-Lite no tienen versión de Darwin 25: se quedan y se adaptan. Comprobar
+   launchd contra el libxpc y las interfaces de arranque de Darwin 25 es parte de KX1.
+   libunwind, libc++ y compiler-rt siguen saliendo del toolchain del árbol.
+10. **El mínimo del gate M2.** Se determina en KX1 con arranques de prueba, quitando kexts
+    de uno en uno. La columna «KX1» de la sección 5 es el punto de partida.
+11. **Política de versión del kernel.** Resuelta por el marco de arriba.
+12. **Toolchain.** Una prueba de solo compilación del árbol x86-64 de xnu-12377.121.6 con
+    el clang del árbol, fuera del árbol, es parte de KX0: sección 9.
+
+Cuando llegue arm64: clang pone `minos 11.0` en los objetos arm64 por sí mismo, así que
+dyld y las comprobaciones de carga deberán aceptarlo mientras `ProductVersion` sea 10.15.
+
+## 8. Destino de arranque arm64 (abierto)
+
+Sin decidir y fuera del alcance de este ADR. Los hechos (20 nov 2026, solo de las fuentes
+publicadas):
+
+- El kernel arm64 publicado solo compila para los SoC del fabricante (`T6000` a `T8142`) y
+  `VMAPPLE`. Para cualquiera de ellos el enlace carga a la fuerza
+  `lib<máquina>.os.<config>.a`, que solo viene en el Kernel Debug Kit, cerrado; SPTM, TXM y
+  Exclaves necesitan bibliotecas y headers cerrados. No hay máquina arm64 genérica ni QEMU
+  `virt`.
+
+Los dos candidatos, sin recomendar ninguno:
+
+| Candidato | Qué exige | Dónde corre |
+| --- | --- | --- |
+| VMAPPLE | Sustituir `lib<máquina>.os.<config>.a` (solo en el Kernel Debug Kit) y un cargador de arranque propio; VMAPPLE no está en la lista de SoC con SPTM, así que usaría el pmap PPL | Solo en un anfitrión con procesadores arm64 del fabricante: ni en el servidor de compilación ni en la CI |
+| Plataforma propia para QEMU `virt` | Una plataforma arm64 nueva dentro de XNU (configuración de máquina, pexpert, controlador de interrupciones, modo de pmap) | En el servidor de compilación y en la CI; no depende de nada cerrado |
+
+Investigación para hacer junto con KX1, no ahora: medir el tamaño real de esa biblioteca
+enlazando el kernel arm64 de VMAPPLE sin ella y listando los símbolos sin definir (solo
+desde las fuentes publicadas), y determinar si el pmap PPL, o uno sin monitor, funciona
+fuera de los núcleos del fabricante.
+
+## 9. Prueba del toolchain (KX0)
+
+Una prueba de solo compilación del kernel x86-64 RELEASE de xnu-12377.121.6 con el clang
+21.1.6 del árbol, fuera del árbol (20 nov 2026): los cambios de Minkar a los ficheros de
+build para Linux trasladados a los nuevos `SETUP/` y `makedefs/` (14 ficheros), `setup` y
+`exporthdrs` ejecutados, y después cada objeto compilado con `gmake -k`. No se enlazó ni
+se arrancó nada.
+
+- **Compilan 685 de 1085 objetos (63 %).** Con un sustituto de tres builtins del
+  compilador del fabricante (con semántica falsa a propósito, solo para ver qué hay
+  detrás), **1016 (93,6 %)**.
+
+| Componente | Objetos | Compilan | Builtins del fabricante | Headers ausentes | Generadores | Otros |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| osfmk | 369 | 300 | 54 | 15 | — | 0 |
+| bsd | 501 | 276 | 198 | 26 | — | 1 |
+| libkern | 76 | 53 | 22 | 1 | 1 | 1 |
+| iokit | 105 | 25 | 78 | 2 | 22 | 0 |
+| pexpert | 10 | 9 | 1 | 0 | — | 0 |
+| libsa | 1 | 0 | 1 | 0 | — | 0 |
+| security | 23 | 22 | 1 | 0 | — | 0 |
+
+(Los fallos de generadores se cuentan tras el sustituto; en la primera pasada quedan
+ocultos detrás de los builtins.)
+
+Qué falla, y qué necesita una compilación completa:
+
+1. **Los builtins de tipos del compilador del fabricante** (355 objetos):
+   `__builtin_xnu_type_signature`, `__builtin_xnu_type_summary` y
+   `__builtin_xnu_types_compatible`, que usan `kalloc.h` e `IOLib.h` sin alternativa.
+   Ninguna *opción* exclusiva del compilador del fabricante rompió nada en x86-64 (allí
+   están apagados los límites seguros y la autenticación de punteros).
+2. **Headers ausentes de las fuentes publicadas** (44 objetos): `TrustCache/API.h` (38, a
+   través de `osfmk/vm/pmap_cs.h`, en la VM, el cargador y los sistemas de archivos),
+   `CoreEntitlements/V2/API.h` (5), `CodeSignature/Entitlements.h` (1). Son los sustitutos
+   de sala limpia de 7.5.
+3. **Generadores:** el MIG del árbol no conoce `-mach_msg2` (sin esa opción los stubs de
+   osfmk compilan, pero con el formato de mensaje antiguo); el IIG del árbol deja los
+   `.iig` sin traducir (23 objetos).
+4. **Otros** (2 objetos): el `os/firehose_buffer_private.h` del SDK es el antiguo; el de
+   libdispatch de Darwin 25 es el que necesita xnu.
+
+El informe, su parche de ficheros de build y los resultados por objeto se guardan fuera
+del repositorio, con los demás informes del carril. No se comprobaron el enlace, CTF, las
+exportaciones de los kexts ni las configuraciones DEBUG y DEVELOPMENT.
+
+## 10. Preguntas nuevas
+
+Aparecieron al redactar esta versión. Ninguna se responde aquí; cada una lleva una
+recomendación.
+
+1. **Código GPL-3 en el kext de corecrypto.** El informe de corecrypto encontró 13 headers
+   idénticos a los del corecrypto de Darling (GPL-3); uno, `ccrsa.h`, se compila en el kext
+   que va en la imagen, y los otros 12 no se usan. *Recomendación:* decidirlo con el informe
+   de corecrypto, antes de KX1 e independientemente de él: que el kext use el
+   `EXTERNAL_HEADERS/corecrypto/ccrsa.h` publicado del propio xnu y retirar los que no se
+   usan.
+2. **Ficheros APSL 1.1 que se compilan hoy.** 45 fuentes bajo la APSL 1.1, en AppleAPIC,
+   AppleI386PCI, AppleIntelPIIXATA, ApplePS2Controller, IOACPIFamily e IOPCIFamily, se
+   compilan ahora en la imagen; la regla es que la APSL 1.1 no se incorpora a Minkar.
+   *Recomendación:* listarlos como sustituciones pendientes; en KX, tomar IOPCIFamily de la
+   versión de Darwin 25 si allí sus ficheros son APSL 2.0 (sin comprobar aún), y sustituir los kexts antiguos de
+   PC (APIC, puente PCI, PS/2) por otros propios de Minkar; quitar AppleIntelPIIXATA de la
+   imagen si ninguna máquina soportada lo necesita.
+3. **APSL 1.2 en hfs_util.** `/sbin/hfs.util` se compila de dos ficheros APSL 1.2.
+   *Recomendación:* sustituirlo por el hfs_util de la versión de hfs que adopte KX, tras
+   comprobar sus cabeceras.
+4. **Los builtins de tipos.** *Recomendación:* para KX1, una alternativa en los headers
+   (sin el aislamiento por tipos de kalloc); después, implementar los tres builtins en el
+   clang del árbol, en sala limpia, a partir de sus usos en el xnu publicado.
+5. **MIG e IIG.** *Recomendación:* tomar MIG de la versión publicada que conozca
+   `-mach_msg2` (bootstrap_cmds), si la de Darwin 25 está publicada; para IIG, averiguar de
+   dónde salieron las fuentes de DriverKit pregeneradas del árbol (`10f5a67837`) antes de
+   decidir entre salidas generadas y un generador de sala limpia.
+6. **Headers de firehose.** *Recomendación:* instalar en el SDK los headers de firehose de
+   la libdispatch de Darwin 25 cuando libdispatch suba (7.9).
 
 ## Consecuencias
 
-- KX1 empieza después de Minkar 19.6.0, en una rama, con los kexts
-  marcados «KX1» arriba y con respuesta a 7.3, 7.4, 7.5, 7.9 y 7.10.
-- ARM1 no es solo portar lo publicado: necesita una plataforma arm64
-  propia de Minkar (7.1).
-- Hasta KX3, `devel` compila sobre Darwin 19.6.0, y el código nuevo de
-  frameworks y escritorio no debe depender de interfaces que solo tenga
-  uno de los dos kernels.
+- KX1 empieza después de publicar Minkar 19.6.0, después de R1, y cuando el mantenedor haya
+  decidido sobre el informe de corecrypto; en una rama, con los kexts marcados «KX1» en la
+  sección 5, y con 7.3, 7.4 y 7.10 como sus experimentos.
+- El arranque de arm64 queda fuera de este ADR (sección 8); ARM0, solo compilar, sigue.
+- Hasta KX3, `devel` compila sobre Darwin 19.6.0, conserva sus cadenas de versión, y el
+  código nuevo de frameworks y escritorio no debe depender de interfaces que solo tenga uno
+  de los dos kernels.
+- Si Darwin 26 deja x86-64, Minkar en x86-64 se queda en una rama de Darwin 25 (7.2).

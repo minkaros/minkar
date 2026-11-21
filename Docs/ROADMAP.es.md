@@ -527,7 +527,7 @@ Sobre el kernel nuevo, y solo en máquina virtual por el momento (D4).
 | Hito | Contenido | Cuándo |
 | --- | --- | --- |
 | ARM0 | El userland y los frameworks compilan para arm64 en la CI; no se arranca nada | Ya |
-| ARM1 | Darwin 25 arranca en arm64 en QEMU `virt` hasta el gate M2 | Tras KX1 |
+| ARM1 | Darwin 25 arranca en arm64 en una máquina virtual hasta el gate M2 | Sin decidir: el destino de arranque está abierto ([ADR 0003](ADR/0003-Kernel-Upgrade.es.md), sección 8); no antes de KX1 |
 | ARM2 | Escritorio en arm64 en QEMU (gates M4 y M5) | Tras ARM1 y KX2 |
 | ARM3 | Los binarios arm64 de las apps designadas arrancan en QEMU | Tras ARM2 y BC4 |
 
@@ -553,16 +553,16 @@ Pendiente: el trabajo de plataforma que necesita el XNU publicado para arm64, y 
 
 ## Carril KX — Kernel nuevo: Darwin 25
 
-Decidido el 20 nov 2026 (D5). El cómo es el [ADR 0003](ADR/0003-Kernel-Upgrade.es.md).
+Decidido el 20 nov 2026 (D5). El cómo es el [ADR 0003](ADR/0003-Kernel-Upgrade.es.md), aceptado para x86-64 el 20 nov 2026: xnu-12377.121.6, definido y validado en x86-64 (QEMU, PC 1 y PC 2), independiente de arm64, y nunca con el Kernel Debug Kit.
 
 | Hito | Contenido | Criterio | Cuándo |
 | --- | --- | --- | --- |
-| KX0 | ADR 0003 | ADR aprobado por el mantenedor | Ya; no bloquea 19.6.0 |
-| KX1 | Prototipo en una rama: Darwin 25 arranca en x86-64 en QEMU hasta M2, con los kexts propios mínimos portados | `boottest GATE=M2` en la rama | Tras 19.6.0 |
+| KX0 | ADR 0003, y una prueba de solo compilación del kernel x86-64 de Darwin 25 con el clang del árbol | ADR aprobado por el mantenedor | Hecho el 20 nov 2026 (aceptado para x86-64, con condiciones) |
+| KX1 | Prototipo en una rama: Darwin 25 arranca en x86-64 en QEMU hasta M2, con los kexts propios mínimos portados. Sus experimentos: arrancar primero con la salida actual de `plktool` (un constructor de colecciones fileset solo si no arranca), todos los kexts en la colección de arranque, el cargador con la revisión 1 de `boot_args`, el mínimo de M2 hallado quitando kexts de uno en uno, launchd comprobado contra el libxpc de Darwin 25 | `boottest GATE=M2` en la rama | Tras publicar 19.6.0, tras R1, y cuando el mantenedor decida sobre el informe de corecrypto |
 | KX2 | El sistema completo sobre Darwin 25: resto de kexts, WindowServer, Atlas | Todos los gates en QEMU, el PC 1 y el PC 2 | Tras KX1 |
 | KX3 | `devel` pasa a Darwin 25; Darwin 19 queda en una rama de mantenimiento para 19.6.x | Minkar 25.x | Tras KX2 |
 
-Hasta KX3, lo nuevo de frameworks y escritorio debe compilar sobre ambos kernels.
+Hasta KX3, lo nuevo de frameworks y escritorio debe compilar sobre ambos kernels, y `devel` conserva `uname -r`, `kern.osrelease`, `DARWIN_VERSION` y `TARGET_TRIPLE` de Darwin 19.6.0; la rama toma los de Darwin 25. Si Darwin 26 deja de publicar x86-64, los PC x86-64 de Minkar se quedan en una rama de Darwin 25, la última para esa arquitectura (aceptado el 20 nov 2026); la continuidad más allá depende de arm64.
 
 ## Carril SU — SwiftUI: capa pública propia de Minkar sobre un motor basado en SwiftCrossUI
 
@@ -616,7 +616,7 @@ M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y l
 | M5 | Escritorio Atlas | En curso: MB0–MB2, D0–D3, K1–K3, A0, A1, A3, A4 y el centro de notificaciones (N0–N2) hechos ([Atlas.es.md](Atlas.es.md)) |
 | M6 (Minkar 19.6.0) | Apps y distribución, el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A4), WebKit (W0–W5), audio y medios (AU1–AU10) y el gate BC con el conjunto 19 (BC4) | En curso: WebKit W2–W4 y audio y medios AU1–AU6 hechos; `hdiutil attach` ya monta |
 | BC | Compatibilidad binaria | En curso: el gate BC (`bmake bc-check`) ejecuta los binarios publicados de las 17 apps designadas (20 nov 2026, con KVM: 19 minutos); 4 muestran ventana (Firefox, Hex Fiend, Skim, TextMate), y [Compatibility.es.md](Compatibility.es.md) dice hasta dónde llega cada una de las demás. BC1 hecho; BC0 espera su primera ejecución en la CI |
-| KX | Darwin 25 | KX0 (ADR 0003) propuesto el 20 nov 2026; KX1 después de Minkar 19.6.0 |
+| KX | Darwin 25 | KX0 hecho el 20 nov 2026 (ADR 0003 aceptado para x86-64, con condiciones); KX1 después de Minkar 19.6.0, de R1 y de la decisión sobre corecrypto |
 | ARM | arm64 | ARM0 (la compilación en la CI) empezado el 20 nov 2026 |
 | SU | SwiftUI: capa pública propia sobre un motor basado en SwiftCrossUI | SU0 (el informe) en la CI; SU0b (la revisión de SwiftCrossUI) y SU1 ([SwiftUI.es.md](SwiftUI.es.md)) en curso desde el 20 nov 2026 |
 | Rendimiento | ≥ sistema de referencia en equipo físico, sobre el kernel nuevo | Sin empezar; depende del frente de GPU y de KX; una versión posterior a 25.x |

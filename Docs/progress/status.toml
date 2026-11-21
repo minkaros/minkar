@@ -264,7 +264,7 @@ color = "slate"
 doc = "ROADMAP.md#lane-kx--new-kernel-darwin-25"
 doc_es = "ROADMAP.es.md#carril-kx--kernel-nuevo-darwin-25"
 # Darwin 25 (D5): the ADR now, the prototype after 19.6.0.
-stations = [["KX0 ADR", 915, "current"], ["KX1 M2", 1010, "todo"], ["KX2 all", 1060, "todo"],
+stations = [["KX0 ADR", 915, "done"], ["KX1 M2", 1010, "todo"], ["KX2 all", 1060, "todo"],
   ["KX3", 1110, "todo"]]
 
 [[line]]
