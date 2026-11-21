@@ -1,969 +1,387 @@
-# Atlas plan
+# Atlas
 
-Status: **accepted** (2026-11-05). Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
+Atlas is Minkar's desktop: the session (login, menu bar, Dock, Files, System Preferences)
+and the apps a person needs every day. This document holds its design rules, how each
+part is built, and the milestones still open; for contributors to the desktop. Last
+reviewed: 2026-11-21. Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
 
-Atlas is Minkar's desktop: the session (login, menu bar, Dock, Files,
-System Preferences) and the applications a person needs every day. This
-document is the single decision record and work plan for all of it. It
-takes in the former menus plan (chapter 3, milestones MB0–MB4) and Dock
-and Files plan (chapter 4, D0–D4 and K0–K4), whose milestones keep their
-names, and adds the applications (chapter 5, A0–A10). It follows the same
-rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
+Where the reference platform has a known design (which process does what, preference
+keys, public APIs, standard menus), Atlas follows it. A shortcut is allowed during
+development only when this document lists it with the milestone that removes it, and the
+code marks it `// SHORTCUT(<milestone>):`.
 
 ## 1. Scope and rules
 
-- **Everything is a Cocoa app or bundle.** The session and the apps are
-  written against the public Cocoa API, so they double as a continuous
-  test of AppKit and Foundation; what one needs that the frameworks lack is
-  added to the frameworks, never worked around in the app.
-- **Our own visual language.** No third-party fonts, sounds or artwork,
-  with one exception for icons (decided 2026-11-05): the icon themes
-  Faience and Faenza by Matthieu James (GPL-3), kept as separate data files
-  with their license, authors and SVG sources in `SystemLibrary/Icons`
-  (installed in `/System/Library/Icons`), and without brand icons. They
-  keep their GPL-3 license; no code links with them, and the rest of the
-  rule stands (accepted by the maintainer: no icon set of the same scope
-  exists under BSD or MIT). Folders
-  are blue by default (Faience-Azur), with sand and orange as
-  alternatives. App icons are 512×512 PNG in the bundle (AppKit reads no
-  `.icns` yet). The menu bar is dark (charcoal, light text). The interface
-  font is Inter and the fixed-pitch font Agave (both SIL OFL 1.1).
-- **Generic names.** The only proper names are Minkar, the system, and
-  Atlas, its desktop (decided 2026-11-05). Every app is named for what it
-  does, with the common words other free desktops use (Files, Text Editor,
-  System Monitor, Logs), never with another project's own names nor with a
-  reference-platform app's name that is not a common word. The bundle is
-  named without spaces (`TextEditor.app`), its identifier is
-  `org.minkar.<Name>`, and the Spanish name comes with the app's
-  translation (Archivos, Editor de texto). Files and Text Editor were
-  formerly named Argos and Alcor.
-- **On the command-line tools.** Where Minkar has the command
-  (`top`, `log`, `screencapture`, `diskutil`, `hdiutil`,
-  `system_profiler`, `tar`), the app is its interface and shares its code
-  or its output, so both behave alike.
-- **English and Spanish.** Every app is localized in both; English is the
-  language of development, tests and screenshots.
-- **Places.** The session's parts in `/System/Library/CoreServices`, the
-  apps in `/System/Applications`, utilities in
-  `/System/Applications/Utilities`.
+- **Everything is a Cocoa app or bundle**, written against the public Cocoa API, so the
+  desktop is a continuous test of AppKit and Foundation. What an app needs that the
+  frameworks lack is added to the frameworks, never worked around in the app.
+- **Its own visual language.** No third-party fonts, sounds or artwork, with one
+  exception for icons: the Faience and Faenza themes by Matthieu James (GPL-3), separate
+  data files with their license and SVG sources in `SystemLibrary/Icons` (installed in
+  `/System/Library/Icons`), without brand icons. No code links with them.
+- **Look.** Folders are blue (Faience-Azur), with sand and orange as alternatives. App
+  icons are 512×512 PNG in the bundle (AppKit reads no `.icns` yet). The menu bar is dark
+  (charcoal, light text). The interface font is Inter and the fixed-pitch font Agave
+  (both SIL OFL 1.1).
+- **Generic names.** The only proper names are Minkar, the system, and Atlas, its
+  desktop. Every app is named for what it does, with the common words free desktops use
+  (Files, Text Editor, System Monitor, Logs). The bundle has no spaces
+  (`TextEditor.app`), its identifier is `org.minkar.<Name>`, and the Spanish name comes
+  with the app's translation (Archivos, Editor de texto).
+- **On the command-line tools.** Where Minkar has the command (`top`, `log`,
+  `screencapture`, `diskutil`, `hdiutil`, `system_profiler`, `tar`), the app is its
+  interface and shares its code or output.
+- **English and Spanish.** Every app is localized in both; English is the language of
+  development, tests and screenshots.
+- **Places.** The session's parts in `/System/Library/CoreServices`, the apps in
+  `/System/Applications`, utilities in `/System/Applications/Utilities`.
+- **Tests.** Each milestone adds image tests (behavior through files, the pasteboard and
+  `screendump`) and QMP interaction to the local suite, with the gates still green.
 
 ## 2. Status
 
-| Part | Chapter | Milestones | Done | Next |
-| --- | --- | --- | --- | --- |
-| Menus | 3 | MB0–MB4 | MB0, MB1, MB2 (MB3 partial) | MB3 (Lock Screen, with LoginWindow) |
-| Dock | 4 | D0–D4 | D0, D1, D2, D3 (D4 partial) | D4 |
-| Files | 4 | K0–K4 | K1, K2, K3 (K0 partial) | K0, K4 |
-| Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
-| Notifications | 5.6 | N0–N2 | N0, N1, N2 | — |
+| Part | Milestones | Done | Open |
+| --- | --- | --- | --- |
+| Menus (chapter 3) | MB0–MB4 | MB0, MB1, MB2 | MB3 (partial; 19.6.0), MB4 (19.6.x) |
+| Dock (chapter 4) | D0–D4 | D0, D1, D2, D3 | D4 (partial; 19.6.x) |
+| Files (chapter 4) | K0–K4 | K1, K2, K3 | K0 (partial), K4 (19.6.x) |
+| Applications (chapter 5) | A0–A10 | A0, A1, A3, A4 | A2 (started; 19.6.0), A5–A10 (19.6.x) |
+| Notifications (5.4) | N0–N2 | N0, N1, N2 | — |
+| Window and text services (5.5) | W0–W4 | — | W0–W3 (19.6.0), W4 (to decide) |
 
-The session's other parts (LoginWindow, System Preferences, the visual
-language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
+The session's other parts (LoginWindow, System Preferences, the visual language) are
+items of Phase 5 in [ROADMAP.md](ROADMAP.md).
 
 ## 3. Menus
 
-### 3.1 Decision
-
-- **Menus move back into each app.** AppKit draws the app's menu bar and its
-  menus and tracks them in the app's own process, as on the reference
-  platform. The window server only reserves the menu bar's place on each
+- **Menus live in each app.** AppKit draws the app's menu bar and menus and tracks them in
+  the app's own process. The window server only reserves the menu bar's place on each
   display and says which app is in front.
-- **The menu model stays.** `NSMenu` and `NSMenuItem` are kept; the drawing
-  and tracking code in SystemUIServer (`NSMainMenuView`, `SubmenuView`,
-  `NSMenuWindow`) moves into AppKit and is reworked there.
-- **Status items are rewritten** as windows of their own app.
-- **SystemUIServer only hosts the system's Menu Extras.**
-- **The first milestone, MB0, is part of WS4b:** it is the menu work section
-  10.2 assigns to the switch, and WS4b is not closed until MB0 passes. What
-  MB0 needs from the window server comes in WS4a. The rest
-  (MB1 to MB4) is Phase 5.
+- **Status items** are windows of their own app.
+- **SystemUIServer** only hosts the system's Menu Extras.
 
-**Guiding rule**, as for WindowServer: where the reference platform has a
-known design (which process does what, public APIs, standard menus), the
-menus follow it. A shortcut is allowed during development only when section
-3.10 lists it with the milestone that removes it.
-
-### 3.2 Why: findings in the current code
-
-1. **There is no menu bar today.** SystemUIServer, which draws it, is not
-   built (`CoreServices/Makefile` had a FIXME: the Dock, the old file
-   browser (formerly Filer), DMIHelper, SystemUIServer and loginwindow were
-   not built yet).
-2. **Menus drawn in another process.** `-[NSApplication
-   sendMenusToWindowServer]` copies the whole main menu, strips targets and
-   delegates (`_menuEnumerateAndChange:`), archives it with
-   `NSKeyedArchiver` and sends it (`CODE_MENU_FOR_APP`) through the legacy
-   server (`WindowServer/Legacy/WindowServer.m`) to SystemUIServer, which
-   unarchives and draws it (`AppDelegate.m`, `NSMainMenuView.m`,
-   `SubmenuView.m`). A click comes back as a tag (`CODE_ITEM_CLICKED`) and
-   the app looks the item up by tag. The legacy server goes away in WS4b, and
-   this path with it.
-3. **The app's tags are overwritten.** Before sending, `_tagAllMenus` sets
-   every item's tag to an internal ID, so apps that use `tag`,
-   `itemWithTag:` or `indexOfItemWithTag:` break.
-4. **Validation and dynamic menus cannot work.** SystemUIServer holds a copy
-   without targets or delegates, so nothing can ask the app at the moment a
-   menu opens: `validateMenuItem:`, `validateUserInterfaceItem:`,
-   `menuNeedsUpdate:`, `menuWillOpen:`, alternates with Option, titles that
-   change. Every change sends a new full copy (`sendMenusToWindowServer` is
-   called from six places in `NSApplication.m`).
-5. **Size limit.** The archive is cut to the 128 KB message
-   (`MIN([d length], sizeof(msg.data))`, `data[128*1024]` in `message.h`),
-   so a large menu arrives as a broken archive.
-6. **Context menus are not implemented.** `+[NSMenu popUpContextMenu:
-   withEvent:forView:]` is `#if 0` with `NSUnimplementedMethod()`.
-7. **Status items are Windows code.** `NSStatusBar.m` and `NSStatusItem.m`
-   import `<windows.h>` and `Win32Window` (tray icons of another platform);
-   `-[NSApplication _addStatusItem:]` archives the item and sends it to
-   SystemUIServer (`CODE_ADD_STATUS_ITEM`).
-8. **Leftovers.** D-Bus menu IDs in `NSMenu` and `NSMenuItem`
-   (`DBusItemID`).
-9. **The system menu** lives in SystemUIServer (`MenuView.m`): Sleep and
-   Force Quit only log "not implemented yet"; System Preferences logs the
-   same message but then opens `System Preferences.app` with
-   `LSOpenCFURLRef`; Restart, Shut Down and Log Out end in the exit codes
-   that section 10.3 of the WindowServer plan removes.
-
-Worth keeping:
-
-- `NSMenu` and `NSMenuItem` as the model: items, submenus, autoenabling,
-  `update`, `performKeyEquivalent:` with validation, delegate.
-- `NSMainMenuView`, `SubmenuView` and `NSMenuWindow`: drawing, overflow,
-  submenu placement and `trackForEvent:`, as the starting point of AppKit's
-  menu views.
-- `ClockView` and `ExtrasView` in SystemUIServer, as the first Menu Extras.
-
-### 3.3 Who does what (reference platform layout)
+### 3.1 Who does what
 
 | Job | Who |
 | --- | --- |
 | The menu bar's place on each display, its height, the front app, the status area layout | Window server |
-| The front app's menu bar: system menu, app menu, the app's menus, drawn in a window at `kCGMainMenuWindowLevel` | The app (AppKit) |
-| Opening and tracking menus, submenus and context menus, in windows at `kCGPopUpMenuWindowLevel` | The app (AppKit), in its own process |
+| The front app's menu bar (system menu, app menu, the app's menus) in a window at `kCGMainMenuWindowLevel` | The app (AppKit) |
+| Opening and tracking menus, submenus and context menus, in windows at `kCGPopUpMenuWindowLevel` | The app (AppKit) |
 | Status items (`NSStatusItem`), each a window at `kCGStatusWindowLevel` | The app that owns them |
-| System Menu Extras (clock, volume, network, displays...), as loadable bundles | SystemUIServer |
-| From API 20: the system status cluster (network, sound, battery, displays...) and its popovers | A separate control-center app; SystemUIServer keeps search, notifications and the older Menu Extras |
+| System Menu Extras (clock, volume, network, displays, notifications) as loadable bundles | SystemUIServer |
+| From API 20: the system status cluster and its popovers | A separate control-center app |
 | What the system menu's items do (restart, shut down, log out, sleep, force quit) | loginwindow |
 | The Services menu's contents | The services daemon (pasteboard server) |
 
-Each part of the bar is its own borderless window, and the window server
-composites them into one strip. When the front app changes, the window
-server orders out the old app's menu bar window and orders in the new one's;
-status item windows stay where they are. Files is always running, so it is
-the front app whenever no other app is.
+Each part of the bar is its own borderless window, composited by the window server into
+one strip. When the front app changes, the window server swaps the menu bar windows;
+status item windows stay. Files is always running, so it is the front app when no other
+is. A hung app cannot open its menus; the window server shows the busy cursor over it,
+and Force Quit stays available.
 
-Because menus run in the app's process, a hung app cannot open its menus,
-as on the reference platform; the window server shows the busy cursor over
-it, and Force Quit (loginwindow) remains available.
+### 3.2 Behavior to follow
 
-### 3.4 Behavior to follow
+**Menu bar**
 
-#### Menu bar
+- One menu bar per display, showing the front app's menus; the app menu in bold with the
+  app's name.
+- The system menu first, with the Minkar logo: About This Computer, System Preferences…,
+  Recent Items, Force Quit…, Sleep, Restart…, Shut Down…, Lock Screen, Log Out *user*….
+  The same in every app.
+- The app menu's standard items: About *App*, Preferences…, Services, Hide *App*, Hide
+  Others, Show All, Quit *App*. Apps without a main menu still get the system menu and an
+  app menu with Quit.
+- The app's menus, then the status area on the right; when space runs out the app's menus
+  are cut from the end.
+- Hidden in full screen and shown when the pointer reaches the top; optional auto-hide.
+- `-[NSScreen visibleFrame]` excludes the menu bar on every display that shows one.
 
-- One menu bar per display, each showing the front app's menus; the app
-  menu in bold with the app's name.
-- The system menu first, with the Minkar logo (no third-party artwork):
-  About This Computer, System Preferences…, Recent Items, Force Quit…,
-  Sleep, Restart…, Shut Down…, Lock Screen, Log Out *user*…. Its contents
-  come from the system, the same in every app.
-- The app menu's standard items: About *App*, Preferences…, Services,
-  Hide *App*, Hide Others, Show All, Quit *App*; the app can add its own.
-- Apps that do not use AppKit, or that do not set a main menu, still get
-  the system menu and an app menu with Quit.
-- The app's menus, then the status area on the right; when space runs out
-  the app's menus are cut from the end, never overlapping the status area.
-- Hidden in full screen and shown when the pointer reaches the top; optional
-  auto-hide.
-- `-[NSScreen visibleFrame]` excludes the menu bar on every display that
-  shows one.
+**Tracking**
 
-#### Tracking
+- Press, drag and release selects an item; a click opens a menu that stays open until
+  another click.
+- Keyboard: arrows, Return, Escape, type-select; Control-F2 moves focus to the menu bar.
+- Submenus open after a short delay and stay open while the pointer moves towards them.
+- Long menus scroll. Holding Option shows alternate items (`isAlternate`).
+- `NSMenuDelegate`'s calls; validation when a menu opens and before a key equivalent
+  fires, through `validateMenuItem:` or `validateUserInterfaceItem:`.
 
-- Press, drag and release selects an item; a click opens a menu that stays
-  open until another click.
-- Keyboard: arrows, Return, Escape, type-select, Control-F2 moves focus to
-  the menu bar.
-- Submenus open after a short delay and stay open while the pointer moves
-  towards them.
-- Long menus scroll, with arrows at the edges.
-- Holding Option shows alternate items (`isAlternate`).
-- `NSMenuDelegate`: `menuNeedsUpdate:`, `numberOfItemsInMenu:`,
-  `menu:updateItem:atIndex:shouldCancel:`, `menuWillOpen:`,
-  `menuDidClose:`, `menu:willHighlightItem:`.
-- Validation runs when a menu opens and before a key equivalent fires:
-  the item's target, or the responder chain for a nil target, through
-  `validateMenuItem:` or `validateUserInterfaceItem:`.
+**Key equivalents**
 
-#### Key equivalents
+- In the documented order: the key window and its views (`performKeyEquivalent:`), then
+  the main menu, each item validated first.
+- Shortcuts reserved by the system go from the window server to their owner: Command-Tab
+  to the Dock, Command-Option-Escape to loginwindow, Control-F2 to the front app.
 
-- In the documented order: the key window and its views
-  (`performKeyEquivalent:`), then the main menu, each item validated first.
-- The menu shows key equivalents with the modifier glyphs.
-- Shortcuts reserved by the system are recognized by the window server and
-  sent to their owner, not delivered as key events: Command-Tab to the Dock,
-  Command-Option-Escape to loginwindow, Control-F2 to the front app's
-  AppKit, which moves focus to the menu bar.
+**Standard menus**
 
-#### Standard menus
+- Window menu: every window listed, Minimize, Zoom, Bring All to Front.
+- Open Recent: `NSDocumentController` with LaunchServices' shared file lists.
+- Help menu: a search field that finds menu items (and help books, later).
+- Services menu: built from the `NSServices` entries in apps' `Info.plist` by the services
+  daemon.
+- View menu: Enter Full Screen for windows that support it.
 
-- **Window menu** (`windowsMenu`): every window listed automatically,
-  Minimize, Zoom, Bring All to Front.
-- **Open Recent**: `NSDocumentController` with LaunchServices' shared file
-  lists (section 10.2 of the WindowServer plan).
-- **Help menu** (`helpMenu`): a search field that finds menu items (and
-  help books, later).
-- **Services menu** (`servicesMenu`): built from the `NSServices` entries in
-  apps' `Info.plist` files by the services daemon, sent through the
-  pasteboard.
-- **View menu**: "Enter Full Screen" added for windows that support it.
+**Other menus and status items**
 
-#### Other menus
+- Context menus (`menuForEvent:`, Control-click, `popUpContextMenu:withEvent:forView:`),
+  pop-up buttons, Dock menus (`applicationDockMenu:`).
+- `NSStatusBar`/`NSStatusItem` with `button`, `menu`, `length`, `visible`, `autosaveName`,
+  `behavior`; the window server lays items out right to left with the Menu Extras;
+  Command-drag reorders them and the order is kept.
+- Menu bar, menus and items expose their accessibility roles.
 
-- Context menus: `menuForEvent:`, Control-click,
-  `+popUpContextMenu:withEvent:forView:`,
-  `-popUpMenuPositioningItem:atLocation:inView:`.
-- Pop-up buttons (`NSPopUpButton`) with the same menu windows and tracking.
-- Dock menus (`applicationDockMenu:`) through the Dock tile service of
-  chapter 4 (D2).
+### 3.3 Architecture
 
-#### Status items
+- **AppKit:** `NSMenuBarWindow` (one per display, with an `NSMenuBarView`),
+  `NSMenuWindow` and `NSMenuView` for menus and submenus; the tracking loop runs in
+  `NSEventTrackingRunLoopMode` with the pointer captured by the window server; the system
+  menu comes from a shared definition, and its actions are requests to loginwindow and to
+  System Preferences; `NSStatusBar` and `NSStatusItem` are Minkar's own.
+- **Window server (SkyLight):** reserves the menu bar's place per display and publishes its
+  height; tells each app when it becomes or stops being the front app; lays out the status
+  area; handles the reserved shortcuts; captures the pointer for an open menu.
+- **SystemUIServer:** hosts Menu Extra bundles (`.menu`) from
+  `/System/Library/CoreServices/Menu Extras`, listed in its `menuExtras` defaults.
+- **Services daemon:** builds the services list from `NSServices` and runs a service through
+  the pasteboard (`NSPerformService`, `NSUpdateDynamicServices`).
 
-- `-[NSStatusBar statusItemWithLength:]` with `NSVariableStatusItemLength`
-  and `NSSquareStatusItemLength`; `button` (`NSStatusBarButton`), `menu`,
-  `length`, `visible`, `autosaveName`, `behavior`.
-- Each item is a window of its app at `kCGStatusWindowLevel`; the window
-  server places them right to left, with the system Menu Extras; Command-drag
-  reorders them and the order is kept.
+### 3.4 Milestones
 
-#### Accessibility
+- [x] MB0 — Menus in each app, the system menu, basic status items. `9d510ec6c2`
+- [x] MB1 — Menu Extras as `.menu` bundles and the full status item API. Local test `menubar-extras`.
+- [x] MB2 — Window menu, Open Recent, Help search, alternates, scrolling, Enter Full Screen, accessibility. Tests `menus-mb2`, `menus`.
+- [ ] **MB3 — The full system menu** (19.6.0). Done: System Preferences…, Recent Items,
+  Force Quit… and Command-Option-Escape, Sleep (the displays sleep where the machine
+  cannot). Left: Lock Screen, which waits for the Phase 5 LoginWindow. Tests: Restart asks
+  apps to quit before rebooting; Force Quit ends a hung test app. Local tests
+  `system-menu`, `loginwindow`.
+- [ ] **MB4 — Services and the menu bar's behavior** (19.6.x): the services daemon and
+  menu; hiding in full screen; auto-hide.
 
-Menu bar, menus and items expose their accessibility roles, so assistive
-tools and the accessibility API can read and press them.
+Measured the same way in the VM and on the physical machines: the time from a click on a
+menu title to the menu on screen.
 
-### 3.5 Architecture
-
-- **AppKit:**
-  - `NSMenuBarWindow`: one per display at `kCGMainMenuWindowLevel`, shown
-    while the app is in front, with an `NSMenuBarView` (from
-    `NSMainMenuView`).
-  - `NSMenuWindow` and `NSMenuView` (from `SubmenuView`) for menus and
-    submenus at `kCGPopUpMenuWindowLevel`.
-  - The tracking loop in the app, in `NSEventTrackingRunLoopMode`, with the
-    pointer captured by the window server while a menu is open.
-  - The system menu built from a shared definition in a system framework;
-    its actions are requests to loginwindow (section 10.3 of the WindowServer
-    plan) and to the System Preferences app.
-  - `NSStatusBar` and `NSStatusItem` rewritten for this platform.
-  - Removed: `-[NSApplication sendMenusToWindowServer]`, `_tagAllMenus`,
-    `_menuEnumerateAndChange:`, `_addStatusItem:`, `addRecentItem:` through
-    the window server, the handling of `CODE_MENU_FOR_APP`,
-    `CODE_ITEM_CLICKED`, `CODE_ADD_STATUS_ITEM`, `CODE_STATUS_ITEM_ADDED`
-    and `CODE_ADD_RECENT_ITEM`, and `DBusItemID`.
-- **Window server (SkyLight):** reserves the menu bar's place per display and
-  publishes its height; tells each app when it becomes or stops being the
-  front app; lays out the status area (status item windows and Menu Extras)
-  and keeps the order; handles the reserved shortcuts; captures the pointer
-  for an open menu. This is the part section 10.2 keeps in the window server.
-- **SystemUIServer:** a host for Menu Extra bundles (`.menu`) in the status
-  area; the menu drawing code and the `CODE_*` handling are removed. Built
-  with the current build rules.
-- **Services daemon:** builds the services list from `NSServices`, runs a
-  service through the pasteboard (`NSPerformService`,
-  `NSUpdateDynamicServices`).
-
-### 3.6 Dependencies
-
-| Needed by | Dependency | Where |
-| --- | --- | --- |
-| MB0 | Front app, activation order, the menu bar's place, status area layout, pointer capture | WindowServer plan, WS4a (section 10.2) |
-| MB0 | Minimal `loginwindow` taking restart, shut down and log out requests | WindowServer plan, section 10.3 (WS4b) |
-| MB0 | Symbolic hotkey table with delivery to owners (Control-F2 to the front app) | WindowServer plan, WS4a |
-| MB1 | SystemUIServer on the current build rules | `CoreServices/Makefile` FIXME |
-| MB2 | LaunchServices' shared file lists, `NSWorkspace` | Phase 3 (LaunchServices); WindowServer plan 10.2 |
-| MB3 | The full LoginWindow (sleep, force quit, lock screen) | Phase 5, item 1 |
-| MB3 | System Preferences app | Phase 5, item 6 |
-| MB4 | Services daemon | Phase 5 |
-| All | The Atlas visual language (menu fonts, metrics, colors) | Phase 5, item 7 |
-| Dock menus | Dock tile service | Chapter 4, D2 |
-
-### 3.7 Milestones
-
-Each milestone ends with tests that pass, the existing gates still green and
-the roadmap updated with the evidence. Milestones are named MB*n* to keep
-them apart from the gates M*n*.
-
-- [x] **MB0 — Menus in the app (part of WS4b; done 2026-11-02, gate M4, `9d510ec6c2`).** Menu views moved into AppKit;
-  one menu bar window per display for the front app; tracking by click,
-  drag and keyboard; submenus; validation and the delegate at open time;
-  key equivalents in the documented order; context menus and pop-up
-  buttons; the app's tags left alone. The system menu in AppKit with About
-  This Computer, Restart, Shut Down and Log Out as requests to the minimal
-  `loginwindow`. Status items as windows of their app with the basic API
-  (`statusItemWithLength:`, `button`, `menu`, `length`). The old path
-  removed from AppKit and SystemUIServer, so WS4b can drop the relay codes.
-  Tests, added to gate M4: a QMP click opens the File menu and an item's
-  action runs in the app; a disabled item (by validation) does nothing; a
-  Command-key equivalent fires its item; a context menu opens on
-  Control-click; an app that uses tags keeps them; switching apps swaps the
-  menu bar; a test app's status item appears and opens its menu; Log Out
-  ends the session; `screendump`.
-- [x] **MB1 — Menu Extras and the full status item API.** SystemUIServer built
-  and hosting `.menu` bundles: clock, volume, displays, network,
-  notifications (Phase 5, item 3); `visible`, `autosaveName`, `behavior`;
-  Command-drag reorders and the order is kept. Tests: two apps and the
-  clock appear in order and open their menus; the order survives a
-  restart. Gate M5 needs MB1. *Partial (4 Nov 2026):* a new SystemUIServer
-  with the clock, built in, which follows the 24-hour setting and the time
-  zone at once (`0fa453aa16`, `61f9c7ae99`). *Done (16 Nov 2026):* the
-  clock, volume, displays (each display's modes, set from the menu) and
-  network (the interfaces up with their addresses, followed through
-  SystemConfiguration) extras are `.menu` bundles in
-  /System/Library/CoreServices/Menu Extras, loaded from SystemUIServer's
-  `menuExtras` list; a `.menu` opened is added or shown again; their
-  "Preferences…" items open their panes (System Preferences now opens
-  `.prefPane` files). The notification center stays built in, sharing
-  the banners' service. Status items: `autosaveName` (Item-N until named),
-  `visible` and the position kept in the app's defaults under the
-  reference platform's keys, `behavior` (Command-drag off the bar removes
-  an item that allows it, or quits its app); Command-drag moves an item,
-  the window server making room (interface version 24), and every item of
-  the app keeps its place, so the order survives a restart. Local test
-  `menubar-extras`.
-- [x] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
-  search over menu items, alternates with Option, long menus scrolling,
-  type-select, Control-F2, the View menu's full screen item, accessibility
-  roles.
-  *Done (16 Nov 2026):* an alternate shows in its primary's place while
-  the modifiers that set it apart are held, swapping as they change with
-  the menu open; the Help menu opens with a Search line and what is typed
-  there lists the app's other menu items that match ("Test ▸ More ▸
-  Gamma"), Return choosing the first; a menu taller than the room below
-  the bar fits it and scrolls (it went above the bar); AppKit adds Enter
-  Full Screen (Control-Command-F) to an app's View menu, its title
-  following the key window; NSMenu and NSMenuItem give their
-  accessibility roles (AXMenuBar, AXMenu, AXMenuItem), titles, state,
-  children and parents, and an item can be pressed. The Window menu,
-  Open Recent (`_setMenuName:` names a menu made in code), type-select and
-  Control-F2 were there and are now tested. Local tests `menus-mb2`,
-  `menus`.
-- [ ] **MB3 — The full system menu.** With the Phase 5 LoginWindow and System
-  Preferences: Sleep, Force Quit window, Lock Screen, System Preferences…,
-  Recent Items. Tests: Restart asks apps to quit before rebooting the VM;
-  Force Quit ends a hung test app.
-  *Partial (16 Nov 2026):* System Preferences… opens it; Recent Items lists
-  the recent applications and documents (AppKit notes each regular app as
-  it launches and each document NSDocumentController notes, in
-  LaunchServices' recent lists), with Clear Menu; Force Quit… and
-  Command-Option-Escape (claimed by loginwindow) open Force Quit, which
-  lists the running apps with the one in front selected and forces the
-  chosen one to quit after asking; Sleep asks power management and, where
-  the machine cannot sleep yet, puts the displays to sleep; Restart asking
-  the apps to quit is loginwindow's (local test `loginwindow`). Lock
-  Screen waits for LoginWindow. Local test `system-menu`.
-- [ ] **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
-  hiding in full screen; auto-hide.
-
-Gate M6 (Minkar 19.6.0, a desktop for daily use) needs MB2 and MB3. MB4
-comes in 19.6.x.
-
-### 3.8 Tests and measurements
-
-- Model tests (validation order, key equivalent order, tag preservation) as
-  command-line programs in the test suite.
-- `boottest` with QMP: open menus, choose items, key equivalents, context
-  menus, status items; `screendump` comparisons.
-- Time from the click on a menu title to the menu on screen, measured the
-  same way in the VM and on the physical machines.
-
-### 3.9 Rules for this work
-
-Same as section 8 of the WindowServer plan: English in everything committed
-except the `.es.md` translations; no third-party product names; API and
-symbol names as they are; new code MIT or BSD-2-Clause; clean room; small
-commits with the diff shown first; evidence for every roadmap item.
-
-### 3.10 Decisions and development shortcuts
+### 3.5 Decisions and development shortcuts
 
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
-| Who draws and tracks the app's menus | The app (AppKit), in its own process | None: SystemUIServer drew a copy, and it is not built | MB0 |
-| System menu | Minkar logo, the reference platform's items, actions through loginwindow | Restart, Shut Down and Log Out through the minimal `loginwindow`; Sleep, Force Quit, Lock Screen and System Preferences disabled | MB3 |
-| Confirming Restart, Shut Down and Log Out | `loginwindow`'s panel, with its countdown | The app that asks shows an alert; Option held skips it (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
-| About This Computer | Atlas's own window | A plain alert with the system's name and version, kernel, processor, memory and display (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 |
-| Status items | Windows of their apps, laid out by the window server | Basic API only | MB1 |
-| Menu Extras | Bundles in SystemUIServer | None until SystemUIServer is built | MB1 |
-| Recent items | LaunchServices' shared file lists | Kept per app by `NSDocumentController` in its preferences | MB2 |
-| Services menu | Services daemon and pasteboard | Empty Services menu | MB4 |
-| System status cluster | API 19: Menu Extras in SystemUIServer; API 20: a separate control-center app | None | Minkar 20.0 |
-| Look | Atlas visual language | SystemUIServer's former look: 22-point items, the system font and colors (`SHORTCUT(Phase 5)` in `NSMenuView.h`) | Phase 5, item 7 |
+| System menu | Minkar logo, the reference platform's items, actions through loginwindow | Lock Screen disabled | MB3 (with LoginWindow) |
+| Confirming Restart, Shut Down and Log Out | loginwindow's panel, with its countdown | The app that asks shows an alert; Option skips it (`NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
+| About This Computer | Atlas's own window | A plain alert with the system's name, version, kernel, processor, memory and display (`NSMenuBarWindow.m`) | Phase 5 |
+| Services menu | Services daemon and pasteboard | An empty Services menu | MB4 |
+| System status cluster | API 19: Menu Extras in SystemUIServer; API 20: a separate control-center app | None | The app set that raises `ProductVersion` to 11.0 |
+| Look | Atlas visual language | 22-point items, the system font and colors (`NSMenuView.h`) | Phase 5, item 7 |
 
-Every shortcut is marked in the code with `// SHORTCUT(MBn):` and the
-milestone that removes it.
+### 3.6 References
 
-### 3.11 References
+Public descriptions of observed behavior only; no vendor code, headers or binaries.
 
-Public descriptions of observed behavior only; no vendor code, headers or
-binaries (clean room).
-
-- "Who owns the menu bar", pkgdemon:
-  <https://pkgdemon.github.io/apple-menu-ownership.html>
-- The public AppKit documentation for `NSMenu`, `NSMenuItem`,
-  `NSMenuDelegate`, `NSStatusBar`, `NSStatusItem`, `NSMenuItemValidation` and
-  `NSServices`.
+- "Who owns the menu bar", pkgdemon: <https://pkgdemon.github.io/apple-menu-ownership.html>
+- The public AppKit documentation for `NSMenu`, `NSMenuItem`, `NSMenuDelegate`,
+  `NSStatusBar`, `NSStatusItem`, `NSMenuItemValidation` and `NSServices`.
 
 ## 4. Dock and Files
 
-### 4.1 Decision
+Files is Minkar's own file manager; the Dock has its own core, with the reference
+platform's preference keys and tile data format.
 
-- **Files is written new.** Nothing of the old file browser (formerly
-  Filer) is kept.
-- **The Dock gets a new core**, and three parts of the current one are
-  ported: the preference keys and tile data format, the desktop picture
-  window, and the tile layout arithmetic as a reference.
-
-**Guiding rule**, as for WindowServer: where the reference platform has a
-known design (which process does what, preference keys, public APIs), the
-Dock and Files follow it. A shortcut is allowed during development only when
-section 4.10 lists it with the milestone that removes it.
-
-### 4.2 Why: findings in the current code
-
-#### The old file browser (formerly Filer; 94 lines)
-
-A window titled with its name and "/Applications", with no view in it. Files dropped on
-it are copied into the folder, deleting what was there first without asking;
-it can only open `.app` bundles (`LSOpenCFURLRef`). There is no browsing,
-icon, list or column view, Trash or "Open With". Nothing to keep.
-
-#### Dock (`CoreServices/Dock/`, about 1,300 lines)
-
-1. **Tied to the legacy window server.** It activates apps with
-   `_windowServerRPC(kWSApplicationActivate)` and structs from
-   `WindowServer/Legacy/rpc.h`, and listens to notifications the legacy
-   server relays (`NSApplicationDidLaunch`, `NSApplicationDidQuit`,
-   `WSWindowDidChangeState`). Section 10.2 of the WindowServer plan removes
-   those relays.
-2. **Does not build.** `main.m` uses `NSAutoreleasePool new`/`drain` under
-   `-fobjc-arc`, and the Makefile points to old paths (`gnu/lib/libobjc2`,
-   `${OBJTOP}/tmp`). `CoreServices/Makefile` lists it as not built.
-3. **Endless redraw.** `-[DockView drawRect:]` ends with
-   `[self setNeedsDisplay:YES]`, so it redraws forever and burns CPU. It also
-   draws with `_frame` instead of `bounds`, and code calls `drawRect:`
-   directly.
-4. **Rebuilds its window on every change** (`relocate` closes it and makes a
-   new one), which flickers.
-5. **Model and view mixed.** `DockItem` is an `NSView` that holds paths,
-   windows and flags.
-6. **Linux leftovers:** `AppDir`/`AppRun` support.
-7. **Missing behavior:** drag to reorder, add or remove; context menus;
-   magnification; autohide (the key is read, never used); the app's
-   `NSDockTile` badge, content and menu (no IPC); real thumbnails of
-   minimized windows (a generic PNG today); stacks; a working Trash
-   (`Trash.app` logs "does nothing yet").
-
-Worth keeping:
-
-- `DockTileData.m` and the preference keys (`persistent-apps`, `tilesize`,
-  `autohide`...), which match the reference platform's Dock preferences.
-- `DesktopWindow`, the desktop picture window at the desktop level. On the
-  reference platform the Dock draws the desktop picture and the file manager
-  draws the desktop icons.
-- `fitWindowToItems` (fitting tiles to the screen on any side), as a
-  reference.
-
-### 4.3 Who does what (reference platform layout)
+### 4.1 Who does what
 
 | Job | Process |
 | --- | --- |
 | Dock tiles, running-app indicators, minimized windows, stacks, Trash tile | Dock |
 | Desktop picture, one window per display at `kCGDesktopWindowLevel` | Dock |
-| App switcher (Command-Tab) | Dock, which gets Command-Tab from the window server's symbolic hotkey table (today the legacy WindowServer draws one in `WSInput.m`; it goes away with `Legacy/` in WS4b) |
-| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Files |
-| Starting the Dock and Files at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
+| App switcher (Command-Tab, from the window server's symbolic hotkey table) | Dock |
+| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, Open With, Get Info | Files |
+| Starting the Dock and Files at login, and again if they exit | loginwindow |
 
-Spaces, an overview of windows and an app launcher grid are out of scope for
-this plan; the Dock's model keeps room for them.
+Spaces, a window overview and an app launcher grid are out of scope; the Dock's model
+keeps room for them.
 
-### 4.4 Dock architecture
+### 4.2 Dock architecture
 
-- **Model.** `DockModel` with sections: persistent apps, recent and running
-  apps, persistent others (folders and stacks), the Downloads stack, Trash.
-  `DockTile` is plain data (URL, bundle ID, kind, flags, badge, windows).
-  Views only display the model.
-- **Views.** One Dock window per display that shows it, laid out by the model;
-  tiles as Core Animation layers (bounce, magnification, autohide slide), so
-  nothing is redrawn while nothing changes. The look follows the Atlas
-  visual language guide.
-- **Data sources.** `NSWorkspace` notifications
-  (`NSWorkspaceDidLaunchApplicationNotification`,
-  `NSWorkspaceDidTerminateApplicationNotification`,
-  `NSWorkspaceDidActivateApplicationNotification`, hide and unhide) and
-  `NSRunningApplication`; icons through LaunchServices and
-  `-[NSWorkspace iconForFile:]`; activation with
-  `-[NSRunningApplication activateWithOptions:]`.
-- **Minimized windows.** As on the reference platform, the Dock owns them:
-  AppKit's `miniaturize:` asks the Dock, which runs the animation
-  (`mineffect`) and keeps the tile. The window server (WS4a) orders the
-  window out and back in, tells the Dock when a window is minimized or
-  restored, and gives it the window's image through
-  `CGWindowListCreateImage` with a single window ID (the Dock is a system
-  client with that permission). Restoring asks the window server to order
-  the window in and activates its app.
-- **Dock tile service.** A Mach service, `org.minkar.dock.server`, defined in
-  MIG, for what apps send through `NSDockTile` (badge label, content view
-  snapshot, application badge), `-[NSApplication requestUserAttention:]`
-  (bounce) and `applicationDockMenu:` (the app's dock menu).
-- **Preferences.** Domain `org.minkar.dock`, with the reference platform's
-  keys and meanings: `persistent-apps`, `persistent-others`, `tilesize`,
-  `magnification`, `largesize`, `orientation` (`bottom`, `left`, `right`;
-  the current code's `Location` integer becomes this key), `autohide`,
-  `autohide-delay`, `autohide-time-modifier`, `mineffect`, `show-recents`.
-  Tile data in the reference format (`tile-data`, `file-data`,
+- **Model.** `DockModel` with sections: persistent apps, recent and running apps,
+  persistent others (folders and stacks), the Downloads stack, Trash. `DockTile` is plain
+  data (URL, bundle ID, kind, flags, badge, windows). Views only display the model.
+- **Views.** One Dock window per display, tiles as Core Animation layers (bounce,
+  magnification, autohide slide), so nothing is redrawn while nothing changes.
+- **Data sources.** `NSWorkspace` launch, terminate, activate, hide and unhide
+  notifications and `NSRunningApplication`; icons through LaunchServices; activation with
+  `activateWithOptions:`.
+- **Minimized windows.** The Dock owns them: AppKit's `miniaturize:` asks the Dock, which
+  runs the animation (`mineffect`) and keeps the tile with the window's image from
+  `CGWindowListCreateImage`; the window server orders the window out and in and tells the
+  Dock.
+- **Dock tile service.** `org.minkar.dock.server` (MIG) for `NSDockTile` (badge, content
+  view), `requestUserAttention:` (bounce) and `applicationDockMenu:`.
+- **Preferences.** Domain `org.minkar.dock`, with the reference platform's keys:
+  `persistent-apps`, `persistent-others`, `tilesize`, `magnification`, `largesize`,
+  `orientation`, `autohide`, `autohide-delay`, `autohide-time-modifier`, `mineffect`,
+  `show-recents`; tile data in the reference format (`tile-data`, `file-data`,
   `_CFURLString`).
-- **Desktop pictures.** `DesktopWindow` ported, one per display keyed by the
-  display ID (`NSScreenNumber` in `-[NSScreen deviceDescription]`), not the
-  fixed `"NSMainScreen"` key. `-[NSWorkspace setDesktopImageURL:forScreen:options:error:]`
-  stores the choice and the Dock follows it.
-- **App switcher.** The window server's symbolic hotkey table (WS4a) sends
-  Command-Tab to the Dock instead of delivering it as a key event; the Dock
-  shows the switcher and activates the chosen app. The legacy server's
-  switcher (`WSInput.m`) goes away with `Legacy/` in WS4b, so until D3 there
-  is none.
+- **Desktop pictures.** One window per display keyed by the display ID;
+  `setDesktopImageURL:forScreen:options:error:` stores the choice and the Dock follows it.
+- **App switcher.** The Dock claims Command-Tab and Command-Shift-Tab, shows the regular
+  apps in the order they were used, and activates the one chosen when Command is released.
 
-### 4.5 Files architecture
+### 4.3 Files architecture
 
-- **App.** Bundle ID `org.minkar.Files`, installed as
-  `/System/Library/CoreServices/Files.app`; always running in a session
-  (loginwindow starts it and starts it again if it exits).
-- **Windows.** Toolbar, sidebar (favorites; volumes from DiskArbitration;
-  locations), path bar, and three views: icons (`NSCollectionView`), list
-  (`NSOutlineView`) and columns (`NSBrowser`). Navigation history, sorting,
-  per-folder view settings.
-- **Opening.** Through LaunchServices: default app per UTI, "Open With"
-  (`LSCopyApplicationURLsForURL`), apps by bundle.
-- **File operations.** Copy, move, duplicate, rename, make folder, alias;
-  with progress, cancel and undo; on `NSFileManager`, run off the main
-  thread.
-- **Trash.** `~/.Trash` and `/.Trashes/<uid>` on other volumes, as on the
-  reference platform; "Put Back" keeps each item's original location; empty
-  Trash. `-[NSWorkspace recycleURLs:completionHandler:]` goes through the
-  same code.
-- **Desktop.** A window per display at `kCGDesktopIconWindowLevel` with the
-  contents of `~/Desktop` and the mounted volumes (with eject).
-- **Live updates.** Folder windows follow changes through file system
-  events (see dependencies).
-- **Reveal.** `open -R`, `-[NSWorkspace activateFileViewerSelectingURLs:]`
-  and `selectFile:inFileViewerRootedAtPath:` open a Files window with the
-  item selected.
-- **DMG double-click** (Phase 6): mounts the image and opens its volume
-  (K3, for gate M6).
-- **Later.** Search on the metadata index (`mdfind`, Phase 5), tags,
-  previews.
+- **App.** `org.minkar.Files`, installed as `/System/Library/CoreServices/Files.app`;
+  always running in a session.
+- **Windows.** Toolbar, sidebar (favorites, volumes from DiskArbitration, locations), path
+  bar, and icon, list and column views; navigation history, sorting, per-folder view
+  settings.
+- **Opening.** Through LaunchServices: default app per UTI, Open With, apps by bundle.
+- **File operations.** Copy, move, duplicate, rename, new folder, alias; with progress,
+  cancel and undo; off the main thread. Drags between apps go through the window server
+  (`SLSPostDragEvent`) and the shared drag pasteboard.
+- **Trash.** `~/.Trash` and `/.Trashes/<uid>` on other volumes; Put Back from the
+  `org.minkar.trash.put-back` attribute `trashItemAtURL:` sets, so any app's trashed items
+  can be put back.
+- **Desktop.** A window per display at `kCGDesktopIconWindowLevel` with the mounted
+  volumes (with eject) and `~/Desktop`, followed through FSEvents and NSWorkspace's volume
+  notifications.
+- **Reveal.** `open -R`, `activateFileViewerSelectingURLs:`, `LSRevealInFiles`.
+- **Disk images.** A double-clicked image is attached and its volume opened.
 
-### 4.6 Dependencies
+### 4.4 Milestones
 
-| Needed by | Dependency | State today | Where |
-| --- | --- | --- | --- |
-| Dock | `NSWorkspace` launch, terminate and activate notifications and the basic `NSRunningApplication` | Missing (only the old `launchedApplications`) | LaunchServices session service, WindowServer plan WS4a |
-| Dock | The rest of `NSRunningApplication` (icon, launch date, hide and unhide, `activationPolicy`, terminate) | Missing | AppKit, D0 |
-| Dock | Window server side of minimizing (order out and in, notices to the Dock) and single-window capture | Missing | WindowServer plan, WS4a |
-| Dock | Relayed messages removed, `kWSApplicationActivate` gone | Planned | WindowServer plan, section 10.2 (WS4b) |
-| Dock | `NSDockTile` sending its state | Keeps values, sends nothing | AppKit, D3 |
-| Dock | `setDesktopImageURL:forScreen:options:error:` | To check | AppKit, D1 |
-| Files | LaunchServices bundle and UTI database, default apps, "Open With" | Phase 3, item 4 | Frameworks |
-| Files | File system events: XNU's `/dev/fsevents` exists (`vfs_fsevents.c`); a daemon and the FSEvents API are missing | Missing | CoreServices, before K1 |
-| Files | `NSCollectionView`, `NSOutlineView`, `NSBrowser` working well | Present, partly stubbed | AppKit, with K1 |
-| Files | `NSWorkspace` icons, recycle, reveal | Partial | AppKit, K1-K2 |
-| Both | loginwindow starting them at login | Phase 5 | loginwindow |
-| Both | The Atlas visual language guide | Missing | Design, before D2 and K1 |
+- [x] D0 — `NSRunningApplication` complete and the desktop picture API. `cf62bba724`, `606d680705`
+- [x] D1 — The Dock's new core, preferences in the reference keys, desktop pictures. `8cfe7115db`, `f6c2d254be`
+- [x] D2 — Reordering, tile menus, autohide, magnification, Open at Login, minimizing into tiles. `5c083e0b97`; test `dock-minimize`
+- [x] D3 — Dock tile service, minimized windows, the app switcher. Local test `dock-d3`.
+- [ ] **D4 — Stacks and Trash** (19.6.x). Done: the Trash tile (follows `~/.Trash`
+  without polling; open, empty after asking; app tiles dropped on it leave the Dock).
+  Left: stacks, files dropped on it, Put Back, other volumes' `.Trashes`.
+- [ ] **K0 — Prerequisites.** Done: fseventsd and FSEvents (`a2a333d45f`), LaunchServices'
+  opening and Open With (`0331f57894`). Left: the AppKit views (`NSCollectionView`,
+  `NSOutlineView`, `NSBrowser`) checked with test apps (Files draws its own); FSEvents'
+  per-volume history, device-relative streams and exclusions (`SHORTCUT(K0-…)`).
+- [x] K1 — Browsing: sidebar, icon, list and column views, opening, Get Info, reveal. `896749b380`, `906f12eae4`
+- [x] K2 — File operations with progress and undo, drag and drop, Trash with Put Back, Open With. Tests `files-ops`, `drag-apps`.
+- [x] K3 — Desktop icons and volumes with eject, disk image double-click. Test `desktop-icons`.
+- [ ] **K4 — Later work** (19.6.x): search on the metadata index (`mdfind`), tags, previews.
 
-### 4.7 Milestones
+Known bug: ejecting a volume by dropping it on the Dock's Trash fails in the
+`desktop-icons` test (found 2026-11-21).
 
-Each milestone ends with tests that pass, `boottest GATE=M2` (and, once it
-exists, gate M4) still green, and the roadmap updated with the evidence.
+Measured the same way in the VM and on the physical machines: idle CPU of the Dock and
+Files (near zero), and the time from a Dock click to the app's first window.
 
-#### Dock
-
-- [x] **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
-  date, hide and unhide, `activationPolicy`, terminate) on the list that
-  LaunchServices' session service keeps from WS4a, and the desktop picture
-  API. The launch, terminate and activate notifications and the basic
-  `NSRunningApplication` come with WS4a. Tests: a test app's icon and launch
-  date are read; hiding, unhiding and terminating it through
-  `NSRunningApplication` work; the desktop picture choice is stored.
-  *Done (4 Nov 2026):* icon, launch date, `activationPolicy`, terminate
-  and the desktop picture API (`cf62bba724`, `41cf45da95`); hide and unhide
-  through launchservicesd (`606d680705`); local test `desktop` (34 checks).
-- [x] **D1 — New core.** `DockModel`, preferences in the reference keys,
-  persistent and running app tiles, launch and activate, running indicators,
-  desktop pictures per display. The old code goes: `Trash.app`,
-  `Downloads.app`, `AppDir`, the relayed notifications. Tests: model tests;
-  launching an app shows its tile and indicator, quitting removes it; the
-  preferences round-trip; `screendump` shows the Dock and the desktop
-  picture; the Dock uses no CPU while idle. *Done (4 Nov 2026):*
-  `8cfe7115db`, `f6c2d254be`; local test `desktop` (27 checks).
-- [x] **D2 — Interaction.** Drag to reorder, add and remove; context menus
-  (Keep in Dock, Open at Login, Show in Files, Quit) and the app's dock menu;
-  autohide, magnification, orientation; the minimize and restore animation
-  (`mineffect`) for `miniaturize:`. *Partial (4 Nov 2026, `5c083e0b97`):*
-  dragging, the tile menus, autohide, magnification and orientation; Show
-  in Files (`7e7ea6dfbb`). *Done (16 Nov 2026):* Open at Login writes the
-  session's login items (`LSSharedFileList`), which loginwindow opens when
-  the session starts (hidden when the item asks); a minimized window's
-  image scales into its tile and back out when the tile is clicked (the
-  reference platform's genie is drawn as its scale effect for now); local
-  test `dock-minimize`.
-- [x] **D3 — Dock tile service, minimized windows and the app switcher.**
-  `org.minkar.dock.server`: badges, content, attention bounce; minimized
-  windows with thumbnails (after WS4a); the app switcher in the Dock, which
-  gets Command-Tab from the window server's symbolic hotkey table.
-  *Partial (16 Nov 2026):* minimized windows as tiles between the separator
-  and the Trash, each its window's image with its app's icon in the
-  corner; a click restores the window through the server, and its app
-  hears it (`kSLSEventWindowRestored`) and brings it back; badges came
-  with N2. *Done (16 Nov 2026):* NSDockTile's `display` draws its content
-  view into an image the Dock shows in place of the app's icon (the icon
-  back with no view); `requestUserAttention:` from an app not active
-  bounces its tile, once for an informational request and until the app
-  is active or the request cancelled for a critical one, the Dock's window
-  growing above the bar only meanwhile; the app switcher: the Dock claims
-  Command-Tab and Command-Shift-Tab, shows the regular apps running in the
-  order they were used, each press moving along, and letting go of
-  Command activates the one chosen. Apps and the Dock speak through
-  distributed notifications. Local test `dock-d3`.
-- [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
-  (empty or full, drop to trash, empty through Files).
-  *Partial (6 Nov 2026):* the Trash tile, last after a separator of its
-  own: its icon follows `~/.Trash` through a vnode watch (no polling), a
-  click opens it, its menu opens or empties it (asked first), and an app
-  tile dropped on it leaves the Dock; tested in the `desktop` image test.
-  Missing: stacks, files dropped on it, Put Back, other volumes'
-  `.Trashes`.
-
-#### Files
-
-- [ ] **K0 — Prerequisites.** File system events daemon and API; LaunchServices
-  open and "Open With"; the AppKit views checked with test apps.
-  *Partial (4 Nov 2026):* fseventsd and FSEvents (`a2a333d45f`, test
-  `fsevents`), LaunchServices' opening and the applications for a file
-  (`0331f57894`, test `launchservices`); the AppKit views are not checked
-  yet (Files draws its own).
-- [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
-  navigation, opening files and apps, basic Get Info. Files takes the old
-  file browser's place (formerly Filer):
-  bundle ID, `open -R`, the Dock's default tiles. This is the "Files
-  browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
-  `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
-  `argos` (16) and `launchservices` (24).
-- [x] **K2 — File operations.** Copy, move, rename, duplicate with progress and
-  undo; drag and drop between windows and onto the Dock; Trash with Put Back;
-  "Open With". *Partial (16 Nov 2026):* Copy and Paste Item (and Move Item
-  Here, with Option), Duplicate, Rename, New Folder, Move to Trash and Put
-  Back, each undone and redone from the Edit menu; copies and moves off the
-  main thread, a block at a time, with a progress window and Stop when they
-  take longer than half a second; Open With lists LaunchServices'
-  applications for the item, its default first. The Trash keeps where an
-  item was on the item (`org.minkar.trash.put-back`, set by
-  `NSFileManager`'s `trashItemAtURL:`, so any app's trashed items can be put
-  back). Items dragged between Files' windows, or onto a folder, move on
-  the same volume and copy across or with Option, and can be undone.
-  Drags between applications go through the window server
-  (`SLSPostDragEvent`: entered, updated, exited and perform events to the
-  window's owner, which answers with the operation; what is dragged is on
-  the shared drag pasteboard): files dragged onto the Dock's Trash go to
-  the Trash, onto an app's tile open in it, applications onto its kept part
-  stay in the Dock. *Done (16 Nov 2026):* several items selected
-  (Command-click, Shift-click, Select All) for every operation and drag;
-  Return renames in place, the name's stem selected, Escape cancelling.
-  Local tests `files-ops`, `drag-apps`.
-- [x] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
-  APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
-  DMG step 3). *Done (16 Nov 2026):* Files draws the desktop's icons in a
-  window at the desktop icon level over the Dock's picture: the volumes
-  mounted under /Volumes, then ~/Desktop's items, in columns from the top
-  right, followed through FSEvents and NSWorkspace's volume notifications;
-  they open, take drops and drag, go to the Trash (Command-Delete) and
-  eject (Command-E, the context menu, or dropped on the Dock's Trash);
-  a click there makes Files the front app. NSWorkspace's
-  `mountedLocalVolumePaths`, `mountedRemovableMedia` and
-  `unmountAndEjectDeviceAtURL:error:` on DiskArbitration (they were stubs).
-  A disk image double-clicked is attached and its volume opened (one
-  already attached shows its volume). The reveal APIs (`LSRevealInFiles`,
-  `open -R`, NSWorkspace's) and loginwindow's start and restart of Files
-  came with K1. Local test `desktop-icons`.
-- [ ] **K4 — Later work.** Search on the metadata index, tags, previews.
-
-Gate M5 ("a graphical session starts, an app opens from the Dock, Files
-browses, and the resolution changes from System Preferences") needs D1 and
-K1, besides loginwindow and System Preferences.
-
-Gate M6 (Minkar 19.6.0, a desktop for daily use) needs D2 and D3, and K2
-and K3. D4 and K4 come in 19.6.x.
-
-### 4.8 Tests and measurements
-
-- Model tests (Dock sections and tile order, preference round-trip; Files
-  file operations and Trash records) as command-line programs in the test
-  suite.
-- `boottest` with QMP: `screendump` comparisons and injected clicks (open an
-  app from the Dock; navigate a folder in Files).
-- Idle CPU of the Dock and of Files near zero; time from a Dock click to the
-  app's first window, measured the same way in the VM and on the physical
-  machines.
-
-### 4.9 Rules for this work
-
-Same as section 8 of the WindowServer plan: English in everything committed
-except the `.es.md` translations; no third-party product names; API and
-symbol names as they are; new code MIT or BSD-2-Clause; clean room; small
-commits with the diff shown first; evidence for every roadmap item; no
-`Co-Authored-By` lines.
-
-### 4.10 Decisions and development shortcuts
+### 4.5 Decisions and development shortcuts
 
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
 | Dock preferences | Domain `org.minkar.dock`, reference keys and tile data format | — | — |
-| Who draws the desktop | Dock: pictures; Files: icons | Desktop without icons until K3 | K3 |
-| App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4b; then none: apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 |
-| Minimized windows | Thumbnails from the window server's capture | Generic window icon | D3 (after WS4a) |
-| Starting the Dock and Files | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
-| Look | Atlas visual language guide | Plain system controls and colors | Guide available |
-
-Every shortcut is marked in the code with `// SHORTCUT(Dn):` or
-`// SHORTCUT(Kn):` and the milestone that removes it.
+| Who draws the desktop | The Dock the pictures, Files the icons | — | — |
+| Minimizing animation | The reference platform's genie | Drawn as a scale effect | Atlas visual language |
+| Look | Atlas visual language guide | Plain system controls and colors | The guide |
 
 ## 5. Applications
 
-### 5.1 Decision
+The apps a desktop for daily use needs, Minkar's own and in Cocoa. Shared foundations
+first (A0), so every app gets the same About window, preferences, help, localization and
+document handling. A0–A4 are required for Minkar 19.6.0; A5–A10 and the second set follow
+in 19.6.x; a web browser (Firefox) and an IDE are long-term work.
 
-- **The apps a desktop for daily use needs, ours and in Cocoa.** A first
-  set is required for Minkar 19.6.0 (essential, 5.2: A0–A4); A5–A10 and
-  a second set follow in 19.6.x (A5–A10 moved there on 2026-11-20); the
-  browser and an IDE are long-term work.
-- **Each app has a milestone** (A*n*) with tests in the image, as the
-  session's parts do, and its dependencies listed (5.4).
-- **Shared foundations first** (A0), so every app gets the same About
-  window, preferences, help, localization and document handling.
+### 5.1 The apps
 
-### 5.2 The apps
-
-The names, confirmed on 2026-11-05 (English, then Spanish):
-
-| Milestone | App | What it does | Built on |
+| Milestone | App (Spanish name) | What it does | Built on |
 | --- | --- | --- | --- |
-| A0 | (foundations) | The app template: About window, Preferences window, Help menu, Spanish and English, `NSDocument` | AppKit |
-| A1 | Terminal (Terminal) | Shells in windows and tabs: a VT100/xterm emulator over a pty, scrollback, selection and copy, Agave | pty, `NSTextView` or a text grid view, CoreText |
-| A2 | Text Editor (Editor de texto) | Plain text and RTF documents, find and replace, encodings, line endings, printing | `NSDocument`, Cocoa Text System |
-| A3 | System Monitor (Monitor del sistema) | Processes (CPU, memory, energy, disk, network), quit and force quit, sample; graphs | libproc, `sysctl`, `top`'s data |
-| A4 | Logs (Registros) | The system's and the user's logs, live and past, with searches; crash and panic reports | `logd`, `log`, `os_log` |
-| A5 | Screenshot (Captura de pantalla) | The screen, a window or a selection, to a file or the pasteboard; timer; the system shortcuts | `screencapture`, `CGWindowList` |
-| A6a | Image Viewer (Visor de imágenes) | Images: zoom, rotation, slideshow, export | ImageIO (to be written) |
-| A6b | Document Viewer (Visor de documentos) | PDF documents: pages, zoom, search, export | PDFKit (to be written) |
+| A0 | (foundations) | About and Preferences windows, Help menu, Spanish and English, `NSDocument` | AppKit |
+| A1 | Terminal (Terminal) | VT100/xterm emulator over a pty, tabs, scrollback, Agave | libvterm (MIT), CoreText |
+| A2 | Text Editor (Editor de texto) | Plain text and RTF, find and replace, encodings, line endings, printing | `NSDocument`, Cocoa Text System |
+| A3 | System Monitor (Monitor del sistema) | Processes, CPU, memory, energy, disk, network; quit and force quit | libproc, `sysctl` |
+| A4 | Logs (Registros) | Logs live and past, with searches; crash and panic reports | `logd`, `log`, `os_log` |
+| A5 | Screenshot (Captura de pantalla) | Screen, window or selection to a file or the pasteboard; the system shortcuts | `screencapture`, `CGWindowList` |
+| A6a | Image Viewer (Visor de imágenes) | Images: zoom, rotation, slideshow, export | ImageIO |
+| A6b | Document Viewer (Visor de documentos) | PDF: pages, zoom, search, export | PDFKit |
 | A7 | Disks (Discos) | Disks, partitions and volumes: mount, eject, erase, check, disk images | DiskArbitration, `diskutil`, `hdiutil` |
-| A8 | System Information (Información del sistema) | Hardware and software report, as `system_profiler` | `system_profiler`, IOKit |
+| A8 | System Information (Información del sistema) | Hardware and software report | `system_profiler`, IOKit |
 | A9 | Calculator (Calculadora) | Basic, scientific and programmer modes | AppKit |
-| A10 | Archive Manager (Gestor de archivadores) | Opens and makes zip, tar and xz archives from Files | `tar` (libarchive), `ditto` |
+| A10 | Archive Manager (Gestor de archivadores) | zip, tar and xz archives from Files | libarchive, `ditto` |
 
-A0–A4 are required for Minkar 19.6.0; A5–A10 move to 19.6.x (decided
-2026-11-20, roadmap decision D3).
+The second set, also 19.6.x: Fonts (CoreText font management), Passwords and Keys
+(Security), Color Picker (ColorSync on Little CMS), Script Editor (`osascript`), Help (the
+Help menu), Characters (ICU).
 
-Also after 19.6.0 (19.6.x):
+### 5.2 Milestones
 
-| App | What it does | Waits for |
-| --- | --- | --- |
-| Fonts (Tipografías) | Installs, previews and turns off fonts | CoreText font management |
-| Passwords and Keys (Contraseñas y claves) | Passwords and certificates | Security (Phase 3, item 3) |
-| Color Picker (Selector de color) | The color under the pointer, in several spaces | ColorSync (Little CMS) |
-| Script Editor (Editor de scripts) | Writes and runs scripts | Open Scripting Architecture (`osascript`) |
-| Help (Ayuda) | Apps' help books | the Help menu (MB2) |
-| Characters (Caracteres) | Finds and inserts any character | Unicode data (ICU) |
+- [x] A0 — App foundations and the template `Developer/Templates/AtlasApp`. `5a721456ef`, `fbef0a5927`; test `atlas-app`
+- [x] A1 — Terminal on libvterm 0.3.3, with tabs and Preferences. `d7b7c4f405`; test `terminal`
+- [ ] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
+  `open -t`. Left: RTF, find and replace, encodings and line endings, printing, the ruler.
+  Tests: a round trip in each encoding, find and replace, an RTF document reopened.
+- [x] A3 — System Monitor. `5a1c89ed68`; test `system-monitor`. Per-process energy waits for the power driver's data.
+- [x] A4 — Logs on `log --style ndjson`. `033761cf48`; test `logs`. Nothing writes crash reports yet.
+- [ ] **A5 — Screenshot.** Whole screen, window and selection; Command-Shift-3 and
+  Command-Shift-4 through the symbolic hotkey table; files on the desktop named by date;
+  the pasteboard. Test: the shortcut makes a PNG that matches `screendump`.
+- [ ] **A6a — Image Viewer.** PNG, JPEG, TIFF, GIF and WebP through ImageIO. Test: each
+  format matches a reference image.
+- [ ] **A6b — Document Viewer.** PDF through PDFKit: pages, zoom, search, selection and
+  copy. Tests: a page against a reference image; a word found.
+- [ ] **A7 — Disks.** Volumes and partitions, mount and eject, erase (HFS+, FAT, exFAT),
+  check, disk images. Test: an image created, erased, mounted and ejected from the app.
+- [ ] **A8 — System Information.** The `system_profiler` report, browsable. Test: the
+  hardware overview matches `system_profiler`.
+- [ ] **A9 — Calculator.** Basic, scientific and programmer modes, paper tape, keyboard
+  entry. Test: calculations through QMP keys.
+- [ ] **A10 — Archive Manager.** Expand zip, tar, gzip and xz from Files and compress a
+  selection. Test: an archive made and expanded from Files.
 
-Long term, outside the 19.6.0 gate: a web browser (Firefox, MPL-2.0,
-whose interface is native AppKit; Ladybird dropped its own) and an IDE (CodeEdit depends on
-SwiftUI, outside API 19–21).
+### 5.3 Dependencies of the open apps
 
-### 5.3 Milestones
+| Needed by | Dependency |
+| --- | --- |
+| A2 | RTF reading and writing, printing (`NSAttributedString`, `NSPrintOperation`) |
+| A5 | `CGWindowListCreateImage`; the window server's symbolic hotkeys |
+| A6a, A6b | ImageIO and PDFKit |
+| A7 | Erase and check from a program (DiskArbitration, `newfs_*`, `fsck_*`) |
+| All | Icons: the maintainer's designs |
 
-- [x] **A0 — App foundations.** About window (Atlas's, with icon, version
-  and copyright), standard Preferences and Help menus, both languages,
-  `NSDocument` with autosave and versions on the file system, the app
-  template that A1–A10 start from. Tests: each app's About window, a
-  localized menu, a document saved and reopened. Done 8 Nov 2026: the
-  About window (5a721456ef), AppKit in Spanish (17dde9f0bb), NSFileVersion
-  and autosave with versions (efa83788d8, aa4492475f), the template
-  `Developer/Templates/AtlasApp` (fbef0a5927) with its help book and
-  NSHelpManager (08a89e5a13, 63132864be); test `image/atlas-app` (26
-  checks in English and Spanish), batch of 8 Nov (2181 passed, M2 and M3).
-- [x] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
-  movement, alternate screen), UTF-8, resizing (`SIGWINCH`), scrollback,
-  selection, copy and paste, Agave and its size, several windows and tabs,
-  `open -a Terminal`. Tests: `vttest`'s basic screens, a `vim` session
-  driven through QMP, `screendump` comparisons. Done 8 Nov 2026:
-  `CoreServices/Terminal` on libvterm 0.3.3 (MIT) (d7b7c4f405, tabs
-  14ee742f06), with Preferences (956eccef79) and the AppKit and Foundation
-  fixes they needed (e9ef2c7dd3, d505c4adbe, d425816593); test
-  `image/terminal` (28 checks: colors, UTF-8, cursor movement, the
-  alternate screen, scrollback, the keyboard, `SIGWINCH`, the preferences
-  in English and Spanish), batch of 8 Nov (1805 passed, M2 and M3).
-  `vi`, `top` and the tabs were checked on screen through QMP; `vttest`
-  and `screendump` comparisons are not automated yet.
-- [ ] **A2 — Text Editor for daily use.** Started 4 Nov 2026 (plain text, open
-  and save, `open -t`). Missing: RTF, find and replace, encodings and line
-  endings, printing, the ruler. Tests: a file round trip in each encoding,
-  find and replace, an RTF document reopened.
-- [x] **A3 — System Monitor.** Process list with sorting and search, CPU,
-  memory, disk and network tabs with graphs, process info, quit and force
-  quit. Tests: a test process appears with its PID and is ended from the
-  app. Done 8 Nov 2026: `CoreServices/SystemMonitor` (5a1c89ed68), with
-  faster text drawing (5d32298820) and full table columns (ecb4b53a0e);
-  test `image/system-monitor` (12 checks). Energy (5.2) waits for the
-  power driver to report each process's use.
-- [x] **A4 — Logs.** `log show` and `log stream` in a window, filters by
-  process, subsystem and level, crash reports from `/Library/Logs`. Tests:
-  an `os_log` message from a test program appears with its subsystem. Done
-  8 Nov 2026: `CoreServices/Logs` (033761cf48), on `log --style ndjson`
-  (2ffffb9625); test `image/logs` (8 checks), batch of 8 Nov (729 passed,
-  M2). Crash reports are shown where they go, but nothing writes them yet:
-  a crash reporter is still to come.
-- [ ] **A5 — Screenshot.** Whole screen, window and selection,
-  Command-Shift-3 and Command-Shift-4 through the symbolic hotkey table,
-  files on the desktop named by date, the pasteboard. Tests: the shortcut
-  makes a PNG that matches `screendump`.
-- [ ] **A6a — Image Viewer.** Images through ImageIO (PNG, JPEG, TIFF,
-  GIF, WebP), written for it. Tests: each format opens and matches a
-  reference image.
-- [ ] **A6b — Document Viewer.** PDF through PDFKit, written for it: pages,
-  zoom, search, selection and copy. Tests: a PDF page renders against a
-  reference image; a word is found.
-- [ ] **A7 — Disks.** Volumes and partitions, mount and eject, erase (HFS+,
-  FAT, exFAT), check, create and attach disk images. Tests: an image is
-  created, erased, mounted and ejected from the app.
-- [ ] **A8 — System Information.** The report `system_profiler` makes,
-  browsable. Tests: the hardware overview matches `system_profiler`.
-- [ ] **A9 — Calculator.** Basic, scientific and programmer modes, paper
-  tape, keyboard entry. Tests: a set of calculations through QMP keys.
-- [ ] **A10 — Archive Manager.** Expand zip, tar, gzip and xz archives from Files
-  (double-click) and compress a selection. Tests: an archive made and
-  expanded from Files.
+### 5.4 Notification center (N0–N2)
 
-### 5.4 Dependencies
+`NSUserNotificationCenter` and `UserNotifications` hand notifications to the session
+service `notificationd` over Mach; SystemUIServer presents them (banners at the top right,
+alerts, the list as the rightmost Menu Extra with Clear and Do Not Disturb), and the Dock
+draws badges. Settings live in `org.minkar.notificationcenter` and the Notifications pane.
+Scheduled notifications are kept by notificationd on disk.
 
-| Needed by | Dependency | Where |
-| --- | --- | --- |
-| A1 | Fast text drawing in a grid; key events with all modifiers | AppKit, CoreText (Phase 5, item 7) |
-| A2 | RTF reading and writing, printing | AppKit (`NSAttributedString`, `NSPrintOperation`) |
-| A3 | Per-process CPU, memory, disk and network figures | libproc and `sysctl` (Phase 2) |
-| A4 | Reading the log store from a program | `logd` (done 3 Nov 2026) |
-| A5 | Window images; the system shortcuts | `CGWindowListCreateImage`; WindowServer's symbolic hotkeys |
-| A6a, A6b | ImageIO and PDFKit | to be written (Phase 4 graphics stack) |
-| A7 | Erase and check from a program | DiskArbitration, `newfs_*`, `fsck_*` |
-| All | Icons | the maintainer's designs (1) |
+- [x] N0 — Delivery, banners and sounds. Test `notifications`.
+- [x] N1 — The list, the settings pane and Do Not Disturb. `2910fb0cb8`
+- [x] N2 — Alerts with actions and replies, scheduled notifications, badges. `7b55914d9a`, `51e1316988`
 
-### 5.5 Tests
+Left for later: a click on a notification shown after its app quit does not start the
+app.
 
-As for the session: each milestone adds image tests (the program's
-behavior through its files, its pasteboard and `screendump`) and QMP
-interaction to the local suite, and the apps on the 19.6.0 list are opened
-by the M6 gate.
+### 5.5 Window and text services the system adds (W0–W4)
 
-### 5.6 Notification center (N0–N2)
+The system adds items to every app's menus; their services are not in Atlas yet. W0–W3
+are part of Minkar 19.6.0.
 
-Decided 14 Nov 2026: right after AU3 closes and before AU4. Apps' notifications
-with sound need a place that shows them; nothing in Atlas had one.
-
-- [x] N0 — Delivery and banners: `NSUserNotificationCenter` and
-  `NSUserNotification` (API 19 apps still use them) and `UserNotifications`
-  (`UNUserNotificationCenter`, requests, content, sounds) hand notifications
-  to a session service, `notificationd`, over Mach; SystemUIServer draws
-  the banner at the top right, and the notification's sound plays (the
-  default is Notice, a named sound, or none). Gate: an app's notification
-  shows its banner and plays its sound; clicking it brings the app to the
-  front with the notification. *Done (15 Nov 2026):* `notificationd` takes
-  the apps' notifications (a binary property list over its MIG interface)
-  and hands them to SystemUIServer, which checks in as their presenter;
-  banners stack at the top right, go after five seconds, and a click
-  activates the app and comes back to it as `didActivateNotification:`
-  (or UserNotifications' default response). An app is shown its own
-  notifications only when it is not in front, unless its delegate asks.
-  Found on the way: `orderFrontRegardless` was missing, and a borderless
-  window with another style bit set got a title bar. Local test
-  `notifications`: 12 checks, the banner's place, Notice and Tink heard,
-  the click's activation.
-- [x] N1 — The list and the settings: delivered notifications in a panel
-  from the menu bar, a Notifications pane in System Preferences (allowed,
-  banner or alert, sound, per app) and Do Not Disturb. Gate: a muted app's
-  notification is listed but neither shown nor heard. *Done (15 Nov
-  2026, `2910fb0cb8`):* each app that posts is added to the settings
-  (`org.minkar.notificationcenter`); SystemUIServer follows them and Do
-  Not Disturb. An allowed app's notifications are always listed; an app
-  that is not allowed is not. Alerts stay until Close. The list is the
-  rightmost Menu Extra, with Clear and Do Not Disturb, and the pane lists
-  the apps. Local test `notifications`: the gate met (listed, no banner,
-  Notice not in the recording), the panel's click, Do Not Disturb, alerts.
-- [x] N2 — Alerts with actions and replies, scheduled notifications (time
-  and calendar triggers) and badges on the Dock. *Partial (15 Nov 2026,
-  `7b55914d9a`):* an alert's actions (one, or an Options menu) and replies
-  (a text field and its send button), through NSUserNotification (the
-  action button, Reply, additional actions) and UserNotifications (a
-  category's actions, `UNTextInputNotificationAction` and its response);
-  badges from `NSDockTile` and from a content's badge, kept by
-  notificationd until the app exits and drawn by the Dock. Scheduled
-  notifications (both APIs' time and calendar triggers) are delivered
-  while their app runs. Local test `notifications`, 41 checks. Left: Close
-  as a category's custom dismiss action, and scheduled notifications
-  delivered when their app is not running (notificationd keeping them).
-  *Done (16 Nov 2026, `51e1316988`):* Close on a category with a custom
-  dismiss action tells the app (UNNotificationDismissActionIdentifier)
-  without bringing it forward; scheduled notifications are kept by
-  notificationd too (on disk, their next dates from the app) and shown at
-  their time when their app has quit, never twice when it runs. Local test
-  `notifications`, 48 checks. Left for later: a click on one shown after
-  its app quit does not start the app.
-
-N0 and N1 are part of Minkar 19.6.0; N2 follows in 19.6.x.
-
-### 5.7 Window and text services the system adds (W0–W4)
-
-Found on 17 Nov 2026 comparing Hex Fiend's menus with the reference's: the
-system adds items to every app's menus, and their services do not exist in
-Atlas yet. Hex Fiend's menus already match in the rest (Close All, Minimize
-All, Zoom All and Arrange in Front as Option alternates, `78b8f1b01a`).
-
-- [ ] W0 — Window tabs: `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
-  `tabbingIdentifier`, `addTabbedWindow:ordered:`, `tabbedWindows`, the
-  automatic tabbing preference (`userTabbingPreference`) and the tab bar in
-  the title bar; the Window menu's Show Previous/Next Tab, Move Tab to New
-  Window, Merge All Windows, Show Tab Bar and Show All Tabs, enabled as on
-  the reference. Gate: two documents of an app merge into one window with
-  two tabs and split again, from the menu and by dragging a tab.
-- [ ] W1 — Tiling: the Window menu's Tile Window to Left/Right of Screen and
-  Move Window to Left/Right Side of Screen, and holding the zoom button,
-  with the split of two full-screen windows. Gate: two apps share the
-  screen side by side and leave it as they came.
-- [ ] W2 — Window restoration: `NSWindowRestoration`, `restorable`,
-  `encodeRestorableStateWithCoder:` and the app's restoration at launch;
-  Quit and Keep Windows (Option alternate of Quit) and the General pane's
-  setting. Gate: Text Editor quit with two documents open comes back with
-  both, in their places.
-- [ ] W3 — Emoji & Symbols: the Edit menu's item and a character panel
-  (categories, search, recent, insertion into the key text view through
-  `insertText:`). Gate: a character chosen in the panel is inserted into
-  Text Editor.
-- [ ] W4 — Dictation: Start Dictation… in the Edit menu. *To decide:* it
-  needs an on-device speech recognizer (a free one, with its models in the
-  image); until then the item is not shown.
-
-W0–W3 are part of Minkar 19.6.0 (the reference's apps and the apps
-written for it expect them); W4 waits for its decision.
+- [ ] **W0 — Window tabs.** `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
+  `tabbingIdentifier`, `addTabbedWindow:ordered:`, `userTabbingPreference`, the tab bar,
+  and the Window menu's tab items. Gate: two documents merge into one window with two tabs
+  and split again, from the menu and by dragging a tab.
+- [ ] **W1 — Tiling.** Tile Window to Left/Right of Screen, Move Window to Left/Right Side
+  of Screen, holding the zoom button, two full-screen windows side by side. Gate: two apps
+  share the screen and leave it as they came.
+- [ ] **W2 — Window restoration.** `NSWindowRestoration`, `restorable`,
+  `encodeRestorableStateWithCoder:`, restoration at launch, Quit and Keep Windows. Gate:
+  Text Editor quit with two documents comes back with both, in their places.
+- [ ] **W3 — Emoji & Symbols.** The Edit menu's item and a character panel inserting
+  through `insertText:`. Gate: a character chosen is inserted into Text Editor.
+- [ ] **W4 — Dictation.** *To decide:* it needs an on-device speech recognizer; until then
+  the item is not shown.
 
 ## 6. Gates
 
-- **M5** (Phase 5, unchanged): from boot, a graphical session starts, an
-  app opens from the Dock, Files browses, and the resolution changes from
-  Preferences, with the visual language K1 needs; MB1 is part of it.
-- **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and
-  D3, K2 and K3, the apps A0–A4 and notifications N0–N1; the browser is
-  not required.
-- **19.6.x:** MB4, D4, K4, N2, the apps A5–A10 (moved on 2026-11-20) and
-  the apps of 5.2's second table.
+- **M5:** from boot, a graphical session starts, an app opens from the Dock, Files
+  browses, and the resolution changes from System Preferences, in the Atlas visual
+  language; MB1 is part of it.
+- **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and D3, K2 and K3,
+  the apps A0–A4, notifications N0–N1 and the window services W0–W3; the browser is not
+  required.
+- **19.6.x:** MB4, D4, K4, N2, the apps A5–A10 and the second set.
