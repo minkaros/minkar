@@ -7,6 +7,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Onyx2D/O2PDFScanner.h>
+#import <Onyx2D/O2PDFxrefEntry.h>
+#import <Foundation/NSSet.h>
+#import <Foundation/NSValue.h>
 #import <Onyx2D/O2PDFOperatorTable.h>
 #import <Onyx2D/O2PDFContentStream.h>
 #import <Onyx2D/O2PDFStream.h>
@@ -825,18 +828,89 @@ BOOL O2PDFParseDictionary(const char *bytes,unsigned length,O2PDFInteger positio
    return [object checkForType:kO2PDFObjectTypeDictionary value:dictionaryp];
 }
 
+/*
+ * Minkar: a cross-reference stream (PDF 1.5, an indirect object whose
+ * stream has /Type /XRef): rows of /W's three field widths, big-endian,
+ * for the object numbers of /Index (or 0 to /Size); type 0 is free, 1 an
+ * object at an offset, 2 an object in an object stream. Its dictionary is
+ * the trailer.
+ */
+static BOOL O2PDFParse_xrefStreamAtPosition(NSData *data,O2PDFInteger position,O2PDFxref **xrefp) {
+   const char      *bytes=[data bytes];
+   unsigned         length=[data length];
+   O2PDFInteger     number,generation,at=position,widths[3],size=0;
+   O2PDFObject     *object=nil;
+   O2PDFStream     *stream;
+   O2PDFDictionary *dictionary;
+   O2PDFArray      *w,*index=nil;
+   const char      *type;
+
+   if(!O2PDFScanInteger(bytes,length,at,&at,&number) || !O2PDFScanInteger(bytes,length,at,&at,&generation))
+    return debugError(bytes,length,position,@"Expecting xref or a cross-reference stream");
+
+   O2PDFxref *table=[[[O2PDFxref alloc] initWithData:data] autorelease];
+
+   if(!O2PDFParseIndirectObject(data,position,&object,number,generation,table))
+    return NO;
+   if(![object checkForType:kO2PDFObjectTypeStream value:&stream])
+    return debugError(bytes,length,position,@"Expecting a cross-reference stream, got %@",object);
+   dictionary=[stream dictionary];
+   if(![dictionary getNameForKey:"Type" value:&type] || strcmp(type,"XRef")!=0)
+    return debugError(bytes,length,position,@"Expecting /Type /XRef");
+   if(![dictionary getArrayForKey:"W" value:&w] || [w count]!=3)
+    return debugError(bytes,length,position,@"Expecting /W with three widths");
+   for(int i=0;i<3;i++)
+    if(![w getIntegerAtIndex:i value:&widths[i]] || widths[i]<0 || widths[i]>8)
+     return debugError(bytes,length,position,@"Bad /W width");
+   [dictionary getIntegerForKey:"Size" value:&size];
+   [dictionary getArrayForKey:"Index" value:&index];
+
+   NSData              *rowData=[stream data];
+   const unsigned char *rows=[rowData bytes];
+   NSUInteger           rowsLength=[rowData length],rowLength=widths[0]+widths[1]+widths[2],row=0;
+   unsigned             subsections=(index!=nil)?[index count]/2:1;
+
+   for(unsigned s=0;s<subsections;s++){
+    O2PDFInteger first=0,count=size;
+
+    if(index!=nil && (![index getIntegerAtIndex:2*s value:&first] || ![index getIntegerAtIndex:2*s+1 value:&count]))
+     return debugError(bytes,length,position,@"Bad /Index");
+    for(O2PDFInteger n=first;n<first+count;n++,row+=rowLength){
+     O2PDFInteger fields[3]={1,0,0};
+
+     if(row+rowLength>rowsLength)
+      break;
+     for(int f=0,at=0;f<3;at+=widths[f],f++){
+      if(widths[f]==0)
+       continue;
+      fields[f]=0;
+      for(int b=0;b<widths[f];b++)
+       fields[f]=(fields[f]<<8)|rows[row+at+b];
+     }
+     if(fields[0]==1)
+      [table addEntry:[O2PDFxrefEntry xrefEntryWithPosition:fields[1] number:n generation:fields[2]]];
+     else if(fields[0]==2)
+      [table addEntry:[O2PDFxrefEntry xrefEntryInObjectStream:fields[1] index:fields[2] number:n]];
+    }
+   }
+
+   [table setTrailer:dictionary];
+   *xrefp=table;
+   return YES;
+}
+
 BOOL O2PDFParse_xrefAtPosition(NSData *data,O2PDFInteger position,O2PDFxref **xrefp) {
    const char             *bytes=[data bytes];
    unsigned                length=[data length];
    O2PDFxref         *table;
    O2PDFDictionary        *trailer;
    O2PDFObject_identifier *identifier=nil;
+   O2PDFInteger            start=position;
 
-   if(!O2PDFScanIdentifier(bytes,length,position,&position,&identifier))
-    return debugError(bytes,length,position,@"Expecting xref identifier",identifier);
-
-   if([identifier identifier]!=O2PDFIdentifier_xref)
-    return debugError(bytes,length,position,@"Expecting xref, got %@",identifier);
+   /* Minkar: no xref keyword there: a cross-reference stream. */
+   if(!O2PDFScanIdentifier(bytes,length,position,&position,&identifier) ||
+      [identifier identifier]!=O2PDFIdentifier_xref)
+    return O2PDFParse_xrefStreamAtPosition(data,start,xrefp);
 
    *xrefp=table=[[[O2PDFxref alloc] initWithData:data] autorelease];
    do {
@@ -858,6 +932,22 @@ BOOL O2PDFParse_xrefAtPosition(NSData *data,O2PDFInteger position,O2PDFxref **xr
        return NO;
        
       [table setTrailer:trailer];
+
+      /* Minkar: a hybrid file's trailer names a cross-reference stream
+         too (/XRefStm): its entries count where the table has none. */
+      O2PDFInteger streamPosition;
+      O2PDFxref   *streamTable;
+
+      if([trailer getIntegerForKey:"XRefStm" value:&streamPosition] &&
+         O2PDFParse_xrefStreamAtPosition(data,streamPosition,&streamTable)){
+       NSMutableSet *numbers=[NSMutableSet set];
+
+       for(O2PDFxrefEntry *entry in [table allEntries])
+        [numbers addObject:[NSNumber numberWithLongLong:[entry number]]];
+       for(O2PDFxrefEntry *entry in [streamTable allEntries])
+        if(![numbers containsObject:[NSNumber numberWithLongLong:[entry number]]])
+         [table addEntry:entry];
+      }
       return YES;
      }
     }

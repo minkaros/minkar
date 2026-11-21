@@ -12,9 +12,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     O2PDFInteger _position;
     O2PDFInteger _number;
     O2PDFInteger _generation;
+    O2PDFInteger _objectStream;
+    O2PDFInteger _objectStreamIndex;
 }
 
 + (O2PDFxrefEntry *)xrefEntryWithPosition:(O2PDFInteger)position number:(O2PDFInteger)number generation:(O2PDFInteger)generation;
+/* Minkar: an object kept in an object stream (PDF 1.5), the index-th of
+   the stream numbered objectStream. */
++ (O2PDFxrefEntry *)xrefEntryInObjectStream:(O2PDFInteger)objectStream index:(O2PDFInteger)index number:(O2PDFInteger)number;
+- (O2PDFInteger)objectStream;
+- (O2PDFInteger)objectStreamIndex;
 
 - (O2PDFInteger)position;
 - (O2PDFInteger)number;

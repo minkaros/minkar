@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2PDFDictionary.h>
 #import <Onyx2D/O2PDFContext.h>
 #import <Onyx2D/O2PDFScanner.h>
+#import <Onyx2D/O2PDFStream.h>
 #import <Foundation/NSData.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
@@ -68,6 +69,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 
+/* Minkar: the index-th object of an object stream (PDF 1.5, /Type
+   /ObjStm): its decoded data starts with /N pairs of object number and
+   offset, the offsets counted from /First. */
+static O2PDFObject *objectInObjectStream(O2PDFxref *xref,O2PDFInteger streamNumber,O2PDFInteger index) {
+   O2PDFStream     *stream;
+   O2PDFInteger     count,first,offset=-1,position=0;
+   O2PDFObject     *object=nil;
+
+   if(![[xref objectAtNumber:streamNumber generation:0] checkForType:kO2PDFObjectTypeStream value:&stream])
+    return [O2PDFObject_const pdfObjectWithNull];
+   if(![[stream dictionary] getIntegerForKey:"N" value:&count] ||
+      ![[stream dictionary] getIntegerForKey:"First" value:&first] || index<0 || index>=count)
+    return [O2PDFObject_const pdfObjectWithNull];
+
+   NSData     *data=[stream data];
+   const char *bytes=[data bytes];
+   unsigned    length=[data length];
+
+   for(O2PDFInteger i=0;i<=index;i++){
+    O2PDFInteger number;
+
+    if(!O2PDFScanInteger(bytes,length,position,&position,&number) ||
+       !O2PDFScanInteger(bytes,length,position,&position,&offset))
+     return [O2PDFObject_const pdfObjectWithNull];
+   }
+   if(offset<0 || first+offset>=length ||
+      !O2PDFParseObject(bytes,length,first+offset,&position,&object,xref) || object==nil)
+    return [O2PDFObject_const pdfObjectWithNull];
+
+   return object;
+}
+
 -(O2PDFxrefEntry *)entryWithNumber:(O2PDFInteger)number generation:(O2PDFInteger)generation {
    void *key=(void *)number;
    id    check=NSMapGet(_numberToEntries,key);
@@ -99,7 +132,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     O2PDFObject *result=NSMapGet(_entryToObject,lookup);
 
     if(result==nil){
-     if(!O2PDFParseIndirectObject(_data,[lookup position],&result,number,generation,self))
+     if([lookup objectStream]!=0)
+      result=objectInObjectStream(self,[lookup objectStream],[lookup objectStreamIndex]);
+     else if(!O2PDFParseIndirectObject(_data,[lookup position],&result,number,generation,self))
       result=[O2PDFObject_const pdfObjectWithNull];
       
      NSMapInsert(_entryToObject,lookup,result);

@@ -22,6 +22,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[[self alloc] initWithPosition:position number:number generation:generation] autorelease];
 }
 
++(O2PDFxrefEntry *)xrefEntryInObjectStream:(O2PDFInteger)objectStream index:(O2PDFInteger)index number:(O2PDFInteger)number {
+   O2PDFxrefEntry *entry=[[[self alloc] initWithPosition:0 number:number generation:0] autorelease];
+
+   entry->_objectStream=objectStream;
+   entry->_objectStreamIndex=index;
+   return entry;
+}
+
+-(O2PDFInteger)objectStream {
+   return _objectStream;
+}
+
+-(O2PDFInteger)objectStreamIndex {
+   return _objectStreamIndex;
+}
+
 -(unsigned)hash {
    return _number;
 }

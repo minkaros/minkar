@@ -24,6 +24,7 @@ BOOL O2PDFScanInteger(const char *bytes, unsigned length, O2PDFInteger position,
 
 BOOL O2PDFParse_xref(NSData *data, O2PDFxref **xrefp);
 BOOL O2PDFParseIndirectObject(NSData *data, O2PDFInteger position, O2PDFObject **objectp, O2PDFInteger number, O2PDFInteger generation, O2PDFxref *xref);
+BOOL O2PDFParseObject(const char *bytes, unsigned length, O2PDFInteger position, O2PDFInteger *lastPosition, O2PDFObject **objectp, O2PDFxref *xref);
 
 @interface O2PDFScanner : NSObject {
     NSMutableArray *_stack;
