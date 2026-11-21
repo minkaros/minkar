@@ -88,17 +88,21 @@ closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 
 ## Progress pages
 
-`bmake progress` writes every generated page: [Progress.md](Progress.md)'s summary and
-SVGs and the README's status (from [progress/status.toml](progress/status.toml)),
-[Compatibility.md](Compatibility.md)'s matrix and frameworks table (from
-`progress/compatibility.tsv` and `progress/frameworks.tsv`) and
-[Userland.md](Userland.md)'s command tables (from `progress/commands.tsv`). Only what lies
-between a page's markers is generated. The commit that closes a milestone also updates
-`status.toml` and runs `bmake progress`; the work board keeps the six most recent done
-items. CI fails when the committed pages are not what `bmake progress` writes.
-`status.toml`'s `commit` and `updated` name the tree the pages summarize:
-the last commit outside `Docs/` and its date. `bmake progress` warns when
-`commit` is older, as the page header would otherwise lag behind.
+`bmake progress` writes every generated part of the documentation; only what lies between
+a page's markers is generated:
+
+- [Progress.md](Progress.md)'s summary and SVGs, and the README's status, from
+  [progress/status.toml](progress/status.toml);
+- [Compatibility.md](Compatibility.md)'s matrix and frameworks table, from
+  `progress/compatibility.tsv` and `progress/frameworks.tsv`;
+- [Userland.md](Userland.md)'s command tables, from `progress/commands.tsv`.
+
+The commit that closes a milestone also updates `status.toml` and runs `bmake progress`;
+the work board keeps the six most recent done items. CI fails when the committed pages are
+not what `bmake progress` writes.
+
+`status.toml`'s `commit` and `updated` name the tree the pages summarize: the last commit
+outside `Docs/` and its date. `bmake progress` warns when `commit` is older.
 
 ## Writing documentation
 
