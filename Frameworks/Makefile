@@ -78,6 +78,8 @@ SUBDIR += MediaPlayer
 SUBDIR += AuthenticationServices
 SUBDIR += AVFoundation
 SUBDIR += AVKit
+# VLC's and UTM's interfaces link it (21 Nov 2026).
+SUBDIR += ScriptingBridge
 # WebKit.framework is a stage of its own, after BSD (WPE WebKit): the
 # top Makefile.
 # Uniform types as objects (API 20).
@@ -148,6 +150,7 @@ CoreLocation: Foundation
 Vision: Foundation CoreGraphics
 IOBluetooth: Foundation
 MediaPlayer: Foundation CoreGraphics
+ScriptingBridge: Foundation
 AuthenticationServices: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
