@@ -94,7 +94,7 @@ Los servicios del sistema y su escritorio, Atlas ([Atlas.es.md](Atlas.es.md)):
   archivos), `SystemPreferences`, `Terminal`, `TextEditor`,
   `SystemMonitor`, `Logs`.
 
-## BSD y GNU
+## BSD
 
 Las órdenes Unix y sus bibliotecas ([Userland.es.md](Userland.es.md),
 [Commands.es.md](Commands.es.md)): `bin`, `sbin`, `usr.bin`, `usr.sbin`,
@@ -102,8 +102,6 @@ Las órdenes Unix y sus bibliotecas ([Userland.es.md](Userland.es.md),
 y WebKit: FFmpeg, dav1d, Mesa, WPE WebKit y sus dependencias), `etc`,
 `share` (también los archivos `mk` con los que compila bmake), `hier` (la
 disposición del sistema de archivos) y `syslog`; `launchd` está en `sbin`.
-`GNU` contiene las herramientas GPL que se compilan aparte (`bash`,
-`dmidecode`).
 
 ## Developer
 

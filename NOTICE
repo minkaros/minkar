@@ -120,7 +120,6 @@ Other components
 - libwebp 1.5.0 - BSD-3-Clause (BSD/lib/libwebp/MANIFEST, COPYING)
 - WOFF2 1.0.2 - MIT (BSD/lib/woff2/MANIFEST, LICENSE)
 - Brotli 1.1.0 - MIT (BSD/lib/brotli/MANIFEST, LICENSE)
-- utf8proc - MIT (BSD/lib/libutf8/LICENSE.md)
 - pixman - MIT (BSD/lib/libpixman/COPYING)
 - FreeType 2.13.2 - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
 - fontconfig - MIT-style (Frameworks/CoreText/fontconfig/COPYING)
@@ -264,14 +263,6 @@ GPL or LGPL code is linked statically into Minkar's own.
   host's /usr/local (tools/ci/host-setup.sh)
 - swift-corelibs-libdispatch (swift-6.0-RELEASE) - Apache-2.0, in the
   build host's /usr/local (tools/ci/host-setup.sh)
-
-=======================================================================
-4. In the source tree, not built
-=======================================================================
-
-- GNU bash, an older copy (GNU/bin/bash) - GPL-3.0; the system's bash is
-  built from BSD/usr.bin/bash
-- dmidecode (GNU/bin/dmidecode) - GPL-2.0
 
 Trademarks
 

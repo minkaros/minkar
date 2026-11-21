@@ -86,15 +86,14 @@ The system's services and its desktop, Atlas ([Atlas.md](Atlas.md)):
   menu bar's extras, notifications), `Files` (the file manager),
   `SystemPreferences`, `Terminal`, `TextEditor`, `SystemMonitor`, `Logs`.
 
-## BSD and GNU
+## BSD
 
 The Unix commands and their libraries ([Userland.md](Userland.md),
 [Commands.md](Commands.md)): `bin`, `sbin`, `usr.bin`, `usr.sbin`, `libexec`,
 `lib` (libraries, among them the external ones the media and WebKit use:
 FFmpeg, dav1d, Mesa, WPE WebKit and its dependencies), `etc`, `share` (also
 the `mk` files bmake builds with), `hier` (the file system's layout) and
-`syslog`; `launchd` is in `sbin`. `GNU` holds the GPL tools built apart (`bash`,
-`dmidecode`).
+`syslog`; `launchd` is in `sbin`.
 
 ## Developer
 
