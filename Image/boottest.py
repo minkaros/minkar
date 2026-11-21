@@ -456,6 +456,12 @@ def qemu_command(args, vars_copy):
         disks += ['-drive', 'if=none,id=extra%d,format=raw,snapshot=on,file=%s' % (i, extra),
                   '-device', 'ide-hd,drive=extra%d,bus=ahci.%d' % (i, i)]
     port = len(args.extra_disk or [])
+    # Data disks (--data-disk) come after the image, on the next ports: a
+    # second disk of the same machine (gate BC's apps disk).
+    data = []
+    for i, extra in enumerate(args.data_disk or []):
+        data += ['-drive', 'if=none,id=data%d,format=raw,snapshot=on,file=%s' % (i, extra),
+                 '-device', 'ide-hd,drive=data%d,bus=ahci.%d' % (i, port + 1 + i)]
     return [
         args.qemu, '-machine', 'q35', '-accel', accel(args), '-cpu', args.cpu,
         '-smp', vm_smp(args), '-m', str(vm_memory(args)),
@@ -466,7 +472,7 @@ def qemu_command(args, vars_copy):
         # The image is never written: tests start from the same state.
         '-drive', 'if=none,id=disk,format=raw,snapshot=on,file=%s' % args.image,
     ] + (['-device', 'nvme,serial=MINKAR0001,drive=disk'] if args.disk == 'nvme' else
-         ['-device', 'ide-hd,drive=disk,bus=ahci.%d' % port]) + ([] if args.no_rng else [
+         ['-device', 'ide-hd,drive=disk,bus=ahci.%d' % port]) + data + ([] if args.no_rng else [
         # Firmware RNG for the loader; --no-rng leaves it out, as on PCs
         # whose firmware has none (the loader then uses RDRAND).
         '-device', 'virtio-rng-pci',
@@ -874,6 +880,8 @@ def main(argv=None):
                         '(default: $BOOTTEST_ACCEL or tcg)')
     p.add_argument('--extra-disk', action='append',
                    help='raw disk attached before the image (repeatable)')
+    p.add_argument('--data-disk', action='append',
+                   help='raw disk attached after the image, read-only (repeatable)')
     p.add_argument('--disk', choices=['ahci', 'nvme'],
                    default=os.environ.get('BOOTTEST_DISK', 'ahci'),
                    help='how the image is attached: a SATA disk on AHCI, or an '

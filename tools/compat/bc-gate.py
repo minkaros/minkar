@@ -34,7 +34,13 @@ fetch-reference-apps.py: kept, and checked by SHA-256; never put in the
 repository or the image), reads each one's bundle, executable, minimum
 version and architectures from its unpacked copy, and boots the image
 with boottest's gate BC: each app's archive is copied into the VM and
-Tests/BC/bc-run.sh installs it as a user would and starts it. Each app
+Tests/BC/bc-run.sh installs it as a user would and starts it. The archives
+reach the VM on the apps disk (DIR/bc-apps.img, FAT32, made again when they
+change and attached as a read-only snapshot), copied inside the VM rather
+than over ssh; --no-apps-disk, or a host without mkfs.fat and mcopy, sends
+them over ssh. The VM runs under KVM when /dev/kvm is there and neither $CI
+nor $GITHUB_ACTIONS is set (TCG otherwise, as in the CI); --accel or
+$BOOTTEST_ACCEL chooses. Each app
 gets a result, from the furthest it got:
 
   install, signature, no-load, before-main, at-start, no-window, window
@@ -57,6 +63,7 @@ import datetime
 import json
 import os
 import plistlib
+import shutil
 import struct
 import subprocess
 import sys
@@ -145,13 +152,112 @@ def version_key(v):
     return [int(x) if x.isdigit() else 0 for x in v.split('.')] + [0, 0, 0]
 
 
-def plan(apps, wait):
+# The apps disk: a FAT32 disk image holding every app's archive, attached
+# to the VM read-only (a snapshot), so the archives are copied inside the VM
+# instead of over ssh. It is built from the cached downloads, kept next to
+# them and never published.
+DISK_LABEL = 'BCAPPS'
+DISK_MOUNT = '/Volumes/' + DISK_LABEL
+
+
+def disk_name(app):
+    """An archive's name on the apps disk: the app's, with the extension of
+    what the download is (some URLs do not say), so Files opens a disk
+    image with a double click: a zip by its signature, a disk image by
+    UDIF's trailer ("koly" in the last 512 bytes), a tar otherwise."""
+    with open(app['archive'], 'rb') as f:
+        head = f.read(4)
+        f.seek(-512, os.SEEK_END)
+        tail = f.read(4)
+    ext = '.zip' if head == b'PK\x03\x04' else '.dmg' if tail == b'koly' else '.tar'
+    return app['name'] + ext
+
+
+# On the apps disk too, for whoever boots the image by hand: installs one
+# app, or all of them, in /Applications as gate BC's runner does.
+INSTALL_SH = r"""#!/bin/sh
+# Installs the designated apps of this disk in /Applications, as gate BC
+# does (a disk image attached and its app copied, a zip or tar expanded).
+#   sh /Volumes/BCAPPS/install.sh [App ...]     (all of them by default)
+# Written by tools/compat/bc-gate.py; run it as an administrator (sudo).
+here=$(dirname "$0")
+[ $# -gt 0 ] || set -- $(ls "$here" | sed -nE 's/\.(dmg|zip|tar)$//p')
+for name in "$@"; do
+	a=$(ls "$here/$name".* 2>/dev/null | grep -v '\.sh$' | head -1)
+	[ -n "$a" ] || { echo "$name: not on this disk"; continue; }
+	w=$(mktemp -d /tmp/bcapps.XXXXXX)
+	case "$a" in
+	*.dmg)	mkdir "$w/mnt"
+		hdiutil attach -nobrowse -readonly -mountpoint "$w/mnt" "$a" > /dev/null ||
+		    { echo "$name: hdiutil attach failed"; continue; }
+		src=$(find "$w/mnt" -maxdepth 2 -name '*.app' -type d | head -1) ;;
+	*.zip)	ditto -x -k "$a" "$w/x"
+		src=$(find "$w/x" -maxdepth 3 -name '*.app' -type d | head -1) ;;
+	*)	mkdir "$w/x"; tar -xf "$a" -C "$w/x"
+		src=$(find "$w/x" -maxdepth 3 -name '*.app' -type d | head -1) ;;
+	esac
+	if [ -n "$src" ]; then
+		rm -rf "/Applications/$(basename "$src")"
+		ditto "$src" "/Applications/$(basename "$src")" && echo "$name: /Applications/$(basename "$src")"
+	else
+		echo "$name: no app in $a"
+	fi
+	[ -d "$w/mnt" ] && hdiutil detach "$w/mnt" > /dev/null 2>&1
+	rm -rf "$w"
+done
+"""
+
+
+def apps_disk(apps_dir, apps):
+    """The apps disk for these apps, made again when they changed; None
+    without mkfs.fat and mcopy (the archives then go over ssh)."""
+    if not (shutil.which('mkfs.fat') and shutil.which('mcopy')):
+        print('bc-gate: no mkfs.fat or mcopy (dosfstools, mtools): archives go over ssh',
+              file=sys.stderr)
+        return None
+    disk = os.path.join(apps_dir, 'bc-apps.img')
+    contents = 'apps disk 2\n' + ''.join(
+        '%s\t%s\t%d\t%d\n' % (disk_name(a), os.path.basename(a['archive']),
+                               os.path.getsize(a['archive']), int(os.path.getmtime(a['archive'])))
+        for a in apps)
+    listing = disk + '.list'
+    try:
+        with open(listing) as f:
+            if f.read() == contents and os.path.exists(disk):
+                return disk
+    except OSError:
+        pass
+    size = sum(os.path.getsize(a['archive']) for a in apps)
+    size = (size + size // 20 + (64 << 20)) // (1 << 20) << 20
+    with open(disk, 'wb') as f:
+        f.truncate(size)
+    subprocess.run(['mkfs.fat', '-F', '32', '-n', DISK_LABEL, disk], check=True,
+                   stdout=subprocess.DEVNULL)
+    for a in apps:
+        subprocess.run(['mcopy', '-i', disk, a['archive'], '::/' + disk_name(a)], check=True)
+    script = disk + '.install.sh'
+    with open(script, 'w') as f:
+        f.write(INSTALL_SH)
+    subprocess.run(['mcopy', '-i', disk, script, '::/install.sh'], check=True)
+    os.unlink(script)
+    with open(listing, 'w') as f:
+        f.write(contents)
+    return disk
+
+
+def plan(apps, wait, disk=False):
     steps = [{'ssh': 'mkdir -p %s' % REMOTE}]
+    if disk:
+        steps.append({'ssh': 'for i in $(seq 60); do [ -d %s ] && break; sleep 1; done; '
+                             'ls %s >/dev/null' % (DISK_MOUNT, DISK_MOUNT)})
     for app in apps:
         d = app['described']
         remote = '%s/%s.archive' % (REMOTE, app['name'])
-        steps += [{'put': [app['archive'], remote]},
-                  {'ssh': "sh %s '%s' '%s' '%s' '%s' %d" % (
+        if disk:
+            steps.append({'ssh': "cp '%s/%s' '%s'" % (DISK_MOUNT, disk_name(app), remote)})
+        else:
+            steps.append({'put': [app['archive'], remote]})
+        steps += [{'ssh': "sh %s '%s' '%s' '%s' '%s' %d" % (
                       RUNNER, app['name'], remote, d['bundle'], d['exe'], wait)},
                   {'expect': 'bc: %s end' % app['name']}]
     return steps
@@ -236,6 +342,8 @@ def main(argv=None):
                    help='seconds each app gets to show a window (default: $BC_WAIT or 40)')
     p.add_argument('--timeout', type=int, default=int(os.environ.get('BC_TIMEOUT', 7200)))
     p.add_argument('--only', action='append', help='only this app (repeatable; for development)')
+    p.add_argument('--no-apps-disk', action='store_true',
+                   help='copy each archive over ssh, without the apps disk')
     args, boottest_args = p.parse_known_args(argv)
 
     started = time.monotonic()
@@ -252,12 +360,20 @@ def main(argv=None):
             print('bc-gate: %s %s: not downloaded or no app in it' % (app['name'], app['version']),
                   file=sys.stderr)
 
+    # Locally, under KVM when the host has it: TCG is for the CI's runners
+    # (and for whoever asks with --accel or $BOOTTEST_ACCEL).
+    if ('--accel' not in boottest_args and not os.environ.get('BOOTTEST_ACCEL') and
+            not os.environ.get('CI') and not os.environ.get('GITHUB_ACTIONS') and
+            os.access('/dev/kvm', os.R_OK | os.W_OK)):
+        boottest_args += ['--accel', 'kvm']
+    disk = None if args.no_apps_disk or not runnable else apps_disk(args.apps, runnable)
     plan_path = os.path.join(args.apps, 'bc-plan.json')
     with open(plan_path, 'w') as f:
-        json.dump(plan(runnable, args.wait), f, indent=1)
+        json.dump(plan(runnable, args.wait, disk is not None), f, indent=1)
     boot = subprocess.run([sys.executable, '-B', BOOTTEST, '--image', args.image, '--gate', 'BC',
                            '--bc-plan', plan_path, '--log', args.log,
-                           '--timeout', str(args.timeout)] + boottest_args)
+                           '--timeout', str(args.timeout)] +
+                          (['--data-disk', disk] if disk else []) + boottest_args)
     seconds = time.monotonic() - started
     product, found = parse_log(args.log) if os.path.exists(args.log) else (None, {})
 

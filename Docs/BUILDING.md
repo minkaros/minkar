@@ -68,7 +68,7 @@ an x86-64 CPU with AVX if the boot test runs under KVM.
   bison), `ruby` (2.5 or later: JavaScriptCore's build generates code
   with it), and `gperf` and `unifdef` (WebCore's build generates its
   lookup tables and WebKit's GLib headers with them)
-* Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
+* Bootable image and boot test: `nasm gdisk dosfstools mtools hfsprogs`,
   `qemu-system-x86 ovmf` (the boot test runs QEMU under TCG unless
   `BOOTTEST_ACCEL=kvm`; its VM is an Ivy Bridge, `-cpu IvyBridge`, since
   Minkar needs AVX, and QEMU emulates AVX under TCG from 7.2 on, so
@@ -245,7 +245,9 @@ Gates (see the architecture plan):
   `tools/symbols/reference-apps.tsv`). `bc-check` downloads them to
   `../build/bc-apps` by their URL and SHA-256 (kept there; never put in the
   repository or the image), and for each one copies its archive into the
-  VM, where `Tests/BC/bc-run.sh` installs it as a user would (a disk image
+  VM from the apps disk (`../build/bc-apps/bc-apps.img`, a FAT32 image of
+  the downloads made with `mtools`, attached read-only; `--no-apps-disk`
+  in `BC_ARGS` sends them over ssh instead), where `Tests/BC/bc-run.sh` installs it as a user would (a disk image
   attached and the app copied to /Applications, a zip or a tar expanded)
   and starts it with a probe. Each app's result is how far it got (from
   `install` to `window`); one that gets less far than in

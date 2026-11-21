@@ -32,7 +32,7 @@ OPENCFLITE_TAG=opencflite-635.21.8
 # built from the Swift release the toolchain uses.
 LIBDISPATCH_REPO=https://github.com/swiftlang/swift-corelibs-libdispatch.git
 LIBDISPATCH_TAG=swift-6.0-RELEASE
-IMAGE_PACKAGES="nasm gdisk dosfstools hfsprogs qemu-system-x86 ovmf \
+IMAGE_PACKAGES="nasm gdisk dosfstools mtools hfsprogs qemu-system-x86 ovmf \
 openssh-client openssl"
 
 free_disk() {

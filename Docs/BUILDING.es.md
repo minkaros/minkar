@@ -75,7 +75,7 @@ corre bajo KVM.
   JavaScriptCore genera código con él), y `gperf` y `unifdef` (la
   compilación de WebCore genera con ellos sus tablas de búsqueda y las
   cabeceras GLib de WebKit).
-* Imagen arrancable y prueba de arranque: `nasm gdisk dosfstools hfsprogs`,
+* Imagen arrancable y prueba de arranque: `nasm gdisk dosfstools mtools hfsprogs`,
   `qemu-system-x86 ovmf` (la prueba de arranque usa QEMU con TCG salvo con
   `BOOTTEST_ACCEL=kvm`; su VM es un Ivy Bridge, `-cpu IvyBridge`, porque
   Minkar necesita AVX, y QEMU emula AVX con TCG desde la 7.2, así que basta
@@ -259,8 +259,10 @@ Gates (ver el plan de arquitectura):
   cada app designada (carril BC en [ROADMAP.es.md](ROADMAP.es.md); las apps
   de `tools/symbols/reference-apps.tsv`). `bc-check` las descarga en
   `../build/bc-apps` por su URL y su SHA-256 (se quedan allí; nunca van al
-  repositorio ni a la imagen), y para cada una copia su archivo a la VM,
-  donde `Tests/BC/bc-run.sh` la instala como lo haría un usuario (se
+  repositorio ni a la imagen), y para cada una copia su archivo a la VM
+  desde el disco de apps (`../build/bc-apps/bc-apps.img`, una imagen FAT32
+  de las descargas hecha con `mtools` y conectada en solo lectura;
+  `--no-apps-disk` en `BC_ARGS` los envía por ssh), donde `Tests/BC/bc-run.sh` la instala como lo haría un usuario (se
   conecta la imagen de disco y se copia la app a /Applications, o se
   expande el zip o el tar) y la arranca con una sonda. El resultado de cada
   app es hasta dónde llegó (de `install` a `window`); una que llega menos
