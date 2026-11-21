@@ -159,7 +159,9 @@ AuthenticationServices: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
 UniformTypeIdentifiers: Foundation CoreServices
-../BSD/usr.bin/cups: ../BSD/usr.bin/openssl
+# CUPS's configure links its checks with Security, SystemConfiguration,
+# CoreFoundation, libiconv and libz; without one, the pthread check fails.
+../BSD/usr.bin/cups: ../BSD/usr.bin/openssl Security/minkar SystemConfiguration CoreFoundation
 ApplicationServices/PrintCore: CoreGraphics CoreServices ../BSD/usr.bin/cups
 ApplicationServices: CoreGraphics CoreText ApplicationServices/PrintCore
 ImageIO: CoreGraphics
