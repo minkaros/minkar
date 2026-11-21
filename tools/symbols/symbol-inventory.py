@@ -46,9 +46,15 @@ Output, in --out:
   coverage.json  the numbers below, for scripts
   coverage.md    per library: imported symbols, how many Minkar exports,
                  the missing ones most used first
-  swiftui.tsv    app, binary, library, symbol: what each app imports from
-                 SwiftUI (lane SU, SU0); coverage.md says which apps link
-                 it, and how (a load command for SwiftUI.framework)
+  swiftui.tsv    app, binary, library, symbol, demangled: what each app
+                 imports from SwiftUI (lane SU, SU0), with the framework
+                 (install name) each symbol is bound to; coverage.md says
+                 which apps link it, how, and from which frameworks
+  swiftui-shared.tsv
+                 symbol, demangled, apps: every SwiftUI symbol the apps
+                 import, the ones more apps import first
+The symbols are demangled with swift-demangle (--demangler, or the one
+next to --tools, or $SWIFT_DEMANGLE); without one they stay mangled.
 
 Only symbols are compared: Objective-C classes show up as
 _OBJC_CLASS_$_Name imports, but methods are looked up at run time and are
@@ -342,11 +348,34 @@ APPKIT = '/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit'
 MOVED = {COREFOUNDATION: FOUNDATION, FOUNDATION: APPKIT}
 
 
-def swiftui_report(imports, swiftui, out):
+def demangle(symbols, demangler):
+    """{symbol: demangled}, empty without a demangler."""
+    symbols = sorted(set(symbols))
+    if not demangler or not symbols:
+        return {}
+    r = subprocess.run([demangler], input='\n'.join(symbols) + '\n', stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, universal_newlines=True, errors='replace')
+    out = r.stdout.split('\n')
+    if r.returncode != 0 or len(out) < len(symbols):
+        return {}
+    return {s: d for s, d in zip(symbols, out) if d != s}
+
+
+def swiftui_report(imports, swiftui, out, demangler=None):
     """Lane SU's SU0: per app, whether it links SwiftUI (strongly, or only
-    weakly) and the SwiftUI symbols it imports; swiftui.tsv lists them."""
+    weakly), from which frameworks, and the SwiftUI symbols it imports,
+    each with the framework it is bound to; swiftui.tsv lists them and
+    swiftui-shared.tsv sums them up across the apps."""
     rows = sorted({(a, b, l, s) for a, b, l, s, _ in imports if is_swiftui(l)})
-    write_tsv(os.path.join(out, 'swiftui.tsv'), ('app', 'binary', 'library', 'symbol'), rows)
+    names = demangle([s for _, _, _, s in rows], demangler)
+    write_tsv(os.path.join(out, 'swiftui.tsv'), ('app', 'binary', 'library', 'symbol', 'demangled'),
+              ((a, b, l, s, names.get(s, '')) for a, b, l, s in rows))
+    by_symbol = collections.defaultdict(set)
+    for a, _, _, s in rows:
+        by_symbol[s].add(a)
+    shared = sorted(by_symbol, key=lambda s: (-len(by_symbol[s]), s))
+    write_tsv(os.path.join(out, 'swiftui-shared.tsv'), ('symbol', 'demangled', 'apps'),
+              ((s, names.get(s, ''), ','.join(sorted(by_symbol[s]))) for s in shared))
     per_app = []
     for app in sorted(swiftui):
         links = swiftui[app]
@@ -357,13 +386,19 @@ def swiftui_report(imports, swiftui, out):
         else:
             how = 'weak'
         syms = sorted({s for a, _, _, s in rows if a == app})
+        bound = collections.Counter(l for a, _, l, _ in rows if a == app)
         per_app.append({'app': app, 'links': how,
                         'binaries': sorted({b for b, _, _ in links}),
+                        'frameworks': sorted({d for _, _, d in links}),
+                        'symbols_by_framework': dict(bound),
                         'symbols': len(syms), 'symbol_list': syms})
-    return per_app
+    return {'apps': per_app, 'distinct': len(by_symbol),
+            'shared': [{'symbol': s, 'demangled': names.get(s, ''),
+                        'apps': sorted(by_symbol[s])} for s in shared if len(by_symbol[s]) > 1],
+            'demangled': bool(names)}
 
 
-def report(sysroot, libs, exported, imports, minos, out, top, swiftui=None):
+def report(sysroot, libs, exported, imports, minos, out, top, swiftui=None, demangler=None):
     # library -> symbol -> set of apps
     used = collections.defaultdict(lambda: collections.defaultdict(set))
     weak_only = collections.defaultdict(lambda: collections.defaultdict(lambda: True))
@@ -432,7 +467,7 @@ def report(sysroot, libs, exported, imports, minos, out, top, swiftui=None):
         'minkar_libraries': len(libs),
         'minkar_exports': sum(len(v) for v in exported.values()),
         'install_names_not_found': [{'install_name': n, 'file': f} for n, f in bad_names],
-        'swiftui': swiftui_report(imports, swiftui or {}, out),
+        'swiftui': swiftui_report(imports, swiftui or {}, out, demangler),
     }
     with open(os.path.join(out, 'coverage.json'), 'w') as f:
         json.dump(data, f, indent=1, sort_keys=True)
@@ -478,16 +513,26 @@ def report(sysroot, libs, exported, imports, minos, out, top, swiftui=None):
             f.write('| %s | %d | %d | %d | %d | %.1f%% |\n'
                     % (name, s['apps'], s['imported'], s['present'], s['missing'],
                        s['coverage']))
+        su = data['swiftui']
         f.write('\n## SwiftUI (lane SU, SU0)\n\n'
                 'Apps that link SwiftUI: %d of %d. "strong" means the app does '
-                'not start without it; the symbols are in swiftui.tsv.\n\n'
-                '| App | Links SwiftUI | SwiftUI symbols | Binaries |\n'
-                '| --- | --- | ---: | --- |\n'
-                % (sum(a['links'] != 'no' for a in data['swiftui']), len(data['swiftui'])))
-        for a in data['swiftui']:
-            f.write('| %s | %s | %d | %s |\n'
-                    % (a['app'], a['links'], a['symbols'],
-                       ', '.join('`%s`' % b for b in a['binaries']) or '—'))
+                'not start without it. They import %d distinct SwiftUI symbols, %d of '
+                'them by more than one app; each symbol, with the framework it is '
+                'bound to%s, is in swiftui.tsv, and swiftui-shared.tsv sums them up.\n\n'
+                '| App | Links SwiftUI | Frameworks | SwiftUI symbols | Binaries |\n'
+                '| --- | --- | --- | ---: | --- |\n'
+                % (sum(a['links'] != 'no' for a in su['apps']), len(su['apps']),
+                   su['distinct'], len(su['shared']),
+                   ' and demangled' if su['demangled'] else ''))
+        for a in su['apps']:
+            f.write('| %s | %s | %s | %d | %s |\n'
+                    % (a['app'], a['links'],
+                       ', '.join('`%s`' % short_name(d) for d in a['frameworks']) or '—',
+                       a['symbols'], ', '.join('`%s`' % b for b in a['binaries']) or '—'))
+        if su['shared']:
+            f.write('\nImported by more than one app (the first %d):\n\n' % min(top, len(su['shared'])))
+            for m in su['shared'][:top]:
+                f.write('- `%s` (%s)\n' % (m['demangled'] or m['symbol'], ', '.join(m['apps'])))
         f.write('\n## Most used missing symbols\n\n'
                 'Up to %d per library, the most used first; all of them are in '
                 'missing.tsv.\n' % top)
@@ -509,6 +554,8 @@ def main(argv=None):
     p.add_argument('--out', required=True, help='report directory')
     p.add_argument('--tools', default=DEFAULT_TOOLS,
                    help='directory with llvm-nm and llvm-otool')
+    p.add_argument('--demangler', default=None,
+                   help='swift-demangle (default: next to --tools, or $SWIFT_DEMANGLE)')
     p.add_argument('--top', type=int, default=25,
                    help='missing symbols listed per library in coverage.md')
     args = p.parse_args(argv)
@@ -526,7 +573,11 @@ def main(argv=None):
               ('app', 'binary', 'library', 'symbol', 'weak'),
               ((a, b, l, s, 'weak' if w else '') for a, b, l, s, w in imports))
 
-    data = report(args.sysroot, libs, exported, imports, minos, args.out, args.top, swiftui)
+    demangler = args.demangler or next(
+        (d for d in (os.path.join(args.tools, 'swift-demangle'), os.environ.get('SWIFT_DEMANGLE'))
+         if d and os.access(d, os.X_OK)), None)
+    data = report(args.sysroot, libs, exported, imports, minos, args.out, args.top, swiftui,
+                  demangler)
     print('symbol-inventory: %d libraries, %d exports' %
           (data['minkar_libraries'], data['minkar_exports']))
     if imports:
@@ -534,9 +585,9 @@ def main(argv=None):
               % (len(data['apps']), data['total']['present'], data['total']['imported'],
                  data['total']['coverage']))
     if imports:
-        print('symbol-inventory: %d apps link SwiftUI, %d SwiftUI symbols imported'
-              % (sum(a['links'] != 'no' for a in data['swiftui']),
-                 sum(a['symbols'] for a in data['swiftui'])))
+        su = data['swiftui']
+        print('symbol-inventory: %d apps link SwiftUI, %d distinct SwiftUI symbols, %d shared'
+              % (sum(a['links'] != 'no' for a in su['apps']), su['distinct'], len(su['shared'])))
     print('symbol-inventory: report in %s' % os.path.join(args.out, 'coverage.md'))
     return 0
 
