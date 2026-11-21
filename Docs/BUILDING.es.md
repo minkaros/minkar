@@ -1,15 +1,34 @@
 # Compilar Minkar desde las fuentes
 
-*Traducción de [BUILDING.md](BUILDING.md); el documento en inglés es el de referencia.*
+Cómo compilar Minkar, hacer una imagen arrancable y arrancarla en QEMU, con el anfitrión
+que necesita, las capas y los gates de la compilación, y los errores frecuentes. Para
+quien compila el árbol. Última revisión: 21 nov 2026. Es una copia de
+[BUILDING.md](BUILDING.md) y se actualiza en el mismo commit.
 
-Minkar se compila con BSD make (bmake). La compilación crea primero un
-toolchain para el anfitrión (Default.xctoolchain: clang/LLVM, cctools, ld64,
-xcbuild, mig, ...) y después lo usa, junto con el Minkar.sdk que produce,
-para compilar el resto del sistema para la misma arquitectura de CPU.
+## Inicio rápido
 
-El árbol de fuentes es `/work/minkar` y el directorio de compilación es
-`../build`, a su lado (`ROOT_BINARY_DIR`); ajusta las rutas de abajo a tu
-copia. Compilar LLVM la primera vez lleva __mucho__ tiempo.
+En Ubuntu 24.04 (x86-64, una CPU con AVX), con 16 GB de RAM, unos 40 GB libres en un
+sistema de archivos que distinga mayúsculas, y root:
+
+    git clone https://github.com/minkaros/minkar && cd minkar && mkdir -p ../build
+    sudo tools/ci/host-setup.sh packages image
+    sudo bmake -m $PWD/BSD/share/mk -j$(nproc) > ../build/world.log 2>&1
+    sudo bmake -m $PWD/BSD/share/mk boottest-key
+    sudo env INIT= ROOT_PASSWORD=secret ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
+        bmake -m $PWD/BSD/share/mk image
+    sudo env GATE=M2 ROOT_PASSWORD=secret BOOTTEST_SSH_KEY=../build/boottest-ssh/id_ed25519 \
+        bmake -m $PWD/BSD/share/mk boottest
+
+La primera compilación compila el toolchain (LLVM, Swift) y tarda horas. `boottest`
+imprime la orden de QEMU para arrancar la imagen a mano. El resto de la página es
+referencia.
+
+## Cómo se organiza la compilación
+
+Minkar se compila con BSD make (bmake). La compilación crea primero un toolchain para el
+anfitrión (Default.xctoolchain: clang/LLVM, Swift, cctools, ld64, xcbuild, mig, ...) y
+después lo usa, con el Minkar.sdk que produce, para compilar el resto del sistema. El
+directorio de compilación es `../build`, junto al árbol de fuentes (`ROOT_BINARY_DIR`).
 
 ## Requisitos del anfitrión
 
@@ -26,7 +45,7 @@ sistema que sale.
 
 Requisitos: un sistema de archivos que distinga mayúsculas (ver abajo), al
 menos 16 GB de RAM para `-j10` (los enlazados de LLVM son el pico), unos
-20 GB libres de disco y una CPU x86-64 con AVX si la prueba de arranque
+40 GB libres de disco y una CPU x86-64 con AVX si la prueba de arranque
 corre bajo KVM.
 
 * Compilación del toolchain: `clang lld cmake ninja-build python3
@@ -69,9 +88,13 @@ La compilación llama directamente a `/usr/bin/clang` (`HOST_CC`,
 
 El árbol de fuentes debe estar en un sistema de archivos que distinga
 mayúsculas (ext4, no un volumen HFS+ o APFS por omisión): algunos árboles
-tienen nombres que solo se diferencian en mayúsculas. Espacio en disco:
-unos 7 GB de fuentes con su historial de git, 8 GB de árbol de compilación
-(2 GB de ellos el directorio de compilación de LLVM) y una imagen de 2 GB.
+tienen nombres que solo se diferencian en mayúsculas. Espacio en disco, medido el 21 nov
+2026 tras quitar los volcados de compilación de ncurses y los 21 componentes que no se
+compilaban: 3,0 GB de fuentes versionadas (232.104 ficheros) y 1,9 GB de historial de git;
+en el árbol de compilación del anfitrión de desarrollo, 2,7 GB de toolchain, 16 GB de
+directorios de objetos, 3,5 GB del Swift del anfitrión con el que se compila el toolchain,
+una sysroot de 1,2 GB y una imagen de 1,2 GB. Antes de esa limpieza las fuentes ocupaban
+unos 7 GB con su historial.
 
 ## Compilar
 
@@ -105,9 +128,12 @@ Resultados, bajo `../build`:
 
 ## Tiempos esperados
 
-Histórico: medido el 25 oct 2026 en el anfitrión de referencia de entonces,
-Ubuntu 22.04, 10 CPU (Xeon E5-2690 v2), 16 GB de RAM, `-j10`, árbol de
-compilación limpio. El anfitrión con Ubuntu 24.04.5 aún no se ha medido.
+Medido el 25 oct 2026, antes de que el toolchain pasara a LLVM 21 y antes de quitar los
+volcados de ncurses y los 21 componentes que no se compilaban, en el anfitrión de
+referencia de entonces: Ubuntu 22.04, 10 CPU (Xeon E5-2690 v2), 16 GB de RAM, `-j10`,
+árbol de compilación limpio. El anfitrión con Ubuntu 24.04.5 no se ha medido desde cero
+desde entonces. En la CI, el toolchain tarda unas dos horas cuando falla su caché, y el
+gate BC de 2 a 3 horas bajo TCG.
 
 | Fase | Tiempo real |
 | --- | --- |
@@ -350,8 +376,6 @@ Las partes portables del sistema tienen pruebas en el anfitrión (clang,
 ASan/UBSan):
 
 * `make -C Frameworks/OpenGL/tests`
-* `make -C Frameworks/CoreGraphics/tests`
-* `make -C CoreServices/WindowServer/tests` (necesita una sysroot compilada)
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
 * `make -C Libraries/Libsystem/libsystem_c/minkar_crypt/tests` (SHA-crypt de crypt(3))
 * `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`
