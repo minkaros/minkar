@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSString.h>
 #import <Onyx2D/O2zlib.h>
 #import <Onyx2D/O2LZW.h>
+#include <stdlib.h>
 #import <string.h>
 #import <Onyx2D/O2ImageSource_JPEG.h>
 
@@ -55,77 +56,76 @@ NSData *O2PDFFilterWithName(const char *name,NSData *data,O2PDFDictionary *param
    }
     
    O2PDFInteger predictor=0;
-   
-    if([parameters getIntegerForKey:"Predictor" value:&predictor]){
-     if(predictor>1){
-      NSMutableData *mutable=[NSMutableData data];
-      const  char *bytes=[data bytes];
-      unsigned             length=[data length];
-      O2PDFInteger colors;
-      O2PDFInteger bitsPerComponent;
-      O2PDFInteger columns;
-      int          bytesPerRow;
-      int          row,rowLength,numberOfRows;
-      
-      if(![parameters getIntegerForKey:"Colors" value:&colors])
-       colors=1;
-      if(![parameters getIntegerForKey:"BitsPerComponent" value:&bitsPerComponent])
-       bitsPerComponent=8;
-      if(![parameters getIntegerForKey:"Columns" value:&columns])
-       columns=1;
-       
-//NSLog(@"predictor=%d,colors=%d,bpc=%d,columns=%d,length=%d",predictor,colors,bitsPerComponent,columns,length);
 
-      bytesPerRow=(((colors*bitsPerComponent)*columns)+7)/8;
-      rowLength=bytesPerRow+1;
-      numberOfRows=length/rowLength;
+    /* Minkar: the predictors as the PDF reference defines them: 2 is TIFF's
+       (each component plus the same component of the pixel to its left), 10
+       and up PNG's (a filter byte before each row: None, Sub, Up, Average or
+       Paeth, against the pixel to the left and the row above). */
+    if(data!=nil && [parameters getIntegerForKey:"Predictor" value:&predictor] && predictor>1){
+     const unsigned char *bytes=[data bytes];
+     NSUInteger           length=[data length];
+     O2PDFInteger         colors,bitsPerComponent,columns;
 
-#if 0
-      if((length%rowLength)!=0)
-       ;//NSLog(@"length mod rowLength=%d",length%rowLength);
-        
-#endif
-      char *change=__builtin_alloca(rowLength);
-       
-      for(row=0;row<numberOfRows;row++){
-       int i,filter=bytes[0];
-       
-       for(i=0;i<rowLength-1;i++)
-        change[i]=bytes[1+i];
-        
-       if(filter==0){
-        // do nothing
-       }
-       else if(filter==1){
-        int last=change[0];
-        
-        for(i=1;i<rowLength-1;i++){
-         last=last+change[i];              
-         change[i]=last;
+     if(![parameters getIntegerForKey:"Colors" value:&colors] || colors<1)
+      colors=1;
+     if(![parameters getIntegerForKey:"BitsPerComponent" value:&bitsPerComponent] || bitsPerComponent<1)
+      bitsPerComponent=8;
+     if(![parameters getIntegerForKey:"Columns" value:&columns] || columns<1)
+      columns=1;
+
+     NSUInteger bytesPerPixel=(colors*bitsPerComponent+7)/8;
+     NSUInteger bytesPerRow=(colors*bitsPerComponent*columns+7)/8;
+
+     if(predictor==2){
+      NSMutableData *mutable=[NSMutableData dataWithBytes:bytes length:length];
+      unsigned char *out=[mutable mutableBytes];
+
+      if(bitsPerComponent==8)
+       for(NSUInteger row=0;row+bytesPerRow<=length;row+=bytesPerRow)
+        for(NSUInteger i=bytesPerPixel;i<bytesPerRow;i++)
+         out[row+i]+=out[row+i-bytesPerPixel];
+      data=mutable;
+     }
+     else if(predictor>=10){
+      NSMutableData *mutable=[NSMutableData dataWithCapacity:length];
+      unsigned char *previous=calloc(bytesPerRow,1),*current=calloc(bytesPerRow,1);
+
+      for(NSUInteger at=0;at+1+bytesPerRow<=length;at+=1+bytesPerRow){
+       int filter=bytes[at];
+
+       for(NSUInteger i=0;i<bytesPerRow;i++){
+        unsigned raw=bytes[at+1+i];
+        unsigned left=(i>=bytesPerPixel)?current[i-bytesPerPixel]:0;
+        unsigned up=previous[i];
+        unsigned upLeft=(i>=bytesPerPixel)?previous[i-bytesPerPixel]:0;
+
+        switch(filter){
+         case 1: raw+=left; break;
+         case 2: raw+=up; break;
+         case 3: raw+=(left+up)/2; break;
+         case 4: {
+          int p=(int)left+(int)up-(int)upLeft;
+          int pa=abs(p-(int)left),pb=abs(p-(int)up),pc=abs(p-(int)upLeft);
+
+          raw+=(pa<=pb && pa<=pc)?left:(pb<=pc)?up:upLeft;
+          break;
+         }
+         default: break;
         }
+        current[i]=(unsigned char)raw;
        }
-       else if(filter==2){
-        int last=change[0];
-        
-        for(i=1;i<rowLength-1;i++){
-         last=last-change[i];              
-         change[i]=last;
-        }
-       }
-       else {
-        NSLog(@"unsupported filter %d for predictor %d",filter,predictor);
-       }
-       
-       [mutable appendBytes:change length:rowLength-1];
-       bytes+=rowLength;
-       length-=rowLength;
+       [mutable appendBytes:current length:bytesPerRow];
+       unsigned char *swap=previous;
+
+       previous=current;
+       current=swap;
       }
-      if(length>1)
-       [mutable appendBytes:bytes length:length-1];
+      free(previous);
+      free(current);
       data=mutable;
      }
     }
-   
+
     return data;
    }
 
