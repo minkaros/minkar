@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-20"
-commit  = "4db859f704"
+updated = "2026-11-21"
+commit  = "0c9719239c"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -295,7 +295,7 @@ works = [
   "A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications",
   "Terminal, System Monitor and Logs; disk images, compressed ones included",
   "WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)",
-  "Firefox, Hex Fiend, Skim and TextMate from their published binaries",
+  "Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus and Sloth from their published binaries",
 ]
 progress = [
   "Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language",
@@ -314,7 +314,7 @@ works_es = [
   "Un servidor de ventanas que compone en la GPU y el escritorio Atlas: barra de menús, Dock, Files, Preferencias, notificaciones",
   "Terminal, Monitor del sistema y Registros; imágenes de disco, también las comprimidas",
   "WebKit sobre WPE, audio y vídeo (CoreAudio, AVFoundation, los medios de WebKit)",
-  "Firefox, Hex Fiend, Skim y TextMate desde sus binarios publicados",
+  "Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus y Sloth desde sus binarios publicados",
 ]
 progress_es = [
   "Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual",

@@ -20,7 +20,7 @@ mismo commit.
 - Un servidor de ventanas que compone en la GPU y el escritorio Atlas: barra de menús, Dock, Files, Preferencias, notificaciones
 - Terminal, Monitor del sistema y Registros; imágenes de disco, también las comprimidas
 - WebKit sobre WPE, audio y vídeo (CoreAudio, AVFoundation, los medios de WebKit)
-- Firefox, Hex Fiend, Skim y TextMate desde sus binarios publicados
+- Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus y Sloth desde sus binarios publicados
 
 **En curso**
 
@@ -34,7 +34,7 @@ mismo commit.
 - Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados
 - Después de 19.6.0: las apps A5–A10, Darwin 25, arm64 en QEMU, SwiftUI
 
-_Actualizado el 2026-11-20, devel `4db859f704`_
+_Actualizado el 2026-11-21, devel `0c9719239c`_
 <!-- progress:readme:end -->
 
 Todos los hitos: [Docs/Progress.md](Docs/Progress.md). Qué apps funcionan y hasta dónde:

@@ -19,7 +19,7 @@ Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 - A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications
 - Terminal, System Monitor and Logs; disk images, compressed ones included
 - WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)
-- Firefox, Hex Fiend, Skim and TextMate from their published binaries
+- Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus and Sloth from their published binaries
 
 **In progress**
 
@@ -33,7 +33,7 @@ Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 - Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices
 - After 19.6.0: the apps A5–A10, Darwin 25, arm64 in QEMU, SwiftUI
 
-_Updated 2026-11-20, devel `4db859f704`_
+_Updated 2026-11-21, devel `0c9719239c`_
 <!-- progress:readme:end -->
 
 Every milestone: [Docs/Progress.md](Docs/Progress.md). Which apps run and how far:

@@ -17,35 +17,35 @@ el usuario de la sesión y anota hasta dónde llegó en
 [progress/compatibility.tsv](progress/compatibility.tsv) (`BC_UPDATE=yes` lo escribe).
 
 <!-- compat:matrix:begin -->
-_Comprobado: 2026-11-20; ProductVersion 10.15; the gate took 19 minutes under KVM._
+_Comprobado: 2026-11-21; ProductVersion 10.15; the gate took 17 minutes under KVM, with the apps disk._
 
-4 de 17 apps muestran una ventana.
+7 de 17 apps muestran una ventana.
 
 ### El conjunto 19 (BC4)
 
 | App | Versión | Mínima | Arquitecturas | Resultado | Menús | Motivo |
 | --- | --- | --- | --- | --- | --- | --- |
-| Firefox | 160.0 | 10.15 | arm64, x86_64 | `window` | sí | installed after hdiutil convert (an lzma-compressed image (ULMO) is not attached yet); a window at 0,22, 1280x702 |
-| HexFiend | 2.18.1 | 10.14.6 | arm64, x86_64 | `window` | sí | a window at 167,275, 367x442 |
-| KeepingYouAwake | 1.6.8 | 10.13 | arm64, x86_64 | `at-start` | no | exit status 139; 2026-11-20 22:05:11.583 KeepingYouAwake[272:10fafe7c0] unexpected character 76 'v' at 7 |
-| Platypus | 5.5.0 | 10.13 | arm64, x86_64 | `at-start` | no | exit status 134; 12  libdyld.dylib                       0x000000010720ba61 start + 1 |
-| Sloth | 3.6 | 10.13 | arm64, x86_64 | `at-start` | no | exit status 139; 2026-11-20 22:05:16.697 Sloth[327:10d49f7c0] Illegal NSOutlineView data source (<SlothController: 0x7fc715c6eba0>). Must implement outlineView:child:ofItem: |
-| TextMate | 2.0.23 | 10.12 | arm64, x86_64 | `window` | sí | a window at 426,162, 427x422 |
-| Thunderbird | 160.0 | 10.15 | arm64, x86_64 | `no-load` | no | installed after hdiutil convert (an lzma-compressed image (ULMO) is not attached yet); dlopen(/Applications/Thunderbird.app/Contents/MacOS/XUL, 265): Symbol not found: _kABModificationDateProperty Referenced from: /Applications/Thunderbird.app/Contents/MacOS/XUL  |
+| Firefox | 160.0 | 10.15 | arm64, x86_64 | `window` | sí | as minkar; a window at 0,22, 1280x702 |
+| HexFiend | 2.18.1 | 10.14.6 | arm64, x86_64 | `window` | sí | as minkar; a window at 167,275, 367x442 |
+| KeepingYouAwake | 1.6.8 | 10.13 | arm64, x86_64 | `no-window` | no | as minkar; running after 120s without a document window (only a panel, 416x169, at level 8); 2026-11-21 17:00:27.580 KeepingYouAwake[371:10da6f7c0] unexpected character 76 'v' at 7 |
+| Platypus | 5.4.1 | 10.11 | arm64, x86_64 | `window` | sí | as minkar; a window at 308,127, 664x546 |
+| Sloth | 3.4 | 10.13 | arm64, x86_64 | `window` | sí | as minkar; a window at 322,91, 892x633 |
+| TextMate | 2.0.23 | 10.12 | arm64, x86_64 | `window` | sí | as minkar; a window at 426,162, 427x422 |
+| Thunderbird | 160.0 | 10.15 | arm64, x86_64 | `window` | sí | as minkar; a window at 0,22, 1280x702 |
 
 ### Las apps designadas siguientes (BC5 en adelante)
 
 | App | Versión | Mínima | Arquitecturas | Resultado | Menús | Motivo |
 | --- | --- | --- | --- | --- | --- | --- |
-| Cyberduck | 9.6.0 | 10.13 | arm64, x86_64 | `at-start` | no | exit status 1, after its run loop started;  |
-| IINA | 1.5.1 | 11 | arm64, x86_64 | `min-version` | no | requires 11, Minkar reports 10.15; run anyway: no-load: dyld: Library not loaded: /System/Library/PrivateFrameworks/PIP.framework/Versions/A/PIP Referenced from: /Applications/IINA.app/Contents/MacOS/IINA Reason: image not found  |
-| iTerm2 | 3.7.8 | 13.0 | arm64, x86_64 | `min-version` | no | requires 13.0, Minkar reports 10.15; run anyway: signature: MinkarCodeIntegrity: refused /Applications/iTerm.app/Contents/MacOS/iTerm2: restricted entitlement keychain-access-groups outside the trust cache |
-| KeePassXC | 2.8.0 | 12.0 | x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: MinkarCodeIntegrity: refused /Applications/KeePassXC.app/Contents/MacOS/KeePassXC: restricted entitlement keychain-access-groups outside the trust cache |
-| LibreOffice | 26.8.3 | 11.0.0 | x86_64 | `min-version` | no | requires 11.0.0, Minkar reports 10.15; run anyway: no-load: dyld: Library not loaded: /System/Library/Frameworks/Kerberos.framework/Versions/A/Kerberos Referenced from: /Applications/LibreOffice.app/Contents/Frameworks/libmergedlo.dylib Reason: image not found  |
-| Skim | 1.7.19 | 10.13 | arm64, x86_64 | `window` | sí | a window at 334,104, 480x382 |
-| Transmission | 4.1.4 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: no-load: dyld: Library not loaded: /System/Library/Frameworks/QuickLookUI.framework/Versions/A/QuickLookUI Referenced from: /Applications/Transmission.app/Contents/MacOS/Transmission Reason: image not found  |
-| UTM | 5.0.9 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: MinkarCodeIntegrity: refused /Applications/UTM.app/Contents/MacOS/UTM: restricted entitlement com.apple.vm.device-access outside the trust cache |
-| VLC | 3.0.24 | 10.7.5 | arm64, x86_64 | `at-start` | no | exit status 1; cannot be run by non-trusted users first). |
+| Cyberduck | 9.6.0 | 10.13 | arm64, x86_64 | `at-start` | no | as minkar; exit status 1, after its run loop started; Couldn't spawn command: su |
+| IINA | 1.5.1 | 11 | arm64, x86_64 | `min-version` | no | requires 11, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/PrivateFrameworks/PIP.framework/Versions/A/PIP Referenced from: /Applications/IINA.app/Contents/MacOS/IINA Reason: image not found  |
+| iTerm2 | 3.7.8 | 13.0 | arm64, x86_64 | `min-version` | no | requires 13.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/iTerm.app/Contents/MacOS/iTerm2: restricted entitlement keychain-access-groups outside the trust cache |
+| KeePassXC | 2.8.0 | 12.0 | x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/KeePassXC.app/Contents/MacOS/KeePassXC: restricted entitlement keychain-access-groups outside the trust cache |
+| LibreOffice | 26.8.3 | 11.0.0 | x86_64 | `min-version` | no | requires 11.0.0, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/Frameworks/Kerberos.framework/Versions/A/Kerberos Referenced from: /Applications/LibreOffice.app/Contents/Frameworks/libmergedlo.dylib Reason: image not found  |
+| Skim | 1.7.19 | 10.13 | arm64, x86_64 | `window` | sí | as minkar; a window at 334,104, 480x382 |
+| Transmission | 4.1.4 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/Frameworks/QuickLookUI.framework/Versions/A/QuickLookUI Referenced from: /Applications/Transmission.app/Contents/MacOS/Transmission Reason: image not found  |
+| UTM | 5.0.9 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/UTM.app/Contents/MacOS/UTM: restricted entitlement com.apple.vm.device-access outside the trust cache |
+| VLC | 3.0.24 | 10.7.5 | arm64, x86_64 | `at-start` | no | as minkar; exit status 0, after its run loop started; [00007f903d4a3c40] [cli] lua interface error: Error loading script /Applications/VLC.app/Contents/MacOS/share/lua/intf/cli.luac: ...kage/macosx/../../../share/lua/intf/modules/host.lua:286: Interrupted. |
 | VSCodium | 1.143.17232 | 12.0 | x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: install: hdiutil attach: hdiutil: attach failed - no mountable file systems |
 
 Resultados, del que menos llega al que más:
