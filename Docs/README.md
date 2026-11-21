@@ -30,4 +30,4 @@ reviewed: 2026-11-21.
 ## Decisions
 
 - [Decisions.md](Decisions.md) — every decision, one line each, newest first.
-- [ADR/](ADR/) — architecture decision records: [0001](ADR/0001-Kernel-Entitlements.md) kernel entitlements, [0002](ADR/0002-GPU-First-Family.md) the GPU families, [0003](ADR/0003-Kernel-Upgrade.md) the move to Darwin 25.
+- [ADR/](ADR/) — architecture decision records: [0001](ADR/0001-Kernel-Entitlements.md) kernel entitlements, [0002](ADR/0002-GPU-First-Family.md) the GPU families, [0003](ADR/0003-Kernel-Upgrade.md) the move to Darwin 25, [0004](ADR/0004-App-Sandbox.md) the app sandbox, [0005](ADR/0005-Audio-And-Media.md) audio and media, [0006](ADR/0006-WebKit.md) WebKit, [0007](ADR/0007-Product-Version.md) the release and the reported version, [0008](ADR/0008-CF-Bridge-Symbols.md) the bridged classes, [0009](ADR/0009-Security-Framework.md) Security.
