@@ -2,7 +2,7 @@
 #include <corecrypto/cc_abort.h>
 #include <corecrypto/ccmd5.h>
 #include <corecrypto/ccsha1.h>
-#include "../algorithms/pdcrypto_dummy.h"
+#include "../algorithms/unsupported.h"
 
 extern void pdcdigest_init(const struct ccdigest_info *di, ccdigest_ctx_t ctx);
 extern void pdcdigest_update(const struct ccdigest_info *di, ccdigest_ctx_t ctx, unsigned long len, const void *data);

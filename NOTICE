@@ -44,6 +44,9 @@ Apple open source - earlier versions of the Apple Public Source License
 - APSL 1.2: hfs_util and hfs_japanese.kmodproj (Kernel/Extensions/hfs);
   hfs's APPLE_LICENSE is the text of the APSL 1.2
 
+PureDarwin - corecrypto (Kernel/Extensions/corecrypto, part): Apache
+License 2.0, as its repository's LICENSE.md states; see Kernel/_PROVENANCE
+
 Intel - ACPICA (Kernel/Extensions/IOACPIFamily/acpica): Intel's ACPI
 license, BSD-3-Clause or GPL-2.0, at the user's choice, per its headers
 

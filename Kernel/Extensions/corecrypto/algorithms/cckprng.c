@@ -50,22 +50,6 @@ void cckprng_init(struct cckprng_ctx *ctx, unsigned max_ngens, size_t entropybuf
 	cckprng_reseed(ctx, entropybuf_nbytes, entropybuf);
 }
 
-void cckprng_init_with_getentropy(struct cckprng_ctx *ctx, unsigned max_ngens, size_t seed_nbytes, const void *seed,
-								  size_t nonce_nbytes, const void *nonce, cckprng_getentropy getentropy,
-								  void *getentropy_arg) {
-	uint8_t entropy[32];
-	size_t entropy_nbytes = sizeof(entropy);
-
-	cckprng_init(ctx, max_ngens, 0, NULL, NULL, seed_nbytes, seed, nonce_nbytes, nonce);
-
-	if (getentropy && getentropy(&entropy_nbytes, entropy, getentropy_arg) == 0) {
-		if (entropy_nbytes > sizeof(entropy)) {
-			entropy_nbytes = sizeof(entropy);
-		}
-		cckprng_reseed(ctx, entropy_nbytes, entropy);
-	}
-}
-
 void cckprng_initgen(struct cckprng_ctx *ctx, unsigned gen_idx) {
 	// Nothing is needed here.
 }

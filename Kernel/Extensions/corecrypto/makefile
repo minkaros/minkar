@@ -16,24 +16,17 @@ SRCS = \
     kext/cc_functions.c \
     kext/cc_kext_main.c \
     algorithms/cckprng.c \
-    algorithms/aes_ecb.c \
-    algorithms/sha512.cc \
-    algorithms/md5_impl.cpp \
+    algorithms/digest.c \
+    algorithms/md5.c \
+    algorithms/sha1.c \
+    algorithms/sha2.c \
+    algorithms/aes.c \
+    algorithms/unsupported.c \
     algorithms/yarrow/comp.c \
     algorithms/yarrow/smf.c \
-    algorithms/sha256.cc \
-    algorithms/sha1.c \
     algorithms/yarrow/sha1mod.c \
     algorithms/yarrow/prng.c \
-    algorithms/aes128.c \
-    algorithms/pdcrypto_digest_init.c \
-    algorithms/aes_cbc.c \
-    algorithms/md5.c \
-    algorithms/yarrow/yarrowUtils.c \
-    algorithms/pdcrypto_digest_final.c \
-    algorithms/sha1_impl.cc \
-    algorithms/pdcrypto_digest_update.c \
-    algorithms/pdcrypto_dummy.c
+    algorithms/yarrow/yarrowUtils.c
 
 CFLAGS = -DXNU_KERNEL_PRIVATE=1 -DPRIVATE=1 -DCC_KERNEL=1 \
 	-Wno-sign-conversion -Wno-int-conversion \

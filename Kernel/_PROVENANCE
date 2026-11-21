@@ -46,3 +46,18 @@ below, with their licenses as listed before):
 - Extensions/IOACPIFamily/acpica: ACPICA 20250807 (Intel's ACPI license,
   or BSD-3-Clause, or GPL-2.0, at the user's choice, per its headers;
   see its README.minkar)
+
+* Extensions/corecrypto (checked file by file on 2026-11-21):
+- From PureDarwin's corecrypto (github.com/PureDarwin/corecrypto,
+  commit 4a020c8, whose LICENSE.md licenses its original code under the
+  Apache License 2.0): cc_clear.c, cc_cmp_safe.c, cc_debug.c, cc_digest.c,
+  kext/cc_functions.c, kext/cc_kext_main.c, kext/Info.plist, makefile,
+  user/dummy.c (SPDX:Apache-2.0)
+- From the published xnu: the Yarrow generator (algorithms/yarrow),
+  kext/register_crypto.h and kext/prng_random.h (SPDX:APSL-2.0); the
+  headers in include/corecrypto, identical to xnu-6153.141.1's
+  EXTERNAL_HEADERS/corecrypto (part of that APSL-2.0 release)
+- Minkar's own: the digests and AES (algorithms/digest.c, md5.c, sha1.c,
+  sha2.c, aes.c), the unsupported entries (algorithms/unsupported.c),
+  include/corecrypto/ccrsa.h, cc_abort.h, and the changes to cckprng.c
+  (SPDX:BSD-2-Clause)
