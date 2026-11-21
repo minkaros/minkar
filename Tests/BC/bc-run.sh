@@ -23,8 +23,9 @@
 #   2 no-load      dyld could not load it (a library or symbol missing)
 #   3 before-main  it ended before its libraries' initializers had run
 #   4 at-start     it ended after them, before showing a window
-#   5 no-window    it runs, but showed no window in SECONDS
-#   6 window       it shows a window
+#   5 no-window    it runs, but showed no window in SECONDS (a panel or
+#                  an alert alone does not count)
+#   6 window       it shows a window at the normal level
 #
 # menus=yes when it also shows its menu bar.
 
@@ -96,7 +97,9 @@ fi
 rm -f "$archive"
 [ -x "$app/Contents/MacOS/$exe" ] || report 0 install "no executable $exe in $bundle"
 
-# Start it as the user who owns the desktop session, as a user would
+# Start it as the user who owns the desktop session, as a user would, with
+# that user's login environment (su -l: its HOME, where apps keep their
+# profiles)
 # (some apps refuse to run as root); as root when root owns it.
 dmesg > "$work/dmesg.before"
 cd /
@@ -107,7 +110,7 @@ user=$(ps -o user= -p "$(pgrep -x Dock | head -1)" 2>/dev/null | tr -d ' ')
 [ "$user" = root ] && user=$(id -nu 501 2>/dev/null || echo root)
 if [ -n "$user" ] && [ "$user" != root ] && id "$user" > /dev/null 2>&1; then
 	chown -R "$user" "$work"
-	su -m "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
+	su -l "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
 	    > "$work/out.txt" 2>&1 < /dev/null &
 else
 	DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT=$work/probe.txt \
@@ -133,7 +136,7 @@ for i in $(seq "$wait"); do
 	if printf '%s\n' "$list" | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 == 24 { f = 1 } END { exit !f }'; then
 		menus=yes
 	fi
-	if printf '%s\n' "$list" | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 != 24 && $3 != 25 && $3 < 100 { f = 1 } END { exit !f }'; then
+	if printf '%s\n' "$list" | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 == 0 { f = 1 } END { exit !f }'; then
 		window=yes
 		sleep 2
 		/usr/local/bin/wsctl windows 2>/dev/null | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 == 24 { f = 1 } END { exit !f }' && menus=yes
@@ -143,9 +146,10 @@ done
 
 if alive; then
 	if [ $window = yes ]; then
-		report 6 window "$(/usr/local/bin/wsctl windows | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 != 24 && $3 != 25 { print "a window at " $5 ", " $6; exit }')"
+		report 6 window "$(/usr/local/bin/wsctl windows | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 == 0 { print "a window at " $5 ", " $6; exit }')"
 	fi
-	report 5 no-window "running after ${wait}s without a window; $(grep -v '^ *$' "$work/out.txt" | tail -1)"
+	panel=$(/usr/local/bin/wsctl windows | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 > 0 && $3 < 24 { print "only a panel, " $6 ", at level " $3; exit }')
+	report 5 no-window "running after ${wait}s without a document window${panel:+ ($panel)}; $(grep -v '^ *$' "$work/out.txt" | tail -1)"
 fi
 
 wait "$launcher"
