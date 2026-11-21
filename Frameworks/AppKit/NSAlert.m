@@ -395,6 +395,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [textField setEditable:NO];
    [textField setSelectable:YES];
    [textField setBordered:NO];
+   [textField setDrawsBackground:NO];
    [[_window contentView] addSubview:textField];
   }
 
@@ -410,6 +411,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [textField setEditable:NO];
    [textField setSelectable:YES];
    [textField setBordered:NO];
+   [textField setDrawsBackground:NO];
    [[_window contentView] addSubview:textField];
   }
 

@@ -48,6 +48,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [_textField setEditable:NO];
     [_textField setBordered:NO];
     [_textField setBezeled:NO];
+    [_textField setDrawsBackground:NO];
     [self setBackgroundColor:[NSColor colorWithDeviceRed:1. green:1. blue:.88 alpha:1.]];
     [_backgroundView setWindowBorderType:NSWindowToolTipBorderType];
     [[self contentView] addSubview:_textField];
