@@ -62,6 +62,27 @@ The RX 6600 is Navi 23 (PCI 1002:73ff): GFX 10.3, display engine DCN 3.0.2 (amdg
 HDMI 2.0 rates (above 340 MHz, scrambled) are out, as on GCN 1.0. DisplayPort waits
 for a DisplayPort display. **Next:** R2b.
 
+## The performance requirement
+
+Minkar must be equal to or better than the reference system on the same physical machine,
+measured with the same benchmarks over SSH on a dual boot. It is the gate of a release
+after 25.x, on the new kernel; until then a solution that works but is slow stays partial.
+The reference system is measured only on its vendor's own hardware (PC 2), and its values
+stay outside the repository.
+
+| Metric | Requirement, against the reference system on the same machine |
+| --- | --- |
+| Boot to the login window | ≤ reference |
+| Input-to-photon latency | ≤ reference |
+| Compositing several animated windows | The display's refresh rate without dropped frames; WindowServer CPU ≤ reference |
+| App launch, cold and warm | ≤ reference |
+| Idle memory | ≤ reference |
+| 2D drawing and text (Core Graphics, Core Text) | Drawing benchmark ≥ reference |
+| 3D (Metal, Vulkan, OpenGL) | ≥ reference with the same GPU |
+
+Virtual machines are for development only: software paths (pixman, lavapipe, llvmpipe)
+pass the functional gates there, never the performance ones.
+
 ## Measurements
 
 Minkar's own figures, taken on the physical machines, so each step of the graphics stack
