@@ -633,7 +633,7 @@ M0 a M4 están cumplidos (M1 el 1 nov con el PC 2, M4 el 3 nov, M3 el 5 nov) y l
 | BC | Compatibilidad binaria | En curso: el gate BC (`bmake bc-check`) ejecuta los binarios publicados de las 17 apps designadas (20 nov 2026, con KVM: 19 minutos); 4 muestran ventana (Firefox, Hex Fiend, Skim, TextMate), y [Compatibility.es.md](Compatibility.es.md) dice hasta dónde llega cada una de las demás. BC1 hecho; BC0 espera su primera ejecución en la CI |
 | KX | Darwin 25 | KX0 hecho el 20 nov 2026 (ADR 0003 aceptado para x86-64, con condiciones); KX1 después de Minkar 19.6.0, de R1 y de la decisión sobre corecrypto |
 | ARM | arm64 | ARM0 (la compilación en la CI) empezado el 20 nov 2026 |
-| SU | SwiftUI: capa pública propia sobre un motor basado en SwiftCrossUI | SU0 (el informe) en la CI; SU0b (la revisión de SwiftCrossUI) y SU1 ([SwiftUI.es.md](SwiftUI.es.md)) en curso desde el 20 nov 2026 |
+| SU | SwiftUI: capa pública propia sobre un motor basado en SwiftCrossUI | SU0 (el informe) en la CI; SU0b (la revisión de SwiftCrossUI) aprobado el 21 nov 2026: su motor se puede importar en parte; SU1 ([SwiftUI.es.md](SwiftUI.es.md)) propuesto el 21 nov 2026 |
 | R | Estructura | R0 en curso desde el 20 nov 2026 (el inventario y [Structure.es.md](Structure.es.md)); R1–R4 después de 19.6.0 |
 | Rendimiento | ≥ sistema de referencia en equipo físico, sobre el kernel nuevo | Sin empezar; depende del frente de GPU y de KX; una versión posterior a 25.x |
 

@@ -286,7 +286,7 @@ doc_es = "ROADMAP.es.md#carril-su--swiftui-capa-pública-propia-de-minkar-sobre-
 # SwiftUI (D7): Minkar's own public layer on a SwiftCrossUI-based engine.
 # The report, SwiftCrossUI's review and the design now; the import after
 # 19.6.0 ships and the review is approved.
-stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "current"], ["SU1 design", 1020, "current"],
+stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "done"], ["SU1 design", 1020, "current"],
   ["SU2 engine", 1070, "todo"], ["SU3 ABI", 1120, "todo"], ["SU4 app", 1170, "todo"]]
 
 [[line]]

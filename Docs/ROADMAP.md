@@ -633,7 +633,7 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | BC | Binary compatibility | Under way: gate BC (`bmake bc-check`) runs the 17 designated apps' published binaries (2026-11-20, under KVM: 19 minutes); 4 show a window (Firefox, Hex Fiend, Skim, TextMate), [Compatibility.md](Compatibility.md) says how far each other gets. BC1 done; BC0 waits for its first CI run |
 | KX | Darwin 25 | KX0 done 2026-11-20 (ADR 0003 accepted for x86-64, with conditions); KX1 after Minkar 19.6.0, R1 and the corecrypto decision |
 | ARM | arm64 | ARM0 (the build in the CI) started 2026-11-20 |
-| SU | SwiftUI: own public layer on a SwiftCrossUI-based engine | SU0 (the report) in the CI; SU0b (SwiftCrossUI's review) and SU1 ([SwiftUI.md](SwiftUI.md)) under way since 2026-11-20 |
+| SU | SwiftUI: own public layer on a SwiftCrossUI-based engine | SU0 (the report) in the CI; SU0b (SwiftCrossUI's review) approved 2026-11-21: its engine can be imported in part; SU1 ([SwiftUI.md](SwiftUI.md)) proposed 2026-11-21 |
 | R | Structure | R0 under way since 2026-11-20 (the inventory and [Structure.md](Structure.md)); R1–R4 after 19.6.0 |
 | Performance | ≥ the reference system on a physical machine, on the new kernel | Not started; depends on the GPU track and KX; a release after 25.x |
 
