@@ -274,7 +274,7 @@ ${VENV}/.minkar-requirements: ${REQUIREMENTS}
 		exit 0; \
 	fi && \
 	{ test -f ${EXTLIB_CACHE}/${PIP_WHEEL} || \
-	    curl -sfL -o ${EXTLIB_CACHE}/${PIP_WHEEL} ${PIP_URL}; } && \
+	    curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o ${EXTLIB_CACHE}/${PIP_WHEEL} ${PIP_URL}; } && \
 	echo "${PIP_SHA256}  ${EXTLIB_CACHE}/${PIP_WHEEL}" | sha256sum -c --quiet && \
 	rm -rf ${VENV} && ${PYTHON3} -m venv --without-pip ${VENV} && \
 	${VENV}/bin/python ${EXTLIB_CACHE}/${PIP_WHEEL}/pip install -q --disable-pip-version-check \

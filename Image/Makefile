@@ -140,7 +140,7 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 	mkdir -p ${EFILOADER_SRC}/BaseTools/Source/Python/build
 .for f in ${EDK2_BUILD_PY}
 	test -s ${EFILOADER_SRC}/BaseTools/Source/Python/build/${f} || \
-	    curl -sfL -o ${EFILOADER_SRC}/BaseTools/Source/Python/build/${f} \
+	    curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o ${EFILOADER_SRC}/BaseTools/Source/Python/build/${f} \
 	    ${EDK2_RAW}/${EDK2_COMMIT}/BaseTools/Source/Python/build/${f}
 .endfor
 	test -x ${EFILOADER_SRC}/BaseTools/Source/C/bin/GenFw || \

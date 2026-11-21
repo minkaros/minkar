@@ -92,7 +92,7 @@ ${HOST}/bin/glslangValidator: ${.CURDIR}/MANIFEST.glslang
 ${VENV}/.minkar-requirements: ${.CURDIR}/requirements.txt
 	mkdir -p ${FW_CACHE}
 	test -f ${FW_CACHE}/${PIP_WHEEL} || \
-	    curl -sfL -o ${FW_CACHE}/${PIP_WHEEL} ${PIP_URL}
+	    curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o ${FW_CACHE}/${PIP_WHEEL} ${PIP_URL}
 	echo "${PIP_SHA256}  ${FW_CACHE}/${PIP_WHEEL}" | sha256sum -c --quiet
 	rm -rf ${VENV} && ${PYTHON3} -m venv --without-pip ${VENV}
 	${VENV}/bin/python ${FW_CACHE}/${PIP_WHEEL}/pip install -q --disable-pip-version-check \

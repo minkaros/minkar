@@ -17,7 +17,7 @@ awk '!/^#/ && $1 != "tag" && NF == 2' "$manifest" | while read -r path sum; do
 	file=$dir/$path
 	if [ ! -f "$file" ]; then
 		mkdir -p "$(dirname "$file")"
-		curl -sfL -o "$file.part" "$url/$path?h=$tag" || {
+		curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o "$file.part" "$url/$path?h=$tag" || {
 			rm -f "$file.part"
 			echo "fetch.sh: cannot fetch $path at $tag" >&2
 			exit 1

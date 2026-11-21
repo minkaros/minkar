@@ -43,7 +43,7 @@ file=$cache/${name:-$(basename "$url")}
 dir=${file%.tar.*}
 mkdir -p "$cache"
 if [ ! -f "$file" ]; then
-	curl -sfL -o "$file.part" "$url" || { rm -f "$file.part"; echo "fetch.sh: cannot fetch $url" >&2; exit 1; }
+	curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o "$file.part" "$url" || { rm -f "$file.part"; echo "fetch.sh: cannot fetch $url" >&2; exit 1; }
 	mv "$file.part" "$file"
 fi
 got=$(sha256sum "$file" | awk '{ print $1 }')
