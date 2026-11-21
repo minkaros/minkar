@@ -19,6 +19,10 @@ tools=$BUILD_DIR/Developer/Platforms/Minkar.platform/Developer/Toolchains/Defaul
 
 python3 -B tools/symbols/fetch-reference-apps.py --dest "$apps"
 mkdir -p "$out"
+# The symbols are demangled when the build host's Swift (the swift.org
+# release the toolchain builds with) is at hand.
+[ -x "$BUILD_DIR/host-swift-6.4.2/usr/bin/swift-demangle" ] &&
+    export SWIFT_DEMANGLE="$BUILD_DIR/host-swift-6.4.2/usr/bin/swift-demangle"
 python3 -B tools/symbols/symbol-inventory.py --sysroot "$BUILD_DIR/sysroot" \
     --apps "$apps/apps" --out "$out" --tools "$tools"
 
@@ -34,6 +38,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
 		sed -n '/^Apps that link SwiftUI/p' "$out/coverage.md"
 		echo
 		sed -n '/^| App | Links SwiftUI |/,/^$/p' "$out/coverage.md"
+		sed -n '/^Imported by more than one app/,/^$/p' "$out/coverage.md"
 		echo "The full report (per library, missing symbols) is in the"
 		echo "symbol-coverage artifact."
 	} >> "$GITHUB_STEP_SUMMARY"
