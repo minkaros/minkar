@@ -25,7 +25,7 @@ _Actualizado el 2026-11-20, devel `4cf55f650d`_
 | [Lane BC](ROADMAP.es.md#carril-bc--compatibilidad-binaria) | 🟩🟦🟩🟨⬜⬜⬜ | 2 / 7 | BC0 gate | BC3 ABI |
 | [Lane KX](ROADMAP.es.md#carril-kx--kernel-nuevo-darwin-25) | 🟦⬜⬜⬜ | 0 / 4 | KX0 ADR | KX1 M2 |
 | [Lane ARM](ROADMAP.es.md#carril-arm--arm64) | 🟦⬜⬜⬜ | 0 / 4 | ARM0 build | ARM1 M2 |
-| [Lane SU](ROADMAP.es.md#carril-su--swiftui-sobre-openswiftui) | 🟦🟦⬜⬜⬜⬜ | 0 / 6 | SU0 report, SU0b review | SU1 import |
+| [Lane SU](ROADMAP.es.md#carril-su--swiftui-capa-pública-propia-de-minkar-sobre-un-motor-basado-en-swiftcrossui) | 🟦🟦🟦⬜⬜⬜ | 0 / 6 | SU0 report, SU0b review, SU1 design | SU2 engine |
 
 🟩 hecho · 🟦 en curso · 🟨 parcial · ⬜ por hacer
 <!-- progress:summary:end -->

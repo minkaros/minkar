@@ -52,7 +52,8 @@ Minkar separates three layers that go together on the reference platform. The ke
 | D3 | Minkar 19.6.0 delivers the Atlas desktop for daily use, the installer, the binary gate, WebKit through W5, all of audio (AU1–AU10) and the GPU as planned. The own apps A5–A10 move to 19.6.x. |
 | D4 | arm64 starts now as a build in the CI; it boots after 19.6.0, on the new kernel, and only in a virtual machine (QEMU) for now. |
 | D5 | Minkar moves to Darwin 25, to reach arm64. 19.6.0 ships on Darwin 19.6.0; the move happens after it is released. It replaces the decision to keep Darwin 19.6.0 for API 20 and API 21. |
-| D6 | SwiftUI enters Minkar by integrating OpenSwiftUI (MIT), with OpenCombine's model as `Combine`, keeping the clean room: the import depends on a clean-room review. It replaces the decision of 2026-10-25. |
+| D6 | SwiftUI enters Minkar by integrating OpenSwiftUI (MIT), with OpenCombine's model as `Combine`, keeping the clean room: the import depends on a clean-room review. It replaces the decision of 2026-10-25. *Replaced the same day by D7, after the review.* |
+| D7 | SwiftUI is Minkar's own public layer (`SwiftUI.framework`, BSD-2-Clause, its surface from the designated binaries' imported symbols and the public documentation) on a private engine adapted from SwiftCrossUI (MIT). OpenSwiftUI and OpenAttributeGraph are not used (lane SU). |
 
 Audio and the GPU are neither cut nor deferred (the apps need them), and they stay outside the scope freeze.
 
@@ -262,7 +263,7 @@ Goal: a command-line app in Objective-C or Swift, written for API 19, builds and
 - [x] **CoreFoundation: CF-Lite (APSL), decided 2026-10-25.** It is the current CF in `Frameworks/CoreFoundation`, with its own toll-free bridging (`CFBridging.c`, `CFRuntime.c`) and CF ↔ XPC bridge. It is not replaced by Swift's CF. The public CF-Lite predates API 19: the CF APIs missing up to API 21 are added by hand, with swift-corelibs CF (Apache 2.0) as reference. `Frameworks/CoreFoundation.old` was removed on 2026-10-26.
 - [x] **Foundation for Swift: Objective-C Foundation plus the `libswiftFoundation` overlay, decided 2026-10-25.** It is API 21's model. Base: the last open version of the Darwin overlay (Apache 2.0) in `swiftlang/swift`'s history, updated to Swift 6.0. swift-foundation is only a reference for new APIs.
 - [x] **Swift runtime: Swift 6.0 in `/usr/lib/swift`, decided 2026-10-25.** The same version as the tree's LLVM (swiftlang's fork, branch `swift-6.0-release`). Starting point: no Swift compiler, stdlib or overlays in the tree; only the Dispatch overlay (`libdispatch/src/swift`) and the Swift annotations in the CF headers.
-- [x] **Combine and SwiftUI, decided 2026-10-25.** Both belong to API 19. Combine enters API 19 on OpenCombine (MIT), renamed as the `Combine` module and installed as `Combine.framework`; it depends on the Swift toolchain gate. API 19, 20 and 21 close explicitly without SwiftUI. OpenSwiftUI (MIT, early development) is watched, and the decision is revisited by measuring how many reference apps need it. *Replaced on 2026-11-20 by D6:* SwiftUI enters through OpenSwiftUI, after a clean-room review (lane SU); Combine stays on OpenCombine.
+- [x] **Combine and SwiftUI, decided 2026-10-25.** Both belong to API 19. Combine enters API 19 on OpenCombine (MIT), renamed as the `Combine` module and installed as `Combine.framework`; it depends on the Swift toolchain gate. API 19, 20 and 21 close explicitly without SwiftUI. OpenSwiftUI (MIT, early development) is watched, and the decision is revisited by measuring how many reference apps need it. *Replaced on 2026-11-20 by D6, and D6 the same day by D7:* SwiftUI is Minkar's own public layer on a SwiftCrossUI-based engine (lane SU); Combine stays on OpenCombine.
 
 Decision order: CoreFoundation constrains Foundation for Swift, which constrains the Swift runtime.
 
@@ -563,22 +564,29 @@ Decided 2026-11-20 (D5). How it is done is [ADR 0003](ADR/0003-Kernel-Upgrade.md
 
 Until KX3, new framework and desktop work must build on both kernels.
 
-## Lane SU — SwiftUI on OpenSwiftUI
+## Lane SU — SwiftUI: Minkar's own public layer on a SwiftCrossUI-based engine
 
-Decided 2026-11-20 (D6).
+Decided 2026-11-20; it replaces D6's integration of OpenSwiftUI. OpenSwiftUI and OpenAttributeGraph were reviewed the same day and set aside: the review found code verified against and derived from the vendor's binaries, which the clean-room rule excludes (the review's report is kept outside the repository, with the lane's other reports). Tokamak is not used either: it is archived, and its origin does not fit the clean-room rule.
+
+SwiftUI enters Minkar in two parts:
+
+| Part | What it is | Where it comes from | License |
+| --- | --- | --- | --- |
+| Public layer | `SwiftUI.framework`, module `SwiftUI`, with library evolution | Written by Minkar. Its surface comes from two sources only: the SwiftUI symbols the designated apps' binaries import (their names carry the full type signatures) and the public documentation for behavior | BSD-2-Clause |
+| Internal engine | Layout, state and drawing on Minkar's AppKit and Core Animation | Adapted from SwiftCrossUI (`github.com/moreSwift/swift-cross-ui`), mainly its layout and its AppKit backend | MIT, the original's; every adapted file keeps it and is listed in NOTICE |
+
+- The public layer decides whether a binary starts; SwiftCrossUI does not provide it, as its API is not SwiftUI's. Only its engine is used.
+- The engine is private. It is not named `SwiftUICore` or after any framework of the reference platform, unless the designated binaries import symbols from that framework and Minkar provides them.
+- What Minkar fixes in SwiftCrossUI that is not specific to Minkar is sent to that project.
 
 | Milestone | Content | Criterion | When |
 | --- | --- | --- | --- |
-| SU0 | The symbol inventory reports, per app, whether it links SwiftUI and which symbols it asks for | The report comes out in the CI | Now |
-| SU0b | Clean-room review of OpenSwiftUI, OpenAttributeGraph and their dependencies | A report approved by the maintainer | Before SU1 |
-| SU1 | Import OpenSwiftUI, OpenAttributeGraph and their dependencies, at versions pinned by SHA-256 | They build for Minkar and pass their tests in the image | After 19.6.0 and SU0b |
-| SU2 | Installed as the `SwiftUI` module in `SwiftUI.framework`, with library evolution, on Minkar's AppKit and Core Animation | An open source SwiftUI app builds and shows its window | After SU1 |
-| SU3 | ABI: the SwiftUI symbols the designated binaries import exist with the same name and layout | 100 % coverage according to SU0 | After SU2 |
-| SU4 | The published binary of a designated app that links SwiftUI starts (candidate: iTerm2; SU0 will say if there are more) | Part of gate BC | After SU3 |
-
-- If SU0b concludes that OpenSwiftUI, or parts of it, do not meet the clean-room rule, those parts are not imported and the decision goes back to the maintainer.
-- OpenSwiftUI declares itself in early development and aims at source compatibility, so ABI compatibility (SU3–SU4) is Minkar's own work.
-- What Minkar fixes is sent upstream to those projects.
+| SU0 | The symbol inventory reports, per designated app, whether it links SwiftUI, from which framework and which symbols it imports | The report comes out in the CI | Now |
+| SU0b | Clean-room and license review of SwiftCrossUI | A report approved by the maintainer | Now |
+| SU1 | Design: [SwiftUI.md](SwiftUI.md) | The document, Proposed, approved by the maintainer | Now |
+| SU2 | SwiftCrossUI imported at a version pinned by SHA-256 and the framework installed. Source gate: Minkar's own SwiftUI test apps build and show their window | Local test and gate | After 19.6.0 ships and SU0b is approved |
+| SU3 | ABI: every SwiftUI symbol the designated binaries import exists with the same name and layout | 100 % coverage according to SU0 | After SU2 |
+| SU4 | The published binary of an app that links SwiftUI starts (candidate: iTerm2) | Part of gate BC | After SU3 and the `ProductVersion` rise the app requires |
 
 ## Milestones, dependencies and critical path
 
@@ -610,7 +618,7 @@ M0 to M4 are met (M1 on 2026-11-01 with PC 2, M4 on 2026-11-03, M3 on 2026-11-05
 | BC | Binary compatibility | Under way: gate BC (`bmake bc-check`) runs the 17 designated apps' published binaries (2026-11-20, under KVM: 19 minutes); 4 show a window (Firefox, Hex Fiend, Skim, TextMate), [Compatibility.md](Compatibility.md) says how far each other gets. BC1 done; BC0 waits for its first CI run |
 | KX | Darwin 25 | KX0 (ADR 0003) proposed 2026-11-20; KX1 after Minkar 19.6.0 |
 | ARM | arm64 | ARM0 (the build in the CI) started 2026-11-20 |
-| SU | SwiftUI on OpenSwiftUI | SU0 (the report) and SU0b (the clean-room review) started 2026-11-20 |
+| SU | SwiftUI: own public layer on a SwiftCrossUI-based engine | SU0 (the report) in the CI; SU0b (SwiftCrossUI's review) and SU1 ([SwiftUI.md](SwiftUI.md)) under way since 2026-11-20 |
 | Performance | ≥ the reference system on a physical machine, on the new kernel | Not started; depends on the GPU track and KX; a release after 25.x |
 
 ## Risks and mitigations
@@ -623,10 +631,9 @@ The dominant risk is people, not technology: a small team with many layers open 
 | The public CF-Lite predates API 19 | CF APIs missing for API 20 and 21 | Add them by hand with swift-corelibs CF as reference; bridging tests on every change |
 | Heterogeneous real hardware | Bugs that cannot be reproduced | A short reference hardware list; the rest "best effort" |
 | GPU drivers: the longest block, and now a requirement | The performance release does not match the reference system | A parallel track from now; one GPU family; a KMS prototype before committing; a compositor designed for the GPU |
-| Apps that link SwiftUI | Their published binaries do not start | Decided 2026-11-20 (D6): lane SU on OpenSwiftUI after a clean-room review; SU0 measures which designated apps link it and what they import |
+| Apps that link SwiftUI | Their published binaries do not start | Decided 2026-11-20 (D7): Minkar's own public layer on a SwiftCrossUI-based engine. The risk is the size of the public layer and of its ABI compatibility; mitigation: go app by app, in the order SU0 gives |
 | `ProductVersion` raised with the API incomplete (D2) | `@available` takes a missing API as present and an app takes a path that fails | The noisy stubs log each first call; gate BC runs the group's apps before each rise; `SYSTEM_VERSION_COMPAT` for old binaries |
 | Designated apps that are not representative | Gate BC green while other apps fail | Groups by minimum version and by the frameworks they use; apps added from the stub log and the matrix; the list reviewed at each rise |
-| OpenSwiftUI against the clean room | Code that has to be removed, or cannot be imported | The SU0b review before any import; a part whose origin is unclear is not imported; the decision goes back to the maintainer |
 | Pieces of the new kernel that are not published | KX1 slips; pieces written from scratch | ADR 0003 lists them before starting; a prototype on a branch; 19.6.x stays on Darwin 19 |
 | AU7–AU10 inside Minkar 19.6.0 | 19.6.0 slips | Audio runs in parallel, outside the two-lane limit; its gates measured early on PC 1 |
 | Licenses and clean room | Code that has to be removed | A license review on every third-party import; a clean-room statement on every PR |

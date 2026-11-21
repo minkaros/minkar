@@ -85,7 +85,7 @@ The system in four layers, from the kernel up, and where each stands.
 
 | Framework | Status | Apps | Notes |
 | --- | --- | --- | --- |
-| SwiftUI | Plan (lane SU) | | Decided 2026-11-20 (D6): OpenSwiftUI and OpenAttributeGraph after a clean-room review (SU0b), installed as `SwiftUI.framework` (SU1–SU2), the designated binaries' symbols (SU3–SU4); SU0 reports which apps link it |
+| SwiftUI | Plan (lane SU) | | Decided 2026-11-20 (D7): Minkar's own public `SwiftUI.framework` (BSD-2-Clause, its surface from the symbols the designated binaries import and the public documentation) on a private engine adapted from SwiftCrossUI (MIT); OpenSwiftUI and OpenAttributeGraph are not used. SU0 reports which apps link it; design in [SwiftUI.md](SwiftUI.md) |
 | PDFKit | Decide | | Atlas's document viewer needs it |
 | QuickLookThumbnailing | Decide | | QuickLook exists |
 | ScreenSaver, InputMethodKit, LinkPresentation, PencilKit | Decide | | |

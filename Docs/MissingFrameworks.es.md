@@ -88,7 +88,7 @@ una.
 
 | Framework | Estado | Apps | Notas |
 | --- | --- | --- | --- |
-| SwiftUI | Plan (carril SU) | | Decidido el 20 nov 2026 (D6): OpenSwiftUI y OpenAttributeGraph tras una revisión de sala limpia (SU0b), instalados como `SwiftUI.framework` (SU1–SU2), los símbolos de los binarios designados (SU3–SU4); SU0 informa de qué apps lo enlazan |
+| SwiftUI | Plan (carril SU) | | Decidido el 20 nov 2026 (D7): `SwiftUI.framework` público propio de Minkar (BSD-2-Clause, su superficie a partir de los símbolos que importan los binarios designados y de la documentación pública) sobre un motor privado adaptado de SwiftCrossUI (MIT); OpenSwiftUI y OpenAttributeGraph no se usan. SU0 informa de qué apps lo enlazan; diseño en [SwiftUI.es.md](SwiftUI.es.md) |
 | PDFKit | Decidir | | Lo necesita el visor de documentos de Atlas |
 | QuickLookThumbnailing | Decidir | | QuickLook existe |
 | ScreenSaver, InputMethodKit, LinkPresentation, PencilKit | Decidir | | |

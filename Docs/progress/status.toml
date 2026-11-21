@@ -281,12 +281,13 @@ stations = [["ARM0 build", 915, "current"], ["ARM1 M2", 1060, "todo"], ["ARM2 de
 id = "su"
 name = "Lane SU"
 color = "purple"
-doc = "ROADMAP.md#lane-su--swiftui-on-openswiftui"
-doc_es = "ROADMAP.es.md#carril-su--swiftui-sobre-openswiftui"
-# SwiftUI on OpenSwiftUI (D6): the report and the clean-room review now,
-# the import after 19.6.0.
-stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "current"], ["SU1 import", 1020, "todo"],
-  ["SU2", 1070, "todo"], ["SU3 ABI", 1120, "todo"], ["SU4 app", 1170, "todo"]]
+doc = "ROADMAP.md#lane-su--swiftui-minkars-own-public-layer-on-a-swiftcrossui-based-engine"
+doc_es = "ROADMAP.es.md#carril-su--swiftui-capa-pública-propia-de-minkar-sobre-un-motor-basado-en-swiftcrossui"
+# SwiftUI (D7): Minkar's own public layer on a SwiftCrossUI-based engine.
+# The report, SwiftCrossUI's review and the design now; the import after
+# 19.6.0 ships and the review is approved.
+stations = [["SU0 report", 915, "current"], ["SU0b review", 970, "current"], ["SU1 design", 1020, "current"],
+  ["SU2 engine", 1070, "todo"], ["SU3 ABI", 1120, "todo"], ["SU4 app", 1170, "todo"]]
 
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
@@ -333,7 +334,7 @@ items = [["App A2: the text editor", "apps"], ["AU7–AU10: USB audio, MIDI, Aud
 [[board.later]]
 group = "After 19.6.0"
 items = [["Apps A5–A10 (19.6.x)", "apps"], ["Darwin 25 (KX1–KX3, Minkar 25.x)", "kx"],
-  ["arm64 boot in QEMU (ARM1–ARM3)", "arm"], ["SwiftUI on OpenSwiftUI (SU1–SU4)", "su"],
+  ["arm64 boot in QEMU (ARM1–ARM3)", "arm"], ["SwiftUI: own layer, SwiftCrossUI engine (SU2–SU4)", "su"],
   ["Performance ≥ the reference system", "gpu"]]
 
 [[board.done]]

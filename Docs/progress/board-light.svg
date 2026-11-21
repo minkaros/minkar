@@ -109,8 +109,8 @@
 <text x="874.5" y="522" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">arm64 boot in QEMU</text>
 <text x="874.5" y="542" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">(ARM1–ARM3)</text>
 <circle cx="862.5" cy="561" r="4.5" fill="#8250df"/>
-<text x="874.5" y="566" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">SwiftUI on OpenSwiftUI</text>
-<text x="874.5" y="586" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">(SU1–SU4)</text>
+<text x="874.5" y="566" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">SwiftUI: own layer,</text>
+<text x="874.5" y="586" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">SwiftCrossUI engine (SU2–SU4)</text>
 <circle cx="862.5" cy="605" r="4.5" fill="#cf222e"/>
 <text x="874.5" y="610" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Performance ≥ the reference</text>
 <text x="874.5" y="630" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">system</text>

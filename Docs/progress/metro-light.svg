@@ -237,15 +237,15 @@
 <text x="1160" y="983" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">ARM3 apps</text>
 <text x="20" y="1023" font-size="15" font-weight="700" fill="#8250df" text-anchor="start">Lane SU</text>
 <line x1="915" y1="1018" x2="1170" y2="1018" stroke="#8250df" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="915" y1="1018" x2="970" y2="1018" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="915" y1="1018" x2="1020" y2="1018" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
 <circle cx="915" cy="1018" r="17" fill="#8250df" fill-opacity=".2"/><circle cx="915" cy="1018" r="10" fill="#ffffff" stroke="#8250df" stroke-width="5"/>
 <text x="915" y="1047" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">SU0 report</text>
 <circle cx="970" cy="1018" r="17" fill="#8250df" fill-opacity=".2"/><circle cx="970" cy="1018" r="10" fill="#ffffff" stroke="#8250df" stroke-width="5"/>
 <text x="970" y="1000" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">SU0b review</text>
-<circle cx="1020" cy="1018" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1020" y="1047" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">SU1 import</text>
+<circle cx="1020" cy="1018" r="17" fill="#8250df" fill-opacity=".2"/><circle cx="1020" cy="1018" r="10" fill="#ffffff" stroke="#8250df" stroke-width="5"/>
+<text x="1020" y="1047" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">SU1 design</text>
 <circle cx="1070" cy="1018" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1070" y="1000" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">SU2</text>
+<text x="1070" y="1000" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">SU2 engine</text>
 <circle cx="1120" cy="1018" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1120" y="1047" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">SU3 ABI</text>
 <circle cx="1170" cy="1018" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
