@@ -152,7 +152,7 @@ if alive; then
 		report 6 window "$(/usr/local/bin/wsctl windows | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 == 0 { print "a window at " $5 ", " $6; exit }')"
 	fi
 	panel=$(/usr/local/bin/wsctl windows | awk -v p="$pid" '$2 == p && $4 == "yes" && $3 > 0 && $3 < 24 { print "only a panel, " $6 ", at level " $3; exit }')
-	report 5 no-window "running after ${wait}s without a document window${panel:+ ($panel)}; $(grep -v '^ *$' "$work/out.txt" | tail -1)"
+	report 5 no-window "running after ${wait}s without a document window${panel:+ ($panel)}; $(grep -v -e '^ *$' -e "^Couldn't spawn command" "$work/out.txt" | tail -1)"
 fi
 
 wait "$launcher"
@@ -162,7 +162,9 @@ refused=$(diff "$work/dmesg.before" "$work/dmesg.after" | grep "MinkarCodeIntegr
 [ -n "$refused" ] && report 1 signature "${refused#> }"
 dyld=$(grep -m 3 -E "Library not loaded|Symbol not found|Referenced from|Reason: " "$work/out.txt" | sed 's/^ *//' | tr '\n' ' ')
 [ -n "$dyld" ] && report 2 no-load "$dyld"
-last=$(grep -v '^ *$' "$work/out.txt" | tail -1)
+# launchctl asuser says "Couldn't spawn command" whenever the command
+# ends with a status other than 0: the app's own last line says more.
+last=$(grep -v -e '^ *$' -e "^Couldn't spawn command" "$work/out.txt" | tail -1)
 if ! grep -q '^init$' "$work/probe.txt" 2>/dev/null; then
 	report 3 before-main "exit status $rc; $last"
 fi
