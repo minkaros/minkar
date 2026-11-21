@@ -23,7 +23,7 @@ enum {
 	kMinkarDIChunkZlib	= 0x80000005,	/* UDZO */
 	kMinkarDIChunkBzip2	= 0x80000006,	/* UDBZ */
 	kMinkarDIChunkLZFSE	= 0x80000007,	/* ULFO */
-	kMinkarDIChunkLZMA	= 0x80000008,	/* ULMO: not read yet */
+	kMinkarDIChunkLZMA	= 0x80000008,	/* ULMO: xz */
 };
 
 /* One run of the disk: sectors [sector, sector + sectors) are stored at

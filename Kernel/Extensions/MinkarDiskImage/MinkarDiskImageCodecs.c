@@ -18,6 +18,7 @@
 #include "MinkarDiskImageCodecs.h"
 #include "bzlib.h"
 #include "lzfse.h"
+#include "lzma.h"
 
 /* ---- Allocations for bzip2 (malloc and free are mapped here) ---- */
 
@@ -35,6 +36,22 @@ minkar_di_malloc(size_t size)
 		return NULL;
 	p[0] = size + sizeof(size_t) * 2;
 	return p + 2;
+}
+
+/* liblzma's: zeroed, as calloc's. */
+void *minkar_di_calloc(size_t count, size_t size);
+
+void *
+minkar_di_calloc(size_t count, size_t size)
+{
+	void *p;
+
+	if (size != 0 && count > SIZE_MAX / size)
+		return NULL;
+	p = minkar_di_malloc(count * size);
+	if (p != NULL)
+		memset(p, 0, count * size);
+	return p;
 }
 
 void
@@ -185,6 +202,14 @@ MinkarDiskImageDecompress(uint32_t type, const void *in, size_t inLen, void *out
 	}
 	case kMinkarDIChunkADC:
 		return adc_chunk(in, inLen, out, outLen);
+	case kMinkarDIChunkLZMA: {
+		/* An xz stream (liblzma's own allocations go through malloc). */
+		uint64_t memlimit = 256 << 20;
+		size_t inPos = 0, outPos = 0;
+		lzma_ret r = lzma_stream_buffer_decode(&memlimit, 0, NULL, in, &inPos, inLen,
+		    out, &outPos, outLen);
+		return r == LZMA_OK && outPos == outLen ? 0 : -1;
+	}
 	}
 	return -1;
 }

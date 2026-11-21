@@ -679,14 +679,10 @@ MinkarDiskImageUserClient::sAttachChunks(OSObject *target, void *,
 			    (packed && (c->sectors * kBlock > kMaxChunkBytes || c->length > kMaxChunkBytes)) ||
 			    (c->type == kMinkarDIChunkRaw && c->length < c->sectors * kBlock))
 				goto out;
-			if (c->type == kMinkarDIChunkLZMA) {
-				status = kIOReturnUnsupported;
-				goto out;
-			}
 			if (c->type != kMinkarDIChunkZero && c->type != kMinkarDIChunkRaw &&
 			    c->type != kMinkarDIChunkIgnore && c->type != kMinkarDIChunkADC &&
 			    c->type != kMinkarDIChunkZlib && c->type != kMinkarDIChunkBzip2 &&
-			    c->type != kMinkarDIChunkLZFSE)
+			    c->type != kMinkarDIChunkLZFSE && c->type != kMinkarDIChunkLZMA)
 				goto out;
 			next = c->sector + c->sectors;
 		}

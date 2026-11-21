@@ -140,10 +140,9 @@ Raw images (what
 .Cm create
 makes, and CD/DVD masters) and UDIF images are read: read/write (UDRW),
 read-only (UDRO) and compressed with ADC (UDCO), zlib (UDZO), bzip2
-(UDBZ) or LZFSE (ULFO), the kernel decompressing a chunk when it is
-read.
-LZMA images (ULMO) are converted but not attached; segmented images are
-not read.
+(UDBZ), LZFSE (ULFO) or LZMA (ULMO), the kernel decompressing a chunk
+when it is read.
+Segmented images are not read.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO

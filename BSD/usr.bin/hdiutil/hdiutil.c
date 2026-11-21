@@ -40,10 +40,10 @@
  *
  * Images are raw (what "hdiutil create" writes, and UDTO/.cdr/.iso) or
  * UDIF images (udif.c): read/write (UDRW, the disk as it is), or
- * read-only and compressed in chunks (UDRO, UDCO, UDZO, UDBZ, ULFO),
+ * read-only and compressed in chunks (UDRO, UDCO, UDZO, UDBZ, ULFO, ULMO),
  * attached read-only with their chunk table, the driver decompressing a
  * chunk when it is read. "hdiutil convert" writes them, as "create
- * -format" does. LZMA images (ULMO) are converted but not attached.
+ * -format" does.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -713,12 +713,6 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 		uint8_t *table = calloc(1, size);
 		uint64_t flags = 0;
 
-		if (strcmp(img.format, "ULMO") == 0) {
-			fprintf(stderr, "hdiutil: attach failed - an lzma-compressed image (ULMO) "
-			    "is not attached yet; hdiutil convert makes it UDZO\n");
-			IOServiceClose(c);
-			return (1);
-		}
 		if (table == NULL)
 			err(1, "attach");
 		hdr.pathLength = (uint32_t)plen;

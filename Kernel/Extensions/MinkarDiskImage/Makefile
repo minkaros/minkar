@@ -23,6 +23,27 @@ LZFSE = ${ROOT_SOURCE_DIR}/BSD/lib/libcompression/dist
 BZIP2_SRCS = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c
 LZFSE_SRCS = lzfse_decode.c lzfse_decode_base.c lzfse_fse.c lzvn_decode_base.c
 SRCS += ${BZIP2_SRCS} ${LZFSE_SRCS}
+# LZMA (ULMO): liblzma's xz decoder (0BSD), from the copy in
+# Frameworks/CoreText/xz, with a configuration of its own (xz/config.h).
+LZMA = ${ROOT_SOURCE_DIR}/Frameworks/CoreText/xz/src/liblzma
+.PATH: ${LZMA}/common ${LZMA}/check ${LZMA}/lz ${LZMA}/lzma ${LZMA}/delta ${LZMA}/simple
+LZMA_SRCS = common.c stream_buffer_decoder.c stream_decoder.c block_decoder.c \
+	block_header_decoder.c filter_decoder.c filter_flags_decoder.c filter_common.c \
+	index_hash.c stream_flags_decoder.c stream_flags_common.c vli_decoder.c \
+	vli_size.c block_util.c check.c crc32_fast.c crc64_fast.c sha256.c \
+	lz_decoder.c lzma_decoder.c lzma2_decoder.c delta_decoder.c delta_common.c \
+	simple_decoder.c simple_coder.c x86.c
+SRCS += ${LZMA_SRCS}
+LZMA_CFLAGS = -DHAVE_CONFIG_H -DNDEBUG -I${.CURDIR}/xz -I${.CURDIR}/kshim -I${LZMA}/api \
+	-I${LZMA}/common -I${LZMA}/check -I${LZMA}/lz -I${LZMA}/rangecoder -I${LZMA}/lzma \
+	-I${LZMA}/delta -I${LZMA}/simple -I${LZMA}/../common \
+	-Dmalloc=minkar_di_malloc -Dcalloc=minkar_di_calloc -Dfree=minkar_di_free \
+	-Wno-unused-parameter
+.for f in ${LZMA_SRCS}
+CFLAGS.${f} += ${LZMA_CFLAGS}
+.endfor
+CFLAGS.MinkarDiskImageCodecs.c += -I${LZMA}/api
+
 .for f in ${BZIP2_SRCS} MinkarDiskImageCodecs.c
 CFLAGS.${f} += -I${.CURDIR}/kshim -DBZ_NO_STDIO -Dmalloc=minkar_di_malloc -Dfree=minkar_di_free \
 	-Wno-unused-parameter -Wno-implicit-fallthrough
