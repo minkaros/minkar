@@ -35,8 +35,13 @@ SUBDIR += ../PrivateFrameworks/SkyLight
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
 SUBDIR += CoreText
+# Security: Minkar's own subset for now (the APSL sources beside it are
+# to replace it). On CoreFoundation only; before CUPS, whose configure
+# links its checks with it.
+SUBDIR += Security/minkar
 # PrintCore and AppKit link libcups and include its headers; CUPS (with the
 # OpenSSL it uses for TLS) is built here, as the BSD stage comes later.
+# The stage builds these directories in the order listed here.
 SUBDIR += ../BSD/usr.bin/openssl
 SUBDIR += ../BSD/usr.bin/cups
 SUBDIR += ApplicationServices/PrintCore
@@ -52,9 +57,6 @@ SUBDIR += QuickLook
 SUBDIR += CoreImage
 SUBDIR += QuartzCore
 SUBDIR += AppKit
-# Security: Minkar's own subset for now (the APSL sources beside it are
-# to replace it).
-SUBDIR += Security/minkar
 # Small frameworks binaries for the reference platform link.
 SUBDIR += UserNotifications
 SUBDIR += ServiceManagement
