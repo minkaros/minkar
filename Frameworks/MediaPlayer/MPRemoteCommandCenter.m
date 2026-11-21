@@ -121,6 +121,21 @@
 @implementation MPChangePlaybackPositionCommand
 @end
 
+@implementation MPChangeRepeatModeCommand
+@end
+
+@implementation MPChangeShuffleModeCommand
+@end
+
+@implementation MPChangePlaybackRateCommand
+@end
+
+@implementation MPRatingCommand
+@end
+
+@implementation MPFeedbackCommand
+@end
+
 @implementation MPSkipIntervalCommand
 @end
 
@@ -148,6 +163,15 @@
         _skipForwardCommand = [[MPSkipIntervalCommand alloc] init];
         _skipBackwardCommand = [[MPSkipIntervalCommand alloc] init];
         _changePlaybackPositionCommand = [[MPChangePlaybackPositionCommand alloc] init];
+        _changeRepeatModeCommand = [[MPChangeRepeatModeCommand alloc] init];
+        _changeShuffleModeCommand = [[MPChangeShuffleModeCommand alloc] init];
+        _changePlaybackRateCommand = [[MPChangePlaybackRateCommand alloc] init];
+        _ratingCommand = [[MPRatingCommand alloc] init];
+        _likeCommand = [[MPFeedbackCommand alloc] init];
+        _dislikeCommand = [[MPFeedbackCommand alloc] init];
+        _bookmarkCommand = [[MPFeedbackCommand alloc] init];
+        _enableLanguageOptionCommand = [[MPRemoteCommand alloc] init];
+        _disableLanguageOptionCommand = [[MPRemoteCommand alloc] init];
     }
     return self;
 }

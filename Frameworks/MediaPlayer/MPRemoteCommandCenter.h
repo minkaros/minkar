@@ -42,6 +42,41 @@ typedef NS_ENUM(NSInteger, MPRemoteCommandHandlerStatus) {
 @interface MPChangePlaybackPositionCommand : MPRemoteCommand
 @end
 
+typedef NS_ENUM(NSInteger, MPRepeatType) {
+    MPRepeatTypeOff = 0,
+    MPRepeatTypeOne = 1,
+    MPRepeatTypeAll = 2,
+};
+
+typedef NS_ENUM(NSInteger, MPShuffleType) {
+    MPShuffleTypeOff = 0,
+    MPShuffleTypeItems = 1,
+    MPShuffleTypeCollections = 2,
+};
+
+@interface MPChangeRepeatModeCommand : MPRemoteCommand
+@property (assign) MPRepeatType currentRepeatType;
+@end
+
+@interface MPChangeShuffleModeCommand : MPRemoteCommand
+@property (assign) MPShuffleType currentShuffleType;
+@end
+
+@interface MPChangePlaybackRateCommand : MPRemoteCommand
+@property (copy) NSArray<NSNumber *> *supportedPlaybackRates;
+@end
+
+@interface MPRatingCommand : MPRemoteCommand
+@property (assign) float minimumRating;
+@property (assign) float maximumRating;
+@end
+
+@interface MPFeedbackCommand : MPRemoteCommand
+@property (assign, getter=isActive) BOOL active;
+@property (copy) NSString *localizedTitle;
+@property (copy) NSString *localizedShortTitle;
+@end
+
 @interface MPSkipIntervalCommand : MPRemoteCommand
 @property (copy) NSArray<NSNumber *> *preferredIntervals;
 @end
@@ -59,6 +94,15 @@ typedef NS_ENUM(NSInteger, MPRemoteCommandHandlerStatus) {
 @property (readonly) MPSkipIntervalCommand *skipForwardCommand;
 @property (readonly) MPSkipIntervalCommand *skipBackwardCommand;
 @property (readonly) MPChangePlaybackPositionCommand *changePlaybackPositionCommand;
+@property (readonly) MPChangeRepeatModeCommand *changeRepeatModeCommand;
+@property (readonly) MPChangeShuffleModeCommand *changeShuffleModeCommand;
+@property (readonly) MPChangePlaybackRateCommand *changePlaybackRateCommand;
+@property (readonly) MPRatingCommand *ratingCommand;
+@property (readonly) MPFeedbackCommand *likeCommand;
+@property (readonly) MPFeedbackCommand *dislikeCommand;
+@property (readonly) MPFeedbackCommand *bookmarkCommand;
+@property (readonly) MPRemoteCommand *enableLanguageOptionCommand;
+@property (readonly) MPRemoteCommand *disableLanguageOptionCommand;
 
 /* Minkar: sends the command to its targets, as the media keys and the
    desktop's controls do. Returns the first status that is not success. */
