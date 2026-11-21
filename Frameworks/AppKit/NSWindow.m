@@ -2222,10 +2222,20 @@ static BOOL hasKeyViewLoop(NSView *view) {
 
 -(void)setViewsNeedDisplay:(BOOL)flag {
    if(flag && !_viewsNeedDisplay){
+    NSArray *modes=[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSModalPanelRunLoopMode, NSEventTrackingRunLoopMode, nil];
+
     // NSApplication does a _displayAllWindowsIfNeeded before every event, but there are some things which wont generate
     // an event such as performOnMainThread, so we do the callout here too. There is probably a better way to do this
+    /* Minkar: windows are drawn on the main thread. A view marked from
+       another thread (a progress indicator's threaded animation) asks the
+       main thread; drawing on that thread raced the main thread's
+       drawing (FreeType's state is not shared across threads). */
+    if([NSThread isMainThread]){
        [[NSRunLoop currentRunLoop] cancelPerformSelector:@selector(_displayAllWindowsIfNeeded) target:NSApp argument:nil]; // Be sure we don't accumulate unneeded perform operations
-       [[NSRunLoop currentRunLoop] performSelector:@selector(_displayAllWindowsIfNeeded) target:NSApp argument:nil order:0 modes:[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSModalPanelRunLoopMode, NSEventTrackingRunLoopMode, nil]];
+       [[NSRunLoop currentRunLoop] performSelector:@selector(_displayAllWindowsIfNeeded) target:NSApp argument:nil order:0 modes:modes];
+    }
+    else
+       [NSApp performSelectorOnMainThread:@selector(_displayAllWindowsIfNeeded) withObject:nil waitUntilDone:NO modes:modes];
    }
     _viewsNeedDisplay=flag;
 }
