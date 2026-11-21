@@ -668,7 +668,9 @@ ipc_kmsg_trace_send(ipc_kmsg_t kmsg,
 	}
 
 	src_port = msg->msgh_local_port;
-	if (src_port) {
+	/* Minkar: a dead reply port (IP_DEAD) is not NULL either: read it
+	 * only when it is a port, as dst_port above. */
+	if (IP_VALID(src_port)) {
 		if (src_port->ip_messages.imq_qlimit != MACH_PORT_QLIMIT_DEFAULT) {
 			msg_flags |= KMSG_TRACE_FLAG_SRC_NDFLTQ;
 		}
