@@ -10,6 +10,7 @@
 
 #include "Files.h"
 #include "MacErrors.h"
+#include <minkar/stub.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -137,4 +138,22 @@ OSErr FSCompareFSRefs(const FSRef *ref1, const FSRef *ref2) {
     if (a.device != b.device)
         return diffVolErr;
     return (a.inode == b.inode) ? noErr : errFSRefsDifferent;
+}
+
+/*
+ * Minkar: the catalog and volume parameter calls are noisy stubs for now
+ * (VLC's interface links them, to look at optical discs). They fail as a
+ * call the system does not implement does.
+ */
+OSErr FSGetCatalogInfo(const FSRef *ref, UInt32 whichInfo, void *catalogInfo, void *outName,
+    void *fsSpec, FSRef *parentRef) {
+	(void)ref; (void)whichInfo; (void)catalogInfo; (void)outName; (void)fsSpec; (void)parentRef;
+	MINKAR_STUB();
+	return unimpErr;
+}
+
+OSStatus FSGetVolumeParms(SInt16 volume, void *buffer, ByteCount bufferSize) {
+	(void)volume; (void)buffer; (void)bufferSize;
+	MINKAR_STUB();
+	return unimpErr;
 }
