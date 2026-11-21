@@ -25,8 +25,9 @@ Project code
 Apple open source (Darwin) - Apple Public Source License 2.0
 (APPLE_LICENSE, and the APPLE_LICENSE next to each component)
 - XNU kernel (Kernel/xnu)
-- Kernel extensions: AppleAPIC, IOATAFamily, IOGraphics, IOPCIFamily,
-  IOStorageFamily, hfs, msdosfs (Kernel/Extensions)
+- Kernel extensions: IOATAFamily, IOGraphics, IOPCIFamily (part),
+  IOStorageFamily, hfs (the kext), msdosfs, AppleAPIC (part),
+  ApplePS2Controller (part), IOACPIFamily (part) (Kernel/Extensions)
 - IOKitUser, kext_tools (Kernel)
 - dyld, objc4, Libsystem, libsystem_c, libsystem_info, libsystem_notify,
   libresolv, copyfile, removefile (Libraries; removefile has parts
@@ -35,6 +36,16 @@ Apple open source (Darwin) - Apple Public Source License 2.0
   Frameworks/Security/securityd), OpenDirectory, DirectoryService,
   DiskArbitration (Frameworks/DiskArbitration/APPLE_LICENSE)
 - syslog, configd (BSD)
+
+Apple open source - earlier versions of the Apple Public Source License
+(per each file's header; checked 2026-11-20)
+- APSL 1.1: AppleI386PCI, AppleIntelPIIXATA, and part of AppleAPIC,
+  ApplePS2Controller, IOACPIFamily and IOPCIFamily (Kernel/Extensions)
+- APSL 1.2: hfs_util and hfs_japanese.kmodproj (Kernel/Extensions/hfs);
+  hfs's APPLE_LICENSE is the text of the APSL 1.2
+
+Intel - ACPICA (Kernel/Extensions/IOACPIFamily/acpica): Intel's ACPI
+license, BSD-3-Clause or GPL-2.0, at the user's choice, per its headers
 
 Apple open source - Apache License 2.0
 - libdispatch (Libraries/Libsystem/libdispatch/LICENSE)

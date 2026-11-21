@@ -12,7 +12,9 @@
 - Extensions/IOATAFamily: IOATAFamily-256 (SPDX:APSL-2.0)
 - Extensions/IOStorageFamily: IOStorageFamily-238.120.1 (SPDX:APSL-2.0)
 - Extensions/IOGraphics: IOGraphics-576.1 (SPDX:APSL-2.0)
-- Extensions/IOPCIFamily: IOPCIFamily-370.141.1 (SPDX:APSL-1.1,SPDX:APSL-2.0)
+- Extensions/IOPCIFamily: IOPCIFamily-370.141.1 (SPDX:APSL-1.1,SPDX:APSL-2.0;
+  by file header: 13 sources APSL-1.1, 6 APSL-2.0, 16 with no license notice,
+  among them the sample drivers and PCIDriverKit; checked 2026-11-20)
 - Extensions/pthread: libpthread-416.100.3 (SPDX:APSL-2.0)
 - Extensions/IOHIDFamily: IOHIDFamily-1446.140.2 (SPDX:APSL-2.0)
 - Extensions/msdosfs: msdosfs-411.100.3 (SPDX:APSL-2.0)
@@ -20,12 +22,27 @@
 - Extensions/hfs: hfs-556.60.1, Darwin 20's, adapted to Darwin 19's xnu
   (zinit zones, journal accounting, no AppleKeyStore; compression through
   decmpfs since 2026-11-17, its types from MinkarFSCompression, ours)
-  (SPDX:APSL-2.0)
+  (SPDX:APSL-2.0, SPDX:APSL-1.2; by file header, checked 2026-11-20: 81
+  sources APSL-2.0, among them the whole kext; 4 APSL-1.2 (hfs_util's
+  hfsutil_main.c and hfsutil_jnl.c, built as /sbin/hfs.util, and
+  hfs_japanese.kmodproj's two, not built); 61 with the vendor's copyright
+  and no license text and 88 with no notice at all (livefiles plug-ins,
+  CopyHFSMeta, tests, none of them built). The component's APPLE_LICENSE
+  file is the text of the APSL 1.2.)
 - kext_tools: kext_tools-623.120.1 (SPDX:APSL-2.0)
 Older open-source releases, not in Darwin 19's distribution (the lines
 below, with their licenses as listed before):
-- Extensions/AppleAPIC (SPDX:APSL-2.0)
-- Extensions/AppleI386GenericPlatform (SPDX:APSL-1.1)
-- Extensions/AppleIntelPIIXATA (SPDX:APSL-1.1)
-- Extensions/ApplePS2Controller (SPDX:APSL-1.1)
-- Extensions/AppleIOACPIFamily (SPDX:APSL-1.1)
+- Extensions/AppleAPIC (SPDX:APSL-1.1, SPDX:APSL-2.0; by file header: 4
+  sources APSL-1.1, 1 APSL-2.0)
+- Extensions/AppleI386GenericPlatform, merged into IOACPIFamily (SPDX:APSL-1.1)
+- Extensions/AppleI386PCI (SPDX:APSL-1.1; all 5 sources)
+- Extensions/AppleIntelPIIXATA (SPDX:APSL-1.1; all 11 sources)
+- Extensions/ApplePS2Controller (SPDX:APSL-1.1, SPDX:APSL-2.0, SPDX:MIT,
+  SPDX:BSD-2-Clause; by file header: 7 sources APSL-1.1, 1 APSL-2.0, the
+  keyboard's 3 MIT (ravynOS), ApplePS2Mouse BSD-2-Clause (Minkar's))
+- Extensions/AppleIOACPIFamily, now IOACPIFamily (SPDX:APSL-1.1,
+  SPDX:APSL-2.0, SPDX:MIT, SPDX:BSD-2-Clause; by file header: 5 sources
+  APSL-1.1, 4 APSL-2.0, 6 MIT (ravynOS), 9 BSD-2-Clause (Minkar's))
+- Extensions/IOACPIFamily/acpica: ACPICA 20250807 (Intel's ACPI license,
+  or BSD-3-Clause, or GPL-2.0, at the user's choice, per its headers;
+  see its README.minkar)
