@@ -1,6 +1,7 @@
 /* Modifications Copyright (c) 2026 The Minkar contributors */
 #include <stddef.h>
 #include <corecrypto/cckprng.h>
+#include "kprng.h"
 #include <corecrypto/ccrng.h>
 #include "yarrow/yarrow.h"
 #if !KERNEL
@@ -42,8 +43,8 @@ void cckprng_lock_init(void) {
 void cckprng_init(struct cckprng_ctx *ctx, unsigned max_ngens, size_t entropybuf_nbytes, const void *entropybuf,
 				  const uint32_t *entropybuf_nsamples, size_t seed_nbytes, const void *seed, size_t nonce_nbytes,
 				  const void *nonce) {
-	prngInitialize(&ctx->prng);
-	ctx->bytes_generated = ctx->bytes_since_entropy = 0;
+	prngInitialize(&MCC_KPRNG(ctx)->prng);
+	MCC_KPRNG(ctx)->bytes_generated = MCC_KPRNG(ctx)->bytes_since_entropy = 0;
 
 	cckprng_reseed(ctx, seed_nbytes, seed);
 	cckprng_reseed(ctx, nonce_nbytes, nonce);
@@ -60,9 +61,9 @@ void cckprng_reseed(struct cckprng_ctx *ctx, size_t nbytes, const void *seed) {
 	}
 
 	PRNG_LOCK();
-	prngInput(ctx->prng, (BYTE *)seed, (UINT)nbytes, 0, 0);
-	prngAllowReseed(ctx->prng, 5000);
-	ctx->bytes_since_entropy = 0;
+	prngInput(MCC_KPRNG(ctx)->prng, (BYTE *)seed, (UINT)nbytes, 0, 0);
+	prngAllowReseed(MCC_KPRNG(ctx)->prng, 5000);
+	MCC_KPRNG(ctx)->bytes_since_entropy = 0;
 	PRNG_UNLOCK();
 }
 
@@ -74,9 +75,9 @@ void cckprng_generate(struct cckprng_ctx *ctx, unsigned gen_idx, size_t nbytes, 
 	BYTE *buffer = (BYTE *)out;
 	PRNG_LOCK();
 	while (nbytes > UINT32_MAX) {
-		PRNG_CHECK(prngOutput(ctx->prng, buffer, UINT32_MAX));
-		ctx->bytes_generated += UINT32_MAX;
-		ctx->bytes_since_entropy += UINT32_MAX;
+		PRNG_CHECK(prngOutput(MCC_KPRNG(ctx)->prng, buffer, UINT32_MAX));
+		MCC_KPRNG(ctx)->bytes_generated += UINT32_MAX;
+		MCC_KPRNG(ctx)->bytes_since_entropy += UINT32_MAX;
 
 		buffer += UINT32_MAX;
 		nbytes -= UINT32_MAX;
@@ -84,9 +85,9 @@ void cckprng_generate(struct cckprng_ctx *ctx, unsigned gen_idx, size_t nbytes, 
 	}
 
 	if (nbytes != 0) {
-		PRNG_CHECK(prngOutput(ctx->prng, buffer, (UINT)nbytes));
-		ctx->bytes_generated += nbytes;
-		ctx->bytes_since_entropy += nbytes;
+		PRNG_CHECK(prngOutput(MCC_KPRNG(ctx)->prng, buffer, (UINT)nbytes));
+		MCC_KPRNG(ctx)->bytes_generated += nbytes;
+		MCC_KPRNG(ctx)->bytes_since_entropy += nbytes;
 	}
 	PRNG_UNLOCK();
 }
