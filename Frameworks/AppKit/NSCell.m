@@ -27,6 +27,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSCellUndoManager.h"
 #import <AppKit/NSTextView.h>
 
+/* Minkar: a cell tells its control view it changed. A view that is not a
+   control (a table's header view, for its columns' header cells) has no
+   updateCell:, and is redrawn instead. */
+static void cellChanged(NSCell *cell){
+   NSView *view=[cell controlView];
+
+   if([view respondsToSelector:@selector(updateCell:)])
+    [(NSControl *)view updateCell:cell];
+   else
+    [view setNeedsDisplay:YES];
+}
+
 @implementation NSCell
 
 #pragma mark -
@@ -562,7 +574,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    image=[image retain];
    [_image release];
    _image=image;
-   [(NSControl *)[self controlView] updateCell:self];
+   cellChanged(self);
 }
 
 -(void)setAlignment:(NSTextAlignment)alignment {
@@ -665,7 +677,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _hasValidObjectValue = YES;
     [[self controlView] didChangeValueForKey:@"objectValue"];
 
-    [(NSControl *)[self controlView] updateCell:self];
+    cellChanged(self);
 }
 
 -(void)setStringValue:(NSString *)value {
@@ -722,7 +734,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _controlSize = size;
    [_font release];
    _font = [[NSFont userFontOfSize:16 - _controlSize*2] retain];
-   [(NSControl *)[self controlView] updateCell:self];
+   cellChanged(self);
 }
 
 -(void)setFocusRingType:(NSFocusRingType)focusRingType {
