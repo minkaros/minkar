@@ -1,14 +1,32 @@
-# Building Minkar From Source
+# Building Minkar from source
 
-Minkar is built with BSD make (bmake). The build first creates a host
-toolchain (Default.xctoolchain: clang/LLVM, cctools, ld64, xcbuild,
-mig, ...) and then uses it, together with the Minkar.sdk it produces, to
-build the rest of the system for the same CPU architecture.
+How to build Minkar, make a bootable image and boot it in QEMU, with the host it needs,
+the build's layers and gates, and the errors people hit. For anyone building the tree.
+Last reviewed: 2026-11-21. Spanish copy: [BUILDING.es.md](BUILDING.es.md).
 
-The source tree is `/work/minkar` and the build directory is `../build`
-next to it (`ROOT_BINARY_DIR`); adjust the paths below to your checkout.
-Building LLVM the first time takes a __long__ time.
-In Spanish: [BUILDING.es.md](BUILDING.es.md).
+## Quick start
+
+On Ubuntu 24.04 (x86-64, a CPU with AVX), with 16 GB of RAM, about 40 GB of free disk on
+a case-sensitive file system, and root:
+
+    git clone https://github.com/minkaros/minkar && cd minkar && mkdir -p ../build
+    sudo tools/ci/host-setup.sh packages image
+    sudo bmake -m $PWD/BSD/share/mk -j$(nproc) > ../build/world.log 2>&1
+    sudo bmake -m $PWD/BSD/share/mk boottest-key
+    sudo env INIT= ROOT_PASSWORD=secret ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
+        bmake -m $PWD/BSD/share/mk image
+    sudo env GATE=M2 ROOT_PASSWORD=secret BOOTTEST_SSH_KEY=../build/boottest-ssh/id_ed25519 \
+        bmake -m $PWD/BSD/share/mk boottest
+
+The first build compiles the toolchain (LLVM, Swift) and takes hours. `boottest` prints
+the QEMU command line to run the image yourself. The rest of this page is reference.
+
+## How the build is laid out
+
+Minkar is built with BSD make (bmake). The build first creates a host toolchain
+(Default.xctoolchain: clang/LLVM, Swift, cctools, ld64, xcbuild, mig, ...) and then uses
+it, with the Minkar.sdk it produces, to build the rest of the system. The build directory
+is `../build` next to the source tree (`ROOT_BINARY_DIR`).
 
 ## Host requirements
 
@@ -23,7 +41,7 @@ build tools); Minkar itself is built by the toolchain's own clang, so the
 host's compiler version does not change the system that comes out.
 
 Requirements: a case-sensitive file system (see below), at least 16 GB of
-RAM for `-j10` (LLVM's links are the peak), about 20 GB of free disk, and
+RAM for `-j10` (LLVM's links are the peak), about 40 GB of free disk, and
 an x86-64 CPU with AVX if the boot test runs under KVM.
 
 * Toolchain build: `clang lld cmake ninja-build python3 python3-venv git
@@ -63,8 +81,12 @@ may stay gcc.
 
 The source tree must be on a case-sensitive file system (ext4, not a
 default HFS+ or APFS volume): some trees have names that differ only in
-case. Disk space: about 7 GB of sources with their git history, 8 GB of
-build tree (2 GB of it LLVM's build directory) and a 2 GB image.
+case. Disk space, measured on 2026-11-21 after the committed ncurses build output and
+the 21 unbuilt components were removed: 3.0 GB of tracked sources (232,104 files) and
+1.9 GB of git history; on the development host's build tree, 2.7 GB of toolchain, 16 GB
+of object directories, 3.5 GB for the host Swift the toolchain builds with, a 1.2 GB
+sysroot and a 1.2 GB image. Before that removal the sources took about 7 GB with their
+history.
 
 ## Building
 
@@ -97,9 +119,12 @@ Outputs, under `../build`:
 
 ## Expected times
 
-History: measured on 2026-10-25 on the reference host of the time,
-Ubuntu 22.04, 10 CPUs (Xeon E5-2690 v2), 16 GB of RAM, `-j10`, clean
-build tree. The Ubuntu 24.04.5 host has not been timed yet.
+Measured on 2026-10-25, before the toolchain moved to LLVM 21 and before the ncurses
+build output and the 21 unbuilt components were removed, on the reference host of the
+time: Ubuntu 22.04, 10 CPUs (Xeon E5-2690 v2), 16 GB of RAM, `-j10`, a clean build
+tree. The Ubuntu 24.04.5 host has not been timed from scratch since. In the CI, the
+toolchain takes about two hours when its cache misses, and gate BC 2 to 3 hours under
+TCG.
 
 | Stage | Wall time |
 | --- | --- |
@@ -327,8 +352,6 @@ RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 Portable parts of the system have host-side tests (clang, ASan/UBSan):
 
 * `make -C Frameworks/OpenGL/tests`
-* `make -C Frameworks/CoreGraphics/tests`
-* `make -C CoreServices/WindowServer/tests` (needs a built sysroot)
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
 * `make -C Libraries/Libsystem/libsystem_c/minkar_crypt/tests` (crypt(3) SHA-crypt)
 * `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`
