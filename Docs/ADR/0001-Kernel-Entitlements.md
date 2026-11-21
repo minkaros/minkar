@@ -1,5 +1,11 @@
 # ADR 0001: Kernel entitlement validation
 
+> **Note (2026-11-21).** This ADR is a historical record and is not rewritten. Since it was
+> accepted: Phase 7 became the lanes BC, ARM, KX and SU; the releases 20.0 and 21.0 no
+> longer exist; the performance requirement is the gate of a release after 25.x, measured on
+> the new kernel; and `Docs/WindowServer-Rewrite.md` is now [WindowServer.md](../WindowServer.md).
+> Current decisions: [Decisions.md](../Decisions.md).
+
 Status: accepted, 2026-11-01; implemented the same day (see the end). Implements section 9.1 of
 `Docs/WindowServer-Rewrite.md` (option C, decided 2026-10-31). Required
 before WS4a, where WindowServer stops running as root.

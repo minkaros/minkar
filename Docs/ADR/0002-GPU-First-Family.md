@@ -1,5 +1,11 @@
 # ADR 0002: The GPU track's families and its first driver
 
+> **Note (2026-11-21).** This ADR is a historical record and is not rewritten. Since it was
+> accepted: Phase 7 became the lanes BC, ARM, KX and SU; the releases 20.0 and 21.0 no
+> longer exist; the performance requirement is the gate of a release after 25.x, measured on
+> the new kernel; and `Docs/WindowServer-Rewrite.md` is now [WindowServer.md](../WindowServer.md).
+> Current decisions: [Decisions.md](../Decisions.md).
+
 Status: accepted, 2026-11-02. The order of families was decided by the
 maintainer on 2026-11-01; this ADR records it and the plan built on it.
 Closes the "open decision" in `Docs/ROADMAP.md` (Performance
