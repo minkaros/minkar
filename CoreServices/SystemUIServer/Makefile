@@ -6,8 +6,9 @@
 # bar, as status items of this agent app, and the notification center's
 # banners and list (5.6, N0 and N1). loginwindow starts it (SessionApplications).
 #
-# SHORTCUT(MB1): the extras are built in; MB1 moves each one to a .menu
-# bundle that SystemUIServer loads.
+# The Menu Extras are .menu bundles built from MenuExtras/ and loaded from
+# /System/Library/CoreServices/Menu Extras; the notification center stays
+# built in, sharing the banners' service.
 
 SUBDIR =
 APP =		SystemUIServer

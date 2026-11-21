@@ -779,8 +779,8 @@ static NSString * const NSAutomaticApplicationMenu = @"NSAutomaticApplicationMen
     [NSMenuBarWindow _mainMenuChanged];
 }
 
-/* SHORTCUT(MB2): NSDocumentController keeps the recent items in the app's
-   preferences; LaunchServices' shared file lists come in MB2 (Atlas.md). */
+/* NSDocumentController writes the recent items to LaunchServices' shared
+   file lists itself; nothing more to do here. */
 - (void)addRecentItem:(NSURL *)url {
 }
 
