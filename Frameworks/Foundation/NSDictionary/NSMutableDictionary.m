@@ -15,7 +15,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @implementation NSMutableDictionary
 
 +allocWithZone:(NSZone *)zone {
-   return NSAllocateObject([NSMutableDictionary_CF class],0,zone);
+   /* Minkar: only NSMutableDictionary itself is the class cluster; a
+      subclass gets an instance of its own (it implements the primitive
+      methods), as NSMutableArray's and NSMutableSet's do. */
+   if(self==objc_lookUpClass("NSMutableDictionary"))
+    return NSAllocateObject([NSMutableDictionary_CF class],0,zone);
+
+   return NSAllocateObject(self,0,zone);
 }
 
 -initWithCapacity:(NSUInteger)capacity {
