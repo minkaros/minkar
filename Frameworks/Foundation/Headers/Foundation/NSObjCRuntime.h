@@ -163,5 +163,8 @@ FOUNDATION_EXPORT SEL NSSelectorFromString(NSString *selectorName);
 FOUNDATION_EXPORT Class NSClassFromString(NSString *className);
 FOUNDATION_EXPORT NSString *NSStringFromSelector(SEL selector);
 FOUNDATION_EXPORT NSString *NSStringFromClass(Class _class);
+@class Protocol;
+FOUNDATION_EXPORT NSString *NSStringFromProtocol(Protocol *protocol);
+FOUNDATION_EXPORT Protocol *NSProtocolFromString(NSString *name);
 #endif /* __OBJC__ */
 #endif /* _FOUNDATION_OBJCRUNTIME_H */

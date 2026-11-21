@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObjCRuntime.h>
+#import <objc/runtime.h>
 
 /* The library's current version (its -current_version, Makefile). */
 double NSFoundationVersionNumber = 1677.104;
@@ -152,5 +153,22 @@ NSString *NSStringFromClass(Class class) {
 
     const char *name = class_getName(class);
     return NSAutorelease(NSString_anyCStringNewWithBytes(NSASCIIStringEncoding, NULL,name, strlen(name)));
+}
+
+/* Minkar: a protocol's name and back (VLC's interface names its delegate
+   protocols). */
+NSString *NSStringFromProtocol(Protocol *protocol) {
+   if(protocol==nil)
+    return nil;
+
+    const char *name = protocol_getName(protocol);
+    return NSAutorelease(NSString_anyCStringNewWithBytes(NSUTF8StringEncoding, NULL,name, strlen(name)));
+}
+
+Protocol *NSProtocolFromString(NSString *name) {
+   if(name==nil)
+    return nil;
+
+   return objc_getProtocol([name UTF8String]);
 }
 
