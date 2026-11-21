@@ -96,12 +96,27 @@ fi
 rm -f "$archive"
 [ -x "$app/Contents/MacOS/$exe" ] || report 0 install "no executable $exe in $bundle"
 
-# Start it, as root in the console's session (as the other image tests do).
+# Start it as the user who owns the console's session, as a user would
+# (some apps refuse to run as root); as root when root owns it.
 dmesg > "$work/dmesg.before"
 cd /
-DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT=$work/probe.txt \
-    "$app/Contents/MacOS/$exe" > "$work/out.txt" 2>&1 < /dev/null &
-pid=$!
+user=$(stat -f %Su /dev/console 2>/dev/null)
+if [ -n "$user" ] && [ "$user" != root ] && id "$user" > /dev/null 2>&1; then
+	chown -R "$user" "$work"
+	su -m "$user" -c "DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT='$work/probe.txt' exec '$app/Contents/MacOS/$exe'" \
+	    > "$work/out.txt" 2>&1 < /dev/null &
+else
+	DYLD_INSERT_LIBRARIES=$probe BCPROBE_OUT=$work/probe.txt \
+	    "$app/Contents/MacOS/$exe" > "$work/out.txt" 2>&1 < /dev/null &
+fi
+launcher=$!
+# The app's own process (su runs it as its child).
+pid=$launcher
+for i in 1 2 3 4 5; do
+	p=$(pgrep -n -f "$app/Contents/MacOS/$exe")
+	[ -n "$p" ] && { pid=$p; break; }
+	sleep 0.2
+done
 
 window=no menus=no
 for i in $(seq "$wait"); do
@@ -126,7 +141,7 @@ if alive; then
 	report 5 no-window "running after ${wait}s without a window; $(grep -v '^ *$' "$work/out.txt" | tail -1)"
 fi
 
-wait "$pid"
+wait "$launcher"
 rc=$?
 dmesg > "$work/dmesg.after"
 refused=$(diff "$work/dmesg.before" "$work/dmesg.after" | grep "MinkarCodeIntegrity: refused" | head -1)
