@@ -483,9 +483,18 @@ static int check(user_addr_t arg) {
 			kauth_cred_t cred = kauth_cred_proc_ref(target);
 			Profile *p = cred_profile(cred);
 			if (p != NULL) {
-				int flags;
+				int flags = 0;
 				args.sandboxed = 1;
 				args.result = sb_evaluate(p->blob, operation, &c->query, &flags);
+				/* A denial a service asks about (launchd's mach-lookup,
+				 * for one) is logged as the kernel's own are, unless the
+				 * rule says not to. */
+				if (args.result != SB_ALLOW && !(flags & SB_FLAG_NO_LOG)) {
+					char name[32];
+					proc_name(args.pid, name, sizeof(name));
+					LOG("%s(%d) deny %s %s", name, args.pid, operation,
+					    args.name != 0 ? c->path : "");
+				}
 			}
 			kauth_cred_unref(&cred);
 			proc_rele(target);
