@@ -17,6 +17,34 @@ NSString *const kABEmailWorkLabel = @"_$!<Work>!$_";
 NSString *const kABEmailHomeLabel = @"_$!<Home>!$_";
 NSString *const kABOtherLabel = @"_$!<Other>!$_";
 NSString *const kABDatabaseChangedExternallyNotification = @"ABDatabaseChangedExternallyNotification";
+NSString *const kABGroupNameProperty = @"GroupName";
+NSString *const kABModificationDateProperty = @"Modification";
+NSString *const kABCreationDateProperty = @"Creation";
+NSString *const kABAddressCityKey = @"City";
+NSString *const kABAddressCountryKey = @"Country";
+NSString *const kABAddressStateKey = @"State";
+NSString *const kABAddressStreetKey = @"Street";
+NSString *const kABAddressZIPKey = @"ZIP";
+NSString *const kABAddressHomeLabel = @"_$!<Home>!$_";
+NSString *const kABAddressWorkLabel = @"_$!<Work>!$_";
+NSString *const kABAnniversaryLabel = @"_$!<Anniversary>!$_";
+NSString *const kABBirthdayProperty = @"Birthday";
+NSString *const kABDepartmentProperty = @"ABDepartment";
+NSString *const kABHomePageProperty = @"HomePage";
+NSString *const kABInstantMessageProperty = @"InstantMessage";
+NSString *const kABJobTitleProperty = @"JobTitle";
+NSString *const kABNoteProperty = @"Note";
+NSString *const kABOtherDatesProperty = @"ABDate";
+NSString *const kABPersonFlags = @"ABPersonFlags";
+NSString *const kABPhoneHomeLabel = @"_$!<Home>!$_";
+NSString *const kABPhoneMobileLabel = @"_$!<Mobile>!$_";
+NSString *const kABPhonePagerLabel = @"_$!<Pager>!$_";
+NSString *const kABPhoneWorkFAXLabel = @"_$!<WorkFAX>!$_";
+NSString *const kABPhoneWorkLabel = @"_$!<Work>!$_";
+NSString *const kABInsertedRecords = @"ABInsertedRecords";
+NSString *const kABUpdatedRecords = @"ABUpdatedRecords";
+NSString *const kABDeletedRecords = @"ABDeletedRecords";
+NSString *const kABDatabaseChangedNotification = @"ABDatabaseChangedNotification";
 
 @implementation ABMultiValue {
 @protected
@@ -93,6 +121,15 @@ NSString *const kABDatabaseChangedExternallyNotification = @"ABDatabaseChangedEx
 @end
 
 @implementation ABPerson
+- (NSArray *)parentGroups { return @[]; }
+@end
+
+@implementation ABGroup
+- (NSArray *)members { return @[]; }
+- (NSArray *)subgroups { return @[]; }
+- (NSArray *)parentGroups { return @[]; }
+- (BOOL)addMember:(ABPerson *)person { return NO; }
+- (BOOL)removeMember:(ABPerson *)person { return NO; }
 @end
 
 @implementation ABAddressBook {
@@ -128,6 +165,9 @@ NSString *const kABDatabaseChangedExternallyNotification = @"ABDatabaseChangedEx
 }
 
 - (NSArray *)people { return @[ [self me] ]; }
+- (NSArray *)groups { return @[]; }
+- (BOOL)addRecord:(ABRecord *)record { return NO; }
+- (BOOL)removeRecord:(ABRecord *)record { return NO; }
 - (ABRecord *)recordForUniqueId:(NSString *)uniqueId { return [[[self me] uniqueId] isEqual:uniqueId] ? [self me] : nil; }
 - (BOOL)save { return YES; }
 - (BOOL)hasUnsavedChanges { return NO; }

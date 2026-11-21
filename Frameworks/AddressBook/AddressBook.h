@@ -21,6 +21,35 @@ FOUNDATION_EXPORT NSString *const kABEmailWorkLabel;
 FOUNDATION_EXPORT NSString *const kABEmailHomeLabel;
 FOUNDATION_EXPORT NSString *const kABOtherLabel;
 FOUNDATION_EXPORT NSString *const kABDatabaseChangedExternallyNotification;
+// The values measured on the reference platform (2026-11-21).
+FOUNDATION_EXPORT NSString *const kABGroupNameProperty;
+FOUNDATION_EXPORT NSString *const kABModificationDateProperty;
+FOUNDATION_EXPORT NSString *const kABCreationDateProperty;
+FOUNDATION_EXPORT NSString *const kABAddressCityKey;
+FOUNDATION_EXPORT NSString *const kABAddressCountryKey;
+FOUNDATION_EXPORT NSString *const kABAddressStateKey;
+FOUNDATION_EXPORT NSString *const kABAddressStreetKey;
+FOUNDATION_EXPORT NSString *const kABAddressZIPKey;
+FOUNDATION_EXPORT NSString *const kABAddressHomeLabel;
+FOUNDATION_EXPORT NSString *const kABAddressWorkLabel;
+FOUNDATION_EXPORT NSString *const kABAnniversaryLabel;
+FOUNDATION_EXPORT NSString *const kABBirthdayProperty;
+FOUNDATION_EXPORT NSString *const kABDepartmentProperty;
+FOUNDATION_EXPORT NSString *const kABHomePageProperty;
+FOUNDATION_EXPORT NSString *const kABInstantMessageProperty;
+FOUNDATION_EXPORT NSString *const kABJobTitleProperty;
+FOUNDATION_EXPORT NSString *const kABNoteProperty;
+FOUNDATION_EXPORT NSString *const kABOtherDatesProperty;
+FOUNDATION_EXPORT NSString *const kABPersonFlags;
+FOUNDATION_EXPORT NSString *const kABPhoneHomeLabel;
+FOUNDATION_EXPORT NSString *const kABPhoneMobileLabel;
+FOUNDATION_EXPORT NSString *const kABPhonePagerLabel;
+FOUNDATION_EXPORT NSString *const kABPhoneWorkFAXLabel;
+FOUNDATION_EXPORT NSString *const kABPhoneWorkLabel;
+FOUNDATION_EXPORT NSString *const kABInsertedRecords;
+FOUNDATION_EXPORT NSString *const kABUpdatedRecords;
+FOUNDATION_EXPORT NSString *const kABDeletedRecords;
+FOUNDATION_EXPORT NSString *const kABDatabaseChangedNotification;
 
 @interface ABMultiValue : NSObject <NSCopying, NSFastEnumeration>
 - (NSUInteger)count;
@@ -44,6 +73,16 @@ FOUNDATION_EXPORT NSString *const kABDatabaseChangedExternallyNotification;
 @end
 
 @interface ABPerson : ABRecord
+- (NSArray *)parentGroups;
+@end
+
+// A group of people. The book has no groups yet: they are all empty.
+@interface ABGroup : ABRecord
+- (NSArray<ABPerson *> *)members;
+- (NSArray<ABGroup *> *)subgroups;
+- (NSArray<ABGroup *> *)parentGroups;
+- (BOOL)addMember:(ABPerson *)person;
+- (BOOL)removeMember:(ABPerson *)person;
 @end
 
 @interface ABAddressBook : NSObject
@@ -51,6 +90,9 @@ FOUNDATION_EXPORT NSString *const kABDatabaseChangedExternallyNotification;
 + (nullable ABAddressBook *)addressBook;
 - (nullable ABPerson *)me;
 - (NSArray<ABPerson *> *)people;
+- (NSArray<ABGroup *> *)groups;
+- (BOOL)addRecord:(ABRecord *)record;
+- (BOOL)removeRecord:(ABRecord *)record;
 - (nullable ABRecord *)recordForUniqueId:(NSString *)uniqueId;
 - (BOOL)save;
 - (BOOL)hasUnsavedChanges;
