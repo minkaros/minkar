@@ -1,12 +1,27 @@
-# Minkar — Matriz de compatibilidad
+# Compatibilidad
 
-Generada por `bmake progress` desde [progress/compatibility.tsv](progress/compatibility.tsv), que escribe el gate BC (`bmake bc-check BC_UPDATE=yes`; carril BC en [ROADMAP.es.md](ROADMAP.es.md)). El binario publicado de cada app designada, descargado de su proyecto, se instala en la imagen como lo haría un usuario y se arranca; el resultado es hasta dónde llegó. La referencia es la versión en inglés, [Compatibility.md](Compatibility.md).
+Hasta dónde llega en Minkar el binario publicado de cada app designada, y qué frameworks
+piden esas apps que Minkar todavía no tiene. Para quien elige en qué trabajar. Última
+revisión: 21 nov 2026. Es una copia de [Compatibility.md](Compatibility.md) y se actualiza
+en el mismo commit.
 
+El trabajo en frameworks se ordena por esta página y por el registro de stubs ruidosos,
+sea cual sea la API a la que pertenece un símbolo. Las partes generadas (entre los
+marcadores `compat:`) salen de `bmake progress`; no se editan a mano.
+
+## La matriz
+
+El gate BC (`bmake bc-check`; carril BC en [ROADMAP.es.md](ROADMAP.es.md)) instala en la
+imagen el binario publicado de cada app designada como lo haría un usuario, lo arranca con
+el usuario de la sesión y anota hasta dónde llegó en
+[progress/compatibility.tsv](progress/compatibility.tsv) (`BC_UPDATE=yes` lo escribe).
+
+<!-- compat:matrix:begin -->
 _Comprobado: 2026-11-20; ProductVersion 10.15; the gate took 19 minutes under KVM._
 
 4 de 17 apps muestran una ventana.
 
-## El conjunto 19 (BC4)
+### El conjunto 19 (BC4)
 
 | App | Versión | Mínima | Arquitecturas | Resultado | Menús | Motivo |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -18,7 +33,7 @@ _Comprobado: 2026-11-20; ProductVersion 10.15; the gate took 19 minutes under KV
 | TextMate | 2.0.23 | 10.12 | arm64, x86_64 | `window` | sí | a window at 426,162, 427x422 |
 | Thunderbird | 160.0 | 10.15 | arm64, x86_64 | `no-load` | no | installed after hdiutil convert (an lzma-compressed image (ULMO) is not attached yet); dlopen(/Applications/Thunderbird.app/Contents/MacOS/XUL, 265): Symbol not found: _kABModificationDateProperty Referenced from: /Applications/Thunderbird.app/Contents/MacOS/XUL  |
 
-## Las apps designadas siguientes (BC5 en adelante)
+### Las apps designadas siguientes (BC5 en adelante)
 
 | App | Versión | Mínima | Arquitecturas | Resultado | Menús | Motivo |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -44,3 +59,144 @@ Resultados, del que menos llega al que más:
 - `min-version`: su versión mínima es mayor que la que reporta Minkar y no mostró ventana (el motivo dice hasta dónde llegó)
 - `not-run`: el gate no llegó a ella
 - `window`: muestra una ventana
+<!-- compat:matrix:end -->
+
+## Frameworks que piden las apps designadas
+
+Cada framework que importa una app designada y que Minkar no tiene, y los que tiene solo
+en parte, desde [progress/frameworks.tsv](progress/frameworks.tsv): cuántas de las 17 apps lo
+importan y cuántos de los símbolos distintos que importan exporta Minkar (un stub ruidoso
+cuenta como exportado). Para refrescar los datos, se pasa
+`tools/symbols/symbol-inventory.py` por las apps y después
+`tools/compat/matrix.py --frameworks <su informe> Docs/progress/frameworks.tsv`.
+
+Estado: **Plan**, en el roadmap; **Partial**, el framework existe con parte de su API;
+**Decide**, sin plan todavía; **Out**, fuera del alcance decidido (los servicios en la
+nube del fabricante) u obsoleto.
+
+<!-- compat:frameworks:begin -->
+| Framework | Apps | Símbolos en Minkar | Estado |
+| --- | ---: | ---: | --- |
+| Metal | 9 | 17 de 60 | Plan (pista GPU) |
+| VideoToolbox | 6 | 38 de 78 | Partial |
+| CoreImage | 5 | 41 de 49 | Partial |
+| LocalAuthentication | 5 | 1 de 1 | Partial |
+| MediaPlayer | 5 | 17 de 25 | Partial |
+| Accelerate | 4 | 0 de 47 | Plan (AU9) |
+| CoreLocation | 4 | 7 de 7 | Partial |
+| CoreMIDI | 4 | 24 de 25 | Plan (AU8) |
+| QuickLookThumbnailing | 4 | 0 de 5 | Decide |
+| QuickLookUI | 4 | 0 de 5 | Decide |
+| ScreenCaptureKit | 4 | 0 de 14 | Decide |
+| Accessibility | 3 | 0 de 3 | Decide |
+| AuthenticationServices | 3 | 8 de 38 | Partial |
+| ColorSync | 3 | 0 de 10 | Plan |
+| CryptoKit | 3 | 0 de 45 | Decide |
+| IOBluetooth | 3 | 1 de 8 | Partial |
+| MetalKit | 3 | 2 de 7 | Plan (pista GPU) |
+| Network | 3 | 0 de 14 | Decide |
+| SwiftUI | 3 | 0 de 1022 | Plan (carril SU) |
+| Vision | 3 | 2 de 21 | Partial |
+| AudioUnit | 2 | 14 de 15 | Plan (AU9) |
+| Kerberos | 2 | 0 de 27 | Decide |
+| OpenDirectory | 2 | 0 de 8 | Partial |
+| ScriptingBridge | 2 | 0 de 2 | Decide |
+| AccessoryAccess | 1 | 0 de 3 | Decide |
+| AppIntents | 1 | 0 de 216 | Decide |
+| AVFAudio | 1 | 0 de 5 | Decide |
+| Charts | 1 | 0 de 61 | Decide |
+| Contacts | 1 | 0 de 10 | Decide |
+| CoreBluetooth | 1 | 0 de 10 | Decide |
+| CoreDisplay | 1 | 0 de 1 | Decide |
+| CoreHaptics | 1 | 0 de 9 | Decide |
+| CoreMediaIO | 1 | 0 de 1 | Decide |
+| CoreML | 1 | 0 de 9 | Decide |
+| CoreWLAN | 1 | 0 de 1 | Decide |
+| CryptoTokenKit | 1 | 0 de 1 | Decide |
+| DeviceCheck | 1 | 0 de 1 | Out |
+| DiskImageKit | 1 | 0 de 33 | Decide |
+| ForceFeedback | 1 | 0 de 9 | Decide |
+| FoundationModels | 1 | 0 de 70 | Decide |
+| GameController | 1 | 0 de 12 | Decide |
+| GSS | 1 | 0 de 7 | Decide |
+| Hypervisor | 1 | 0 de 19 | Decide |
+| JavaRuntimeSupport | 1 | 0 de 23 | Decide |
+| MediaAccessibility | 1 | 0 de 1 | Decide |
+| MetalFX | 1 | 0 de 4 | Decide |
+| ParavirtualizedGraphics | 1 | 0 de 5 | Decide |
+| PCSC | 1 | 0 de 13 | Decide |
+| PIP (private) | 1 | 0 de 2 | Decide |
+| SafariServices | 1 | 0 de 3 | Decide |
+| SecurityInterface | 1 | 0 de 3 | Decide |
+| StoreKit | 1 | 0 de 3 | Out |
+| Symbols | 1 | 0 de 6 | Decide |
+| TipKit | 1 | 0 de 28 | Decide |
+| Virtualization | 1 | 0 de 63 | Decide |
+| VisionKit | 1 | 0 de 40 | Decide |
+| vmnet | 1 | 0 de 20 | Decide |
+<!-- compat:frameworks:end -->
+
+Estado y notas, escritos a mano: la tabla toma el estado de aquí, y solo lista un
+framework que Minkar tiene si tiene línea aquí. Un framework que falta y no tiene línea es
+Decide. Los símbolos que faltan en los frameworks que Minkar tiene están en el registro de
+stubs ruidosos.
+
+- **Accelerate**: Plan (AU9) — vDSP, BLAS y LAPACK sobre OpenBLAS (BSD-3).
+- **AudioUnit**: Plan (AU9) — la unidad de salida existe; alojar unidades de terceros y CoreAudioKit en AU9.
+- **AuthenticationServices**: Partial — sin proveedores de inicio de sesión.
+- **ColorSync**: Plan — sobre Little CMS.
+- **CoreImage**: Partial — el registro de CIFilter, las unidades de imagen y un contexto sobre CoreGraphics; faltan los kernels y la mayoría de los filtros.
+- **CoreLocation**: Partial — los servicios de ubicación, apagados.
+- **CoreMIDI**: Plan (AU8) — clientes y puertos; los endpoints y el servicio MIDI en AU8.
+- **DeviceCheck**: Out — servicio en la nube del fabricante.
+- **IOBluetooth**: Partial — sin driver de Bluetooth.
+- **LocalAuthentication**: Partial — todavía no hay con qué autenticar.
+- **MediaPlayer**: Partial — lo que se reproduce y los mandos remotos.
+- **Metal**: Plan (pista GPU) — la API existe sin dispositivo; darling-metal e Indium.
+- **MetalKit**: Plan (pista GPU) — `MTKView` dibuja para su delegado sin drawable.
+- **OpenDirectory**: Partial — la interfaz en C existe; las clases de Objective-C que importan las apps no.
+- **ScriptingBridge**: Decide — necesita el componente de scripting (Fase 6).
+- **StoreKit**: Out — servicio en la nube del fabricante.
+- **SwiftUI**: Plan (carril SU) — capa pública propia de Minkar sobre un motor basado en SwiftCrossUI; ver [SwiftUI.md](SwiftUI.md).
+- **VideoToolbox**: Partial — decodificación (H.264, HEVC, VP9, AV1) con FFmpeg; sin codificador.
+- **Vision**: Partial — sin reconocimiento de texto.
+
+**Todavía no los importa ninguna app designada** (salen de esta lista cuando una lo haga):
+Accounts, AGL, AppleScriptKit, AppleScriptObjC, AudioVideoBridging, Automator,
+BusinessChat, CalendarStore, CloudKit, Collaboration, ContactsUI, CoreAudioKit,
+CoreSpotlight, DirectoryService, DriverKit, DVDPlayback, EndpointSecurity, EventKit,
+ExecutionPolicy, ExternalAccessory, FileProvider, FileProviderUI, FinderSync, GameKit,
+GameplayKit, GLKit, GLUT, ICADevices, ImageCaptureCore, InputMethodKit, InstallerPlugins,
+IOBluetoothUI, IOUSBHost, JavaVM, LDAP, LinkPresentation, MapKit, MediaLibrary,
+MediaToolbox, MetalPerformanceShaders, ModelIO, MultipeerConnectivity, NaturalLanguage,
+NetFS, NetworkExtension, NotificationCenter, OpenAL, OpenCL, PencilKit, Photos, PhotosUI,
+PushKit, Python, RealityKit, Ruby, SceneKit, ScreenSaver, SecurityFoundation, Social,
+SoundAnalysis, Speech, SpriteKit, SyncServices, SystemExtensions, Tk, TWAIN,
+VideoSubscriberAccount.
+
+## Lo que Minkar tiene
+
+AddressBook, AppKit, ApplicationServices (con PrintCore), AudioToolbox, AudioUnit (la
+unidad de salida), AVFoundation, AVKit, Carbon, CFNetwork, Cocoa, Combine, CoreAudio,
+CoreData, CoreFoundation, CoreGraphics, CoreImage (en parte), CoreMedia, CoreServices,
+CoreText, CoreVideo, DiskArbitration, ExceptionHandling, Foundation, ImageIO, IOKit,
+IOSurface, MediaPlayer, OpenDirectory (en parte), OpenGL (Mesa, en vistas y capas),
+OSAKit, PDFKit, PreferencePanes, Quartz, QuartzCore, QuickLook, Security (un
+subconjunto), ServiceManagement, System, SystemConfiguration, UniformTypeIdentifiers,
+UserNotifications, VideoToolbox (decodificación), WebKit (sobre el motor de WPE WebKit),
+XCTest y JavaScriptCore (privado). Presentes, a la espera del hardware o de un bloque
+posterior: CoreMIDI, Metal, MetalKit, Vision, CoreLocation, LocalAuthentication,
+AuthenticationServices, IOBluetooth.
+
+## Servicios del sistema que faltan
+
+| Servicio | Estado | Notas |
+| --- | --- | --- |
+| Indexado para búsquedas | Decide | `MDItem` existe, sin indexador |
+| Imprimir en impresoras | Decide | PrintCore, `NSPrinter` e imprimir a PDF existen; libcups está, `cupsd` no |
+| Wi-Fi y Bluetooth | Decide | Todavía sin drivers |
+| Cámara y captura de vídeo | Decide | |
+| Llavero con cifrado | Plan | El subconjunto actual de Security se sustituye por las fuentes APSL de Security |
+| Copias de seguridad (`tmutil`) | Plan (Fase 6) | |
+| Accesibilidad (lector de pantalla, servidor de accesibilidad) | Decide | |
+| Asistente de voz, dictado, almacenamiento en la nube, tienda de apps, continuidad entre dispositivos | Out | Servicios del fabricante |

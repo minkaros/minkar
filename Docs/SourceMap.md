@@ -52,7 +52,7 @@ The libraries under `/usr/lib`, most of them parts of `libSystem`:
 
 The Cocoa API and the frameworks under it, in `/System/Library/Frameworks`.
 Some came from Cocotron; Minkar completes them to the API of the reference
-system ([MissingFrameworks.md](MissingFrameworks.md) lists what is missing).
+system ([Compatibility.md](Compatibility.md#frameworks-the-designated-apps-ask-for) lists what is missing).
 
 * Core: `CoreFoundation` (CF-Lite), `Foundation`, `CoreServices`
   (LaunchServices, FSEvents, AE), `CFNetwork`, `SystemConfiguration`,

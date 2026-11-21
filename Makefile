@@ -155,13 +155,15 @@ version:
 	${MAKE} -C ${.CURDIR}/SystemLibrary SystemVersion.plist
 
 # The progress pages (Docs/Progress.md, Docs/Progress.es.md) and their
-# SVGs, from Docs/progress/status.toml, and the compatibility matrix
-# (Docs/Compatibility.md, .es.md) from gate BC's results. CI checks they
-# are current.
+# SVGs, from Docs/progress/status.toml, and the generated parts of
+# Docs/Compatibility.md and .es.md (the matrix from gate BC's results, the
+# frameworks the designated apps ask for from Docs/progress/frameworks.tsv).
+# CI checks they are current.
 progress: .PHONY
 	python3 ${.CURDIR}/tools/progress/gen.py ${.CURDIR}/Docs/progress/status.toml \
 	    ${.CURDIR}/Docs/progress ${.CURDIR}/Docs/Progress.md ${.CURDIR}/Docs/Progress.es.md
 	python3 -B ${.CURDIR}/tools/compat/matrix.py ${.CURDIR}/Docs/progress/compatibility.tsv \
+	    ${.CURDIR}/Docs/progress/frameworks.tsv \
 	    ${.CURDIR}/Docs/Compatibility.md ${.CURDIR}/Docs/Compatibility.es.md
 
 # Bootable disk image and QEMU boot test (Image/Makefile). Not part of
