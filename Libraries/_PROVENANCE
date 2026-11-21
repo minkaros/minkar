@@ -7,7 +7,8 @@ the total in parentheses; the rest are Minkar's changes); this file said
 from them.
 - libpthread: libpthread-416.100.3 (105 of 115) (SPDX:APSL-2.0)
 - libdispatch: libdispatch-1173.100.2 (133 of 144) (SPDX:Apache-2.0)
-- CommonCrypto: CommonCrypto-60165.120.1 (SPDX:APSL-2.0)
+- CommonCrypto: CommonCrypto-60165.120.1, the version Darwin 19.6.0 lists
+  (not compared file by file) (SPDX:APSL-2.0)
 - libplatform: libplatform-220.100.1 (77 of 83) (SPDX:APSL-2.0)
 - libmalloc: libmalloc-283.100.6 (279 of 284) (SPDX:APSL-2.0)
 - Libinfo: Libinfo-538 (175 of 190) (SPDX:APSL-2.0)
