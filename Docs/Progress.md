@@ -19,7 +19,7 @@ _Updated 2026-11-20, devel `4db859f704`_
 | [Atlas](ROADMAP.md#phase-5--atlas-desktop) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](Atlas.md#5-applications) | 🟩🟩🟨🟨⬜ | 2 / 5 | A2 Text Editor, A3–A4 · DMG | A5–A10 |
 | [WebKit](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟨🟦🟩🟩🟩🟨 | 3 / 6 | W1 JSC | — |
-| [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
+| [GPU track](GPU.md) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Audio](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩⬜ | 1 / 2 | — | AU7–AU10 |
 | [Lane BC](ROADMAP.md#lane-bc--binary-compatibility) | 🟩🟦🟩🟨⬜⬜⬜ | 2 / 7 | BC0 gate | BC3 ABI |
 | [Lane KX](ROADMAP.md#lane-kx--new-kernel-darwin-25) | 🟩⬜⬜⬜ | 1 / 4 | — | KX1 M2 |
