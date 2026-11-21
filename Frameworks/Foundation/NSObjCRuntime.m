@@ -162,7 +162,7 @@ NSString *NSStringFromProtocol(Protocol *protocol) {
     return nil;
 
     const char *name = protocol_getName(protocol);
-    return NSAutorelease(NSString_anyCStringNewWithBytes(NSUTF8StringEncoding, NULL,name, strlen(name)));
+    return name != NULL ? [NSString stringWithUTF8String:name] : nil;
 }
 
 Protocol *NSProtocolFromString(NSString *name) {
