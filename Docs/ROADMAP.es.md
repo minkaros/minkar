@@ -102,7 +102,9 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
 - [x] Menús: MB0–MB3 hechos (MB4 en 19.6.x).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
-- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios es el siguiente.
+- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones y Usuarios y grupos (usuarios
+  creados, eliminados, administradores, contraseñas, opciones de inicio de sesión; prueba `users-pane`);
+  falta: la revisión de cada panel frente a la referencia.
 - [ ] AppKit y el lenguaje visual de Atlas en todo el sistema.
 - [ ] Órdenes: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 

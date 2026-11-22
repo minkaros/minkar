@@ -100,7 +100,9 @@ and the resolution changes from System Preferences, in the Atlas visual language
 - [x] Menus: MB0–MB3 done (MB4 in 19.6.x).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
-- [ ] System Preferences: the app and its panes, with Notifications; the Users pane is next.
+- [ ] System Preferences: the app and its panes, with Notifications and Users & Groups (users
+  created, deleted, made administrators, passwords, login options; test `users-pane`); left: the
+  review of each pane against the reference.
 - [ ] AppKit and the Atlas visual language across the system.
 - [ ] Commands: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 

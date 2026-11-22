@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Users & Groups pane, in Spanish. The keys are the English texts. */
+
+"Current User" = "Usuario actual";
+"Other Users" = "Otros usuarios";
+"Login Options" = "Opciones de inicio de sesión";
+"Admin" = "Administrador";
+"Standard" = "Estándar";
+"Change Password…" = "Cambiar contraseña…";
+"Reset Password…" = "Restablecer contraseña…";
+"Allow user to administer this computer" = "Permitir que el usuario administre este ordenador";
+"Automatic login:" = "Inicio de sesión automático:";
+"Off" = "Desactivado";
+"Display login window as:" = "Mostrar la ventana de inicio de sesión como:";
+"List of users" = "Lista de usuarios";
+"Name and password" = "Nombre y contraseña";
+"Show the Sleep, Restart, and Shut Down buttons" = "Mostrar los botones Reposo, Reiniciar y Apagar";
+"Click the lock to make changes." = "Haz clic en el candado para realizar cambios.";
+"Click the lock to prevent further changes." = "Haz clic en el candado para impedir más cambios.";
+"System Preferences is trying to unlock Users & Groups preferences." = "Preferencias del Sistema está intentando desbloquear las preferencias de Usuarios y grupos.";
+"User Name:" = "Nombre de usuario:";
+"Password:" = "Contraseña:";
+"Unlock" = "Desbloquear";
+"Cancel" = "Cancelar";
+"The name and password you entered are not an administrator's." = "El nombre y la contraseña introducidos no son de un administrador.";
+"New Account" = "Nueva cuenta";
+"Full Name:" = "Nombre completo:";
+"Account Name:" = "Nombre de la cuenta:";
+"Verify:" = "Verificar:";
+"Create User" = "Crear usuario";
+"The account needs a name and a password, typed twice the same." = "La cuenta necesita un nombre y una contraseña, escrita dos veces igual.";
+"The account could not be created." = "No se ha podido crear la cuenta.";
+"Are you sure you want to delete the user account “%@”?" = "¿Seguro que quieres eliminar la cuenta de usuario «%@»?";
+"To delete this user account, select what you want to do with the home folder." = "Para eliminar esta cuenta de usuario, elige qué hacer con la carpeta de inicio.";
+"Don’t change the home folder" = "No cambiar la carpeta de inicio";
+"Delete the home folder" = "Eliminar la carpeta de inicio";
+"Delete User" = "Eliminar usuario";
+"The account could not be deleted." = "No se ha podido eliminar la cuenta.";
+"Old Password:" = "Contraseña antigua:";
+"New Password:" = "Contraseña nueva:";
+"Change Password" = "Cambiar contraseña";
+"Reset password for “%@”" = "Restablecer la contraseña de «%@»";
+"Reset Password" = "Restablecer contraseña";
+"The new password, typed twice the same, is needed." = "Hace falta la contraseña nueva, escrita dos veces igual.";
+"The password could not be changed." = "No se ha podido cambiar la contraseña.";
+"The change could not be made." = "No se ha podido hacer el cambio.";
+"Enter the password for “%@”" = "Introduce la contraseña de «%@»";
+"OK" = "Aceptar";
