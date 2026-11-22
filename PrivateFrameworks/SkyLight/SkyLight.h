@@ -930,6 +930,14 @@ int SLSGetKeyboardSettings(SLSKeyboardSettings *settings);
 typedef struct {
 	uint32_t swapButtons;
 	uint32_t doubleClickInterval;
+	/* Minkar: the reference's other mouse settings. naturalScroll: the
+	   wheel's direction inverted (com.apple.swipescrolldirection);
+	   trackingSpeed and scrollSpeed: the pointer's and the wheel's
+	   acceleration in thousandths (com.apple.mouse.scaling,
+	   com.apple.scrollwheel.scaling, 0 to 3000), 0 for the device's own. */
+	uint32_t naturalScroll;
+	uint32_t trackingSpeed;
+	uint32_t scrollSpeed;
 } SLSMouseSettings;
 
 int SLSSetMouseSettings(const SLSMouseSettings *settings);

@@ -248,6 +248,7 @@ mouseSettings(int argc, char *argv[])
 {
 	SLSMouseSettings m;
 
+	memset(&m, 0, sizeof(m));
 	if (SLSGetMouseSettings(&m) != kSLSErrorSuccess) {
 		fprintf(stderr, "wsctl: no window server\n");
 		return 1;
@@ -263,6 +264,41 @@ mouseSettings(int argc, char *argv[])
 	m.swapButtons = strcmp(argv[2], "right") == 0;
 	if (argc == 4)
 		m.doubleClickInterval = (uint32_t)strtoul(argv[3], NULL, 10);
+	int err = SLSSetMouseSettings(&m);
+	if (err != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: the mouse settings were not set (%d)\n", err);
+		return 1;
+	}
+	return 0;
+}
+
+/* The wheel's direction and the pointer's and wheel's speeds: shown, or
+   set (natural|classic, and the tracking and scrolling speeds in
+   thousandths, 0 for the device's own). */
+static int
+scrollSettings(int argc, char *argv[])
+{
+	SLSMouseSettings m;
+
+	memset(&m, 0, sizeof(m));
+	if (SLSGetMouseSettings(&m) != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	if (argc == 2) {
+		printf("scroll=%s tracking=%u scrolling=%u\n", m.naturalScroll ? "natural" : "classic",
+		    m.trackingSpeed, m.scrollSpeed);
+		return 0;
+	}
+	if (strcmp(argv[2], "natural") != 0 && strcmp(argv[2], "classic") != 0) {
+		fprintf(stderr, "wsctl: scroll natural|classic [TRACKING SCROLLING]\n");
+		return 2;
+	}
+	m.naturalScroll = strcmp(argv[2], "natural") == 0;
+	if (argc == 5) {
+		m.trackingSpeed = (uint32_t)strtoul(argv[3], NULL, 10);
+		m.scrollSpeed = (uint32_t)strtoul(argv[4], NULL, 10);
+	}
 	int err = SLSSetMouseSettings(&m);
 	if (err != kSLSErrorSuccess) {
 		fprintf(stderr, "wsctl: the mouse settings were not set (%d)\n", err);
@@ -300,7 +336,10 @@ main(int argc, char *argv[])
 		return dockRect(argc, argv);
 	if (argc >= 2 && argc <= 4 && strcmp(argv[1], "mouse") == 0)
 		return mouseSettings(argc, argv);
+	if (argc >= 2 && argc <= 5 && strcmp(argv[1], "scroll") == 0)
+		return scrollSettings(argc, argv);
 	fprintf(stderr, "usage: wsctl stats [reset] | windows | displays | modes | mode ID [permanent] | restore | front"
-	    " | dock-rect [X Y WIDTH HEIGHT] | mouse [left|right [MS]]\n");
+	    " | dock-rect [X Y WIDTH HEIGHT] | mouse [left|right [MS]]"
+	    " | scroll [natural|classic [TRACKING SCROLLING]]\n");
 	return 2;
 }

@@ -3,13 +3,16 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The Mouse pane: the primary mouse button (left, or right for the
- * left-handed) and the double-click speed (150 ms to 2 s between the
- * clicks), set in the window server (SLSSetMouseSettings), which counts
- * the clicks, swaps the buttons and keeps the settings. The reference
- * platform's global keys (com.apple.mouse.swapLeftRightButton,
- * com.apple.mouse.doubleClickThreshold) are written too, for apps that
- * read them. Atlas's provisional look.
+ * The Mouse pane, with the reference platform's settings: Scroll
+ * direction: Natural, Tracking speed, Double-Click speed (150 ms to 2 s
+ * between the clicks), Scrolling speed and the primary mouse button (left,
+ * or right for the left-handed), set in the window server
+ * (SLSSetMouseSettings), which counts the clicks, swaps the buttons,
+ * inverts the wheel, gives IOHIDSystem the acceleration and keeps the
+ * settings. The reference's global keys are written too, for apps that
+ * read them (measured on it, 22 Nov 2026): com.apple.swipescrolldirection,
+ * com.apple.mouse.scaling, com.apple.mouse.doubleClickThreshold,
+ * com.apple.scrollwheel.scaling, com.apple.mouse.swapLeftRightButton.
  */
 
 #import <Cocoa/Cocoa.h>
@@ -21,7 +24,7 @@
 @interface MousePane : NSPreferencePane
 @end
 
-static const CGFloat kWidth = 668, kHeight = 200;
+static const CGFloat kWidth = 668, kHeight = 300;
 static const double kFastest = 150, kSlowest = 2000;	/* ms */
 
 static NSTextField *label(NSString *text, NSRect frame, CGFloat size, NSTextAlignment alignment)
@@ -50,9 +53,27 @@ static uint32_t interval(double value)
 }
 
 @implementation MousePane {
-    NSButton *_left, *_right;
-    NSSlider *_speed;
+    NSButton *_left, *_right, *_natural;
+    NSSlider *_speed, *_tracking, *_scrolling;
     SLSMouseSettings _settings;
+}
+
+/* A titled slider, Slow to Fast, at x, y. */
+- (NSSlider *)slider:(NSString *)title x:(CGFloat)x y:(CGFloat)y max:(double)max value:(double)value
+              action:(SEL)action in:(NSView *)view
+{
+    [view addSubview:label([self text:title], NSMakeRect(x, y + 30, 240, 18), 13, NSCenterTextAlignment)];
+    NSSlider *s = [[NSSlider alloc] initWithFrame:NSMakeRect(x, y, 240, 24)];
+    [s setMinValue:0];
+    [s setMaxValue:max];
+    [s setDoubleValue:value];
+    [s setContinuous:NO];
+    [s setTarget:self];
+    [s setAction:action];
+    [view addSubview:s];
+    [view addSubview:label([self text:@"Slow"], NSMakeRect(x, y - 20, 100, 16), 11, NSLeftTextAlignment)];
+    [view addSubview:label([self text:@"Fast"], NSMakeRect(x + 140, y - 20, 100, 16), 11, NSRightTextAlignment)];
+    return s;
 }
 
 - (NSString *)text:(NSString *)english
@@ -74,34 +95,40 @@ static uint32_t interval(double value)
 {
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth, kHeight)];
 
+    memset(&_settings, 0, sizeof(_settings));
     if (SLSGetMouseSettings(&_settings) != kSLSErrorSuccess) {
         _settings.swapButtons = 0;
         _settings.doubleClickInterval = 500;
     }
 
+    /* Scroll direction: Natural. */
+    _natural = [[NSButton alloc] initWithFrame:NSMakeRect(214, 256, 300, 20)];
+    [_natural setButtonType:NSButtonTypeSwitch];
+    [_natural setTitle:[self text:@"Scroll direction: Natural"]];
+    [_natural setState:_settings.naturalScroll ? NSControlStateValueOn : NSControlStateValueOff];
+    [_natural setTarget:self];
+    [_natural setAction:@selector(naturalChanged:)];
+    [view addSubview:_natural];
+
+    /* Tracking speed and Double-Click speed; Scrolling speed. */
+    _tracking = [self slider:@"Tracking speed" x:60 y:180 max:3
+                       value:_settings.trackingSpeed ? _settings.trackingSpeed / 1000.0 : 1
+                      action:@selector(trackingChanged:) in:view];
+    _speed = [self slider:@"Double-Click speed" x:368 y:180 max:1
+                    value:sliderValue(_settings.doubleClickInterval) action:@selector(speedChanged:) in:view];
+    _scrolling = [self slider:@"Scrolling speed" x:60 y:90 max:3
+                        value:_settings.scrollSpeed ? _settings.scrollSpeed / 1000.0 : 1
+                       action:@selector(scrollingChanged:) in:view];
+
     /* Primary mouse button: Left, Right. */
-    [view addSubview:label([self text:@"Primary mouse button:"], NSMakeRect(40, 142, 220, 20), 13,
-                           NSRightTextAlignment)];
-    _left = [self radio:@"Left" frame:NSMakeRect(270, 142, 120, 20)];
-    _right = [self radio:@"Right" frame:NSMakeRect(390, 142, 120, 20)];
+    [view addSubview:label([self text:@"Primary mouse button:"], NSMakeRect(368, 122, 240, 20), 13,
+                           NSCenterTextAlignment)];
+    _left = [self radio:@"Left" frame:NSMakeRect(410, 96, 80, 20)];
+    _right = [self radio:@"Right" frame:NSMakeRect(500, 96, 80, 20)];
     [_left setState:_settings.swapButtons ? NSControlStateValueOff : NSControlStateValueOn];
     [_right setState:_settings.swapButtons ? NSControlStateValueOn : NSControlStateValueOff];
     [view addSubview:_left];
     [view addSubview:_right];
-
-    /* Double-Click Speed: Slow to Fast. */
-    [view addSubview:label([self text:@"Double-Click Speed"], NSMakeRect(214, 96, 240, 18), 13,
-                           NSCenterTextAlignment)];
-    _speed = [[NSSlider alloc] initWithFrame:NSMakeRect(214, 66, 240, 24)];
-    [_speed setMinValue:0];
-    [_speed setMaxValue:1];
-    [_speed setDoubleValue:sliderValue(_settings.doubleClickInterval)];
-    [_speed setContinuous:NO];
-    [_speed setTarget:self];
-    [_speed setAction:@selector(speedChanged:)];
-    [view addSubview:_speed];
-    [view addSubview:label([self text:@"Slow"], NSMakeRect(214, 46, 100, 16), 11, NSLeftTextAlignment)];
-    [view addSubview:label([self text:@"Fast"], NSMakeRect(354, 46, 100, 16), 11, NSRightTextAlignment)];
 
     [self setMainView:view];
     return view;
@@ -121,20 +148,58 @@ static uint32_t interval(double value)
         CFPreferencesSetValue(CFSTR("com.apple.mouse.doubleClickThreshold"), threshold,
                               kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         CFRelease(threshold);
+        CFPreferencesSetValue(CFSTR("com.apple.swipescrolldirection"),
+                              s.naturalScroll ? kCFBooleanTrue : kCFBooleanFalse, kCFPreferencesAnyApplication,
+                              kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        struct { CFStringRef key; uint32_t value; } speeds[] = {
+            { CFSTR("com.apple.mouse.scaling"), s.trackingSpeed },
+            { CFSTR("com.apple.scrollwheel.scaling"), s.scrollSpeed } };
+        for (size_t i = 0; i < 2; i++) {
+            if (speeds[i].value == 0)
+                continue;
+            double scale = speeds[i].value / 1000.0;
+            CFNumberRef n = CFNumberCreate(NULL, kCFNumberDoubleType, &scale);
+            CFPreferencesSetValue(speeds[i].key, n, kCFPreferencesAnyApplication, kCFPreferencesCurrentUser,
+                                  kCFPreferencesAnyHost);
+            CFRelease(n);
+        }
         CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
     } else
         NSBeep();
     /* The radios show what is in force. */
     [_left setState:_settings.swapButtons ? NSControlStateValueOff : NSControlStateValueOn];
     [_right setState:_settings.swapButtons ? NSControlStateValueOn : NSControlStateValueOff];
-    os_log_info(OS_LOG_DEFAULT, "mouse primary %{public}s double-click %u ms: %d",
-                s.swapButtons ? "right" : "left", s.doubleClickInterval, err);
+    [_natural setState:_settings.naturalScroll ? NSControlStateValueOn : NSControlStateValueOff];
+    os_log_info(OS_LOG_DEFAULT, "mouse primary %{public}s double-click %u ms natural %u tracking %u scrolling %u: %d",
+                s.swapButtons ? "right" : "left", s.doubleClickInterval, s.naturalScroll, s.trackingSpeed,
+                s.scrollSpeed, err);
 }
 
 - (void)primaryChanged:(id)sender
 {
     SLSMouseSettings s = _settings;
     s.swapButtons = sender == _right ? 1 : 0;
+    [self apply:s];
+}
+
+- (void)naturalChanged:(id)sender
+{
+    SLSMouseSettings s = _settings;
+    s.naturalScroll = [_natural state] == NSControlStateValueOn ? 1 : 0;
+    [self apply:s];
+}
+
+- (void)trackingChanged:(id)sender
+{
+    SLSMouseSettings s = _settings;
+    s.trackingSpeed = (uint32_t)lround([_tracking doubleValue] * 1000);
+    [self apply:s];
+}
+
+- (void)scrollingChanged:(id)sender
+{
+    SLSMouseSettings s = _settings;
+    s.scrollSpeed = (uint32_t)lround([_scrolling doubleValue] * 1000);
     [self apply:s];
 }
 

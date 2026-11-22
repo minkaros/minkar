@@ -121,13 +121,19 @@ WSInputLoadKeyboard(void)
 /* ---- The mouse's settings (SLSSetMouseSettings) ---- */
 
 static NSString *const kMousePath = @"/var/db/WindowServer/Mouse.plist";
-static SLSMouseSettings mouse = { 0, 500 };
+static SLSMouseSettings mouse = { 0, 500, 0, 0, 0 };
 
 static BOOL
 mouseSettingsValid(const SLSMouseSettings *m)
 {
-	return m->swapButtons <= 1 && m->doubleClickInterval >= 150 && m->doubleClickInterval <= 2000;
+	return m->swapButtons <= 1 && m->doubleClickInterval >= 150 && m->doubleClickInterval <= 2000 &&
+	    m->naturalScroll <= 1 && m->trackingSpeed <= 3000 && m->scrollSpeed <= 3000;
 }
+
+static void WSInputApplyAcceleration(void);
+@interface WSInput ()
+- (void)applyAcceleration;
+@end
 
 /* The saved settings, at start, on the input queue. */
 static void
@@ -135,7 +141,9 @@ WSInputLoadMouse(void)
 {
 	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kMousePath];
 	SLSMouseSettings m = { [saved[@"SwapButtons"] boolValue] ? 1 : 0,
-			       saved[@"DoubleClickInterval"] != nil ? [saved[@"DoubleClickInterval"] unsignedIntValue] : 500 };
+			       saved[@"DoubleClickInterval"] != nil ? [saved[@"DoubleClickInterval"] unsignedIntValue] : 500,
+			       [saved[@"NaturalScroll"] boolValue] ? 1 : 0,
+			       [saved[@"TrackingSpeed"] unsignedIntValue], [saved[@"ScrollSpeed"] unsignedIntValue] };
 
 	if (mouseSettingsValid(&m))
 		mouse = m;
@@ -174,6 +182,24 @@ WSInputLoadMouse(void)
 	_keymap = keymap;
 	if (old != NULL)
 		WSKeymapDestroy(old);
+}
+
+/* The pointer's and the wheel's acceleration (the Mouse pane's tracking and
+   scrolling speeds) given to IOHIDSystem, which passes them to its
+   pointing devices (IOHIPointing): 16.16 fixed point. 0 leaves the
+   device's own. */
+- (void)applyAcceleration
+{
+	NSMutableDictionary *params = [NSMutableDictionary dictionary];
+
+	if (_connect == IO_OBJECT_NULL)
+		return;
+	if (mouse.trackingSpeed != 0)
+		params[@"HIDMouseAcceleration"] = @((uint32_t)((uint64_t)mouse.trackingSpeed * 65536 / 1000));
+	if (mouse.scrollSpeed != 0)
+		params[@"HIDScrollAcceleration"] = @((uint32_t)((uint64_t)mouse.scrollSpeed * 65536 / 1000));
+	if ([params count] > 0 && IOConnectSetCFProperties(_connect, (__bridge CFTypeRef)params) != KERN_SUCCESS)
+		fprintf(stderr, "WindowServer: IOHIDSystem refused the mouse's acceleration\n");
 }
 
 - (BOOL)openOnQueue:(dispatch_queue_t)queue
@@ -220,6 +246,7 @@ WSInputLoadMouse(void)
 	fprintf(stderr, "WindowServer: reading input from IOHIDSystem\n");
 	/* Events queued before we listened. */
 	dispatch_async(queue, ^{ [me readQueue]; });
+	[self applyAcceleration];
 	return YES;
 }
 
@@ -323,6 +350,11 @@ WSInputLoadMouse(void)
 		e.type = kSLSEventScrollWheel;
 		e.scrollY = nx->data.scrollWheel.deltaAxis1;
 		e.scrollX = nx->data.scrollWheel.deltaAxis2;
+		/* Natural scrolling: the content follows the wheel. */
+		if (mouse.naturalScroll) {
+			e.scrollY = -e.scrollY;
+			e.scrollX = -e.scrollX;
+		}
 		break;
 	case NX_KEYDOWN: case NX_KEYUP:
 		/* The server repeats held keys itself (WSEvents); IOHIDSystem's
@@ -452,14 +484,20 @@ wss_mouse_settings_set(mach_port_t server, audit_token_t token, SLSMouseSettings
 	dispatch_sync(WSInputQueue, ^{
 		mouse = settings;
 		WSEventsSetClickInterval((uint64_t)settings.doubleClickInterval * 1000000);
+		WSInputApplyAcceleration();
 	});
 	NSDictionary *saved = @{ @"SwapButtons": @(settings.swapButtons != 0),
-				 @"DoubleClickInterval": @(settings.doubleClickInterval) };
+				 @"DoubleClickInterval": @(settings.doubleClickInterval),
+				 @"NaturalScroll": @(settings.naturalScroll != 0),
+				 @"TrackingSpeed": @(settings.trackingSpeed),
+				 @"ScrollSpeed": @(settings.scrollSpeed) };
 	[[NSFileManager defaultManager] createDirectoryAtPath:[kMousePath stringByDeletingLastPathComponent]
 	    withIntermediateDirectories:YES attributes:nil error:NULL];
 	[saved writeToFile:kMousePath atomically:YES];
-	fprintf(stderr, "WindowServer: mouse primary button %s, double-click %u ms\n",
-	    settings.swapButtons ? "right" : "left", settings.doubleClickInterval);
+	fprintf(stderr, "WindowServer: mouse primary button %s, double-click %u ms, %s scrolling, "
+	    "tracking %u, scrolling speed %u\n", settings.swapButtons ? "right" : "left",
+	    settings.doubleClickInterval, settings.naturalScroll ? "natural" : "classic",
+	    settings.trackingSpeed, settings.scrollSpeed);
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
@@ -502,4 +540,10 @@ wss_keyboard_settings_get(mach_port_t server, SLSKeyboardSettings *settings)
 		*settings = keyboard;
 	});
 	return KERN_SUCCESS;
+}
+
+static void
+WSInputApplyAcceleration(void)
+{
+	[theInput applyAcceleration];
 }

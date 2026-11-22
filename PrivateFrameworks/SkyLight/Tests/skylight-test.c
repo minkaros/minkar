@@ -1169,9 +1169,9 @@ eventsMain(int grab)
 					printf("move %d\n", SLSWindowStartMove(w));
 			}
 			printf("event type=%u window=%u x=%.0f y=%.0f click=%d button=%u key=%u "
-			    "chars=%s repeat=%u flags=0x%x\n", e->type, e->window, e->x, e->y,
+			    "chars=%s repeat=%u flags=0x%x scroll=%.2f,%.2f\n", e->type, e->window, e->x, e->y,
 			    e->clickCount, e->buttonNumber, e->keyCode, e->characters, e->isRepeat,
-			    e->flags);
+			    e->flags, e->scrollX, e->scrollY);
 		}
 		fflush(stdout);
 	}

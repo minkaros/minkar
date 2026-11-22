@@ -72,7 +72,7 @@ type ws_display_stream_options_t = struct[10] of uint32_t
 	ctype: SLSDisplayStreamOptions;
 type ws_key_characters_t = struct[4] of uint32_t
 	ctype: SLSKeyCharacters;
-type ws_mouse_settings_t = struct[2] of uint32_t
+type ws_mouse_settings_t = struct[5] of uint32_t
 	ctype: SLSMouseSettings;
 type ws_window_layer_t = struct[9] of uint32_t
 	ctype: SLSWindowLayer;

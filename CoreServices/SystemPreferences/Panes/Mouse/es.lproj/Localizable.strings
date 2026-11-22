@@ -5,6 +5,9 @@
 "Primary mouse button:" = "Botón principal del ratón:";
 "Left" = "Izquierdo";
 "Right" = "Derecho";
-"Double-Click Speed" = "Velocidad del doble clic";
+"Double-Click speed" = "Velocidad del doble clic";
+"Tracking speed" = "Velocidad de seguimiento";
+"Scrolling speed" = "Velocidad de desplazamiento";
+"Scroll direction: Natural" = "Dirección de desplazamiento: natural";
 "Slow" = "Lenta";
 "Fast" = "Rápida";
