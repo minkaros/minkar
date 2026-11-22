@@ -8,11 +8,13 @@ DIR =		${SYSROOT_DIR}/System/Library/Cursors
 all: install-cursors
 
 cursors.stamp: ${.CURDIR}/gen-cursors.py
+	rm -rf ${.OBJDIR}/cursors
 	python3 -I ${.CURDIR}/gen-cursors.py ${.OBJDIR}/cursors
 	touch ${.TARGET}
 
+# Exactly what was made: a cursor no longer drawn goes.
 install-cursors: cursors.stamp .PHONY
 	mkdir -p ${DIR}
-	install -C -o 0 -g 0 -m 0644 ${.OBJDIR}/cursors/* ${DIR}/
+	rsync -rc --delete ${.OBJDIR}/cursors/ ${DIR}/
 
 .include <bsd.prog.mk>

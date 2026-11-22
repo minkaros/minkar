@@ -6,7 +6,7 @@
 # gen-cursors.py OUTDIR: Atlas's cursors, drawn here from their geometry
 # (a 32-unit grid, y down): a black glyph with a white outline and a soft
 # shadow, colored badges where a cursor has one; the hands are white with
-# a black outline. Each is sampled 4 x 4 per
+# a black outline; the busy wheel turns in 12 frames. Each is sampled 4 x 4 per
 # pixel (antialiased) and written at 1x (32 px) and 2x (64 px) as PNG
 # (NAME.png, NAME@2x.png), with Cursors.plist (each one's hot spot, in
 # 1x pixels from the top left) and, for the window server, arrowCursor.bgra
@@ -245,11 +245,9 @@ def cursors():
                                           circle(16.0, 20.5, 4.2), round_rect(9.0, 17.0, 24.5, 22.6, 2.6)), GRAY),
                                    (union(line([(13.5, 16.0), (18.5, 21.0)], 1.5), line([(18.5, 16.0), (13.5, 21.0)], 1.5)), WHITE)],
                                   (16, 16))
-    # Busy (the app does not answer) and working in the background (an arrow
-    # with a small wheel): animations, NAME_NN for each frame.
+    # Busy (the app does not answer): an animation, NAME_NN for each frame.
     for f in range(SPINNER_FRAMES):
         c['busyCursor_%02d' % f] = (spinner(16, 16, 10.5, f), (16, 16))
-        c['progressCursor_%02d' % f] = ([(small, BLACK)] + spinner(22.6, 22.6, 6.6, f), (6, 4))
     return c
 
 # Each glyph's scale: its visible box (with the outline) as large as the
@@ -265,7 +263,7 @@ SCALES = {
     'resizeNorthWestSouthEastCursor': 0.62, 'resizeNorthEastSouthWestCursor': 0.62,
     'operationNotAllowedCursor': 0.76, 'dragCopyCursor': 0.76, 'dragLinkCursor': 0.76,
     'contextualMenuCursor': 0.70, 'helpCursor': 0.76, 'disappearingItemCursor': 0.75,
-    'busyCursor': 0.72, 'progressCursor': 0.76,
+    'busyCursor': 0.72,
 }
 
 
@@ -450,12 +448,12 @@ def main():
         plist += ['\t<key>%s</key>' % name, '\t<dict>',
                   '\t\t<key>hotX</key>', '\t\t<real>%g</real>' % hot[0],
                   '\t\t<key>hotY</key>', '\t\t<real>%g</real>' % hot[1], '\t</dict>']
-    for anim in ('busyCursor', 'progressCursor'):
+    for anim in ('busyCursor',):
         plist += ['\t<key>%s</key>' % anim, '\t<dict>',
                   '\t\t<key>frames</key>', '\t\t<integer>%d</integer>' % SPINNER_FRAMES,
                   '\t\t<key>interval</key>', '\t\t<real>%g</real>' % SPINNER_INTERVAL,
-                  '\t\t<key>hotX</key>', '\t\t<real>%g</real>' % ((16 if anim == 'busyCursor' else 6) * scale_for(anim)),
-                  '\t\t<key>hotY</key>', '\t\t<real>%g</real>' % ((16 if anim == 'busyCursor' else 4) * scale_for(anim)),
+                  '\t\t<key>hotX</key>', '\t\t<real>%g</real>' % (16 * scale_for(anim)),
+                  '\t\t<key>hotY</key>', '\t\t<real>%g</real>' % (16 * scale_for(anim)),
                   '\t</dict>']
     plist += ['</dict>', '</plist>', '']
     with open(os.path.join(out, 'Cursors.plist'), 'w') as f:
