@@ -181,7 +181,49 @@ static NSDictionary *loginPreferences(void)
     return b;
 }
 
+/* The screen's size, once there is one: at boot the window server may
+   publish the display after LoginWindow starts (a physical machine's GPU),
+   and a window made then was 0 x 0, so the screen stayed black. It is
+   made when the screen comes, and made again when its size changes. */
 - (void)applicationDidFinishLaunching:(NSNotification *)note
+{
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screensChanged:)
+        name:NSApplicationDidChangeScreenParametersNotification object:nil];
+    [self showWhenScreen:nil];
+}
+
+- (void)showWhenScreen:(NSTimer *)timer
+{
+    NSRect screen = [[NSScreen mainScreen] frame];
+
+    if (_window != nil)
+        return;
+    if (NSWidth(screen) < 1 || NSHeight(screen) < 1) {
+        /* Not yet: looked at again in a moment (and on the change). */
+        [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(showWhenScreen:)
+                                       userInfo:nil repeats:NO];
+        return;
+    }
+    [self buildWindow];
+}
+
+- (void)screensChanged:(NSNotification *)note
+{
+    NSRect screen = [[NSScreen mainScreen] frame];
+
+    if (_window == nil) {
+        [self showWhenScreen:nil];
+        return;
+    }
+    if (NSEqualSizes([_window frame].size, screen.size) || NSWidth(screen) < 1)
+        return;
+    /* Another size: the window made again for it. */
+    [_window orderOut:nil];
+    _window = nil;
+    [self buildWindow];
+}
+
+- (void)buildWindow
 {
     NSDictionary *prefs = loginPreferences();
     NSRect screen = [[NSScreen mainScreen] frame];
