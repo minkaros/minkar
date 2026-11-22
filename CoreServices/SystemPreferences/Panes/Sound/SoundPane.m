@@ -12,6 +12,7 @@
 #import <PreferencePanes/PreferencePanes.h>
 #include <CoreAudio/CoreAudio.h>
 #include <os/log.h>
+#import "../MenuExtraList.h"
 
 @interface SoundPane : NSPreferencePane
 @end
@@ -144,13 +145,28 @@ static AudioObjectPropertyAddress address(AudioObjectPropertySelector selector, 
     [_mute setAction:@selector(muteChanged:)];
     [view addSubview:_mute];
 
-    _none = label([self text:@"No output device was found."], NSMakeRect(40, 30, 588, 20), 12, NSCenterTextAlignment);
+    /* As on the reference: the Volume Menu Extra in the menu bar or not. */
+    NSButton *show = [[NSButton alloc] initWithFrame:NSMakeRect(270, 36, 340, 22)];
+    [show setButtonType:NSButtonTypeSwitch];
+    [show setTitle:[self text:@"Show volume in menu bar"]];
+    [show setState:MenuExtraIsShown(@"Volume") ? NSOnState : NSOffState];
+    [show setTarget:self];
+    [show setAction:@selector(showInMenuBar:)];
+    [view addSubview:show];
+
+    _none = label([self text:@"No output device was found."], NSMakeRect(40, 8, 588, 20), 12, NSCenterTextAlignment);
     [view addSubview:_none];
 
     [self loadDevices];
     [self showDevice];
     [self setMainView:view];
     return view;
+}
+
+- (void)showInMenuBar:(NSButton *)sender
+{
+    MenuExtraSetShown(@"Volume", [sender state] == NSOnState);
+    os_log_info(OS_LOG_DEFAULT, "volume menu extra shown=%d", [sender state] == NSOnState);
 }
 
 - (void)deviceChanged:(id)sender

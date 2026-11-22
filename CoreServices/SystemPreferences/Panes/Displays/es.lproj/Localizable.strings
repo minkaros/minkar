@@ -6,3 +6,4 @@
 "Display %u" = "Pantalla %u";
 "Resolution:" = "Resolución:";
 "No display" = "Ninguna pantalla";
+"Show mirroring options in the menu bar when available" = "Mostrar las opciones de duplicación en la barra de menús cuando estén disponibles";

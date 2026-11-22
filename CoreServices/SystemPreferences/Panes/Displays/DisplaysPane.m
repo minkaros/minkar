@@ -13,6 +13,7 @@
 #import <Cocoa/Cocoa.h>
 #import <PreferencePanes/PreferencePanes.h>
 #include <os/log.h>
+#import "../MenuExtraList.h"
 
 @interface DisplaysPane : NSPreferencePane
 @end
@@ -61,7 +62,7 @@ static NSString *modeTitle(CGDisplayModeRef mode)
     _modes = [NSMutableArray array];
     _sizes = [NSMutableArray array];
 
-    CGFloat height = 40 + MAX(count, 1) * kRow;
+    CGFloat height = 40 + MAX(count, 1) * kRow + 36;  /* the menu bar box below */
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth, height)];
     for (uint32_t i = 0; i < count; i++) {
         CGDirectDisplayID display = ids[i];
@@ -109,8 +110,22 @@ static NSString *modeTitle(CGDisplayModeRef mode)
     }
     if (count == 0)
         [view addSubview:label([self text:@"No display"], NSMakeRect(40, height - 44, 300, 20), NO)];
+    /* As on the reference: the Displays Menu Extra in the menu bar or not. */
+    NSButton *show = [[NSButton alloc] initWithFrame:NSMakeRect(40, 12, 560, 22)];
+    [show setButtonType:NSSwitchButton];
+    [show setTitle:[self text:@"Show mirroring options in the menu bar when available"]];
+    [show setState:MenuExtraIsShown(@"Displays") ? NSOnState : NSOffState];
+    [show setTarget:self];
+    [show setAction:@selector(showInMenuBar:)];
+    [view addSubview:show];
     [self setMainView:view];
     return view;
+}
+
+- (void)showInMenuBar:(NSButton *)sender
+{
+    MenuExtraSetShown(@"Displays", [sender state] == NSOnState);
+    os_log_info(OS_LOG_DEFAULT, "displays menu extra shown=%d", [sender state] == NSOnState);
 }
 
 - (void)chooseMode:(NSPopUpButton *)sender

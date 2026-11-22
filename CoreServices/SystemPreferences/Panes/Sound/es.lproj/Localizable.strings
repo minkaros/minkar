@@ -8,3 +8,4 @@
 "High" = "Alto";
 "Mute" = "Silenciar";
 "No output device was found." = "No se ha encontrado ningún dispositivo de salida.";
+"Show volume in menu bar" = "Mostrar el volumen en la barra de menús";

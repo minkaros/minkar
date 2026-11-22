@@ -7,3 +7,17 @@
 "Use a 24-hour clock" = "Usar el formato de 24 horas";
 "EEEE d MMMM yyyy, HH:mm:ss" = "EEEE, d 'de' MMMM 'de' yyyy, HH:mm:ss";
 "EEEE d MMMM yyyy, h:mm:ss a" = "EEEE, d 'de' MMMM 'de' yyyy, h:mm:ss a";
+"Date & Time" = "Fecha y hora";
+"Time Zone" = "Zona horaria";
+"Clock" = "Reloj";
+"Show date and time in menu bar" = "Mostrar la fecha y la hora en la barra de menús";
+"Time options:" = "Opciones de hora:";
+"Digital" = "Digital";
+"Analog" = "Analógico";
+"Display the time with seconds" = "Mostrar la hora con segundos";
+"Flash the time separators" = "Hacer parpadear los separadores";
+"Show AM/PM" = "Mostrar AM/PM";
+"Date options:" = "Opciones de fecha:";
+"Show the day of the week" = "Mostrar el día de la semana";
+"Show date" = "Mostrar la fecha";
+"MMM d" = "d MMM";
