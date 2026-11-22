@@ -7,7 +7,15 @@
  * Repeat (the reference platform's ranges: 30 to 300 ms between repeats,
  * 225 to 1800 ms before the first) and the keyboard layout, set in the
  * window server (SLSSetKeyboardSettings), which keeps them and applies
- * them at once. Atlas's provisional look.
+ * them at once; the reference's global keys are written too (KeyRepeat
+ * and InitialKeyRepeat, in 15 ms ticks). The Text tab, as the reference's
+ * (its keys measured on it, 22 Nov 2026): Correct spelling automatically
+ * (NSAutomaticSpellingCorrectionEnabled, WebAutomaticSpellingCorrection-
+ * Enabled), Capitalize words automatically (NSAutomaticCapitalization-
+ * Enabled), Add period with double-space (NSAutomaticPeriodSubstitution-
+ * Enabled) and Use smart quotes and dashes (NSAutomaticQuoteSubstitution-
+ * Enabled, NSAutomaticDashSubstitutionEnabled), all on when unset; AppKit's
+ * text views follow them.
  */
 
 #import <Cocoa/Cocoa.h>
@@ -18,7 +26,7 @@
 @interface KeyboardPane : NSPreferencePane
 @end
 
-static const CGFloat kWidth = 668, kHeight = 230;
+static const CGFloat kWidth = 668, kHeight = 320;
 static const double kFastest = 30, kSlowest = 300, kShortest = 225, kLongest = 1800;
 
 /* The layouts offered: XKB layout, variant, English name. */
@@ -51,6 +59,33 @@ static NSTextField *label(NSString *text, NSRect frame, CGFloat size, NSTextAlig
     NSSlider *_repeat, *_delay;
     NSPopUpButton *_layout;
     SLSKeyboardSettings _settings;
+    NSArray<NSButton *> *_textBoxes;
+}
+
+/* The Text tab's boxes: their titles and the global keys each sets. */
+static NSArray *textSettings(void)
+{
+    return @[ @[ @"Correct spelling automatically", @[ @"NSAutomaticSpellingCorrectionEnabled",
+                                                       @"WebAutomaticSpellingCorrectionEnabled" ] ],
+              @[ @"Capitalize words automatically", @[ @"NSAutomaticCapitalizationEnabled" ] ],
+              @[ @"Add period with double-space", @[ @"NSAutomaticPeriodSubstitutionEnabled" ] ],
+              @[ @"Use smart quotes and dashes", @[ @"NSAutomaticQuoteSubstitutionEnabled",
+                                                    @"NSAutomaticDashSubstitutionEnabled" ] ] ];
+}
+
+static BOOL globalOn(NSString *key)
+{
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+    Boolean valid = false;
+    Boolean on = CFPreferencesGetAppBooleanValue((__bridge CFStringRef)key, kCFPreferencesAnyApplication, &valid);
+    return valid ? on : YES;
+}
+
+static void setGlobal(NSString *key, CFPropertyListRef value)
+{
+    CFPreferencesSetValue((__bridge CFStringRef)key, value, kCFPreferencesAnyApplication,
+                          kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+    CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 }
 
 - (NSString *)text:(NSString *)english
@@ -72,7 +107,11 @@ static NSSlider *slider(NSRect frame, double value, id target)
 
 - (NSView *)loadMainView
 {
-    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth, kHeight)];
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth, kHeight)];
+    NSTabView *tabs = [[NSTabView alloc] initWithFrame:NSMakeRect(20, 10, kWidth - 40, kHeight - 20)];
+    NSTabViewItem *keyboardTab = [[NSTabViewItem alloc] initWithIdentifier:@"keyboard"];
+    [keyboardTab setLabel:[self text:@"Keyboard"]];
+    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth - 40, 260)];
 
     if (SLSGetKeyboardSettings(&_settings) != kSLSErrorSuccess) {
         memset(&_settings, 0, sizeof(_settings));
@@ -108,9 +147,46 @@ static NSSlider *slider(NSRect frame, double value, id target)
     [_layout setTarget:self];
     [_layout setAction:@selector(changed:)];
     [view addSubview:_layout];
+    [keyboardTab setView:view];
+    [tabs addTabViewItem:keyboardTab];
 
-    [self setMainView:view];
-    return view;
+    /* Text. */
+    NSTabViewItem *textTab = [[NSTabViewItem alloc] initWithIdentifier:@"text"];
+    [textTab setLabel:[self text:@"Text"]];
+    NSView *text = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, kWidth - 40, 260)];
+    NSMutableArray *boxes = [NSMutableArray array];
+    CGFloat y = 200;
+    for (NSArray *setting in textSettings()) {
+        NSButton *box = [[NSButton alloc] initWithFrame:NSMakeRect(40, y, 400, 20)];
+        [box setButtonType:NSButtonTypeSwitch];
+        [box setTitle:[self text:setting[0]]];
+        [box setState:globalOn(setting[1][0]) ? NSOnState : NSOffState];
+        [box setTarget:self];
+        [box setAction:@selector(textChanged:)];
+        [text addSubview:box];
+        [boxes addObject:box];
+        y -= 30;
+    }
+    _textBoxes = boxes;
+    [textTab setView:text];
+    [tabs addTabViewItem:textTab];
+
+    [root addSubview:tabs];
+    [self setMainView:root];
+    return root;
+}
+
+- (void)textChanged:(NSButton *)sender
+{
+    NSUInteger i = [_textBoxes indexOfObject:sender];
+    if (i == NSNotFound)
+        return;
+    int on = [sender state] == NSOnState;
+    CFNumberRef n = CFNumberCreate(NULL, kCFNumberIntType, &on);
+    for (NSString *key in textSettings()[i][1])
+        setGlobal(key, n);
+    CFRelease(n);
+    os_log_info(OS_LOG_DEFAULT, "keyboard text %{public}s %d", [textSettings()[i][0] UTF8String], on);
 }
 
 - (void)changed:(id)sender
@@ -125,9 +201,17 @@ static NSSlider *slider(NSRect frame, double value, id target)
     s.repeatInterval = (uint32_t)lround(kSlowest - [_repeat doubleValue] * (kSlowest - kFastest));
     s.initialRepeat = (uint32_t)lround(kLongest - [_delay doubleValue] * (kLongest - kShortest));
     int err = SLSSetKeyboardSettings(&s);
-    if (err == kSLSErrorSuccess)
+    if (err == kSLSErrorSuccess) {
         _settings = s;
-    else
+        /* The reference's keys, in 15 ms ticks. */
+        int ticks = (int)lround(s.repeatInterval / 15.0), initial = (int)lround(s.initialRepeat / 15.0);
+        CFNumberRef r = CFNumberCreate(NULL, kCFNumberIntType, &ticks);
+        CFNumberRef d = CFNumberCreate(NULL, kCFNumberIntType, &initial);
+        setGlobal(@"KeyRepeat", r);
+        setGlobal(@"InitialKeyRepeat", d);
+        CFRelease(r);
+        CFRelease(d);
+    } else
         NSBeep();
     os_log_info(OS_LOG_DEFAULT, "keyboard %{public}s repeat %u delay %u: %d", s.layout,
                 s.repeatInterval, s.initialRepeat, err);

@@ -17,3 +17,9 @@
 "French" = "Francés";
 "German" = "Alemán";
 "Italian" = "Italiano";
+"Keyboard" = "Teclado";
+"Text" = "Texto";
+"Correct spelling automatically" = "Corregir la ortografía automáticamente";
+"Capitalize words automatically" = "Poner mayúsculas automáticamente";
+"Add period with double-space" = "Añadir punto con doble espacio";
+"Use smart quotes and dashes" = "Usar comillas y rayas tipográficas";
