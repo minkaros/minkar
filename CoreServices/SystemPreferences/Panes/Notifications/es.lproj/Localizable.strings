@@ -3,13 +3,25 @@
    The Notifications pane, in Spanish. The keys are the English texts. */
 
 "Do Not Disturb" = "No molestar";
+"Turn on Do Not Disturb" = "Activar No molestar";
 "No banners, alerts or sounds; notifications are still listed." = "Sin avisos, alertas ni sonidos; las notificaciones siguen en la lista.";
-"App:" = "App:";
 "No app has sent a notification yet." = "Ninguna app ha enviado notificaciones todavía.";
-"Allow notifications" = "Permitir notificaciones";
-"Style:" = "Estilo:";
+"Notification Center sort order:" = "Orden del centro de notificaciones:";
+"Recents" = "Recientes";
+"Recents by App" = "Recientes por app";
+"Allow Notifications from %@" = "Permitir notificaciones de %@";
+"%@ alert style:" = "Estilo de alerta de %@:";
 "None" = "Ninguno";
 "Banners" = "Avisos";
 "Alerts" = "Alertas";
-"Banners go after a few seconds; alerts stay until they are closed." = "Los avisos se van a los pocos segundos; las alertas se quedan hasta cerrarlas.";
+"Banners appear in the upper-right corner and go away automatically. Alerts stay on screen until dismissed." = "Los avisos aparecen arriba a la derecha y se van solos. Las alertas se quedan en pantalla hasta cerrarlas.";
+"Show notifications on lock screen" = "Mostrar notificaciones en la pantalla bloqueada";
+"Show notification preview:" = "Mostrar vista previa:";
+"always" = "siempre";
+"when unlocked" = "si está desbloqueado";
+"Show in Notification Center" = "Mostrar en el centro de notificaciones";
+"Badge app icon" = "Globo en el icono de la app";
 "Play sound for notifications" = "Reproducir sonido con las notificaciones";
+"Off" = "Desactivadas";
+"Badges" = "Globos";
+"Sounds" = "Sonidos";

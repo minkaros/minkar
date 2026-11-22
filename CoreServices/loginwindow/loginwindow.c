@@ -80,6 +80,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <mach-o/dyld.h>
+#include <notify.h>
 #include <LaunchServices/LaunchServices.h>
 #include <LaunchServices/LSSession.h>
 #include <SkyLight/SkyLight.h>
@@ -557,6 +558,22 @@ static void endSession(void);
  * One lock at a time. */
 static int locked;
 
+/* The notification center hides what the user chose while the screen is
+   locked (kNCScreenLocked in NotificationCenterTypes.h): notify(3)'s
+   state, 1 while locked. */
+#define kScreenLockedName	"org.minkar.loginwindow.locked"
+
+static void
+setLockedState(int on)
+{
+	static int token = -1;
+
+	if (token < 0 && notify_register_check(kScreenLockedName, &token) != NOTIFY_STATUS_OK)
+		return;
+	notify_set_state(token, (uint64_t)on);
+	notify_post(kScreenLockedName);
+}
+
 static void *
 lockScreen(void *unused)
 {
@@ -567,6 +584,7 @@ lockScreen(void *unused)
 	posix_spawn_file_actions_t actions;
 
 	(void)unused;
+	setLockedState(1);
 	for (;;) {
 		if (pipe(fds) != 0)
 			break;
@@ -596,6 +614,7 @@ lockScreen(void *unused)
 		fprintf(stderr, "loginwindow: the lock ended without the password: again\n");
 		sleep(1);
 	}
+	setLockedState(0);
 	fprintf(stderr, "loginwindow: screen unlocked\n");
 	pthread_mutex_lock(&sessionLock);
 	locked = 0;

@@ -131,4 +131,56 @@ static NSString *appKey(NSDictionary *n)
     return sound == nil || [sound boolValue];
 }
 
+/* A setting that is on when absent. */
+- (BOOL)app:(NSDictionary *)n flag:(NSString *)key
+{
+    id value = [self appOf:n][key];
+
+    return value == nil || [value boolValue];
+}
+
+- (BOOL)listsNotification:(NSDictionary *)n
+{
+    return [self app:n flag:@kNCAppShowInList];
+}
+
+- (BOOL)showsNotificationWhileLocked:(NSDictionary *)n
+{
+    return [self app:n flag:@kNCAppLockScreen];
+}
+
+- (BOOL)isScreenLocked
+{
+    static int token = -1;
+    uint64_t state = 0;
+
+    if (token < 0 && notify_register_check(kNCScreenLocked, &token) != NOTIFY_STATUS_OK)
+        return NO;
+    notify_get_state(token, &state);
+    return state != 0;
+}
+
+/* Always; when unlocked, unless the screen is locked; never. */
+- (BOOL)previewsNotification:(NSDictionary *)n
+{
+    NSString *preview = [self appOf:n][@kNCAppPreview];
+
+    if ([preview isEqual:@"never"])
+        return NO;
+    if ([preview isEqual:@"unlocked"])
+        return !self.screenLocked;
+    return YES;
+}
+
+- (BOOL)sortsByApp
+{
+    CFPropertyListRef value = CFPreferencesCopyAppValue(CFSTR(kNCSettingSortOrder), kDomain);
+    BOOL byApp = value != NULL && CFGetTypeID(value) == CFStringGetTypeID() &&
+        CFEqual(value, CFSTR("recentsByApp"));
+
+    if (value != NULL)
+        CFRelease(value);
+    return byApp;
+}
+
 @end

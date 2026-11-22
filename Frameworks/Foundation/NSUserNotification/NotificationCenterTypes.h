@@ -91,6 +91,17 @@ enum {
 #define kNCAppAllowed		"allowed"	/* no: not even listed */
 #define kNCAppStyle		"style"		/* "none", "banner" (the default), "alert" */
 #define kNCAppSound		"sound"		/* no: never heard */
+/* The reference's other settings of an app (its Notifications pane). */
+#define kNCAppShowInList	"showInList"	/* no: shown, not kept in the center's list */
+#define kNCAppBadge		"badge"		/* no: its Dock tile shows no badge */
+#define kNCAppLockScreen	"lockScreen"	/* no: not shown while the screen is locked */
+#define kNCAppPreview		"preview"	/* "always" (the default), "unlocked", "never":
+						   when the text shows, else the title alone */
+/* The center's order: "recents" (the default), newest first, or
+   "recentsByApp", grouped by app, the app with the newest first. */
+#define kNCSettingSortOrder	"sortOrder"
+/* loginwindow's notify(3) state while the screen is locked: 1, else 0. */
+#define kNCScreenLocked		"org.minkar.loginwindow.locked"
 
 /* notificationd's messages. */
 enum {

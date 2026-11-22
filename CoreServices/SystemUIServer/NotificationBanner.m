@@ -382,6 +382,22 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
 
 - (NSArray<NSDictionary *> *)delivered
 {
+    /* Grouped by app (the app with the newest first), as the center's sort
+       order may ask; newest first within each. */
+    if ([NotificationSettings shared].sortsByApp) {
+        NSMutableArray *apps = [NSMutableArray array];
+        for (NSDictionary *n in _delivered) {
+            NSString *app = n[@kNCKeyBundleIdentifier] ?: n[@kNCKeyAppName] ?: @"";
+            if (![apps containsObject:app])
+                [apps addObject:app];
+        }
+        NSMutableArray *grouped = [NSMutableArray array];
+        for (NSString *app in apps)
+            for (NSDictionary *n in _delivered)
+                if ([(n[@kNCKeyBundleIdentifier] ?: n[@kNCKeyAppName] ?: @"") isEqual:app])
+                    [grouped addObject:n];
+        return grouped;
+    }
     return [_delivered copy];
 }
 
@@ -419,17 +435,29 @@ static BOOL sameDelivery(NSDictionary *a, NSDictionary *b)
     }
     n[@kNCKeyDate] = [NSDate date];
     [self unlist:n];
-    [_delivered insertObject:n atIndex:0];
-    while (_delivered.count > kMaxDelivered)
-        [_delivered removeLastObject];
-    [[NSNotificationCenter defaultCenter] postNotificationName:NotificationPresenterListDidChange object:self];
+    /* Show in Notification Center: kept in the list, or only shown. */
+    BOOL listed = [settings listsNotification:n];
+    if (listed) {
+        [_delivered insertObject:n atIndex:0];
+        while (_delivered.count > kMaxDelivered)
+            [_delivered removeLastObject];
+        [[NSNotificationCenter defaultCenter] postNotificationName:NotificationPresenterListDidChange object:self];
+    }
+    /* Show notification preview: the text, or the title alone. */
+    if (![settings previewsNotification:n]) {
+        [n removeObjectForKey:@kNCKeySubtitle];
+        [n removeObjectForKey:@kNCKeyText];
+    }
 
-    BOOL quiet = settings.doNotDisturb;
+    /* While the screen is locked, as the app's lock screen setting says. */
+    BOOL locked = settings.screenLocked && ![settings showsNotificationWhileLocked:n];
+    BOOL quiet = settings.doNotDisturb || locked;
     NotificationStyle style = quiet ? NotificationStyleNone : [settings styleOfNotification:n];
     BOOL sound = !quiet && [settings soundsNotification:n];
-    fprintf(stderr, "SystemUIServer: listed \"%s\" from %s: %s, sound %s%s\n", title, app,
+    fprintf(stderr, "SystemUIServer: %s \"%s\" from %s: %s, sound %s%s%s\n", listed ? "listed" : "not listed",
+            title, app,
             style == NotificationStyleAlert ? "alert" : style == NotificationStyleBanner ? "banner" : "not shown",
-            sound ? "on" : "off", quiet ? " (do not disturb)" : "");
+            sound ? "on" : "off", settings.doNotDisturb ? " (do not disturb)" : locked ? " (screen locked)" : "", n[@kNCKeyText] == nil ? ", no preview" : "");
     if (style != NotificationStyleNone)
         [self show:n alert:style == NotificationStyleAlert];
     if (sound)

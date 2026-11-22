@@ -30,6 +30,15 @@ typedef NS_ENUM(NSInteger, NotificationStyle) {
 - (BOOL)allowsNotification:(NSDictionary *)notification;
 - (NotificationStyle)styleOfNotification:(NSDictionary *)notification;
 - (BOOL)soundsNotification:(NSDictionary *)notification;
+/* The reference's other settings: kept in the center's list; shown while
+   the screen is locked; its text shown (else its title alone). */
+- (BOOL)listsNotification:(NSDictionary *)notification;
+- (BOOL)showsNotificationWhileLocked:(NSDictionary *)notification;
+- (BOOL)previewsNotification:(NSDictionary *)notification;
+/* The screen is locked (loginwindow's kNCScreenLocked). */
+@property (nonatomic, readonly, getter=isScreenLocked) BOOL screenLocked;
+/* The center's order: grouped by app ("recentsByApp"), else newest first. */
+@property (nonatomic, readonly) BOOL sortsByApp;
 
 @end
 

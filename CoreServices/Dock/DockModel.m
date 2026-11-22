@@ -245,6 +245,26 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
         while (read(fd, &value, sizeof(value)) == sizeof(value))
             [self performSelectorOnMainThread:@selector(badgesChanged) withObject:nil waitUntilDone:NO];
     }];
+    int sfd = -1, stoken;
+    if (notify_register_file_descriptor(kNCSettingsChanged, &sfd, 0, &stoken) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(sfd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(notificationSettingsChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+/* The Notifications pane changed an app's Badge app icon. */
+- (void)notificationSettingsChanged
+{
+    CFPreferencesAppSynchronize(CFSTR(kNCSettingsDomain));
+    NSUInteger shown = 0;
+    for (DockTile *tile in self.tiles)
+        if ([self badgeForTile:tile] != nil)
+            shown++;
+    fprintf(stderr, "Dock: %lu badges shown\n", (unsigned long)shown);
+    [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
 }
 
 - (void)badgesChanged
@@ -271,9 +291,30 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
 }
 
+/* Badge app icon, an app's setting in the Notifications pane: on when
+   absent. */
+static BOOL badgeAllowed(NSRunningApplication *app)
+{
+    NSString *name = app.bundleIdentifier.length > 0 ? app.bundleIdentifier : app.localizedName;
+    if (name.length == 0)
+        return YES;
+    NSString *key = [@kNCSettingAppPrefix stringByAppendingString:name];
+    CFPropertyListRef value = CFPreferencesCopyAppValue((__bridge CFStringRef)key, CFSTR(kNCSettingsDomain));
+    BOOL allowed = YES;
+
+    if (value != NULL && CFGetTypeID(value) == CFDictionaryGetTypeID()) {
+        id badge = ((__bridge NSDictionary *)value)[@kNCAppBadge];
+        id permitted = ((__bridge NSDictionary *)value)[@kNCAppAllowed];
+        allowed = (badge == nil || [badge boolValue]) && (permitted == nil || [permitted boolValue]);
+    }
+    if (value != NULL)
+        CFRelease(value);
+    return allowed;
+}
+
 - (NSString *)badgeForTile:(DockTile *)tile
 {
-    if (tile.application == nil)
+    if (tile.application == nil || !badgeAllowed(tile.application))
         return nil;
     NSString *label = _badges[[NSString stringWithFormat:@"%d", tile.application.processIdentifier]];
     return label.length > 0 ? label : nil;
