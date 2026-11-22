@@ -129,22 +129,22 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
     CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
     CGFloat y = kHeight - 54;
 
-    [view addSubview:label([self text:@"Size:"], NSMakeRect(20, y + 2, 200, 20))];
-    _size = slider(NSMakeRect(232, y, 300, 24), number(CFSTR("tilesize"), 48), self, @selector(changed:));
+    [view addSubview:label([self text:@"Size:"], NSMakeRect(10, y + 2, 280, 20))];
+    _size = slider(NSMakeRect(300, y, 300, 24), number(CFSTR("tilesize"), 48), self, @selector(changed:));
     [view addSubview:_size];
     y -= 40;
 
-    _magnify = button([self text:@"Magnification:"], NSMakeRect(90, y + 2, 140, 22), NSSwitchButton, self, @selector(changed:));
+    _magnify = button([self text:@"Magnification:"], NSMakeRect(158, y + 2, 140, 22), NSSwitchButton, self, @selector(changed:));
     [_magnify setState:flag(CFSTR("magnification")) ? NSOnState : NSOffState];
     [view addSubview:_magnify];
-    _large = slider(NSMakeRect(232, y, 300, 24), number(CFSTR("largesize"), 64), self, @selector(changed:));
+    _large = slider(NSMakeRect(300, y, 300, 24), number(CFSTR("largesize"), 64), self, @selector(changed:));
     [view addSubview:_large];
     y -= 42;
 
-    [view addSubview:label([self text:@"Position on screen:"], NSMakeRect(20, y + 2, 200, 20))];
-    _left = button([self text:@"Left"], NSMakeRect(232, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
-    _bottom = button([self text:@"Bottom"], NSMakeRect(322, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
-    _right = button([self text:@"Right"], NSMakeRect(412, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
+    [view addSubview:label([self text:@"Position on screen:"], NSMakeRect(10, y + 2, 280, 20))];
+    _left = button([self text:@"Left"], NSMakeRect(300, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
+    _bottom = button([self text:@"Bottom"], NSMakeRect(390, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
+    _right = button([self text:@"Right"], NSMakeRect(480, y, 90, 22), NSRadioButton, self, @selector(choosePosition:));
     NSString *where = string(CFSTR("orientation"), kDockDomain, @"bottom");
     [_left setState:[where isEqualToString:@"left"] ? NSOnState : NSOffState];
     [_right setState:[where isEqualToString:@"right"] ? NSOnState : NSOffState];
@@ -153,29 +153,29 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
         [view addSubview:b];
     y -= 38;
 
-    [view addSubview:label([self text:@"Minimize windows using:"], NSMakeRect(20, y + 3, 200, 20))];
+    [view addSubview:label([self text:@"Minimize windows using:"], NSMakeRect(10, y + 3, 280, 20))];
     _effect = popup(@[ [self text:@"Genie effect"], [self text:@"Scale effect"] ],
                     [string(CFSTR("mineffect"), kDockDomain, @"genie") isEqualToString:@"scale"] ? 1 : 0,
-                    NSMakeRect(232, y, 180, 26), self, @selector(changed:));
+                    NSMakeRect(300, y, 180, 26), self, @selector(changed:));
     [view addSubview:_effect];
     y -= 34;
 
-    [view addSubview:label([self text:@"Prefer tabs when opening documents:"], NSMakeRect(0, y + 3, 230, 20))];
+    [view addSubview:label([self text:@"Prefer tabs when opening documents:"], NSMakeRect(10, y + 3, 280, 20))];
     NSString *tabbing = string(CFSTR("AppleWindowTabbingMode"), kCFPreferencesAnyApplication, @"fullscreen");
     _tabs = popup(@[ [self text:@"Always"], [self text:@"In Full Screen Only"], [self text:@"Manually"] ],
                   [tabbing isEqualToString:@"always"] ? 0 : [tabbing isEqualToString:@"manual"] ? 2 : 1,
-                  NSMakeRect(232, y, 180, 26), self, @selector(changed:));
+                  NSMakeRect(300, y, 180, 26), self, @selector(changed:));
     [view addSubview:_tabs];
     y -= 38;
 
     NSString *action = string(CFSTR("AppleActionOnDoubleClick"), kCFPreferencesAnyApplication, @"Maximize");
-    _doubleClick = button([self text:@"Double-click a window’s title bar to"], NSMakeRect(232, y + 2, 260, 22),
+    _doubleClick = button([self text:@"Double-click a window’s title bar to"], NSMakeRect(300, y + 2, 250, 22),
                           NSSwitchButton, self, @selector(changed:));
     [_doubleClick setState:[action isEqualToString:@"None"] ? NSOffState : NSOnState];
     [view addSubview:_doubleClick];
     _doubleClickAction = popup(@[ [self text:@"zoom"], [self text:@"minimize"] ],
                                [action isEqualToString:@"Minimize"] ? 1 : 0,
-                               NSMakeRect(494, y, 120, 26), self, @selector(changed:));
+                               NSMakeRect(552, y, 104, 26), self, @selector(changed:));
     [_doubleClickAction setEnabled:[_doubleClick state] == NSOnState];
     [view addSubview:_doubleClickAction];
     y -= 28;
@@ -188,7 +188,7 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
         { &_recents, @"Show recent applications in Dock", flagOn(CFSTR("show-recents")) },
     };
     for (size_t i = 0; i < sizeof(checks) / sizeof(checks[0]); i++) {
-        *checks[i].button = button([self text:checks[i].title], NSMakeRect(232, y, 380, 22), NSSwitchButton,
+        *checks[i].button = button([self text:checks[i].title], NSMakeRect(300, y, 360, 22), NSSwitchButton,
                                    self, @selector(changed:));
         [*checks[i].button setState:checks[i].on ? NSOnState : NSOffState];
         [view addSubview:*checks[i].button];
