@@ -1820,6 +1820,15 @@ job_new_anonymous(jobmgr_t jm, pid_t anonpid)
 		jr->anonymous = true;
 		jr->p = anonpid;
 
+		/* Minkar: a per-user launchd stays while the processes that use it
+		 * (a session's apps, which take it as their bootstrap) run, not only
+		 * while it has jobs of its own: its idle exit left them a dead
+		 * bootstrap. Released when the process exits (job_reap). */
+		if (!pid1_magic && !jr->holds_ref) {
+			jr->holds_ref = true;
+			runtime_add_ref();
+		}
+
 		// Anonymous process reaping is messy.
 		LIST_INSERT_HEAD(&jm->active_jobs[ACTIVE_JOB_HASH(jr->p)], jr, pid_hash_sle);
 
