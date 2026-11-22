@@ -15,10 +15,14 @@ code marks it `// SHORTCUT(<milestone>):`.
 - **Everything is a Cocoa app or bundle**, written against the public Cocoa API, so the
   desktop is a continuous test of AppKit and Foundation. What an app needs that the
   frameworks lack is added to the frameworks, never worked around in the app.
-- **Its own visual language.** No third-party fonts, sounds or artwork, with one
-  exception for icons: the Faience and Faenza themes by Matthieu James (GPL-3), separate
+- **Its own visual language.** No third-party fonts, sounds or artwork, with two
+  exceptions for icons: the Faience and Faenza themes by Matthieu James (GPL-3), separate
   data files with their license and SVG sources in `SystemLibrary/Icons` (installed in
-  `/System/Library/Icons`), without brand icons. No code links with them.
+  `/System/Library/Icons`), without brand icons; and, for the menu bar's status items,
+  Google's Material Symbols (Outlined, weight 400, optical size 20 px; Apache-2.0),
+  pinned by commit and SHA-256 in `SystemLibrary/MenuBarIcons` (installed in
+  `/System/Library/MenuBarIcons`), only the icons the menu bar uses. No code links with
+  them.
 - **Look.** Folders are blue (Faience-Azur), with sand and orange as alternatives. App
   icons are 512×512 PNG in the bundle (AppKit reads no `.icns` yet). The menu bar is dark
   (charcoal, light text). The interface font is Inter and the fixed-pitch font Agave

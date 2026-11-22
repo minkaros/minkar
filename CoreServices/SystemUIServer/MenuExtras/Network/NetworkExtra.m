@@ -97,8 +97,10 @@ static NSArray<NSArray<NSString *> *> *interfacesUp(void)
         connected |= [row[1] length] > 0;
     NSString *name = connected ? @"network-wired" : @"network-offline";
     NSImage *icon = [[NSImage alloc] initWithContentsOfFile:
-        [NSString stringWithFormat:@"/System/Library/Icons/menubar/%@.png", name]];
+        [NSString stringWithFormat:@"/System/Library/MenuBarIcons/%@.png", name]];
     [icon setSize:NSMakeSize(18, 18)];
+    /* Black on clear: drawn in the menu bar's own color. */
+    [icon setTemplate:YES];
     if (icon != nil)
         [[_item button] setImage:icon];
     else

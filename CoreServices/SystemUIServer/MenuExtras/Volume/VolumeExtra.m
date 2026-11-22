@@ -16,7 +16,7 @@
 #include <CoreAudio/CoreAudio.h>
 #include <AudioToolbox/AudioServices.h>
 
-static NSString *const kIcons = @"/System/Library/Icons/menubar";
+static NSString *const kIcons = @"/System/Library/MenuBarIcons";
 
 /* A borderless panel that takes the keyboard, and goes when it loses it
    (a click anywhere else). */
@@ -95,6 +95,8 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
         [kIcons stringByAppendingPathComponent:[name stringByAppendingPathExtension:@"png"]]];
 
     [image setSize:NSMakeSize(18, 18)];
+    /* Black on clear: drawn in the menu bar's own color. */
+    [image setTemplate:YES];
     [_item setImage:image];
     /* Changed from a notification, with no event to come: drawn now. */
     [[_item button] display];

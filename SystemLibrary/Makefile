@@ -2,7 +2,7 @@
 BUILD_STAMP != cd ${.CURDIR} && git log -1|head -1|cut -c8-14|tr '[a-z]' '[A-Z]'
 
 #SUBDIR= Desktop_Pictures
-SUBDIR= Colors Cursors LaunchDaemons Fonts Icons Sounds UserTemplate ../Kernel/Extensions/MinkarDRM/firmware
+SUBDIR= Colors Cursors LaunchDaemons Fonts Icons MenuBarIcons Sounds UserTemplate ../Kernel/Extensions/MinkarDRM/firmware
 SUBDIR_PARALLEL=
 
 all: SystemVersion.plist

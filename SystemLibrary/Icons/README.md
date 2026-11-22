@@ -31,7 +31,6 @@ Installed in `/System/Library/Icons/<group>/<name>.png`:
 | `mimetypes`     | file types (text, source, images, audio, video, archives, office) |
 | `prefs`         | System Preferences' panes |
 | `status`        | dialogs: information, warning, error, question, password |
-| `menubar`       | monochrome status icons: battery, network, volume, Bluetooth |
 | `actions`       | toolbar and menu actions |
 | `apps`          | the apps' icons (their bundles hold 512 px copies) |
 

@@ -28,8 +28,10 @@
     if ((self = [super init]) == nil)
         return nil;
     _item = item;
-    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:@"/System/Library/Icons/devices/video-display.png"];
+    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:@"/System/Library/MenuBarIcons/video-display.png"];
     [icon setSize:NSMakeSize(18, 18)];
+    /* Black on clear: drawn in the menu bar's own color. */
+    [icon setTemplate:YES];
     if (icon != nil)
         [[_item button] setImage:icon];
     else

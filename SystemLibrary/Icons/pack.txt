@@ -1,8 +1,8 @@
 # Atlas's icons: group, installed name, source SVG (theme/relative path).
 # Groups: places (blue, the default), places-sand, places-orange, system,
 # devices, mimetypes, prefs (System Preferences' panes), status (dialogs),
-# menubar (monochrome status icons), actions (toolbars),
-# apps (the sources of the app bundles' 512 px icons).
+# actions (toolbars), apps (the sources of the app bundles' 512 px icons).
+# The menu bar's icons are in ../MenuBarIcons.
 places folder Faience-Azur/places/scalable/folder.svg
 places-sand folder Faience/places/scalable/folder.svg
 places-orange folder Faience-Ocre/places/scalable/folder.svg
@@ -160,30 +160,6 @@ actions system-log-out Faenza/actions/scalable/system-log-out.svg
 actions system-lock-screen Faience/actions/scalable/system-lock-screen.svg
 actions system-restart Faenza/apps/scalable/system-restart.svg
 actions view-grid Faenza/actions/scalable/view-list-icons.svg
-menubar battery-full Faience/status/scalable/battery-full-symbolic.svg
-menubar battery-good Faience/status/scalable/battery-good-symbolic.svg
-menubar battery-low Faenza/status/scalable/battery-low-symbolic.svg
-menubar battery-caution Faenza/status/scalable/battery-caution-symbolic.svg
-menubar battery-empty Faience/status/scalable/battery-empty-symbolic.svg
-menubar battery-full-charging Faience/status/scalable/battery-full-charging-symbolic.svg
-menubar battery-good-charging Faience/status/scalable/battery-good-charging-symbolic.svg
-menubar battery-low-charging Faience/status/scalable/battery-low-charging-symbolic.svg
-menubar battery-caution-charging Faenza/status/scalable/battery-caution-charging-symbolic.svg
-menubar battery-full-charged Faience/status/scalable/battery-full-charged-symbolic.svg
-menubar network-wireless-signal-excellent Faience/status/scalable/network-wireless-signal-excellent-symbolic.svg
-menubar network-wireless-signal-good Faience/status/scalable/network-wireless-signal-good-symbolic.svg
-menubar network-wireless-signal-ok Faenza/status/scalable/network-wireless-signal-ok-symbolic.svg
-menubar network-wireless-signal-weak Faience/status/scalable/network-wireless-signal-weak-symbolic.svg
-menubar network-wireless-signal-none Faience/status/scalable/network-wireless-signal-none-symbolic.svg
-menubar network-wired Faience/status/scalable/network-wired-symbolic.svg
-menubar network-offline Faience/status/scalable/network-offline-symbolic.svg
-menubar network-wireless-acquiring Faience/status/scalable/network-wireless-acquiring-symbolic.svg
-menubar audio-volume-high Faience/status/scalable/audio-volume-high-symbolic.svg
-menubar audio-volume-medium Faience/status/scalable/audio-volume-medium-symbolic.svg
-menubar audio-volume-low Faience/status/scalable/audio-volume-low-symbolic.svg
-menubar audio-volume-muted Faience/status/scalable/audio-volume-muted-symbolic.svg
-menubar bluetooth-active Faience/status/scalable/bluetooth-active-symbolic.svg
-menubar bluetooth-disabled Faience/status/scalable/bluetooth-disabled-symbolic.svg
 apps Terminal Faience/apps/scalable/utilities-terminal.svg
 apps SystemMonitor Faience/apps/scalable/utilities-system-monitor.svg
 apps Logs Faenza/apps/scalable/logviewer.svg

@@ -2,13 +2,14 @@
 
 Every decision the project has taken, one line each, newest first, with a link to where
 its detail lives: an ADR, a design document or the commit that made it. For anyone who
-wants to know why something is the way it is. Last reviewed: 2026-11-21.
+wants to know why something is the way it is. Last reviewed: 2026-11-22.
 
 A decision of architecture gets an ADR in [ADR/](ADR/) (0001–0009); the others are
 recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-22 | The menu bar's icons are Google's Material Symbols (Outlined, weight 400, 20 px; Apache-2.0), a second exception to no third-party artwork, pinned by commit and SHA-256; Faience's menu bar group goes | [Atlas.md](Atlas.md#1-scope-and-rules) |
 | 2026-11-21 | Platypus and Sloth are pinned to 5.4.1 and 3.4, their last releases with a minimum of 10.15 or lower, so they stay in app set 19 | [tools/symbols/reference-apps.tsv](../tools/symbols/reference-apps.tsv) |
 | 2026-11-21 | Only the five entry documents (README, ROADMAP, BUILDING, CONTRIBUTING, Compatibility) have Spanish copies | [CONTRIBUTING.md](CONTRIBUTING.md#language) |
 | 2026-11-21 | The browser is Firefox; Shiira was analysed and is not in the plan | `65dab354d6` |
