@@ -6,3 +6,17 @@
 "Not connected" = "Sin conexión";
 "No network interfaces" = "Ninguna interfaz de red";
 "Network Preferences…" = "Preferencias de Red…";
+"Status" = "Estado";
+"Up" = "Activa";
+"Down" = "Inactiva";
+"IPv4" = "IPv4";
+"IPv4 Mode" = "Modo IPv4";
+"IPv6" = "IPv6";
+"IPv6 Mode" = "Modo IPv6";
+"MAC Address" = "Dirección MAC";
+"DHCP" = "DHCP";
+"BOOTP" = "BOOTP";
+"Manual" = "Manual";
+"Automatic" = "Automático";
+"Link-local only" = "Solo enlace local";
+"DHCP with manual address" = "DHCP con dirección manual";

@@ -49,6 +49,10 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
 -(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
     event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
     flips:(BOOL)flips perform:(BOOL)perform {
+   /* An empty menu its delegate fills as it opens (menuNeedsUpdate:), as
+      on the reference: asked before it is found empty. */
+   if([_itemArray count]==0 && [_delegate respondsToSelector:@selector(menuNeedsUpdate:)])
+    [_delegate menuNeedsUpdate:self];
    if([_itemArray count]==0)
     return nil;
 
