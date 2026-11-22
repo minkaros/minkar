@@ -28,7 +28,11 @@
 
 #include <CoreFoundation/CFError.h>
 #include <CoreFoundation/CFError_Private.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging with NSError (CFInternal.h) */
 #include "CFInternal.h"
+#if INCLUDE_OBJC
+@class NSError;
+#endif
 #include <CoreFoundation/CFPriv.h>
 #include <mach/mach_error.h>
 

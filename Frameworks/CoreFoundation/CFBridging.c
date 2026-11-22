@@ -48,6 +48,20 @@ CF_EXPORT int _CFRuntimeRegisterObjCClass(CFTypeID typeID, uintptr_t cls)
     return 0;
 }
 
+/* Minkar: a framework's CF type bridged to its Objective-C class by name
+   (CFBridgingPriv.h), as OpenDirectory's CFODNode is to NSODNode. */
+CF_EXPORT void _CFRuntimeBridgeClasses(CFTypeID typeID, const char *className)
+{
+    uintptr_t cls = (uintptr_t)objc_lookUpClass(className);
+
+    if (cls != 0) {
+        _CFRuntimeRegisterObjCClass(typeID, cls);
+        /* The type's functions send the message to the class's own
+           subclasses' instances (CF_OBJC_FUNCDISPATCH). */
+        _CFRuntimeBridgeObjCDispatch(typeID);
+    }
+}
+
 CF_EXPORT void CFSetupFoundationBridging(void)
 {
     TRACE("Setting up bridging\n");
@@ -62,6 +76,14 @@ CF_EXPORT void CFSetupFoundationBridging(void)
      * (NSMutableString's, NSString_unicode...): CFString.c sends them the
      * message. CF's strings (NSCFString, constant strings) stay native. */
     _CFRuntimeBridgeObjCDispatch(CFStringGetTypeID());
+
+    /* Minkar: CFErrors are NSErrors (__NSCFError, NSCFError.m), and CF's
+     * error functions take Foundation's NSErrors (CFError.c). */
+    uintptr_t errorClass = (uintptr_t)objc_lookUpClass("__NSCFError");
+    if (errorClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFErrorGetTypeID(), errorClass);
+        _CFRuntimeBridgeObjCDispatch(CFErrorGetTypeID());
+    }
 
     /* kCFBooleanTrue and kCFBooleanFalse are NSNumbers (__NSCFBoolean), as
      * on macOS: they were set up before Foundation loaded, so give them the

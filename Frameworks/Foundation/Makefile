@@ -155,6 +155,7 @@ SRCS = 	NSFormatter.m \
 	NSCFData.m \
 	NSCFNumber.m \
 	NSCFType.m \
+	NSCFError.m \
 	NSCFURL.m \
 	NSString/NSDarwinString.m \
 	NSString/NSStringUTF8.m \

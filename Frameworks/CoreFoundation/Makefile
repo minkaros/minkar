@@ -19,7 +19,7 @@ PRIVATE_HEADERS = CFBundlePriv.h CFCharacterSetPriv.h CFError_Private.h \
 	CFStreamPriv.h CFStreamInternal.h CFStringDefaultEncoding.h \
 	CFStringEncodingConverter.h CFStringEncodingConverterExt.h \
 	CFUniChar.h CFUnicodeDecomposition.h CFUnicodePrecomposition.h \
-	ForFoundationOnly.h CFBurstTrie.h CFICULogging.h CFBridging.h
+	ForFoundationOnly.h CFBurstTrie.h CFICULogging.h CFBridging.h CFBridgingPriv.h
 
 SLF = /System/Library/Frameworks
 INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
