@@ -628,6 +628,10 @@ main(int argc, char *argv[])
 	signal(SIGTERM, on_signal);
 	signal(SIGHUP, on_signal);
 	signal(SIGQUIT, on_signal);
+	/* Its output piped to a reader that has gone (fs_usage | head): a
+	   write fails instead of killing it, and the trace is turned off on
+	   the way out. Left on, the kernel goes on tracing with no reader. */
+	signal(SIGPIPE, on_signal);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	if ((buf = malloc(NBUFS * sizeof(*buf))) == NULL)
 		err(1, NULL);
