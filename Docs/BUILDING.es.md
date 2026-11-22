@@ -128,30 +128,38 @@ Resultados, bajo `../build`:
 
 ## Tiempos esperados
 
-Medido el 25 oct 2026, antes de que el toolchain pasara a LLVM 21 y antes de quitar los
-volcados de ncurses y los 21 componentes que no se compilaban, en el anfitrión de
-referencia de entonces: Ubuntu 22.04, 10 CPU (Xeon E5-2690 v2), 16 GB de RAM, `-j10`,
-árbol de compilación limpio. El anfitrión con Ubuntu 24.04.5 no se ha medido desde cero
-desde entonces. En la CI, el toolchain tarda unas dos horas cuando falla su caché, y el
-gate BC de 2 a 3 horas bajo TCG.
+Medido desde cero el 21 y 22 nov 2026, en `devel` `de48918522`, en el
+anfitrión de compilación: Ubuntu 24.04.5 LTS (kernel 6.8), 24 CPU (un Xeon
+E5-2697 v2, 12 núcleos con 2 hilos cada uno), 32 GB de RAM, `JOBS=20`, turbo
+apagado (`minkar-heavy`), en un worktree limpio con un árbol de compilación
+vacío, con `tools/ci/build-stages.sh`. Tres fases se pararon por problemas de
+orden de compilación que encontró esta medición (arreglados en `11a96ec85c`,
+`0dd9fece36`, `ff19ade12e` y `de48918522`) y se retomaron donde se pararon;
+su tiempo es la suma de sus pasadas, muy cercano al de una pasada sin
+interrupciones, porque la segunda solo compila lo que la primera no. En la
+CI, el toolchain tarda unas dos horas cuando falla su caché, y el gate BC de
+2 a 3 horas bajo TCG.
 
 | Fase | Tiempo real |
 | --- | --- |
-| `Developer` (el toolchain, LLVM incluido) | 52 min la primera vez; segundos una vez compilado |
-| `Kernel` | 9-10 min |
-| `Libraries` | alrededor de 1 min |
-| `Frameworks` | 4 min |
-| `Kernel/Extensions` | 20 s |
-| `CoreServices` | unos segundos |
-| `BSD` | 2-2,5 min |
-| Todo lo posterior a `Developer` | 16-19 min |
-| `image`, la primera vez (descarga y compila el cargador EFI) | 2 min |
-| `image`, después | 6 s |
+| `Developer` (el toolchain: LLVM y clang, luego Swift) | 3 h 12 min la primera vez (LLVM, 1 h 30 min aprox.; Swift, 1 h 40 min aprox.); segundos una vez compilado |
+| `Kernel` | 10 min |
+| `Libraries` | 55 s |
+| `Frameworks` | 34 min |
+| `Kernel/Extensions` | 56 s |
+| `CoreServices` | 1 min 30 s |
+| `BSD` (WPE WebKit y JavaScriptCore, Mesa, FFmpeg, Ruby, Python, Perl...) | 62 min |
+| `Frameworks/WebKit` | 7 s (su motor se compila en `BSD`) |
+| `SystemLibrary` | 37 s |
+| Todo lo posterior a `Developer` | 1 h 50 min |
+| La compilación entera desde cero | unas 5 h |
+| `image`, la primera vez (descarga y compila el cargador EFI) | 3 min 15 s |
+| `image`, después | 13 s |
 | `boottest GATE=M1` | unos 20 s |
-| `boottest GATE=M2` | unos 75 s (QEMU con TCG) |
+| `boottest GATE=M2` | unos 2 min (superado a los 117 s) |
 
-Un cambio en las fuentes de LLVM vuelve a compilar el toolchain (unos
-47 min).
+Un cambio en las fuentes de LLVM vuelve a compilar LLVM (1 h 30 min aprox.)
+y lo que el toolchain compila sobre él.
 
 Los objetivos por capa compilan solas las fases de una capa, en orden,
 sobre las capas inferiores ya compiladas, y `<capa>-check` comprueba lo que

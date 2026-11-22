@@ -119,29 +119,38 @@ Outputs, under `../build`:
 
 ## Expected times
 
-Measured on 2026-10-25, before the toolchain moved to LLVM 21 and before the ncurses
-build output and the 21 unbuilt components were removed, on the reference host of the
-time: Ubuntu 22.04, 10 CPUs (Xeon E5-2690 v2), 16 GB of RAM, `-j10`, a clean build
-tree. The Ubuntu 24.04.5 host has not been timed from scratch since. In the CI, the
-toolchain takes about two hours when its cache misses, and gate BC 2 to 3 hours under
-TCG.
+Measured from scratch on 2026-11-21 and 22, at `devel` `de48918522`, on the
+build host: Ubuntu 24.04.5 LTS (kernel 6.8), 24 CPUs (one Xeon E5-2697 v2,
+12 cores with 2 threads each), 32 GB of RAM, `JOBS=20`, turbo off
+(`minkar-heavy`), in a clean worktree with an empty build tree, with
+`tools/ci/build-stages.sh`. Three stages stopped on build-order problems
+found by this run (fixed in `11a96ec85c`, `0dd9fece36`, `ff19ade12e` and
+`de48918522`) and were run again from where they stopped; their times are
+the sum of their passes, which is close to one uninterrupted pass since
+the second only builds what the first did not. In the CI, the toolchain
+takes about two hours when its cache misses, and gate BC 2 to 3 hours
+under TCG.
 
 | Stage | Wall time |
 | --- | --- |
-| `Developer` (toolchain, LLVM included) | 52 min the first time; seconds once built |
-| `Kernel` | 9-10 min |
-| `Libraries` | about 1 min |
-| `Frameworks` | 4 min |
-| `Kernel/Extensions` | 20 s |
-| `CoreServices` | a few seconds |
-| `BSD` | 2-2.5 min |
-| Everything after `Developer` | 16-19 min |
-| `image`, first time (fetches and builds the EFI loader) | 2 min |
-| `image`, after that | 6 s |
+| `Developer` (toolchain: LLVM and clang, then Swift) | 3 h 12 min the first time (LLVM about 1 h 30 min, Swift about 1 h 40 min); seconds once built |
+| `Kernel` | 10 min |
+| `Libraries` | 55 s |
+| `Frameworks` | 34 min |
+| `Kernel/Extensions` | 56 s |
+| `CoreServices` | 1 min 30 s |
+| `BSD` (WPE WebKit and JavaScriptCore, Mesa, FFmpeg, Ruby, Python, Perl...) | 62 min |
+| `Frameworks/WebKit` | 7 s (its engine is built in `BSD`) |
+| `SystemLibrary` | 37 s |
+| Everything after `Developer` | 1 h 50 min |
+| The whole build from scratch | about 5 h |
+| `image`, first time (fetches and builds the EFI loader) | 3 min 15 s |
+| `image`, after that | 13 s |
 | `boottest GATE=M1` | about 20 s |
-| `boottest GATE=M2` | about 75 s (QEMU under TCG) |
+| `boottest GATE=M2` | about 2 min (passed at 117 s) |
 
-A change to LLVM's sources rebuilds the toolchain (about 47 min).
+A change to LLVM's sources rebuilds LLVM (about 1 h 30 min) and what
+the toolchain builds on it.
 
 Per-layer targets build one layer's stages alone, in order, on the layers
 below it already built, and `<layer>-check` checks what it installed
