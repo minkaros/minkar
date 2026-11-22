@@ -377,10 +377,15 @@ minutes runs of over an hour use up, so `devel`'s batches are verified
 locally. Changes go to `devel` first. On a
 GitHub-hosted Ubuntu 24.04 runner it:
 
-1. builds the toolchain (`Developer`), or takes it from the cache;
-2. builds the rest of the system with `tools/ci/build-stages.sh`, and
+1. checks, in seconds and before any build, that the progress pages are
+   what `bmake progress` writes and that each stage lists what a
+   directory needs before it (`tools/check/subdir-order.py`: Frameworks
+   builds its `SUBDIR` in order, so a dependency listed later breaks only
+   a build from scratch, hours into it);
+2. builds the toolchain (`Developer`), or takes it from the cache;
+3. builds the rest of the system with `tools/ci/build-stages.sh`, and
    checks the toolchain against `tools/toolchain/MANIFEST`;
-3. makes an image with launchd as PID 1, a random root password and a
+4. makes an image with launchd as PID 1, a random root password and a
    fresh ssh key, and runs `boottest GATE=M2`.
 
 The toolchain takes about two hours on a hosted runner, so it is cached.

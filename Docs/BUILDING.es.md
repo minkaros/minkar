@@ -402,10 +402,16 @@ minutos de Actions se agotan con ejecuciones de más de una hora, así que
 los lotes de `devel` se verifican en local. Los cambios van primero a
 `devel`. En un runner Ubuntu 24.04 alojado por GitHub:
 
-1. compila el toolchain (`Developer`), o lo toma de la caché;
-2. compila el resto del sistema con `tools/ci/build-stages.sh`, y comprueba
+1. comprueba, en segundos y antes de compilar nada, que las páginas de
+   progreso son las que escribe `bmake progress` y que cada etapa lista lo
+   que necesita un directorio antes que él (`tools/check/subdir-order.py`:
+   Frameworks compila su `SUBDIR` en orden, así que una dependencia
+   listada después solo rompe la compilación desde cero, horas después de
+   empezar);
+2. compila el toolchain (`Developer`), o lo toma de la caché;
+3. compila el resto del sistema con `tools/ci/build-stages.sh`, y comprueba
    el toolchain frente a `tools/toolchain/MANIFEST`;
-3. crea una imagen con launchd como PID 1, una contraseña de root aleatoria
+4. crea una imagen con launchd como PID 1, una contraseña de root aleatoria
    y una clave ssh nueva, y ejecuta `boottest GATE=M2`.
 
 El toolchain tarda unas dos horas en un runner alojado, así que se guarda
