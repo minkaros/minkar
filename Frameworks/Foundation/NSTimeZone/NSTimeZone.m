@@ -20,12 +20,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSPlatform.h>
 #include <stdio.h>
+#include <notify.h>
+#include <dispatch/dispatch.h>
+#import <Foundation/NSNotificationCenter.h>
 
 NSString * const NSSystemTimeZoneDidChangeNotification=@"NSSystemTimeZoneDidChangeNotification";
 
 static NSTimeZone *_systemTimeZone=nil;
 static NSTimeZone *_defaultTimeZone=nil;
-static NSTimeZone *_localTimeZone=nil;
+/* Minkar: the default zone is the system's until an app sets one. */
+static BOOL _defaultTimeZoneSet=NO;
 
 @implementation NSTimeZone
 
@@ -36,14 +40,29 @@ static NSTimeZone *_localTimeZone=nil;
         return NSAllocateObject(self,0,zone);
 }
 
+/* The default zone as it is now (on the reference, a zone that follows it). */
 +(NSTimeZone *)localTimeZone {
-    if (_localTimeZone == nil)
-        _localTimeZone = [self defaultTimeZone];
+    return [self defaultTimeZone];
+}
 
-    return _localTimeZone;
+/* Minkar: as on the reference platform, when the system's time zone
+   changes (the notify(3) name com.apple.system.timezone, which System
+   Preferences posts), the cached zones are reset and
+   NSSystemTimeZoneDidChangeNotification is posted, on the main queue. */
+static void watchSystemTimeZone(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        int token;
+        notify_register_dispatch("com.apple.system.timezone", &token, dispatch_get_main_queue(), ^(int t) {
+            [NSTimeZone resetSystemTimeZone];
+            [[NSNotificationCenter defaultCenter] postNotificationName:NSSystemTimeZoneDidChangeNotification
+                                                                object:nil];
+        });
+    });
 }
 
 +(NSTimeZone *)systemTimeZone {
+    watchSystemTimeZone();
     if (_systemTimeZone == nil) { 
         _systemTimeZone = [[[[NSPlatform currentPlatform] timeZoneClass] systemTimeZone] retain];        
     }
@@ -58,14 +77,24 @@ static NSTimeZone *_localTimeZone=nil;
     return _defaultTimeZone;
 }
 
+/* The system's zone read again; the default too, unless an app set it
+   (it was the system's), and CoreFoundation's. */
 +(void)resetSystemTimeZone {
-    [_systemTimeZone release];
-    _systemTimeZone=nil;
+    @synchronized(self) {
+        [_systemTimeZone release];
+        _systemTimeZone=nil;
+        if (!_defaultTimeZoneSet) {
+            [_defaultTimeZone release];
+            _defaultTimeZone=nil;
+        }
+    }
+    CFTimeZoneResetSystem();
 }
 
 +(void)setDefaultTimeZone:(NSTimeZone *)timeZone {
     [_defaultTimeZone autorelease];
     _defaultTimeZone = [timeZone retain];
+    _defaultTimeZoneSet = timeZone != nil;
 }
 
 // The names of the time zone data's zones, from CoreFoundation.
