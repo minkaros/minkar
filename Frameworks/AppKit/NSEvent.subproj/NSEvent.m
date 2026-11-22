@@ -349,12 +349,16 @@ NSEvent *NSEventRunLocalMonitors(NSEvent *event) {
    return NSEventPhaseNone;
 }
 
-/* Natural scrolling (the Mouse pane, com.apple.swipescrolldirection): the
-   window server inverted the wheel's deltas. */
+/* Natural scrolling (the Mouse pane, com.apple.swipescrolldirection, on
+   when unset as on the reference): the window server inverted the wheel's
+   deltas. */
 -(BOOL)isDirectionInvertedFromDevice {
+   id natural;
+
    if(_type!=NSScrollWheel)
     return NO;
-   return [[NSUserDefaults standardUserDefaults] boolForKey:@"com.apple.swipescrolldirection"];
+   natural=[[NSUserDefaults standardUserDefaults] objectForKey:@"com.apple.swipescrolldirection"];
+   return natural==nil || [natural boolValue];
 }
 
 -(CGFloat)magnification {

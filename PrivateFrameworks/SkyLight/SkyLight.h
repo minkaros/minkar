@@ -931,7 +931,8 @@ typedef struct {
 	uint32_t swapButtons;
 	uint32_t doubleClickInterval;
 	/* Minkar: the reference's other mouse settings. naturalScroll: the
-	   wheel's direction inverted (com.apple.swipescrolldirection);
+	   wheel's direction inverted (com.apple.swipescrolldirection), on by
+	   default as on the reference;
 	   trackingSpeed and scrollSpeed: the pointer's and the wheel's
 	   acceleration in thousandths (com.apple.mouse.scaling,
 	   com.apple.scrollwheel.scaling, 0 to 3000), 0 for the device's own. */

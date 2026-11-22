@@ -99,6 +99,7 @@ static uint32_t interval(double value)
     if (SLSGetMouseSettings(&_settings) != kSLSErrorSuccess) {
         _settings.swapButtons = 0;
         _settings.doubleClickInterval = 500;
+        _settings.naturalScroll = 1;
     }
 
     /* Scroll direction: Natural. */

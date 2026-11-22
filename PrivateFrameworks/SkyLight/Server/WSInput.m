@@ -121,7 +121,8 @@ WSInputLoadKeyboard(void)
 /* ---- The mouse's settings (SLSSetMouseSettings) ---- */
 
 static NSString *const kMousePath = @"/var/db/WindowServer/Mouse.plist";
-static SLSMouseSettings mouse = { 0, 500, 0, 0, 0 };
+/* Natural scrolling by default, as on the reference platform. */
+static SLSMouseSettings mouse = { 0, 500, 1, 0, 0 };
 
 static BOOL
 mouseSettingsValid(const SLSMouseSettings *m)
@@ -142,7 +143,7 @@ WSInputLoadMouse(void)
 	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kMousePath];
 	SLSMouseSettings m = { [saved[@"SwapButtons"] boolValue] ? 1 : 0,
 			       saved[@"DoubleClickInterval"] != nil ? [saved[@"DoubleClickInterval"] unsignedIntValue] : 500,
-			       [saved[@"NaturalScroll"] boolValue] ? 1 : 0,
+			       saved[@"NaturalScroll"] == nil || [saved[@"NaturalScroll"] boolValue] ? 1 : 0,
 			       [saved[@"TrackingSpeed"] unsignedIntValue], [saved[@"ScrollSpeed"] unsignedIntValue] };
 
 	if (mouseSettingsValid(&m))
