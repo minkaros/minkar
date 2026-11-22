@@ -54,7 +54,7 @@ SUBDIR += Logs
 # Terminal (Atlas.md, A1), with libvterm built in.
 SUBDIR += Terminal
 # System Preferences and its panes (Phase 5, item 6).
-SUBDIR += SystemPreferences SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
+SUBDIR += SystemPreferences SystemPreferences/Panes/General SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
 	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Mouse SystemPreferences/Panes/Sound \
 	SystemPreferences/Panes/Network SystemPreferences/Panes/Notifications SystemPreferences/Panes/Users
 # The code integrity policy's test program (it needs IOKit).

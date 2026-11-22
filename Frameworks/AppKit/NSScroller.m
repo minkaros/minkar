@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSDisplay.h>
 #import <AppKit/NSGraphicsStyle.h>
 #import <Foundation/NSKeyedArchiver.h>
+#import <Foundation/NSUserDefaults.h>
 #import <AppKit/NSRaise.h>
 
 NSString * const NSPreferredScrollerStyleDidChangeNotification=@"NSPreferredScrollerStyleDidChangeNotification";
@@ -520,6 +521,28 @@ static inline float roundFloat(float value){
    [self highlight:NO];
 }
 
+/* A page at a time towards the click, while the button is down and the
+   knob has not reached it. */
+-(void)trackPages:(NSEvent *)event {
+   NSScrollerPart part=_hitPart;
+
+   [NSEvent startPeriodicEventsAfterDelay:0.3 withPeriod:0.08];
+   do{
+       NSPoint point;
+
+       if([event type]!=NSPeriodic)
+        point=[self convertPoint:[event locationInWindow] fromView:nil];
+       else
+        point=[self convertPoint:[[self window] mouseLocationOutsideOfEventStream] fromView:nil];
+       _hitPart=part;
+       if(NSMouseInRect(point,[self rectForPart:part],[self isFlipped]))
+        [self sendAction:_action to:_target];
+
+       event=[[self window] nextEventMatchingMask:NSPeriodicMask|NSLeftMouseUpMask|NSLeftMouseDraggedMask];
+   }while([event type]!=NSLeftMouseUp);
+   [NSEvent stopPeriodicEvents];
+}
+
 -(void)trackPageSlots:(NSEvent *)event {
    do{
     NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
@@ -587,9 +610,20 @@ static inline float roundFloat(float value){
      break;
      
     case NSScrollerIncrementPage:
-    case NSScrollerDecrementPage:
-     [self trackPageSlots:event];
+    case NSScrollerDecrementPage:{
+     /* Click in the scroll bar to: the next page (the default) or the spot
+        clicked, as General in System Preferences says
+        (AppleScrollerPagingBehavior); Option does the other. */
+     BOOL toSpot=[[NSUserDefaults standardUserDefaults] boolForKey:@"AppleScrollerPagingBehavior"];
+
+     if([event modifierFlags]&NSAlternateKeyMask)
+      toSpot=!toSpot;
+     if(toSpot)
+      [self trackPageSlots:event];
+     else
+      [self trackPages:event];
      break;
+    }
    }
 
 }

@@ -83,7 +83,8 @@ static const CGFloat kGridWidth = 668;
 /* The reference platform's order for the panes it has. */
 static NSArray<NSString *> *knownOrder(void)
 {
-    return @[ @"org.minkar.preference.dock", @"org.minkar.preference.users",
+    return @[ @"org.minkar.preference.general", @"org.minkar.preference.dock",
+              @"org.minkar.preference.notifications", @"org.minkar.preference.users",
               @"org.minkar.preference.displays", @"org.minkar.preference.keyboard",
               @"org.minkar.preference.mouse", @"org.minkar.preference.sound",
               @"org.minkar.preference.network", @"org.minkar.preference.datetime" ];

@@ -571,6 +571,28 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
    atlasToggleImage(@"NSHighlightedRadioButton",YES,YES);
 }
 
+/* The accent changed (System Preferences' General pane): the checked
+   check box and the chosen radio button made again in it, under their
+   names; the old images lose them. Returns the old images, each followed
+   by its new one, for the buttons that hold them. */
+NSArray *_NSGraphicsStyleAccentChanged(void) {
+   NSMutableArray *pairs=[NSMutableArray array];
+
+   _NSGraphicsStyleRegisterButtonImages();
+   for(NSString *name in [NSArray arrayWithObjects:@"NSHighlightedSwitch",@"NSHighlightedRadioButton",nil]){
+    NSImage *old=[NSImage imageNamed:name];
+
+    if(old!=nil){
+     [old retain];
+     [old setName:nil];
+     [pairs addObject:old];
+     [old release];
+     [pairs addObject:atlasToggleImage(name,[name hasSuffix:@"RadioButton"],YES)];
+    }
+   }
+   return pairs;
+}
+
 @implementation NSGraphicsStyle (NSButton)
 
 -(void)drawUnborderedButtonInRect:(NSRect)rect defaulted:(BOOL)defaulted {

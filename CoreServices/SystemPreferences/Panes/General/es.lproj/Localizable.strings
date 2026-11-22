@@ -1,0 +1,38 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The General pane, in Spanish. The keys are the English texts. */
+
+"Appearance:" = "Aspecto:";
+"Light" = "Claro";
+"Dark" = "Oscuro";
+"Auto" = "Automático";
+"Accent color:" = "Color de acento:";
+"Highlight color:" = "Color de resaltado:";
+"Blue" = "Azul";
+"Purple" = "Morado";
+"Pink" = "Rosa";
+"Red" = "Rojo";
+"Orange" = "Naranja";
+"Yellow" = "Amarillo";
+"Green" = "Verde";
+"Graphite" = "Grafito";
+"Sidebar icon size:" = "Tamaño de iconos de la barra lateral:";
+"Small" = "Pequeño";
+"Medium" = "Mediano";
+"Large" = "Grande";
+"Automatically hide and show the menu bar" = "Ocultar y mostrar la barra de menús automáticamente";
+"Show scroll bars:" = "Mostrar barras de desplazamiento:";
+"Automatically based on mouse or trackpad" = "Automáticamente según el ratón o el trackpad";
+"When scrolling" = "Al desplazarse";
+"Always" = "Siempre";
+"Click in the scroll bar to:" = "Al hacer clic en la barra de desplazamiento:";
+"Jump to the next page" = "Ir a la página siguiente";
+"Jump to the spot that’s clicked" = "Ir al punto pulsado";
+"Default web browser:" = "Navegador web por omisión:";
+"None" = "Ninguno";
+"Ask to keep changes when closing documents" = "Preguntar si se conservan los cambios al cerrar documentos";
+"Close windows when quitting an app" = "Cerrar ventanas al salir de una app";
+"When selected, open documents and windows will not be restored when you re-open an app." = "Si se activa, los documentos y ventanas abiertos no se restaurarán al volver a abrir una app.";
+"Recent items:" = "Ítems recientes:";
+"Documents, Apps, and Servers" = "Documentos, apps y servidores";
+"Use font smoothing when available" = "Suavizar el texto cuando sea posible";

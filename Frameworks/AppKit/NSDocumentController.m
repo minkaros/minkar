@@ -672,9 +672,11 @@ static NSDocument *transientDocument;
 }
 
 -(NSUInteger)maximumRecentDocumentCount {
-   NSString *value=[[NSUserDefaults standardUserDefaults] stringForKey:@"NSRecentDocumentMaximum"];
-   
-   return (value==nil)?10:[value intValue];
+   /* Recent items in System Preferences' General pane (a number, or a
+      string as older defaults kept it). */
+   id value=[[NSUserDefaults standardUserDefaults] objectForKey:@"NSRecentDocumentMaximum"];
+
+   return [value respondsToSelector:@selector(intValue)]?MAX(0,[value intValue]):10;
 }
 
 -(void)noteNewRecentDocumentURL:(NSURL *)url {

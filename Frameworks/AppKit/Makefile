@@ -40,6 +40,7 @@ SRCS = \
     NSColor.subproj/NSColor.m \
     NSColor.subproj/NSColor_CGColor.m \
     NSColor.subproj/NSColor_catalog.m \
+    NSColor.subproj/NSSystemAccent.m \
     NSColorList.m \
     NSColorPanel.m \
     NSColorPicker.subproj/NSBrowserCellColorList.m \

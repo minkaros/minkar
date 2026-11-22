@@ -132,6 +132,8 @@ static NSAppearance *applicationAppearance;
    return (applicationAppearance!=nil)?applicationAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua];
 }
 
+void _NSWatchSystemAccentColors(void);
+
 __kindof NSApplication *NSApp=nil;
 
 +(NSApplication *)sharedApplication {
@@ -431,6 +433,10 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
        _activationPolicy=NSApplicationActivationPolicyProhibited;
    else if([[mainBundle objectForInfoDictionaryKey:@"LSUIElement"] boolValue])
        _activationPolicy=NSApplicationActivationPolicyAccessory;
+
+   /* The accent and highlight colors chosen in System Preferences, and
+      their changes. */
+   _NSWatchSystemAccentColors();
 
    _dockTile=[[NSDockTile alloc] initWithOwner:self];
    _modalStack=[NSMutableArray new];
