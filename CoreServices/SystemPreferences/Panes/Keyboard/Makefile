@@ -9,7 +9,7 @@ BUNDLE =		Keyboard
 BUNDLE_EXTENSION =	prefPane
 BUNDLE_INSTALL_DIR =	/System/Library/PreferencePanes
 SRCS =			KeyboardPane.m
-FRAMEWORKS =		Cocoa PreferencePanes
+FRAMEWORKS =		Cocoa PreferencePanes Carbon
 MK_WERROR =		no
 CFLAGS +=		-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
 LDFLAGS +=		-lobjc -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
