@@ -40,6 +40,32 @@ const float NSTableViewDefaultRowHeight=16.0f;
 
 @end
 
+/* Minkar: the data source is a weak reference, as on the reference: when
+   it is deallocated the table's goes to nil. A table outliving the object
+   that fed it (a window kept a moment longer by a delayed perform, after
+   its controller has gone) otherwise asked a freed object for its rows
+   (Transmission's add window, now and then). The table keeps it
+   unretained; a watcher associated with the data source tells the table
+   when the data source's associated objects are released. */
+@interface NSTableView (MinkarDataSourceWatcher)
+-(void)_dataSourceWatcherWentAway:(id)watcher;
+@end
+
+@interface _NSTableDataSourceWatcher : NSObject {
+@public
+   NSTableView *_table;
+}
+@end
+
+@implementation _NSTableDataSourceWatcher
+-(void)dealloc {
+   [_table _dataSourceWatcherWentAway:self];
+   [super dealloc];
+}
+@end
+
+static char dataSourceWatcherKey;
+
 @implementation NSTableView
 
 /* The formal protocols exist at run time (objc_getProtocol, conformsToProtocol:). */
@@ -188,6 +214,7 @@ const float NSTableViewDefaultRowHeight=16.0f;
 }
 
 -(void)dealloc {
+   [self _storeDataSource:nil];
    NSZoneFree(NULL,_rowHeights);
    [_headerView release];
    [_cornerView release];
@@ -525,8 +552,37 @@ static float rowHeightAtIndex(NSTableView *self,int index){
    _doubleAction=action;
 }
 
--(void)setDataSource:dataSource {
+-(void)_dataSourceWatcherWentAway:(id)watcher {
+   if(objc_getAssociatedObject(self,&dataSourceWatcherKey)==watcher){
+    _dataSource=nil;
+    objc_setAssociatedObject(self,&dataSourceWatcherKey,nil,OBJC_ASSOCIATION_ASSIGN);
+   }
+}
+
+/* The data source set, and watched (NSOutlineView sets it through here). */
+-(void)_storeDataSource:dataSource {
+   _NSTableDataSourceWatcher *old=objc_getAssociatedObject(self,&dataSourceWatcherKey);
+
+   if(old!=nil){
+    old->_table=nil;
+    if(_dataSource!=nil)
+     objc_setAssociatedObject(_dataSource,old,nil,OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self,&dataSourceWatcherKey,nil,OBJC_ASSOCIATION_ASSIGN);
+   }
    _dataSource=dataSource;
+   if(dataSource!=nil){
+    _NSTableDataSourceWatcher *watcher=[[_NSTableDataSourceWatcher alloc] init];
+
+    watcher->_table=self;
+    /* Keyed by the watcher itself: one data source may feed several tables. */
+    objc_setAssociatedObject(self,&dataSourceWatcherKey,watcher,OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(dataSource,watcher,watcher,OBJC_ASSOCIATION_RETAIN);
+    [watcher release];
+   }
+}
+
+-(void)setDataSource:dataSource {
+   [self _storeDataSource:dataSource];
    [self tile]; // documented
 }
 

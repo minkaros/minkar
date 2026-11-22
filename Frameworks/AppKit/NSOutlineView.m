@@ -136,6 +136,10 @@ static NSString *columnValueKeyPath(NSTableColumn *column) {
 static char treeAdapterKey;
 
 /* The data source, or the bound content's adapter. */
+@interface NSTableView (MinkarDataSourceStore)
+-(void)_storeDataSource:dataSource;
+@end
+
 static id outlineSource(NSOutlineView *self) {
     id source = [self dataSource];
     _NSOutlineTreeAdapter *adapter;
@@ -635,7 +639,7 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
             break;
         }
 
-    _dataSource=dataSource;
+    [self _storeDataSource:dataSource];
 }
 
 -(void)setDelegate:delegate {
