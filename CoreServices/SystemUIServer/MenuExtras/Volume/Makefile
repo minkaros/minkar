@@ -9,7 +9,7 @@ BUNDLE =		Volume
 BUNDLE_EXTENSION =	menu
 BUNDLE_INSTALL_DIR =	/System/Library/CoreServices/Menu Extras
 SRCS =			VolumeExtra.m
-FRAMEWORKS =		AppKit Foundation CoreAudio
+FRAMEWORKS =		AppKit Foundation CoreAudio AudioToolbox
 MK_WERROR =		no
 CFLAGS +=		-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness \
 			-I${.CURDIR}/../..

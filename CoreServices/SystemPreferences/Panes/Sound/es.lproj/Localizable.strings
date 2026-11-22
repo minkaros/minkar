@@ -9,3 +9,16 @@
 "Mute" = "Silenciar";
 "No output device was found." = "No se ha encontrado ningún dispositivo de salida.";
 "Show volume in menu bar" = "Mostrar el volumen en la barra de menús";
+"Sound Effects" = "Efectos de sonido";
+"Output" = "Salida";
+"Input" = "Entrada";
+"Select an alert sound:" = "Selecciona un sonido de alerta:";
+"Name" = "Nombre";
+"Type" = "Tipo";
+"Built-in" = "Integrado";
+"Custom" = "Personalizado";
+"Alert volume:" = "Volumen de alerta:";
+"Play user interface sound effects" = "Reproducir efectos de sonido de la interfaz";
+"Play feedback when volume is changed" = "Reproducir sonido al cambiar el volumen";
+"Select a device for sound output:" = "Selecciona un dispositivo para la salida de sonido:";
+"Select a device for sound input:" = "Selecciona un dispositivo para la entrada de sonido:";

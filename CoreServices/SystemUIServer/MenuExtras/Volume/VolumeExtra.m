@@ -14,6 +14,7 @@
 #define NSLocalizedString(key, comment) \
     [[NSBundle bundleForClass:[VolumeExtra class]] localizedStringForKey:(key) value:@"" table:nil]
 #include <CoreAudio/CoreAudio.h>
+#include <AudioToolbox/AudioServices.h>
 
 static NSString *const kIcons = @"/System/Library/Icons/menubar";
 
@@ -225,6 +226,21 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
 
     AudioObjectSetPropertyData(_device, &a, 0, NULL, sizeof(volume), &volume);
     [self showLevel];
+    /* The Sound pane's "Play feedback when volume is changed"
+       (com.apple.sound.beep.feedback): a short sound at the new volume,
+       once the slider is let go. */
+    if ([[NSApp currentEvent] type] == NSEventTypeLeftMouseUp) {
+        Boolean valid = false;
+        CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+        if (CFPreferencesGetAppBooleanValue(CFSTR("com.apple.sound.beep.feedback"),
+                                            kCFPreferencesAnyApplication, &valid) && valid) {
+            static SystemSoundID pop;
+            if (pop == 0)
+                AudioServicesCreateSystemSoundID((__bridge CFURLRef)[NSURL fileURLWithPath:@"/System/Library/Sounds/Pop.aiff"], &pop);
+            if (pop != 0)
+                AudioServicesPlaySystemSound(pop);
+        }
+    }
 }
 
 - (void)muteChanged:(id)sender

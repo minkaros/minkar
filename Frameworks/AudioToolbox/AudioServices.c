@@ -42,6 +42,7 @@ typedef struct Voice {
     SystemSoundID id;
     const float *samples;
     UInt32 frames, at;
+    float gain;                 /* the alert volume, for alerts and UI sounds */
     void (^block)(void);
 } Voice;
 
@@ -50,6 +51,7 @@ static Sound *sSounds;
 static int sCount;
 static SystemSoundID sNext = 0x2000;
 static SystemSoundID sAlertID;
+static CFStringRef sAlertPathInUse;     /* the file sAlertID was made from */
 
 static AudioUnit sUnit;
 static Float64 sRate;
@@ -81,7 +83,7 @@ static OSStatus render(void *refCon, AudioUnitRenderActionFlags *flags, const Au
         UInt32 n = v->frames - v->at < frames ? v->frames - v->at : frames;
         const float *src = v->samples + (size_t)v->at * 2;
         for (UInt32 k = 0; k < n * 2; k++)
-            out[k] += src[k];
+            out[k] += src[k] * v->gain;
         v->at += n;
         if (v->at >= v->frames) {
             done[doneCount++] = *v;
@@ -302,54 +304,115 @@ OSStatus AudioServicesDisposeSystemSoundID(SystemSoundID inSystemSoundID) {
     return status;
 }
 
-/* The user's alert sound, read once. */
+/* A global (NSGlobalDomain) preference, read anew: the Sound pane changes
+   them while apps run. */
+static CFPropertyListRef globalValue(CFStringRef key) {
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+    return CFPreferencesCopyAppValue(key, kCFPreferencesAnyApplication);
+}
+
+/* The alert volume (com.apple.sound.beep.volume, 0 to 1; 1 when unset). */
+static float alertVolume(void) {
+    CFPropertyListRef v = globalValue(CFSTR("com.apple.sound.beep.volume"));
+    float volume = 1;
+
+    if (v != NULL && CFGetTypeID(v) == CFNumberGetTypeID())
+        CFNumberGetValue(v, kCFNumberFloatType, &volume);
+    if (v != NULL)
+        CFRelease(v);
+    return volume < 0 ? 0 : volume > 1 ? 1 : volume;
+}
+
+/* Whether user interface sound effects play (com.apple.sound.uiaudio.enabled,
+   on when unset). */
+static Boolean uiSoundsEnabled(void) {
+    Boolean valid = false;
+    Boolean on;
+
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+    on = CFPreferencesGetAppBooleanValue(CFSTR("com.apple.sound.uiaudio.enabled"),
+                                         kCFPreferencesAnyApplication, &valid);
+    return valid ? on : true;
+}
+
+/* The user's alert sound: com.apple.sound.beep.sound (a sound file's path,
+   the reference's key), else Minkar's earlier org.minkar.sound AlertSound,
+   else Chime. Made again when the choice changes. */
 static SystemSoundID alertSound(void) {
     CFStringRef path;
     CFURLRef url;
-    SystemSoundID id = 0;
+    SystemSoundID id = 0, old = 0;
 
-    pthread_mutex_lock(&sLock);
-    id = sAlertID;
-    pthread_mutex_unlock(&sLock);
-    if (id != 0)
-        return id;
-    path = CFPreferencesCopyAppValue(kAlertKey, kAlertDomain);
+    path = globalValue(CFSTR("com.apple.sound.beep.sound"));
     if (path != NULL && CFGetTypeID(path) != CFStringGetTypeID()) {
         CFRelease(path);
         path = NULL;
     }
+    if (path == NULL) {
+        path = CFPreferencesCopyAppValue(kAlertKey, kAlertDomain);
+        if (path != NULL && CFGetTypeID(path) != CFStringGetTypeID()) {
+            CFRelease(path);
+            path = NULL;
+        }
+    }
     if (path == NULL)
         path = CFStringCreateWithCString(NULL, kAlertPath, kCFStringEncodingUTF8);
+    pthread_mutex_lock(&sLock);
+    if (sAlertID != 0 && sAlertPathInUse != NULL && CFEqual(sAlertPathInUse, path)) {
+        id = sAlertID;
+        pthread_mutex_unlock(&sLock);
+        CFRelease(path);
+        return id;
+    }
+    pthread_mutex_unlock(&sLock);
     url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, false);
-    CFRelease(path);
     if (url == NULL || AudioServicesCreateSystemSoundID(url, &id) != noErr)
         id = 0;
     if (url != NULL)
         CFRelease(url);
-    pthread_mutex_lock(&sLock);
-    if (sAlertID == 0)
-        sAlertID = id;
-    else if (id != 0) {
-        SystemSoundID other = sAlertID;
+    if (id == 0) {
+        CFRelease(path);
+        pthread_mutex_lock(&sLock);
+        id = sAlertID;
         pthread_mutex_unlock(&sLock);
-        AudioServicesDisposeSystemSoundID(id);
-        return other;
+        return id;
     }
+    pthread_mutex_lock(&sLock);
+    old = sAlertID;
+    sAlertID = id;
+    if (sAlertPathInUse != NULL)
+        CFRelease(sAlertPathInUse);
+    sAlertPathInUse = path;
     pthread_mutex_unlock(&sLock);
+    /* The earlier one is kept: a voice may still be playing it. */
+    (void)old;
     return id;
 }
 
-static void play(SystemSoundID id, void (^block)(void)) {
+static void play(SystemSoundID id, Boolean alert, void (^block)(void)) {
     Sound *s;
-    Boolean start = false, added = false;
+    Boolean start = false, added = false, silent = false;
     void (^copy)(void) = block != NULL ? Block_copy(block) : NULL;
+    float gain = 1;
 
-    if (id == kSystemSoundID_UserPreferredAlert)
+    if (id == kSystemSoundID_UserPreferredAlert) {
         id = alertSound();
+        alert = true;
+    }
     pthread_mutex_lock(&sLock);
     s = find(id);
-    if (s != NULL && sVoiceCount < kMaxVoices) {
-        sVoices[sVoiceCount++] = (Voice){ id, s->samples, s->frames, 0, copy };
+    Boolean ui = s != NULL && s->isUISound;
+    pthread_mutex_unlock(&sLock);
+    /* Alerts and user interface sounds play at the alert volume; the
+       latter not at all when the user turned them off. */
+    if (alert || ui)
+        gain = alertVolume();
+    if (ui && !alert && !uiSoundsEnabled())
+        silent = true;
+    pthread_mutex_lock(&sLock);
+    s = find(id);
+    if (s != NULL && !silent && sVoiceCount < kMaxVoices) {
+        sVoices[sVoiceCount++] = (Voice){ id, s->samples, s->frames, 0, gain, copy };
         added = true;
         if (!sRunning)
             start = sRunning = true;
@@ -362,7 +425,7 @@ static void play(SystemSoundID id, void (^block)(void)) {
     }
     if (!added) {
         /* Nothing to play: the completion still runs. */
-        Voice v = { id, NULL, 0, 0, copy };
+        Voice v = { id, NULL, 0, 0, 1, copy };
         voiceDone(v);
     }
 }
@@ -370,19 +433,19 @@ static void play(SystemSoundID id, void (^block)(void)) {
 void AudioServicesPlaySystemSound(SystemSoundID inSystemSoundID) {
     if (inSystemSoundID == kSystemSoundID_FlashScreen)
         return;
-    play(inSystemSoundID, NULL);
+    play(inSystemSoundID, false, NULL);
 }
 
 void AudioServicesPlayAlertSound(SystemSoundID inSystemSoundID) {
-    play(inSystemSoundID, NULL);
+    play(inSystemSoundID, true, NULL);
 }
 
 void AudioServicesPlaySystemSoundWithCompletion(SystemSoundID inSystemSoundID, void (^inCompletionBlock)(void)) {
-    play(inSystemSoundID, inCompletionBlock);
+    play(inSystemSoundID, false, inCompletionBlock);
 }
 
 void AudioServicesPlayAlertSoundWithCompletion(SystemSoundID inSystemSoundID, void (^inCompletionBlock)(void)) {
-    play(inSystemSoundID, inCompletionBlock);
+    play(inSystemSoundID, true, inCompletionBlock);
 }
 
 OSStatus AudioServicesAddSystemSoundCompletion(SystemSoundID inSystemSoundID, CFRunLoopRef inRunLoop,
