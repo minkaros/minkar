@@ -4,8 +4,10 @@ the software drivers' path (the image copied to a host-visible buffer,
 the CPU copying that into the drawable), after the GPU's copy finishes;
 wsi_common_minkar_layer.m stands in for the Metal layer code; BGRA8 only.
 RADV lists VK_EXT_metal_surface, and its WSI extensions, where the
-platform has it. Chosen when
-<Metal/Metal.h> is missing.
+platform has it. Chosen on Minkar (the cross file's "minkar" property
+and -DMESA_MINKAR), not by whether <Metal/Metal.h> is there: Minkar has a
+Metal.framework of its own since 19 Nov 2026, without the color spaces
+and EDR metadata the upstream layer code uses.
 
 --- a/src/amd/vulkan/radv_instance.c
 +++ b/src/amd/vulkan/radv_instance.c
@@ -40,7 +42,7 @@ platform has it. Chosen when
 -    'appleframeworks',
 -    modules : ['QuartzCore', 'Metal']
 -  )
-+  if cc.has_header('Metal/Metal.h')
++  if not meson.get_external_property('minkar', false)
 +    vulkan_wsi_deps += dependency(
 +      'appleframeworks',
 +      modules : ['QuartzCore', 'Metal']
@@ -64,7 +66,7 @@ platform has it. Chosen when
  
  if with_platform_macos
 -  files_vulkan_wsi += files('wsi_common_metal.c', 'wsi_common_metal_layer.m')
-+  if cc.has_header('Metal/Metal.h')
++  if not meson.get_external_property('minkar', false)
 +    files_vulkan_wsi += files('wsi_common_metal.c', 'wsi_common_metal_layer.m')
 +  else
 +    # Minkar: CAMetalLayer's drawables are IOSurfaces, filled by the CPU.
@@ -82,7 +84,7 @@ platform has it. Chosen when
 +/* Without Metal (Minkar), every driver presents as the software ones do:
 + * its image is copied to a host-visible buffer, which the CPU copies into
 + * the layer's drawable. */
-+#if __has_include(<Metal/Metal.h>)
++#if !defined(MESA_MINKAR)
 +#define WSI_METAL_HAS_METAL true
 +#else
 +#define WSI_METAL_HAS_METAL false
@@ -101,7 +103,7 @@ platform has it. Chosen when
  static const VkFormat available_surface_formats[] = {
     VK_FORMAT_B8G8R8A8_SRGB,
     VK_FORMAT_B8G8R8A8_UNORM,
-+#if __has_include(<Metal/Metal.h>)  /* Minkar's drawables are BGRA8 */
++#if !defined(MESA_MINKAR)  /* Minkar's drawables are BGRA8 */
     VK_FORMAT_R16G16B16A16_SFLOAT,
     VK_FORMAT_A2R10G10B10_UNORM_PACK32,
     VK_FORMAT_A2B10G10R10_UNORM_PACK32,

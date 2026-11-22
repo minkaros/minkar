@@ -10,9 +10,9 @@ strip = '@TC@/llvm-strip'
 pkg-config = '/usr/bin/pkg-config'
 
 [built-in options]
-c_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
-objc_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
-cpp_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+c_args = ['-DHAVE_TSERVER', '-DMESA_MINKAR', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+objc_args = ['-DHAVE_TSERVER', '-DMESA_MINKAR', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+cpp_args = ['-DHAVE_TSERVER', '-DMESA_MINKAR', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
 c_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
 objc_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
 cpp_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
@@ -26,4 +26,6 @@ cpu = 'x86_64'
 endian = 'little'
 
 [properties]
+# The Metal WSI presents through CAMetalLayer's IOSurfaces (patch 0005).
+minkar = true
 pkg_config_libdir = ['@SDK@/usr/lib/pkgconfig']
