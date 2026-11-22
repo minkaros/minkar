@@ -573,13 +573,14 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
 - (void)displayChanged:(NSButton *)sender
 {
     BOOL full = sender == _namePassword;
-    [self setLoginOption:@"SHOWFULLNAME" value:full ? @YES : nil];
+    /* As the reference: 1 or 0, not removed. */
+    [self setLoginOption:@"SHOWFULLNAME" value:@(full)];
     [self showSelection];
 }
 
 - (void)powerChanged:(NSButton *)sender
 {
-    [self setLoginOption:@"PowerOffDisabled" value:[sender state] == NSOnState ? nil : @YES];
+    [self setLoginOption:@"PowerOffDisabled" value:@([sender state] != NSOnState)];
     [self showSelection];
 }
 
