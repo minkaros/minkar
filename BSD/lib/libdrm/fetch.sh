@@ -42,15 +42,21 @@ name=$(awk '$1 == "file" { print $2 }' "$manifest")
 file=$cache/${name:-$(basename "$url")}
 dir=${file%.tar.*}
 mkdir -p "$cache"
+# Two directories built in parallel may fetch the same MANIFEST (pcre2 and
+# pcre2/host): each downloads and unpacks into its own temporary name and
+# moves it in whole, so neither reads the other's half-written file.
 if [ ! -f "$file" ]; then
-	curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o "$file.part" "$url" || { rm -f "$file.part"; echo "fetch.sh: cannot fetch $url" >&2; exit 1; }
-	mv "$file.part" "$file"
+	part=$file.part.$$
+	curl -sfL --retry 5 --retry-delay 3 --retry-all-errors -o "$part" "$url" || { rm -f "$part"; echo "fetch.sh: cannot fetch $url" >&2; exit 1; }
+	mv -f "$part" "$file"
 fi
 got=$(sha256sum "$file" | awk '{ print $1 }')
 [ "$got" = "$sum" ] || { echo "fetch.sh: $file: SHA-256 $got, MANIFEST wants $sum" >&2; exit 1; }
 if [ ! -d "$dir" ]; then
-	mkdir -p "$dir.part"
-	tar -C "$dir.part" --strip-components=1 -xf "$file"
-	mv "$dir.part" "$dir"
+	part=$dir.part.$$
+	rm -rf "$part" && mkdir -p "$part"
+	tar -C "$part" --strip-components=1 -xf "$file" || { rm -rf "$part"; exit 1; }
+	# Unpacked meanwhile by the other: keep that one.
+	mv -T "$part" "$dir" 2>/dev/null || rm -rf "$part"
 fi
 echo "$dir"
