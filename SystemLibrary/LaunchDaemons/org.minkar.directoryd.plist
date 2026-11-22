@@ -5,8 +5,8 @@
  Copyright (c) 2026 The Minkar contributors
  Part of Minkar.
 
- directoryd: users and groups for libinfo, under the service name the
- sandbox profiles allow. Started on demand; it answers from the local
+ directoryd: users and groups for libinfo, and OpenDirectory's API, under
+ the service names the sandbox profiles allow. Started on demand; it answers from the local
  files and never asks itself (XBS_DISABLE_LIBINFO).
 -->
 <plist version="1.0">
@@ -20,6 +20,8 @@
 	<key>MachServices</key>
 	<dict>
 		<key>com.apple.system.opendirectoryd.libinfo</key>
+		<true/>
+		<key>com.apple.system.opendirectoryd.api</key>
 		<true/>
 	</dict>
 	<key>EnvironmentVariables</key>

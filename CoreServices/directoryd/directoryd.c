@@ -17,6 +17,10 @@
  * told it is out of date: when the account files change (written in
  * place or replaced), directoryd says so (pwd_mkdb says so too, before
  * the tools that change them return).
+ *
+ * It is also OpenDirectory's service (odapi.c), as the reference's
+ * opendirectoryd answers both: the framework's sessions, nodes, queries
+ * and passwords.
  */
 
 #include <dispatch/dispatch.h>
@@ -35,6 +39,8 @@
 #include <xpc/xpc.h>
 #include <xpc/launchd.h>
 #include <bsm/audit.h>
+
+#include "odapi.h"
 
 #define SERVICE		"com.apple.system.opendirectoryd.libinfo"
 
@@ -270,6 +276,8 @@ int main(void) {
 		return 1;
 	}
 	watchAccounts();
+	/* OpenDirectory's API, answered on its own queue. */
+	odapi_start();
 	for (;;) {
 		xpc_object_t request = NULL;
 		mach_port_t reply_port = MACH_PORT_NULL;

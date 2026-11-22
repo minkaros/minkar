@@ -12,12 +12,20 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	directoryd
-SRCS =	directoryd.c
+.PATH: ${ROOT_SOURCE_DIR}/Frameworks/OpenDirectory/Core
+SRCS =	directoryd.c odapi.c schema.c
 MAN =
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-incompatible-sysroot -Wno-nullability-completeness
+	-Wno-incompatible-sysroot -Wno-nullability-completeness -fblocks \
+	-I${ROOT_SOURCE_DIR}/Frameworks/OpenDirectory/Core \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks/OpenDirectory.framework/Frameworks \
+	-I${ROOT_SOURCE_DIR}/BSD/lib/libpw -include pw_compat.h \
+	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
+LDADD += -framework CoreFoundation \
+	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libpw -lpw \
+	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 
 all: to-sysroot
 

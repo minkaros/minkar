@@ -94,10 +94,12 @@ navega y la resolución cambia desde Preferencias del sistema, con el lenguaje v
 Atlas. Detalle: [Atlas.md](Atlas.md).
 
 - [ ] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
+  Directory Services hecho: OpenDirectory (APSL) y su servicio en `directoryd` (usuarios,
+  grupos, contraseñas; prueba `opendirectory`). Falta: la ventana de inicio de sesión, la sesión del usuario, la pantalla bloqueada.
 - [ ] Menús: MB0–MB2 hechos; MB3 parcial (falta la pantalla bloqueada).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
-- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios espera a Directory Services.
+- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios es el siguiente.
 - [ ] AppKit y el lenguaje visual de Atlas en todo el sistema.
 - [ ] Órdenes: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 

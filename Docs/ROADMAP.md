@@ -92,10 +92,12 @@ and the resolution changes from System Preferences, in the Atlas visual language
 [Atlas.md](Atlas.md).
 
 - [ ] LoginWindow: authentication through Directory Services, the user's `LaunchAgents`, Lock Screen.
+  Directory Services done: OpenDirectory (APSL) and its service in `directoryd` (users,
+  groups, passwords; test `opendirectory`). Left: the login window, the user's session, Lock Screen.
 - [ ] Menus: MB0–MB2 done; MB3 partial (Lock Screen left).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
-- [ ] System Preferences: the app and its panes, with Notifications; the Users pane waits for Directory Services.
+- [ ] System Preferences: the app and its panes, with Notifications; the Users pane is next.
 - [ ] AppKit and the Atlas visual language across the system.
 - [ ] Commands: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 
