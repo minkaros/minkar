@@ -19,8 +19,8 @@ code marks it `// SHORTCUT(<milestone>):`.
   exceptions for icons: the Faience and Faenza themes by Matthieu James (GPL-3), separate
   data files with their license and SVG sources in `SystemLibrary/Icons` (installed in
   `/System/Library/Icons`), without brand icons; and, for the menu bar's status items,
-  Google's Material Symbols (Outlined, weight 400, optical size 20 px; Apache-2.0),
-  pinned by commit and SHA-256 in `SystemLibrary/MenuBarIcons` (installed in
+  Lucide's icons (stroke 2; ISC, MIT for those from Feather), pinned by commit and
+  SHA-256 in `SystemLibrary/MenuBarIcons` (installed in
   `/System/Library/MenuBarIcons`), only the icons the menu bar uses. No code links with
   them.
 - **Look.** Folders are blue (Faience-Azur), with sand and orange as alternatives. App

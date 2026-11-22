@@ -2,11 +2,11 @@
 # Copyright (c) 2026 The Minkar contributors
 #
 # The menu bar's icons: the name each is installed under, then the
-# Material Symbols icon it comes from (Outlined, weight 400, optical size 20 px).
-audio-volume-high	volume_up
-audio-volume-medium	volume_down
-audio-volume-low	volume_mute
-audio-volume-muted	volume_off
-network-wired		settings_ethernet
-network-offline		signal_disconnected
-video-display		desktop_windows
+# Lucide icon it comes from (24 px grid, stroke 2).
+audio-volume-high	volume-2
+audio-volume-medium	volume-1
+audio-volume-low	volume
+audio-volume-muted	volume-x
+network-wired		ethernet-port
+network-offline		unplug
+video-display		monitor

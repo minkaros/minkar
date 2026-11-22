@@ -9,6 +9,7 @@ recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-22 | The menu bar's icons are Lucide's (stroke 2; ISC), pinned by commit and SHA-256, in place of Material Symbols, chosen the same day | [Atlas.md](Atlas.md#1-scope-and-rules) |
 | 2026-11-22 | The menu bar's icons are Google's Material Symbols (Outlined, weight 400, 20 px; Apache-2.0), a second exception to no third-party artwork, pinned by commit and SHA-256; Faience's menu bar group goes | [Atlas.md](Atlas.md#1-scope-and-rules) |
 | 2026-11-21 | Platypus and Sloth are pinned to 5.4.1 and 3.4, their last releases with a minimum of 10.15 or lower, so they stay in app set 19 | [tools/symbols/reference-apps.tsv](../tools/symbols/reference-apps.tsv) |
 | 2026-11-21 | Only the five entry documents (README, ROADMAP, BUILDING, CONTRIBUTING, Compatibility) have Spanish copies | [CONTRIBUTING.md](CONTRIBUTING.md#language) |

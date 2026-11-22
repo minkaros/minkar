@@ -218,10 +218,11 @@ GPL or LGPL code is linked statically into Minkar's own.
 - Faience and Faenza icon themes (Matthieu James) - GPL-3.0, Atlas's
   icons: separate data files that keep their license; no code links with
   them (SystemLibrary/Icons/COPYING, AUTHORS, README.md)
-- Material Symbols (Google), from material-design-icons at commit
-  10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7 - Apache-2.0, the menu bar's
-  icons: unmodified SVGs and PNGs rendered from them, separate data files
-  that keep their license (SystemLibrary/MenuBarIcons/LICENSE, README.md)
+- Lucide icons (Lucide Icons and Contributors; those from Feather, Cole
+  Bemis), from lucide at commit e00b2b26350fe4dfb6f5273aa366f94974430903 -
+  ISC (and MIT for the Feather ones), the menu bar's icons: unmodified SVGs
+  and PNGs rendered from them, separate data files that keep their license
+  (SystemLibrary/MenuBarIcons/LICENSE, README.md)
 
 =======================================================================
 2. Test tools (installed only in test setups, not in the system image)
