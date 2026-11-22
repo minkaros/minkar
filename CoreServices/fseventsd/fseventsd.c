@@ -13,8 +13,11 @@
  * MustScanSubDirs|UserDropped on its root; one whose port dies is
  * forgotten.
  *
- * SHORTCUT(K0-history): no history is kept on the volumes, so a stream
- * asking for events since an ID gets only HistoryDone, then what comes.
+ * The events are also kept on their volumes (history.c). A stream that
+ * asks for the events since an ID gets them from there first, ending
+ * with HistoryDone, while the events that come meanwhile wait for it;
+ * when the history does not go back that far it gets MustScanSubDirs on
+ * what it watches, as on the reference platform.
  */
 
 #include <bsm/libbsm.h>
@@ -28,16 +31,20 @@
 #include <string.h>
 #include <sys/fsevents.h>
 #include <sys/ioctl.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "FSEvents.h"
 #include "FSEventsMessage.h"
 #include "fseventsdServer.h"
+#include "history.h"
 
 #define LAST_ID_FILE	"/var/db/fseventsd/last-id"
 #define ID_SAVE_EVERY	256
 #define MAX_STREAMS	256
+#define MAX_WAITING	4096	/* events kept for a stream while its history is sent */
+#define REPLAY_TIMEOUT	2000	/* ms a history message may wait for room */
 
 typedef struct {
 	uint32_t id;		/* 0: free */
@@ -47,6 +54,9 @@ typedef struct {
 	int dropped;		/* a message was not taken */
 	int count;
 	char **paths;		/* without a trailing slash; "/" for the root */
+	int replaying;		/* its history is being sent: events wait */
+	FSEventsMessage *waiting;
+	int waitingCount;
 } Stream;
 
 static Stream streams[MAX_STREAMS];
@@ -97,17 +107,18 @@ freeStream(Stream *s)
 	for (int i = 0; i < s->count; i++)
 		free(s->paths[i]);
 	free(s->paths);
+	free(s->waiting);
 	if (s->port != MACH_PORT_NULL)
 		mach_port_deallocate(mach_task_self(), s->port);
 	memset(s, 0, sizeof(*s));
 }
 
-/* Whether path is a watched path or under it. */
+/* Whether path is one of the watched paths or under one. */
 static int
-watches(const Stream *s, const char *path)
+watchesPaths(char *const *paths, int count, const char *path)
 {
-	for (int i = 0; i < s->count; i++) {
-		const char *w = s->paths[i];
+	for (int i = 0; i < count; i++) {
+		const char *w = paths[i];
 		size_t n = strlen(w);
 		if (strcmp(w, "/") == 0)
 			return 1;
@@ -118,21 +129,40 @@ watches(const Stream *s, const char *path)
 }
 
 static int
+watches(const Stream *s, const char *path)
+{
+	return watchesPaths(s->paths, s->count, path);
+}
+
+static void
+makeMessage(FSEventsMessage *msg, mach_port_t port, uint32_t stream, uint64_t id,
+    uint32_t flags, const char *path)
+{
+	memset(msg, 0, sizeof(*msg));
+	msg->header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+	msg->header.msgh_size = sizeof(*msg);
+	msg->header.msgh_remote_port = port;
+	msg->header.msgh_id = kFSEventsMessageID;
+	msg->id = id;
+	msg->flags = flags;
+	msg->stream = stream;
+	strlcpy(msg->path, path, sizeof(msg->path));
+}
+
+static int
+sendMessage(FSEventsMessage *msg, mach_msg_timeout_t timeout)
+{
+	return mach_msg(&msg->header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(*msg), 0,
+	    MACH_PORT_NULL, timeout, MACH_PORT_NULL);
+}
+
+static int
 sendEvent(Stream *s, uint64_t id, uint32_t flags, const char *path)
 {
 	FSEventsMessage msg;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
-	msg.header.msgh_size = sizeof(msg);
-	msg.header.msgh_remote_port = s->port;
-	msg.header.msgh_id = kFSEventsMessageID;
-	msg.id = id;
-	msg.flags = flags;
-	msg.stream = s->id;
-	strlcpy(msg.path, path, sizeof(msg.path));
-	return mach_msg(&msg.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(msg), 0,
-	    MACH_PORT_NULL, 0, MACH_PORT_NULL);
+	makeMessage(&msg, s->port, s->id, id, flags, path);
+	return sendMessage(&msg, 0);
 }
 
 /* One event to every stream that watches its path; called with lock held. */
@@ -150,6 +180,18 @@ dispatchEvent(uint64_t id, uint32_t flags, pid_t pid, const char *path)
 				continue;
 			if (s->flags & kFSEventsRegisterMarkSelf)
 				f |= kFSEventStreamEventFlagOwnEvent;
+		}
+		/* Its history is being sent: this one waits for it. */
+		if (s->replaying) {
+			if (s->waitingCount == MAX_WAITING) {
+				s->dropped = 1;
+				continue;
+			}
+			if (s->waitingCount % 64 == 0)
+				s->waiting = realloc(s->waiting, sizeof(FSEventsMessage) *
+				    (size_t)(s->waitingCount + 64));
+			makeMessage(&s->waiting[s->waitingCount++], s->port, s->id, id, f, path);
+			continue;
 		}
 		if (s->dropped && sendEvent(s, id, kFSEventStreamEventFlagMustScanSubDirs |
 		    kFSEventStreamEventFlagUserDropped, s->paths[0]) == MACH_MSG_SUCCESS)
@@ -258,8 +300,17 @@ parseEvent(const uint8_t *buf, size_t len)
 		off += argLen;
 	}
 
+	if (type == FSE_UNMOUNT_PENDING) {
+		pthread_mutex_lock(&lock);
+		historyForgetUnmounted();
+		pthread_mutex_unlock(&lock);
+		return off;
+	}
 	if (type < 0 || type >= FSE_MAX_EVENTS || npaths == 0 ||
-	    type == FSE_DOCID_CREATED || type == FSE_DOCID_CHANGED || type == FSE_UNMOUNT_PENDING)
+	    type == FSE_DOCID_CREATED || type == FSE_DOCID_CHANGED)
+		return off;
+	/* The history's own writes are not events. */
+	if (historyIsOwnPath(paths[0]))
 		return off;
 
 	pthread_mutex_lock(&lock);
@@ -271,7 +322,9 @@ parseEvent(const uint8_t *buf, size_t len)
 		modes[1] = modes[0];
 	for (int i = 0; i < npaths; i++) {
 		uint64_t id = ++currentID;
-		dispatchEvent(id, itemFlags(type, modes[i]) | dropped, pid, paths[i]);
+		uint32_t flags = itemFlags(type, modes[i]) | dropped;
+		dispatchEvent(id, flags, pid, paths[i]);
+		historyAppend(id, flags, paths[i]);
 	}
 	if (currentID - savedID >= ID_SAVE_EVERY)
 		saveID(currentID);
@@ -321,9 +374,130 @@ readEvents(void *unused)
 		size_t off = 0, used;
 		while ((used = parseEvent(buf + off, have - off)) > 0)
 			off += used;
+		pthread_mutex_lock(&lock);
+		historyFlush();
+		pthread_mutex_unlock(&lock);
 		memmove(buf, buf + off, have - off);
 		have -= off;
 	}
+	return NULL;
+}
+
+/* ---- A stream's history ---- */
+
+typedef struct {
+	uint32_t stream;
+	mach_port_t port;	/* a send right of the job's own */
+	uint64_t since, upto;
+	char **paths;
+	int count;
+	int failed;
+} ReplayJob;
+
+static int
+replaySend(void *context, uint64_t id, uint32_t flags, const char *path)
+{
+	ReplayJob *j = context;
+	FSEventsMessage msg;
+
+	if (!watchesPaths(j->paths, j->count, path))
+		return 0;
+	makeMessage(&msg, j->port, j->stream, id, flags, path);
+	if (sendMessage(&msg, REPLAY_TIMEOUT) != MACH_MSG_SUCCESS) {
+		j->failed = 1;
+		return 1;
+	}
+	return 0;
+}
+
+/* The volumes a stream's history is on: each watched path's, and those
+ * mounted under a watched path. */
+static int
+replayVolumes(const ReplayJob *j, char (*mounts)[MNAMELEN], int max)
+{
+	struct statfs *list;
+	int n = getfsstat(NULL, 0, MNT_NOWAIT), count = 0;
+
+	if (n <= 0 || (list = calloc((size_t)n, sizeof(*list))) == NULL)
+		return 0;
+	n = getfsstat(list, n * (int)sizeof(*list), MNT_NOWAIT);
+	for (int i = 0; i < n && count < max; i++) {
+		const char *m = list[i].f_mntonname;
+		int wanted = watchesPaths(j->paths, j->count, m);
+		for (int k = 0; k < j->count && !wanted; k++) {
+			char mount[MNAMELEN];
+			if (historyMountOf(j->paths[k], mount, sizeof(mount)) == 0 && strcmp(mount, m) == 0)
+				wanted = 1;
+		}
+		if (wanted)
+			strlcpy(mounts[count++], m, MNAMELEN);
+	}
+	free(list);
+	return count;
+}
+
+static void *
+replay(void *arg)
+{
+	ReplayJob *j = arg;
+	char mounts[32][MNAMELEN];
+	int n = replayVolumes(j, mounts, 32);
+	FSEventsMessage msg;
+
+	for (int v = 0; v < n && !j->failed; v++) {
+		char uuid[37];
+		uint64_t oldest;
+
+		if (historyUUID(mounts[v], uuid) != 0)
+			continue;	/* the volume keeps no history */
+		oldest = historyOldest(mounts[v]);
+		/* The history does not go back that far: rescan. */
+		if (j->since < j->upto && (oldest == 0 || j->since + 1 < oldest)) {
+			for (int k = 0; k < j->count; k++) {
+				char mount[MNAMELEN];
+				const char *path = j->paths[k];
+				if (historyMountOf(path, mount, sizeof(mount)) != 0 || strcmp(mount, mounts[v]) != 0)
+					path = mounts[v];	/* mounted under it */
+				makeMessage(&msg, j->port, j->stream, j->since + 1,
+				    kFSEventStreamEventFlagMustScanSubDirs, path);
+				if (sendMessage(&msg, REPLAY_TIMEOUT) != MACH_MSG_SUCCESS)
+					j->failed = 1;
+			}
+		}
+		if (!j->failed)
+			historyReplay(mounts[v], j->since, j->upto, replaySend, j);
+	}
+	makeMessage(&msg, j->port, j->stream, j->upto, kFSEventStreamEventFlagHistoryDone, "");
+	if (!j->failed && sendMessage(&msg, REPLAY_TIMEOUT) != MACH_MSG_SUCCESS)
+		j->failed = 1;
+
+	/* Then the events that waited. */
+	pthread_mutex_lock(&lock);
+	for (int i = 0; i < MAX_STREAMS; i++) {
+		Stream *s = &streams[i];
+		if (s->id != j->stream || !s->replaying)
+			continue;
+		if (j->failed)
+			s->dropped = 1;
+		for (int k = 0; k < s->waitingCount; k++) {
+			if (s->dropped && sendEvent(s, s->waiting[k].id, kFSEventStreamEventFlagMustScanSubDirs |
+			    kFSEventStreamEventFlagUserDropped, s->paths[0]) == MACH_MSG_SUCCESS)
+				s->dropped = 0;
+			if (sendMessage(&s->waiting[k], 0) != MACH_MSG_SUCCESS)
+				s->dropped = 1;
+		}
+		free(s->waiting);
+		s->waiting = NULL;
+		s->waitingCount = 0;
+		s->replaying = 0;
+	}
+	pthread_mutex_unlock(&lock);
+
+	mach_port_deallocate(mach_task_self(), j->port);
+	for (int k = 0; k < j->count; k++)
+		free(j->paths[k]);
+	free(j->paths);
+	free(j);
 	return NULL;
 }
 
@@ -331,8 +505,8 @@ readEvents(void *unused)
 
 kern_return_t
 fsedsrv_register_stream(mach_port_t server, audit_token_t token, mach_port_t port,
-    uint32_t flags, char *paths, mach_msg_type_number_t pathsCount, uint32_t *stream,
-    uint64_t *current)
+    uint32_t flags, char *paths, mach_msg_type_number_t pathsCount, uint64_t since,
+    uint32_t *stream, uint64_t *current)
 {
 	(void)server;
 	*stream = 0;
@@ -369,6 +543,29 @@ fsedsrv_register_stream(mach_port_t server, audit_token_t token, mach_port_t por
 		if (previous != MACH_PORT_NULL)
 			mach_port_deallocate(mach_task_self(), previous);
 		*stream = s->id;
+		/* Events since an ID: the history first, on a thread of its own,
+		   the events that come meanwhile waiting for it. */
+		if (since != kFSEventStreamEventIdSinceNow) {
+			ReplayJob *j = calloc(1, sizeof(*j));
+			pthread_t thread;
+
+			if (j != NULL && mach_port_mod_refs(mach_task_self(), port,
+			    MACH_PORT_RIGHT_SEND, 1) == KERN_SUCCESS) {
+				j->stream = s->id;
+				j->port = port;
+				j->since = since;
+				j->upto = currentID;
+				j->count = s->count;
+				j->paths = calloc((size_t)s->count, sizeof(char *));
+				for (int k = 0; k < s->count; k++)
+					j->paths[k] = strdup(s->paths[k]);
+				s->replaying = 1;
+				historyFlush();
+				pthread_create(&thread, NULL, replay, j);
+				pthread_detach(thread);
+			} else
+				free(j);
+		}
 		pthread_mutex_unlock(&lock);
 		return KERN_SUCCESS;
 	}
@@ -395,6 +592,53 @@ fsedsrv_current_event_id(mach_port_t server, uint64_t *current)
 	(void)server;
 	pthread_mutex_lock(&lock);
 	*current = currentID;
+	pthread_mutex_unlock(&lock);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+fsedsrv_device_uuid(mach_port_t server, int32_t device, fsed_uuid_t uuid)
+{
+	char mount[MNAMELEN];
+
+	(void)server;
+	uuid[0] = '\0';
+	pthread_mutex_lock(&lock);
+	if (historyMountOfDevice((dev_t)device, mount, sizeof(mount)) == 0)
+		historyUUID(mount, uuid);
+	pthread_mutex_unlock(&lock);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+fsedsrv_last_event_before(mach_port_t server, int32_t device, int64_t time, uint64_t *event)
+{
+	char mount[MNAMELEN];
+
+	(void)server;
+	*event = 0;
+	pthread_mutex_lock(&lock);
+	historyFlush();
+	if (historyMountOfDevice((dev_t)device, mount, sizeof(mount)) == 0)
+		*event = historyLastBefore(mount, (double)time);
+	pthread_mutex_unlock(&lock);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+fsedsrv_purge_device(mach_port_t server, audit_token_t token, int32_t device, uint64_t event,
+    int32_t *result)
+{
+	char mount[MNAMELEN];
+
+	(void)server;
+	*result = 0;
+	if (audit_token_to_euid(token) != 0)
+		return KERN_SUCCESS;
+	pthread_mutex_lock(&lock);
+	historyFlush();
+	if (historyMountOfDevice((dev_t)device, mount, sizeof(mount)) == 0)
+		*result = historyPurge(mount, event) == 0;
 	pthread_mutex_unlock(&lock);
 	return KERN_SUCCESS;
 }

@@ -10,6 +10,10 @@
  * when none waited), then go to the callback on the stream's dispatch
  * queue or run loop. Without kFSEventStreamCreateFlagFileEvents the paths
  * are the directories the items are in, with a trailing slash, once each.
+ * A stream since an earlier event gets fseventsd's history first (the
+ * volumes', ending with HistoryDone). A stream relative to a device
+ * watches and reports paths from the root of the device's volume; up to
+ * eight exclusion paths keep their events out.
  */
 
 #include "FSEvents.h"
@@ -22,8 +26,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#define MAX_EXCLUSIONS	8
 
 typedef struct {
 	char *path;
@@ -45,6 +52,11 @@ struct __FSEventStream {
 	dispatch_queue_t queue;
 	CFRunLoopRef runLoop;
 	CFRunLoopSourceRef source;
+
+	dev_t device;		/* relative to a device: it, and its mount point */
+	char *mount;
+	char *exclusions[MAX_EXCLUSIONS];
+	int exclusionCount;
 
 	mach_port_t port;
 	uint32_t stream;
@@ -107,15 +119,62 @@ FSEventStreamCreate(CFAllocatorRef allocator, FSEventStreamCallback callback,
 	return s;
 }
 
-/* SHORTCUT(K0-device): streams relative to a device are not kept. */
+/* The mount point of the volume on a device, or NULL. */
+static char *
+mountOfDevice(dev_t device)
+{
+	struct statfs *list;
+	int n = getfsstat(NULL, 0, MNT_NOWAIT);
+	char *found = NULL;
+
+	if (n <= 0 || (list = calloc((size_t)n, sizeof(*list))) == NULL)
+		return NULL;
+	n = getfsstat(list, n * (int)sizeof(*list), MNT_NOWAIT);
+	for (int i = 0; i < n && found == NULL; i++) {
+		struct stat st;
+		if (stat(list[i].f_mntonname, &st) == 0 && st.st_dev == device)
+			found = strdup(list[i].f_mntonname);
+	}
+	free(list);
+	return found;
+}
+
+/* The paths, relative to the device's root, watched from its mount
+   point; the events' paths are given back relative to that root. */
 FSEventStreamRef
 FSEventStreamCreateRelativeToDevice(CFAllocatorRef allocator, FSEventStreamCallback callback,
     FSEventStreamContext *context, dev_t deviceToWatch, CFArrayRef pathsToWatchRelativeToDevice,
     FSEventStreamEventId sinceWhen, CFTimeInterval latency, FSEventStreamCreateFlags flags)
 {
-	(void)allocator; (void)callback; (void)context; (void)deviceToWatch;
-	(void)pathsToWatchRelativeToDevice; (void)sinceWhen; (void)latency; (void)flags;
-	return NULL;
+	char *mount;
+	CFMutableArrayRef absolute;
+	FSEventStreamRef s;
+
+	if (pathsToWatchRelativeToDevice == NULL || (mount = mountOfDevice(deviceToWatch)) == NULL)
+		return NULL;
+	absolute = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	for (CFIndex i = 0; i < CFArrayGetCount(pathsToWatchRelativeToDevice); i++) {
+		char relative[PATH_MAX], path[PATH_MAX];
+		const char *r = relative;
+		if (!CFStringGetFileSystemRepresentation(CFArrayGetValueAtIndex(pathsToWatchRelativeToDevice, i),
+		    relative, sizeof(relative)))
+			continue;
+		while (*r == '/')
+			r++;
+		snprintf(path, sizeof(path), "%s/%s", strcmp(mount, "/") == 0 ? "" : mount, r);
+		CFStringRef p = CFStringCreateWithFileSystemRepresentation(NULL, path);
+		CFArrayAppendValue(absolute, p);
+		CFRelease(p);
+	}
+	s = FSEventStreamCreate(allocator, callback, context, absolute, sinceWhen, latency, flags);
+	CFRelease(absolute);
+	if (s == NULL) {
+		free(mount);
+		return NULL;
+	}
+	s->device = deviceToWatch;
+	s->mount = mount;
+	return s;
 }
 
 void
@@ -137,6 +196,9 @@ FSEventStreamRelease(FSEventStreamRef s)
 	if (s->context.release != NULL && s->context.info != NULL)
 		s->context.release(s->context.info);
 	CFRelease(s->paths);
+	free(s->mount);
+	for (int i = 0; i < s->exclusionCount; i++)
+		free(s->exclusions[i]);
 	pthread_mutex_destroy(&s->lock);
 	free(s);
 }
@@ -152,8 +214,7 @@ FSEventStreamGetLatestEventId(ConstFSEventStreamRef s)
 dev_t
 FSEventStreamGetDeviceBeingWatched(ConstFSEventStreamRef s)
 {
-	(void)s;
-	return 0;
+	return s->device;
 }
 
 CFArrayRef
@@ -173,25 +234,48 @@ FSEventsGetCurrentEventId(void)
 	return current;
 }
 
+/* The volume's history, kept by fseventsd: a new UUID is a new history
+   (one whose earlier event IDs mean nothing). */
 CFUUIDRef
 FSEventsCopyUUIDForDevice(dev_t dev)
 {
-	(void)dev;
-	return NULL;	/* no per-volume history (SHORTCUT(K0-history)) */
+	fsed_uuid_t uuid;
+	mach_port_t port = server();
+
+	if (port == MACH_PORT_NULL || fsed_device_uuid(port, (int32_t)dev, uuid) != KERN_SUCCESS)
+		return NULL;
+	uuid[sizeof(uuid) - 1] = '\0';
+	if (uuid[0] == '\0')
+		return NULL;
+	CFStringRef string = CFStringCreateWithCString(NULL, uuid, kCFStringEncodingASCII);
+	CFUUIDRef result = CFUUIDCreateFromString(NULL, string);
+	CFRelease(string);
+	return result;
 }
 
 FSEventStreamEventId
 FSEventsGetLastEventIdForDeviceBeforeTime(dev_t dev, CFAbsoluteTime time)
 {
-	(void)dev; (void)time;
-	return 0;
+	uint64_t event = 0;
+	mach_port_t port = server();
+
+	if (port == MACH_PORT_NULL ||
+	    fsed_last_event_before(port, (int32_t)dev, (int64_t)time, &event) != KERN_SUCCESS)
+		return 0;
+	return event;
 }
 
+/* Root only, as on the reference platform. */
 Boolean
 FSEventsPurgeEventsForDeviceUpToEventId(dev_t dev, FSEventStreamEventId eventId)
 {
-	(void)dev; (void)eventId;
-	return true;
+	int32_t result = 0;
+	mach_port_t port = server();
+
+	if (port == MACH_PORT_NULL ||
+	    fsed_purge_device(port, (int32_t)dev, eventId, &result) != KERN_SUCCESS)
+		return false;
+	return result != 0;
 }
 
 CFStringRef
@@ -210,11 +294,41 @@ FSEventStreamShow(ConstFSEventStreamRef s)
 	CFRelease(d);
 }
 
+/* Up to eight paths whose events (and their contents') do not come,
+   resolved as the watched ones are. */
 Boolean
 FSEventStreamSetExclusionPaths(FSEventStreamRef s, CFArrayRef pathsToExclude)
 {
-	(void)s; (void)pathsToExclude;
-	return false;	/* SHORTCUT(K0): exclusions are not kept */
+	CFIndex count = pathsToExclude != NULL ? CFArrayGetCount(pathsToExclude) : 0;
+
+	if (count > MAX_EXCLUSIONS)
+		return false;
+	pthread_mutex_lock(&s->lock);
+	for (int i = 0; i < s->exclusionCount; i++)
+		free(s->exclusions[i]);
+	s->exclusionCount = 0;
+	for (CFIndex i = 0; i < count; i++) {
+		char raw[PATH_MAX], resolved[PATH_MAX], *p;
+		if (!CFStringGetFileSystemRepresentation(CFArrayGetValueAtIndex(pathsToExclude, i), raw, sizeof(raw)))
+			continue;
+		p = strdup(realpath(raw, resolved) ? resolved : raw);
+		while (strlen(p) > 1 && p[strlen(p) - 1] == '/')
+			p[strlen(p) - 1] = '\0';
+		s->exclusions[s->exclusionCount++] = p;
+	}
+	pthread_mutex_unlock(&s->lock);
+	return true;
+}
+
+static int
+excluded(FSEventStreamRef s, const char *path)
+{
+	for (int i = 0; i < s->exclusionCount; i++) {
+		size_t n = strlen(s->exclusions[i]);
+		if (strncmp(path, s->exclusions[i], n) == 0 && (path[n] == '\0' || path[n] == '/'))
+			return 1;
+	}
+	return 0;
 }
 
 /* ---- Delivering ---- */
@@ -332,16 +446,34 @@ static void
 addEvent(FSEventStreamRef s, const FSEventsMessage *m)
 {
 	char *path;
+	const char *eventPath = m->path;
 	FSEventStreamEventFlags flags = m->flags;
 	const FSEventStreamEventFlags system = kFSEventStreamEventFlagMustScanSubDirs |
 	    kFSEventStreamEventFlagUserDropped | kFSEventStreamEventFlagKernelDropped |
 	    kFSEventStreamEventFlagHistoryDone | kFSEventStreamEventFlagOwnEvent;
 
+	if (s->exclusionCount > 0 && !(flags & kFSEventStreamEventFlagHistoryDone) &&
+	    excluded(s, m->path))
+		return;
+	/* Relative to a device: the path from the device's root. */
+	if (s->mount != NULL && *eventPath != '\0') {
+		size_t n = strcmp(s->mount, "/") == 0 ? 0 : strlen(s->mount);
+		if (strncmp(eventPath, s->mount, n) == 0)
+			eventPath += n;
+		while (*eventPath == '/')
+			eventPath++;
+	}
+
 	if (s->flags & kFSEventStreamCreateFlagFileEvents)
-		path = strdup(m->path);
+		path = strdup(eventPath);
 	else {
-		path = (flags & kFSEventStreamEventFlagMustScanSubDirs) ? strdup(m->path) : directoryOf(m->path);
-		if (path[strlen(path) - 1] != '/') {
+		if (flags & kFSEventStreamEventFlagMustScanSubDirs)
+			path = strdup(eventPath);
+		else if (s->mount != NULL && strchr(eventPath, '/') == NULL)
+			path = strdup("");	/* the device's root */
+		else
+			path = directoryOf(eventPath);
+		if (*path != '\0' && path[strlen(path) - 1] != '/') {
 			char *slashed = malloc(strlen(path) + 2);
 			sprintf(slashed, "%s/", path);
 			free(path);
@@ -488,7 +620,7 @@ FSEventStreamStart(FSEventStreamRef s)
 	mach_port_set_attributes(mach_task_self(), s->port, MACH_PORT_LIMITS_INFO,
 	    (mach_port_info_t)&limits, MACH_PORT_LIMITS_INFO_COUNT);
 	kern_return_t kr = fsed_register_stream(srv, s->port, s->flags, paths,
-	    (mach_msg_type_number_t)length, &s->stream, &current);
+	    (mach_msg_type_number_t)length, s->sinceWhen, &s->stream, &current);
 	free(paths);
 	if (kr != KERN_SUCCESS || s->stream == 0) {
 		mach_port_mod_refs(mach_task_self(), s->port, MACH_PORT_RIGHT_RECEIVE, -1);
@@ -498,18 +630,8 @@ FSEventStreamStart(FSEventStreamRef s)
 	s->started = 1;
 	FSEventStreamRetain(s);
 	pthread_create(&s->reader, NULL, readEvents, s);
-
-	/* SHORTCUT(K0-history): nothing is replayed; history is done at once. */
-	if (s->sinceWhen != kFSEventStreamEventIdSinceNow) {
-		pthread_mutex_lock(&s->lock);
-		if (s->count == s->capacity) {
-			s->capacity = s->capacity ? s->capacity * 2 : 16;
-			s->pending = realloc(s->pending, sizeof(Event) * s->capacity);
-		}
-		s->pending[s->count++] = (Event){ strdup(""), kFSEventStreamEventFlagHistoryDone, current };
-		scheduleDelivery(s, 0);
-		pthread_mutex_unlock(&s->lock);
-	}
+	/* Since an earlier event: fseventsd sends the history, then
+	   HistoryDone, before what comes. */
 	return true;
 }
 

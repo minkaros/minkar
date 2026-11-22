@@ -13,7 +13,7 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	fseventsd
-SRCS =	fseventsd.c fseventsdServer.c
+SRCS =	fseventsd.c history.c fseventsdServer.c
 MAN =
 FSE =	${ROOT_SOURCE_DIR}/Frameworks/CoreServices/FSEvents
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

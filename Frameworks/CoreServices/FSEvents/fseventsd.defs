@@ -4,9 +4,13 @@
  * Part of Minkar.
  *
  * FSEvents' requests to fseventsd (Atlas.md, K0). A client registers
- * a stream (its port, its flags and the paths it watches, NUL-separated)
+ * a stream (its port, its flags, the paths it watches, NUL-separated, and
+ * the event it wants the history from, or kFSEventStreamEventIdSinceNow)
  * and gets the stream's number and the current event ID; fseventsd then
- * sends the port an FSEventsMessage (FSEventsMessage.h) per event.
+ * sends the port an FSEventsMessage (FSEventsMessage.h) per event: the
+ * history first, ending with HistoryDone, then the events as they come.
+ * The volumes' history: its UUID, the last event before a time, and
+ * purging it (root only).
  */
 
 subsystem fseventsd 29500;
@@ -20,6 +24,7 @@ serverprefix fsedsrv_;
 import "fseventsdTypes.h";
 
 type fsed_paths_t = array[*:32768] of char;
+type fsed_uuid_t = array[37] of char;
 
 routine register_stream(
 	server			: mach_port_t;
@@ -27,6 +32,7 @@ routine register_stream(
 	port			: mach_port_make_send_t;
 	flags			: uint32_t;
 	paths			: fsed_paths_t;
+	since			: uint64_t;
 	out stream		: uint32_t;
 	out current		: uint64_t);
 
@@ -38,3 +44,25 @@ simpleroutine unregister_stream(
 routine current_event_id(
 	server			: mach_port_t;
 	out current		: uint64_t);
+
+/* The volume's history UUID ("" when it keeps none), by its device. */
+routine device_uuid(
+	server			: mach_port_t;
+	device			: int32_t;
+	out uuid		: fsed_uuid_t);
+
+/* The last event on the device before a time (a CFAbsoluteTime, in
+ * whole seconds), or 0. */
+routine last_event_before(
+	server			: mach_port_t;
+	device			: int32_t;
+	time			: int64_t;
+	out event		: uint64_t);
+
+/* The device's history up to an event forgotten; root only. */
+routine purge_device(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	device			: int32_t;
+	event			: uint64_t;
+	out result		: int32_t);
