@@ -8,6 +8,7 @@
  * It changes only on NSWorkspace's notices: nothing polls.
  */
 
+#include <os/log.h>
 #import "DockModel.h"
 #include <fcntl.h>
 #include <notify.h>
@@ -22,6 +23,8 @@
 NSNotificationName const DockModelDidChangeNotification = @"DockModelDidChangeNotification";
 
 static NSString *const kPersistentApps = @"persistent-apps";
+static NSString *const kRecentApps = @"recent-apps";
+static const NSUInteger kMaxRecentApps = 3;
 
 /* Atlas's icons (SystemLibrary/Icons). */
 static NSString *const kTrashEmptyIconPath = @"/System/Library/Icons/system/user-trash.png";
@@ -165,6 +168,10 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     NSArray<DockTile *> *_persistent;
     NSArray<DockTile *> *_tiles;
     NSMutableArray<DockTile *> *_minimized;
+    NSMutableArray<NSURL *> *_recent;           /* newest first */
+    NSMutableArray<DockTile *> *_recentTiles;
+    /* minimize-to-application: the windows each app holds (pid -> IDs). */
+    NSMutableDictionary<NSNumber *, NSMutableArray<NSNumber *> *> *_minimizedInApps;
     dispatch_source_t _trashWatch;
 }
 
@@ -194,6 +201,13 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     _largeSize = sizePreference(defaults, @"largesize", 64);
     _magnification = [defaults boolForKey:@"magnification"];
     _autohide = [defaults boolForKey:@"autohide"];
+    /* Absent, these take the reference platform's defaults. */
+    _showIndicators = [defaults objectForKey:@"show-process-indicators"] ? [defaults boolForKey:@"show-process-indicators"] : YES;
+    _launchAnimation = [defaults objectForKey:@"launchanim"] ? [defaults boolForKey:@"launchanim"] : YES;
+    _minimizeToApplication = [defaults boolForKey:@"minimize-to-application"];
+    _minimizeEffect = [[defaults stringForKey:@"mineffect"] isEqualToString:@"scale"] ? DockMinimizeEffectScale
+                                                                                     : DockMinimizeEffectGenie;
+    _showRecents = [defaults objectForKey:@"show-recents"] ? [defaults boolForKey:@"show-recents"] : YES;
     orientation = [defaults stringForKey:@"orientation"];
     if ([orientation isEqualToString:@"left"])
         _orientation = DockOrientationLeft;
@@ -268,6 +282,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 - (void)preferencesChanged
 {
     [self reloadPreferences];
+    [self rebuild];         /* show-recents adds or takes tiles */
     [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
 }
 
@@ -353,6 +368,12 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
                                        NSWorkspaceDidTerminateApplicationNotification,
                                        NSWorkspaceDidActivateApplicationNotification ])
         [center addObserver:self selector:@selector(applicationsChanged:) name:name object:nil];
+    _recent = [NSMutableArray array];
+    for (NSURL *url in DockPersistentAppURLs([defaults arrayForKey:kRecentApps] ?: @[]))
+        if ([[NSFileManager defaultManager] fileExistsAtPath:[url path]] && [_recent count] < kMaxRecentApps)
+            [_recent addObject:url];
+    _recentTiles = [NSMutableArray array];
+    _minimizedInApps = [NSMutableDictionary dictionary];
     _trashTile = [[DockTile alloc] initTrash];
     [self watchTrash];
     [self rebuild];
@@ -425,12 +446,28 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     return _tiles;
 }
 
+- (void)saveRecent
+{
+    NSMutableArray *entries = [NSMutableArray array];
+
+    for (NSURL *url in _recent)
+        [entries addObject:DockPersistentAppEntry(url)];
+    [[NSUserDefaults standardUserDefaults] setObject:entries forKey:kRecentApps];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 /* The tiles again: the persistent ones with their running instances,
-   then the regular apps that run and are not kept. */
+   then the regular apps that run and are not kept, then the recent ones. */
 - (void)rebuild
 {
     NSMutableArray<DockTile *> *tiles = [NSMutableArray arrayWithArray:_persistent];
     NSMutableArray<DockTile *> *running = [NSMutableArray array];
+    NSMutableArray<NSURL *> *quit = [NSMutableArray array];
+
+    /* What ran before and is not kept: those that quit become recent. */
+    for (DockTile *tile in _tiles)
+        if (tile.application != nil && tile.kind == DockTileKindRunningApp && tile.URL != nil)
+            [quit addObject:tile.URL];
 
     for (DockTile *tile in _persistent)
         tile.application = nil;
@@ -463,8 +500,46 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
             tile.contentImage = nil;
             tile.bounceStart = 0;
         }
+    /* An app not kept that quit: the most recent of the recent ones. */
+    for (DockTile *tile in running)
+        [quit removeObject:tile.URL];
+    BOOL recentChanged = NO;
+    for (NSURL *url in quit) {
+        [_recent removeObject:url];
+        [_recent insertObject:url atIndex:0];
+        recentChanged = YES;
+    }
+    for (NSURL *url in [_recent copy]) {
+        BOOL inDock = NO;
+        for (DockTile *tile in tiles)
+            inDock |= [tile.URL isEqual:url];
+        for (DockTile *tile in running)
+            inDock |= [tile.URL isEqual:url];
+        if (inDock) {
+            [_recent removeObject:url];
+            recentChanged = YES;
+        }
+    }
+    while ([_recent count] > kMaxRecentApps) {
+        [_recent removeLastObject];
+        recentChanged = YES;
+    }
+    if (recentChanged)
+        [self saveRecent];
+    NSMutableArray<DockTile *> *recentTiles = [NSMutableArray array];
+    if (_showRecents)
+        for (NSURL *url in _recent) {
+            DockTile *recent = nil;
+            for (DockTile *old in _recentTiles)
+                if ([old.URL isEqual:url])
+                    recent = old;
+            [recentTiles addObject:recent ?: [[DockTile alloc] initWithKind:DockTileKindRecentApp URL:url]];
+        }
+    _recentTiles = recentTiles;
+
     _firstRunningIndex = [tiles count];
     [tiles addObjectsFromArray:running];
+    [tiles addObjectsFromArray:recentTiles];
     _minimizedIndex = [tiles count];
     if (_minimized != nil)
         [tiles addObjectsFromArray:_minimized];
@@ -482,6 +557,18 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 
 - (NSUInteger)addMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(NSImage *)image
 {
+    /* Into its app's tile: no tile of its own. */
+    if (_minimizeToApplication) {
+        NSMutableArray *windows = _minimizedInApps[@(pid)] ?: [NSMutableArray array];
+        [windows removeObject:@(windowID)];
+        [windows addObject:@(windowID)];
+        _minimizedInApps[@(pid)] = windows;
+        for (NSUInteger i = 0; i < [_tiles count]; i++)
+            if (_tiles[i].kind != DockTileKindMinimizedWindow && _tiles[i].application != nil &&
+                [_tiles[i].application processIdentifier] == pid)
+                return i;
+        return _trashIndex - 1;
+    }
     if (_minimized == nil)
         _minimized = [NSMutableArray array];
     [self removeMinimizedWindow:windowID quietly:YES];
@@ -502,6 +589,9 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 {
     DockTile *tile = [self tileForMinimizedWindow:windowID];
 
+    for (NSNumber *pid in [_minimizedInApps allKeys])
+        [_minimizedInApps[pid] removeObject:@(windowID)];
+
     if (tile == nil)
         return;
     [_minimized removeObject:tile];
@@ -521,8 +611,24 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
         return SLSSetWindowMinimized(tile.windowID, 0) == kSLSErrorSuccess;
     if (tile.kind == DockTileKindTrash)
         return [[NSWorkspace sharedWorkspace] openFile:[tile.URL path]];
-    if (tile.application != nil && ![tile.application isTerminated])
+    /* An app the Dock starts: its tile bounces until the app checks in
+       with the session, which it does as it finishes launching. */
+    if (_launchAnimation && (tile.application == nil || [tile.application isTerminated])) {
+        tile.bounceStart = CFAbsoluteTimeGetCurrent();
+        tile.bounceLaunch = YES;
+        os_log_info(OS_LOG_DEFAULT, "launch bounce %{public}s", [tile.label UTF8String]);
+        [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
+    }
+    if (tile.application != nil && ![tile.application isTerminated]) {
+        /* Windows minimized into it: the last one back. */
+        NSMutableArray *windows = _minimizedInApps[@([tile.application processIdentifier])];
+        if ([windows count] > 0) {
+            uint32_t windowID = [[windows lastObject] unsignedIntValue];
+            [windows removeLastObject];
+            SLSSetWindowMinimized(windowID, 0);
+        }
         return [tile.application activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    }
     return [[NSWorkspace sharedWorkspace] openFile:[tile.URL path]];
 }
 

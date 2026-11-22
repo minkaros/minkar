@@ -15,6 +15,7 @@ typedef NS_ENUM(NSInteger, DockTileKind) {
     DockTileKindPersistentApp,   /* kept in the Dock (persistent-apps) */
     DockTileKindRunningApp,      /* running, not kept */
     DockTileKindMinimizedWindow, /* a window minimized into the Dock */
+    DockTileKindRecentApp,       /* used lately, not running nor kept (show-recents) */
     DockTileKindTrash,           /* the Trash, always last */
 };
 
@@ -33,10 +34,17 @@ typedef NS_ENUM(NSInteger, DockTileKind) {
    active (critical) or for two bounces (informational). */
 @property (nonatomic) CFAbsoluteTime bounceStart;
 @property (nonatomic) BOOL bounceCritical;
+/* Bouncing while its app starts (launchanim): until it has launched. */
+@property (nonatomic) BOOL bounceLaunch;
 /* A minimized window's tile: the server's window, its owner's pid. */
 @property (nonatomic, readonly) uint32_t windowID;
 @property (nonatomic, readonly) pid_t ownerPID;
 @end
+
+typedef NS_ENUM(NSInteger, DockMinimizeEffect) {
+    DockMinimizeEffectGenie,     /* mineffect absent or "genie" */
+    DockMinimizeEffectScale,     /* mineffect "scale" */
+};
 
 typedef NS_ENUM(NSInteger, DockOrientation) {
     DockOrientationBottom,
@@ -58,11 +66,17 @@ extern NSNotificationName const DockModelDidChangeNotification;
 @property (nonatomic, readonly) CGFloat largeSize;       /* largesize, 16-128 */
 @property (nonatomic, readonly) DockOrientation orientation; /* orientation */
 @property (nonatomic, readonly) BOOL autohide;           /* autohide, or the front app's presentation asks it */
+@property (nonatomic, readonly) BOOL showIndicators;     /* show-process-indicators (YES) */
+@property (nonatomic, readonly) BOOL launchAnimation;    /* launchanim (YES) */
+@property (nonatomic, readonly) BOOL minimizeToApplication; /* minimize-to-application (NO) */
+@property (nonatomic, readonly) DockMinimizeEffect minimizeEffect; /* mineffect */
+@property (nonatomic, readonly) BOOL showRecents;        /* show-recents (YES): recent-apps */
 /* The front app's presentation options (NSApplicationPresentationOptions):
    hide the Dock while it is in front, or hide it until the pointer comes. */
 @property (nonatomic) BOOL presentationAutohide;
 
-/* Persistent tiles first, then the running apps that are not kept. */
+/* Persistent tiles first, then the running apps that are not kept and,
+   with show-recents, the last apps used that are neither (up to three). */
 @property (nonatomic, readonly, copy) NSArray<DockTile *> *tiles;
 /* Index of the first running-only tile (the separator goes before it);
    the Trash's index when none runs. */
@@ -89,7 +103,8 @@ extern NSNotificationName const DockModelDidChangeNotification;
 /* Erases what the Trash holds. */
 - (void)emptyTrash;
 /* A window minimized into the Dock, shown by its image (nil: its owner's
-   icon); the tile's index after the change. */
+   icon); the tile's index after the change. With minimize-to-application
+   it gets no tile: its app's tile's index, and the app keeps it. */
 - (NSUInteger)addMinimizedWindow:(uint32_t)windowID owner:(pid_t)pid image:(nullable NSImage *)image;
 - (nullable DockTile *)tileForMinimizedWindow:(uint32_t)windowID;
 - (void)removeMinimizedWindow:(uint32_t)windowID;

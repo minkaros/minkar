@@ -61,7 +61,7 @@ static CGFloat bounceHeight(DockTile *tile, CGFloat size)
     if (tile.bounceStart == 0)
         return 0;
     CFAbsoluteTime t = CFAbsoluteTimeGetCurrent() - tile.bounceStart;
-    if (!tile.bounceCritical && t >= 2 * kBouncePeriod)
+    if (!tile.bounceCritical && !tile.bounceLaunch && t >= 2 * kBouncePeriod)
         return 0;
     return round(size * 0.5 * fabs(sin(M_PI * fmod(t, kBouncePeriod) / kBouncePeriod)));
 }
@@ -661,7 +661,7 @@ static void drawBadge(NSString *label, NSRect icon)
         NSString *badge = lifted ? nil : [model badgeForTile:t];
         if (badge != nil)
             drawBadge(badge, rect);
-        if (t.application != nil) {
+        if (t.application != nil && model.showIndicators) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
             [[NSColor colorWithGenericGamma22White:0.15 alpha:0.85] setFill];
             [[NSBezierPath bezierPathWithOvalInRect:[self rectForSpan:d]] fill];
@@ -1245,13 +1245,21 @@ LoginItemForURL(NSURL *url)
 
 /* ---- Minimizing and restoring: a window's image moving to its tile ---- */
 
-/* The minimize effect: the image scaled from one rectangle (screen
- * coordinates) to another in kEffectTime, easing out, then gone. The
- * reference platform's "genie" is drawn as "scale" for now. */
+/* The minimize effect (mineffect), in kEffectTime. "scale": the image
+ * scaled from the window's frame to the tile's, easing out. "genie": the
+ * image drawn in strips across the Dock's axis, each moving to the tile
+ * with a delay that grows with its distance from the Dock, so the window
+ * narrows into the tile like a funnel. Restoring plays it backwards. */
 static const NSTimeInterval kEffectTime = 0.3;
+static const NSTimeInterval kGenieTime = 0.45;
+static const int kGenieStrips = 48;
 
 @interface DockEffectView : NSView
 @property (nonatomic, strong) NSImage *image;
+@property (nonatomic) DockMinimizeEffect effect;
+@property (nonatomic) DockOrientation orientation;
+@property (nonatomic) NSRect windowRect, tileRect;  /* in the view */
+@property (nonatomic) double progress;      /* 0: the window, 1: the tile */
 @end
 
 @implementation DockEffectView
@@ -1260,28 +1268,86 @@ static const NSTimeInterval kEffectTime = 0.3;
     return NO;
 }
 
+static double easeInOut(double t)
+{
+    return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+}
+
 - (void)drawRect:(NSRect)dirty
 {
+    NSSize size = [self.image size];
+
     [[NSColor clearColor] set];
     NSRectFill(dirty);
-    [self.image drawInRect:[self bounds] fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+    if (self.effect == DockMinimizeEffectScale) {
+        double k = 1 - (1 - self.progress) * (1 - self.progress);
+        NSRect w = self.windowRect, t = self.tileRect;
+        NSRect r = NSMakeRect(NSMinX(w) + (NSMinX(t) - NSMinX(w)) * k, NSMinY(w) + (NSMinY(t) - NSMinY(w)) * k,
+                              MAX(1, NSWidth(w) + (NSWidth(t) - NSWidth(w)) * k),
+                              MAX(1, NSHeight(w) + (NSHeight(t) - NSHeight(w)) * k));
+        [self.image drawInRect:r fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+        return;
+    }
+    /* Genie. The axis toward the Dock: down (bottom), left or right; the
+       strips are across it, numbered from the Dock's side. */
+    BOOL vertical = self.orientation != DockOrientationBottom;
+    NSRect w = self.windowRect, t = self.tileRect;
+    for (int i = 0; i < kGenieStrips; i++) {
+        double a = (double)i / kGenieStrips, b = (double)(i + 1) / kGenieStrips;  /* from the Dock's side */
+        /* Strips nearer the Dock go first; the last ends at progress 1. */
+        double p = MIN(1, MAX(0, self.progress * 1.6 - (a + b) / 2 * 0.6));
+        double move = easeInOut(MIN(1, MAX(0, self.progress * 1.3 - (a + b) / 2 * 0.3)));
+        double narrow = easeInOut(p);
+        NSRect src, dst;
+        if (!vertical) {
+            /* Rows from the bottom of the window. */
+            CGFloat y0 = NSMinY(w) + NSHeight(w) * a, y1 = NSMinY(w) + NSHeight(w) * b;
+            CGFloat ty0 = NSMinY(t) + NSHeight(t) * a, ty1 = NSMinY(t) + NSHeight(t) * b;
+            CGFloat x = NSMinX(w) + (NSMinX(t) - NSMinX(w)) * narrow;
+            CGFloat width = NSWidth(w) + (NSWidth(t) - NSWidth(w)) * narrow;
+            dst = NSMakeRect(x, y0 + (ty0 - y0) * move, MAX(1, width), MAX(0.5, (y1 - y0) + ((ty1 - ty0) - (y1 - y0)) * move));
+            src = NSMakeRect(0, size.height * a, size.width, size.height * (b - a));
+        } else {
+            /* Columns from the Dock's side of the window. */
+            BOOL left = self.orientation == DockOrientationLeft;
+            double fa = left ? a : 1 - b, fb = left ? b : 1 - a;
+            CGFloat x0 = NSMinX(w) + NSWidth(w) * fa, x1 = NSMinX(w) + NSWidth(w) * fb;
+            CGFloat tx0 = NSMinX(t) + NSWidth(t) * fa, tx1 = NSMinX(t) + NSWidth(t) * fb;
+            CGFloat y = NSMinY(w) + (NSMinY(t) - NSMinY(w)) * narrow;
+            CGFloat height = NSHeight(w) + (NSHeight(t) - NSHeight(w)) * narrow;
+            dst = NSMakeRect(x0 + (tx0 - x0) * move, y, MAX(0.5, (x1 - x0) + ((tx1 - tx0) - (x1 - x0)) * move), MAX(1, height));
+            src = NSMakeRect(size.width * fa, 0, size.width * (fb - fa), size.height);
+        }
+        [self.image drawInRect:dst fromRect:src operation:NSCompositeSourceOver fraction:1.0];
+    }
 }
 @end
 
 @interface DockEffectWindow : NSWindow
-+ (void)animateImage:(NSImage *)image from:(NSRect)from to:(NSRect)to then:(nullable void (^)(void))done;
++ (void)animateImage:(NSImage *)image window:(NSRect)window tile:(NSRect)tile minimizing:(BOOL)minimizing
+              effect:(DockMinimizeEffect)effect orientation:(DockOrientation)orientation
+                then:(nullable void (^)(void))done;
 @end
 
 @implementation DockEffectWindow
-+ (void)animateImage:(NSImage *)image from:(NSRect)from to:(NSRect)to then:(void (^)(void))done
++ (void)animateImage:(NSImage *)image window:(NSRect)window tile:(NSRect)tile minimizing:(BOOL)minimizing
+              effect:(DockMinimizeEffect)effect orientation:(DockOrientation)orientation
+                then:(void (^)(void))done
 {
-    DockEffectWindow *w = [[DockEffectWindow alloc] initWithContentRect:from styleMask:NSBorderlessWindowMask
+    /* One window over the whole way, still; the view draws each frame. */
+    NSRect all = NSIntegralRect(NSUnionRect(window, tile));
+    DockEffectWindow *w = [[DockEffectWindow alloc] initWithContentRect:all styleMask:NSBorderlessWindowMask
                                                                 backing:NSBackingStoreBuffered defer:NO];
-    DockEffectView *view = [[DockEffectView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(from), NSHeight(from))];
+    DockEffectView *view = [[DockEffectView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(all), NSHeight(all))];
+    NSTimeInterval duration = effect == DockMinimizeEffectGenie ? kGenieTime : kEffectTime;
     CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
 
     view.image = image;
-    [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    view.effect = effect;
+    view.orientation = orientation;
+    view.windowRect = NSOffsetRect(window, -NSMinX(all), -NSMinY(all));
+    view.tileRect = NSOffsetRect(tile, -NSMinX(all), -NSMinY(all));
+    view.progress = minimizing ? 0 : 1;
     [w setContentView:view];
     [w setOpaque:NO];
     [w setBackgroundColor:[NSColor clearColor]];
@@ -1290,14 +1356,12 @@ static const NSTimeInterval kEffectTime = 0.3;
     [w setReleasedWhenClosed:NO];
     [w setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey) + 1];
     [w orderFront:nil];
+    os_log_info(OS_LOG_DEFAULT, "%{public}s effect %{public}s", minimizing ? "minimize" : "restore",
+                effect == DockMinimizeEffectGenie ? "genie" : "scale");
     [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 repeats:YES block:^(NSTimer *timer) {
-        double t = MIN(1.0, (CFAbsoluteTimeGetCurrent() - start) / kEffectTime);
-        double k = 1 - (1 - t) * (1 - t);         /* ease out */
-        NSRect r = NSMakeRect(NSMinX(from) + (NSMinX(to) - NSMinX(from)) * k,
-                              NSMinY(from) + (NSMinY(to) - NSMinY(from)) * k,
-                              MAX(1, NSWidth(from) + (NSWidth(to) - NSWidth(from)) * k),
-                              MAX(1, NSHeight(from) + (NSHeight(to) - NSHeight(from)) * k));
-        [w setFrame:NSIntegralRect(r) display:YES];
+        double t = MIN(1.0, (CFAbsoluteTimeGetCurrent() - start) / duration);
+        view.progress = minimizing ? t : 1 - t;
+        [view setNeedsDisplay:YES];
         if (t >= 1) {
             [timer invalidate];
             [w orderOut:nil];
@@ -1468,7 +1532,14 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     BOOL any = NO;
     CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
     for (DockTile *tile in _model.tiles) {
-        if (tile.bounceStart != 0 && !tile.bounceCritical && now - tile.bounceStart >= 2 * kBouncePeriod)
+        /* Bouncing while it starts: until its app has checked in (or 15 s). */
+        if (tile.bounceLaunch && ((tile.application != nil && ![tile.application isTerminated]) ||
+                                  now - tile.bounceStart >= 15)) {
+            tile.bounceLaunch = NO;
+            tile.bounceStart = 0;
+        }
+        if (tile.bounceStart != 0 && !tile.bounceCritical && !tile.bounceLaunch &&
+            now - tile.bounceStart >= 2 * kBouncePeriod)
             tile.bounceStart = 0;
         any |= tile.bounceStart != 0;
     }
@@ -1534,8 +1605,9 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
     [self layout];
     if (image == nil)
         return;
-    [DockEffectWindow animateImage:image from:ScreenFrameOfServerWindow(&info)
-                                to:[self screenRectOfTileAtIndex:index] then:nil];
+    [DockEffectWindow animateImage:image window:ScreenFrameOfServerWindow(&info)
+                              tile:[self screenRectOfTileAtIndex:index] minimizing:YES
+                            effect:_model.minimizeEffect orientation:_model.orientation then:nil];
 }
 
 - (void)windowRestored:(NSNotification *)note
@@ -1564,7 +1636,8 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
         SLSSetWindowMinimized(windowID, 0);
         return;
     }
-    [DockEffectWindow animateImage:image from:from to:ScreenFrameOfServerWindow(&info) then:^{
+    [DockEffectWindow animateImage:image window:ScreenFrameOfServerWindow(&info) tile:from minimizing:NO
+                            effect:model.minimizeEffect orientation:model.orientation then:^{
         SLSSetWindowMinimized(windowID, 0);
     }];
 }
@@ -1696,6 +1769,7 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
 {
     [_view forgetIcons];    /* tiles or sizes may have gone */
     [self layout];
+    [self bounce];          /* an app that starts bounces (launchanim) */
 }
 
 /* Autohide: the pointer on the Dock or its edge shows it; leaving hides
