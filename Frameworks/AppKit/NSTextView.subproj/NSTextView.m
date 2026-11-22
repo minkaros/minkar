@@ -2708,12 +2708,74 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
         replacementString = [object string];
     }
 
-    if([self shouldChangeTextInRange:[self selectedRange] replacementString: replacementString] == NO) {
+    NSRange range = [self selectedRange];
+    /* Minkar: what the user types, substituted as the Keyboard pane's Text
+       settings ask (the reference's behavior, seen on it 22 Nov 2026). */
+    if(_processingKeyEvent && [object isKindOfClass:[NSString class]] && range.length == 0) {
+        NSString *substituted = [self _substitutionForTyping:object range:&range];
+        if(substituted != nil)
+            object = replacementString = substituted;
+    }
+
+    if([self shouldChangeTextInRange:range replacementString: replacementString] == NO) {
         return;
     }
-    [self _replaceCharactersInRange:[self selectedRange] withString: object allowsTypingCoalescing:YES];
+    [self _replaceCharactersInRange:range withString: object allowsTypingCoalescing:YES];
     [self didChangeText];
     [self scrollRangeToVisible:[self selectedRange]];
+}
+
+/* A global text setting: on when the user has not set it, as on the
+   reference. */
+static BOOL textSetting(NSString *key) {
+    id value = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    return value == nil || [value boolValue];
+}
+
+/* What typing string at range (empty, the insertion point) becomes:
+   two spaces after a word, a period and a space (NSAutomaticPeriod-
+   SubstitutionEnabled, also in fields); in a text view, straight quotes
+   curled by what precedes them (opening after a space or at the start)
+   and two hyphens a dash (the quote and dash substitutions). nil when it
+   stays as typed; range grows over what it replaces. */
+-(NSString *)_substitutionForTyping:(NSString *)string range:(NSRange *)range {
+    NSString *text = [[self textStorage] string];
+    NSUInteger at = range->location;
+    unichar before = at > 0 ? [text characterAtIndex:at - 1] : 0;
+    unichar before2 = at > 1 ? [text characterAtIndex:at - 2] : 0;
+    NSCharacterSet *word = [NSCharacterSet alphanumericCharacterSet];
+    NSCharacterSet *space = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+
+    if([string length] != 1)
+        return nil;
+    unichar c = [string characterAtIndex:0];
+
+    if(c == ' ' && before == ' ' && (([word characterIsMember:before2]) || before2 == 0x2019 || before2 == '\'' ||
+       before2 == ')' || before2 == 0x201D || before2 == '"') &&
+       [[self class] _periodSubstitutionEnabledFor:self]) {
+        range->location = at - 1;
+        range->length = 1;
+        return @". ";
+    }
+    if(_isFieldEditor)
+        return nil;
+    if((c == '"' || c == '\'') && [self isAutomaticQuoteSubstitutionEnabled]) {
+        BOOL opening = before == 0 || [space characterIsMember:before] || before == '(' || before == '[' ||
+            before == 0x2014 || before == 0x201C || before == 0x2018;
+        if(c == '"')
+            return opening ? @"\u201C" : @"\u201D";
+        return opening ? @"\u2018" : @"\u2019";
+    }
+    if(c == '-' && before == '-' && [self isAutomaticDashSubstitutionEnabled]) {
+        range->location = at - 1;
+        range->length = 1;
+        return @"\u2014";
+    }
+    return nil;
+}
+
++(BOOL)_periodSubstitutionEnabledFor:(NSTextView *)view {
+    return textSetting(@"NSAutomaticPeriodSubstitutionEnabled");
 }
 
 -(void)keyDown:(NSEvent *)event {
@@ -3555,7 +3617,8 @@ static char linkDetectionKey;
 static char quoteSubstitutionKey;
 -(BOOL)isAutomaticQuoteSubstitutionEnabled {
    id value=objc_getAssociatedObject(self,&quoteSubstitutionKey);
-   return (value!=nil)?[value boolValue]:NO;
+   /* Unset: the user's setting (the Keyboard pane), not in field editors. */
+   return (value!=nil)?[value boolValue]:(!_isFieldEditor && textSetting(@"NSAutomaticQuoteSubstitutionEnabled"));
 }
 -(void)setAutomaticQuoteSubstitutionEnabled:(BOOL)value {
    objc_setAssociatedObject(self,&quoteSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
@@ -3564,7 +3627,7 @@ static char quoteSubstitutionKey;
 static char dashSubstitutionKey;
 -(BOOL)isAutomaticDashSubstitutionEnabled {
    id value=objc_getAssociatedObject(self,&dashSubstitutionKey);
-   return (value!=nil)?[value boolValue]:NO;
+   return (value!=nil)?[value boolValue]:(!_isFieldEditor && textSetting(@"NSAutomaticDashSubstitutionEnabled"));
 }
 -(void)setAutomaticDashSubstitutionEnabled:(BOOL)value {
    objc_setAssociatedObject(self,&dashSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
