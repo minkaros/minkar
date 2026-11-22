@@ -14,3 +14,17 @@
 "Apply" = "Aplicar";
 "%@ is connected and has the IP address %@." = "%@ está conectado y tiene la dirección IP %@.";
 "%@ is not connected." = "%@ no está conectado.";
+"Location:" = "Ubicación:";
+"Automatic" = "Automática";
+"Status:" = "Estado:";
+"%@ is currently active and has the IP address %@." = "%@ está activo y tiene la dirección IP %@.";
+"Using DHCP with manual address" = "Usando DHCP con dirección manual";
+"Using BootP" = "Usando BootP";
+"Off" = "Desactivado";
+"Search Domains:" = "Dominios de búsqueda:";
+"IPv6 Address:" = "Dirección IPv6:";
+"Revert" = "Revertir";
+"Every interface has a service" = "Todas las interfaces tienen un servicio";
+"Delete the service “%@”?" = "¿Eliminar el servicio “%@”?";
+"Delete" = "Eliminar";
+"Cancel" = "Cancelar";

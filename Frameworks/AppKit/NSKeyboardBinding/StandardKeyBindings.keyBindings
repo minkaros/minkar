@@ -12,6 +12,12 @@
 	"command,0x0061" = "selectAll:";				/* command-a */
 
 	"0x0008" = "deleteBackward:";			/* (backspace? heh) */
+	/* The Delete key gives NSDeleteCharacter (0x007F), as on the
+	   reference: it deletes backward, a word with Option, to the line's
+	   start with Command. */
+	"0x007F" = "deleteBackward:";
+	"alt,0x007F" = "deleteWordBackward:";
+	"command,0x007F" = "deleteToBeginningOfLine:";
 	"0x001B" = "cancel:";				/* Escape */
 	"0x0009" = "insertTab:";
 	"shift,0x0009" = "insertBacktab:";
