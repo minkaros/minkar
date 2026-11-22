@@ -101,9 +101,15 @@ and the resolution changes from System Preferences, in the Atlas visual language
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
 - [ ] System Preferences: the app and its panes, with Notifications and Users & Groups (users
-  created, deleted, made administrators, passwords, login options; test `users-pane`); left: the
-  review of each pane against the reference.
-- [ ] AppKit and the Atlas visual language across the system.
+  created, deleted, made administrators, passwords, login options; test `users-pane`). Reviewed
+  against the reference: General (appearance, accent and highlight colors, scroll bars, the
+  default browser; test `general-pane`), Notifications, Network (test `network-pane`), Displays,
+  Date & Time (test `timezone-change`), Mouse, Sound, Keyboard (Text, Input Sources). Left: the
+  Dock pane, Keyboard's Shortcuts tab, Network's Advanced sheet.
+- [ ] AppKit and the Atlas visual language across the system. Done: the light and dark
+  appearances (Auto by the hour) and the accent color, followed by every app at once, the menu
+  bar, the Dock and the Menu Extras (highlighted in the accent, template icons tinted; Lucide's
+  icons); test `general-pane`. Left: the remaining fixed greys in AppKit's controls and the apps.
 - [ ] Commands: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 
 ### Phase 6 — Applications and distribution

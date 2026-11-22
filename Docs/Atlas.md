@@ -52,7 +52,7 @@ code marks it `// SHORTCUT(<milestone>):`.
 
 | Part | Milestones | Done | Open |
 | --- | --- | --- | --- |
-| Menus (chapter 3) | MB0–MB4 | MB0, MB1, MB2 | MB3 (partial; 19.6.0), MB4 (19.6.x) |
+| Menus (chapter 3) | MB0–MB4 | MB0, MB1, MB2, MB3 | MB4 (19.6.x) |
 | Dock (chapter 4) | D0–D4 | D0, D1, D2, D3 | D4 (partial; 19.6.x) |
 | Files (chapter 4) | K0–K4 | K0, K1, K2, K3 | K4 (19.6.x) |
 | Applications (chapter 5) | A0–A10 | A0, A1, A3, A4 | A2 (started; 19.6.0), A5–A10 (19.6.x) |

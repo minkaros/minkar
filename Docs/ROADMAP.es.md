@@ -103,9 +103,15 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
 - [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones y Usuarios y grupos (usuarios
-  creados, eliminados, administradores, contraseñas, opciones de inicio de sesión; prueba `users-pane`);
-  falta: la revisión de cada panel frente a la referencia.
-- [ ] AppKit y el lenguaje visual de Atlas en todo el sistema.
+  creados, eliminados, administradores, contraseñas, opciones de inicio de sesión; prueba `users-pane`).
+  Revisados frente a la referencia: General (aspecto, colores de acento y de resaltado, barras de
+  desplazamiento, el navegador por omisión; prueba `general-pane`), Notificaciones, Red (prueba
+  `network-pane`), Pantallas, Fecha y hora (prueba `timezone-change`), Ratón, Sonido, Teclado (Texto,
+  Fuentes de entrada). Falta: el panel Dock, la pestaña Atajos de Teclado, la hoja Avanzado de Red.
+- [ ] AppKit y el lenguaje visual de Atlas en todo el sistema. Hecho: los aspectos claro y oscuro
+  (Automático según la hora) y el color de acento, que todas las apps siguen al momento, la barra de
+  menús, el Dock y los Menu Extras (resaltados con el acento, iconos plantilla teñidos; iconos de
+  Lucide); prueba `general-pane`. Falta: los grises fijos que quedan en controles de AppKit y en las apps.
 - [ ] Órdenes: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
 
 ### Fase 6 — Aplicaciones y distribución
