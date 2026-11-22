@@ -8,7 +8,14 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSViewController.h>
 
-@class NSCollectionView;
+@class NSCollectionView, NSImageView, NSTextField;
+
+typedef NS_ENUM(NSInteger, NSCollectionViewItemHighlightState) {
+    NSCollectionViewItemHighlightNone = 0,
+    NSCollectionViewItemHighlightForSelection = 1,
+    NSCollectionViewItemHighlightForDeselection = 2,
+    NSCollectionViewItemHighlightAsDropTarget = 3,
+};
 
 @interface NSCollectionViewItem : NSViewController <NSCoding, NSCopying> {
     NSCollectionView *_collectionView;
@@ -23,4 +30,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isSelected) BOOL selected;
+
+/* The outlets an item's view is usually made of (10.5), not retained;
+   and the highlight its view may show (10.11). */
+@property (assign) NSImageView *imageView;
+@property (assign) NSTextField *textField;
+@property NSCollectionViewItemHighlightState highlightState;
 @end

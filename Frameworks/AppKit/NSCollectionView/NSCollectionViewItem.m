@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSCollectionViewItem.h>
+#import <objc/runtime.h>
 #import <AppKit/NSRaise.h>
 #import <Foundation/NSKeyedArchiver.h>
 
@@ -47,6 +48,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 /* Minkar: the collection view showing it (not retained). */
 -(void)_setCollectionView:(NSCollectionView *)view {
    _collectionView=view;
+}
+
+/* Minkar: the outlets and the highlight, kept beside the instance
+   variables (whose layout subclasses may know). */
+static char imageViewKey, textFieldKey, highlightKey;
+
+-(NSImageView *)imageView {
+   return objc_getAssociatedObject(self,&imageViewKey);
+}
+
+-(void)setImageView:(NSImageView *)view {
+   objc_setAssociatedObject(self,&imageViewKey,view,OBJC_ASSOCIATION_ASSIGN);
+}
+
+-(NSTextField *)textField {
+   return objc_getAssociatedObject(self,&textFieldKey);
+}
+
+-(void)setTextField:(NSTextField *)field {
+   objc_setAssociatedObject(self,&textFieldKey,field,OBJC_ASSOCIATION_ASSIGN);
+}
+
+-(NSCollectionViewItemHighlightState)highlightState {
+   return [objc_getAssociatedObject(self,&highlightKey) integerValue];
+}
+
+-(void)setHighlightState:(NSCollectionViewItemHighlightState)state {
+   objc_setAssociatedObject(self,&highlightKey,[NSNumber numberWithInteger:state],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

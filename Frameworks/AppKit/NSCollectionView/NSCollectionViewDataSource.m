@@ -149,6 +149,9 @@ static _NSCollectionViewDataSourceState *stateOf(NSCollectionView *self) {
     if (item == nil)
         [NSException raise:NSInternalInconsistencyException format:@"-[NSCollectionView makeItemWithIdentifier:forIndexPath:] could not make an item with the identifier %@", identifier];
     [item _setCollectionView:self];
+    /* Its view loaded, so its outlets (textField, imageView) are there
+       for the data source to fill in, as on the reference. */
+    [item view];
     return item;
 }
 
@@ -195,6 +198,44 @@ static _NSCollectionViewDataSourceState *stateOf(NSCollectionView *self) {
     state->_selection = (paths != nil) ? paths : [[NSSet alloc] init];
     for (NSIndexPath *path in state->_items)
         [[state->_items objectForKey:path] setSelected:[state->_selection containsObject:path]];
+}
+
+- (void)selectItemsAtIndexPaths:(NSSet *)paths scrollPosition:(NSCollectionViewScrollPosition)position {
+    NSMutableSet *selection;
+
+    if ([paths count] == 0)
+        return;
+    if ([self allowsMultipleSelection])
+        selection = [NSMutableSet setWithSet:[self selectionIndexPaths]];
+    else {
+        selection = [NSMutableSet set];
+        paths = [NSSet setWithObject:[paths anyObject]];
+    }
+    [selection unionSet:paths];
+    [self setSelectionIndexPaths:selection];
+    [self scrollToItemsAtIndexPaths:paths scrollPosition:position];
+}
+
+- (void)deselectItemsAtIndexPaths:(NSSet *)paths {
+    NSMutableSet *selection = [NSMutableSet setWithSet:[self selectionIndexPaths]];
+
+    [selection minusSet:paths];
+    [self setSelectionIndexPaths:selection];
+}
+
+/* Minkar: the items' frames brought into view; the positions other than
+   None are not told apart yet (each scrolls as little as it takes). */
+- (void)scrollToItemsAtIndexPaths:(NSSet *)paths scrollPosition:(NSCollectionViewScrollPosition)position {
+    NSRect target = NSZeroRect;
+
+    if (position == NSCollectionViewScrollPositionNone)
+        return;
+    for (NSIndexPath *path in paths) {
+        NSRect frame = [[self layoutAttributesForItemAtIndexPath:path] frame];
+        target = NSIsEmptyRect(target) ? frame : NSUnionRect(target, frame);
+    }
+    if (!NSIsEmptyRect(target))
+        [self scrollRectToVisible:target];
 }
 
 /* The counts asked again, the items made again. */

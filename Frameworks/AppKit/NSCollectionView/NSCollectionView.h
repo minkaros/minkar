@@ -13,6 +13,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @class NSNib;
 @protocol NSCollectionViewDataSource, NSCollectionViewDelegate;
 
+typedef NS_OPTIONS(NSUInteger, NSCollectionViewScrollPosition) {
+    NSCollectionViewScrollPositionNone = 0,
+    NSCollectionViewScrollPositionTop = 1 << 0,
+    NSCollectionViewScrollPositionCenteredVertically = 1 << 1,
+    NSCollectionViewScrollPositionBottom = 1 << 2,
+    NSCollectionViewScrollPositionNearestHorizontalEdge = 1 << 9,
+    NSCollectionViewScrollPositionLeft = 1 << 3,
+    NSCollectionViewScrollPositionCenteredHorizontally = 1 << 4,
+    NSCollectionViewScrollPositionRight = 1 << 5,
+    NSCollectionViewScrollPositionLeadingEdge = 1 << 6,
+    NSCollectionViewScrollPositionTrailingEdge = 1 << 7,
+    NSCollectionViewScrollPositionNearestVerticalEdge = 1 << 8,
+};
+
 @interface NSCollectionView : NSView {
     NSArray *_content;
     NSCollectionViewItem *_itemPrototype;
@@ -84,6 +98,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSCollectionViewLayoutAttributes *)layoutAttributesForItemAtIndexPath:(NSIndexPath *)indexPath;
 - (NSRect)frameForItemAtIndex:(NSUInteger)index;
 @property (copy) NSSet<NSIndexPath *> *selectionIndexPaths;
+/* Selected or deselected by the program: the delegate is not told. */
+- (void)selectItemsAtIndexPaths:(NSSet<NSIndexPath *> *)indexPaths scrollPosition:(NSCollectionViewScrollPosition)scrollPosition;
+- (void)deselectItemsAtIndexPaths:(NSSet<NSIndexPath *> *)indexPaths;
+- (void)scrollToItemsAtIndexPaths:(NSSet<NSIndexPath *> *)indexPaths scrollPosition:(NSCollectionViewScrollPosition)scrollPosition;
 @end
 
 @protocol NSCollectionViewDataSource <NSObject>
