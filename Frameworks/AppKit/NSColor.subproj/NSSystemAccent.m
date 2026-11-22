@@ -33,6 +33,7 @@
 #import <Foundation/NSNotification.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import <Foundation/NSTimer.h>
+#import <Foundation/NSHashTable.h>
 #import <objc/runtime.h>
 #include <time.h>
 #include <math.h>
@@ -254,6 +255,10 @@ static NSColor *replacement(NSColor *color, NSDictionary *before, NSDictionary *
     return nil;
 }
 
+/* The colors given in this pass: a control and its cell share theirs, and
+   one already given must not be taken for an old one again. */
+static NSHashTable *givenColors;
+
 static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
     static const char *const pairs[][2] = {
         { "backgroundColor", "setBackgroundColor:" }, { "textColor", "setTextColor:" },
@@ -265,9 +270,13 @@ static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
         SEL get = sel_registerName(pairs[i][0]), set = sel_registerName(pairs[i][1]);
         if ([object respondsToSelector:get] && [object respondsToSelector:set]) {
             id value = [object performSelector:get];
+            if (value == nil || [givenColors containsObject:value])
+                continue;
             NSColor *new = [value isKindOfClass:[NSColor class]] ? replacement(value, before, after) : nil;
-            if (new != nil)
+            if (new != nil) {
                 [object performSelector:set withObject:new];
+                [givenColors addObject:new];
+            }
         }
     }
     if ([object isKindOfClass:[NSView class]]) {
@@ -309,6 +318,7 @@ static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
         [NSApp willChangeValueForKey:@"effectiveAppearance"];
         [NSApp didChangeValueForKey:@"effectiveAppearance"];
     }
+    givenColors = [NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
     for (NSWindow *window in [NSApp windows]) {
         NSView *top = [[window contentView] superview];
         NSColor *background = replacement([window backgroundColor], before, after);
@@ -319,6 +329,7 @@ static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
         if ([window isVisible])
             [window display];
     }
+    givenColors = nil;
     [[NSNotificationCenter defaultCenter] postNotificationName:NSSystemColorsDidChangeNotification object:nil];
 }
 

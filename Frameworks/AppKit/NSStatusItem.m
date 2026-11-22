@@ -31,6 +31,8 @@
 #import <AppKit/NSStatusBarButton.h>
 #import <AppKit/NSButtonCell.h>
 #import <AppKit/NSColor.h>
+#import <AppKit/NSRunningApplication.h>
+#import <AppKit/NSWorkspace.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSImage.h>
@@ -88,6 +90,7 @@ extern NSColor *_NSTemplateTintColor;
 @implementation NSStatusBarButton {
     NSStatusItem *_statusItem;	/* not retained: the item owns the button */
     BOOL _plainTitle;		/* set by setTitle:, in the bar's text color */
+    BOOL _held;			/* highlighted while its panel is open */
 }
 
 @synthesize appearsDisabled = _appearsDisabled;
@@ -125,7 +128,7 @@ extern NSColor *_NSTemplateTintColor;
 
 /* Highlighted (pressed, or its menu open): the selection behind it. */
 - (void)drawRect:(NSRect)rect {
-    BOOL highlighted = [[self cell] isHighlighted];
+    BOOL highlighted = [[self cell] isHighlighted] || _held;
     NSColor *ink = highlighted ? [NSColor selectedMenuItemTextColor] : _NSMenuBarTextColor();
 
     if(highlighted) {
@@ -133,16 +136,16 @@ extern NSColor *_NSTemplateTintColor;
         [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect([self bounds], 0, 1) xRadius:4 yRadius:4] fill];
     }
     /* A plain title in the bar's text color as it is now (the appearance
-       may have changed since it was set). */
+       may have changed since it was set), white while highlighted. */
     if(_plainTitle && [[self attributedTitle] length] > 0) {
         NSColor *now = [[self attributedTitle] attribute:NSForegroundColorAttributeName atIndex:0 effectiveRange:NULL];
         NSColor *was = [now colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-        NSColor *bar = [_NSMenuBarTextColor() colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-        if(was == nil || bar == nil || fabs([was whiteComponent] - [bar whiteComponent]) > 0.01) {
+        NSColor *want = [ink colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+        if(was == nil || want == nil || fabs([was whiteComponent] - [want whiteComponent]) > 0.01) {
             NSMutableAttributedString *again = [[[self attributedTitle] mutableCopy] autorelease];
-            [again addAttribute:NSForegroundColorAttributeName value:_NSMenuBarTextColor()
-                range:NSMakeRange(0, [again length])];
+            [again addAttribute:NSForegroundColorAttributeName value:ink range:NSMakeRange(0, [again length])];
             [super setAttributedTitle:again];
+            [super setAttributedAlternateTitle:again];
         }
     }
     _NSTemplateTintColor = ink;
@@ -162,19 +165,40 @@ extern NSColor *_NSTemplateTintColor;
     [attributes setObject:_NSMenuBarTextColor() forKey:NSForegroundColorAttributeName];
     [super setAttributedTitle:[[[NSAttributedString alloc] initWithString:title ? title : @""
         attributes:attributes] autorelease]];
+    /* Highlighted, the button shows its alternate contents: the same. */
+    [super setAttributedAlternateTitle:[self attributedTitle]];
     _plainTitle = YES;
+    [self _placeImage];
     [_statusItem _updateLength];
 }
 
 - (void)setAttributedTitle:(NSAttributedString *)title {
     [super setAttributedTitle:title];
+    [super setAttributedAlternateTitle:title];
     _plainTitle = NO;
+    [self _placeImage];
     [_statusItem _updateLength];
 }
 
 - (void)setImage:(NSImage *)image {
     [super setImage:image];
+    [super setAlternateImage:image];
+    [self _placeImage];
     [_statusItem _updateLength];
+}
+
+/* An image alone is centered in the item (and in its highlight), as on
+   the reference; beside a title, at its left. */
+- (void)_placeImage {
+    [self setImagePosition:[[self title] length] > 0 ? NSImageLeft : NSImageOnly];
+}
+
+/* Highlighted while something it opened is open (a panel of its own, as
+   the volume's): drawn at once, as a menu's title is. */
+- (void)highlight:(BOOL)flag {
+    _held = flag;
+    [self setNeedsDisplay:YES];
+    [self display];
 }
 
 @end
@@ -413,13 +437,24 @@ static NSString *visibleKey(NSString *name) {
 /* The menu below the item, the button highlighted while it is open. */
 - (void)_showMenu:(NSMenu *)menu {
     NSRect frame = [_window frame];
+    NSRunningApplication *previous = nil;
 
+    /* A status item of an app not in front (SystemUIServer's extras): the
+       app is activated while its menu is open, so a click anywhere else
+       (another app activated) closes it; then the app that was in front
+       is again. */
+    if(![NSApp isActive]) {
+        previous = [[NSWorkspace sharedWorkspace] frontmostApplication];
+        [NSApp activateIgnoringOtherApps:YES];
+    }
     [[_button cell] setHighlighted:YES];
     [_button display];
     [menu _popUpAtScreenPoint:NSMakePoint(NSMinX(frame), NSMinY(frame)) positioning:nil
         event:[NSApp currentEvent] startedOpen:NO minimumWidth:0 flips:NO perform:YES];
     [[_button cell] setHighlighted:NO];
     [_button display];
+    if(previous != nil && [NSApp isActive] && ![previous isEqual:[NSRunningApplication currentApplication]])
+        [previous activateWithOptions:0];
 }
 
 - (void)popUpStatusItemMenu:(NSMenu *)menu {

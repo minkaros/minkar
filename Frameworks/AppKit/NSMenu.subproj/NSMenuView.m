@@ -278,6 +278,9 @@ static void resetHelpMenu(NSMenu *menu) {
 
 #define ITEM_MAX(size) height = MAX(height, size.height); width += size.width;
 -(NSSize)contentSizeForItem:(NSMenuItem *)item {
+    /* An item with a view (a volume slider): the view's size. */
+    if([item view] != nil)
+        return [[item view] frame].size;
     if([item isSeparatorItem])	{
         return [[self graphicsStyle] menuItemSeparatorSize];
     } else {
@@ -326,9 +329,15 @@ static void resetHelpMenu(NSMenu *menu) {
     NSSize rightArrowSize = [[self graphicsStyle] menuItemBranchArrowSize];
     NSSize separatorSize = [[self graphicsStyle] menuItemSeparatorSize];
 	
+    float maxViewWidth = 0;
+
     for(int i = 0; i < [items count]; ++i) {
         NSMenuItem *item = [items objectAtIndex:i];
-        if([item isSeparatorItem]) {
+        if([item view] != nil) {
+            NSSize size = [[item view] frame].size;
+            totalHeight += size.height;
+            maxViewWidth = MAX(maxViewWidth, size.width);
+        } else if([item isSeparatorItem]) {
             totalHeight += separatorSize.height;
         } else {
             NSSize size = NSZeroSize;
@@ -374,6 +383,8 @@ static void resetHelpMenu(NSMenu *menu) {
 
     result.width += rightArrowSize.width;
 	
+    result.width = MAX(result.width, maxViewWidth);
+
     // border
     result.width += WINDOW_BORDER_THICKNESS*2;
     result.height += WINDOW_BORDER_THICKNESS*2;
@@ -714,7 +725,16 @@ static void resetHelpMenu(NSMenu *menu) {
     for(i = first; i < count && _itemTops[i] < contentBottom; i++) {
         NSMenuItem *item = [items objectAtIndex:i];
 		
-        if([item isSeparatorItem]) {
+        if([item view] != nil) {
+            /* An item's view: in its place, drawing itself; no selection. */
+            NSView *view = [item view];
+            NSRect frame = NSMakeRect(origin.x, origin.y - _scrollOffset, NSWidth(itemArea), NSHeight([view frame]));
+            if([view superview] != self)
+                [self addSubview:view];
+            if(!NSEqualRects([view frame], frame))
+                [view setFrame:frame];
+            origin.y += NSHeight(frame);
+        } else if([item isSeparatorItem]) {
             NSRect separatorRect = NSMakeRect(origin.x, origin.y, NSWidth(itemArea), separatorHeight);
             [[self graphicsStyle] drawMenuSeparatorInRect:separatorRect];
 #if NSMENUDEBUG
@@ -826,6 +846,19 @@ static void resetHelpMenu(NSMenu *menu) {
 
 /* The scroll arrows, over the items at the top and the bottom, while
    there is more to see that way. */
+/* The view of an item with one under a point on the screen (what in it a
+   press goes to), else nil. */
+-(NSView *)_itemViewHitAtScreenPoint:(NSPoint)screenPoint {
+    NSPoint point = [self convertPoint:[[self window] convertScreenToBase:screenPoint] fromView:nil];
+
+    for(NSMenuItem *item in [self visibleItemArray]) {
+        NSView *view = [item view];
+        if(view != nil && [view superview] == self && NSMouseInRect(point, [view frame], [self isFlipped]))
+            return [view hitTest:point];
+    }
+    return nil;
+}
+
 -(void)_drawScrollArrows {
     NSRect bounds = [self bounds];
     CGFloat center = floor(NSMidX(bounds));
@@ -1068,6 +1101,23 @@ enum { kNSMenuCancelTrackingSubtype=0x4d43 };
 		BOOL isMouseDown = ([event type]==NSLeftMouseDown || [event type]==NSRightMouseDown || [event type]==NSOtherMouseDown);
 		if (isMouseDown)
 			pressedSinceOpen = YES;
+		/* A press on an item's view (a slider) is the view's: it tracks
+		   the pointer itself, and the menu stays open after. */
+		if ([event type] == NSLeftMouseDown) {
+			NSPoint where = [[event window] convertBaseToScreen:[event locationInWindow]];
+			NSView *hit = nil;
+
+			for (NSMenuView *open in [viewStack reverseObjectEnumerator])
+				if ((hit = [open _itemViewHitAtScreenPoint:where]) != nil)
+					break;
+			if (hit != nil) {
+				[hit mouseDown:event];
+				state = STATE_MOUSEUP;
+				point = turnPoint;
+				event = turnEvent;
+				continue;
+			}
+		}
 		
 		if (keyboardNavigationAction != kNSMenuKeyboardNavigationNone) {
 			// We didn't enter the mouse handling loop that predecrements count - so do it here...
@@ -1379,7 +1429,7 @@ enum { kNSMenuCancelTrackingSubtype=0x4d43 };
 						/* Released over a disabled item or one with a submenu
 						   (a menu title too), the menu stays open. */
 						if((item == nil && (pressedSinceOpen || overItemOnce)) ||
-						   ([item isEnabled] && ![item hasSubmenu])) {
+						   ([item isEnabled] && ![item hasSubmenu] && [item view] == nil)) {
 							MENUDEBUG(@"mouse up - exiting because of many possible reasons...");
 							state=STATE_EXIT;
 						} else {

@@ -282,7 +282,12 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
        the whole rounded frame and draw the title again. */
     if(NSContainsRect(NSInsetRect([self bounds], 0, radius), rect) ||
        NSContainsRect(NSInsetRect([self bounds], radius, 0), rect)) {
+        /* The window's background below the title bar, as the reference
+           draws it; the title bar in the frame's grey. */
+        O2ContextSetRGBFillColor(_context, r, g, b, a);
         O2ContextFillRect(_context, rect);
+        O2ContextSetGrayFillColor(_context, frameGray, 1);
+        O2ContextFillRect(_context, NSIntersectionRect(rect, titlebar));
         if(!NSIntersectsRect(rect, titlebar))
             return;
         if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
@@ -309,7 +314,15 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         _frame.size.height - radius, radius, 3.14159, 1.5708, YES);
     O2ContextAddLineToPoint(_context, _frame.origin.x, NSMaxY(_frame));
     O2ContextClosePath(_context);
-    O2ContextFillPath(_context);
+    /* Inside the rounded frame: the window's background, and its title bar
+       in the frame's grey. */
+    O2ContextSaveGState(_context);
+    O2ContextClip(_context);
+    O2ContextSetRGBFillColor(_context, r, g, b, a);
+    O2ContextFillRect(_context, [self bounds]);
+    O2ContextSetGrayFillColor(_context, frameGray, 1);
+    O2ContextFillRect(_context, titlebar);
+    O2ContextRestoreGState(_context);
 
     // the window's buttons and title, unless drawn above the content
     if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView) && NSIntersectsRect(rect, titlebar))

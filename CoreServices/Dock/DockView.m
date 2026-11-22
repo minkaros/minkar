@@ -299,6 +299,7 @@ static NSUInteger separatorCount(DockModel *model)
     CFAbsoluteTime _lastFrame;
     BOOL _framePending;
     NSImage *_barImage;       /* a short bar, its ends and middle copied to draw it */
+    BOOL _barDark;            /* the appearance it was drawn in */
     DockOrientation _barOrientation;
 }
 
@@ -544,14 +545,23 @@ static const CGFloat kBarRadius = 14;
 static const CGFloat kBarCap = 16;      /* a rounded end, its edge included */
 static const CGFloat kBarMiddle = 128;  /* a piece of the straight middle, repeated */
 
-/* The bar's rounded rectangle at its colors. */
+/* The appearance chosen in General (System Preferences): the Dock is light
+   or dark with it, as the reference's is. */
+static BOOL dockDark(void)
+{
+    return [[[NSApp effectiveAppearance] name] isEqualToString:NSAppearanceNameDarkAqua];
+}
+
+/* The bar's rounded rectangle at its colors: pale and see-through in the
+   light, charcoal and see-through in the dark. */
 static void drawBarPath(NSRect rect)
 {
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rect, 0.5, 0.5)
                                                          xRadius:kBarRadius yRadius:kBarRadius];
-    [[NSColor colorWithGenericGamma22White:0.96 alpha:0.55] setFill];
+    BOOL dark = dockDark();
+    [[NSColor colorWithGenericGamma22White:dark ? 0.16 : 0.96 alpha:dark ? 0.62 : 0.55] setFill];
     [path fill];
-    [[NSColor colorWithGenericGamma22White:1.0 alpha:0.6] setStroke];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.55 : 1.0 alpha:dark ? 0.35 : 0.6] setStroke];
     [path setLineWidth:1];
     [path stroke];
 }
@@ -579,9 +589,11 @@ static void drawBarPath(NSRect rect)
         drawBarPath([self rectForSpan:(DockSpan){ start, 0, length, thickness }]);
         return;
     }
-    if (_barImage == nil || !NSEqualSizes([_barImage size], size) || _barOrientation != [self orientation]) {
+    if (_barImage == nil || !NSEqualSizes([_barImage size], size) || _barOrientation != [self orientation] ||
+        _barDark != dockDark()) {
         _barImage = [[NSImage alloc] initWithSize:size];
         _barOrientation = [self orientation];
+        _barDark = dockDark();
         [_barImage lockFocus];
         drawBarPath(NSMakeRect(0, 0, size.width, size.height));
         [_barImage unlockFocus];
@@ -663,7 +675,7 @@ static void drawBadge(NSString *label, NSRect icon)
             drawBadge(badge, rect);
         if (t.application != nil && model.showIndicators) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
-            [[NSColor colorWithGenericGamma22White:0.15 alpha:0.85] setFill];
+            [[NSColor colorWithGenericGamma22White:dockDark() ? 0.92 : 0.15 alpha:0.85] setFill];
             [[NSBezierPath bezierPathWithOvalInRect:[self rectForSpan:d]] fill];
         }
     }
@@ -673,7 +685,7 @@ static void drawBadge(NSString *label, NSRect icon)
             continue;
         CGFloat at = mains[i - 1] + sizes[i - 1] + (gapFor(tile) + separatorSpace(tile)) / 2;
         DockSpan s = { floor(at), pad, 1, [DockView barThicknessForModel:model] - 2 * pad };
-        [[NSColor colorWithGenericGamma22White:0.2 alpha:0.35] setFill];
+        [[NSColor colorWithGenericGamma22White:dockDark() ? 1.0 : 0.2 alpha:0.35] setFill];
         NSRectFill([self rectForSpan:s]);
     }
 }

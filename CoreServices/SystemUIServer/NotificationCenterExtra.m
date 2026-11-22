@@ -17,12 +17,27 @@ static const CGFloat kPanelWidth = 340, kRowHeight = 64, kHeader = 66, kFooter =
 static const NSUInteger kRowsShown = 6;
 
 @interface NotificationCenterPanel : NSPanel
+/* The extra's button in the menu bar: highlighted while the panel is open,
+   as a menu's title is while its menu is. */
+@property (nonatomic, weak) NSStatusBarButton *statusButton;
 @end
 
 @implementation NotificationCenterPanel
 - (BOOL)canBecomeKeyWindow
 {
     return YES;
+}
+
+- (void)makeKeyAndOrderFront:(id)sender
+{
+    [super makeKeyAndOrderFront:sender];
+    [self.statusButton highlight:YES];
+}
+
+- (void)orderOut:(id)sender
+{
+    [super orderOut:sender];
+    [self.statusButton highlight:NO];
 }
 
 - (void)resignKeyWindow
@@ -71,7 +86,9 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
     CGFloat width = NSWidth(self.bounds);
 
     time.dateFormat = @"HH:mm";
-    [[NSColor colorWithGenericGamma22White:0.97 alpha:1] setFill];
+    /* In the appearance's colors (General in System Preferences). */
+    BOOL dark = [[[NSApp effectiveAppearance] name] isEqualToString:NSAppearanceNameDarkAqua];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.19 : 0.97 alpha:1] setFill];
     NSRectFill(self.bounds);
     if (self.notifications.count == 0) {
         drawText(NSLocalizedString(@"No Notifications", @"the notification center, empty"),
@@ -95,12 +112,12 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
         if ([n[@kNCKeyDate] isKindOfClass:[NSDate class]])
             drawText([time stringFromDate:n[@kNCKeyDate]], [NSFont systemFontOfSize:11], [NSColor grayColor],
                      NSMakeRect(width - 60, top + 6, 48, 14), NSTextAlignmentRight);
-        drawText(n[@kNCKeyTitle] ?: @"", [NSFont boldSystemFontOfSize:13], [NSColor blackColor],
+        drawText(n[@kNCKeyTitle] ?: @"", [NSFont boldSystemFontOfSize:13], [NSColor labelColor],
                  NSMakeRect(x, top + 22, textWidth, 17), NSTextAlignmentLeft);
-        drawText(second, [NSFont systemFontOfSize:12], [NSColor darkGrayColor],
+        drawText(second, [NSFont systemFontOfSize:12], [NSColor secondaryLabelColor],
                  NSMakeRect(x, top + 40, textWidth, 16), NSTextAlignmentLeft);
         if (i + 1 < self.notifications.count) {
-            [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
+            [[NSColor colorWithGenericGamma22White:dark ? 0.32 : 0.82 alpha:1] setFill];
             NSRectFill(NSMakeRect(12, top + kRowHeight - 1, width - 24, 1));
         }
     }];
@@ -191,6 +208,7 @@ static NSButton *makeButton(NSString *title, NSRect frame, id target, SEL action
                                                           backing:NSBackingStoreBuffered defer:NO];
     [_panel setLevel:NSPopUpMenuWindowLevel];
     [_panel setHidesOnDeactivate:NO];
+    ((NotificationCenterPanel *)_panel).statusButton = [_item button];
     [_panel setReleasedWhenClosed:NO];
 
     title = [[NSTextField alloc] initWithFrame:NSZeroRect];

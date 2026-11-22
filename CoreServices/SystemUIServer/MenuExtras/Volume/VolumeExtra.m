@@ -3,8 +3,10 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The volume Menu Extra (AU2). The panel is a small window of its own (a
- * menu with a slider in it comes with menu items' views).
+ * The volume Menu Extra (AU2), a menu as the reference's is: "Volume:",
+ * a slider (an item's view), "Output Device:" and the output devices (the
+ * default one checked, a choice making it the default), then Sound
+ * Preferences. Its items are highlighted in the accent like any menu's.
  */
 
 #import "VolumeExtra.h"
@@ -18,42 +20,29 @@
 
 static NSString *const kIcons = @"/System/Library/MenuBarIcons";
 
-/* A borderless panel that takes the keyboard, and goes when it loses it
-   (a click anywhere else). */
-@interface VolumePanel : NSPanel
-@end
-
-@implementation VolumePanel
-- (BOOL)canBecomeKeyWindow
-{
-    return YES;
-}
-
-- (void)resignKeyWindow
-{
-    [super resignKeyWindow];
-    [self orderOut:nil];
-}
-@end
-
 static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector selector)
 {
     return (AudioObjectPropertyAddress){ selector, kAudioObjectPropertyScopeOutput, kAudioObjectPropertyElementMain };
 }
 
+static AudioObjectPropertyAddress globalAddress(AudioObjectPropertySelector selector)
+{
+    return (AudioObjectPropertyAddress){ selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+}
+
+@interface VolumeExtra () <NSMenuDelegate>
+@end
+
 @implementation VolumeExtra {
     NSStatusItem *_item;
-    NSRunningApplication *_previous;   /* in front before the panel */
-    VolumePanel *_panel;
+    NSMenu *_menu;
     NSSlider *_slider;
-    NSButton *_mute;
     AudioDeviceID _device;
 }
 
 - (AudioDeviceID)defaultOutput
 {
-    AudioObjectPropertyAddress a = { kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal,
-                                     kAudioObjectPropertyElementMain };
+    AudioObjectPropertyAddress a = globalAddress(kAudioHardwarePropertyDefaultOutputDevice);
     AudioDeviceID device = kAudioObjectUnknown;
     UInt32 size = sizeof(device);
 
@@ -84,6 +73,32 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
     return muted != 0;
 }
 
+/* The devices with output streams, by name. */
+- (NSArray<NSArray *> *)outputDevices
+{
+    AudioObjectPropertyAddress a = globalAddress(kAudioHardwarePropertyDevices);
+    UInt32 size = 0;
+    NSMutableArray *found = [NSMutableArray array];
+
+    if (AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &a, 0, NULL, &size) != noErr || size == 0)
+        return found;
+    AudioDeviceID devices[size / sizeof(AudioDeviceID)];
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &size, devices) != noErr)
+        return found;
+    for (UInt32 i = 0; i < size / sizeof(AudioDeviceID); i++) {
+        AudioObjectPropertyAddress streams = outputAddress(kAudioDevicePropertyStreams);
+        UInt32 streamsSize = 0;
+        if (AudioObjectGetPropertyDataSize(devices[i], &streams, 0, NULL, &streamsSize) != noErr || streamsSize == 0)
+            continue;
+        AudioObjectPropertyAddress n = globalAddress(kAudioObjectPropertyName);
+        CFStringRef name = NULL;
+        UInt32 nameSize = sizeof(name);
+        AudioObjectGetPropertyData(devices[i], &n, 0, NULL, &nameSize, &name);
+        [found addObject:@[ @(devices[i]), name != NULL ? (__bridge_transfer NSString *)name : @"?" ]];
+    }
+    return found;
+}
+
 /* The speaker for the level: muted (or no device), low, medium, high. */
 - (void)showLevel
 {
@@ -102,8 +117,6 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
     [[_item button] display];
     [_slider setFloatValue:volume];
     [_slider setEnabled:_device != kAudioObjectUnknown];
-    [_mute setState:[self muted] ? NSControlStateValueOn : NSControlStateValueOff];
-    [_mute setEnabled:_device != kAudioObjectUnknown];
 }
 
 - (instancetype)initWithStatusItem:(NSStatusItem *)item
@@ -112,14 +125,27 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
         return nil;
     _item = item;
     _device = [self defaultOutput];
-    [_item setTarget:self];
-    [_item setAction:@selector(toggle:)];
-    [_item sendActionOn:NSEventMaskLeftMouseDown];
-    [self buildPanel];
+
+    /* The slider, as the reference's menu has it: inset like the items'
+       titles. */
+    NSView *holder = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 220, 28)];
+    _slider = [[NSSlider alloc] initWithFrame:NSMakeRect(18, 2, 184, 24)];
+    [_slider setMinValue:0];
+    [_slider setMaxValue:1];
+    [_slider setContinuous:YES];
+    [_slider setTarget:self];
+    [_slider setAction:@selector(volumeChanged:)];
+    [holder addSubview:_slider];
+
+    _menu = [[NSMenu alloc] initWithTitle:@"Volume"];
+    [_menu setDelegate:self];
+    [_menu setAutoenablesItems:NO];
+    NSMenuItem *sliderItem = [[NSMenuItem alloc] initWithTitle:@"" action:NULL keyEquivalent:@""];
+    [sliderItem setView:holder];
+    [_menu addItem:sliderItem];
+    [_item setMenu:_menu];
+    [self menuNeedsUpdate:_menu];
     [self showLevel];
-    /* A click in another app (this one no longer active) closes it. */
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deactivated:)
-                                                 name:NSApplicationDidResignActiveNotification object:nil];
 
     /* Changes from anywhere (the Sound pane, an app) show here. */
     __weak VolumeExtra *weakSelf = self;
@@ -135,90 +161,54 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
     return self;
 }
 
-- (void)buildPanel
+static NSMenuItem *heading(NSString *title)
 {
-    NSRect frame = NSMakeRect(0, 0, 240, 128);
-    NSView *content;
-    NSTextField *title;
-    NSBox *line;
-    NSButton *prefs;
-
-    _panel = [[VolumePanel alloc] initWithContentRect:frame styleMask:NSWindowStyleMaskBorderless
-                                              backing:NSBackingStoreBuffered defer:NO];
-    [_panel setLevel:NSPopUpMenuWindowLevel];
-    [_panel setHidesOnDeactivate:NO];
-    content = [_panel contentView];
-
-    title = [[NSTextField alloc] initWithFrame:NSMakeRect(16, 96, 208, 18)];
-    [title setStringValue:NSLocalizedString(@"Sound", @"the volume panel's title")];
-    [title setFont:[NSFont boldSystemFontOfSize:13]];
-    [title setEditable:NO];
-    [title setBordered:NO];
-    [title setDrawsBackground:NO];
-    [content addSubview:title];
-
-    _slider = [[NSSlider alloc] initWithFrame:NSMakeRect(16, 66, 208, 24)];
-    [_slider setMinValue:0];
-    [_slider setMaxValue:1];
-    [_slider setContinuous:YES];
-    [_slider setTarget:self];
-    [_slider setAction:@selector(volumeChanged:)];
-    [content addSubview:_slider];
-
-    _mute = [[NSButton alloc] initWithFrame:NSMakeRect(16, 42, 208, 20)];
-    [_mute setButtonType:NSButtonTypeSwitch];
-    [_mute setTitle:NSLocalizedString(@"Mute", nil)];
-    [_mute setTarget:self];
-    [_mute setAction:@selector(muteChanged:)];
-    [content addSubview:_mute];
-
-    line = [[NSBox alloc] initWithFrame:NSMakeRect(12, 36, 216, 1)];
-    [line setBoxType:NSBoxSeparator];
-    [content addSubview:line];
-
-    prefs = [[NSButton alloc] initWithFrame:NSMakeRect(10, 8, 220, 24)];
-    [prefs setTitle:NSLocalizedString(@"Sound Preferences…", nil)];
-    [prefs setBordered:NO];
-    [prefs setAlignment:NSTextAlignmentLeft];
-    [prefs setTarget:self];
-    [prefs setAction:@selector(openPreferences:)];
-    [content addSubview:prefs];
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:NULL keyEquivalent:@""];
+    [item setEnabled:NO];
+    return item;
 }
 
-/* Below the speaker, inside the screen. */
-- (void)deactivated:(NSNotification *)note
+/* Made again as it opens: the level, the devices, the default one. */
+- (void)menuNeedsUpdate:(NSMenu *)menu
 {
-    _previous = nil;
-    [_panel orderOut:nil];
-}
-
-/* Closed from here: the app that was in front is again. */
-- (void)close
-{
-    [_panel orderOut:nil];
-    [_previous activateWithOptions:0];
-    _previous = nil;
-}
-
-- (void)toggle:(id)sender
-{
-    if ([_panel isVisible]) {
-        [self close];
-        return;
-    }
-    NSRunningApplication *front = [[NSWorkspace sharedWorkspace] frontmostApplication];
-    if (![front isEqual:[NSRunningApplication currentApplication]])
-        _previous = front;
+    NSMenuItem *sliderItem = nil;
+    for (NSMenuItem *item in [menu itemArray])
+        if ([item view] != nil)
+            sliderItem = item;
+    [menu removeAllItems];
     _device = [self defaultOutput];
     [self showLevel];
-    NSRect itemFrame = [[[_item button] window] frame];
-    NSRect visible = [[NSScreen mainScreen] visibleFrame];
-    NSRect frame = [_panel frame];
-    frame.origin.x = MIN(NSMinX(itemFrame), NSMaxX(visible) - frame.size.width);
-    frame.origin.y = NSMinY(itemFrame) - frame.size.height;
-    [_panel setFrame:frame display:NO];
-    [NSApp activateIgnoringOtherApps:YES];
-    [_panel makeKeyAndOrderFront:nil];
+
+    [menu addItem:heading(NSLocalizedString(@"Volume:", @"the volume menu's first heading"))];
+    if (sliderItem != nil)
+        [menu addItem:sliderItem];
+    NSArray *devices = [self outputDevices];
+    if (devices.count > 0) {
+        [menu addItem:heading(NSLocalizedString(@"Output Device:", @"the volume menu's devices"))];
+        for (NSArray *device in devices) {
+            NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:device[1] action:@selector(chooseDevice:)
+                                                   keyEquivalent:@""];
+            [item setTarget:self];
+            [item setTag:[device[0] integerValue]];
+            [item setState:[device[0] unsignedIntValue] == _device ? NSControlStateValueOn : NSControlStateValueOff];
+            [menu addItem:item];
+        }
+    }
+    [menu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *prefs = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Sound Preferences…", nil)
+                                                   action:@selector(openPreferences:) keyEquivalent:@""];
+    [prefs setTarget:self];
+    [menu addItem:prefs];
+}
+
+- (void)chooseDevice:(NSMenuItem *)sender
+{
+    AudioObjectPropertyAddress a = globalAddress(kAudioHardwarePropertyDefaultOutputDevice);
+    AudioDeviceID device = (AudioDeviceID)[sender tag];
+
+    AudioObjectSetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, sizeof(device), &device);
+    _device = [self defaultOutput];
+    [self showLevel];
 }
 
 - (void)volumeChanged:(id)sender
@@ -245,19 +235,8 @@ static AudioObjectPropertyAddress outputAddress(AudioObjectPropertySelector sele
     }
 }
 
-- (void)muteChanged:(id)sender
-{
-    AudioObjectPropertyAddress a = outputAddress(kAudioDevicePropertyMute);
-    UInt32 muted = [_mute state] == NSControlStateValueOn;
-
-    AudioObjectSetPropertyData(_device, &a, 0, NULL, sizeof(muted), &muted);
-    [self showLevel];
-}
-
 - (void)openPreferences:(id)sender
 {
-    _previous = nil;
-    [_panel orderOut:nil];
     [[NSWorkspace sharedWorkspace] openURL:
         [NSURL fileURLWithPath:@"/System/Library/PreferencePanes/Sound.prefPane"]];
 }

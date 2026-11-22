@@ -109,7 +109,9 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 
 -(NSSize)menuItemCheckMarkSize {
 	NSSize result = [[self checkMark] size];
-	
+
+	/* Room for the drawn check mark (drawMenuCheckmarkInRect:). */
+	result.width = MAX(result.width, 11);
 	return result;
 }
 
@@ -282,14 +284,21 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	else
 		color = [NSColor disabledControlTextColor];
 	
-	checkMark = [[NSInterfacePartAttributedString alloc] initWithCharacter:0xF00C
-																  fontName:@"Font Awesome 5 Free-Solid"
-																 pointSize:10
-																	 color:color];
-	rect.origin.x += margins.left;
-	rect.origin.y += margins.top;
+	/* A check mark drawn as a stroke, as Atlas's check boxes are (the
+	   font the glyph came from is not part of the system). */
+	CGFloat x = NSMinX(rect) + margins.left, y = NSMidY(rect);
+	CGFloat down = [[NSGraphicsContext currentContext] isFlipped] ? 1 : -1;
+	NSBezierPath *check = [NSBezierPath bezierPath];
 
-	[checkMark drawAtPoint:rect.origin];
+	[check moveToPoint:NSMakePoint(x + 1, y)];
+	[check lineToPoint:NSMakePoint(x + 4, y + 3 * down)];
+	[check lineToPoint:NSMakePoint(x + 10, y - 4 * down)];
+	[check setLineWidth:1.8];
+	[check setLineCapStyle:NSRoundLineCapStyle];
+	[check setLineJoinStyle:NSRoundLineJoinStyle];
+	[color setStroke];
+	[check stroke];
+	(void)checkMark;
 }
 
 
