@@ -56,12 +56,15 @@ SUBDIR += QuickLook
 # Core Image (QuartzCore re-exports it).
 SUBDIR += CoreImage
 SUBDIR += QuartzCore
+# AppKit links AudioToolbox (its sounds), which links CoreAudio: both
+# before it.
+SUBDIR += CoreAudio
+SUBDIR += AudioToolbox
 SUBDIR += AppKit
 # Small frameworks binaries for the reference platform link.
 SUBDIR += UserNotifications
 SUBDIR += ServiceManagement
 SUBDIR += AddressBook
-SUBDIR += AudioToolbox
 SUBDIR += OSAKit
 SUBDIR += Carbon
 # PDF documents (Quartz re-exports it).
@@ -69,7 +72,6 @@ SUBDIR += PDFKit
 SUBDIR += Quartz
 # Frameworks Firefox links (13 Nov 2026): what it needs to load, each with
 # what Minkar can do today (see each Makefile).
-SUBDIR += CoreAudio
 SUBDIR += AudioUnit
 SUBDIR += CoreMedia
 SUBDIR += VideoToolbox
@@ -113,8 +115,11 @@ SUBDIR += XCTest
 
 all: ${SUBDIR}
 
-# What each one links (or includes) is built before it: the stage runs
-# them in parallel.
+# What each one links (or includes). The stage builds the directories in
+# the order SUBDIR lists them (bsd.subdir.mk reads dependencies only with
+# SUBDIR_PARALLEL, which this Makefile does not set): these rules do not
+# order the build, they say what the order must keep.
+# tools/check/subdir-order.py checks that SUBDIR keeps them.
 Foundation: CoreFoundation ../BSD/lib/libcompression CoreServices
 ../BSD/lib/libcompression: CoreText/xz
 CoreText: CoreText/xz CoreGraphics Foundation Onyx2D
