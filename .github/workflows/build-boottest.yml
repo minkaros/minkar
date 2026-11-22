@@ -61,6 +61,11 @@ jobs:
       - name: Check they are current
         run: git diff --exit-code Docs/
 
+      - name: Each stage builds what a directory needs before it
+        # Frameworks builds its SUBDIR in order; a dependency listed after
+        # what needs it breaks only a build from scratch, hours into it.
+        run: python3 tools/check/subdir-order.py
+
   toolchain:
     runs-on: ubuntu-24.04
     timeout-minutes: 330
