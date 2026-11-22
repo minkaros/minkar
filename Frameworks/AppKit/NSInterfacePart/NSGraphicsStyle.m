@@ -346,19 +346,24 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	}
 }
 
-/* Atlas's menu bar is dark: a charcoal gradient with a darker line at
-   its bottom edge, and light text. The menus it opens stay light. */
+BOOL _NSSystemAppearanceIsDark(void);
+
+/* Atlas's menu bar follows the appearance (General in System
+   Preferences), as the reference's does: light, a pale gradient with a
+   grey line at its bottom edge and dark text; dark, a charcoal gradient
+   with a darker line and light text. */
 NSColor *_NSMenuBarTextColor(void) {
-	return [NSColor colorWithGenericGamma22White:0.93 alpha:1];
+	return [NSColor colorWithGenericGamma22White:_NSSystemAppearanceIsDark()?0.93:0.10 alpha:1];
 }
 
 -(void)drawMenuBarBackgroundInRect:(NSRect)rect {
-	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithGenericGamma22White:0.17 alpha:1]
-		endingColor:[NSColor colorWithGenericGamma22White:0.25 alpha:1]];
+	BOOL        dark=_NSSystemAppearanceIsDark();
+	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithGenericGamma22White:dark?0.17:0.90 alpha:1]
+		endingColor:[NSColor colorWithGenericGamma22White:dark?0.25:0.96 alpha:1]];
 
 	[gradient drawInRect:rect angle:90];
 	[gradient release];
-	[[NSColor colorWithGenericGamma22White:0.08 alpha:1] setFill];
+	[[NSColor colorWithGenericGamma22White:dark?0.08:0.72 alpha:1] setFill];
 	NSRectFill(NSMakeRect(NSMinX(rect),NSMinY(rect),NSWidth(rect),1));
 }
 
@@ -388,6 +393,12 @@ NSColor *_NSMenuBarTextColor(void) {
    Drawn here, without artwork, as Atlas's menu bar and window controls are:
    rounded shapes in its palette (the system colors, System.clr), light
    faces with a thin border, one accent color for what is chosen. */
+
+NSImage *_NSImageTintedTemplate(NSImage *image,NSColor *color);
+
+/* The color template images are drawn in now (a status item sets it while
+   it draws); nil, the controls' text color. */
+NSColor *_NSTemplateTintColor=nil;
 
 static BOOL atlasFlipped(void) {
    return [[NSGraphicsContext currentContext] isFlipped];
@@ -638,6 +649,9 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
     [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(NSMinX(box)+3.5,NSMidY(box)-1,7,2) xRadius:1 yRadius:1] fill];
     return;
    }
+   /* A template image takes the color it is drawn in: the menu bar's in a
+      status item, else the controls' text. */
+   image=_NSImageTintedTemplate(image,_NSTemplateTintColor!=nil?_NSTemplateTintColor:[NSColor controlTextColor]);
    [image drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:fraction];
    if(mixed){
     NSRect bar=NSMakeRect(NSMinX(rect)+3,NSMidY(rect)-1,NSWidth(rect)-6,2);

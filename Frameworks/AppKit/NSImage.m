@@ -995,6 +995,25 @@ static char capInsetsKey,resizingModeKey;
 }
 
 
+/* A template image in a color: its shape (its alpha) filled with it, as
+   AppKit draws template images in a button, the menu bar or a status
+   item. A plain image is given back as it is. */
+NSImage *_NSImageTintedTemplate(NSImage *image,NSColor *color) {
+   NSSize   size=[image size];
+   NSRect   all=NSMakeRect(0,0,size.width,size.height);
+   NSImage *tinted;
+
+   if(image==nil || ![image isTemplate] || color==nil || size.width<=0 || size.height<=0)
+    return image;
+   tinted=[[[NSImage alloc] initWithSize:size] autorelease];
+   [tinted lockFocus];
+   [image drawInRect:all fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1];
+   [color set];
+   NSRectFillUsingOperation(all,NSCompositeSourceIn);
+   [tinted unlockFocus];
+   return tinted;
+}
+
 /* Drawn once, now, into an image of the size. */
 +(NSImage *)imageWithSize:(NSSize)size flipped:(BOOL)flipped drawingHandler:(BOOL (^)(NSRect dstRect))drawingHandler {
    NSImage *image=[[[self alloc] initWithSize:size] autorelease];

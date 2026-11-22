@@ -24,8 +24,9 @@ code marks it `// SHORTCUT(<milestone>):`.
   `/System/Library/MenuBarIcons`), only the icons the menu bar uses. No code links with
   them.
 - **Look.** Folders are blue (Faience-Azur), with sand and orange as alternatives. App
-  icons are 512×512 PNG in the bundle (AppKit reads no `.icns` yet). The menu bar is dark
-  (charcoal, light text). The interface font is Inter and the fixed-pitch font Agave
+  icons are 512×512 PNG in the bundle (AppKit reads no `.icns` yet). The menu bar follows the
+  appearance (General in System Preferences): light (pale, dark text) or dark
+  (charcoal, light text); its template icons are drawn in its text color. The interface font is Inter and the fixed-pitch font Agave
   (both SIL OFL 1.1).
 - **Cursors.** Atlas's own (`SystemLibrary/Cursors/gen-cursors.py`, drawn from their
   geometry when the system is built): black glyphs outlined in white with a soft shadow,

@@ -83,8 +83,11 @@ static const CGFloat kItemPadding = 8;
 
 @end
 
+extern NSColor *_NSTemplateTintColor;
+
 @implementation NSStatusBarButton {
     NSStatusItem *_statusItem;	/* not retained: the item owns the button */
+    BOOL _plainTitle;		/* set by setTitle:, in the bar's text color */
 }
 
 @synthesize appearsDisabled = _appearsDisabled;
@@ -122,11 +125,29 @@ static const CGFloat kItemPadding = 8;
 
 /* Highlighted (pressed, or its menu open): the selection behind it. */
 - (void)drawRect:(NSRect)rect {
-    if([[self cell] isHighlighted]) {
+    BOOL highlighted = [[self cell] isHighlighted];
+    NSColor *ink = highlighted ? [NSColor selectedMenuItemTextColor] : _NSMenuBarTextColor();
+
+    if(highlighted) {
         [[NSColor selectedMenuItemColor] setFill];
         [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect([self bounds], 0, 1) xRadius:4 yRadius:4] fill];
     }
+    /* A plain title in the bar's text color as it is now (the appearance
+       may have changed since it was set). */
+    if(_plainTitle && [[self attributedTitle] length] > 0) {
+        NSColor *now = [[self attributedTitle] attribute:NSForegroundColorAttributeName atIndex:0 effectiveRange:NULL];
+        NSColor *was = [now colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+        NSColor *bar = [_NSMenuBarTextColor() colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+        if(was == nil || bar == nil || fabs([was whiteComponent] - [bar whiteComponent]) > 0.01) {
+            NSMutableAttributedString *again = [[[self attributedTitle] mutableCopy] autorelease];
+            [again addAttribute:NSForegroundColorAttributeName value:_NSMenuBarTextColor()
+                range:NSMakeRange(0, [again length])];
+            [super setAttributedTitle:again];
+        }
+    }
+    _NSTemplateTintColor = ink;
     [super drawRect:rect];
+    _NSTemplateTintColor = nil;
 }
 
 /* A plain title in the menu bar's text color (the bar is dark). */
@@ -141,11 +162,13 @@ static const CGFloat kItemPadding = 8;
     [attributes setObject:_NSMenuBarTextColor() forKey:NSForegroundColorAttributeName];
     [super setAttributedTitle:[[[NSAttributedString alloc] initWithString:title ? title : @""
         attributes:attributes] autorelease]];
+    _plainTitle = YES;
     [_statusItem _updateLength];
 }
 
 - (void)setAttributedTitle:(NSAttributedString *)title {
     [super setAttributedTitle:title];
+    _plainTitle = NO;
     [_statusItem _updateLength];
 }
 

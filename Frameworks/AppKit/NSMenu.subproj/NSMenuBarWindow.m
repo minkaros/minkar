@@ -288,9 +288,11 @@ static NSMenuItem *systemMenuItem(void) {
     }
     item = [[NSMenuItem alloc] initWithTitle:@"" action:NULL keyEquivalent:@""];
     NSString *path = [[NSBundle bundleForClass:[NSMenuBarWindow class]]
-        pathForResource:@"MinkarMenu-White-18" ofType:@"png"];
+        pathForResource:@"MinkarMenu-Black-18" ofType:@"png"];
     NSImage *mark = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
     if(mark != nil) {
+        /* A template: drawn in the menu bar's text color, light or dark. */
+        [mark setTemplate:YES];
         [mark setScalesWhenResized:YES];
         [mark setSize:NSMakeSize(16, 16)];
         [item setImage:mark];

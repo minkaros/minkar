@@ -23,6 +23,9 @@ SOFTWARE. */
 #import "NSMenuWindow.h"
 #import <AppKit/NSFont.h>
 #import <AppKit/NSGraphicsStyle.h>
+NSImage *_NSImageTintedTemplate(NSImage *image,NSColor *color);
+NSColor *_NSMenuBarTextColor(void);
+
 @implementation NSMenuBarView
 
 -(BOOL)_isMenuBar {
@@ -199,7 +202,10 @@ static const CGFloat firstTitleInset=20;
                 if(img) {
                     NSPoint pt = titleRect.origin;
                     pt.y = (kNSMenuItemHeight / 2) + ([img size].height / 2);
-                    [[item image] compositeToPoint:pt operation:NSCompositeSourceOver];
+                    /* A template image (the system menu's logo) in the
+                       bar's text color. */
+                    NSColor *ink=(i==_selectedItemIndex)?[NSColor selectedMenuItemTextColor]:_NSMenuBarTextColor();
+                    [_NSImageTintedTemplate(img,ink) compositeToPoint:pt operation:NSCompositeSourceOver];
                 }
 
                 if([item hasSubmenu] && [[[item submenu] _name] isEqualToString:@"NSAppleMenu"]) 
