@@ -10,10 +10,13 @@ A stage whose Makefile does not set SUBDIR_PARALLEL builds its SUBDIR in
 the order listed; its "dir: dep dep" rules say what each directory links
 or includes, and do not order anything. An incremental build finds what
 it needs in the SDK from an earlier build; a build from scratch does not,
-and stops (CUPS before Security, AppKit before AudioToolbox). This reads
-SUBDIR with bmake -V, the rules from the Makefile, and prints each
-dependency listed after the directory that needs it. Exits 1 if there is
-any. Default: Frameworks.
+and stops (CUPS before Security, AppKit before AudioToolbox, CoreData
+before libsqlite3). This reads SUBDIR with bmake -V and prints each
+dependency listed after the directory that needs it: those the stage's
+rules name, and the frameworks (-framework X) and libraries (-lX) each
+directory's own Makefile links that another directory of the stage
+builds (FRAMEWORK = X, LIB = X). Exits 1 if there is any. Default:
+Frameworks.
 """
 
 import argparse
@@ -23,6 +26,34 @@ import subprocess
 import sys
 
 RULE = re.compile(r'^([A-Za-z0-9.][A-Za-z0-9./_+-]*):\s+([^=].*)$')
+PRODUCT = re.compile(r'^(FRAMEWORK|LIB)\s*\??=\s*(\S+)\s*$', re.M)
+LINKS = re.compile(r'-framework\s+([A-Za-z0-9_]+)|(?<![A-Za-z0-9_-])-l([A-Za-z0-9_+.]+)')
+
+
+def makefile_text(repo, stage, directory):
+    path = os.path.normpath(os.path.join(repo, stage, directory, 'Makefile'))
+    try:
+        with open(path) as f:
+            # Comments are not flags.
+            return re.sub(r'#.*', '', f.read())
+    except OSError:
+        return ''
+
+
+def linked(repo, stage, order, position):
+    """(directory, needed directory, what) for each -framework/-l another
+    directory of the stage builds."""
+    makes = {d: makefile_text(repo, stage, d) for d in position}
+    builds = {}
+    for d, text in makes.items():
+        for kind, name in PRODUCT.findall(text):
+            builds[('framework' if kind == 'FRAMEWORK' else 'lib', name)] = d
+    for d, text in makes.items():
+        for framework, lib in LINKS.findall(text):
+            key = ('framework', framework) if framework else ('lib', lib)
+            producer = builds.get(key)
+            if producer is not None and producer != d:
+                yield d, producer, ('-framework ' + framework) if framework else ('-l' + lib)
 
 
 def subdir_order(repo, directory):
@@ -50,6 +81,11 @@ def check(repo, directory):
                     problems += 1
                     print(f'{directory}/Makefile:{number}: {target} needs {dep}, '
                           f'which SUBDIR lists after it')
+    for d, producer, what in sorted(set(linked(repo, directory, order, position))):
+        if position[producer] > position[d]:
+            problems += 1
+            print(f'{directory}/{d}/Makefile: {d} links {what}, which {producer} builds, '
+                  f'listed after it in SUBDIR')
     return problems
 
 
