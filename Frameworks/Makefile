@@ -58,6 +58,11 @@ SUBDIR += QuickLook
 # Core Image (QuartzCore re-exports it).
 SUBDIR += CoreImage
 SUBDIR += QuartzCore
+# AudioToolbox and VideoToolbox include FFmpeg's headers (they load its
+# libraries at run time): FFmpeg, with the dav1d it decodes AV1 with, is
+# built here, as the BSD stage comes later.
+SUBDIR += ../BSD/lib/dav1d
+SUBDIR += ../BSD/lib/ffmpeg
 # AppKit links AudioToolbox (its sounds), which links CoreAudio: both
 # before it.
 SUBDIR += CoreAudio
@@ -146,7 +151,7 @@ UserNotifications: Foundation
 ServiceManagement: CoreFoundation Security/minkar
 Security/minkar: CoreFoundation
 AddressBook: Foundation
-AudioToolbox: CoreFoundation CoreAudio
+AudioToolbox: CoreFoundation CoreAudio ../BSD/lib/ffmpeg
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 PDFKit: AppKit CoreGraphics Onyx2D
@@ -154,7 +159,7 @@ Quartz: AppKit QuickLook PDFKit
 CoreAudio: CoreFoundation ../Kernel/IOKitUser
 AudioUnit: AudioToolbox
 CoreMedia: CoreFoundation CoreVideo CoreAudio AudioToolbox
-VideoToolbox: CoreMedia CoreVideo
+VideoToolbox: CoreMedia CoreVideo ../BSD/lib/ffmpeg
 CoreMIDI: CoreFoundation
 Metal: Foundation
 MetalKit: Metal QuartzCore AppKit
@@ -183,5 +188,6 @@ QuickLook: CoreGraphics CoreFoundation
 Combine: ../Libraries/swift
 ../Libraries/swift/overlays: ../Libraries/swift CoreFoundation CoreGraphics Foundation Combine
 XCTest: ../Libraries/swift/overlays
+../BSD/lib/ffmpeg: ../BSD/lib/dav1d
 
 .include <bsd.subdir.mk>
