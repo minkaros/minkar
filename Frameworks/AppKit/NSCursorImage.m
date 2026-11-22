@@ -30,7 +30,9 @@
  * NSCursor with the new window server (WindowServer plan, WS4a): a cursor
  * is a premultiplied BGRA image and a hot spot, set for this app with
  * SLSSetCursorImage; the screen shows the front app's. The arrow is the
- * server's own (a NULL image).
+ * server's own (a NULL image). The standard ones are Atlas's, from
+ * /System/Library/Cursors; the shapes below are kept for when those files
+ * are missing.
  *
  * SHORTCUT(Phase 5): the standard cursors are plain shapes drawn here
  * (black, with a white outline added around them), and the ones without a
@@ -247,6 +249,28 @@ static NSCursorImage *imageForShape(const NSCursorShape *s) {
     return image;
 }
 
+id _NSCursorSkyLightWithImage(NSImage *image, NSPoint hotSpot);
+
+/* Atlas's cursor of that name (/System/Library/Cursors, made by
+   SystemLibrary/Cursors/gen-cursors.py: NAME.png and its hot spot in
+   Cursors.plist), or nil. */
+static id cursorFromFile(const char *name) {
+    static NSDictionary *hotSpots;
+    NSString *dir = @"/System/Library/Cursors";
+
+    if (hotSpots == nil)
+        hotSpots = [[NSDictionary alloc] initWithContentsOfFile:[dir stringByAppendingPathComponent:@"Cursors.plist"]];
+    NSDictionary *hot = [hotSpots objectForKey:[NSString stringWithUTF8String:name]];
+    if (hot == nil)
+        return nil;
+    NSString *path = [dir stringByAppendingPathComponent:[NSString stringWithFormat:@"%s.png", name]];
+    NSImage *image = [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+    if (image == nil)
+        return nil;
+    return _NSCursorSkyLightWithImage(image, NSMakePoint([[hot objectForKey:@"hotX"] doubleValue],
+        [[hot objectForKey:@"hotY"] doubleValue]));
+}
+
 /* A standard cursor, or nil for the server's arrow. */
 id _NSCursorSkyLightWithName(NSString *name) {
     const char *n = [name UTF8String];
@@ -254,6 +278,12 @@ id _NSCursorSkyLightWithName(NSString *name) {
     for (size_t i = 0; i < sizeof(aliases) / sizeof(aliases[0]); i++)
         if (strcmp(n, aliases[i][0]) == 0)
             n = aliases[i][1];
+    /* The arrow is the server's own (the same picture). */
+    if (strcmp(n, "arrowCursor") != 0) {
+        id cursor = cursorFromFile(n);
+        if (cursor != nil)
+            return cursor;
+    }
     for (size_t i = 0; i < sizeof(shapes) / sizeof(shapes[0]); i++)
         if (strcmp(n, shapes[i].name) == 0)
             return imageForShape(&shapes[i]);

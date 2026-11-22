@@ -23,6 +23,11 @@ code marks it `// SHORTCUT(<milestone>):`.
   icons are 512×512 PNG in the bundle (AppKit reads no `.icns` yet). The menu bar is dark
   (charcoal, light text). The interface font is Inter and the fixed-pitch font Agave
   (both SIL OFL 1.1).
+- **Cursors.** Atlas's own (`SystemLibrary/Cursors/gen-cursors.py`, drawn from their
+  geometry when the system is built): black glyphs outlined in white with a soft shadow,
+  the hands white outlined in black, colored badges for copy, link, help and not allowed,
+  and a turning wheel for busy apps; at 1x and 2x, each as large as the reference's same
+  cursor. Installed in `/System/Library/Cursors`.
 - **Generic names.** The only proper names are Minkar, the system, and Atlas, its
   desktop. Every app is named for what it does, with the common words free desktops use
   (Files, Text Editor, System Monitor, Logs). The bundle has no spaces

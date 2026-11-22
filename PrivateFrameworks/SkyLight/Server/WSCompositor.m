@@ -48,7 +48,9 @@
 }
 @end
 
-/* ---- The cursor: an arrow drawn here, hot spot at its tip ---- */
+/* ---- The cursor: Atlas's arrow (/System/Library/Cursors/arrowCursor.bgra,
+ * made by SystemLibrary/Cursors/gen-cursors.py: width, height, hot spot,
+ * then premultiplied BGRA), or the one drawn here, hot spot at its tip ---- */
 
 static const char *const arrow[] = {
 	"X          ",
@@ -70,6 +72,50 @@ static const char *const arrow[] = {
 	"      XX   ",
 };
 enum { kArrowWidth = 11, kArrowHeight = 17 };
+#define kArrowPath	"/System/Library/Cursors/arrowCursor.bgra"
+
+static int arrowWidth = kArrowWidth, arrowHeight = kArrowHeight, arrowHotX, arrowHotY;
+
+/* The arrow from its file: NULL when it is missing or not one. */
+static pixman_image_t *
+cursorImageFromFile(void)
+{
+	FILE *f = fopen(kArrowPath, "rb");
+	uint32_t header[4];
+	uint32_t *pixels;
+
+	if (f == NULL)
+		return NULL;
+	if (fread(header, sizeof(header), 1, f) != 1 || header[0] == 0 || header[1] == 0 ||
+	    header[0] > 64 || header[1] > 64 || header[2] >= header[0] || header[3] >= header[1]) {
+		fclose(f);
+		return NULL;
+	}
+	pixels = malloc((size_t)header[0] * header[1] * 4);
+	if (pixels == NULL || fread(pixels, 4, (size_t)header[0] * header[1], f) != (size_t)header[0] * header[1]) {
+		free(pixels);
+		fclose(f);
+		return NULL;
+	}
+	fclose(f);
+	arrowWidth = (int)header[0];
+	arrowHeight = (int)header[1];
+	arrowHotX = (int)header[2];
+	arrowHotY = (int)header[3];
+	return pixman_image_create_bits(PIXMAN_a8r8g8b8, arrowWidth, arrowHeight, pixels, arrowWidth * 4);
+}
+
+static pixman_image_t *cursorImage(void);
+
+void
+WSCursorArrowMetrics(int *width, int *height, int *hotX, int *hotY)
+{
+	(void)cursorImage();
+	*width = arrowWidth;
+	*height = arrowHeight;
+	*hotX = arrowHotX;
+	*hotY = arrowHotY;
+}
 
 static pixman_image_t *
 cursorImage(void)
@@ -77,6 +123,8 @@ cursorImage(void)
 	static pixman_image_t *image;
 	static uint32_t pixels[kArrowWidth * kArrowHeight];
 
+	if (image == NULL)
+		image = cursorImageFromFile();
 	if (image == NULL) {
 		for (int y = 0; y < kArrowHeight; y++)
 			for (int x = 0; x < kArrowWidth; x++) {
@@ -553,10 +601,10 @@ backendClass(void)
 		ch = shape.height;
 	} else if (cursorVisible) {
 		cursorSource = pixman_image_ref(cursorImage());
-		cx = (int)floor(cursor.x - ox);
-		cy = (int)floor(cursor.y - oy);
-		cw = kArrowWidth;
-		ch = kArrowHeight;
+		cx = (int)floor(cursor.x - arrowHotX - ox);
+		cy = (int)floor(cursor.y - arrowHotY - oy);
+		cw = arrowWidth;
+		ch = arrowHeight;
 	}
 	if (cursorSource != NULL) {
 		[_backend drawCursor:cursorSource x:cx y:cy width:cw height:ch];
