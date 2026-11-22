@@ -276,6 +276,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return i-1;
 }
 
+/* Minkar: the cell at a row, its column loaded first if it is one of
+   the browser's but was not yet. */
+-(id)loadedCellAtRow:(NSInteger)row column:(NSInteger)column {
+   NSMatrix *matrix;
+
+   if(column<0 || column>[self lastColumn])
+    return nil;
+   matrix=[self matrixInColumn:column];
+   if(matrix==nil){
+    [self reloadColumn:column];
+    matrix=[self matrixInColumn:column];
+   }
+   if(row<0 || row>=[matrix numberOfRows])
+    return nil;
+   return [matrix cellAtRow:row column:0];
+}
+
 -(NSInteger)selectedRowInColumn:(NSInteger)column {
    return [[self matrixInColumn:column] selectedRow];
 }
@@ -345,9 +362,96 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSMakeRect(0,0,size.width,size.height);
 }
 
+/* Minkar: the item-based delegate (10.6), the one apps use today. */
+static BOOL isItemBased(id delegate) {
+   return [delegate respondsToSelector:@selector(browser:numberOfChildrenOfItem:)] &&
+          [delegate respondsToSelector:@selector(browser:child:ofItem:)] &&
+          [delegate respondsToSelector:@selector(browser:isLeafItem:)] &&
+          [delegate respondsToSelector:@selector(browser:objectValueForItem:)];
+}
+
+/* Each column's items, by row, as loaded. */
+static char columnItemsKey;
+
+static NSMutableArray *columnItems(NSBrowser *self) {
+   NSMutableArray *items=objc_getAssociatedObject(self,&columnItemsKey);
+   if(items==nil){
+    items=[NSMutableArray array];
+    objc_setAssociatedObject(self,&columnItemsKey,items,OBJC_ASSOCIATION_RETAIN);
+   }
+   return items;
+}
+
+-(id)itemAtRow:(NSInteger)row inColumn:(NSInteger)column {
+   NSMutableArray *items=columnItems(self);
+   if(column<0 || column>=(NSInteger)[items count])
+    return nil;
+   NSArray *rows=[items objectAtIndex:column];
+   if(row<0 || row>=(NSInteger)[rows count])
+    return nil;
+   id item=[rows objectAtIndex:row];
+   return (item==[NSNull null])?nil:item;
+}
+
+-(id)parentForItemsInColumn:(NSInteger)column {
+   if(column<=0)
+    return [_delegate respondsToSelector:@selector(rootItemForBrowser:)]?[_delegate rootItemForBrowser:self]:nil;
+   return [self itemAtRow:[self selectedRowInColumn:column-1] inColumn:column-1];
+}
+
+-(NSIndexPath *)indexPathForColumn:(NSInteger)column {
+   NSIndexPath *path=[[[NSIndexPath alloc] init] autorelease];
+   for(NSInteger c=0;c<=column;c++){
+    NSInteger row=[self selectedRowInColumn:c];
+    if(row<0)
+     break;
+    path=[path indexPathByAddingIndex:row];
+   }
+   return path;
+}
+
+-(id)itemAtIndexPath:(NSIndexPath *)indexPath {
+   id item=[self parentForItemsInColumn:0];
+   for(NSUInteger i=0;i<[indexPath length];i++){
+    NSInteger index=[indexPath indexAtPosition:i];
+    if(index<0 || index>=[_delegate browser:self numberOfChildrenOfItem:item])
+     return nil;
+    item=[_delegate browser:self child:index ofItem:item];
+   }
+   return item;
+}
+
+-(NSIndexPath *)selectionIndexPath {
+   NSIndexPath *path=[self indexPathForColumn:[self lastColumn]];
+   return ([path length]>0)?path:nil;
+}
+
+-(void)setSelectionIndexPath:(NSIndexPath *)indexPath {
+   [self loadColumnZero];
+   for(NSUInteger i=0;i<[indexPath length];i++){
+    NSMatrix *matrix=[self matrixInColumn:i];
+    NSInteger row=[indexPath indexAtPosition:i];
+    if(matrix==nil || row>=[matrix numberOfRows])
+     break;
+    [matrix selectCellAtRow:row column:0];
+    if(i+1<[indexPath length] || ![[matrix cellAtRow:row column:0] isLeaf])
+     [self addColumn];
+   }
+}
+
+/* Minkar: one selection path; several (multiple selection) not yet. */
+-(NSArray *)selectionIndexPaths {
+   NSIndexPath *path=[self selectionIndexPath];
+   return (path!=nil)?[NSArray arrayWithObject:path]:[NSArray array];
+}
+
+-(void)setSelectionIndexPaths:(NSArray *)paths {
+   [self setSelectionIndexPath:[paths lastObject]];
+}
+
 -(void)setDelegate:delegate {
     // check delegate validity
-    if(![delegate respondsToSelector:@selector(browser:createRowsForColumn:inMatrix:)])
+    if(!isItemBased(delegate) && ![delegate respondsToSelector:@selector(browser:createRowsForColumn:inMatrix:)])
         if (![delegate respondsToSelector:@selector(browser:numberOfRowsInColumn:)] &&
             ![delegate respondsToSelector:@selector(browser:willDisplayCell:atRow:column:)])
             [NSException raise:NSInternalInconsistencyException
@@ -682,7 +786,31 @@ static char pathSeparatorKey;
 
    [matrix renewRows:0 columns:1];
 
-   if([_delegate respondsToSelector:@selector(browser:createRowsForColumn:inMatrix:)])
+   if(isItemBased(_delegate)){
+    /* Minkar: the children of the item selected in the column before. */
+    id parent=[self parentForItemsInColumn:column];
+    NSInteger nrows=[_delegate browser:self numberOfChildrenOfItem:parent];
+    NSMutableArray *items=columnItems(self),*rows=[NSMutableArray arrayWithCapacity:nrows];
+
+    [matrix renewRows:nrows columns:1];
+    for(NSInteger i=0;i<nrows;i++){
+     id item=[_delegate browser:self child:i ofItem:parent];
+     NSBrowserCell *cell=[matrix cellAtRow:i column:0];
+
+     [rows addObject:(item!=nil)?item:(id)[NSNull null]];
+     [cell setObjectValue:[_delegate browser:self objectValueForItem:item]];
+     [cell setLeaf:[_delegate browser:self isLeafItem:item]];
+     [cell setLoaded:YES];
+     if([_delegate respondsToSelector:@selector(browser:willDisplayCell:atRow:column:)])
+      [_delegate browser:self willDisplayCell:cell atRow:i column:column];
+    }
+    while((NSInteger)[items count]>column)
+     [items removeLastObject];
+    while((NSInteger)[items count]<column)
+     [items addObject:[NSArray array]];
+    [items addObject:rows];
+   }
+   else if([_delegate respondsToSelector:@selector(browser:createRowsForColumn:inMatrix:)])
     [_delegate browser:self createRowsForColumn:column inMatrix:matrix];
    else {
     NSInteger nrows=[_delegate browser:self numberOfRowsInColumn:column];

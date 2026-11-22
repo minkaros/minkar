@@ -74,6 +74,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - selectedCellInColumn:(NSInteger)column;
 - (NSInteger)selectedColumn;
 - (NSInteger)selectedRowInColumn:(NSInteger)column;
+- (id)loadedCellAtRow:(NSInteger)row column:(NSInteger)column;
 
 - (CGFloat)titleHeight;
 - (NSRect)titleFrameOfColumn:(NSInteger)column;
@@ -133,6 +134,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isTitled) BOOL titled;
+
+/* The item-based browser (10.6): each column holds the children of the
+   item selected in the one before it, the first the root item's. */
+- (id)itemAtRow:(NSInteger)row inColumn:(NSInteger)column;
+- (id)parentForItemsInColumn:(NSInteger)column;
+- (id)itemAtIndexPath:(NSIndexPath *)indexPath;
+- (NSIndexPath *)indexPathForColumn:(NSInteger)column;
+@property (copy) NSIndexPath *selectionIndexPath;
+@property (copy) NSArray<NSIndexPath *> *selectionIndexPaths;
 @end
 
 @interface NSObject (NSBrowser_delegate)
