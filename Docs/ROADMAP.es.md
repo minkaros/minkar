@@ -97,7 +97,8 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
   Directory Services hecho: OpenDirectory (APSL) y su servicio en `directoryd` (usuarios,
   grupos, contraseñas; prueba `opendirectory`). Hechas la ventana de inicio de sesión y la sesión del usuario
   (autoLoginUser, la lista de usuarios, las apps de la sesión como el usuario, Log Out de vuelta a la ventana;
-  prueba `login-window`). Falta: los `LaunchAgents` del usuario, la pantalla bloqueada.
+  prueba `login-window`); los `LaunchAgents` del usuario en su propio launchd (la sesión Background;
+  los limitados a Aqua, después). Falta: la pantalla bloqueada.
 - [ ] Menús: MB0–MB2 hechos; MB3 parcial (falta la pantalla bloqueada).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).

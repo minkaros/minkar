@@ -45,12 +45,14 @@
  * shut down. The session's applications run as that user, with its HOME,
  * USER, LOGNAME and SHELL, in its home; the console is the user's while the
  * session lasts, so the user's apps may ask for Log Out, Restart and Shut
- * Down. Its login items are opened by a copy of this program running as
- * the user (-loginitems).
+ * Down. Its programs run in the user's launchd (its per-user context),
+ * where its LaunchAgents are loaded at login and unloaded at Log Out; its
+ * login items are opened by a copy of this program running as the user
+ * (-loginitems).
  *
  * SHORTCUT(Phase 5): no confirmation of its own (the app asking shows
- * one), one session at a time, and no per-user launchd domain yet (the
- * user's LaunchAgents).
+ * one), one session at a time, and the user's launchd's Background session
+ * (LaunchAgents limited to Aqua are not loaded).
  *
  *	loginwindow [-n]	-n: try it out, without restarting or
  *				shutting down, and with the same user's session
@@ -82,6 +84,9 @@
 #include <SkyLight/SkyLight.h>
 #include "LoginWindowRequest.h"
 
+/* liblaunch: the per-user launchd as the bootstrap (vproc_priv.h). */
+void *_vprocmgr_move_subset_to_user(uid_t target_user, const char *session_type, uint64_t flags);
+
 extern char **environ;
 
 /* The applications of a session, one path per line (an app bundle or an
@@ -112,8 +117,6 @@ static struct {
 	gid_t	gid;
 	char	home[PATH_MAX];
 	char	shell[PATH_MAX];
-	gid_t	groups[NGROUPS_MAX];	/* its groups, looked up before a fork */
-	int	ngroups;
 } sessionUser;
 static int firstSession = 1;
 static int sessionEnding;
@@ -219,32 +222,79 @@ openLoginItems(void *unused)
 
 static char selfPath[PATH_MAX];
 
-/* Starts exe as the session's user, in its home: its pid, or -1. */
+/* Starts exe as the session's user, in its home: its pid, or -1. A
+ * user's program goes through a fresh copy of this one (-exec), which
+ * takes the user's launchd as its bootstrap, then the user's IDs. */
 static pid_t
 spawnAsUser(const char *exe, char *const argv[])
 {
 	pid_t pid;
+	int err;
 
 	if (sessionUser.uid == 0) {
-		int err = posix_spawn(&pid, exe, NULL, NULL, argv, environ);
-		if (err != 0) {
-			errno = err;
-			return -1;
-		}
-		return pid;
+		err = posix_spawn(&pid, exe, NULL, NULL, argv, environ);
+	} else {
+		char *args[64];
+		int n = 0;
+
+		args[n++] = selfPath;
+		args[n++] = "-exec";
+		args[n++] = (char *)exe;
+		for (int i = 1; argv[i] != NULL && n < 63; i++)
+			args[n++] = argv[i];
+		args[n] = NULL;
+		err = posix_spawn(&pid, selfPath, NULL, NULL, args, environ);
 	}
-	pid = fork();
-	if (pid != 0)
-		return pid;
-	/* The child: only async-signal-safe calls until exec (the groups
-	   were looked up before). */
-	if (setgroups(sessionUser.ngroups, sessionUser.groups) != 0 ||
-	    setgid(sessionUser.gid) != 0 || setuid(sessionUser.uid) != 0)
-		_exit(126);
-	if (chdir(sessionUser.home) != 0)
+	if (err != 0) {
+		errno = err;
+		return -1;
+	}
+	return pid;
+}
+
+/* -exec EXE ARGS...: as root, in the environment of the session (USER,
+ * HOME): the user's launchd (its per-user context, created when first
+ * asked) as the bootstrap, so the user's programs and LaunchAgents share
+ * it; then the user's groups and IDs, its home, and EXE. */
+static int
+execAsUser(char *argv[])
+{
+	const char *user = getenv("USER");
+	struct passwd *pw = user != NULL ? getpwnam(user) : NULL;
+
+	if (pw == NULL || pw->pw_uid == 0)
+		return 126;
+	if (_vprocmgr_move_subset_to_user(pw->pw_uid, "Background", 0) != NULL)
+		fprintf(stderr, "loginwindow: no launchd of %s's: %s keeps the system's\n",
+		    pw->pw_name, argv[0]);
+	if (initgroups(pw->pw_name, (int)pw->pw_gid) != 0 || setgid(pw->pw_gid) != 0 ||
+	    setuid(pw->pw_uid) != 0)
+		return 126;
+	if (chdir(pw->pw_dir) != 0)
 		(void)chdir("/");
-	execve(exe, argv, environ);
-	_exit(127);
+	execv(argv[0], argv);
+	fprintf(stderr, "loginwindow: cannot start %s: %s\n", argv[0], strerror(errno));
+	return 127;
+}
+
+/* The user's LaunchAgents loaded (or unloaded) in its launchd: the
+ * system's, the computer's and its own. SHORTCUT(Phase 5): the session is
+ * the user's launchd's Background one; agents limited to Aqua are left. */
+static void
+userAgents(const char *verb)
+{
+	char own[PATH_MAX + 32];
+	pid_t pid;
+	int status;
+
+	if (sessionUser.uid == 0)
+		return;
+	snprintf(own, sizeof(own), "%s/Library/LaunchAgents", sessionUser.home);
+	char *argv[] = { "/bin/launchctl", (char *)verb, "/System/Library/LaunchAgents",
+	    "/Library/LaunchAgents", own, NULL };
+	if ((pid = spawnAsUser(argv[0], argv)) > 0)
+		(void)waitpid(pid, &status, 0);
+	fprintf(stderr, "loginwindow: %s %s's LaunchAgents\n", verb, sessionUser.name);
 }
 
 static int
@@ -260,12 +310,6 @@ setSessionUser(const char *name)
 	snprintf(sessionUser.home, sizeof(sessionUser.home), "%s", pw->pw_dir);
 	snprintf(sessionUser.shell, sizeof(sessionUser.shell), "%s",
 	    pw->pw_shell != NULL && pw->pw_shell[0] != '\0' ? pw->pw_shell : "/bin/sh");
-	sessionUser.ngroups = NGROUPS_MAX;
-	if (getgrouplist(sessionUser.name, (int)sessionUser.gid, (int *)sessionUser.groups,
-	    &sessionUser.ngroups) != 0) {
-		sessionUser.groups[0] = sessionUser.gid;
-		sessionUser.ngroups = 1;
-	}
 	return 1;
 }
 
@@ -393,6 +437,7 @@ startSession(void)
 	}
 	fclose(list);
 	if (sessionUser.uid != 0) {
+		userAgents("load");
 		/* The user's own list, opened as the user. */
 		char *argv[] = { selfPath, "-loginitems", NULL };
 		spawnAsUser(selfPath, argv);
@@ -547,6 +592,7 @@ serve(uint32_t request)
 static void
 endSession(void)
 {
+	userAgents("unload");
 	if (chown("/dev/console", 0, 0) != 0)
 		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
 }
@@ -601,6 +647,8 @@ main(int argc, char *argv[])
 	kern_return_t kr;
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
+	if (argc > 2 && strcmp(argv[1], "-exec") == 0)
+		return execAsUser(argv + 2);
 	if (argc > 1 && strcmp(argv[1], "-loginitems") == 0) {
 		/* As the session's user: its login items. */
 		openLoginItems(NULL);

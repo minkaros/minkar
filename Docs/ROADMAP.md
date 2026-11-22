@@ -95,7 +95,8 @@ and the resolution changes from System Preferences, in the Atlas visual language
   Directory Services done: OpenDirectory (APSL) and its service in `directoryd` (users,
   groups, passwords; test `opendirectory`). The login window and the user's session done
   (autoLoginUser, the users' list, the session's apps as the user, Log Out back to the window;
-  test `login-window`). Left: the user's `LaunchAgents`, Lock Screen.
+  test `login-window`); the user's `LaunchAgents` in its own launchd (the Background session;
+  Aqua-only agents later). Left: Lock Screen.
 - [ ] Menus: MB0–MB2 done; MB3 partial (Lock Screen left).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
