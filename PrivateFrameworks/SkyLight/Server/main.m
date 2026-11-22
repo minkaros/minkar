@@ -136,6 +136,7 @@ main(int argc, char *argv[])
 	    dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
 	    QOS_CLASS_USER_INTERACTIVE, 0));
 	WSHotKeysStart();
+	WSCursorBusyStart();
 	WSInputPublish();
 	input = [WSInput startOnQueue:WSInputQueue];
 

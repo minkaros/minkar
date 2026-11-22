@@ -26,6 +26,7 @@
  * SUCH DAMAGE.
  */
 
+#include <mach/mach_time.h>
 #include <mach/mach.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -342,6 +343,8 @@ WSEventsEnqueue(WSConnection *c, const SLSEvent *e)
 	} else if (n >= kQueueLimit)
 		c.droppedEvents++;
 	else {
+		if (n == 0)
+			c.pendingSince = mach_absolute_time();
 		[queue appendBytes:e length:sizeof(*e)];
 		tell = n == 0;
 	}
@@ -742,6 +745,23 @@ WSRouteEventAt(SLSEvent *e, uint32_t location)
 		routeMouse(m, e);
 }
 
+/* How long the connection has left its events unread, in seconds (0 when
+   none wait). */
+double
+WSEventsPendingSeconds(WSConnection *c)
+{
+	uint64_t since;
+	mach_timebase_info_data_t tb;
+
+	pthread_mutex_lock(&queuesLock);
+	since = c.eventQueue.length > 0 ? c.pendingSince : 0;
+	pthread_mutex_unlock(&queuesLock);
+	if (since == 0)
+		return 0;
+	mach_timebase_info(&tb);
+	return (double)(mach_absolute_time() - since) * tb.numer / tb.denom / 1e9;
+}
+
 /* ---- Routines: IPC queue ---- */
 
 kern_return_t
@@ -762,6 +782,8 @@ wss_next_events(mach_port_t server, audit_token_t token, ws_event_list_t events,
 	memcpy(events, queue.bytes, n * sizeof(SLSEvent));
 	[queue replaceBytesInRange:NSMakeRange(0, n * sizeof(SLSEvent)) withBytes:NULL length:0];
 	more = queue.length > 0;
+	/* It reads: not busy, whatever is left counts from now. */
+	c.pendingSince = more ? mach_absolute_time() : 0;
 	pthread_mutex_unlock(&queuesLock);
 	*count = (mach_msg_type_number_t)n;
 	/* More left: the client is told again. */

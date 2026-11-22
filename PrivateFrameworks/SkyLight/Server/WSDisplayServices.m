@@ -916,16 +916,19 @@ static double boxMinX, boxMinY, boxMaxX = 1, boxMaxY = 1;
 }
 @end
 
-/* The area the cursor covers (WSCompositor's arrow is 11 x 17): the one
- * drawn last and the one to draw. With cursorLock held. */
+/* The area the cursor covers (WSCompositor's arrow, at its hot spot,
+ * without a shape): the one drawn last and the one to draw. With
+ * cursorLock held. */
 static SLSRect drawnCursorRect;
 
 static void
 damageCursorLocked(void)
 {
 	WSCursorShape *shape = shownShapeValue;
+	int aw, ah, ax, ay;
+	WSCursorArrowMetrics(&aw, &ah, &ax, &ay);
 	SLSRect r = shape ? (SLSRect){ cursorX - shape.hotX, cursorY - shape.hotY, shape.width,
-	    shape.height } : (SLSRect){ cursorX, cursorY, 11, 17 };
+	    shape.height } : (SLSRect){ cursorX - ax, cursorY - ay, aw, ah };
 
 	WSDamageGlobalRect(drawnCursorRect);
 	WSDamageGlobalRect(r);
@@ -940,17 +943,71 @@ damageCursor(void)
 	pthread_mutex_unlock(&cursorLock);
 }
 
+/* The busy cursor's frames (/System/Library/Cursors/busyCursor_NN.bgra,
+ * from SystemLibrary/Cursors/gen-cursors.py), and whether it shows. */
+enum { kBusyFrames = 12 };
+static WSCursorShape *busyFrames[kBusyFrames];
+static int busyFrame = -1;		/* -1: not busy */
+
+static WSCursorShape *
+busyFrameShape(int i)
+{
+	if (busyFrames[i] == nil) {
+		char path[128];
+		snprintf(path, sizeof(path), "/System/Library/Cursors/busyCursor_%02d.bgra", i);
+		NSData *d = [NSData dataWithContentsOfFile:@(path)];
+		const uint32_t *h = d.length >= 16 ? d.bytes : NULL;
+		if (h == NULL || h[0] == 0 || h[1] == 0 || h[0] > 64 || h[1] > 64 ||
+		    d.length != 16 + (NSUInteger)h[0] * h[1] * 4)
+			return nil;
+		busyFrames[i] = [[WSCursorShape alloc]
+		    initWithPixels:[d subdataWithRange:NSMakeRange(16, d.length - 16)]
+		    width:h[0] height:h[1] hotX:h[2] hotY:h[3]];
+	}
+	return busyFrames[i];
+}
+
 /* The front app or its cursor changed (IPC queue): the shape shown is the
- * front app's, or nil for the arrow. */
+ * front app's, or nil for the arrow; the busy cursor while it is busy. */
 void
 WSCursorShapeChanged(void)
 {
 	WSCursorShape *shape = WSFrontConnection().cursorShape;
 
 	pthread_mutex_lock(&cursorLock);
+	if (busyFrame >= 0 && busyFrameShape(busyFrame) != nil)
+		shape = busyFrameShape(busyFrame);
 	shownShapeValue = shape;
 	damageCursorLocked();
 	pthread_mutex_unlock(&cursorLock);
+}
+
+/* Every 80 ms, on the IPC queue: the front app busy for 3 s (its events
+ * unread) gets the turning busy cursor, as on the reference platform,
+ * until it reads them. Not for the server's own (no front app). */
+void
+WSCursorBusyStart(void)
+{
+	static dispatch_source_t timer;
+
+	timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, WSIPCQueue);
+	dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 0), 80 * NSEC_PER_MSEC,
+	    10 * NSEC_PER_MSEC);
+	dispatch_source_set_event_handler(timer, ^{
+		WSConnection *front = WSFrontConnection();
+		BOOL busy = front != nil && WSEventsPendingSeconds(front) >= 3.0 &&
+		    busyFrameShape(0) != nil;
+		int was = busyFrame;
+
+		busyFrame = busy ? (busyFrame + 1) % kBusyFrames : -1;
+		if (busy && was < 0)
+			fprintf(stderr, "WindowServer: pid %d is busy: the busy cursor\n", front.pid);
+		else if (!busy && was >= 0)
+			fprintf(stderr, "WindowServer: the front app answers again\n");
+		if (busy || was >= 0)
+			WSCursorShapeChanged();
+	});
+	dispatch_resume(timer);
 }
 
 void

@@ -89,6 +89,11 @@ unsigned WSWindowsConnectionDied(WSConnection *connection);
 @end
 /* The front app changed: the cursor shown may be another one. */
 void WSCursorShapeChanged(void);
+/* Watches the front app: busy (its events unread 3 s), the spinning busy
+   cursor is shown instead of its own (WSDisplayServices). */
+void WSCursorBusyStart(void);
+/* The server's arrow: its size and hot spot (WSCompositor). */
+void WSCursorArrowMetrics(int *width, int *height, int *hotX, int *hotY);
 
 /* The on-screen windows back to front, for a frame (IPC queue). */
 NSArray<WSFrameItem *> *WSWindowSnapshot(void);

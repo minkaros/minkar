@@ -52,6 +52,9 @@
  * because the queue was full. */
 @property (readonly) NSMutableData *eventQueue;
 @property uint32_t droppedEvents;
+/* Since when (mach_absolute_time) events have waited for it, unread; 0
+   when it has read them all (WSEvents, under its queues' lock). */
+@property uint64_t pendingSince;
 /* It asked to hear about windows minimized and restored. */
 @property BOOL windowNotifications;
 /* Displays changed for this app only: display ID -> @[mode ID, x, y,
