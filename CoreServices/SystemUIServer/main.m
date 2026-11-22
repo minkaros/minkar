@@ -9,6 +9,8 @@
  * and its list, the rightmost extra (N1).
  */
 
+#include <notify.h>
+#include <unistd.h>
 #import "MenuExtra.h"
 #import "NotificationBanner.h"
 #import "NotificationCenterExtra.h"
@@ -83,6 +85,44 @@ static NSArray<NSString *> *defaultExtras(void)
     }
 }
 
+/* The list changed elsewhere (the Date & Time pane's "Show date and time
+   in menu bar"): what left it is hidden, what came into it is shown, and
+   loaded if it was not. */
+- (void)extrasChanged
+{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSArray *list;
+
+    [defaults synchronize];
+    list = [defaults arrayForKey:@"menuExtras"] ?: defaultExtras();
+    for (NSString *path in [_items allKeys])
+        if (![list containsObject:path])
+            [_items[path] setVisible:NO];
+    for (id path in list) {
+        if (![path isKindOfClass:[NSString class]])
+            continue;
+        NSString *p = [path stringByStandardizingPath];
+        if (_items[p] != nil)
+            [_items[p] setVisible:YES];
+        else
+            [self loadExtraAtPath:p];
+    }
+    NSLog(@"SystemUIServer: menu extras %lu", (unsigned long)[list count]);
+}
+
+- (void)watchExtras
+{
+    int fd = -1, token;
+
+    if (notify_register_file_descriptor("org.minkar.systemuiserver.extras", &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(extrasChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)note
 {
     NSStatusBar *bar = [NSStatusBar systemStatusBar];
@@ -98,6 +138,7 @@ static NSArray<NSString *> *defaultExtras(void)
         if ([path isKindOfClass:[NSString class]])
             [self loadExtraAtPath:[path stringByStandardizingPath]];
     [_notifications start];
+    [self watchExtras];
 }
 
 @end

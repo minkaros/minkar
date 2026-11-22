@@ -3,8 +3,11 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The clock Menu Extra. Its format is the domain's DateFormat key
- * (org.minkar.menuextra.clock), "EEE d MMM  HH:mm" by default.
+ * The clock Menu Extra, with the reference platform's keys in its domain
+ * (org.minkar.menuextra.clock), which the Date & Time pane's Clock tab
+ * writes: DateFormat ("EEE d MMM  HH:mm" by default; with seconds it
+ * ticks every second), FlashDateSeparators (the time's colons blink each
+ * second) and IsAnalog (a clock face instead of the text).
  */
 
 #import "ClockExtra.h"
@@ -25,18 +28,52 @@ static NSLocale *displayLocale(void)
     return [NSLocale localeWithLocaleIdentifier:[[[NSBundle mainBundle] preferredLocalizations] firstObject]];
 }
 
+static NSDictionary *clockPreferences(void)
+{
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    return [[NSUserDefaults standardUserDefaults] persistentDomainForName:kDomain];
+}
+
 static NSString *clockFormat(void)
 {
-    NSDictionary *prefs = [[NSUserDefaults standardUserDefaults] persistentDomainForName:kDomain];
-    NSString *format = prefs[@"DateFormat"];
+    NSString *format = clockPreferences()[@"DateFormat"];
 
     return [format isKindOfClass:[NSString class]] && [format length] ? format : kDefaultFormat;
+}
+
+/* A clock face for the menu bar: a ring and the hands, in the text's
+   colour (a template image). */
+static NSImage *clockFace(NSDate *date)
+{
+    NSDateComponents *c = [[NSCalendar currentCalendar] components:NSCalendarUnitHour | NSCalendarUnitMinute fromDate:date];
+    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(16, 16)];
+    double minute = [c minute], hour = fmod([c hour], 12) + minute / 60;
+
+    [image lockFocus];
+    [[NSColor blackColor] set];
+    NSBezierPath *ring = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(1.5, 1.5, 13, 13)];
+    [ring setLineWidth:1.2];
+    [ring stroke];
+    for (int hand = 0; hand < 2; hand++) {
+        double angle = M_PI / 2 - 2 * M_PI * (hand == 0 ? hour / 12 : minute / 60);
+        double length = hand == 0 ? 3.6 : 5.2;
+        NSBezierPath *line = [NSBezierPath bezierPath];
+        [line moveToPoint:NSMakePoint(8, 8)];
+        [line lineToPoint:NSMakePoint(8 + length * cos(angle), 8 + length * sin(angle))];
+        [line setLineWidth:hand == 0 ? 1.5 : 1.0];
+        [line setLineCapStyle:NSRoundLineCapStyle];
+        [line stroke];
+    }
+    [image unlockFocus];
+    [image setTemplate:YES];
+    return image;
 }
 
 @implementation ClockExtra {
     NSStatusItem *_item;
     NSMenuItem *_dateItem;
     NSTimer *_timer;
+    NSTimeInterval _period;     /* 60, or 1 with seconds or blinking */
 }
 
 + (NSString *)titleForDate:(NSDate *)date
@@ -66,13 +103,7 @@ static NSString *clockFormat(void)
     [menu setAutoenablesItems:NO];
     [_item setMenu:menu];
 
-    [self tick:nil];
-    /* Every minute, on the minute. */
-    NSTimeInterval seconds = [[NSDate date] timeIntervalSince1970];
-    NSDate *next = [NSDate dateWithTimeIntervalSince1970:(floor(seconds / 60) + 1) * 60];
-    _timer = [[NSTimer alloc] initWithFireDate:next interval:60 target:self
-                                      selector:@selector(tick:) userInfo:nil repeats:YES];
-    [[NSRunLoop currentRunLoop] addTimer:_timer forMode:NSDefaultRunLoopMode];
+    [self schedule];
     [self watch:"org.minkar.menuextra.clock"];   /* its format changed */
     [self watch:"org.minkar.timezone"];          /* the time zone changed */
     return self;
@@ -95,7 +126,28 @@ static NSString *clockFormat(void)
 - (void)changed
 {
     [NSTimeZone resetSystemTimeZone];
+    [self schedule];
+}
+
+/* Every minute on the minute; every second when it shows the seconds or
+   blinks its separators. */
+- (void)schedule
+{
+    NSDictionary *prefs = clockPreferences();
+    BOOL everySecond = ![prefs[@"IsAnalog"] boolValue] &&
+        ([clockFormat() containsString:@"ss"] || [prefs[@"FlashDateSeparators"] boolValue]);
+    NSTimeInterval period = everySecond ? 1 : 60;
+
     [self tick:nil];
+    if (_timer != nil && period == _period)
+        return;
+    [_timer invalidate];
+    _period = period;
+    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+    NSDate *next = [NSDate dateWithTimeIntervalSince1970:(floor(now / period) + 1) * period];
+    _timer = [[NSTimer alloc] initWithFireDate:next interval:period target:self
+                                      selector:@selector(tick:) userInfo:nil repeats:YES];
+    [[NSRunLoop currentRunLoop] addTimer:_timer forMode:NSRunLoopCommonModes];
 }
 
 /* Shows the time. */
@@ -105,8 +157,25 @@ static NSString *clockFormat(void)
     NSDateFormatter *full = [[NSDateFormatter alloc] init];
 
     [full setLocale:displayLocale()];
+    NSDictionary *prefs = clockPreferences();
+
     [full setDateFormat:NSLocalizedString(@"EEEE d MMMM yyyy", @"the date in the clock's menu")];
-    [_item setTitle:[ClockExtra titleForDate:now]];
+    if ([prefs[@"IsAnalog"] boolValue]) {
+        /* The face, and the time in words in the menu. */
+        NSDateFormatter *time = [[NSDateFormatter alloc] init];
+        [time setLocale:displayLocale()];
+        [time setDateFormat:clockFormat()];
+        [_item setTitle:@""];
+        [_item setImage:clockFace(now)];
+        [_dateItem setTitle:[NSString stringWithFormat:@"%@, %@", [full stringFromDate:now], [time stringFromDate:now]]];
+        return;
+    }
+    NSString *title = [ClockExtra titleForDate:now];
+    /* Blinking: the colons off every other second. */
+    if ([prefs[@"FlashDateSeparators"] boolValue] && ((long)[now timeIntervalSince1970]) % 2 == 1)
+        title = [title stringByReplacingOccurrencesOfString:@":" withString:@" "];
+    [_item setImage:nil];
+    [_item setTitle:title];
     [_dateItem setTitle:[full stringFromDate:now]];
 }
 
