@@ -41,6 +41,19 @@ static NSTextField *label(NSString *text, NSRect frame)
     return field;
 }
 
+/* The words at a slider's two ends, under it, as the reference has them. */
+static void endLabels(NSView *view, NSRect slider, NSString *low, NSString *high)
+{
+    for (int i = 0; i < 2; i++) {
+        NSTextField *f = label(i == 0 ? low : high, NSMakeRect(i == 0 ? NSMinX(slider) : NSMaxX(slider) - 80,
+                                                                NSMinY(slider) - 13, 80, 14));
+        [f setAlignment:i == 0 ? NSLeftTextAlignment : NSRightTextAlignment];
+        [f setFont:[NSFont systemFontOfSize:10]];
+        [f setTextColor:[NSColor secondaryLabelColor]];
+        [view addSubview:f];
+    }
+}
+
 static double number(CFStringRef key, double fallback)
 {
     CFPropertyListRef value = CFPreferencesCopyAppValue(key, kDockDomain);
@@ -132,6 +145,7 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
     [view addSubview:label([self text:@"Size:"], NSMakeRect(10, y + 2, 280, 20))];
     _size = slider(NSMakeRect(300, y, 300, 24), number(CFSTR("tilesize"), 48), self, @selector(changed:));
     [view addSubview:_size];
+    endLabels(view, [_size frame], [self text:@"Small"], [self text:@"Large"]);
     y -= 40;
 
     _magnify = button([self text:@"Magnification:"], NSMakeRect(158, y + 2, 140, 22), NSSwitchButton, self, @selector(changed:));
@@ -139,6 +153,7 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
     [view addSubview:_magnify];
     _large = slider(NSMakeRect(300, y, 300, 24), number(CFSTR("largesize"), 64), self, @selector(changed:));
     [view addSubview:_large];
+    endLabels(view, [_large frame], [self text:@"Min"], [self text:@"Max"]);
     y -= 42;
 
     [view addSubview:label([self text:@"Position on screen:"], NSMakeRect(10, y + 2, 280, 20))];

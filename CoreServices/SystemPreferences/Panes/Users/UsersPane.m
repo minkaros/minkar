@@ -343,14 +343,15 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
         BOOL header = [row[@"kind"] isEqualToString:@"header"];
         return [[NSAttributedString alloc] initWithString:row[@"title"] attributes:@{
             NSFontAttributeName: header ? [NSFont boldSystemFontOfSize:11] : [NSFont systemFontOfSize:13],
-            NSForegroundColorAttributeName: header ? [NSColor grayColor] : [NSColor textColor] }];
+            NSForegroundColorAttributeName: header ? [NSColor secondaryLabelColor] : [NSColor textColor] }];
     }
     NSMutableAttributedString *s = [[NSMutableAttributedString alloc] initWithString:row[@"fullName"]
-        attributes:@{ NSFontAttributeName: [NSFont systemFontOfSize:13] }];
+        attributes:@{ NSFontAttributeName: [NSFont systemFontOfSize:13],
+                      NSForegroundColorAttributeName: [NSColor textColor] }];
     [s appendAttributedString:[[NSAttributedString alloc] initWithString:[@"\n" stringByAppendingString:
         [row[@"admin"] boolValue] ? [self text:@"Admin"] : [self text:@"Standard"]]
         attributes:@{ NSFontAttributeName: [NSFont systemFontOfSize:11],
-                      NSForegroundColorAttributeName: [NSColor grayColor] }]];
+                      NSForegroundColorAttributeName: [NSColor secondaryLabelColor] }]];
     return s;
 }
 

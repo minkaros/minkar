@@ -165,10 +165,11 @@ static NSArray<PrefsPaneInfo *> *findPanes(void)
     NSMutableParagraphStyle *center = [[NSMutableParagraphStyle alloc] init];
     [center setAlignment:NSCenterTextAlignment];
     NSDictionary *attributes = @{ NSFontAttributeName: [NSFont systemFontOfSize:11],
-                                  NSForegroundColorAttributeName: [NSColor blackColor],
+                                  NSForegroundColorAttributeName: [NSColor labelColor],
                                   NSParagraphStyleAttributeName: center };
 
-    [[NSColor colorWithGenericGamma22White:0.93 alpha:1] set];
+    /* In the appearance's colors (General): the window's background. */
+    [[NSColor windowBackgroundColor] set];
     NSRectFill(dirty);
     for (NSUInteger i = 0; i < [self.panes count]; i++) {
         NSRect cell = [self rectForIndex:i];

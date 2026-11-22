@@ -23,3 +23,7 @@
 "Animate opening applications" = "Animar la apertura de aplicaciones";
 "Show indicators for open applications" = "Mostrar indicadores de las aplicaciones abiertas";
 "Show recent applications in Dock" = "Mostrar aplicaciones recientes en el Dock";
+"Small" = "Pequeño";
+"Large" = "Grande";
+"Min" = "Mín";
+"Max" = "Máx";
