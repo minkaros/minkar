@@ -9,3 +9,17 @@
 "Bottom" = "Abajo";
 "Right" = "Derecha";
 "Automatically hide and show the Dock" = "Ocultar y mostrar el Dock automáticamente";
+"Minimize windows using:" = "Minimizar ventanas con:";
+"Genie effect" = "Efecto genio";
+"Scale effect" = "Efecto escala";
+"Prefer tabs when opening documents:" = "Preferir pestañas al abrir documentos:";
+"Always" = "Siempre";
+"In Full Screen Only" = "Solo a pantalla completa";
+"Manually" = "Manualmente";
+"Double-click a window’s title bar to" = "Hacer doble clic en la barra de título para";
+"zoom" = "ampliar";
+"minimize" = "minimizar";
+"Minimize windows into application icon" = "Minimizar ventanas en el icono de la aplicación";
+"Animate opening applications" = "Animar la apertura de aplicaciones";
+"Show indicators for open applications" = "Mostrar indicadores de las aplicaciones abiertas";
+"Show recent applications in Dock" = "Mostrar aplicaciones recientes en el Dock";
