@@ -567,6 +567,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    if(_preferredMaxLayoutWidth<=0 && (width<=0 || width>=line.width))
     return [self isEditable]?NSMakeSize(NSViewNoIntrinsicMetric,line.height):line;
+   /* The preferred width is the alignment rectangle's, as on the
+      reference: a label's margins outside it are added back before its
+      cell breaks the text (88 there keeps a label whose text is 87.7
+      points wide on one line; 86 wraps it). */
+   if(_preferredMaxLayoutWidth>0){
+    NSEdgeInsets insets=[self alignmentRectInsets];
+
+    width+=insets.left+insets.right;
+   }
    size=[_cell cellSizeForBounds:NSMakeRect(0,0,width,CGFLOAT_MAX)];
    if(_preferredMaxLayoutWidth<=0)
     size.width=line.width;
