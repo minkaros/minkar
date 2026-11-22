@@ -36,7 +36,13 @@
  * account's crypt(3) hash; a user may change their own password with the
  * old one, root any. Root, or a node authenticated as an administrator
  * (ODNodeSetCredentials, a member of admin), may also set a user's
- * RealName and UserShell. Other changes are not supported yet.
+ * RealName and UserShell, create a user (sysadminctl -addUser: its home
+ * from the user template, staff, zsh) and delete one (sysadminctl
+ * -deleteUser, keeping its home), add a user to a group and take it out
+ * (GroupMembership, as the Users pane's "Allow user to administer this
+ * computer" does with admin), and, through ODNodeCustomCall, Minkar's
+ * own: set the login window's options (kCustomLoginOptions) and remove the
+ * home of a user already deleted (kCustomRemoveHome).
  *
  * The protocol (opendirectory/odconstants.h, odutils.h): each request
  * carries its client's ID and a property list { function, values }; each
@@ -64,6 +70,23 @@
 #include "pw_compat.h"
 
 #include "odapi.h"
+
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+extern char **environ;
+
+#define GROUP_FILE	"/etc/group"
+#define LOGIN_PREFS	"/Library/Preferences/com.apple.loginwindow.plist"
+#define SYSADMINCTL	"/usr/sbin/sysadminctl"
+
+/* ODNodeCustomCall's codes, Minkar's own (the Users pane). */
+#define kCustomLoginOptions	0x4c4f	/* 'LO': a dictionary of login window
+					   options; an empty string removes one */
+#define kCustomRemoveHome	0x524d	/* 'RM': a deleted user's name */
 
 #define LOCAL_NODE	CFSTR("/Local/Default")
 #define SEARCH_NODE	CFSTR("/Search")
@@ -521,6 +544,192 @@ account_update(const char *user, void (^edit)(struct passwd *))
 	return (code);
 }
 
+/* A tool, waited for: its exit status, or -1. */
+static int
+run(char *const argv[])
+{
+	pid_t pid;
+	int status;
+
+	if (posix_spawn(&pid, argv[0], NULL, NULL, argv, environ) != 0)
+		return (-1);
+	if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
+		return (-1);
+	return (WEXITSTATUS(status));
+}
+
+/* name added to, or taken out of, group's members in /etc/group (the
+   file locked, written aside and renamed over it). */
+static uint32_t
+group_edit(const char *group, const char *name, bool add)
+{
+	char tmp[] = GROUP_FILE ".XXXXXX", line[4096];
+	FILE *in, *out;
+	struct stat st;
+	int fd, lfd;
+	bool found = false;
+
+	if (getgrnam(group) == NULL)
+		return (kODErrorRecordNoLongerExists);
+	if ((lfd = open(GROUP_FILE, O_RDONLY)) < 0 || flock(lfd, LOCK_EX) != 0 ||
+	    (in = fopen(GROUP_FILE, "r")) == NULL) {
+		if (lfd >= 0)
+			close(lfd);
+		return (kODErrorDaemonError);
+	}
+	fstat(fileno(in), &st);
+	if ((fd = mkstemp(tmp)) < 0 || (out = fdopen(fd, "w")) == NULL) {
+		fclose(in);
+		close(lfd);
+		return (kODErrorDaemonError);
+	}
+	while (fgets(line, sizeof(line), in) != NULL) {
+		char copy[4096], *fields[4], *p = copy, *m, *last;
+		char members[4096] = "";
+		bool present = false;
+		int n = 0;
+
+		strlcpy(copy, line, sizeof(copy));
+		copy[strcspn(copy, "\n")] = '\0';
+		while (n < 4 && (fields[n] = strsep(&p, ":")) != NULL)
+			n++;
+		if (n != 4 || copy[0] == '#' || strcmp(fields[0], group) != 0) {
+			fputs(line, out);
+			continue;
+		}
+		found = true;
+		for (m = strtok_r(fields[3], ",", &last); m != NULL; m = strtok_r(NULL, ",", &last)) {
+			if (strcmp(m, name) == 0) {
+				present = true;
+				if (!add)
+					continue;
+			}
+			if (members[0] != '\0')
+				strlcat(members, ",", sizeof(members));
+			strlcat(members, m, sizeof(members));
+		}
+		if (add && !present) {
+			if (members[0] != '\0')
+				strlcat(members, ",", sizeof(members));
+			strlcat(members, name, sizeof(members));
+		}
+		fprintf(out, "%s:%s:%s:%s\n", fields[0], fields[1], fields[2], members);
+	}
+	fclose(in);
+	fchmod(fd, st.st_mode & 07777);
+	fchown(fd, st.st_uid, st.st_gid);
+	if (fclose(out) != 0 || rename(tmp, GROUP_FILE) != 0) {
+		unlink(tmp);
+		close(lfd);
+		return (kODErrorDaemonError);
+	}
+	close(lfd);
+	return (found ? 0 : kODErrorRecordNoLongerExists);
+}
+
+/* The login window's options the Users pane sets: values replaced, an
+   empty string removes one; others refused. */
+static uint32_t
+login_options(CFDataRef data)
+{
+	static const CFStringRef allowed[] = { CFSTR("autoLoginUser"), CFSTR("SHOWFULLNAME"),
+	    CFSTR("PowerOffDisabled"), CFSTR("RetriesUntilHint"), CFSTR("showInputMenu") };
+	CFPropertyListRef changes = data != NULL ? CFPropertyListCreateWithData(NULL, data,
+	    kCFPropertyListImmutable, NULL, NULL) : NULL;
+	CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)LOGIN_PREFS,
+	    (CFIndex)strlen(LOGIN_PREFS), false);
+	CFMutableDictionaryRef prefs = NULL;
+	CFDataRef old = NULL;
+	uint32_t error = 0;
+
+	if (changes == NULL || CFGetTypeID(changes) != CFDictionaryGetTypeID()) {
+		error = kODErrorRecordParameterError;
+		goto out;
+	}
+	{
+		FILE *f = fopen(LOGIN_PREFS, "r");
+		if (f != NULL) {
+			CFMutableDataRef bytes = CFDataCreateMutable(NULL, 0);
+			UInt8 buf[4096];
+			size_t n;
+			while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+				CFDataAppendBytes(bytes, buf, (CFIndex)n);
+			fclose(f);
+			old = bytes;
+		}
+	}
+	if (old != NULL) {
+		CFPropertyListRef p = CFPropertyListCreateWithData(NULL, old,
+		    kCFPropertyListMutableContainers, NULL, NULL);
+		if (p != NULL && CFGetTypeID(p) == CFDictionaryGetTypeID())
+			prefs = (CFMutableDictionaryRef)p;
+		else if (p != NULL)
+			CFRelease(p);
+	}
+	if (prefs == NULL)
+		prefs = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks,
+		    &kCFTypeDictionaryValueCallBacks);
+	{
+	CFIndex n = CFDictionaryGetCount(changes);
+	const void *keys[n > 0 ? n : 1], *values[n > 0 ? n : 1];
+	CFDictionaryGetKeysAndValues(changes, keys, values);
+	for (CFIndex i = 0; i < n; i++) {
+		bool ok = false;
+		for (size_t a = 0; a < sizeof(allowed) / sizeof(allowed[0]); a++)
+			if (CFEqual(keys[i], allowed[a]))
+				ok = true;
+		if (!ok) {
+			error = kODErrorRecordAttributeUnknownType;
+			goto out;
+		}
+		if (values[i] == kCFNull || (CFGetTypeID(values[i]) == CFStringGetTypeID() &&
+		    CFStringGetLength(values[i]) == 0))
+			CFDictionaryRemoveValue(prefs, keys[i]);
+		else
+			CFDictionarySetValue(prefs, keys[i], values[i]);
+	}
+	}
+	{
+		CFDataRef xml = CFPropertyListCreateData(NULL, prefs, kCFPropertyListXMLFormat_v1_0, 0, NULL);
+		char tmp[] = LOGIN_PREFS ".XXXXXX";
+		int fd = xml != NULL ? mkstemp(tmp) : -1;
+		if (fd < 0 || write(fd, CFDataGetBytePtr(xml), (size_t)CFDataGetLength(xml)) !=
+		    CFDataGetLength(xml) || fchmod(fd, 0644) != 0 || close(fd) != 0 ||
+		    rename(tmp, LOGIN_PREFS) != 0) {
+			if (fd >= 0)
+				unlink(tmp);
+			error = kODErrorDaemonError;
+		}
+		if (xml != NULL)
+			CFRelease(xml);
+	}
+out:
+	if (changes != NULL)
+		CFRelease(changes);
+	if (prefs != NULL)
+		CFRelease(prefs);
+	if (old != NULL)
+		CFRelease(old);
+	if (url != NULL)
+		CFRelease(url);
+	return (error);
+}
+
+/* The home of a user that no longer exists, /Users/NAME only. */
+static uint32_t
+remove_home(const char *name)
+{
+	char home[PATH_MAX];
+
+	if (name == NULL || name[0] == '\0' || name[0] == '.' || strchr(name, '/') != NULL)
+		return (kODErrorRecordParameterError);
+	if (getpwnam(name) != NULL)
+		return (kODErrorRecordPermissionError);
+	snprintf(home, sizeof(home), "/Users/%s", name);
+	char *argv[] = { "/bin/rm", "-rf", home, NULL };
+	return (run(argv) == 0 ? 0 : kODErrorDaemonError);
+}
+
 /* ---- Requests ---------------------------------------------------------- */
 
 static void
@@ -708,6 +917,107 @@ handle(xpc_connection_t peer, xpc_object_t msg)
 			CFRelease(values);
 		free(user);
 		free(value);
+		ANSWER(NULL, NULL);
+	} else if (IS("ODNodeCreateRecord")) {
+		CFStringRef type = ARG(0);
+		CFDictionaryRef attrs = ARG(2);
+		char *name = cstring(ARG(1)), *full = NULL;
+		CFDictionaryRef made = NULL;
+
+		if (attrs != NULL && CFGetTypeID(attrs) == CFDictionaryGetTypeID()) {
+			CFArrayRef v = as_array(CFDictionaryGetValue(attrs, A("RealName")));
+			if (v != NULL && CFArrayGetCount(v) > 0)
+				full = cstring(CFArrayGetValueAtIndex(v, 0));
+			if (v != NULL)
+				CFRelease(v);
+		}
+		if (type == NULL || !CFEqual(type, REC_USERS) || name == NULL)
+			error = kODErrorPluginOperationNotSupported;
+		else if (!may_edit(peer, node, name))
+			error = kODErrorRecordPermissionError;
+		else if (getpwnam(name) != NULL)
+			error = kODErrorRecordAlreadyExists;
+		else {
+			/* A password nobody knows until the pane sets the user's. */
+			char password[33];
+			static const char chars[] = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+			for (int i = 0; i < 32; i++)
+				password[i] = chars[arc4random_uniform(sizeof(chars) - 1)];
+			password[32] = '\0';
+			char *argv[] = { SYSADMINCTL, "-addUser", name, "-fullName", full != NULL ? full : name,
+			    "-password", password, NULL };
+			struct passwd *pw;
+			if (run(argv) != 0 || (pw = getpwnam(name)) == NULL)
+				error = kODErrorDaemonError;
+			else
+				made = user_record(pw);
+		}
+		ANSWER(NULL, made);
+		if (made != NULL)
+			CFRelease(made);
+		free(name);
+		free(full);
+	} else if (IS("ODRecordDelete")) {
+		CFStringRef type = ARG(0);
+		char *name = cstring(ARG(1));
+		struct passwd *pw = name != NULL ? getpwnam(name) : NULL;
+
+		if (type == NULL || !CFEqual(type, REC_USERS) || name == NULL)
+			error = kODErrorPluginOperationNotSupported;
+		else if (!may_edit(peer, node, name))
+			error = kODErrorRecordPermissionError;
+		else if (pw == NULL)
+			error = kODErrorRecordNoLongerExists;
+		else if (pw->pw_uid < 500 || (node != NULL && node->authUser != NULL &&
+		    strcmp(node->authUser, name) == 0))
+			/* Not a system account, nor the administrator deleting. */
+			error = kODErrorRecordPermissionError;
+		else {
+			char *argv[] = { SYSADMINCTL, "-deleteUser", name, "-keepHome", NULL };
+			if (run(argv) != 0)
+				error = kODErrorDaemonError;
+		}
+		free(name);
+		ANSWER(NULL);
+	} else if (IS("ODRecordAddValue") || IS("ODRecordRemoveValue")) {
+		CFStringRef type = ARG(0), attr = ARG(3);
+		char *group = cstring(ARG(1)), *member = cstring(ARG(4));
+
+		if (type == NULL || !CFEqual(type, REC_GROUPS) || attr == NULL ||
+		    !CFEqual(attr, A("GroupMembership")) || group == NULL || member == NULL)
+			error = kODErrorPluginOperationNotSupported;
+		else if (!may_edit(peer, node, member))
+			error = kODErrorRecordPermissionError;
+		else if (getpwnam(member) == NULL)
+			error = kODErrorRecordAttributeValueNotFound;
+		else if (IS("ODRecordRemoveValue") && strcmp(group, "admin") == 0 && node != NULL &&
+		    node->authUser != NULL && strcmp(node->authUser, member) == 0)
+			/* An administrator does not take itself out of admin. */
+			error = kODErrorRecordPermissionError;
+		else
+			error = group_edit(group, member, IS("ODRecordAddValue"));
+		free(group);
+		free(member);
+		ANSWER(NULL);
+	} else if (IS("ODNodeCustomCall")) {
+		CFNumberRef codeNum = ARG(0);
+		CFTypeRef sent = ARG(1);
+		CFIndex code = 0;
+
+		if (codeNum != NULL)
+			CFNumberGetValue(codeNum, kCFNumberCFIndexType, &code);
+		if (!may_edit(peer, node, NULL))
+			error = kODErrorRecordPermissionError;
+		else if (code == kCustomLoginOptions && sent != NULL && CFGetTypeID(sent) == CFDataGetTypeID())
+			error = login_options(sent);
+		else if (code == kCustomRemoveHome && sent != NULL && CFGetTypeID(sent) == CFDataGetTypeID()) {
+			char name[256] = "";
+			CFIndex len = CFDataGetLength(sent);
+			if (len > 0 && len < (CFIndex)sizeof(name))
+				memcpy(name, CFDataGetBytePtr(sent), (size_t)len);
+			error = remove_home(name);
+		} else
+			error = kODErrorPluginOperationNotSupported;
 		ANSWER(NULL, NULL);
 	} else if (IS("ODQueryCreateWithNode")) {
 		CFArrayRef types = as_array(ARG(0)), wanted = as_array(ARG(3)), attrs = as_array(ARG(4));
