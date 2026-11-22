@@ -155,7 +155,8 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
      * so two instances can run; then also "apps" (the running apps),
      * "activate PID" (asks that app to activate), "screens" (each
      * screen's frame and visible frame, and the menu bar's height),
-     * "minimize" and "restore" (its window), "child" and "unchild" (a
+     * "minimize" and "restore" (its window), "resizable" (it can be
+     * zoomed and minimized from its title bar), "child" and "unchild" (a
      * green child window over its right edge), "sheet" and "endsheet",
      * "cursorrect" (an I-beam cursor over its blue view), "ibeam" (sets
      * the I-beam cursor), "menus" (a Test menu: Alpha, Beta disabled
@@ -442,7 +443,10 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
         printf("busy done\n");
     } else if (strncmp(line, "apps", 4) == 0)
         [self printApplications];
-    else if (strncmp(line, "minimize", 8) == 0) {
+    else if (strncmp(line, "resizable", 9) == 0) {
+        [self.window setStyleMask:[self.window styleMask] | NSResizableWindowMask | NSMiniaturizableWindowMask];
+        printf("resizable\n");
+    } else if (strncmp(line, "minimize", 8) == 0) {
         [self.window miniaturize:nil];
         printf("minimized=%d\n", [self.window isMiniaturized]);
     } else if (strncmp(line, "restore", 7) == 0) {
