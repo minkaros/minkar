@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include <xlocale.h>
+#import <objc/runtime.h>
 #import <Foundation/NSUserDefaults.h>
 #import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSURL.h>
@@ -25,6 +26,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPersistantDomain.h>
 #import <Foundation/NSRaiseException.h>
 #import <langinfo.h>
+
+@interface NSUserDefaults (MinkarGlobalDomain)
+-(void)_reloadGlobalDomain;
+@end
+
+/* The global domain without the user's file (_reloadGlobalDomain). */
+static char globalBaseKey;
 
 NSString * const NSGlobalDomain=@"NSGlobalDomain";
 NSString * const NSArgumentDomain=@"NSArgumentDomain";
@@ -128,19 +136,11 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    [self registerArgumentDefaults];
    [self registerProcessNameDefaults];
 
+    /* The global domain's own values and the locale's names below; the
+       user's global preferences are read over them (_reloadGlobalDomain). */
     NSMutableDictionary *dict = [NSMutableDictionary new];
     // Minkar: was addEntriesWithDictionary:, which does not exist.
     [dict addEntriesFromDictionary:[_domains objectForKey:NSGlobalDomain]];
-    // The user's global preferences (defaults -g: AppleLanguages, ...),
-    // in the reference platform's file, .GlobalPreferences.plist.
-    NSPersistantDomain *global = [[[NSPlatform currentPlatform] persistantDomainClass]
-        persistantDomainWithName:@".GlobalPreferences"];
-    for (NSString *key in [global allKeys]) {
-        id value = [global objectForKey:key];
-        if (value != nil)
-            [dict setObject:value forKey:key];
-    }
-    [_domains setObject:dict forKey:NSGlobalDomain];
     
     // Minkar: the names come from the user's locale through nl_langinfo_l,
     // without touching the process's locale. This switched it with
@@ -219,6 +219,9 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
     [dict setObject:arr forKey:NSAMPMDesignation];
 
     freelocale(names);
+    objc_setAssociatedObject(self, &globalBaseKey, dict, OBJC_ASSOCIATION_RETAIN);
+    [dict release];
+    [self _reloadGlobalDomain];
 
    [_domains setObject:[NSMutableDictionary dictionary]
                 forKey:NSRegistrationDomain];
@@ -443,6 +446,37 @@ static BOOL creatingStandardDefaults;
    [[NSNotificationCenter defaultCenter] postNotificationName:NSUserDefaultsDidChangeNotification object:self];
 }
 
+/* Minkar: the user's global preferences (defaults -g: AppleLanguages,
+   AppleActionOnDoubleClick...), from the reference platform's file,
+   .GlobalPreferences.plist, over what the global domain had before them.
+   Read when the defaults are made, and again by synchronize, so a change
+   another process made (System Preferences) is seen, as on the
+   reference. */
+-(void)_reloadGlobalDomain {
+   NSDictionary *base = objc_getAssociatedObject(self, &globalBaseKey);
+   NSMutableDictionary *dict;
+
+   if(base == nil) {
+      base = [[[_domains objectForKey:NSGlobalDomain] copy] autorelease];
+      if(base == nil)
+         base = [NSDictionary dictionary];
+      objc_setAssociatedObject(self, &globalBaseKey, base, OBJC_ASSOCIATION_RETAIN);
+   }
+   dict = [NSMutableDictionary dictionaryWithDictionary:base];
+   NSPersistantDomain *global = [[[NSPlatform currentPlatform] persistantDomainClass]
+       persistantDomainWithName:@".GlobalPreferences"];
+   for (NSString *key in [global allKeys]) {
+      id value = [global objectForKey:key];
+      if (value != nil)
+         [dict setObject:value forKey:key];
+   }
+   @synchronized(self) {
+      [_domains setObject:dict forKey:NSGlobalDomain];
+      [_dictionaryRep autorelease];
+      _dictionaryRep=nil;
+   }
+}
+
 -(BOOL)synchronize {
    NSMutableDictionary *p = [self persistantDomain];
    if(p) {
@@ -452,6 +486,7 @@ static BOOL creatingStandardDefaults;
          _dictionaryRep=nil;
       }
    }
+   [self _reloadGlobalDomain];
    return YES;
 }
 
