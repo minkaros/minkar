@@ -45,7 +45,8 @@
  * shut down. The session's applications run as that user, with its HOME,
  * USER, LOGNAME and SHELL, in its home; the console is the user's while the
  * session lasts, so the user's apps may ask for Log Out, Restart and Shut
- * Down. Its programs run in the user's launchd (its per-user context),
+ * Down, and Lock Screen (the login window for that user alone, above the
+ * session, until its password is given). Its programs run in the user's launchd (its per-user context),
  * where its LaunchAgents are loaded at login and unloaded at Log Out; its
  * login items are opened by a copy of this program running as the user
  * (-loginitems).
@@ -127,6 +128,7 @@ requestName(uint32_t request)
 {
 	switch (request) {
 	case kLoginWindowLogOut:	return "log out";
+	case kLoginWindowLockScreen:	return "lock screen";
 	case kLoginWindowRestart:	return "restart";
 	case kLoginWindowShutDown:	return "shut down";
 	}
@@ -550,12 +552,74 @@ quitApplications(const char *what)
 
 static void endSession(void);
 
+/* Lock Screen: the login window for the session's user alone, above
+ * everything, until its password is given; the session goes on behind it.
+ * One lock at a time. */
+static int locked;
+
+static void *
+lockScreen(void *unused)
+{
+	char *argv[] = { LOGIN_WINDOW, "-lock", sessionUser.name, NULL };
+	pid_t pid;
+	int fds[2];
+	char line[64] = "";
+	posix_spawn_file_actions_t actions;
+
+	(void)unused;
+	for (;;) {
+		if (pipe(fds) != 0)
+			break;
+		posix_spawn_file_actions_init(&actions);
+		posix_spawn_file_actions_adddup2(&actions, fds[1], STDOUT_FILENO);
+		posix_spawn_file_actions_addclose(&actions, fds[0]);
+		int err = posix_spawn(&pid, LOGIN_WINDOW, &actions, NULL, argv, environ);
+		posix_spawn_file_actions_destroy(&actions);
+		close(fds[1]);
+		if (err != 0) {
+			fprintf(stderr, "loginwindow: cannot lock the screen: %s\n", strerror(err));
+			close(fds[0]);
+			break;
+		}
+		fprintf(stderr, "loginwindow: screen locked (pid %d)\n", pid);
+		FILE *in = fdopen(fds[0], "r");
+		if (in == NULL || fgets(line, sizeof(line), in) == NULL)
+			line[0] = '\0';
+		if (in != NULL)
+			fclose(in);
+		else
+			close(fds[0]);
+		/* Only the user's password unlocks: a lock window that ends
+		   otherwise (killed) comes back. */
+		if (strncmp(line, "unlock", 6) == 0)
+			break;
+		fprintf(stderr, "loginwindow: the lock ended without the password: again\n");
+		sleep(1);
+	}
+	fprintf(stderr, "loginwindow: screen unlocked\n");
+	pthread_mutex_lock(&sessionLock);
+	locked = 0;
+	pthread_mutex_unlock(&sessionLock);
+	return NULL;
+}
+
 static void
 serve(uint32_t request)
 {
 	const char *what = requestName(request);
 
 	fprintf(stderr, "loginwindow: %s requested\n", what);
+	if (request == kLoginWindowLockScreen) {
+		pthread_t t;
+
+		pthread_mutex_lock(&sessionLock);
+		if (!locked && pthread_create(&t, NULL, lockScreen, NULL) == 0) {
+			locked = 1;
+			pthread_detach(t);
+		}
+		pthread_mutex_unlock(&sessionLock);
+		return;
+	}
 	pthread_mutex_lock(&sessionLock);
 	sessionEnding = 1;
 	pthread_mutex_unlock(&sessionLock);

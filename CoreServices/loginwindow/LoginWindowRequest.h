@@ -25,6 +25,7 @@ enum {
 	kLoginWindowLogOut	= 1,
 	kLoginWindowRestart	= 2,
 	kLoginWindowShutDown	= 3,
+	kLoginWindowLockScreen	= 4,	/* the session goes on behind the lock */
 };
 
 typedef struct LoginWindowRequest {

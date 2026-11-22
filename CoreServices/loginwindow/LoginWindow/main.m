@@ -16,6 +16,9 @@
  * password. A wrong password shakes the fields and clears the password.
  * Sleep, Restart and Shut Down are at the bottom, unless PowerOffDisabled
  * is set.
+ *
+ * With -lock NAME it is Lock Screen: above everything, only NAME's tile
+ * and password, and "unlock" once it is given.
  */
 
 #import <AppKit/AppKit.h>
@@ -25,7 +28,7 @@
 #include <pwd.h>
 
 #define LOGIN_PREFS	@"/Library/Preferences/com.apple.loginwindow.plist"
-#define TILE_W		128
+#define TILE_W		176
 #define TILE_H		136
 #define AVATAR		88
 
@@ -89,6 +92,10 @@ static NSDictionary *loginPreferences(void)
                              NSForegroundColorAttributeName: [NSColor whiteColor],
                              NSParagraphStyleAttributeName: centered };
     NSString *name = _userName == nil ? NSLocalizedString(@"Other…", nil) : _fullName;
+    /* Too long for the tile: shortened, with an ellipsis. */
+    while ([name length] > 1 && [name sizeWithAttributes:label].width > bounds.size.width - 8)
+        name = [[[name substringToIndex:[name length] - 2] stringByTrimmingCharactersInSet:
+            [NSCharacterSet whitespaceCharacterSet]] stringByAppendingString:@"…"];
     [name drawInRect:NSMakeRect(0, 8, bounds.size.width, 20) withAttributes:label];
 }
 
@@ -123,6 +130,17 @@ static NSDictionary *loginPreferences(void)
     NSArray<NSDictionary *> *_users;   /* name, fullName */
     NSString *_chosen;                 /* the user asked for, nil: the name field */
     BOOL _askName;                     /* SHOWFULLNAME */
+    NSString *_lockUser;               /* -lock NAME: Lock Screen */
+}
+
+/* A user's tile entry, from its record. */
+- (NSDictionary *)entryForUser:(NSString *)name
+{
+    ODNode *node = [ODNode nodeWithSession:[ODSession defaultSession] name:@"/Local/Default" error:NULL];
+    ODRecord *r = [node recordWithRecordType:kODRecordTypeUsers name:name attributes:nil error:NULL];
+    NSString *full = [[r valuesForAttribute:kODAttributeTypeFullName error:NULL] firstObject];
+
+    return @{ @"name": name, @"fullName": [full length] ? full : name };
 }
 
 /* The users who can log in: UID from 500, a shell, not a service account. */
@@ -168,13 +186,19 @@ static NSDictionary *loginPreferences(void)
     NSDictionary *prefs = loginPreferences();
     NSRect screen = [[NSScreen mainScreen] frame];
 
-    _askName = [prefs[@"SHOWFULLNAME"] boolValue];
-    _users = [self loginUsers];
+    NSArray *args = [[NSProcessInfo processInfo] arguments];
+    NSUInteger lock = [args indexOfObject:@"-lock"];
+    if (lock != NSNotFound && lock + 1 < [args count])
+        _lockUser = args[lock + 1];
+
+    _askName = _lockUser == nil && [prefs[@"SHOWFULLNAME"] boolValue];
+    _users = _lockUser != nil ? @[ [self entryForUser:_lockUser] ] : [self loginUsers];
 
     _window = [[LoginPanel alloc] initWithContentRect:screen styleMask:NSWindowStyleMaskBorderless
         backing:NSBackingStoreBuffered defer:NO];
     [_window setBackgroundColor:backgroundColor()];
-    [_window setLevel:NSStatusWindowLevel];
+    /* Above the session's windows, the Dock and the menu bar when it locks. */
+    [_window setLevel:_lockUser != nil ? NSScreenSaverWindowLevel : NSStatusWindowLevel];
     NSView *content = [_window contentView];
 
     /* Minkar's name, high up. */
@@ -206,7 +230,7 @@ static NSDictionary *loginPreferences(void)
     [_form addSubview:_back];
     [content addSubview:_form];
 
-    if (![prefs[@"PowerOffDisabled"] boolValue]) {
+    if (_lockUser == nil && ![prefs[@"PowerOffDisabled"] boolValue]) {
         CGFloat x = NSMidX(screen) - 160;
         [content addSubview:[self powerButton:@"Sleep" action:@selector(sleep:) x:x]];
         [content addSubview:[self powerButton:@"Restart" action:@selector(restart:) x:x + 110]];
@@ -225,7 +249,8 @@ static NSDictionary *loginPreferences(void)
     /* The field asked for first, once the window is key. */
     if (![_form isHidden])
         [_window makeFirstResponder:[_nameField isHidden] ? _passwordField : _nameField];
-    os_log_info(OS_LOG_DEFAULT, "login window shown (%{public}s)", _askName ? "name and password" : "list");
+    os_log_info(OS_LOG_DEFAULT, "login window shown (%{public}s)",
+                _lockUser != nil ? "lock" : _askName ? "name and password" : "list");
 }
 
 /* The tiles: every user (or only the one chosen), and "Other…". */
@@ -321,7 +346,10 @@ static NSDictionary *loginPreferences(void)
 
     if (record != nil && [record verifyPassword:password error:&error]) {
         os_log_info(OS_LOG_DEFAULT, "login window: verified %{public}s", [[record recordName] UTF8String]);
-        printf("user %s\n", [[record recordName] UTF8String]);
+        if (_lockUser != nil)
+            printf("unlock\n");
+        else
+            printf("user %s\n", [[record recordName] UTF8String]);
         fflush(stdout);
         exit(0);
     }
