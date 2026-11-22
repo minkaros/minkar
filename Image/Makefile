@@ -88,6 +88,11 @@ BOOTTEST_KEY =		${ROOT_BINARY_DIR}/boottest-ssh/id_ed25519
 .if defined(TEST_USER)
 .export TEST_USER TEST_USER_PASSWORD
 .endif
+# AUTO_LOGIN_USER=name: the user loginwindow logs in at the first start,
+# without the login window (autoLoginUser); empty: the login window asks.
+# root by default until the session's user is the tests' (M5).
+AUTO_LOGIN_USER ?=	root
+.export AUTO_LOGIN_USER
 # SSH_ROOT_LOGIN=yes: root may log in over ssh, also with its password. On
 # by default for development images until version 1.0; "no" turns it off.
 SSH_ROOT_LOGIN ?=	yes

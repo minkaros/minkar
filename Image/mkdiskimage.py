@@ -191,6 +191,23 @@ def sha512_crypt(password):
     return hashed
 
 
+def set_auto_login(root_dir, user):
+    """loginwindow logs user in at the first start, without the login
+    window (autoLoginUser, as on the reference platform)."""
+    import plistlib
+    prefs = os.path.join(root_dir, 'Library/Preferences')
+    os.makedirs(prefs, exist_ok=True)
+    path = os.path.join(prefs, 'com.apple.loginwindow.plist')
+    values = {}
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            values = plistlib.load(f)
+    values['autoLoginUser'] = user
+    with open(path, 'wb') as f:
+        plistlib.dump(values, f)
+    os.chmod(path, 0o644)
+
+
 def add_test_user(root_dir, name, password, uid=501, gid=20):
     """Add a login account for testing, like macOS's first user: uid 501,
     group staff, member of admin, home in /Users (dev images)."""
@@ -368,6 +385,8 @@ def build(args):
             add_test_user(root_dir, args.test_user, args.test_user_password)
         if args.ssh_root_login:
             permit_root_ssh(root_dir)
+        if args.auto_login_user:
+            set_auto_login(root_dir, args.auto_login_user)
         if args.launchd_debug:
             # launchd logs at debug level to the console when this exists.
             open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
@@ -404,6 +423,9 @@ def main(argv=None):
                    help='add a login account for testing (uid 501, admin; default: $TEST_USER)')
     p.add_argument('--test-user-password', default=os.environ.get('TEST_USER_PASSWORD'),
                    help='its password (default: $TEST_USER_PASSWORD)')
+    p.add_argument('--auto-login-user', default=os.environ.get('AUTO_LOGIN_USER'),
+                   help='the user loginwindow logs in at the first start, without the login '
+                   'window (default: $AUTO_LOGIN_USER; empty: the login window)')
     p.add_argument('--ssh-root-login', action='store_true',
                    help='PermitRootLogin yes in sshd_config (development images)')
     p.add_argument('--launchd-debug', action='store_true',

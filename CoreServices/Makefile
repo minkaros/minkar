@@ -6,8 +6,7 @@
 # plan); WindowServer/Demo is its demo client. The keymap (WSKeymap and
 # libxkbcommon) lives in PrivateFrameworks/SkyLight/Keymap.
 #
-# FIXME: DMIHelper and the login window of ravynOS (loginwindow/LoginWindow.m,
-# LoadingWindow) still use the old build rules and are not built yet.
+# FIXME: DMIHelper still uses the old build rules and is not built yet.
 
 SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Demo
 # The window server and its test client (SkyLight.framework is built
@@ -21,6 +20,8 @@ SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server 
 SUBDIR += launchservicesd launchservicesd/tests
 # The minimal loginwindow, the session's owner (WindowServer plan, 10.3).
 SUBDIR += loginwindow
+# The login window app loginwindow runs (M5).
+SUBDIR += loginwindow/LoginWindow
 # The IOSurface registry (roadmap step 4).
 SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 # The pasteboard server (Phase 4).

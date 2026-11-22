@@ -37,16 +37,31 @@
  * preferences); one that exits within RESPAWN_THROTTLE seconds of its start
  * waits that long first. Not while the session ends.
  *
- * SHORTCUT(Phase 5): no login window, no user but root, no confirmation of
- * its own (the app asking shows one) and no session for other users: the
- * full login window of Phase 5 (Atlas) replaces this; taken in WS4b.
+ * The session's user (Atlas.md, M5): at the first start, autoLoginUser in
+ * /Library/Preferences/com.apple.loginwindow, as on the reference
+ * platform; otherwise, and after each Log Out, the login window
+ * (LoginWindow.app, inside this bundle) asks, and says on its standard
+ * output whom it verified ("user NAME"), or that it was asked to restart or
+ * shut down. The session's applications run as that user, with its HOME,
+ * USER, LOGNAME and SHELL, in its home; the console is the user's while the
+ * session lasts, so the user's apps may ask for Log Out, Restart and Shut
+ * Down. Its login items are opened by a copy of this program running as
+ * the user (-loginitems).
+ *
+ * SHORTCUT(Phase 5): no confirmation of its own (the app asking shows
+ * one), one session at a time, and no per-user launchd domain yet (the
+ * user's LaunchAgents).
  *
  *	loginwindow [-n]	-n: try it out, without restarting or
- *				shutting down (for the tests)
+ *				shutting down, and with the same user's session
+ *				again after Log Out (for the tests)
  */
 
 #include <bsm/libbsm.h>
 #include <errno.h>
+#include <grp.h>
+#include <pwd.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <servers/bootstrap.h>
@@ -61,6 +76,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <mach-o/dyld.h>
 #include <LaunchServices/LaunchServices.h>
 #include <LaunchServices/LSSession.h>
 #include <SkyLight/SkyLight.h>
@@ -71,6 +87,10 @@ extern char **environ;
 /* The applications of a session, one path per line (an app bundle or an
  * executable); those not installed are left out. */
 #define SESSION_APPS	"/System/Library/CoreServices/loginwindow.app/Contents/Resources/SessionApplications"
+/* The login window, and the preferences that name the user logged in at
+ * the first start. */
+#define LOGIN_WINDOW	"/System/Library/CoreServices/loginwindow.app/Contents/Resources/LoginWindow.app/Contents/MacOS/LoginWindow"
+#define LOGIN_PREFS	"/Library/Preferences/com.apple.loginwindow.plist"
 /* How long the applications have to quit. */
 #define QUIT_TIMEOUT	30
 
@@ -85,6 +105,17 @@ static struct {
 	time_t started;
 } sessionApps[MAX_SESSION_APPS];
 static int sessionAppCount;
+/* The session's user. */
+static struct {
+	char	name[64];
+	uid_t	uid;
+	gid_t	gid;
+	char	home[PATH_MAX];
+	char	shell[PATH_MAX];
+	gid_t	groups[NGROUPS_MAX];	/* its groups, looked up before a fork */
+	int	ngroups;
+} sessionUser;
+static int firstSession = 1;
 static int sessionEnding;
 static pthread_mutex_t sessionLock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -186,6 +217,152 @@ openLoginItems(void *unused)
 	return NULL;
 }
 
+static char selfPath[PATH_MAX];
+
+/* Starts exe as the session's user, in its home: its pid, or -1. */
+static pid_t
+spawnAsUser(const char *exe, char *const argv[])
+{
+	pid_t pid;
+
+	if (sessionUser.uid == 0) {
+		int err = posix_spawn(&pid, exe, NULL, NULL, argv, environ);
+		if (err != 0) {
+			errno = err;
+			return -1;
+		}
+		return pid;
+	}
+	pid = fork();
+	if (pid != 0)
+		return pid;
+	/* The child: only async-signal-safe calls until exec (the groups
+	   were looked up before). */
+	if (setgroups(sessionUser.ngroups, sessionUser.groups) != 0 ||
+	    setgid(sessionUser.gid) != 0 || setuid(sessionUser.uid) != 0)
+		_exit(126);
+	if (chdir(sessionUser.home) != 0)
+		(void)chdir("/");
+	execve(exe, argv, environ);
+	_exit(127);
+}
+
+static int
+setSessionUser(const char *name)
+{
+	struct passwd *pw = name != NULL && name[0] != '\0' ? getpwnam(name) : NULL;
+
+	if (pw == NULL)
+		return 0;
+	snprintf(sessionUser.name, sizeof(sessionUser.name), "%s", pw->pw_name);
+	sessionUser.uid = pw->pw_uid;
+	sessionUser.gid = pw->pw_gid;
+	snprintf(sessionUser.home, sizeof(sessionUser.home), "%s", pw->pw_dir);
+	snprintf(sessionUser.shell, sizeof(sessionUser.shell), "%s",
+	    pw->pw_shell != NULL && pw->pw_shell[0] != '\0' ? pw->pw_shell : "/bin/sh");
+	sessionUser.ngroups = NGROUPS_MAX;
+	if (getgrouplist(sessionUser.name, (int)sessionUser.gid, (int *)sessionUser.groups,
+	    &sessionUser.ngroups) != 0) {
+		sessionUser.groups[0] = sessionUser.gid;
+		sessionUser.ngroups = 1;
+	}
+	return 1;
+}
+
+/* autoLoginUser, from the login window's preferences. */
+static int
+autoLoginUser(char *out, size_t size)
+{
+	CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)LOGIN_PREFS,
+	    (CFIndex)strlen(LOGIN_PREFS), false);
+	CFReadStreamRef stream = url != NULL ? CFReadStreamCreateWithFile(NULL, url) : NULL;
+	CFPropertyListRef plist = NULL;
+	int found = 0;
+
+	if (stream != NULL && CFReadStreamOpen(stream)) {
+		plist = CFPropertyListCreateWithStream(NULL, stream, 0, kCFPropertyListImmutable, NULL, NULL);
+		CFReadStreamClose(stream);
+	}
+	if (plist != NULL && CFGetTypeID(plist) == CFDictionaryGetTypeID()) {
+		CFStringRef user = CFDictionaryGetValue(plist, CFSTR("autoLoginUser"));
+		if (user != NULL && CFGetTypeID(user) == CFStringGetTypeID())
+			found = CFStringGetCString(user, out, (CFIndex)size, kCFStringEncodingUTF8);
+	}
+	if (plist != NULL)
+		CFRelease(plist);
+	if (stream != NULL)
+		CFRelease(stream);
+	if (url != NULL)
+		CFRelease(url);
+	return found;
+}
+
+static void powerOff(uint32_t request);
+
+/* The user of the next session: autoLoginUser the first time, else the
+ * login window's answer (restarting or shutting down when it says so). */
+static void
+chooseUser(void)
+{
+	char name[256];
+
+	if (firstSession) {
+		firstSession = 0;
+		if (autoLoginUser(name, sizeof(name)) && setSessionUser(name)) {
+			fprintf(stderr, "loginwindow: automatic login of %s\n", name);
+			return;
+		}
+	}
+	for (;;) {
+		int fds[2];
+		posix_spawn_file_actions_t actions;
+		char *argv[] = { LOGIN_WINDOW, NULL };
+		char line[300] = "";
+		pid_t pid;
+		FILE *in;
+
+		if (pipe(fds) != 0) {
+			sleep(1);
+			continue;
+		}
+		posix_spawn_file_actions_init(&actions);
+		posix_spawn_file_actions_adddup2(&actions, fds[1], STDOUT_FILENO);
+		posix_spawn_file_actions_addclose(&actions, fds[0]);
+		setenv("HOME", "/var/root", 1);
+		setenv("USER", "root", 1);
+		setenv("LOGNAME", "root", 1);
+		int err = posix_spawn(&pid, LOGIN_WINDOW, &actions, NULL, argv, environ);
+		posix_spawn_file_actions_destroy(&actions);
+		close(fds[1]);
+		if (err != 0) {
+			fprintf(stderr, "loginwindow: cannot start the login window: %s; root logs in\n",
+			    strerror(err));
+			close(fds[0]);
+			setSessionUser("root");
+			return;
+		}
+		fprintf(stderr, "loginwindow: login window (pid %d)\n", pid);
+		in = fdopen(fds[0], "r");
+		if (in == NULL || fgets(line, sizeof(line), in) == NULL)
+			line[0] = '\0';
+		if (in != NULL)
+			fclose(in);
+		else
+			close(fds[0]);
+		line[strcspn(line, "\r\n")] = '\0';
+		if (strncmp(line, "user ", 5) == 0 && setSessionUser(line + 5))
+			return;
+		if (strcmp(line, "restart") == 0)
+			powerOff(kLoginWindowRestart);
+		else if (strcmp(line, "shutdown") == 0)
+			powerOff(kLoginWindowShutDown);
+		else {
+			fprintf(stderr, "loginwindow: the login window ended (\"%s\"): again\n", line);
+			sleep(1);
+		}
+	}
+}
+
 /* Starts the session's applications; called with sessionLock held. */
 static void
 startSession(void)
@@ -193,10 +370,13 @@ startSession(void)
 	FILE *list = fopen(SESSION_APPS, "r");
 	char line[1024], exe[1200];
 
-	fprintf(stderr, "loginwindow: session of root on the console\n");
-	setenv("HOME", "/var/root", 1);
-	setenv("USER", "root", 1);
-	setenv("LOGNAME", "root", 1);
+	fprintf(stderr, "loginwindow: session of %s on the console\n", sessionUser.name);
+	setenv("HOME", sessionUser.home, 1);
+	setenv("USER", sessionUser.name, 1);
+	setenv("LOGNAME", sessionUser.name, 1);
+	setenv("SHELL", sessionUser.shell, 1);
+	if (chown("/dev/console", sessionUser.uid, sessionUser.gid) != 0)
+		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
 	sessionAppCount = 0;
 	sessionEnding = 0;
 	if (list == NULL)
@@ -212,6 +392,12 @@ startSession(void)
 		startApp(sessionAppCount++);
 	}
 	fclose(list);
+	if (sessionUser.uid != 0) {
+		/* The user's own list, opened as the user. */
+		char *argv[] = { selfPath, "-loginitems", NULL };
+		spawnAsUser(selfPath, argv);
+		return;
+	}
 	pthread_t opener;
 	if (pthread_create(&opener, NULL, openLoginItems, NULL) == 0)
 		pthread_detach(opener);
@@ -222,8 +408,8 @@ static void
 startApp(int i)
 {
 	char *argv[] = { sessionApps[i].exe, NULL };
-	pid_t pid;
-	int err = posix_spawn(&pid, sessionApps[i].exe, NULL, NULL, argv, environ);
+	pid_t pid = spawnAsUser(sessionApps[i].exe, argv);
+	int err = pid > 0 ? 0 : errno;
 
 	sessionApps[i].pid = err == 0 ? pid : 0;
 	sessionApps[i].started = time(NULL);
@@ -317,6 +503,8 @@ quitApplications(const char *what)
 	return 0;
 }
 
+static void endSession(void);
+
 static void
 serve(uint32_t request)
 {
@@ -338,27 +526,47 @@ serve(uint32_t request)
 	}
 	switch (request) {
 	case kLoginWindowLogOut:
-		fprintf(stderr, "loginwindow: session ended\n");
+		fprintf(stderr, "loginwindow: session ended (%s)\n", sessionUser.name);
+		endSession();
+		/* Trying out (-n): the same user's session again. */
+		if (!dryRun)
+			chooseUser();
 		pthread_mutex_lock(&sessionLock);
 		startSession();
 		pthread_mutex_unlock(&sessionLock);
 		break;
 	case kLoginWindowRestart:
 	case kLoginWindowShutDown:
-		fprintf(stderr, "loginwindow: session ended, %s%s\n",
-		    request == kLoginWindowRestart ? "restarting" : "shutting down",
-		    dryRun ? " (not: -n)" : "");
-		if (dryRun) {
-			pthread_mutex_lock(&sessionLock);
-			startSession();
-			pthread_mutex_unlock(&sessionLock);
-			break;
-		}
-		sync();
-		reboot(request == kLoginWindowRestart ? RB_AUTOBOOT : RB_HALT);
-		fprintf(stderr, "loginwindow: reboot: %s\n", strerror(errno));
+		endSession();
+		powerOff(request);
 		break;
 	}
+}
+
+/* The console back to root once the session's apps are gone. */
+static void
+endSession(void)
+{
+	if (chown("/dev/console", 0, 0) != 0)
+		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
+}
+
+/* Restarts or shuts down; trying out (-n), a new session instead. */
+static void
+powerOff(uint32_t request)
+{
+	fprintf(stderr, "loginwindow: session ended, %s%s\n",
+	    request == kLoginWindowRestart ? "restarting" : "shutting down",
+	    dryRun ? " (not: -n)" : "");
+	if (dryRun) {
+		pthread_mutex_lock(&sessionLock);
+		startSession();
+		pthread_mutex_unlock(&sessionLock);
+		return;
+	}
+	sync();
+	reboot(request == kLoginWindowRestart ? RB_AUTOBOOT : RB_HALT);
+	fprintf(stderr, "loginwindow: reboot: %s\n", strerror(errno));
 }
 
 /* The -textconsole boot argument: no window server, so no session. */
@@ -393,8 +601,16 @@ main(int argc, char *argv[])
 	kern_return_t kr;
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
+	if (argc > 1 && strcmp(argv[1], "-loginitems") == 0) {
+		/* As the session's user: its login items. */
+		openLoginItems(NULL);
+		return 0;
+	}
 	if (argc > 1 && strcmp(argv[1], "-n") == 0)
 		dryRun = 1;
+	uint32_t size = sizeof(selfPath);
+	if (_NSGetExecutablePath(selfPath, &size) != 0)
+		snprintf(selfPath, sizeof(selfPath), "%s", argv[0]);
 	if (textConsole()) {
 		fprintf(stderr, "loginwindow: -textconsole: no graphical session\n");
 		return 0;
@@ -406,6 +622,7 @@ main(int argc, char *argv[])
 	}
 	fprintf(stderr, "loginwindow: serving %s%s\n", kLoginWindowServiceName,
 	    dryRun ? " (trying out: no restart or shut down)" : "");
+	chooseUser();
 	pthread_mutex_lock(&sessionLock);
 	startSession();
 	pthread_mutex_unlock(&sessionLock);
