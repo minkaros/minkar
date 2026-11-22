@@ -158,6 +158,13 @@ typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
 typedef NS_OPTIONS(NSUInteger, NSWindowOcclusionState) {
     NSWindowOcclusionStateVisible = 1UL << 1,
 };
+/* The user's choice of tabs for new documents' windows (10.12). */
+typedef NS_ENUM(NSInteger, NSWindowUserTabbingPreference) {
+    NSWindowUserTabbingPreferenceManual = 0,
+    NSWindowUserTabbingPreferenceAlways = 1,
+    NSWindowUserTabbingPreferenceInFullScreen = 2,
+};
+
 typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
     NSTitlebarSeparatorStyleAutomatic,
     NSTitlebarSeparatorStyleNone,
@@ -718,6 +725,9 @@ APPKIT_EXPORT NSString *const NSWindowAnimatingNotification;
 /* Minkar: a window's animator (changes through it take effect at once,
    as views' do) and its backing scale (API 10.7). */
 @interface NSWindow (MinkarWindowExtras) <NSAnimatablePropertyContainer>
+/* AppleWindowTabbingMode (always, fullscreen, the default, or manual),
+   which the Dock pane sets. */
+@property (class, readonly) NSWindowUserTabbingPreference userTabbingPreference;
 - (instancetype)animator;
 @property (readonly) CGFloat backingScaleFactor;
 @end

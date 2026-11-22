@@ -22,6 +22,7 @@
  * IN THE SOFTWARE.
  */
 
+#import <objc/runtime.h>
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSWindow-Private.h>
@@ -503,6 +504,23 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     return NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
 }
 
+/* The title bar's double-click action, done when the button comes up. */
+static char titleBarActionKey;
+
+-(void)mouseUp:(NSEvent *)event {
+    NSString *action = objc_getAssociatedObject(self, &titleBarActionKey);
+
+    if(action == nil) {
+        [super mouseUp:event];
+        return;
+    }
+    objc_setAssociatedObject(self, &titleBarActionKey, nil, OBJC_ASSOCIATION_RETAIN);
+    if([action isEqualToString:@"Minimize"])
+        [[self window] performMiniaturize:self];
+    else
+        [[self window] performZoom:self];
+}
+
 -(void)mouseDown:(NSEvent *)event {
     CGFloat top, left, right, bottom;
     CGNativeBorderFrameWidthsForStyle([[self window] styleMask], &top, &left, &bottom, &right);
@@ -517,6 +535,27 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
             [[self window] performMiniaturize:self];
         else if(NSPointInRect(pos, _zoomButtonRect) && (mask & NSResizableWindowMask))
             [[self window] performZoom:self];
+    }
+    else if(pos.y > (NSMaxY(_frame) - top) && [event clickCount] == 2) {
+        /* Minkar: a double click on the title bar does what the user chose
+           (AppleActionOnDoubleClick: Maximize, the default, Minimize or None;
+           before it, AppleMiniaturizeOnDoubleClick), as on the reference,
+           when the button comes up: the title bar is a drag region, so the
+           server is moving the window until then and keeps its frame. */
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        NSString *action;
+
+        [defaults synchronize];     /* as changed in System Preferences meanwhile */
+        action = [defaults stringForKey:@"AppleActionOnDoubleClick"];
+
+        if(action == nil && [defaults objectForKey:@"AppleMiniaturizeOnDoubleClick"] != nil)
+            action = [defaults boolForKey:@"AppleMiniaturizeOnDoubleClick"] ? @"Minimize" : @"Maximize";
+        if([action isEqualToString:@"Minimize"] && (mask & NSMiniaturizableWindowMask))
+            objc_setAssociatedObject(self, &titleBarActionKey, @"Minimize", OBJC_ASSOCIATION_RETAIN);
+        else if(action != nil && ![action isEqualToString:@"Maximize"])
+            ;
+        else if(mask & NSResizableWindowMask)
+            objc_setAssociatedObject(self, &titleBarActionKey, @"Maximize", OBJC_ASSOCIATION_RETAIN);
     }
     else if(pos.y > (NSMaxY(_frame) - top)) // in titlebar?
         [[self window] requestMove:event];

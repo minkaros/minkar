@@ -4140,6 +4140,16 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
 }
 
 @implementation NSWindow (MinkarWindowExtras)
+
++(NSWindowUserTabbingPreference)userTabbingPreference {
+   NSString *mode=[[NSUserDefaults standardUserDefaults] stringForKey:@"AppleWindowTabbingMode"];
+
+   if([mode isEqualToString:@"always"])
+    return NSWindowUserTabbingPreferenceAlways;
+   if([mode isEqualToString:@"manual"])
+    return NSWindowUserTabbingPreferenceManual;
+   return NSWindowUserTabbingPreferenceInFullScreen;
+}
 -(instancetype)animator { return self; }
 -(NSDictionary *)animations { return [NSDictionary dictionary]; }
 -(void)setAnimations:(NSDictionary *)animations { }
