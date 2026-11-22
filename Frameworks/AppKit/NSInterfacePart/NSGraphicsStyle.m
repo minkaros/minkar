@@ -393,7 +393,13 @@ static BOOL atlasFlipped(void) {
    return [[NSGraphicsContext currentContext] isFlipped];
 }
 
+BOOL _NSSystemAppearanceIsDark(void);
+
+/* Atlas's greys for the controls; in the dark appearance the same steps
+   on a dark scale (a face at 1.0 is 0.38, darker steps darker still). */
 static NSColor *atlasGray(CGFloat white) {
+   if(_NSSystemAppearanceIsDark())
+    white=0.38-(1-white)*0.30;
    return [NSColor colorWithGenericGamma22White:white alpha:1];
 }
 
@@ -579,7 +585,8 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
    NSMutableArray *pairs=[NSMutableArray array];
 
    _NSGraphicsStyleRegisterButtonImages();
-   for(NSString *name in [NSArray arrayWithObjects:@"NSHighlightedSwitch",@"NSHighlightedRadioButton",nil]){
+   for(NSString *name in [NSArray arrayWithObjects:@"NSSwitch",@"NSHighlightedSwitch",@"NSRadioButton",
+      @"NSHighlightedRadioButton",nil]){
     NSImage *old=[NSImage imageNamed:name];
 
     if(old!=nil){
@@ -587,7 +594,7 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
      [old setName:nil];
      [pairs addObject:old];
      [old release];
-     [pairs addObject:atlasToggleImage(name,[name hasSuffix:@"RadioButton"],YES)];
+     [pairs addObject:atlasToggleImage(name,[name hasSuffix:@"RadioButton"],[name hasPrefix:@"NSHighlighted"])];
     }
    }
    return pairs;

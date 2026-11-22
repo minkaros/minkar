@@ -127,9 +127,14 @@ static NSAppearance *applicationAppearance;
    [self didChangeValueForKey:@"effectiveAppearance"];
 }
 
-/* The one set, or the system's light look. */
+BOOL _NSSystemAppearanceIsDark(void);
+
+/* The one set, or the system's: dark or light as General in System
+   Preferences says. */
 -(NSAppearance *)effectiveAppearance {
-   return (applicationAppearance!=nil)?applicationAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua];
+   if(applicationAppearance!=nil)
+    return applicationAppearance;
+   return [NSAppearance appearanceNamed:_NSSystemAppearanceIsDark()?NSAppearanceNameDarkAqua:NSAppearanceNameAqua];
 }
 
 void _NSWatchSystemAccentColors(void);

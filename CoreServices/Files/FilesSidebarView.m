@@ -7,6 +7,7 @@
  */
 
 #import "FilesSidebarView.h"
+#import "FilesColors.h"
 #import "FilesIcons.h"
 
 static const CGFloat kRow = 24, kSection = 26;
@@ -58,13 +59,13 @@ static const CGFloat kRow = 24, kSection = 26;
 - (void)drawRect:(NSRect)dirty
 {
     NSDictionary *section = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:11],
-                               NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.5 alpha:1] };
+                               NSForegroundColorAttributeName: FilesGray(0.5, 1) };
     NSDictionary *plain = @{ NSFontAttributeName: [NSFont systemFontOfSize:13],
-                             NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.15 alpha:1] };
+                             NSForegroundColorAttributeName: FilesGray(0.15, 1) };
 
-    [[NSColor colorWithGenericGamma22White:0.93 alpha:1] set];
+    [FilesGray(0.93, 1) set];
     NSRectFill(dirty);
-    [[NSColor colorWithGenericGamma22White:0.82 alpha:1] set];
+    [FilesGray(0.82, 1) set];
     NSRectFill(NSMakeRect(NSWidth([self bounds]) - 1, 0, 1, NSHeight([self bounds])));
 
     for (NSUInteger i = 0; i < [_rows count]; i++) {
@@ -75,7 +76,7 @@ static const CGFloat kRow = 24, kSection = 26;
             continue;
         }
         if ([[row[@"url"] path] isEqualToString:[self.currentURL path]]) {
-            [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
+            [FilesGray(0.82, 1) setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(r, 8, 1) xRadius:5 yRadius:5] fill];
         }
         [FilesFolderIconForURL(row[@"url"]) drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect

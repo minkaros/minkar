@@ -13,6 +13,13 @@
  * notification, as on the reference); then every window is drawn again
  * and NSSystemColorsDidChangeNotification posted. The tones are Atlas's
  * own palette.
+ *
+ * The appearance, the same way: AppleInterfaceStyle Dark (or, with
+ * AppleInterfaceStyleSwitchesAutomatically, the night: 19:00 to 7:00
+ * local time) gives the System color list Atlas's dark neutrals, the
+ * light ones kept to come back to; AppleInterfaceThemeChangedNotification
+ * says it changed. Colors views and windows already took from the list
+ * (a window's background, a text view's) are given the new ones.
  */
 
 #import <AppKit/NSColor.h>
@@ -25,6 +32,10 @@
 #import <Foundation/NSDistributedNotificationCenter.h>
 #import <Foundation/NSNotification.h>
 #import <CoreFoundation/CoreFoundation.h>
+#import <Foundation/NSTimer.h>
+#import <objc/runtime.h>
+#include <time.h>
+#include <math.h>
 
 NSString *const _NSColorPreferencesChangedNotification = @"AppleColorPreferencesChangedNotification";
 
@@ -84,11 +95,85 @@ static NSColor *currentHighlight(void) {
                                       blue:[[parts objectAtIndex:2] doubleValue] alpha:1];
 }
 
+/* Atlas's dark neutrals: a grey, then alpha (1 when absent). */
+typedef struct {
+    NSString *name;
+    CGFloat white;
+} _NSAtlasDarkGray;
+
+static const _NSAtlasDarkGray kDark[] = {
+    { @"labelColor", 0.90 }, { @"secondaryLabelColor", 0.66 }, { @"tertiaryLabelColor", 0.46 },
+    { @"quaternaryLabelColor", 0.34 }, { @"textColor", 0.92 }, { @"textBackgroundColor", 0.16 },
+    { @"selectedTextColor", 0.96 }, { @"unemphasizedSelectedTextColor", 0.92 },
+    { @"unemphasizedSelectedTextBackgroundColor", 0.30 }, { @"placeholderTextColor", 0.46 },
+    { @"headerTextColor", 0.92 }, { @"windowBackgroundColor", 0.21 }, { @"underPageBackgroundColor", 0.15 },
+    { @"windowFrameColor", 0.26 }, { @"windowFrameTextColor", 0.88 }, { @"controlBackgroundColor", 0.16 },
+    { @"controlAlternatingRowColor", 0.19 }, { @"alternatingContentBackgroundColor", 0.19 },
+    { @"unemphasizedSelectedContentBackgroundColor", 0.31 }, { @"gridColor", 0.28 },
+    { @"separatorColor", 0.33 }, { @"controlColor", 0.36 }, { @"controlTextColor", 0.92 },
+    { @"disabledControlTextColor", 0.46 }, { @"selectedControlTextColor", 0.96 },
+    { @"secondarySelectedControlColor", 0.31 }, { @"controlHighlightColor", 0.40 },
+    { @"controlLightHighlightColor", 0.44 }, { @"controlShadowColor", 0.12 },
+    { @"controlDarkShadowColor", 0.06 }, { @"highlightColor", 0.44 }, { @"scrollBarColor", 0.20 },
+    { @"knobColor", 0.46 }, { @"selectedKnobColor", 0.56 }, { @"menuBackgroundColor", 0.23 },
+    { @"menuItemTextColor", 0.92 },
+};
+static const size_t kDarkCount = sizeof(kDark) / sizeof(kDark[0]);
+
+static BOOL appearanceDark = NO;
+static NSMutableDictionary *lightColors;    /* name -> the list's light color */
+
+/* The night, for Auto. */
+static BOOL nightNow(void) {
+    time_t now = time(NULL);
+    struct tm local;
+
+    localtime_r(&now, &local);
+    return local.tm_hour >= 19 || local.tm_hour < 7;
+}
+
+BOOL _NSSystemAppearanceIsDark(void) {
+    return appearanceDark;
+}
+
+static BOOL wantsDark(void) {
+    if ([globalValue(CFSTR("AppleInterfaceStyleSwitchesAutomatically")) boolValue])
+        return nightNow();
+    return [globalValue(CFSTR("AppleInterfaceStyle")) isEqual:@"Dark"];
+}
+
+/* The neutrals for the appearance: dark ones, or the light ones kept. */
+static void applyAppearance(BOOL dark) {
+    NSColorList *list = [NSColorList colorListNamed:@"System"];
+
+    if (list == nil)
+        return;
+    if (lightColors == nil) {
+        lightColors = [NSMutableDictionary new];
+        for (size_t i = 0; i < kDarkCount; i++) {
+            NSColor *c = [NSColor colorWithCatalogName:@"System" colorName:kDark[i].name];
+            if (c != nil)
+                [lightColors setObject:c forKey:kDark[i].name];
+        }
+    }
+    for (size_t i = 0; i < kDarkCount; i++) {
+        NSColor *c = dark ? [NSColor colorWithCalibratedWhite:kDark[i].white alpha:1]
+                          : [lightColors objectForKey:kDark[i].name];
+        if (c != nil)
+            [list setColor:c forKey:kDark[i].name];
+    }
+    appearanceDark = dark;
+}
+
 void _NSApplySystemAccentColors(void) {
     NSColorList *list = [NSColorList colorListNamed:@"System"];
     const NSAccentTones *tones = currentAccent();
     NSColor *accent = rgb(tones->accent, 1), *rows = rgb(tones->list, 1);
     NSColor *selection = currentHighlight() ?: rgb(tones->selection, 1);
+
+    /* In the dark, the highlight half as bright: light text stays legible. */
+    if (appearanceDark)
+        selection = [selection blendedColorWithFraction:0.55 ofColor:[NSColor blackColor]];
 
     if (list == nil)
         return;
@@ -127,18 +212,109 @@ static void swapToggleImages(NSView *view, NSArray *pairs) {
         swapToggleImages(sub, pairs);
 }
 
+/* The System list's colors now, by name: compared before and after a
+   change, to find the copies views took. */
+static NSDictionary *systemColorsNow(void) {
+    NSColorList *list = [NSColorList colorListNamed:@"System"];
+    NSMutableDictionary *now = [NSMutableDictionary dictionary];
+
+    for (NSString *key in [list allKeys]) {
+        NSColor *c = [NSColor colorWithCatalogName:@"System" colorName:key];
+        if (c != nil)
+            [now setObject:c forKey:key];
+    }
+    return now;
+}
+
+/* The same color, by its RGBA components (copies of a color are not
+   isEqual: to it). */
+static BOOL sameColor(NSColor *a, NSColor *b) {
+    NSColor *x = [a colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+    NSColor *y = [b colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+    if (x == nil || y == nil)
+        return NO;
+    return fabs([x redComponent] - [y redComponent]) < 0.002 &&
+           fabs([x greenComponent] - [y greenComponent]) < 0.002 &&
+           fabs([x blueComponent] - [y blueComponent]) < 0.002 &&
+           fabs([x alphaComponent] - [y alphaComponent]) < 0.002;
+}
+
+/* Colors a view or window holds that were the System list's: the new ones
+   of the same names. Names that did not change, and the accent's (other
+   names share its value), are left alone. */
+static NSColor *replacement(NSColor *color, NSDictionary *before, NSDictionary *after) {
+    if (color == nil)
+        return nil;
+    for (size_t i = 0; i < kDarkCount; i++) {
+        NSColor *old = [before objectForKey:kDark[i].name], *new = [after objectForKey:kDark[i].name];
+        if (old != nil && new != nil && !sameColor(old, new) && sameColor(old, color))
+            return new;
+    }
+    return nil;
+}
+
+static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
+    static const char *const pairs[][2] = {
+        { "backgroundColor", "setBackgroundColor:" }, { "textColor", "setTextColor:" },
+        { "fillColor", "setFillColor:" }, { "borderColor", "setBorderColor:" },
+        { "gridColor", "setGridColor:" }, { "insertionPointColor", "setInsertionPointColor:" },
+    };
+
+    for (size_t i = 0; i < sizeof(pairs) / sizeof(pairs[0]); i++) {
+        SEL get = sel_registerName(pairs[i][0]), set = sel_registerName(pairs[i][1]);
+        if ([object respondsToSelector:get] && [object respondsToSelector:set]) {
+            id value = [object performSelector:get];
+            NSColor *new = [value isKindOfClass:[NSColor class]] ? replacement(value, before, after) : nil;
+            if (new != nil)
+                [object performSelector:set withObject:new];
+        }
+    }
+    if ([object isKindOfClass:[NSView class]]) {
+        if ([object isKindOfClass:[NSControl class]])
+            swapColors([(NSControl *)object cell], before, after);
+        for (NSView *sub in [(NSView *)object subviews])
+            swapColors(sub, before, after);
+    }
+}
+
 @interface _NSSystemAccentWatcher : NSObject
 @end
 
 @implementation _NSSystemAccentWatcher
 
+/* The appearance changed, or Auto's hour came: as the colors do. */
+- (void)themeChanged:(NSNotification *)note {
+    [self colorsChanged:note];
+}
+
+/* Auto: checked again every minute, so the evening and the morning come
+   on time. */
+- (void)tick:(NSTimer *)timer {
+    if (wantsDark() != appearanceDark)
+        [self colorsChanged:nil];
+}
+
 /* The pane changed them: read again, then every window drawn anew. */
 - (void)colorsChanged:(NSNotification *)note {
+    NSDictionary *before = systemColorsNow();
+    BOOL wasDark = appearanceDark;
+
     CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+    applyAppearance(wantsDark());
     _NSApplySystemAccentColors();
+    NSDictionary *after = systemColorsNow();
     NSArray *pairs = _NSGraphicsStyleAccentChanged();
+    if (wasDark != appearanceDark) {
+        [NSApp willChangeValueForKey:@"effectiveAppearance"];
+        [NSApp didChangeValueForKey:@"effectiveAppearance"];
+    }
     for (NSWindow *window in [NSApp windows]) {
         NSView *top = [[window contentView] superview];
+        NSColor *background = replacement([window backgroundColor], before, after);
+        if (background != nil)
+            [window setBackgroundColor:background];
+        swapColors(top != nil ? top : [window contentView], before, after);
         swapToggleImages(top != nil ? top : [window contentView], pairs);
         if ([window isVisible])
             [window display];
@@ -154,7 +330,13 @@ void _NSWatchSystemAccentColors(void) {
     if (watcher != nil)
         return;
     watcher = [_NSSystemAccentWatcher new];
+    applyAppearance(wantsDark());
     _NSApplySystemAccentColors();
+    if (appearanceDark)
+        _NSGraphicsStyleAccentChanged();
     [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(colorsChanged:)
         name:_NSColorPreferencesChangedNotification object:nil];
+    [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(themeChanged:)
+        name:@"AppleInterfaceThemeChangedNotification" object:nil];
+    [NSTimer scheduledTimerWithTimeInterval:60 target:watcher selector:@selector(tick:) userInfo:nil repeats:YES];
 }

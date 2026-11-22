@@ -11,18 +11,19 @@
  */
 
 #import "FilesColumnView.h"
+#import "FilesColors.h"
 
 static const CGFloat kColumnWidth = 220, kRowHeight = 20;
 
 static NSColor *selectionColor(void)
 {
-    return [NSColor colorWithSRGBRed:0.25 green:0.50 blue:0.85 alpha:1];
+    return [NSColor selectedContentBackgroundColor];
 }
 
 /* What is chosen in a column but not where the keyboard acts. */
 static NSColor *inactiveSelectionColor(void)
 {
-    return [NSColor colorWithGenericGamma22White:0.84 alpha:1];
+    return FilesGray(0.84, 1);
 }
 
 /* One column: a folder, its items, the one chosen. */
@@ -187,18 +188,18 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 - (void)drawRect:(NSRect)dirty
 {
     NSFont *font = [NSFont systemFontOfSize:12];
-    NSDictionary *plain = @{ NSFontAttributeName: font, NSForegroundColorAttributeName: [NSColor blackColor] };
+    NSDictionary *plain = @{ NSFontAttributeName: font, NSForegroundColorAttributeName: FilesGray(0, 1) };
     NSDictionary *white = @{ NSFontAttributeName: font, NSForegroundColorAttributeName: [NSColor whiteColor] };
     NSDictionary *chevron = @{ NSFontAttributeName: font,
-                               NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.45 alpha:1] };
+                               NSForegroundColorAttributeName: FilesGray(0.45, 1) };
 
-    [[NSColor whiteColor] set];
+    [FilesGray(1, 1) set];
     NSRectFill(dirty);
 
     for (NSUInteger c = 0; c < [_columns count]; c++) {
         FilesColumn *column = _columns[c];
         CGFloat right = (c + 1) * kColumnWidth - 1;
-        [[NSColor colorWithGenericGamma22White:0.85 alpha:1] set];
+        [FilesGray(0.85, 1) set];
         NSRectFill(NSMakeRect(right, NSMinY(dirty), 1, NSHeight(dirty)));
         for (NSUInteger r = 0; r < [column.items count]; r++) {
             NSRect row = [self rectForRow:r column:c];

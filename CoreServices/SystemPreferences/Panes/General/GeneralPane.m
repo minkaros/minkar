@@ -109,7 +109,7 @@ static NSTextField *note(NSString *text, NSRect frame)
 {
     NSTextField *field = label(text, frame, NSLeftTextAlignment);
     [field setFont:[NSFont systemFontOfSize:11]];
-    [field setTextColor:[NSColor darkGrayColor]];
+    [field setTextColor:[NSColor secondaryLabelColor]];
     return field;
 }
 

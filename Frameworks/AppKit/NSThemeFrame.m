@@ -28,6 +28,8 @@
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSColor.h>
+
+BOOL _NSSystemAppearanceIsDark(void);
 #import <AppKit/NSImage.h>
 #import <AppKit/NSToolbarView.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
@@ -113,7 +115,7 @@ const float NSWindowControlSpacing = 8;
         O2ContextFillPath(context);
         O2ContextRestoreGState(context);
 
-        O2ContextSetGrayStrokeColor(context, 0.8, 1);
+        O2ContextSetGrayStrokeColor(context, _NSSystemAppearanceIsDark() ? 0.24 : 0.8, 1);
         O2ContextSetLineWidth(context, NSWindowEdgePad);
         O2ContextBeginPath(context);
         O2ContextAddArc(context, cx, cy, r - NSWindowEdgePad / 2, from, to, clockwise);
@@ -266,8 +268,10 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     if([[self window] isSheet])
         bounds.size.height += cheatSheet;
 
-    O2ContextSetGrayStrokeColor(_context, 0.8, 1);
-    O2ContextSetGrayFillColor(_context, 0.8, 1);
+    /* The frame's grey: Atlas's light one, or its dark one. */
+    CGFloat frameGray = _NSSystemAppearanceIsDark() ? 0.24 : 0.8;
+    O2ContextSetGrayStrokeColor(_context, frameGray, 1);
+    O2ContextSetGrayFillColor(_context, frameGray, 1);
 
     // let's round these corners
     float radius = NSWindowCornerRadius;
@@ -337,7 +341,8 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
             NSFontAttributeName : [NSFont systemFontOfSize:13.0],
-            NSForegroundColorAttributeName : [NSColor colorWithGenericGamma22White:0.25 alpha:1]
+            NSForegroundColorAttributeName : _NSSystemAppearanceIsDark() ? [NSColor windowFrameTextColor]
+                                                                         : [NSColor colorWithGenericGamma22White:0.25 alpha:1]
         };
         NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];

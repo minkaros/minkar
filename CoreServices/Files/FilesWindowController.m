@@ -9,6 +9,7 @@
  */
 
 #import "FilesWindowController.h"
+#import "FilesColors.h"
 #import "FilesSegmentedControl.h"
 #import "FilesSidebarView.h"
 #import "FilesColumnView.h"
@@ -100,7 +101,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_title setAlignment:NSCenterTextAlignment];
     _status = label(11, NO);
     [_status setAlignment:NSCenterTextAlignment];
-    [_status setTextColor:[NSColor colorWithGenericGamma22White:0.35 alpha:1]];
+    [_status setTextColor:FilesGray(0.35, 1)];
 
     _sidebar = [[FilesSidebarView alloc] initWithFrame:NSMakeRect(0, 0, kSidebarWidth, 100)];
     _sidebar.delegate = self;
@@ -652,13 +653,13 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
     /* White under the folder's items; the bar across the top in gray,
        with a line under it. */
-    [[NSColor whiteColor] set];
+    [FilesGray(1, 1) set];
     NSRectFill(dirty);
-    [[NSColor colorWithGenericGamma22White:0.82 alpha:1] set];
+    [FilesGray(0.82, 1) set];
     NSRectFill(NSIntersectionRect(dirty, NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), kBarHeight)));
-    [[NSColor colorWithGenericGamma22White:0.74 alpha:1] set];
+    [FilesGray(0.74, 1) set];
     NSRectFill(NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), 1));
-    [[NSColor colorWithGenericGamma22White:0.85 alpha:1] set];
+    [FilesGray(0.85, 1) set];
     NSRectFill(NSMakeRect(0, 21, NSWidth(b), 1));
 }
 

@@ -7,6 +7,7 @@
  */
 
 #import "FilesSegmentedControl.h"
+#import "FilesColors.h"
 
 static const CGFloat kSegmentWidth = 28;
 static const CGFloat kHeight = 24;
@@ -162,7 +163,7 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
     NSBezierPath *capsule = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:6 yRadius:6];
     NSUInteger count = [_glyphs count];
 
-    [[NSColor colorWithGenericGamma22White:0.985 alpha:1] setFill];
+    [FilesGray(0.985, 1) setFill];
     [capsule fill];
 
     [NSGraphicsContext saveGraphicsState];
@@ -170,29 +171,29 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
     for (NSUInteger i = 0; i < count; i++) {
         NSRect r = [self rectForSegment:(NSInteger)i];
         if ((NSInteger)i == _selectedSegment) {
-            [[NSColor colorWithGenericGamma22White:0.80 alpha:1] setFill];
+            [FilesGray(0.80, 1) setFill];
             NSRectFill(r);
         } else if ((NSInteger)i == _pressed && [self isEnabledForSegment:(NSInteger)i]) {
-            [[NSColor colorWithGenericGamma22White:0.87 alpha:1] setFill];
+            [FilesGray(0.87, 1) setFill];
             NSRectFill(r);
         }
         if (i > 0) {
-            [[NSColor colorWithGenericGamma22White:0.78 alpha:1] setFill];
+            [FilesGray(0.78, 1) setFill];
             NSRectFill(NSMakeRect(floor(NSMinX(r)), 0, 1, NSHeight([self bounds])));
         }
     }
     [NSGraphicsContext restoreGraphicsState];
 
-    [[NSColor colorWithGenericGamma22White:0.70 alpha:1] setStroke];
+    [FilesGray(0.70, 1) setStroke];
     [capsule setLineWidth:1];
     [capsule stroke];
 
     for (NSUInteger i = 0; i < count; i++) {
         BOOL enabled = [self isEnabledForSegment:(NSInteger)i];
-        NSColor *ink = (NSInteger)i == _selectedSegment ? [NSColor colorWithGenericGamma22White:0.12 alpha:1]
-                                                        : [NSColor colorWithGenericGamma22White:0.30 alpha:1];
+        NSColor *ink = (NSInteger)i == _selectedSegment ? FilesGray(0.12, 1)
+                                                        : FilesGray(0.30, 1);
         if (!enabled)
-            ink = [NSColor colorWithGenericGamma22White:0.30 alpha:0.30];
+            ink = FilesGray(0.30, 0.30);
         [ink setFill];
         [ink setStroke];
         drawGlyph((FilesGlyph)[_glyphs[i] integerValue], [self rectForSegment:(NSInteger)i]);

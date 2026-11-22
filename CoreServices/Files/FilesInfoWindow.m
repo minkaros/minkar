@@ -7,6 +7,7 @@
  */
 
 #import "FilesInfoWindow.h"
+#import "FilesColors.h"
 #include <os/log.h>
 
 @interface FilesInfoView : NSView
@@ -24,19 +25,19 @@
 - (void)drawRect:(NSRect)dirty
 {
     NSDictionary *name = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:14],
-                            NSForegroundColorAttributeName: [NSColor blackColor] };
+                            NSForegroundColorAttributeName: FilesGray(0, 1) };
     NSDictionary *label = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:11],
-                             NSForegroundColorAttributeName: [NSColor colorWithGenericGamma22White:0.35 alpha:1] };
+                             NSForegroundColorAttributeName: FilesGray(0.35, 1) };
     NSDictionary *value = @{ NSFontAttributeName: [NSFont systemFontOfSize:11],
-                             NSForegroundColorAttributeName: [NSColor blackColor] };
+                             NSForegroundColorAttributeName: FilesGray(0, 1) };
 
-    [[NSColor colorWithGenericGamma22White:0.95 alpha:1] set];
+    [FilesGray(0.95, 1) set];
     NSRectFill(dirty);
     [self.item.icon drawInRect:NSMakeRect(16, 16, 48, 48) fromRect:NSZeroRect
                      operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
     [self.item.name drawAtPoint:NSMakePoint(76, 22) withAttributes:name];
     [self.item.kind drawAtPoint:NSMakePoint(76, 44) withAttributes:value];
-    [[NSColor colorWithGenericGamma22White:0.82 alpha:1] set];
+    [FilesGray(0.82, 1) set];
     NSRectFill(NSMakeRect(12, 78, NSWidth([self bounds]) - 24, 1));
 
     CGFloat y = 92;

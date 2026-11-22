@@ -55,7 +55,7 @@ static NSTextField *note(NSString *text, NSRect frame)
 {
     NSTextField *field = label(text, frame, NSLeftTextAlignment);
     [field setFont:[NSFont systemFontOfSize:11]];
-    [field setTextColor:[NSColor darkGrayColor]];
+    [field setTextColor:[NSColor secondaryLabelColor]];
     return field;
 }
 
@@ -83,7 +83,7 @@ static NSTextField *note(NSString *text, NSRect frame)
     if (self.detail.length > 0)
         [self.detail drawAtPoint:NSMakePoint(48, 23) withAttributes:@{
             NSFontAttributeName : [NSFont systemFontOfSize:11],
-            NSForegroundColorAttributeName : self.selected ? text : [NSColor darkGrayColor] }];
+            NSForegroundColorAttributeName : self.selected ? text : [NSColor secondaryLabelColor] }];
 }
 @end
 
