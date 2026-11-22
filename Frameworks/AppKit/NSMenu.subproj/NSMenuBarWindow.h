@@ -49,6 +49,9 @@
 /* Control-F2: the main screen's menu bar takes the keyboard, its first
  * menu (the system menu) selected. */
 + (void)_focusMenuBar;
+/* The system menu's key equivalents (Lock Screen, Log Out...): it is the
+   menu bar's own item, not in the app's main menu. */
++ (BOOL)_performSystemMenuKeyEquivalent:(NSEvent *)event;
 /* A display changed: the bars follow the screens. */
 + (void)_screensChanged;
 /* The empty bar under the apps' bars on a screen, with the system menu's

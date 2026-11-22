@@ -151,11 +151,12 @@ and Force Quit stays available.
 - [x] MB0 — Menus in each app, the system menu, basic status items. `9d510ec6c2`
 - [x] MB1 — Menu Extras as `.menu` bundles and the full status item API. Local test `menubar-extras`.
 - [x] MB2 — Window menu, Open Recent, Help search, alternates, scrolling, Enter Full Screen, accessibility. Tests `menus-mb2`, `menus`.
-- [ ] **MB3 — The full system menu** (19.6.0). Done: System Preferences…, Recent Items,
+- [x] MB3 — The full system menu (19.6.0): System Preferences…, Recent Items,
   Force Quit… and Command-Option-Escape, Sleep (the displays sleep where the machine
-  cannot). Left: Lock Screen, which waits for the Phase 5 LoginWindow. Tests: Restart asks
-  apps to quit before rebooting; Force Quit ends a hung test app. Local tests
-  `system-menu`, `loginwindow`.
+  cannot), Lock Screen and Control-Command-Q (the login window for the session's user,
+  above everything, until its password is given). Tests: Restart asks apps to quit before
+  rebooting; Force Quit ends a hung test app. Local tests `system-menu`, `loginwindow`,
+  `lock-screen`.
 - [ ] **MB4 — Services and the menu bar's behavior** (19.6.x): the services daemon and
   menu; hiding in full screen; auto-hide.
 
@@ -166,7 +167,7 @@ menu title to the menu on screen.
 
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
-| System menu | Minkar logo, the reference platform's items, actions through loginwindow | Lock Screen disabled | MB3 (with LoginWindow) |
+| System menu | Minkar logo, the reference platform's items, actions through loginwindow, Lock Screen | — | MB3, done |
 | Confirming Restart, Shut Down and Log Out | loginwindow's panel, with its countdown | The app that asks shows an alert; Option skips it (`NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
 | About This Computer | Atlas's own window | A plain alert with the system's name, version, kernel, processor, memory and display (`NSMenuBarWindow.m`) | Phase 5 |
 | Services menu | Services daemon and pasteboard | An empty Services menu | MB4 |

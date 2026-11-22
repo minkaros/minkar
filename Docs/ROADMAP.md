@@ -96,8 +96,8 @@ and the resolution changes from System Preferences, in the Atlas visual language
   groups, passwords; test `opendirectory`). The login window and the user's session done
   (autoLoginUser, the users' list, the session's apps as the user, Log Out back to the window;
   test `login-window`); the user's `LaunchAgents` in its own launchd (the Background session;
-  Aqua-only agents later). Left: Lock Screen.
-- [ ] Menus: MB0–MB2 done; MB3 partial (Lock Screen left).
+  Aqua-only agents later); Lock Screen (test `lock-screen`).
+- [x] Menus: MB0–MB3 done (MB4 in 19.6.x).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
 - [ ] System Preferences: the app and its panes, with Notifications; the Users pane is next.

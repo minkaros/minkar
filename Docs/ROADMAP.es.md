@@ -98,8 +98,8 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
   grupos, contraseñas; prueba `opendirectory`). Hechas la ventana de inicio de sesión y la sesión del usuario
   (autoLoginUser, la lista de usuarios, las apps de la sesión como el usuario, Log Out de vuelta a la ventana;
   prueba `login-window`); los `LaunchAgents` del usuario en su propio launchd (la sesión Background;
-  los limitados a Aqua, después). Falta: la pantalla bloqueada.
-- [ ] Menús: MB0–MB2 hechos; MB3 parcial (falta la pantalla bloqueada).
+  los limitados a Aqua, después); la pantalla bloqueada (prueba `lock-screen`).
+- [x] Menús: MB0–MB3 hechos (MB4 en 19.6.x).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
 - [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios es el siguiente.

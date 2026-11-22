@@ -1262,6 +1262,12 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
             return YES;
         if([[self mainMenu] performKeyEquivalent:event])
             return YES;
+        /* The system menu's, after the app's: Control-Command-Q locks
+           the screen, Shift-Command-Q logs out. Not in an app without a
+           menu bar of its own (an agent), as on the reference. */
+        if([self activationPolicy]==NSApplicationActivationPolicyRegular &&
+           [NSMenuBarWindow _performSystemMenuKeyEquivalent:event])
+            return YES;
     }
 // documentation says to send it to all windows
    return NO;

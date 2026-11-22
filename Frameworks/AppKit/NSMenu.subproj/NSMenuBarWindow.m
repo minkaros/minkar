@@ -225,6 +225,13 @@ static NSArray *recentURLs(CFStringRef which) {
     }
 }
 
+/* Lock Screen: loginwindow covers the session until its user's password
+   is given; no confirmation, as on the reference platform. */
+- (void)lockScreen:(id)sender {
+    if(!sendLoginWindowRequest(kLoginWindowLockScreen))
+        NSLog(@"loginwindow is not running: Lock Screen not done");
+}
+
 - (void)logOut:(id)sender {
     [self request:kLoginWindowLogOut question:@"Are you sure you want to quit all applications and log out now?"
         button:@"Log Out"];
@@ -243,7 +250,7 @@ static NSMenuItem *systemMenuItem(void) {
     [menu setAutoenablesItems:NO];
     NSString *logOut = [NSString stringWithFormat:@"Log Out %@…", NSFullUserName()];
     /* Title, action, key equivalent (Command plus, unless other modifiers
-       are named: o Option, c Control). Lock Screen comes with LoginWindow. */
+       are named: o Option, c Control). */
     NSString *escape = [NSString stringWithFormat:@"%C", (unichar)27];
     NSArray *entries = @[
         @[ @"About This Computer", @"aboutThisComputer:" ], @[ @"-" ],
@@ -251,7 +258,7 @@ static NSMenuItem *systemMenuItem(void) {
         @[ @"Recent Items", @"recent" ], @[ @"-" ],
         @[ @"Force Quit…", @"forceQuit:", escape, @"o" ], @[ @"-" ],
         @[ @"Sleep", @"sleep:" ], @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ], @[ @"-" ],
-        @[ @"Lock Screen", @"", @"q", @"c" ], @[ logOut, @"logOut:", @"Q", @"" ] ];
+        @[ @"Lock Screen", @"lockScreen:", @"q", @"c" ], @[ logOut, @"logOut:", @"Q", @"" ] ];
     for(NSArray *entry in entries) {
         NSString *title = [entry objectAtIndex:0];
         if([title isEqualToString:@"-"]) {
@@ -463,6 +470,10 @@ static NSRect barFrame(NSScreen *screen) {
     for(NSMenuBarWindow *bar in menuBars)
         [bar orderOut:nil];
     shown = NO;
+}
+
++ (BOOL)_performSystemMenuKeyEquivalent:(NSEvent *)event {
+    return [[systemMenuItem() submenu] performKeyEquivalent:event];
 }
 
 + (void)_focusMenuBar {
