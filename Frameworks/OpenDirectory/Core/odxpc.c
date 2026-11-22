@@ -202,13 +202,14 @@ _odxpc_create_connection(uid_t euid)
 	connection->euid = euid;
 	connection->valid = true;
 
+	/* Minkar: the service by its Mach name through the public call (the
+	   private xpc_connection_set_privileged and _set_legacy are not in
+	   Minkar's libxpc, and its opendirectoryd needs neither). */
 	if (!issetugid() && getenv("OD_DEBUG_MODE") != NULL) {
-		connection->xconn = xpc_connection_create(kODAPIPortNameDebug, _odxpc_xpc_queue());
+		connection->xconn = xpc_connection_create_mach_service(kODAPIPortNameDebug, _odxpc_xpc_queue(), 0);
 	} else {
-		connection->xconn = xpc_connection_create(kODAPIPortName, _odxpc_xpc_queue());
-		xpc_connection_set_privileged(connection->xconn);
+		connection->xconn = xpc_connection_create_mach_service(kODAPIPortName, _odxpc_xpc_queue(), 0);
 	}
-	xpc_connection_set_legacy(connection->xconn);
 	xpc_connection_set_event_handler(connection->xconn, ^(xpc_object_t xobj) {
 		xpc_type_t type;
 

@@ -22,6 +22,10 @@ SUBDIR += CoreServices/LaunchServices
 SUBDIR += CoreServices/FSEvents
 SUBDIR += CoreServices
 SUBDIR += Foundation
+# OpenDirectory (APSL) and its CFOpenDirectory inside it: user records and
+# passwords through opendirectoryd, for loginwindow and the Users pane.
+SUBDIR += OpenDirectory/Core
+SUBDIR += OpenDirectory
 # IOSurface (roadmap step 4): pixel buffers shared across processes.
 SUBDIR += IOSurface
 SUBDIR += Onyx2D
@@ -140,6 +144,8 @@ OpenGL: CoreFoundation IOSurface
 CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE CFNetwork/minkar
 CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation
+OpenDirectory/Core: CoreFoundation SystemConfiguration
+OpenDirectory: OpenDirectory/Core Foundation
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation ../BSD/lib/libsqlite3
