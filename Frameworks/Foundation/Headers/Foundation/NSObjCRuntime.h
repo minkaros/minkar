@@ -104,6 +104,27 @@
 #ifndef NS_REQUIRES_NIL_TERMINATION
 #define NS_REQUIRES_NIL_TERMINATION __attribute__((sentinel(0,1)))
 #endif
+/* The older availability macros, with the versions as tokens (10_6):
+   still in many headers. Minkar: introduced versions are not checked;
+   a deprecation is a plain deprecation. */
+#ifndef NS_AVAILABLE
+#define NS_AVAILABLE(_mac, _ios)
+#endif
+#ifndef NS_AVAILABLE_MAC
+#define NS_AVAILABLE_MAC(_mac)
+#endif
+#ifndef NS_AVAILABLE_IOS
+#define NS_AVAILABLE_IOS(_ios)
+#endif
+#ifndef NS_DEPRECATED
+#define NS_DEPRECATED(_macIntro, _macDep, _iosIntro, _iosDep, ...) __attribute__((deprecated(__VA_ARGS__)))
+#endif
+#ifndef NS_DEPRECATED_MAC
+#define NS_DEPRECATED_MAC(_macIntro, _macDep, ...) __attribute__((deprecated(__VA_ARGS__)))
+#endif
+#ifndef NS_DEPRECATED_IOS
+#define NS_DEPRECATED_IOS(_iosIntro, _iosDep, ...)
+#endif
 #ifndef NS_NOESCAPE
 #define NS_NOESCAPE __attribute__((noescape))
 #endif
