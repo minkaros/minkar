@@ -94,7 +94,7 @@ and the resolution changes from System Preferences, in the Atlas visual language
 - [ ] LoginWindow: authentication through Directory Services, the user's `LaunchAgents`, Lock Screen.
 - [ ] Menus: MB0–MB2 done; MB3 partial (Lock Screen left).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
-- [ ] Files: K1–K3 done; K0 partial (the AppKit views checked).
+- [x] Files: K0–K3 done (K4 in 19.6.x).
 - [ ] System Preferences: the app and its panes, with Notifications; the Users pane waits for Directory Services.
 - [ ] AppKit and the Atlas visual language across the system.
 - [ ] Commands: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
@@ -195,7 +195,7 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 
 1. Gate BC in the CI (BC0), with apps started as the session's user.
 2. App set 19: Platypus, KeepingYouAwake and Sloth past their start; VLC's configuration.
-3. M5: LoginWindow with Directory Services, the Users pane, MB3, K0, the visual language.
+3. M5: LoginWindow with Directory Services, the Users pane, MB3, the visual language.
 4. M6: the installer, HFS+ compression, A2, W5, W0–W3.
 5. In parallel: audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1).
 

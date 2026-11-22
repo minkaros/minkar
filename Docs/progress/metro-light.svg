@@ -125,7 +125,7 @@
 <line x1="700" y1="442" x2="1025" y2="442" stroke="#0f7b6f" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="442" x2="970" y2="442" stroke="#0f7b6f" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="442" x2="970" y2="442" stroke="#0f7b6f" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
-<circle cx="700" cy="442" r="9" fill="#ffffff" stroke="#0f7b6f" stroke-width="3"/><path d="M700 436 A6 6 0 0 0 700 448 Z" fill="#0f7b6f"/>
+<circle cx="700" cy="442" r="10" fill="#0f7b6f" stroke="#ffffff" stroke-width="3"/><path d="M695.5 442 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="700" y="471" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">K0</text>
 <circle cx="760" cy="442" r="10" fill="#0f7b6f" stroke="#ffffff" stroke-width="3"/><path d="M755.5 442 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="760" y="471" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">K1</text>

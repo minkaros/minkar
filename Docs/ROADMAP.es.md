@@ -96,7 +96,7 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
 - [ ] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
 - [ ] Menús: MB0–MB2 hechos; MB3 parcial (falta la pantalla bloqueada).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
-- [ ] Files: K1–K3 hechos; K0 parcial (comprobar las vistas de AppKit).
+- [x] Files: K0–K3 hechos (K4 en 19.6.x).
 - [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones; el panel de Usuarios espera a Directory Services.
 - [ ] AppKit y el lenguaje visual de Atlas en todo el sistema.
 - [ ] Órdenes: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`.
@@ -201,7 +201,7 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 1. El gate BC en la CI (BC0), con las apps arrancadas como el usuario de la sesión.
 2. El conjunto de apps 19: que Platypus, KeepingYouAwake y Sloth pasen del arranque; la configuración de VLC.
-3. M5: LoginWindow con Directory Services, el panel de Usuarios, MB3, K0, el lenguaje visual.
+3. M5: LoginWindow con Directory Services, el panel de Usuarios, MB3, el lenguaje visual.
 4. M6: el instalador, la compresión de HFS+, A2, W5, W0–W3.
 5. En paralelo: audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1).
 

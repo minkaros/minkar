@@ -161,7 +161,7 @@ name = "Files"
 color = "teal"
 doc = "Atlas.md#4-dock-and-files"
 stations = [
-  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "done"], ["K3", 970, "done"],
+  ["K0", 700, "done"], ["K1", 760, "done"], ["K2", 865, "done"], ["K3", 970, "done"],
   ["K4", 1025, "todo"],
 ]
 

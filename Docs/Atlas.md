@@ -44,7 +44,7 @@ code marks it `// SHORTCUT(<milestone>):`.
 | --- | --- | --- | --- |
 | Menus (chapter 3) | MB0–MB4 | MB0, MB1, MB2 | MB3 (partial; 19.6.0), MB4 (19.6.x) |
 | Dock (chapter 4) | D0–D4 | D0, D1, D2, D3 | D4 (partial; 19.6.x) |
-| Files (chapter 4) | K0–K4 | K1, K2, K3 | K0 (partial), K4 (19.6.x) |
+| Files (chapter 4) | K0–K4 | K0, K1, K2, K3 | K4 (19.6.x) |
 | Applications (chapter 5) | A0–A10 | A0, A1, A3, A4 | A2 (started; 19.6.0), A5–A10 (19.6.x) |
 | Notifications (5.4) | N0–N2 | N0, N1, N2 | — |
 | Window and text services (5.5) | W0–W4 | — | W0–W3 (19.6.0), W4 (to decide) |
@@ -254,10 +254,10 @@ keeps room for them.
 - [ ] **D4 — Stacks and Trash** (19.6.x). Done: the Trash tile (follows `~/.Trash`
   without polling; open, empty after asking; app tiles dropped on it leave the Dock).
   Left: stacks, files dropped on it, Put Back, other volumes' `.Trashes`.
-- [ ] **K0 — Prerequisites.** Done: fseventsd and FSEvents (`a2a333d45f`), LaunchServices'
-  opening and Open With (`0331f57894`). Left: the AppKit views (`NSCollectionView`,
-  `NSOutlineView`, `NSBrowser`) checked with test apps (Files draws its own); FSEvents'
-  per-volume history, device-relative streams and exclusions (`SHORTCUT(K0-…)`).
+- [x] K0 — Prerequisites: fseventsd and FSEvents (`a2a333d45f`) with each volume's history,
+  device-relative streams and exclusions (`d87116be1c`; test `fsevents`); LaunchServices'
+  opening and Open With (`0331f57894`); the AppKit views apps build file browsers with,
+  checked with a test app (`06176ca807`, `f07b54ac00`; test `appkit-file-views`).
 - [x] K1 — Browsing: sidebar, icon, list and column views, opening, Get Info, reveal. `896749b380`, `906f12eae4`
 - [x] K2 — File operations with progress and undo, drag and drop, Trash with Put Back, Open With. Tests `files-ops`, `drag-apps`.
 - [x] K3 — Desktop icons and volumes with eject, disk image double-click. Test `desktop-icons`.
