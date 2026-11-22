@@ -48,6 +48,8 @@ SUBDIR += ApplicationServices/PrintCore
 # The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
 SUBDIR += ApplicationServices
 SUBDIR += ImageIO
+# CoreData links libsqlite3 (BSD/lib, a stage later): built here first.
+SUBDIR += ../BSD/lib/libsqlite3
 SUBDIR += CoreData
 # CoreVideo (CVDisplayLink, CVTimeStamp): QuartzCore's headers import it.
 SUBDIR += CoreVideo
@@ -135,7 +137,7 @@ CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser
-CoreData: Foundation
+CoreData: Foundation ../BSD/lib/libsqlite3
 CoreImage: CoreGraphics
 QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D CoreImage
 CoreVideo: OpenGL Foundation CoreGraphics IOSurface
