@@ -270,6 +270,9 @@ notifyReconfigured(void)
 	if (notified == nil)
 		notified = [NSMutableDictionary dictionary];
 	WSInputDisplaysChanged();
+	/* The status items follow the main display's right edge at once, as
+	   the menu bars do (their apps hear of it after). */
+	WSWindowsLayoutStatusItems();
 	for (WSDisplay *d in WSDisplays) {
 		NSNumber *key = @(d.displayID);
 		NSArray<NSNumber *> *now = @[ @(d.currentMode->modeID), @(d.x), @(d.y),

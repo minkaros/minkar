@@ -74,6 +74,9 @@ WSWindow *WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame);
 void WSWindowRelease(WSWindow *window);
 void WSWindowSetFrame(WSWindow *window, SLSRect frame);
 int WSWindowOrder(WSWindow *window, int32_t place, SLSWindowID relativeTo);
+/* The status items laid out again at the main display's right edge (its
+ * size or place changed). */
+void WSWindowsLayoutStatusItems(void);
 /* Releases every window of the connection; returns how many. */
 unsigned WSWindowsConnectionDied(WSConnection *connection);
 /* A cursor image an app set (SLSSetCursorImage): premultiplied BGRA,

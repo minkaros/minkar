@@ -242,6 +242,12 @@ layoutStatusArea(void)
 	}
 }
 
+void
+WSWindowsLayoutStatusItems(void)
+{
+	layoutStatusArea();
+}
+
 /* A window went: the items left of it close up. */
 static void
 statusItemGone(WSWindow *w)
