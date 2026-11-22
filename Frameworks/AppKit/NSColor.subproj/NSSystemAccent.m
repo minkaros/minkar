@@ -37,6 +37,8 @@
 #import <objc/runtime.h>
 #include <time.h>
 #include <math.h>
+#include <sys/stat.h>
+#import <Foundation/NSPathUtilities.h>
 
 NSString *const _NSColorPreferencesChangedNotification = @"AppleColorPreferencesChangedNotification";
 
@@ -297,9 +299,40 @@ static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
     [self colorsChanged:note];
 }
 
-/* Auto: checked again every minute, so the evening and the morning come
-   on time. */
+/* The keys General writes, as they are in the global domain now. */
+static NSString *colorSettings(void) {
+    return [NSString stringWithFormat:@"%d %@ %@", wantsDark(), globalValue(CFSTR("AppleAccentColor")),
+        globalValue(CFSTR("AppleHighlightColor"))];
+}
+
+/* Every two seconds: the global preferences' file looked at (a stat), and
+   when it changed, read again; an appearance, accent or highlight changed
+   with no notification (defaults write) is followed as a notified one is.
+   Auto's hour is checked here too, so the evening and the morning come on
+   time. */
 - (void)tick:(NSTimer *)timer {
+    static NSString *file;
+    static struct timespec seen;
+    static NSString *settings;
+    struct stat st;
+
+    if (file == nil)
+        file = [[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Preferences/.GlobalPreferences.plist"] retain];
+    if (stat([file fileSystemRepresentation], &st) == 0 &&
+        (st.st_mtimespec.tv_sec != seen.tv_sec || st.st_mtimespec.tv_nsec != seen.tv_nsec)) {
+        BOOL first = seen.tv_sec == 0 && seen.tv_nsec == 0;
+        seen = st.st_mtimespec;
+        CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+        NSString *now = colorSettings();
+        if (!first && settings != nil && ![now isEqualToString:settings]) {
+            [settings release];
+            settings = [now retain];
+            [self colorsChanged:nil];
+            return;
+        }
+        [settings release];
+        settings = [now retain];
+    }
     if (wantsDark() != appearanceDark)
         [self colorsChanged:nil];
 }
@@ -349,5 +382,6 @@ void _NSWatchSystemAccentColors(void) {
         name:_NSColorPreferencesChangedNotification object:nil];
     [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(themeChanged:)
         name:@"AppleInterfaceThemeChangedNotification" object:nil];
-    [NSTimer scheduledTimerWithTimeInterval:60 target:watcher selector:@selector(tick:) userInfo:nil repeats:YES];
+    [watcher tick:nil];
+    [NSTimer scheduledTimerWithTimeInterval:2 target:watcher selector:@selector(tick:) userInfo:nil repeats:YES];
 }
