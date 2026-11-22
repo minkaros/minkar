@@ -41,8 +41,10 @@
  * -deleteUser, keeping its home), add a user to a group and take it out
  * (GroupMembership, as the Users pane's "Allow user to administer this
  * computer" does with admin), and, through ODNodeCustomCall, Minkar's
- * own: set the login window's options (kCustomLoginOptions) and remove the
- * home of a user already deleted (kCustomRemoveHome).
+ * own: set the login window's options (kCustomLoginOptions), remove the
+ * home of a user already deleted (kCustomRemoveHome) and set the system's
+ * time zone (kCustomTimeZone, for the Date & Time pane, as systemsetup
+ * -settimezone does).
  *
  * The protocol (opendirectory/odconstants.h, odutils.h): each request
  * carries its client's ID and a property list { function, values }; each
@@ -76,6 +78,8 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <notify.h>
+#include <limits.h>
 
 extern char **environ;
 
@@ -87,6 +91,9 @@ extern char **environ;
 #define kCustomLoginOptions	0x4c4f	/* 'LO': a dictionary of login window
 					   options; an empty string removes one */
 #define kCustomRemoveHome	0x524d	/* 'RM': a deleted user's name */
+#define kCustomTimeZone		0x545a	/* 'TZ': a zone's name (Date & Time) */
+#define ZONEINFO	"/var/db/timezone/zoneinfo"
+#define LOCALTIME	"/etc/localtime"
 
 #define LOCAL_NODE	CFSTR("/Local/Default")
 #define SEARCH_NODE	CFSTR("/Search")
@@ -730,6 +737,27 @@ remove_home(const char *name)
 	return (run(argv) == 0 ? 0 : kODErrorDaemonError);
 }
 
+/* The system's time zone: /etc/localtime points at the zone (one of
+   zoneinfo's files, no ".." in its name), and the change is posted. */
+static uint32_t
+set_time_zone(const char *zone)
+{
+	char target[PATH_MAX];
+	struct stat st;
+
+	if (zone == NULL || zone[0] == '\0' || zone[0] == '/' || strstr(zone, "..") != NULL)
+		return (kODErrorRecordParameterError);
+	snprintf(target, sizeof(target), "%s/%s", ZONEINFO, zone);
+	if (stat(target, &st) != 0 || !S_ISREG(st.st_mode))
+		return (kODErrorRecordAttributeValueNotFound);
+	unlink(LOCALTIME ".new");
+	if (symlink(target, LOCALTIME ".new") != 0 || rename(LOCALTIME ".new", LOCALTIME) != 0)
+		return (kODErrorDaemonError);
+	notify_post("org.minkar.timezone");
+	notify_post("com.apple.system.timezone");
+	return (0);
+}
+
 /* ---- Requests ---------------------------------------------------------- */
 
 static void
@@ -1016,6 +1044,12 @@ handle(xpc_connection_t peer, xpc_object_t msg)
 			if (len > 0 && len < (CFIndex)sizeof(name))
 				memcpy(name, CFDataGetBytePtr(sent), (size_t)len);
 			error = remove_home(name);
+		} else if (code == kCustomTimeZone && sent != NULL && CFGetTypeID(sent) == CFDataGetTypeID()) {
+			char zone[256] = "";
+			CFIndex len = CFDataGetLength(sent);
+			if (len > 0 && len < (CFIndex)sizeof(zone))
+				memcpy(zone, CFDataGetBytePtr(sent), (size_t)len);
+			error = set_time_zone(zone);
 		} else
 			error = kODErrorPluginOperationNotSupported;
 		ANSWER(NULL, NULL);

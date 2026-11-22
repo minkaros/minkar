@@ -20,6 +20,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <PreferencePanes/PreferencePanes.h>
+#import <OpenDirectory/OpenDirectory.h>
 #include <notify.h>
 #include <os/log.h>
 #include <unistd.h>
@@ -101,6 +102,43 @@ static NSString *currentZone(void)
     NSTimer *_timer;
     NSDictionary<NSString *, NSArray<NSString *> *> *_zones;
     NSArray<NSString *> *_regions;
+    ODNode *_adminNode;     /* an administrator's, to change the zone without root */
+}
+
+/* As on the reference, the time zone is an administrator's to change: a
+   session that is not root's asks for one's name and password, once,
+   and directoryd sets it (its kCustomTimeZone call). */
+- (BOOL)setZoneAsAdministrator:(NSString *)zone
+{
+    if (_adminNode == nil) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:[self text:@"System Preferences is trying to unlock Date & Time preferences."]];
+        NSView *fields = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 60)];
+        NSTextField *name = [[NSTextField alloc] initWithFrame:NSMakeRect(116, 32, 200, 24)];
+        NSSecureTextField *password = [[NSSecureTextField alloc] initWithFrame:NSMakeRect(116, 2, 200, 24)];
+        NSTextField *l1 = label([self text:@"User Name:"], NSMakeRect(0, 35, 110, 18), 12, NSRightTextAlignment);
+        NSTextField *l2 = label([self text:@"Password:"], NSMakeRect(0, 5, 110, 18), 12, NSRightTextAlignment);
+        [name setStringValue:NSUserName()];
+        for (NSView *v in @[ l1, l2, name, password ])
+            [fields addSubview:v];
+        [alert setAccessoryView:fields];
+        [alert addButtonWithTitle:[self text:@"Unlock"]];
+        [alert addButtonWithTitle:[self text:@"Cancel"]];
+        [[alert window] setInitialFirstResponder:password];
+        if ([alert runModal] != NSAlertFirstButtonReturn)
+            return NO;
+        ODNode *node = [ODNode nodeWithSession:[ODSession defaultSession] name:@"/Local/Default" error:NULL];
+        if (![node setCredentialsWithRecordType:kODRecordTypeUsers recordName:[name stringValue]
+                                       password:[password stringValue] error:NULL])
+            return NO;
+        _adminNode = node;
+    }
+    NSError *error = nil;
+    [_adminNode customCall:0x545a sendData:[zone dataUsingEncoding:NSUTF8StringEncoding] error:&error];
+    os_log_info(OS_LOG_DEFAULT, "timezone %{public}s as an administrator: %ld", [zone UTF8String], (long)[error code]);
+    if (error != nil)
+        _adminNode = nil;
+    return error == nil;
 }
 
 - (NSString *)text:(NSString *)english
@@ -344,16 +382,26 @@ static NSButton *check(NSString *title, NSRect frame, id target, SEL action, NSB
     NSString *zone = [cities count] > 0 ? [region stringByAppendingPathComponent:cities[(NSUInteger)c]] : region;
     NSString *target = [ZONEINFO stringByAppendingPathComponent:zone];
 
-    /* As systemsetup -settimezone: /etc/localtime points at the zone. */
-    unlink(LOCALTIME ".new");
-    if (symlink([target fileSystemRepresentation], LOCALTIME ".new") != 0 ||
-        rename(LOCALTIME ".new", LOCALTIME) != 0) {
+    /* As systemsetup -settimezone: /etc/localtime points at the zone;
+       root does it, another user through an administrator. */
+    if (geteuid() == 0) {
+        unlink(LOCALTIME ".new");
+        if (symlink([target fileSystemRepresentation], LOCALTIME ".new") != 0 ||
+            rename(LOCALTIME ".new", LOCALTIME) != 0) {
+            NSBeep();
+            [self showZone:currentZone()];
+            return;
+        }
+    } else if (![self setZoneAsAdministrator:zone]) {
         NSBeep();
         [self showZone:currentZone()];
         return;
     }
     [NSTimeZone resetSystemTimeZone];
     notify_post("org.minkar.timezone");
+    /* The reference's name (notify_keys.h): every app's Foundation reads
+       the zone again. */
+    notify_post("com.apple.system.timezone");
     os_log_info(OS_LOG_DEFAULT, "timezone %{public}s", [zone UTF8String]);
     [self showZone:zone];
     [self tick:nil];
