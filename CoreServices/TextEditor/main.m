@@ -66,6 +66,20 @@ static void addMenu(NSString *title, NSMenu *menu)
     item(edit, NSLocalizedString(@"Copy", nil), nil, @selector(copy:), @"c", cmd);
     item(edit, NSLocalizedString(@"Paste", nil), nil, @selector(paste:), @"v", cmd);
     item(edit, NSLocalizedString(@"Select All", nil), nil, @selector(selectAll:), @"a", cmd);
+    [edit addItem:[NSMenuItem separatorItem]];
+    /* Find, as the reference's: AppKit's Find panel, through the text
+       view's performFindPanelAction: with each item's NSFindPanelAction. */
+    NSMenu *find = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Find", nil)];
+    [item(find, NSLocalizedString(@"Find…", nil), nil, @selector(performFindPanelAction:), @"f", cmd)
+        setTag:NSFindPanelActionShowFindPanel];
+    [item(find, NSLocalizedString(@"Find Next", nil), nil, @selector(performFindPanelAction:), @"g", cmd)
+        setTag:NSFindPanelActionNext];
+    [item(find, NSLocalizedString(@"Find Previous", nil), nil, @selector(performFindPanelAction:), @"g", shift)
+        setTag:NSFindPanelActionPrevious];
+    [item(find, NSLocalizedString(@"Use Selection for Find", nil), nil, @selector(performFindPanelAction:), @"e", cmd)
+        setTag:NSFindPanelActionSetFindString];
+    NSMenuItem *findHolder = [edit addItemWithTitle:NSLocalizedString(@"Find", nil) action:NULL keyEquivalent:@""];
+    [findHolder setSubmenu:find];
     addMenu(NSLocalizedString(@"Edit", nil), edit);
 
     NSMenu *window = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Window", nil)];

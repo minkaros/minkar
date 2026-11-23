@@ -29,3 +29,10 @@
 "Your changes will be lost if you don't save them." = "Si no los guardas, se perderán los cambios.";
 "Don't Save" = "No guardar";
 "Cancel" = "Cancelar";
+
+/* Edit > Find */
+"Find" = "Buscar";
+"Find…" = "Buscar…";
+"Find Next" = "Buscar siguiente";
+"Find Previous" = "Buscar anterior";
+"Use Selection for Find" = "Usar selección para buscar";
