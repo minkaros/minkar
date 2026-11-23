@@ -880,8 +880,24 @@ CFLog(kCFLogLevelWarning, CFSTR("*** TEST FAIL in __CFNumberCopyFormattingDescri
     return result;
 }
 
+/* Minkar: a Foundation NSNumber (an Objective-C object of the number type)
+   has its own layout: its formatting description is made through the
+   public functions, which go to the object, not from a CFNumber's fields
+   (read from it, the type came out as the value: 9, kCFNumberIntType, for
+   every integer a plist written from Objective-C held). */
+static CFStringRef __CFNumberCreateObjCFormattingDescription(CFAllocatorRef allocator, CFNumberRef number) {
+    long long v = 0;
+
+    if (CFNumberIsFloatType(number))
+        return __CFNumberCreateFormattingDescriptionAsFloat64(allocator, number);
+    CFNumberGetValue(number, kCFNumberLongLongType, &v);
+    return CFStringCreateWithFormat(allocator, NULL, CFSTR("%lld"), v);
+}
+
 CF_PRIVATE CFStringRef __CFNumberCreateFormattingDescription(CFAllocatorRef allocator, CFTypeRef cf, CFDictionaryRef formatOptions) {
     CFNumberRef number = (CFNumberRef)cf;
+    if (CF_IS_OBJC(CFNumberGetTypeID(), number))
+        return __CFNumberCreateObjCFormattingDescription(allocator, number);
     CFNumberType type = __CFNumberGetType(number);
     if (__CFNumberTypeTable[type].floatBit) {
         return __CFNumberCreateFormattingDescriptionAsFloat64(allocator, number);
@@ -895,6 +911,8 @@ CF_PRIVATE CFStringRef __CFNumberCreateFormattingDescription(CFAllocatorRef allo
 
 static CFStringRef __CFNumberCopyFormattingDescription_new(CFTypeRef cf, CFDictionaryRef formatOptions) {
     CFNumberRef number = (CFNumberRef)cf;
+    if (CF_IS_OBJC(CFNumberGetTypeID(), number))
+        return __CFNumberCreateObjCFormattingDescription(kCFAllocatorSystemDefault, number);
     CFNumberType type = __CFNumberGetType(number);
     if (__CFNumberTypeTable[type].floatBit) {
         return __CFNumberCopyFormattingDescriptionAsFloat64(number);
