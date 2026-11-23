@@ -1103,6 +1103,18 @@ testEvents(void)
 		check(SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 1) == kSLSErrorSuccess &&
 		    SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 0) == kSLSErrorSuccess,
 		    "a hotkey is claimed and given back", NULL);
+		/* Set (interface version 25): a hotkey's keys changed and read
+		 * back, the fixed ones refused, hotkey 0 the computer's again. */
+		check(SLSSetSymbolicHotKey(kSLSHotKeyScreenshot, 23, 0x120000, 0) == kSLSErrorSuccess &&
+		    SLSGetSymbolicHotKey(kSLSHotKeyScreenshot, &code, &mods, &on) == kSLSErrorSuccess &&
+		    code == 23 && mods == 0x120000 && on == 0,
+		    "a hotkey's keys are changed", NULL);
+		check(SLSSetSymbolicHotKey(kSLSHotKeyAppSwitcher, 23, 0x100000, 1) == kSLSErrorIllegalArgument,
+		    "the app switcher is fixed", NULL);
+		check(SLSSetSymbolicHotKey(0, 0, 0, 0) == kSLSErrorSuccess &&
+		    SLSGetSymbolicHotKey(kSLSHotKeyScreenshot, &code, &mods, &on) == kSLSErrorSuccess &&
+		    code == 20 && on == 1,
+		    "hotkey 0 puts the computer's back", NULL);
 	}
 	/* The front app (interface version 5): this process, made so by its
 	 * key window; asked for, it stays in front with no window. */

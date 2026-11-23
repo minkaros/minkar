@@ -120,8 +120,12 @@ and Force Quit stays available.
 
 - In the documented order: the key window and its views (`performKeyEquivalent:`), then
   the main menu, each item validated first.
-- Shortcuts reserved by the system go from the window server to their owner: Command-Tab
-  to the Dock, Command-Option-Escape to loginwindow, Control-F2 to the front app.
+- Shortcuts reserved by the system go from the window server to their owner, numbered as
+  the reference numbers them (its com.apple.symbolichotkeys domain): Command-Tab and
+  Option-Command-D to the Dock, Command-Option-Escape to loginwindow, Control-F2 and
+  Command-` to the front app, Shift-Command-3 (with Control: the pasteboard) and
+  Control-Space, Control-Option-Space to SystemUIServer. The user changes them in the Keyboard
+  pane's Shortcuts tab; the app switcher and Force Quit are fixed, as on the reference.
 
 **Standard menus**
 

@@ -200,7 +200,8 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
    itself: the menu bar takes the keyboard. A display that changed
    (kSLSEventDisplayReconfigured) goes to the main thread the same way:
    data1 the display, data2 the CGDisplayChangeSummaryFlags. */
-enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSDisplayReconfiguredEventSubtype = 0x4443,
+enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSNextWindowEventSubtype = 0x4e57,
+       kNSDisplayReconfiguredEventSubtype = 0x4443,
        kNSWindowRestoredEventSubtype = 0x5752 };
 extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags);
 
@@ -227,10 +228,12 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     }
 
     if(e->type == kSLSEventSymbolicHotKey) {
-        if(e->buttonNumber == kSLSHotKeyMenuBarFocus)
+        if(e->buttonNumber == kSLSHotKeyMenuBarFocus || e->buttonNumber == kSLSHotKeyNextWindow)
             [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
                 modifierFlags:0 timestamp:0 windowNumber:0 context:nil
-                subtype:kNSMenuBarFocusEventSubtype data1:0 data2:0] atStart:NO];
+                subtype:e->buttonNumber == kSLSHotKeyNextWindow ? kNSNextWindowEventSubtype
+                                                               : kNSMenuBarFocusEventSubtype
+                data1:0 data2:0] atStart:NO];
         else {
             /* A hotkey the app claimed (the Dock's Command-Tab): a
                notification on the main thread, in every run loop mode. */
@@ -624,6 +627,23 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    }
 
    return result;
+}
+
+/* Command-` (the server's kSLSHotKeyNextWindow): the front window goes
+   behind the app's others and the next one is key, so the app's windows
+   take turns, as on the reference. */
+-(void)_moveFocusToNextWindow {
+   NSMutableArray *windows=[NSMutableArray array];
+
+   for(NSWindow *window in [self orderedWindows])
+    if([window isVisible] && ![window isMiniaturized] && [window level]==NSNormalWindowLevel &&
+       ![window isKindOfClass:[NSPanel class]] && [window canBecomeKeyWindow])
+     [windows addObject:window];
+   if([windows count]<2)
+    return;
+   NSWindow *front=[windows objectAtIndex:0], *next=[windows objectAtIndex:1];
+   [next makeKeyAndOrderFront:nil];
+   [front orderWindow:NSWindowBelow relativeTo:[[windows lastObject] windowNumber]];
 }
 
 -(NSArray *)orderedWindows {
@@ -1311,6 +1331,10 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    }
    if([event type]==NSAppKitDefined && [event subtype]==kNSMenuBarFocusEventSubtype){
     [NSMenuBarWindow _focusMenuBar];
+    return;
+   }
+   if([event type]==NSAppKitDefined && [event subtype]==kNSNextWindowEventSubtype){
+    [self _moveFocusToNextWindow];
     return;
    }
    if([event type]==NSAppKitDefined && [event subtype]==kNSDisplayReconfiguredEventSubtype){

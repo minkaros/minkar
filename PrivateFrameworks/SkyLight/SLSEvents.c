@@ -225,6 +225,18 @@ SLSGetSymbolicHotKey(uint32_t hotKey, uint16_t *keyCode, uint32_t *modifiers, in
 }
 
 int
+SLSSetSymbolicHotKey(uint32_t hotKey, uint16_t keyCode, uint32_t modifiers, int enabled)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_hotkey_set(server, hotKey, keyCode, modifiers, enabled != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
 SLSEventTapCreate(uint32_t location, uint32_t placement, uint32_t options, uint64_t mask,
     mach_port_t port, uint32_t *tap)
 {

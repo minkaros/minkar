@@ -12,3 +12,6 @@
 "Send" = "Enviar";
 "Show" = "Mostrar";
 "Reply" = "Responder";
+
+/* Shift-Command-3: the screenshot file name (the day, the time). */
+"Screenshot %@ at %@" = "Captura de pantalla %@ a las %@";

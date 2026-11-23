@@ -14,13 +14,13 @@ SUBDIR =
 APP =		SystemUIServer
 APP_INSTALL_DIR = /System/Library/CoreServices
 SRCS =		main.m NotificationBanner.m NotificationSettings.m \
-		NotificationCenterExtra.m NotificationCenterUser.c
-FRAMEWORKS =	AppKit Foundation
+		NotificationCenterExtra.m NotificationCenterUser.c SystemHotKeys.m
+FRAMEWORKS =	AppKit Carbon Foundation
 MK_WERROR =	no
-CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
+CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks \
 		-I${.OBJDIR} -I${NC}
-LDFLAGS +=	-lobjc
+LDFLAGS +=	-lobjc -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
 # The Spanish texts (the English ones are the keys).
 RESOURCES =	${.CURDIR}/es.lproj
 

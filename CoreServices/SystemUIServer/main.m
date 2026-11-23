@@ -14,6 +14,7 @@
 #import "MenuExtra.h"
 #import "NotificationBanner.h"
 #import "NotificationCenterExtra.h"
+#import "SystemHotKeys.h"
 
 @interface SystemUIServer : NSObject <NSApplicationDelegate>
 @end
@@ -35,6 +36,7 @@ static NSArray<NSString *> *defaultExtras(void)
     NSMutableArray *_extras;
     NSMutableDictionary<NSString *, NSStatusItem *> *_items;    /* by bundle path */
     NotificationPresenter *_notifications;
+    SystemHotKeys *_hotKeys;
 }
 
 /* A .menu bundle: its principal class fills a status item named after the
@@ -139,6 +141,8 @@ static NSArray<NSString *> *defaultExtras(void)
             [self loadExtraAtPath:[path stringByStandardizingPath]];
     [_notifications start];
     [self watchExtras];
+    _hotKeys = [[SystemHotKeys alloc] init];
+    [_hotKeys start];
 }
 
 @end

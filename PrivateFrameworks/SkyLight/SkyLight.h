@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	24
+#define kSLSInterfaceVersion	25
 
 typedef int32_t SLSConnectionID;
 
@@ -705,25 +705,39 @@ int SLSWindowStartMove(SLSWindowID window);
 /*
  * Symbolic hotkeys: system-wide shortcuts the server recognizes and sends
  * to their owner as kSLSEventSymbolicHotKey, instead of delivering the key
- * to the key window. The defaults below can be changed in
- * /Library/Preferences/org.minkar.symbolichotkeys.plist, a dictionary
- * "AppleSymbolicHotKeys" of hotkey number -> { enabled; value = {
- * parameters = (character, key code, modifier flags); type = standard } }.
- * A hotkey with no owner is still not delivered as a key.
+ * to the key window. Numbered as the reference numbers them (its
+ * com.apple.symbolichotkeys domain, "AppleSymbolicHotKeys": hotkey number
+ * -> { enabled; value = { parameters = (character, key code, modifier
+ * flags); type = standard } }), read from that domain in /Library/
+ * Preferences at start and set for the session's user with
+ * SLSSetSymbolicHotKey (System Preferences' Keyboard Shortcuts).
+ * The app switcher and Force Quit are fixed, as on the reference (1-3,
+ * not in the domain). A hotkey with no owner is still not delivered.
  */
 enum {
 	kSLSHotKeyAppSwitcher		= 1,	/* Command-Tab: the Dock */
 	kSLSHotKeyAppSwitcherBackward	= 2,	/* Command-Shift-Tab: the Dock */
 	kSLSHotKeyForceQuit		= 3,	/* Command-Option-Escape: loginwindow */
-	kSLSHotKeyMenuBarFocus		= 4,	/* Control-F2: the front app */
-	kSLSMaxSymbolicHotKeys		= 4
+	kSLSHotKeyMenuBarFocus		= 7,	/* Control-F2: the front app */
+	kSLSHotKeyNextWindow		= 27,	/* Command-`: the front app */
+	kSLSHotKeyScreenshot		= 28,	/* Shift-Command-3: SystemUIServer */
+	kSLSHotKeyScreenshotToClipboard	= 29,	/* Control-Shift-Command-3 */
+	kSLSHotKeyDockHiding		= 52,	/* Option-Command-D: the Dock */
+	kSLSHotKeyPreviousInputSource	= 60,	/* Control-Space: SystemUIServer */
+	kSLSHotKeyNextInputSource	= 61,	/* Control-Option-Space */
+	kSLSMaxSymbolicHotKeys		= 255
 };
 /* The connection becomes (claim) or stops being the hotkey's owner. The
- * front app owns kSLSHotKeyMenuBarFocus, and cannot be claimed. */
+ * front app owns kSLSHotKeyMenuBarFocus and kSLSHotKeyNextWindow, and
+ * they cannot be claimed. */
 int SLSClaimSymbolicHotKey(uint32_t hotKey, int claim);
 /* The hotkey's key code, modifier flags (NSEventModifierFlags) and state. */
 int SLSGetSymbolicHotKey(uint32_t hotKey, uint16_t *keyCode, uint32_t *modifiers,
     int *enabled);
+/* Changes a hotkey's key, modifier flags and state (the session's user,
+ * from its com.apple.symbolichotkeys domain); not the fixed ones. Hotkey 0
+ * puts every hotkey back as the computer has it (a new session's user). */
+int SLSSetSymbolicHotKey(uint32_t hotKey, uint16_t keyCode, uint32_t modifiers, int enabled);
 int SLSWindowSetDragRegion(SLSWindowID window, const SLSIntRect *drag, uint32_t dragCount,
     const SLSIntRect *exclude, uint32_t excludeCount);
 

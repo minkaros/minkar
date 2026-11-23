@@ -8,6 +8,8 @@
 
 #import "DockSwitcher.h"
 #include <SkyLight/SkyLight.h>
+#include <notify.h>
+#import "DockModel.h"
 #include <os/log.h>
 
 static const CGFloat kIcon = 64, kCell = 84, kPad = 16, kLabel = 22;
@@ -67,6 +69,7 @@ static const CGFloat kIcon = 64, kCell = 84, kPad = 16, kLabel = 22;
         name:@"_NSSkyLightSymbolicHotKeyNotification" object:nil];
     SLSClaimSymbolicHotKey(kSLSHotKeyAppSwitcher, 1);
     SLSClaimSymbolicHotKey(kSLSHotKeyAppSwitcherBackward, 1);
+    SLSClaimSymbolicHotKey(kSLSHotKeyDockHiding, 1);
     return self;
 }
 
@@ -99,6 +102,15 @@ static const CGFloat kIcon = 64, kCell = 84, kPad = 16, kLabel = 22;
 - (void)hotKey:(NSNotification *)note
 {
     uint32_t hotKey = [note.userInfo[@"hotKey"] unsignedIntValue];
+    if (hotKey == kSLSHotKeyDockHiding) {
+        /* Option-Command-D: hiding turned on or off, as the Dock pane
+           does it (the preference, then its notification). */
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [defaults setBool:![defaults boolForKey:@"autohide"] forKey:@"autohide"];
+        [defaults synchronize];
+        notify_post(kDockPreferencesChangedNotifyName);
+        return;
+    }
     if (hotKey != kSLSHotKeyAppSwitcher && hotKey != kSLSHotKeyAppSwitcherBackward)
         return;
     BOOL backward = hotKey == kSLSHotKeyAppSwitcherBackward;

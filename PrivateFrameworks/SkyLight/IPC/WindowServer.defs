@@ -734,3 +734,15 @@ routine status_item_get_position(
 	window			: uint32_t;
 	out result		: int32_t;
 	out position		: double);
+
+/* ---- Symbolic hotkeys set (interface version 25) ---- */
+
+/* See SLSSetSymbolicHotKey. */
+routine hotkey_set(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	hotkey			: uint32_t;
+	keycode			: uint32_t;
+	modifiers		: uint32_t;
+	enabled			: int32_t;
+	out result		: int32_t);
