@@ -30,6 +30,7 @@
 #include <grp.h>
 #include <unistd.h>
 #include <limits.h>
+#include <string.h>
 #include <mach/mach.h>
 /* Minkar: no membership service yet: these calls keep their local answers
    (the directory service answers the lookups, ds_module.c). */
@@ -696,6 +697,23 @@ mbr_check_membership_ext(int userid_type, const void *userid, size_t userid_size
 	for (int i = 0; i < count; i++)
 		if ((gid_t)groups[i] == wanted)
 			*isMember = 1;
+	/* Nested groups, as the reference's (admin in _lpadmin): a member
+	   that names a group and no user stands for that group's members.
+	   One level, as the groups Minkar nests. */
+	if (!*isMember && gr->gr_mem != NULL) {
+		char nested[16][64];
+		int n = 0;
+		for (char **m = gr->gr_mem; *m != NULL && n < 16; m++)
+			strlcpy(nested[n++], *m, sizeof(nested[0]));
+		for (int k = 0; k < n && !*isMember; k++) {
+			struct group *inner;
+			if (getpwnam(nested[k]) != NULL || (inner = getgrnam(nested[k])) == NULL)
+				continue;
+			for (int i = 0; i < count; i++)
+				if ((gid_t)groups[i] == inner->gr_gid)
+					*isMember = 1;
+		}
+	}
 	(void)refresh;
 	return 0;
 #endif

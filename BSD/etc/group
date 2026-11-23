@@ -14,5 +14,5 @@ _lp:*:26:
 admin:*:80:root
 _sshd:*:75:
 _windowserver:*:88:
-_lpadmin:*:98:
+_lpadmin:*:98:admin
 _lpoperator:*:100:
