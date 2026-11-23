@@ -1103,6 +1103,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NS_ENDHANDLER
 
    [self _addFullScreenItem];
+   [self _addTabItems];
    [self _addWindowAlternates];
    [self _noteRecentApplication];
    /* A window shown at launch with none made key (a nib's window visible
@@ -1157,6 +1158,75 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
     [view addItem:[NSMenuItem separatorItem]];
    [view addItem:full];
+}
+
+/* Window tabs' items, as AppKit adds them when the app allows automatic
+   tabbing: Show Tab Bar in the View menu (in the Window menu when there
+   is none), and in the Window menu, before Bring All to Front, Show
+   Previous Tab (Control-Shift-Tab), Show Next Tab (Control-Tab), Move Tab
+   to New Window and Merge All Windows. NSWindow validates them. */
+-(void)_addTabItems {
+   NSBundle *appKit=[NSBundle bundleForClass:[NSApplication class]];
+   NSMenu   *window=[self windowsMenu],*view=nil;
+   NSString *localized=[[NSBundle mainBundle] localizedStringForKey:@"View" value:@"View" table:nil];
+
+   if(![NSWindow allowsAutomaticWindowTabbing] || window==nil ||
+      [window indexOfItemWithTarget:nil andAction:@selector(mergeAllWindows:)]>=0)
+    return;
+   for(NSMenuItem *item in [[self mainMenu] itemArray])
+    if([item hasSubmenu] && ([[item title] isEqualToString:@"View"] || [[item title] isEqualToString:localized]))
+     view=[item submenu];
+
+   NSInteger at=[window indexOfItemWithTarget:nil andAction:@selector(arrangeInFront:)];
+   if(at<0){
+    /* Before the separator AppKit keeps above the windows' list. */
+    at=[window numberOfItems];
+    if(at>0 && [[window itemAtIndex:at-1] isSeparatorItem])
+     at--;
+   }
+   else if(at>0 && [[window itemAtIndex:at-1] isSeparatorItem])
+    at--;
+
+   struct { NSString *title; SEL action; NSString *key; NSUInteger modifiers; } items[]={
+    { @"Show Previous Tab", @selector(selectPreviousTab:), @"\t", NSControlKeyMask|NSShiftKeyMask },
+    { @"Show Next Tab", @selector(selectNextTab:), @"\t", NSControlKeyMask },
+    { @"Move Tab to New Window", @selector(moveTabToNewWindow:), @"", 0 },
+    { @"Merge All Windows", @selector(mergeAllWindows:), @"", 0 },
+   };
+   NSMutableArray *added=[NSMutableArray array];
+
+   if(view==nil)
+    [added addObject:[[[NSMenuItem alloc] initWithTitle:[appKit localizedStringForKey:@"Show Tab Bar" value:@"Show Tab Bar" table:nil]
+       action:@selector(toggleTabBar:) keyEquivalent:@""] autorelease]];
+   for(size_t i=0;i<sizeof(items)/sizeof(items[0]);i++){
+    NSMenuItem *item=[[[NSMenuItem alloc] initWithTitle:[appKit localizedStringForKey:items[i].title value:items[i].title table:nil]
+       action:items[i].action keyEquivalent:items[i].key] autorelease];
+
+    [item setKeyEquivalentModifierMask:items[i].modifiers];
+    [added addObject:item];
+   }
+   if(at>0 && ![[window itemAtIndex:at-1] isSeparatorItem])
+    [window insertItem:[NSMenuItem separatorItem] atIndex:at++];
+   for(NSMenuItem *item in added)
+    [window insertItem:item atIndex:at++];
+   /* A separator after them (before Bring All to Front, or the windows'
+      list). */
+   if(at>=[window numberOfItems] || ![[window itemAtIndex:at] isSeparatorItem])
+    [window insertItem:[NSMenuItem separatorItem] atIndex:at];
+
+   if(view!=nil && [view indexOfItemWithTarget:nil andAction:@selector(toggleTabBar:)]<0){
+    NSInteger full=[view indexOfItemWithTarget:nil andAction:@selector(toggleFullScreen:)];
+    NSMenuItem *bar=[[[NSMenuItem alloc] initWithTitle:[appKit localizedStringForKey:@"Show Tab Bar" value:@"Show Tab Bar" table:nil]
+       action:@selector(toggleTabBar:) keyEquivalent:@""] autorelease];
+
+    if(full<0){
+     if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
+      [view addItem:[NSMenuItem separatorItem]];
+     [view addItem:bar];
+    }
+    else
+     [view insertItem:bar atIndex:full];
+   }
 }
 
 /* The alternates AppKit adds after an app's menu items, as the reference

@@ -292,6 +292,7 @@ SRCS = \
     RTF.subproj/NSRichTextWriter.m \
     NSWindowAnimationContext.m \
     NSWindowController.m \
+    NSWindowTabGroup.m \
     NSWindowScripting.m \
     NSWorkspace.m \
     NSRunningApplication.m \
@@ -604,6 +605,8 @@ HEADERS = \
     RTF.subproj/NSRichTextReader.h \
     RTF.subproj/NSRichTextWriter.h \
     NSWindowController.h \
+    NSWindowTab.h \
+    NSWindowTabGroup.h \
     NSWindowScripting.h \
     NSWorkspace.h \
     NSRunningApplication.h \

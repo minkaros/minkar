@@ -115,3 +115,11 @@
 "From:" = "Desde:";
 "to:" = "hasta:";
 "PDF" = "PDF";
+
+/* Window tabs */
+"Show Tab Bar" = "Mostrar barra de pestañas";
+"Hide Tab Bar" = "Ocultar barra de pestañas";
+"Show Previous Tab" = "Mostrar pestaña anterior";
+"Show Next Tab" = "Mostrar pestaña siguiente";
+"Move Tab to New Window" = "Mover pestaña a una ventana nueva";
+"Merge All Windows" = "Combinar todas las ventanas";

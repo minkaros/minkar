@@ -721,6 +721,18 @@ static NSDocument *transientDocument;
    [self _updateRecentDocumentsMenu];
 }
 
+/* The tab bar's +: a new document, in a tab of the window's group;
+   only an app with document types has it. */
+-(void)newWindowForTab:sender {
+   [self newDocument:sender];
+}
+
+-(BOOL)respondsToSelector:(SEL)selector {
+   if(selector==@selector(newWindowForTab:))
+    return [self defaultType]!=nil;
+   return [super respondsToSelector:selector];
+}
+
 -(void)newDocument:sender {
    [self openUntitledDocumentAndDisplay:YES error:NULL];
 }

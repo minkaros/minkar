@@ -52,6 +52,13 @@ typedef NS_OPTIONS(NSUInteger, NSWindowStyleMask) {
     NSWindowStyleMaskFullSizeContentView = 1 << 15,
 };
 
+/* Window tabs (API 22): whether a window joins others as a tab. */
+typedef NS_ENUM(NSInteger, NSWindowTabbingMode) {
+    NSWindowTabbingModeAutomatic = 0,
+    NSWindowTabbingModePreferred = 1,
+    NSWindowTabbingModeDisallowed = 2,
+};
+
 typedef NS_ENUM(NSInteger, NSWindowTitleVisibility) {
     NSWindowTitleVisible = 0,
     NSWindowTitleHidden = 1,
@@ -626,9 +633,6 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (NSPoint)convertPointToScreen:(NSPoint)point;
 - (NSPoint)convertPointFromScreen:(NSPoint)point;
 - (void)toggleFullScreen:(id)sender;
-@property (readonly, copy) NSArray *tabbedWindows;
-+ (BOOL)allowsAutomaticWindowTabbing;
-+ (void)setAllowsAutomaticWindowTabbing:(BOOL)value;
 @property NSWindowAnimationBehavior animationBehavior;
 - (void)invalidateRestorableState;
 
@@ -647,6 +651,27 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (void)enableSnapshotRestoration;
 
 @end
+
+@class NSWindowTab, NSWindowTabGroup;
+
+/* Window tabs (API 22, NSWindowTabGroup.m): windows with the same tabbing
+   identifier shown as the tabs of one window. */
+@interface NSWindow (NSWindowTabbing)
+@property (class) BOOL allowsAutomaticWindowTabbing;
+@property NSWindowTabbingMode tabbingMode;
+@property (copy) NSString *tabbingIdentifier;
+@property (readonly, copy) NSArray<NSWindow *> *tabbedWindows;
+@property (readonly, strong) NSWindowTab *tab;
+@property (readonly, weak) NSWindowTabGroup *tabGroup;
+- (void)addTabbedWindow:(NSWindow *)window ordered:(NSWindowOrderingMode)ordered;
+- (void)selectNextTab:(id)sender;
+- (void)selectPreviousTab:(id)sender;
+- (void)moveTabToNewWindow:(id)sender;
+- (void)mergeAllWindows:(id)sender;
+- (void)toggleTabBar:(id)sender;
+- (void)toggleTabOverview:(id)sender;
+@end
+
 
 /* The window's delegate (API 19: a formal protocol, every method optional). */
 @protocol NSWindowDelegate <NSObject>

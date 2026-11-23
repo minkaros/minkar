@@ -69,6 +69,11 @@
 #include <SkyLight/SkyLight.h>
 #import "O2Context_builtin_FT.h"
 
+/* NSWindowTabGroup.m */
+BOOL _NSWindowTabWillOrderIn(NSWindow *window);
+void _NSWindowTabWillClose(NSWindow *window);
+void _NSWindowTabTitleDidChange(NSWindow *window);
+
 @interface NSView (NSViewBackingPropertiesTree)
 -(void)_viewDidChangeBackingPropertiesTree;
 @end
@@ -1279,6 +1284,7 @@ static char representedURLKey;
     if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:title filename:NO];
     [_backgroundView setNeedsDisplay:YES];
+    _NSWindowTabTitleDidChange(self);
 }
 
 -(NSWindowTitleVisibility)titleVisibility {
@@ -2493,6 +2499,7 @@ static BOOL hasKeyViewLoop(NSView *view) {
 }
 
 -(void)close {
+    _NSWindowTabWillClose(self);
     [self orderOut:nil];
 
     [_childWindows makeObjectsPerformSelector:@selector(_parentWindowDidClose:) withObject:self];
@@ -2543,6 +2550,10 @@ static void sendAppearance(NSView *view,SEL selector) {
 }
 
 -(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo {
+   /* A tab of a group ordered in: it is chosen, in the shown one's place. */
+   if(place!=NSWindowOut && !_isVisible && _NSWindowTabWillOrderIn(self))
+    return;
+
    BOOL appearing=(!_isVisible && place!=NSWindowOut);
    BOOL disappearing=(_isVisible && place==NSWindowOut);
 
@@ -3747,6 +3758,31 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
         [item setTitle:[[NSBundle bundleForClass:[NSWindow class]] localizedStringForKey:key value:key table:nil]];
         return YES;
     }
+    /* Window tabs: Show/Hide Tab Bar; the others need tabs, or windows
+       to merge. A window that cannot be a tab has none of them. */
+    SEL action = [item action];
+    if (action == @selector(toggleTabBar:) || action == @selector(selectNextTab:) || action == @selector(selectPreviousTab:) ||
+        action == @selector(moveTabToNewWindow:) || action == @selector(mergeAllWindows:)) {
+        if ([self tabbingMode] == NSWindowTabbingModeDisallowed || [self isKindOfClass:[NSPanel class]] ||
+            !([self styleMask] & NSWindowStyleMaskTitled))
+            return NO;
+        if (action == @selector(toggleTabBar:)) {
+            NSString *key = [[self tabGroup] isTabBarVisible] ? @"Hide Tab Bar" : @"Show Tab Bar";
+            [item setTitle:[[NSBundle bundleForClass:[NSWindow class]] localizedStringForKey:key value:key table:nil]];
+            return [[self tabbedWindows] count] < 2;
+        }
+        if (action == @selector(mergeAllWindows:)) {
+            NSUInteger others = 0;
+            for (NSWindow *window in [NSApp windows])
+                if (window != self && [window isVisible] && ![window isKindOfClass:[NSPanel class]] &&
+                    [window tabbingMode] != NSWindowTabbingModeDisallowed && [window level] == NSNormalWindowLevel &&
+                    ([window styleMask] & NSWindowStyleMaskTitled) && [[window tabbingIdentifier] isEqualToString:[self tabbingIdentifier]] &&
+                    ![[self tabbedWindows] containsObject:window])
+                    others++;
+            return others > 0;
+        }
+        return [[self tabbedWindows] count] > 1;
+    }
     if ([item action] == @selector(undo:))
         return [[self undoManager] canUndo];
     if ([item action] == @selector(redo:))
@@ -4055,12 +4091,6 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 
 /* Full screen: the window takes its screen's visible frame, and gets its
    frame back when toggled again (there are no full screen spaces). */
-/* The windows of this window's tab group: none, as windows are not
-   grouped in tabs yet (a window in no group has none either). */
--(NSArray *)tabbedWindows {
-   return nil;
-}
-
 -(void)toggleFullScreen:(id)sender {
    NSValue *saved=objc_getAssociatedObject(self,&fullScreenFrameKey);
 
@@ -4072,16 +4102,6 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
     [self setFrame:[[self screen] ?: [NSScreen mainScreen] visibleFrame] display:YES];
    }
-}
-
-static BOOL sAllowsAutomaticWindowTabbing=YES;
-
-+(BOOL)allowsAutomaticWindowTabbing {
-   return sAllowsAutomaticWindowTabbing;
-}
-
-+(void)setAllowsAutomaticWindowTabbing:(BOOL)value {
-   sAllowsAutomaticWindowTabbing=value;
 }
 
 static char animationBehaviorKey;

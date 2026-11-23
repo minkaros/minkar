@@ -34,6 +34,12 @@ BOOL _NSSystemAppearanceIsDark(void);
 #import <AppKit/NSToolbarView.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
 
+/* A window's tab bar (NSWindowTabGroup.m), placed under the title bar and
+   the toolbar, above the content. */
+@interface NSWindowTabBarView : NSView
+@end
+extern const CGFloat NSWindowTabBarHeight;
+
 /* The view the frame places for an accessory (NSTitlebarAccessoryViewController.m). */
 @interface NSTitlebarAccessoryViewController (NSThemeFrame)
 -(NSView *)_titlebarContainerView;
@@ -401,7 +407,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 
 -(void)resizeSubviewsWithOldSize:(NSSize)oldSize {
    NSToolbarView *toolbarView=nil;
-   NSView *contentView=nil;
+   NSView *contentView=nil,*tabBar=nil;
 
 // tile the subviews, when/if we add titlebars and such do it here
    NSArray *accessories=[[self window] respondsToSelector:@selector(titlebarAccessoryViewControllers)]?
@@ -416,6 +422,8 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
      continue;
     if([view isKindOfClass:[NSToolbarView class]])
      toolbarView=(NSToolbarView *)view;
+    else if([view isKindOfClass:[NSWindowTabBarView class]])
+     tabBar=view;
     else if(contentView==nil || view==[[self window] contentView])
      contentView=view;
    }
@@ -430,6 +438,10 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    [toolbarView layoutViews];
 
    contentFrame.size.height-=toolbarFrame.size.height;
+   if(tabBar!=nil){
+    contentFrame.size.height-=NSWindowTabBarHeight;
+    [tabBar setFrame:NSMakeRect(contentFrame.origin.x,NSMaxY(contentFrame),contentFrame.size.width,NSWindowTabBarHeight)];
+   }
 
    /* Title bar accessories: bottom ones in a band under the toolbar (the
       content below them), left and right ones in the title bar. */
