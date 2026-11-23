@@ -12,8 +12,10 @@
  * Using BootP, Manually, Off), its address, subnet mask and router, its
  * DNS servers and search domains (configd's, in grey, when it has none of
  * its own) and its IPv6 address; Revert and Apply. Read and written
- * through SystemConfiguration, as networksetup does. The view is made in
- * code, in the system's colors.
+ * through SystemConfiguration, as networksetup does; changing is an
+ * administrator's, behind the pane's lock (system.preferences.network):
+ * open, the preferences are opened with its authorization and SCHelper
+ * writes them as root. The view is made in code, in the system's colors.
  */
 
 #import <Cocoa/Cocoa.h>
@@ -21,8 +23,9 @@
 #import <SystemConfiguration/SystemConfiguration.h>
 #include <os/log.h>
 #import "NetworkAdvanced.h"
+#import "../PaneLock.h"
 
-@interface NetworkPane : NSPreferencePane
+@interface NetworkPane : NSPreferencePane <SFAuthorizationViewDelegate>
 @end
 
 static const CGFloat kWidth = 668, kHeight = 420, kListWidth = 200, kRow = 40;
@@ -154,6 +157,17 @@ static const NSUInteger kMethodCount = 5;
     NSButton *_add, *_remove, *_revert, *_apply, *_advanced;
     SCPreferencesRef _editing;      /* what Apply commits (the Advanced sheet's changes too) */
     NetworkAdvanced *_sheet;
+    SFAuthorizationView *_lock;
+}
+
+/* The system's network preferences: with the lock's authorization once it
+   is open (SCHelper writes them as root), read only before. */
+- (SCPreferencesRef)newPrefs
+{
+    if (geteuid() != 0 && paneUnlocked(_lock))
+        return SCPreferencesCreateWithAuthorization(NULL, CFSTR("Network pane"), NULL,
+                                                    [[_lock authorization] authorizationRef]);
+    return SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
 }
 
 /* The preferences being edited: made when first needed, committed by
@@ -161,7 +175,7 @@ static const NSUInteger kMethodCount = 5;
 - (SCPreferencesRef)editing
 {
     if (_editing == NULL)
-        _editing = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+        _editing = [self newPrefs];
     return _editing;
 }
 
@@ -206,7 +220,7 @@ static const NSUInteger kMethodCount = 5;
 /* The locations (network sets), the current one chosen. */
 - (void)loadLocations
 {
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     NSArray *sets = prefs ? (__bridge_transfer NSArray *)SCNetworkSetCopyAll(prefs) : @[];
     SCNetworkSetRef current = prefs ? SCNetworkSetCopyCurrent(prefs) : NULL;
     NSString *currentID = current ? (__bridge NSString *)SCNetworkSetGetSetID(current) : nil;
@@ -223,7 +237,7 @@ static const NSUInteger kMethodCount = 5;
     }
     if ([ids count] == 0)
         [_location addItemWithTitle:[self text:@"Automatic"]];
-    [_location setEnabled:[ids count] > 1];
+    [_location setEnabled:[ids count] > 1 && paneUnlocked(_lock)];
     _setIDs = ids;
     if (current)
         CFRelease(current);
@@ -234,7 +248,7 @@ static const NSUInteger kMethodCount = 5;
 /* The current location's services, in their order. */
 - (void)loadServices
 {
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     SCNetworkSetRef set = prefs ? SCNetworkSetCopyCurrent(prefs) : NULL;
     NSArray *services = set ? (__bridge_transfer NSArray *)SCNetworkSetCopyServices(set) : @[];
     NSMutableArray *ids = [NSMutableArray array], *names = [NSMutableArray array], *rows = [NSMutableArray array];
@@ -266,7 +280,7 @@ static const NSUInteger kMethodCount = 5;
     _serviceNames = names;
     _list.rows = rows;
     [_list setNeedsDisplay:YES];
-    [_remove setEnabled:[ids count] > 0];
+    [_remove setEnabled:[ids count] > 0 && paneUnlocked(_lock)];
     if (set)
         CFRelease(set);
     if (prefs)
@@ -361,13 +375,37 @@ static const NSUInteger kMethodCount = 5;
     [_apply setAction:@selector(apply:)];
     [view addSubview:_apply];
 
+    /* Changing the network is an administrator's: the lock. */
+    NSView *pane = paneWithLock(view, @"system.preferences.network", self, &_lock);
+    [self lockChanged];
+    [self setMainView:pane];
+    return pane;
+}
+
+/* Everything again with the lock's state: the preferences opened anew
+   (with its authorization, or not), the controls on or off. */
+- (void)lockChanged
+{
+    BOOL open = paneUnlocked(_lock);
+    [self dropEditing];
     [self loadLocations];
     [self loadServices];
     _list.selected = [_serviceIDs count] ? 0 : -1;
     if ([_serviceIDs count])
         [self list:_list chose:0];
-    [self setMainView:view];
-    return view;
+    for (NSButton *b in @[ _add, _method, _advanced, _revert, _apply ])
+        [b setEnabled:open];
+    [self chooseMethod:nil];
+}
+
+- (void)authorizationViewDidAuthorize:(SFAuthorizationView *)view
+{
+    [self lockChanged];
+}
+
+- (void)authorizationViewDidDeauthorize:(SFAuthorizationView *)view
+{
+    [self lockChanged];
 }
 
 static NSString *first(id array)
@@ -451,9 +489,12 @@ static NSString *joined(id array)
     NSString *method = kMethods[MAX(0, [_method indexOfSelectedItem])];
     BOOL manual = [method isEqual:@"Manual"], inform = [method isEqual:@"INFORM"];
 
-    [_address setEditable:manual || inform];
-    [_mask setEditable:manual];
-    [_router setEditable:manual];
+    BOOL open = paneUnlocked(_lock);
+    [_address setEditable:open && (manual || inform)];
+    [_mask setEditable:open && manual];
+    [_router setEditable:open && manual];
+    [_dns setEditable:open];
+    [_domains setEditable:open];
     for (NSTextField *f in @[ _address, _mask, _router ]) {
         [f setTextColor:[f isEditable] ? [NSColor controlTextColor] : [NSColor secondaryLabelColor]];
         [f setNeedsDisplay:YES];
@@ -463,7 +504,7 @@ static NSString *joined(id array)
 - (void)chooseLocation:(id)sender
 {
     NSInteger i = [_location indexOfSelectedItem];
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     SCNetworkSetRef set = (prefs && i >= 0 && (NSUInteger)i < [_setIDs count]) ?
         SCNetworkSetCopy(prefs, (__bridge CFStringRef)_setIDs[(NSUInteger)i]) : NULL;
     BOOL ok = set != NULL && SCNetworkSetSetCurrent(set) && SCPreferencesCommitChanges(prefs) &&
@@ -513,7 +554,7 @@ static NSString *joined(id array)
    chosen gets one, set up as its kind is by default. */
 - (void)addService:(NSButton *)sender
 {
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     SCNetworkSetRef set = prefs ? SCNetworkSetCopyCurrent(prefs) : NULL;
     NSArray *services = set ? (__bridge_transfer NSArray *)SCNetworkSetCopyServices(set) : @[];
     NSMutableSet *taken = [NSMutableSet set];
@@ -547,7 +588,7 @@ static NSString *joined(id array)
 
 - (void)addInterface:(NSMenuItem *)sender
 {
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     SCNetworkSetRef set = prefs ? SCNetworkSetCopyCurrent(prefs) : NULL;
     SCNetworkServiceRef service = NULL;
     BOOL ok = NO;
@@ -590,7 +631,7 @@ static NSString *joined(id array)
     if ([alert runModal] != NSAlertFirstButtonReturn)
         return;
 
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = [self newPrefs];
     SCNetworkServiceRef service = prefs ? SCNetworkServiceCopy(prefs, (__bridge CFStringRef)_serviceIDs[(NSUInteger)index]) : NULL;
     BOOL ok = service != NULL && SCNetworkServiceRemove(service) && SCPreferencesCommitChanges(prefs) &&
               SCPreferencesApplyChanges(prefs);
