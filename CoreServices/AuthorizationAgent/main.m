@@ -313,13 +313,15 @@ static NSString *clientName(NSDictionary *hints)
    password go to authd in the context. */
 static void authenticate(xpc_connection_t peer, xpc_object_t request, NSDictionary *hints, AgentMechanism *mechanism)
 {
-    NSString *user = itemString(hints, "suggested-user");
-    if ([user length] == 0) {
-        uint32_t uid = itemUInt(hints, "client-uid");
-        struct passwd *pw = uid != 0 ? getpwuid(uid) : NULL;
-        if (pw != NULL)
-            user = @(pw->pw_name);
-    }
+    /* The asking user's name first, as on the reference; authd's
+       suggestion (the console's owner) only for root's clients. */
+    NSString *user = nil;
+    uint32_t uid = itemUInt(hints, "client-uid");
+    struct passwd *pw = uid != 0 ? getpwuid(uid) : NULL;
+    if (pw != NULL)
+        user = @(pw->pw_name);
+    if ([user length] == 0)
+        user = itemString(hints, "suggested-user");
     NSString *group = itemString(hints, "require-user-in-group");
     BOOL retry = itemUInt(hints, "reason") != 0;
     NSString *prompt = itemString(hints, "prompt");

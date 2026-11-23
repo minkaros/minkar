@@ -223,8 +223,9 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
    APSL del árbol) con su base de derechos, el cliente APSL en Security.framework, el Agente de
    autorización de Atlas (la ventana de contraseña), `AuthorizationExecuteWithPrivileges` con un
    trampolín setuid (hecho; prueba `image/authorization`); el candado de los paneles
-   (SecurityInterface) en Impresoras, Fecha y hora y Usuarios y grupos (hecho; prueba
-   `image/pane-lock`); después, Red (SCHelper) y CUPS.
+   (SecurityInterface) en Impresoras, Fecha y hora, Usuarios y grupos y Red (SCHelper, APSL)
+   (hecho; prueba `image/pane-lock`); CUPS con los derechos de autorización, admin anidado
+   en `_lpadmin`. Hecho.
 5. El instalador del sistema y la compresión de HFS+.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana

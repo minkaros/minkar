@@ -217,8 +217,9 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
    sources in the tree) with its rights database, the APSL client in Security.framework,
    Atlas's Authorization Agent (the password window), `AuthorizationExecuteWithPrivileges`
    through a setuid trampoline (done; test `image/authorization`); the panes' lock
-   (SecurityInterface) in Printers, Date & Time and Users & Groups (done; test
-   `image/pane-lock`); Network (SCHelper) and CUPS next.
+   (SecurityInterface) in Printers, Date & Time, Users & Groups and Network (SCHelper, APSL)
+   (done; test `image/pane-lock`); CUPS with the authorization rights, admin nested in
+   `_lpadmin`. Done.
 5. The system installer and HFS+ compression.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login
