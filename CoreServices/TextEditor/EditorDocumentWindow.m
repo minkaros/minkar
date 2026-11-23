@@ -153,6 +153,40 @@ static NSPoint nextOrigin;
     [self updateTitle];
 }
 
+/* A diff or a patch (opendiff's): added lines green, removed ones red,
+   hunk headers blue, on screen only (the text saved is unchanged). */
+- (BOOL)isDiff
+{
+    NSString *extension = [[_fileURL pathExtension] lowercaseString];
+    return !_rich && ([extension isEqualToString:@"diff"] || [extension isEqualToString:@"patch"]);
+}
+
+- (void)highlightDiff
+{
+    NSLayoutManager *layout = [_text layoutManager];
+    NSString *text = [_text string];
+    NSColor *added = [NSColor colorWithCalibratedRed:0.10 green:0.55 blue:0.15 alpha:1];
+    NSColor *removed = [NSColor colorWithCalibratedRed:0.80 green:0.15 blue:0.15 alpha:1];
+    NSColor *header = [NSColor colorWithCalibratedRed:0.15 green:0.35 blue:0.80 alpha:1];
+
+    if (![self isDiff])
+        return;
+    [layout removeTemporaryAttribute:NSForegroundColorAttributeName forCharacterRange:NSMakeRange(0, [text length])];
+    [text enumerateSubstringsInRange:NSMakeRange(0, [text length]) options:NSStringEnumerationByLines
+                          usingBlock:^(NSString *line, NSRange range, NSRange enclosing, BOOL *stop) {
+        NSColor *color = nil;
+        if ([line hasPrefix:@"+++"] || [line hasPrefix:@"---"] || [line hasPrefix:@"@@"] ||
+            [line hasPrefix:@"diff "] || [line hasPrefix:@"Only in "])
+            color = header;
+        else if ([line hasPrefix:@"+"] || [line hasPrefix:@">"])
+            color = added;
+        else if ([line hasPrefix:@"-"] || [line hasPrefix:@"<"])
+            color = removed;
+        if (color != nil && range.length > 0)
+            [layout addTemporaryAttribute:NSForegroundColorAttributeName value:color forCharacterRange:range];
+    }];
+}
+
 - (instancetype)initUntitled:(NSUInteger)number
 {
     if ((self = [super init]) == nil)
@@ -194,6 +228,7 @@ static NSPoint nextOrigin;
     text = withLF(text);
     _fileURL = [url copy];
     [self makeWindowWithText:text];
+    [self highlightDiff];
     os_log_info(OS_LOG_DEFAULT, "opened %{public}s", [[url path] fileSystemRepresentation]);
     return self;
 }
@@ -237,6 +272,7 @@ static NSPoint nextOrigin;
 - (void)textDidChange:(NSNotification *)note
 {
     [self setEdited:YES];
+    [self highlightDiff];
 }
 
 /* -- Saving -- */
