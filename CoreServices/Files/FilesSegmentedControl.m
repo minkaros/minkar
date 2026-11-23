@@ -154,6 +154,11 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
         NSRectFill(NSMakeRect(x + 8.8, y + 2, 1.2, 10));
         break;
     }
+    case FilesGlyphShowAll:
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(x + 1.5 + c * 4.5, y + 1.5 + r * 4.5, 2.4, 2.4)] fill];
+        break;
     }
 }
 

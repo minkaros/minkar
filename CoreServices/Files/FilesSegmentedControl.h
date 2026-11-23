@@ -5,7 +5,8 @@
  *
  * The window bar's segmented controls (Atlas): a light capsule of
  * segments, each a glyph drawn in code; the back and forward pair, which
- * acts at once, and the view modes, one of which is selected.
+ * acts at once, and the view modes, one of which is selected. System
+ * Preferences' bar uses them too (built from this source).
  */
 
 #import <AppKit/AppKit.h>
@@ -18,6 +19,7 @@ typedef NS_ENUM(NSInteger, FilesGlyph) {
     FilesGlyphIcons,
     FilesGlyphList,
     FilesGlyphColumns,
+    FilesGlyphShowAll,      /* nine dots (System Preferences' Show All) */
 };
 
 @interface FilesSegmentedControl : NSView
