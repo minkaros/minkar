@@ -135,7 +135,17 @@ NSDictionary *DockPersistentAppEntry(NSURL *url)
     };
 }
 
-/* With no preference yet: the file manager, then the installed applications. */
+/* The utilities the Dock keeps too (the maintainer's choice, 23 Nov 2026):
+   Terminal, System Monitor and Logs. */
+static NSArray<NSString *> *utilityApps(void)
+{
+    return @[ @"/System/Applications/Utilities/Terminal.app",
+              @"/System/Applications/Utilities/SystemMonitor.app",
+              @"/System/Applications/Utilities/Logs.app" ];
+}
+
+/* With no preference yet: the file manager, the installed applications,
+   then the utilities. */
 static NSArray<NSURL *> *defaultPersistentApps(void)
 {
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -151,6 +161,9 @@ static NSArray<NSURL *> *defaultPersistentApps(void)
             if ([[name pathExtension] isEqualToString:@"app"])
                 [urls addObject:[NSURL fileURLWithPath:[dir stringByAppendingPathComponent:name]]];
     }
+    for (NSString *path in utilityApps())
+        if ([fm fileExistsAtPath:path])
+            [urls addObject:[NSURL fileURLWithPath:path]];
     return urls;
 }
 
@@ -394,9 +407,31 @@ static BOOL badgeAllowed(NSRunningApplication *app)
         for (NSURL *url in urls)
             [entries addObject:DockPersistentAppEntry(url)];
         [defaults setObject:entries forKey:kPersistentApps];
+        [defaults setBool:YES forKey:@"minkar-utilities-added"];
         [defaults synchronize];
-    } else
+    } else {
         urls = DockPersistentAppURLs(preference);
+        /* A Dock kept from before the utilities were added gets them once;
+           one taken out afterwards stays out. */
+        if (![defaults boolForKey:@"minkar-utilities-added"]) {
+            NSMutableArray *entries = [preference mutableCopy];
+            NSMutableArray<NSURL *> *all = [urls mutableCopy];
+            for (NSString *path in utilityApps()) {
+                NSURL *url = [NSURL fileURLWithPath:path];
+                BOOL there = NO;
+                for (NSURL *u in urls)
+                    there |= [[[u path] stringByStandardizingPath] isEqualToString:path];
+                if (!there && [[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                    [entries addObject:DockPersistentAppEntry(url)];
+                    [all addObject:url];
+                }
+            }
+            [defaults setObject:entries forKey:kPersistentApps];
+            [defaults setBool:YES forKey:@"minkar-utilities-added"];
+            [defaults synchronize];
+            urls = all;
+        }
+    }
 
     NSMutableArray *persistent = [NSMutableArray array];
     for (NSURL *url in urls)
