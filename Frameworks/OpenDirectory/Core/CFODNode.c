@@ -514,7 +514,9 @@ _ODNodeStoreCredentials(ODNodeRef node, CFStringRef type, CFTypeRef name, CFStri
 	node->_creds_type = CFStringCreateCopy(kCFAllocatorDefault, type);
 	if (CFGetTypeID(name) == CFStringGetTypeID()) {
 		node->_creds_name = CFStringCreateCopy(kCFAllocatorDefault, name);
-	} else if (CFGetTypeID(name) == CFArrayGetTypeID() && CFArrayGetCount(name) > 0) {
+	} else if (CFGetTypeID(name) == CFArrayGetTypeID() && CFArrayGetCount(name) > 0 &&
+	    CFGetTypeID(CFArrayGetValueAtIndex(name, 0)) == CFStringGetTypeID()) {
+		/* Not an authorization's external form (data), only a name. */
 		node->_creds_name = CFStringCreateCopy(kCFAllocatorDefault, CFArrayGetValueAtIndex(name, 0));
 	}
 	if (password != NULL) {
