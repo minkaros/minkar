@@ -1,0 +1,3 @@
+# Minkar: PDF to the PDF a printer takes (pdfcopy), for printers whose
+# PPD asks for application/vnd.cups-pdf (IPP Everywhere's). Part of Minkar.
+application/pdf		application/vnd.cups-pdf	66	pdfcopy

@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# A CUPS filter (application/pdf to application/vnd.cups-pdf, pdf.convs):
+# the PDF as it is, for a printer that takes PDF (IPP Everywhere and
+# others), which applies the copies and the page ranges the job asks for.
+# Arguments as CUPS gives a filter: job, user, title, copies, options and
+# the file (none: standard input).
+if [ $# -ge 6 ]; then
+	exec cat -- "$6"
+fi
+exec cat

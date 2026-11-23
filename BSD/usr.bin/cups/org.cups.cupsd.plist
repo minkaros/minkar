@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- cupsd, started by launchd when its socket is used or printers are
+     set up (CUPS's own job, without its debug log). Part of Minkar. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.cups.cupsd</string>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>EnableTransactions</key>
+	<true/>
+	<key>TransactionTimeLimitEnabled</key>
+	<false/>
+	<key>ExitTimeOut</key>
+	<integer>60</integer>
+	<key>KeepAlive</key>
+	<dict>
+		<key>PathState</key>
+		<dict>
+			<key>/private/var/spool/cups/cache/org.cups.cupsd</key>
+			<true/>
+		</dict>
+	</dict>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/sbin/cupsd</string>
+		<string>-l</string>
+	</array>
+	<key>Sockets</key>
+	<dict>
+		<key>Listeners</key>
+		<array>
+			<dict>
+				<key>SockPathMode</key>
+				<integer>49663</integer>
+				<key>SockPathName</key>
+				<string>/private/var/run/cupsd</string>
+			</dict>
+		</array>
+	</dict>
+</dict>
+</plist>

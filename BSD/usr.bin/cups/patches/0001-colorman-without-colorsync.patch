@@ -1,0 +1,51 @@
+Minkar: cupsd without ColorSync (the reference platform's color device
+registry, which Minkar does not have): the color management of the
+printers is left out, as CUPS does on other systems without colord.
+
+--- a/scheduler/colorman.c	2026-11-23 06:31:44.082811535 -0500
++++ b/scheduler/colorman.c	2026-11-23 06:31:44.084811440 -0500
+@@ -42,7 +42,7 @@
+ #include "cupsd.h"
+ #include <cups/ppd-private.h>
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_COLORSYNC)
+ #  include <ApplicationServices/ApplicationServices.h>
+ extern CFUUIDRef ColorSyncCreateUUIDFromUInt32(unsigned id);
+ #  include <CoreFoundation/CoreFoundation.h>
+@@ -100,7 +100,7 @@
+  * Local functions...
+  */
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_COLORSYNC)
+ static void	apple_init_profile(ppd_file_t *ppd, cups_array_t *languages,
+                                    CFMutableDictionaryRef profile,
+ 				   unsigned id, const char *name,
+@@ -139,7 +139,7 @@
+ void
+ cupsdRegisterColor(cupsd_printer_t *p)	/* I - Printer */
+ {
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_COLORSYNC)
+   if (!RunUser)
+   {
+     apple_unregister_profiles(p);
+@@ -199,7 +199,7 @@
+ void
+ cupsdUnregisterColor(cupsd_printer_t *p)/* I - Printer */
+ {
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_COLORSYNC)
+   if (!RunUser)
+     apple_unregister_profiles(p);
+ 
+@@ -210,7 +210,7 @@
+ }
+ 
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_COLORSYNC)
+ /*
+  * 'apple_init_profile()' - Initialize a color profile.
+  */
