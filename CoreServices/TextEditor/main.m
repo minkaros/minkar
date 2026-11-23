@@ -105,6 +105,8 @@ static void addMenu(NSString *title, NSMenu *menu)
     NSMenu *window = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Window", nil)];
     item(window, NSLocalizedString(@"Minimize", nil), nil, @selector(performMiniaturize:), @"m", cmd);
     addMenu(NSLocalizedString(@"Window", nil), window);
+    /* AppKit's items (tabs, the windows' list) go in it. */
+    [NSApp setWindowsMenu:window];
 }
 
 /* The menus once AppKit has made the menu bar (documents may already
@@ -186,6 +188,12 @@ static void addMenu(NSString *title, NSMenu *menu)
 - (void)newDocument:(id)sender
 {
     [self add:[[EditorDocumentWindow alloc] initUntitled:++_untitled]];
+}
+
+/* The tab bar's +: a new document, as a tab. */
+- (void)newWindowForTab:(id)sender
+{
+    [self newDocument:sender];
 }
 
 - (void)openDocument:(id)sender

@@ -380,10 +380,14 @@ app.
 The system adds items to every app's menus; their services are not in Atlas yet. W0–W3
 are part of Minkar 19.6.0.
 
-- [ ] **W0 — Window tabs.** `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
+- [x] **W0 — Window tabs.** `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
   `tabbingIdentifier`, `addTabbedWindow:ordered:`, `userTabbingPreference`, the tab bar,
   and the Window menu's tab items. Gate: two documents merge into one window with two tabs
-  and split again, from the menu and by dragging a tab.
+  and split again, from the menu and by dragging a tab. Done (23 Nov 2026): the tab bar
+  (choose, close, +, drag out, onto another window, within the bar), Prefer tabs from the
+  Dock pane, Show Tab Bar, Show Previous/Next Tab, Move Tab to New Window, Merge All
+  Windows; tests `appkit-window-tabs`, `text-editor-tabs`. Not yet: Show All Tabs (the
+  overview).
 - [ ] **W1 — Tiling.** Tile Window to Left/Right of Screen, Move Window to Left/Right Side
   of Screen, holding the zoom button, two full-screen windows side by side. Gate: two apps
   share the screen and leave it as they came.
