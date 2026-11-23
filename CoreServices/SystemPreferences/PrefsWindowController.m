@@ -98,6 +98,7 @@ static NSArray<NSString *> *knownOrder(void)
               @"org.minkar.preference.notifications", @"org.minkar.preference.users",
               @"org.minkar.preference.displays", @"org.minkar.preference.keyboard",
               @"org.minkar.preference.mouse", @"org.minkar.preference.sound",
+              @"org.minkar.preference.printers",
               @"org.minkar.preference.network", @"org.minkar.preference.datetime" ];
 }
 
@@ -149,6 +150,7 @@ static NSUInteger sectionOf(PrefsPaneInfo *pane)
                       @"org.minkar.preference.notifications": @0,
                       @"org.minkar.preference.displays": @1, @"org.minkar.preference.keyboard": @1,
                       @"org.minkar.preference.mouse": @1, @"org.minkar.preference.sound": @1,
+                      @"org.minkar.preference.printers": @1,
                       @"org.minkar.preference.network": @2,
                       @"org.minkar.preference.users": @3, @"org.minkar.preference.datetime": @3 };
     NSNumber *n = sections[pane.identifier];

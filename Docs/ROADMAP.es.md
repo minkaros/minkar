@@ -215,16 +215,17 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 
-1. Imprimir: cupsd arrancado por launchd con sus comandos, y un panel Impresoras en Preferencias
-   del Sistema (decisión del mantenedor, 23 nov 2026). A2 está hecho.
+1. Imprimir: hecho (cupsd y sus comandos, el panel Impresoras); falta probarlo con una impresora real en el PC 1.
 2. W0–W3: pestañas de ventana, mosaico, restauración de ventanas, Emoji y símbolos.
 3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.
-4. El instalador del sistema y la compresión de HFS+.
-5. WebKit: W0, W1, W5.
-6. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana
+4. La autorización de Security completa: authd (el código APSL del árbol), la base de derechos,
+   la ventana de contraseña de Atlas, el candado de los paneles (decisión del mantenedor, 23 nov 2026).
+5. El instalador del sistema y la compresión de HFS+.
+6. WebKit: W0, W1, W5.
+7. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana
    de inicio de sesión en el PC 1.
-7. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
+8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
 
 En paralelo, el carril BC: KeepingYouAwake (el del conjunto 19 sin ventana), BC2, BC0 en la CI.
 Audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.

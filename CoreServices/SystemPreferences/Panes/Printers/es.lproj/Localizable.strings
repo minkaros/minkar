@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Printers pane, in Spanish. The keys are the English texts. */
+
+"No printers are available.\nClick Add (+) to set up a printer." = "No hay impresoras disponibles.\nHaz clic en Añadir (+) para configurar una impresora.";
+"Location:" = "Ubicación:";
+"Kind:" = "Tipo:";
+"Status:" = "Estado:";
+"Default printer:" = "Impresora por omisión:";
+"Default paper size:" = "Tamaño de papel por omisión:";
+"Last Printer Used" = "Última impresora utilizada";
+"US Letter" = "Carta (EE. UU.)";
+"US Legal" = "Legal (EE. UU.)";
+"Paused" = "En pausa";
+"Printing" = "Imprimiendo";
+"Idle" = "En reposo";
+"Are you sure you want to delete the printer “%@”?" = "¿Seguro que quieres eliminar la impresora «%@»?";
+"Delete Printer" = "Eliminar impresora";
+"Cancel" = "Cancelar";
+"Name" = "Nombre";
+"Kind" = "Tipo";
+"Name:" = "Nombre:";
+"Searching for printers…" = "Buscando impresoras…";
+"No printers were found." = "No se ha encontrado ninguna impresora.";
+"Add" = "Añadir";
+"The printer “%@” could not be added." = "No se ha podido añadir la impresora «%@».";
+"Address:" = "Dirección:";

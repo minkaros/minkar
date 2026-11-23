@@ -209,16 +209,17 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 
 The maintainer's order (23 Nov 2026). Lane A, one after another:
 
-1. Printing: cupsd started by launchd with its commands, and a Printers pane in System
-   Preferences (the maintainer's choice, 23 Nov 2026). A2 is done.
+1. Printing: done (cupsd and its commands, the Printers pane); to be tried on a real printer on PC 1.
 2. W0–W3: window tabs, tiling, window restoration, Emoji & Symbols.
 3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.
-4. The system installer and HFS+ compression.
-5. WebKit: W0, W1, W5.
-6. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login
+4. Security's authorization in full: authd (the APSL sources in the tree), the rights
+   database, Atlas's password dialog, the panes' lock (the maintainer's choice, 23 Nov 2026).
+5. The system installer and HFS+ compression.
+6. WebKit: W0, W1, W5.
+7. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login
    window on PC 1.
-7. The visual language (the light appearance and the controls), once the maintainer decides.
+8. The visual language (the light appearance and the controls), once the maintainer decides.
 
 Lane BC alongside: KeepingYouAwake (the one of app set 19 with no window), BC2, BC0 in the
 CI. Audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
