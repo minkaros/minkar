@@ -548,7 +548,18 @@ spawn(const char *exe, CFArrayRef arguments)
 	/* Its own process group: a signal to the caller's is not its own. */
 	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
 	posix_spawnattr_setpgroup(&attr, 0);
-	error = posix_spawn(&pid, exe, NULL, &attr, argv, environ);
+	/* Not the caller's terminal, as on the reference (an app launchd
+	   starts): its stdin, stdout and stderr /dev/null, its NSLog and
+	   os_log in the unified log. With the caller's, an app wrote to a
+	   pipe nobody read any more once its opener ended, and SIGPIPE ended
+	   it. */
+	posix_spawn_file_actions_t actions;
+	posix_spawn_file_actions_init(&actions);
+	posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
+	posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+	posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+	error = posix_spawn(&pid, exe, &actions, &attr, argv, environ);
+	posix_spawn_file_actions_destroy(&actions);
 	posix_spawnattr_destroy(&attr);
 	for (CFIndex i = 0; i < count; i++)
 		free(argv[i + 1]);
