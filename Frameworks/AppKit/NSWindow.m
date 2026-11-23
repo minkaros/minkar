@@ -3258,6 +3258,8 @@ static NSMutableSet *hiddenByHide;
    return _draggedTypes;
 }
 
+void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,CGFloat *bottom,CGFloat *right);
+
 -(void)_setSheetOrigin {
    NSWindow *sheet=[_sheetContext sheet];
    NSRect    sheetFrame=[sheet frame];
@@ -3266,8 +3268,24 @@ static NSMutableSet *hiddenByHide;
    NSRect    content=[self contentRectForFrameRect:frame];
    NSPoint   origin;
 
-   /* The content rect is already below the toolbar. */
-   origin.y=NSMaxY(content)-sheetFrame.size.height;
+   /* The content rect is already below the toolbar. A full-size content
+      view's window has its bar in the content: the sheet hangs under the
+      title bar, or under its own taller bar (_setTitlebarHeight:), not
+      over it. */
+   CGFloat top=NSMaxY(content);
+   if(_styleMask & NSWindowStyleMaskFullSizeContentView){
+    CGFloat titleTop, left, bottom, right;
+    CGNativeBorderFrameWidthsForStyle(_styleMask & ~NSWindowStyleMaskFullSizeContentView, &titleTop, &left, &bottom, &right);
+    top=NSMaxY(frame)-MAX(titleTop, _titlebarHeight);
+   }
+   /* The delegate may move it (window:willPositionSheet:usingRect:, in
+      the window's coordinates): the sheet hangs from the rect's origin. */
+   if([_delegate respondsToSelector:@selector(window:willPositionSheet:usingRect:)]){
+    NSRect at=NSMakeRect(0, top-frame.origin.y, frame.size.width, 0);
+    at=[_delegate window:self willPositionSheet:sheet usingRect:at];
+    top=frame.origin.y+at.origin.y;
+   }
+   origin.y=top-sheetFrame.size.height;
    origin.x=frame.origin.x+floor((frame.size.width-sheetFrame.size.width)/2);
 
    [sheet setFrameOrigin:origin];
