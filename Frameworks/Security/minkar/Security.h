@@ -13,8 +13,9 @@
 #define _SECURITY_SECURITY_H_
 
 #include "SecBase.h"
-#include "Authorization.h"
-#include "AuthorizationDB.h"
+#include <Security/Authorization.h>
+#include <Security/AuthorizationTags.h>
+#include <Security/AuthorizationDB.h>
 #include "SecItem.h"
 #include "SecKeychain.h"
 #include "SecCertificate.h"

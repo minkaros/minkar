@@ -11,13 +11,29 @@ MK_WERROR = no
 FRAMEWORK = Security
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = SecBase.c Authorization.c Keychain.c Crypto.c Transform.c Code.c Policy.c Trust.c
-HEADERS = Security.h SecBase.h Authorization.h AuthorizationDB.h SecItem.h SecKeychain.h SecCertificate.h SecKey.h \
-	SecImportExport.h SecTransform.h SecCode.h SecPolicy.h SecTrust.h
+# Authorization is Apple's client (APSL, OSX/libsecurity_authorization),
+# which talks to authd (BSD/usr.sbin/authd), with its headers; only
+# AuthorizationExecuteWithPrivileges is ours (AuthorizationExecute.c).
+SRCS = SecBase.c AuthorizationExecute.c Authorization.c authutilities.c Keychain.c Crypto.c Transform.c Code.c \
+	Policy.c Trust.c
+HEADERS = Security.h SecBase.h include/Security/Authorization.h include/Security/AuthorizationTags.h \
+	include/Security/AuthorizationDB.h include/Security/AuthorizationPlugin.h SecItem.h SecKeychain.h SecCertificate.h SecKey.h SecImportExport.h SecTransform.h SecCode.h SecPolicy.h \
+	SecTrust.h
 SUBDIR =
 
+APSL_AUTH = ${.CURDIR}/../OSX/libsecurity_authorization/lib
+APSL_AUTHD = ${.CURDIR}/../OSX/authd
+.PATH: ${APSL_AUTH} ${APSL_AUTHD}
+APSL_CFLAGS = -fblocks -Wno-everything -include ${APSL_AUTHD}/security.auth-Prefix.pch \
+	-I${.CURDIR}/authd/compat -I${APSL_AUTHD} -I${APSL_AUTH} -I${.CURDIR}/../header_symlinks/macOS \
+	-I${.CURDIR}/../header_symlinks -I${.CURDIR}/.. -I${.CURDIR}/../OSX
+CFLAGS.Authorization.c = ${APSL_CFLAGS}
+CFLAGS.authutilities.c = ${APSL_CFLAGS}
+
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
-CFLAGS += -I${.CURDIR} -F${FMWKS}
+# include/Security: the APSL Authorization headers, as <Security/...> while
+# the framework itself builds.
+CFLAGS += -I${.CURDIR} -I${.CURDIR}/include -F${FMWKS}
 LDFLAGS += -F${FMWKS} -framework CoreFoundation
 
 fmwk-install-hook:

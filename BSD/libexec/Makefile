@@ -4,6 +4,6 @@
 #
 # Independent programs: built in parallel.
 SUBDIR_PARALLEL =
-SUBDIR = dhcpclient getty kextstart atrun launchproxy ntalkd espeak-ng
+SUBDIR = dhcpclient getty kextstart atrun launchproxy ntalkd espeak-ng authorization-trampoline
 
 .include <bsd.subdir.mk>

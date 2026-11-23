@@ -46,6 +46,7 @@
 #import <AppKit/AppKit.h>
 #import <CoreAudio/AudioHardware.h>
 #import <Security/Authorization.h>
+#import <Security/AuthorizationTags.h>
 #include <math.h>
 #include <spawn.h>
 #include <sys/wait.h>

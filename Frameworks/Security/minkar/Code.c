@@ -12,6 +12,7 @@
 #include "Security.h"
 #include "SecInternal.h"
 #include <libproc.h>
+#include <mach/message.h>
 #include <limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -81,8 +82,17 @@ OSStatus SecCodeCopySelf(SecCSFlags flags, SecCodeRef *self) {
 OSStatus SecCodeCopyGuestWithAttributes(SecCodeRef host, CFDictionaryRef attributes, SecCSFlags flags, SecCodeRef *guest) {
     char path[PROC_PIDPATHINFO_MAXSIZE];
     CFNumberRef pidNumber = attributes != NULL ? CFDictionaryGetValue(attributes, kSecGuestAttributePid) : NULL;
+    CFDataRef audit = attributes != NULL ? CFDictionaryGetValue(attributes, kSecGuestAttributeAudit) : NULL;
     int pid = 0;
-    if (guest == NULL || pidNumber == NULL || !CFNumberGetValue(pidNumber, kCFNumberIntType, &pid))
+    if (guest == NULL)
+        return errSecParam;
+    /* A process by its pid, or by its audit token (authd's clients): the
+       token's sixth word is the pid. */
+    if (audit != NULL && CFGetTypeID(audit) == CFDataGetTypeID() && CFDataGetLength(audit) == sizeof(audit_token_t)) {
+        audit_token_t token;
+        CFDataGetBytes(audit, CFRangeMake(0, sizeof(token)), (UInt8 *)&token);
+        pid = (int)token.val[5];
+    } else if (pidNumber == NULL || !CFNumberGetValue(pidNumber, kCFNumberIntType, &pid))
         return errSecParam;
     if (proc_pidpath(pid, path, sizeof(path)) <= 0)
         return errSecCSStaticCodeNotFound;
@@ -214,6 +224,32 @@ OSStatus SecRequirementCreateWithStringAndErrors(CFStringRef text, SecCSFlags fl
 
 OSStatus SecRequirementCreateWithString(CFStringRef text, SecCSFlags flags, SecRequirementRef *requirement) {
     return SecRequirementCreateWithStringAndErrors(text, flags, NULL, requirement);
+}
+
+/* As data: Minkar keeps a requirement as its text, in UTF-8 (authd stores
+   rules' requirements so); the reference's compiled form (a blob that
+   begins 0xfade0c00) is not read. */
+OSStatus SecRequirementCreateWithData(CFDataRef data, SecCSFlags flags, SecRequirementRef *requirement) {
+    if (data == NULL || requirement == NULL)
+        return errSecParam;
+    const UInt8 *bytes = CFDataGetBytePtr(data);
+    CFIndex length = CFDataGetLength(data);
+    if (length >= 4 && bytes[0] == 0xfa && bytes[1] == 0xde && bytes[2] == 0x0c && bytes[3] == 0x00)
+        return errSecCSReqInvalid;
+    CFStringRef text = CFStringCreateWithBytes(NULL, bytes, length, kCFStringEncodingUTF8, false);
+    if (text == NULL)
+        return errSecCSReqInvalid;
+    OSStatus status = SecRequirementCreateWithStringAndErrors(text, flags, NULL, requirement);
+    CFRelease(text);
+    return status;
+}
+
+OSStatus SecRequirementCopyData(SecRequirementRef requirement, SecCSFlags flags, CFDataRef *data) {
+    if (requirement == NULL || data == NULL)
+        return errSecParam;
+    *data = CFStringCreateExternalRepresentation(NULL, ((struct __SecRequirement *)requirement)->text,
+                                                 kCFStringEncodingUTF8, 0);
+    return *data != NULL ? errSecSuccess : errSecCSReqInvalid;
 }
 
 OSStatus SecRequirementCopyString(SecRequirementRef requirement, SecCSFlags flags, CFStringRef *text) {
