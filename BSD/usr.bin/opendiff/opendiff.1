@@ -1,0 +1,36 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt OPENDIFF 1
+.Os Minkar
+.Sh NAME
+.Nm opendiff
+.Nd show two files' differences
+.Sh SYNOPSIS
+.Nm
+.Ar file1 file2
+.Op Fl ancestor Ar ancestorFile
+.Op Fl merge Ar mergeFile
+.Sh DESCRIPTION
+.Nm
+opens the differences between
+.Ar file1
+and
+.Ar file2
+(two directories: all their files') in Text Editor, as a unified diff it
+highlights.
+.Bl -tag -width indent
+.It Fl merge Ar mergeFile
+Merge the two into
+.Ar mergeFile
+and open it instead.
+With
+.Fl ancestor ,
+each side's changes from the ancestor are kept and only those they both
+make are marked as conflicts; without it, every difference is marked
+.Pq Ql <<<<<<< , Ql ======= , Ql >>>>>>>
+for the user to resolve.
+.El
+.Sh SEE ALSO
+.Xr diff 1 ,
+.Xr diff3 1

@@ -124,7 +124,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 - [ ] The rest of hfs's adaptation (`Kernel/_PROVENANCE`).
 - [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image.
 - [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
-- [ ] Commands: `opendiff`, `tmutil`; git's Tcl commands. Done: `osascript`, our own interpreter of AppleScript's commonly used part (test `osascript`).
+- [ ] Commands: git's Tcl commands. Done: `osascript`, our own interpreter of AppleScript's commonly used part (test `osascript`); `opendiff`, the differences in Text Editor (test `opendiff`). `tmutil` comes with backups in 19.6.x (the maintainer's choice, 23 Nov 2026).
 
 #### WebKit
 

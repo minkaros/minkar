@@ -3,11 +3,11 @@
 since	60aa4ff4b1
 image	/bin	42
 image	/sbin	47
-image	/usr/bin	364
+image	/usr/bin	365
 image	/usr/sbin	65
 tree	BSD/bin	30	32
 tree	BSD/sbin	4	35
-tree	BSD/usr.bin	55	191
+tree	BSD/usr.bin	55	192
 tree	BSD/usr.sbin	7	52
 present	bash
 present	cat
@@ -211,6 +211,7 @@ present	nohup
 present	nslookup
 present	od
 present	open
+present	opendiff
 present	openssl
 present	osascript
 present	pagesize
