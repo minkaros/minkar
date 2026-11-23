@@ -10,7 +10,8 @@
  * with its own directory module off (XBS_DISABLE_LIBINFO): users,
  * groups and group lists. As with the files themselves, only a caller
  * running as root, and not sandboxed (it could not read them), gets
- * password hashes; others get "*". Other routines
+ * password hashes; others get "********" for an account with a password,
+ * "*" for one without, as the reference's directory. Other routines
  * get an error, and libinfo asks the next module.
  *
  * libinfo keeps what this service answers in each process's cache until
@@ -56,8 +57,16 @@ extern uint32_t gL1CacheEnabled;
 /* Whether the request's sender runs as root (euid 0), without a sandbox. */
 static int caller_is_root;
 
+/* The password field: the hash for root; for others, as the reference's
+   directory gives it, "********" for an account with a password (authd
+   takes "*" for a locked account) and "*" for one without (a disabled
+   hash begins with "*"). */
 static const char *secret(const char *hash) {
-	return caller_is_root && hash != NULL ? hash : "*";
+	if (caller_is_root && hash != NULL)
+		return hash;
+	if (hash != NULL && hash[0] != '\0' && hash[0] != '*')
+		return "********";
+	return "*";
 }
 
 static void set_user(xpc_object_t d, const struct passwd *pw) {
