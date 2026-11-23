@@ -54,7 +54,10 @@ NSColor *_NSMenuBarTextColor(void);
 
 -initWithFrame:(NSRect)frame menu:(NSMenu *)menu {
     self = [super initWithFrame:frame];
-    _menu=menu;
+    /* Retained: NSView's setMenu: and dealloc release it (kept as it
+       was, the main menu was released once too often, and a bar drawn
+       later, at an appearance change, read a freed object). */
+    _menu=[menu retain];
     _font=[[self class] menuFont];
     _selectedItemIndex=NSNotFound;
     [self sizeToFit];
@@ -370,7 +373,7 @@ static const CGFloat firstTitleInset=20;
     NSMenuItem *item=[items objectAtIndex:_selectedItemIndex];
 
     if([item hasSubmenu]){
-     if([[[item submenu] itemArray] count]>0){
+     if([[item submenu] _fillToOpen]){
       NSMenuWindow *branch=[[NSMenuWindow alloc] initWithMenu:[item submenu]];
 
       [self positionBranchForSelectedItem:branch screen:screen];
