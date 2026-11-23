@@ -369,7 +369,12 @@ static void authenticatePrivileged(xpc_connection_t peer, xpc_object_t request, 
     os_log(agentLog, "authenticated %{public}s", [name UTF8String]);
     xpc_object_t out = xpc_array_create(NULL, 0);
     xpc_array_append_value(out, uintItem("uid", uid));
-    xpc_array_append_value(out, stringItem("username", name));
+    /* The administrator's name, extractable: AuthorizationCopyInfo gives it
+       (the Users & Groups pane, directoryd). */
+    xpc_object_t user = stringItem("username", name);
+    xpc_dictionary_set_uint64(user, kItemFlags, 1);
+    xpc_array_append_value(out, user);
+    xpc_release(user);
     reply(peer, request, kResultAllow, out);
 }
 
