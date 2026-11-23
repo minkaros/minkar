@@ -47,9 +47,13 @@ typedef struct {
 } DockSpan;
 
 /* The bar's sizes for a tile size. */
-static CGFloat padding(CGFloat tile) { return round(tile / 6); }
+/* The icons centred across the bar, the same margin on either side; an
+   open application's dot sits in the margin at the bottom, with no room
+   of its own (the maintainer's reference, 23 Nov 2026: a 48-point icon in
+   a bar about 66 points high). */
+static CGFloat padding(CGFloat tile) { return round(tile * 3 / 16); }
 static CGFloat gapFor(CGFloat tile) { return round(tile / 6); }
-static CGFloat indicatorSpace(CGFloat tile) { return round(tile / 6); }
+static CGFloat indicatorSpace(CGFloat tile) { (void)tile; return 0; }
 static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 
 /* How high a tile bouncing for attention is now: half a tile at the top
@@ -559,9 +563,9 @@ static void drawBarPath(NSRect rect)
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rect, 0.5, 0.5)
                                                          xRadius:kBarRadius yRadius:kBarRadius];
     BOOL dark = dockDark();
-    [[NSColor colorWithGenericGamma22White:dark ? 0.16 : 0.96 alpha:dark ? 0.62 : 0.55] setFill];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.30 : 0.96 alpha:dark ? 0.72 : 0.55] setFill];
     [path fill];
-    [[NSColor colorWithGenericGamma22White:dark ? 0.55 : 1.0 alpha:dark ? 0.35 : 0.6] setStroke];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.12 : 1.0 alpha:dark ? 0.55 : 0.6] setStroke];
     [path setLineWidth:1];
     [path stroke];
 }
@@ -674,7 +678,7 @@ static void drawBadge(NSString *label, NSRect icon)
         if (badge != nil)
             drawBadge(badge, rect);
         if (t.application != nil && model.showIndicators) {
-            DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 + 2, 4, 4 };
+            DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 - 2, 4, 4 };	/* in the bottom margin */
             [[NSColor colorWithGenericGamma22White:dockDark() ? 0.92 : 0.15 alpha:0.85] setFill];
             [[NSBezierPath bezierPathWithOvalInRect:[self rectForSpan:d]] fill];
         }
