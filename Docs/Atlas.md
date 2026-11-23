@@ -328,7 +328,8 @@ Help menu), Characters (ICU).
 - [ ] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
   `open -t`; find and replace through AppKit's Find panel (`10594b5eb5`, test
   `text-editor-find`); encodings and line endings kept, and chosen in Save As (test
-  `text-editor-encodings`). Left: RTF, printing, the ruler.
+  `text-editor-encodings`); rich text, opened and saved as RTF, Make Rich/Plain Text
+  (`01ee8bd8e6`, test `text-editor-rtf`). Left: printing, the ruler.
   Tests: a round trip in each encoding, find and replace, an RTF document reopened.
 - [x] A3 — System Monitor. `5a1c89ed68`; test `system-monitor`. Per-process energy waits for the power driver's data.
 - [x] A4 — Logs on `log --style ndjson`. `033761cf48`; test `logs`. Nothing writes crash reports yet.

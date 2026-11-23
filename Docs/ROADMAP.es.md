@@ -213,11 +213,21 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 ## Próximos pasos
 
-1. El gate BC en la CI (BC0), con las apps arrancadas como el usuario de la sesión.
-2. El conjunto de apps 19: que Platypus, KeepingYouAwake y Sloth pasen del arranque; la configuración de VLC.
-3. M5: LoginWindow con Directory Services, el panel de Usuarios, MB3, el lenguaje visual.
-4. M6: el instalador, la compresión de HFS+, A2, W5, W0–W3.
-5. En paralelo: audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1).
+El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
+
+1. A2, Text Editor: la regla e imprimir (un panel de impresión mínimo sobre PrintCore, con
+   Guardar como PDF). Hecho: buscar y reemplazar, codificaciones y finales de línea, texto enriquecido.
+2. W0–W3: pestañas de ventana, mosaico, restauración de ventanas, Emoji y símbolos.
+3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
+   `opendiff`, `tmutil`.
+4. El instalador del sistema y la compresión de HFS+.
+5. WebKit: W0, W1, W5.
+6. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana
+   de inicio de sesión en el PC 1.
+7. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
+
+En paralelo, el carril BC: KeepingYouAwake (el del conjunto 19 sin ventana), BC2, BC0 en la CI.
+Audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.
 
 ## Riesgos
 

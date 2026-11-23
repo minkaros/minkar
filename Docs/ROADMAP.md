@@ -207,11 +207,21 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 
 ## Next steps
 
-1. Gate BC in the CI (BC0), with apps started as the session's user.
-2. App set 19: Platypus, KeepingYouAwake and Sloth past their start; VLC's configuration.
-3. M5: LoginWindow with Directory Services, the Users pane, MB3, the visual language.
-4. M6: the installer, HFS+ compression, A2, W5, W0–W3.
-5. In parallel: audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1).
+The maintainer's order (23 Nov 2026). Lane A, one after another:
+
+1. A2, Text Editor: the ruler and printing (a minimal print panel over PrintCore, with Save
+   as PDF). Done: find and replace, encodings and line endings, rich text.
+2. W0–W3: window tabs, tiling, window restoration, Emoji & Symbols.
+3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
+   `opendiff`, `tmutil`.
+4. The system installer and HFS+ compression.
+5. WebKit: W0, W1, W5.
+6. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login
+   window on PC 1.
+7. The visual language (the light appearance and the controls), once the maintainer decides.
+
+Lane BC alongside: KeepingYouAwake (the one of app set 19 with no window), BC2, BC0 in the
+CI. Audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
 
 ## Risks
 
