@@ -1901,21 +1901,19 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     _userCompletions = nil;
 }
 
+/* Shows or hides the ruler, as on the reference (a view that did not use
+   one does from then on); the menu item says which (validateMenuItem:),
+   and a plain text view has none. */
 -(void)toggleRuler:sender {
-    BOOL flag = ![self usesRuler];
+    BOOL flag = ![self isRulerVisible];
 
-    [self setUsesRuler:flag];
+    /* Set again when shown: set before the view was in its scroll view,
+       it did not reach the scroll view. */
+    if (flag)
+        [self setUsesRuler:YES];
     [self setRulerVisible:flag];
 
     [self updateRuler];
-
-    if ([sender isKindOfClass:[NSMenuItem class]]) {
-        if (flag) {
-            [sender setTitle: NSLocalizedStringFromTableInBundle(@"Hide Ruler", nil, [NSBundle bundleForClass: [NSTextView class]], @"Hide the page ruler")];
-        } else {
-            [sender setTitle: NSLocalizedStringFromTableInBundle(@"Show Ruler", nil, [NSBundle bundleForClass: [NSTextView class]], @"Show the page ruler")];
-        }
-    }
 }
 
 
@@ -2955,6 +2953,12 @@ static BOOL textSetting(NSString *key) {
     }
     else if ([item action] == @selector(performFindPanelAction:))
         return [self _validateFindPanelAction:item];
+    else if ([item action] == @selector(toggleRuler:)) {
+        NSBundle *bundle = [NSBundle bundleForClass:[NSTextView class]];
+        [item setTitle:[self isRulerVisible] ? [bundle localizedStringForKey:@"Hide Ruler" value:@"Hide Ruler" table:nil]
+                                             : [bundle localizedStringForKey:@"Show Ruler" value:@"Show Ruler" table:nil]];
+        return [self isRichText];
+    }
     return YES;
 }
 
