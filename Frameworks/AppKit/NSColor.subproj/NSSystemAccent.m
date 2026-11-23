@@ -38,6 +38,9 @@
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dispatch/dispatch.h>
 #import <Foundation/NSPathUtilities.h>
 
 NSString *const _NSColorPreferencesChangedNotification = @"AppleColorPreferencesChangedNotification";
@@ -305,11 +308,33 @@ static NSString *colorSettings(void) {
         globalValue(CFSTR("AppleHighlightColor"))];
 }
 
-/* Every two seconds: the global preferences' file looked at (a stat), and
-   when it changed, read again; an appearance, accent or highlight changed
-   with no notification (defaults write) is followed as a notified one is.
-   Auto's hour is checked here too, so the evening and the morning come on
-   time. */
+/* Seconds until Auto's next hour (7:00 or 19:00), and a moment more. */
+static NSTimeInterval untilNextSwitch(void) {
+    time_t now = time(NULL);
+    struct tm local;
+
+    localtime_r(&now, &local);
+    int hour = local.tm_hour < 7 ? 7 : local.tm_hour < 19 ? 19 : 24 + 7;
+    long seconds = (long)(hour - local.tm_hour) * 3600 - local.tm_min * 60 - local.tm_sec;
+    return (NSTimeInterval)(seconds > 0 ? seconds : 1) + 1;
+}
+
+/* Auto's next hour: one timer, set again each time. */
+- (void)scheduleSwitch {
+    static NSTimer *timer;
+
+    [timer invalidate];
+    [timer release];
+    timer = [[NSTimer scheduledTimerWithTimeInterval:untilNextSwitch() target:self selector:@selector(tick:)
+        userInfo:nil repeats:NO] retain];
+}
+
+/* When ~/Library/Preferences changes (a write there, the preferences'
+   files being written whole and renamed in), and at Auto's hours: the
+   global preferences' file looked at (a stat), and when it changed, read
+   again; an appearance, accent or highlight changed with no notification
+   (defaults write) is followed as a notified one is. Nothing runs while
+   nothing changes. */
 - (void)tick:(NSTimer *)timer {
     static NSString *file;
     static struct timespec seen;
@@ -335,6 +360,31 @@ static NSString *colorSettings(void) {
     }
     if (wantsDark() != appearanceDark)
         [self colorsChanged:nil];
+    if (timer != nil)
+        [self scheduleSwitch];
+}
+
+/* The preferences' folder watched (kqueue, through dispatch); with no
+   folder to watch, a look every two seconds as before. */
+- (void)watchPreferences {
+    NSString *folder = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Preferences"];
+    int fd = open([folder fileSystemRepresentation], O_RDONLY | O_EVTONLY);
+
+    if (fd < 0) {
+        [NSTimer scheduledTimerWithTimeInterval:2 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
+        return;
+    }
+    dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, (uintptr_t)fd,
+        DISPATCH_VNODE_WRITE | DISPATCH_VNODE_LINK | DISPATCH_VNODE_RENAME | DISPATCH_VNODE_DELETE,
+        dispatch_get_main_queue());
+    dispatch_source_set_event_handler(source, ^{
+        [self tick:nil];
+    });
+    dispatch_source_set_cancel_handler(source, ^{
+        close(fd);
+    });
+    dispatch_resume(source);
+    [self scheduleSwitch];
 }
 
 /* The pane changed them: read again, then every window drawn anew. */
@@ -383,5 +433,5 @@ void _NSWatchSystemAccentColors(void) {
     [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(themeChanged:)
         name:@"AppleInterfaceThemeChangedNotification" object:nil];
     [watcher tick:nil];
-    [NSTimer scheduledTimerWithTimeInterval:2 target:watcher selector:@selector(tick:) userInfo:nil repeats:YES];
+    [watcher watchPreferences];
 }
