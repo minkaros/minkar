@@ -24,6 +24,21 @@ static NSDictionary *sSelectedMenuTextAttributes = nil;
 static NSDictionary *sDimmedMenuTextAttributes = nil;
 static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 
+/* The menu's text in the appearance's colors now: made again when they
+   changed (the appearance switched while the app runs), not only at the
+   first use, or a menu stayed black on a dark menu. */
+static NSDictionary *menuTextAttributes(NSDictionary **cache, NSColor *color) {
+	if (*cache == nil || ![[*cache objectForKey:NSForegroundColorAttributeName] isEqual:color]) {
+		NSFont *font = [NSFont menuFontOfSize:15.0];
+		[*cache release];
+		*cache = [[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName,
+			color, NSForegroundColorAttributeName, nil] retain];
+	}
+	return *cache;
+}
+#define kNormalMenuText menuTextAttributes(&sNormalMenuTextAttributes, [NSColor menuItemTextColor])
+#define kSelectedMenuText menuTextAttributes(&sSelectedMenuTextAttributes, [NSColor selectedMenuItemTextColor])
+
 + (void)initialize
 {
 	if (sNormalMenuTextAttributes == nil)
@@ -149,7 +164,7 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	NSSize result = NSZeroSize;
 	Margins margins = [self menuItemTextMargins];
 	
-	result = [title sizeWithAttributes:sNormalMenuTextAttributes];
+	result = [title sizeWithAttributes:kNormalMenuText];
 	
 	result.height += (margins.top + margins.bottom);
 	result.width += (margins.left + margins.right);
@@ -212,11 +227,11 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	{
 		if (selected)
 		{
-			[string drawInRect:rect withAttributes:sSelectedMenuTextAttributes];
+			[string drawInRect:rect withAttributes:kSelectedMenuText];
 		}
 		else
 		{
-			[string drawInRect:rect withAttributes:sNormalMenuTextAttributes];
+			[string drawInRect:rect withAttributes:kNormalMenuText];
 		}
 	}
 	else
@@ -378,7 +393,7 @@ NSColor *_NSMenuBarTextColor(void) {
 
 -(void)drawMenuBarItemText:(NSString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
 	[self drawAttributedMenuBarItemText:[[[NSAttributedString alloc] initWithString:string
-		attributes:sNormalMenuTextAttributes] autorelease] inRect:rect enabled:enabled selected:selected];
+		attributes:kNormalMenuText] autorelease] inRect:rect enabled:enabled selected:selected];
 }
 
 -(void)drawAttributedMenuBarItemText:(NSAttributedString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
