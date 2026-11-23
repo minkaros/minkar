@@ -441,6 +441,21 @@ NSEvent *NSEventRunLocalMonitors(NSEvent *event) {
    return nil;
 }
 
+/* The window server's layout gives the key's characters with these
+   modifiers (the selected keyboard layout's, as the event's own). Only a
+   key event has them, as on the reference. */
+-(NSString *)charactersByApplyingModifiers:(NSEventModifierFlags)modifiers {
+   SLSKeyCharacters key;
+   NSEventType type=[self type];
+
+   if(type!=NSEventTypeKeyDown && type!=NSEventTypeKeyUp)
+    [NSException raise:NSInternalInconsistencyException
+                format:@"-[NSEvent charactersByApplyingModifiers:] sent to a non-key event"];
+   if(SLSKeyboardTranslate([self keyCode],(uint32_t)modifiers,&key)!=kSLSErrorSuccess)
+    return [self charactersIgnoringModifiers];
+   return [NSString stringWithUTF8String:key.characters];
+}
+
 -(unsigned short)keyCode {
    return 0xFFFF;
 }

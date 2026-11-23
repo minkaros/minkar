@@ -374,6 +374,9 @@ typedef NS_ENUM(short, NSEventSubtype) {
 
 @property (readonly, copy) NSString *characters;
 @property (readonly, copy) NSString *charactersIgnoringModifiers;
+/* The key's characters with these modifiers instead of the event's (a
+   key event only). */
+- (NSString *)charactersByApplyingModifiers:(NSEventModifierFlags)modifiers API_AVAILABLE(macos(10.15));
 @property (readonly, getter=isARepeat) BOOL ARepeat;
 @property (readonly) unsigned short keyCode;
 /* The function key the event is for (NSUpArrowFunctionKey...), or 0. */
