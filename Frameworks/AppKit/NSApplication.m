@@ -1103,6 +1103,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NS_ENDHANDLER
 
    [self _addFullScreenItem];
+   [self _addTileItems];
    [self _addTabItems];
    [self _addWindowAlternates];
    [self _noteRecentApplication];
@@ -1158,6 +1159,40 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
     [view addItem:[NSMenuItem separatorItem]];
    [view addItem:full];
+}
+
+/* Tiling's items, as AppKit adds them to the Window menu after Zoom (or
+   Minimize): Tile Window to Left of Screen, Move Window to Left Side of
+   Screen with Option, and the same to the right. */
+-(void)_addTileItems {
+   NSBundle *appKit=[NSBundle bundleForClass:[NSApplication class]];
+   NSMenu   *window=[self windowsMenu];
+
+   if(window==nil || [window indexOfItemWithTarget:nil andAction:@selector(_tileWindowToLeftOfScreen:)]>=0)
+    return;
+   NSInteger at=[window indexOfItemWithTarget:nil andAction:@selector(performZoom:)];
+   if(at<0)
+    at=[window indexOfItemWithTarget:nil andAction:@selector(performMiniaturize:)];
+   at=(at<0) ? 0 : at+1;
+   struct { NSString *title; SEL action; BOOL alternate; } items[]={
+    { @"Tile Window to Left of Screen", @selector(_tileWindowToLeftOfScreen:), NO },
+    { @"Move Window to Left Side of Screen", @selector(_moveWindowToLeftSideOfScreen:), YES },
+    { @"Tile Window to Right of Screen", @selector(_tileWindowToRightOfScreen:), NO },
+    { @"Move Window to Right Side of Screen", @selector(_moveWindowToRightSideOfScreen:), YES },
+   };
+
+   for(size_t i=0;i<sizeof(items)/sizeof(items[0]);i++){
+    NSMenuItem *item=[[[NSMenuItem alloc] initWithTitle:[appKit localizedStringForKey:items[i].title value:items[i].title table:nil]
+       action:items[i].action keyEquivalent:@""] autorelease];
+
+    if(items[i].alternate){
+     [item setKeyEquivalentModifierMask:NSAlternateKeyMask];
+     [item setAlternate:YES];
+    }
+    else
+     [item setKeyEquivalentModifierMask:0];
+    [window insertItem:item atIndex:at++];
+   }
 }
 
 /* Window tabs' items, as AppKit adds them when the app allows automatic

@@ -123,3 +123,9 @@
 "Show Next Tab" = "Mostrar pestaña siguiente";
 "Move Tab to New Window" = "Mover pestaña a una ventana nueva";
 "Merge All Windows" = "Combinar todas las ventanas";
+
+/* Tiling */
+"Tile Window to Left of Screen" = "Ventana en mosaico a la izquierda de la pantalla";
+"Tile Window to Right of Screen" = "Ventana en mosaico a la derecha de la pantalla";
+"Move Window to Left Side of Screen" = "Mover ventana al lado izquierdo de la pantalla";
+"Move Window to Right Side of Screen" = "Mover ventana al lado derecho de la pantalla";

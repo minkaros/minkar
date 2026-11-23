@@ -3046,6 +3046,11 @@ static void sendAppearance(NSView *view,SEL selector) {
 }
 
 -(void)performZoom:sender {
+    /* In full screen, or tiled: out of it, back to its frame. */
+    if(objc_getAssociatedObject(self,&fullScreenFrameKey)!=nil) {
+        [self toggleFullScreen:sender];
+        return;
+    }
     [self zoom: sender];
 }
 
@@ -3758,6 +3763,11 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
         [item setTitle:[[NSBundle bundleForClass:[NSWindow class]] localizedStringForKey:key value:key table:nil]];
         return YES;
     }
+    /* Tiling: a window that can be resized. */
+    if ([item action] == @selector(_tileWindowToLeftOfScreen:) || [item action] == @selector(_tileWindowToRightOfScreen:) ||
+        [item action] == @selector(_moveWindowToLeftSideOfScreen:) || [item action] == @selector(_moveWindowToRightSideOfScreen:))
+        return ([self styleMask] & NSWindowStyleMaskTitled) && ([self styleMask] & NSWindowStyleMaskResizable) &&
+            ![self isKindOfClass:[NSPanel class]];
     /* Window tabs: Show/Hide Tab Bar; the others need tabs, or windows
        to merge. A window that cannot be a tab has none of them. */
     SEL action = [item action];
@@ -4102,6 +4112,44 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
     [self setFrame:[[self screen] ?: [NSScreen mainScreen] visibleFrame] display:YES];
    }
+}
+
+/* Tiling (W1, Atlas.md 5.5). The left or right half of the screen's
+   visible frame, as the reference lays it out (between the menu bar and
+   the Dock). */
+-(NSRect)_halfOfScreen:(BOOL)right {
+   NSRect visible=[[self screen] ?: [NSScreen mainScreen] visibleFrame];
+   CGFloat half=floor(NSWidth(visible)/2);
+
+   return NSMakeRect(right ? NSMaxX(visible)-half : NSMinX(visible),NSMinY(visible),half,NSHeight(visible));
+}
+
+/* Tile Window to Left (Right) of Screen: full screen in that half (no
+   spaces: the window keeps its frame to come back to, and Exit Full
+   Screen gives it back), so two apps share the screen. */
+-(void)_tileToHalf:(BOOL)right {
+   if(objc_getAssociatedObject(self,&fullScreenFrameKey)==nil)
+    objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
+   [self setFrame:[self _halfOfScreen:right] display:YES];
+   [self makeKeyAndOrderFront:nil];
+}
+
+-(void)_tileWindowToLeftOfScreen:(id)sender {
+   [self _tileToHalf:NO];
+}
+
+-(void)_tileWindowToRightOfScreen:(id)sender {
+   [self _tileToHalf:YES];
+}
+
+/* Move Window to Left (Right) Side of Screen (Tile's alternate, with
+   Option): only its frame. */
+-(void)_moveWindowToLeftSideOfScreen:(id)sender {
+   [self setFrame:[self _halfOfScreen:NO] display:YES];
+}
+
+-(void)_moveWindowToRightSideOfScreen:(id)sender {
+   [self setFrame:[self _halfOfScreen:YES] display:YES];
 }
 
 static char animationBehaviorKey;

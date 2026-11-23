@@ -388,9 +388,12 @@ are part of Minkar 19.6.0.
   Dock pane, Show Tab Bar, Show Previous/Next Tab, Move Tab to New Window, Merge All
   Windows; tests `appkit-window-tabs`, `text-editor-tabs`. Not yet: Show All Tabs (the
   overview).
-- [ ] **W1 — Tiling.** Tile Window to Left/Right of Screen, Move Window to Left/Right Side
+- [x] **W1 — Tiling.** Tile Window to Left/Right of Screen, Move Window to Left/Right Side
   of Screen, holding the zoom button, two full-screen windows side by side. Gate: two apps
-  share the screen and leave it as they came.
+  share the screen and leave it as they came. Done (23 Nov 2026): the Window menu's items
+  (Move with Option), the zoom button's menu held, a tiled window back to its frame by
+  Exit Full Screen or the zoom button; test `window-tiling`. Not yet: choosing the other
+  half's window and moving the divider (they need spaces).
 - [ ] **W2 — Window restoration.** `NSWindowRestoration`, `restorable`,
   `encodeRestorableStateWithCoder:`, restoration at launch, Quit and Keep Windows. Gate:
   Text Editor quit with two documents comes back with both, in their places.

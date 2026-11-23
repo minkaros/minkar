@@ -40,11 +40,20 @@ BOOL _NSSystemAppearanceIsDark(void);
 @end
 extern const CGFloat NSWindowTabBarHeight;
 
+/* Tiling (NSWindow.m). */
+@interface NSWindow (NSWindowTiling)
+-(void)_tileWindowToLeftOfScreen:(id)sender;
+-(void)_tileWindowToRightOfScreen:(id)sender;
+@end
+
 /* The view the frame places for an accessory (NSTitlebarAccessoryViewController.m). */
 @interface NSTitlebarAccessoryViewController (NSThemeFrame)
 -(NSView *)_titlebarContainerView;
 @end
 #import <AppKit/NSAttributedString.h>
+#import <AppKit/NSApplication.h>
+#import <AppKit/NSMenu.h>
+#import <AppKit/NSMenuItem.h>
 #import <Onyx2D/O2Context.h>
 
 extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
@@ -535,6 +544,26 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 }
 
 /* The title bar's double-click action, done when the button comes up. */
+/* The zoom button's menu: Enter (Exit) Full Screen, Tile Window to Left
+   of Screen, Tile Window to Right of Screen, for the window. */
+-(void)_popUpZoomMenu {
+    NSWindow *window = [self window];
+    NSBundle *appKit = [NSBundle bundleForClass:[NSThemeFrame class]];
+    NSMenu   *menu = [[[NSMenu alloc] initWithTitle:@""] autorelease];
+    struct { NSString *title; SEL action; } items[] = {
+        { @"Enter Full Screen", @selector(toggleFullScreen:) },
+        { @"Tile Window to Left of Screen", @selector(_tileWindowToLeftOfScreen:) },
+        { @"Tile Window to Right of Screen", @selector(_tileWindowToRightOfScreen:) },
+    };
+
+    for(size_t i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+        NSMenuItem *item = [menu addItemWithTitle:[appKit localizedStringForKey:items[i].title value:items[i].title table:nil]
+            action:items[i].action keyEquivalent:@""];
+        [item setTarget:window];
+    }
+    [menu popUpMenuPositioningItem:nil atLocation:NSMakePoint(NSMinX(_zoomButtonRect), NSMinY(_zoomButtonRect) - 2) inView:self];
+}
+
 static char titleBarActionKey;
 
 -(void)mouseUp:(NSEvent *)event {
@@ -563,8 +592,16 @@ static char titleBarActionKey;
             [[self window] performClose:self];
         else if(NSPointInRect(pos, _miniButtonRect) && (mask & NSMiniaturizableWindowMask))
             [[self window] performMiniaturize:self];
-        else if(NSPointInRect(pos, _zoomButtonRect) && (mask & NSResizableWindowMask))
-            [[self window] performZoom:self];
+        else if(NSPointInRect(pos, _zoomButtonRect) && (mask & NSResizableWindowMask)) {
+            /* Held (half a second): Enter Full Screen and the tiles, in a
+               menu under the button, as on the reference; else a zoom. */
+            NSEvent *up = [NSApp nextEventMatchingMask:NSLeftMouseUpMask
+                untilDate:[NSDate dateWithTimeIntervalSinceNow:0.5] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+            if(up != nil || [[self window] isSheet])
+                [[self window] performZoom:self];
+            else
+                [self _popUpZoomMenu];
+        }
     }
     else if(pos.y > (NSMaxY(_frame) - top) && [event clickCount] == 2) {
         /* Minkar: a double click on the title bar does what the user chose
