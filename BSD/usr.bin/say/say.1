@@ -1,0 +1,45 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt SAY 1
+.Os Minkar
+.Sh NAME
+.Nm say
+.Nd speak text
+.Sh SYNOPSIS
+.Nm
+.Op Fl v Ar voice
+.Op Fl r Ar rate
+.Op Fl o Ar file
+.Op Fl f Ar file | Ar message
+.Sh DESCRIPTION
+.Nm
+speaks
+.Ar message ,
+or the text of the file given with
+.Fl f
+.Pq Ql - : standard input ,
+or standard input.
+The voice is made by eSpeak NG, a program of its own
+.Pq Pa /usr/libexec/espeak-ng ,
+in the user's first preferred language unless
+.Fl v
+names another.
+.Bl -tag -width indent
+.It Fl v Ar voice
+A voice's name, a language
+.Pq Cm es
+or a locale
+.Pq Cm es_MX ;
+.Fl v Ql \&?
+lists the voices.
+.It Fl r Ar rate
+Words a minute.
+.It Fl o Ar file
+Keep the speech in
+.Ar file
+instead of playing it: AIFF, or WAV for a name that ends in
+.Pa .wav .
+.El
+.Sh SEE ALSO
+.Xr afplay 1

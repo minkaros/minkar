@@ -194,6 +194,11 @@ GPL or LGPL code is linked statically into Minkar's own.
 - GNU bash 5.3 - GPL-3.0-or-later (BSD/usr.bin/bash/dist/COPYING; its
   readline: BSD/usr.bin/bash/dist/lib/readline/COPYING)
 - GNU nano 9.3 - GPL-3.0-or-later (BSD/usr.bin/nano/dist/COPYING)
+- eSpeak NG 1.52.0 (the speech synthesizer, /usr/libexec/espeak-ng, run by
+  say as a process of its own) - GPL-3.0-or-later, with parts under the
+  Apache License 2.0, BSD-2-Clause and the Unicode license
+  (BSD/libexec/espeak-ng/MANIFEST; its COPYING files, installed in
+  /usr/share/licenses/espeak-ng)
 - rsync 3.5.1 - GPL-3.0-or-later, with its OpenSSL and xxhash exception
   (BSD/usr.bin/rsync/dist/COPYING; popt: BSD/usr.bin/rsync/dist/popt/COPYING)
 - git 2.56.0 - GPL-2.0 (BSD/usr.bin/git/dist/COPYING; xdiff and parts of
