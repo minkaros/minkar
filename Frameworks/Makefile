@@ -8,6 +8,8 @@ SUBDIR += ../Kernel/IOKitUser
 # CFNetwork: Minkar's subset (the proxy API); the APSL sources wait.
 SUBDIR += CFNetwork/minkar
 SUBDIR += SystemConfiguration
+# Its privileged helper, for SCPreferences opened with an authorization.
+SUBDIR += SystemConfiguration/SCHelper
 # DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
 SUBDIR += DiskArbitration
 # libcompression (from BSD/lib) and the liblzma it links (CoreText's xz):
@@ -188,6 +190,7 @@ ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
 SecurityInterface: AppKit Security/minkar
+SystemConfiguration/SCHelper: SystemConfiguration Security/minkar
 ExceptionHandling: Foundation
 QuickLook: CoreGraphics CoreFoundation
 ../Libraries/swift: CoreFoundation CoreGraphics Foundation
