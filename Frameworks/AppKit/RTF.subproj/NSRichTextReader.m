@@ -191,6 +191,11 @@ static NSInteger codePageFromCharset(NSInteger charset)
     return [_states lastObject];
 }
 
+/* A group ({...}) keeps the character formatting it starts with: what it
+   sets (\b, \i, a font) ends with it. The formatting before the group
+   is saved with the state it pushes and put back when it ends. */
+static NSString *const kStateOuterAttributesKey = @"NSRichTextReaderOuterAttributes";
+
 -(void)pushState
 {
     // Save a copy of the current state on the stack
@@ -198,13 +203,18 @@ static NSInteger codePageFromCharset(NSInteger charset)
     if (state == nil) {
         state = [NSMutableDictionary dictionary];
     }
+    [state setObject:[[_currentAttributes copy] autorelease] forKey:kStateOuterAttributesKey];
     [_states addObject:state];
 }
 
 -(void)popState
 {
+    NSDictionary *outer = [[[[self currentState] objectForKey:kStateOuterAttributesKey] retain] autorelease];
+
     // Pop the current state on the stack
     [_states removeLastObject];
+    if (outer != nil)
+        [_currentAttributes setDictionary:outer];
 }
 
 -(NSInteger)currentDestination

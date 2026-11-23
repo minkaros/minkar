@@ -519,6 +519,11 @@ static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface) {
 	NSFontTypeface *newface;
 		
 	newface=[family typefaceWithTraits:traits];
+	/* No face without every trait asked (the RTF writer asks for the
+	   plain one with all of them): bold and italic alone taken away, the
+	   face's other traits kept. */
+	if(newface==nil)
+		newface=[family typefaceWithTraits:[typeface traits] & ~(trait & (NSBoldFontMask|NSItalicFontMask))];
 	
 	if(newface!=nil) {
 		return [NSFont fontWithName:[newface name] size:[font pointSize]];
