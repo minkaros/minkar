@@ -414,6 +414,14 @@ static NSPoint nextOrigin;
 
 /* -- Closing -- */
 
+/* Its file, kept when the app quits keeping its windows (an untitled
+   one comes back untitled). */
+- (void)window:(NSWindow *)window willEncodeRestorableState:(NSCoder *)state
+{
+    if (_fileURL != nil)
+        [state encodeObject:[_fileURL path] forKey:@"EditorDocumentPath"];
+}
+
 - (BOOL)windowShouldClose:(id)sender
 {
     if (!_edited)

@@ -14,7 +14,7 @@
 #import "EditorDocumentWindow.h"
 #include <os/log.h>
 
-@interface EditorApplication : NSObject <NSApplicationDelegate, EditorDocumentWindowDelegate>
+@interface EditorApplication : NSObject <NSApplicationDelegate, EditorDocumentWindowDelegate, NSWindowRestoration>
 @end
 
 @implementation EditorApplication {
@@ -162,8 +162,33 @@ static void addMenu(NSString *title, NSMenu *menu)
     [self add:d];
 }
 
+/* A document window kept when the app quit keeping its windows: its file
+   opened again (or a new untitled one); none when the file is gone. */
++ (void)restoreWindowWithIdentifier:(NSUserInterfaceItemIdentifier)identifier
+                              state:(NSCoder *)state
+                  completionHandler:(void (^)(NSWindow *, NSError *))completionHandler
+{
+    EditorApplication *app = (EditorApplication *)[NSApp delegate];
+    NSString *path = [state decodeObjectForKey:@"EditorDocumentPath"];
+    EditorDocumentWindow *d;
+    NSError *error = nil;
+
+    if (![app isKindOfClass:[EditorApplication class]] || ![identifier isEqualToString:@"EditorDocument"]) {
+        completionHandler(nil, nil);
+        return;
+    }
+    d = path != nil ? [[EditorDocumentWindow alloc] initWithURL:[NSURL fileURLWithPath:path] error:&error]
+                    : [[EditorDocumentWindow alloc] initUntitled:++app->_untitled];
+    if (d != nil)
+        [app add:d];
+    completionHandler(d.window, error);
+}
+
 - (void)add:(EditorDocumentWindow *)document
 {
+    /* Kept when the app quits keeping its windows. */
+    [document.window setIdentifier:@"EditorDocument"];
+    [document.window setRestorationClass:[EditorApplication class]];
     document.delegate = self;
     [_documents addObject:document];
     [document show];

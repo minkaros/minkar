@@ -394,9 +394,14 @@ are part of Minkar 19.6.0.
   (Move with Option), the zoom button's menu held, a tiled window back to its frame by
   Exit Full Screen or the zoom button; test `window-tiling`. Not yet: choosing the other
   half's window and moving the divider (they need spaces).
-- [ ] **W2 — Window restoration.** `NSWindowRestoration`, `restorable`,
+- [x] **W2 — Window restoration.** `NSWindowRestoration`, `restorable`,
   `encodeRestorableStateWithCoder:`, restoration at launch, Quit and Keep Windows. Gate:
-  Text Editor quit with two documents comes back with both, in their places.
+  Text Editor quit with two documents comes back with both, in their places. Done (23 Nov
+  2026): the state saved as the app quits keeping its windows (Quit and Keep Windows,
+  Option-Command-Q, or the General pane's choice) in `~/Library/Saved Application State`,
+  the windows made again at launch by their restoration classes; test
+  `text-editor-restore`. Not yet: saving while the app runs (after a crash), NSDocument's
+  own restoration, views' restorable state.
 - [ ] **W3 — Emoji & Symbols.** The Edit menu's item and a character panel inserting
   through `insertText:`. Gate: a character chosen is inserted into Text Editor.
 - [ ] **W4 — Dictation.** *To decide:* it needs an on-device speech recognizer; until then
