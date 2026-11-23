@@ -4,9 +4,11 @@
  * Part of Minkar.
  *
  * The text editor's document window: the text in a scrolling text view, the file's
- * name as the title (with a mark while there are unsaved changes), saving
- * as UTF-8 in place, and a question before unsaved changes are lost.
- * Atlas's provisional look.
+ * name as the title (with a mark while there are unsaved changes), and a
+ * question before unsaved changes are lost. A file keeps its encoding
+ * (UTF-8 or UTF-16 by their byte order mark, UTF-8 when it is valid, else
+ * Latin-1), its byte order mark and its line endings (LF, CRLF or CR; LF in
+ * the window); Save As chooses both (Atlas.md, A2).
  */
 
 #import "EditorDocumentWindow.h"
@@ -21,7 +23,69 @@
     NSURL *_fileURL;
     NSString *_untitledName;
     NSStringEncoding _encoding;
+    BOOL _byteOrderMark;        /* UTF-8's, kept when the file had it */
+    NSString *_lineEnding;      /* @"\n", @"\r\n" or @"\r" */
+    NSPopUpButton *_encodingChoice, *_lineEndingChoice;   /* Save As */
     BOOL _edited;
+}
+
+/* The encodings offered, as Save As lists them. */
+static NSArray<NSArray *> *encodings(void)
+{
+    return @[ @[ @"Unicode (UTF-8)", @(NSUTF8StringEncoding) ],
+              @[ @"Unicode (UTF-16)", @(NSUTF16StringEncoding) ],
+              @[ @"Western (ISO Latin 1)", @(NSISOLatin1StringEncoding) ],
+              @[ @"Western (Windows Latin 1)", @(NSWindowsCP1252StringEncoding) ] ];
+}
+
+static NSArray<NSArray *> *lineEndings(void)
+{
+    return @[ @[ @"LF (Unix)", @"\n" ], @[ @"CRLF (Windows)", @"\r\n" ], @[ @"CR", @"\r" ] ];
+}
+
+/* The text of a file's bytes: its encoding by its byte order mark, else
+   UTF-8 when valid, else Latin-1 (every byte is one of its characters). */
+static NSString *decode(NSData *data, NSStringEncoding *encoding, BOOL *bom)
+{
+    const unsigned char *b = [data bytes];
+    NSUInteger n = [data length];
+
+    *bom = NO;
+    if (n >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) {
+        *encoding = NSUTF8StringEncoding;
+        *bom = YES;
+        return [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(3, n - 3)]
+                                     encoding:NSUTF8StringEncoding];
+    }
+    if (n >= 2 && ((b[0] == 0xFF && b[1] == 0xFE) || (b[0] == 0xFE && b[1] == 0xFF))) {
+        *encoding = NSUTF16StringEncoding;
+        return [[NSString alloc] initWithData:data encoding:NSUTF16StringEncoding];
+    }
+    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (text != nil) {
+        *encoding = NSUTF8StringEncoding;
+        return text;
+    }
+    *encoding = NSISOLatin1StringEncoding;
+    return [[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding];
+}
+
+/* The first line ending's kind (LF with none), and the text with LF. */
+static NSString *lineEndingOf(NSString *text)
+{
+    NSRange r = [text rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"\r\n"]];
+
+    if (r.location == NSNotFound || [text characterAtIndex:r.location] == '\n')
+        return @"\n";
+    if (r.location + 1 < [text length] && [text characterAtIndex:r.location + 1] == '\n')
+        return @"\r\n";
+    return @"\r";
+}
+
+static NSString *withLF(NSString *text)
+{
+    text = [text stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"];
+    return [text stringByReplacingOccurrencesOfString:@"\r" withString:@"\n"];
 }
 
 static NSPoint nextOrigin;
@@ -63,6 +127,10 @@ static NSPoint nextOrigin;
     /* Plain text in the user's fixed-pitch font (NSFixedPitchFont). */
     [_text setFont:[NSFont userFixedPitchFontOfSize:13]];
     [_text setString:text];
+    /* The insertion point at the start, the top shown, as the reference
+       opens a document. */
+    [_text setSelectedRange:NSMakeRange(0, 0)];
+    [_text scrollRangeToVisible:NSMakeRange(0, 0)];
     [_text setDelegate:self];
     [scroll setDocumentView:_text];
     [_window setContentView:scroll];
@@ -75,6 +143,7 @@ static NSPoint nextOrigin;
     if ((self = [super init]) == nil)
         return nil;
     _encoding = NSUTF8StringEncoding;
+    _lineEnding = @"\n";
     _untitledName = number <= 1 ? NSLocalizedString(@"Untitled", nil)
         : [NSString stringWithFormat:NSLocalizedString(@"Untitled %lu", nil), (unsigned long)number];
     [self makeWindowWithText:@""];
@@ -88,15 +157,11 @@ static NSPoint nextOrigin;
     NSData *data = [NSData dataWithContentsOfURL:url options:0 error:error];
     if (data == nil)
         return nil;
-    /* UTF-8, else Latin-1 (every byte is one of its characters). */
-    _encoding = NSUTF8StringEncoding;
-    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (text == nil) {
-        _encoding = NSISOLatin1StringEncoding;
-        text = [[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding];
-    }
+    NSString *text = decode(data, &_encoding, &_byteOrderMark);
     if (text == nil)
         return nil;
+    _lineEnding = lineEndingOf(text);
+    text = withLF(text);
     _fileURL = [url copy];
     [self makeWindowWithText:text];
     os_log_info(OS_LOG_DEFAULT, "opened %{public}s", [[url path] fileSystemRepresentation]);
@@ -150,7 +215,18 @@ static NSPoint nextOrigin;
 {
     NSError *error = nil;
     NSString *text = [_text string];
-    NSData *data = [text dataUsingEncoding:_encoding] ?: [text dataUsingEncoding:NSUTF8StringEncoding];
+    if (![_lineEnding isEqualToString:@"\n"])
+        text = [text stringByReplacingOccurrencesOfString:@"\n" withString:_lineEnding];
+    NSMutableData *data = [[text dataUsingEncoding:_encoding] mutableCopy];
+    if (data == nil) {
+        /* Characters the encoding does not have: UTF-8, said so. */
+        os_log_info(OS_LOG_DEFAULT, "the text does not fit its encoding: saved as UTF-8");
+        _encoding = NSUTF8StringEncoding;
+        _byteOrderMark = NO;
+        data = [[text dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
+    }
+    if (_encoding == NSUTF8StringEncoding && _byteOrderMark)
+        [data replaceBytesInRange:NSMakeRange(0, 0) withBytes:"\xEF\xBB\xBF" length:3];
 
     if (data == nil || ![data writeToURL:url options:NSDataWritingAtomic error:&error]) {
         NSAlert *alert = [[NSAlert alloc] init];
@@ -184,9 +260,49 @@ static NSPoint nextOrigin;
                                             : [_untitledName stringByAppendingPathExtension:@"txt"]];
     if (_fileURL != nil)
         [panel setDirectoryURL:[_fileURL URLByDeletingLastPathComponent]];
+    [panel setAccessoryView:[self saveOptionsView]];
     if ([panel runModal] != NSFileHandlingPanelOKButton || [panel URL] == nil)
         return NO;
+    NSStringEncoding chosen = [encodings()[(NSUInteger)[_encodingChoice indexOfSelectedItem]][1] unsignedIntegerValue];
+    if (chosen != _encoding)
+        _byteOrderMark = NO;
+    _encoding = chosen;
+    _lineEnding = lineEndings()[(NSUInteger)[_lineEndingChoice indexOfSelectedItem]][1];
     return [self writeTo:[panel URL]];
+}
+
+/* Save As's options: the encoding and the line endings, the document's
+   own chosen. */
+- (NSView *)saveOptionsView
+{
+    NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 420, 70)];
+    NSArray *rows = @[ @[ NSLocalizedString(@"Plain Text Encoding:", nil), encodings() ],
+                       @[ NSLocalizedString(@"Line Endings:", nil), lineEndings() ] ];
+
+    for (NSUInteger r = 0; r < [rows count]; r++) {
+        NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 40 - r * 32, 170, 20)];
+        [label setStringValue:rows[r][0]];
+        [label setEditable:NO];
+        [label setBordered:NO];
+        [label setDrawsBackground:NO];
+        [label setAlignment:NSRightTextAlignment];
+        [view addSubview:label];
+        NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(176, 36 - r * 32, 230, 26) pullsDown:NO];
+        NSInteger selected = 0;
+        NSArray *choices = rows[r][1];
+        for (NSUInteger i = 0; i < [choices count]; i++) {
+            [popup addItemWithTitle:NSLocalizedString(choices[i][0], nil)];
+            if (r == 0 ? [choices[i][1] unsignedIntegerValue] == _encoding : [choices[i][1] isEqual:_lineEnding])
+                selected = (NSInteger)i;
+        }
+        [popup selectItemAtIndex:selected];
+        [view addSubview:popup];
+        if (r == 0)
+            _encodingChoice = popup;
+        else
+            _lineEndingChoice = popup;
+    }
+    return view;
 }
 
 /* -- Closing -- */

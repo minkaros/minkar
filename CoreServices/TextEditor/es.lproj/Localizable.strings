@@ -36,3 +36,14 @@
 "Find Next" = "Buscar siguiente";
 "Find Previous" = "Buscar anterior";
 "Use Selection for Find" = "Usar selección para buscar";
+
+/* Save As: the encoding and the line endings */
+"Plain Text Encoding:" = "Codificación de texto:";
+"Line Endings:" = "Finales de línea:";
+"Unicode (UTF-8)" = "Unicode (UTF-8)";
+"Unicode (UTF-16)" = "Unicode (UTF-16)";
+"Western (ISO Latin 1)" = "Occidental (ISO Latin 1)";
+"Western (Windows Latin 1)" = "Occidental (Windows Latin 1)";
+"LF (Unix)" = "LF (Unix)";
+"CRLF (Windows)" = "CRLF (Windows)";
+"CR" = "CR";

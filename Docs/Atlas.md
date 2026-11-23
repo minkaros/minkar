@@ -326,7 +326,9 @@ Help menu), Characters (ICU).
 - [x] A0 — App foundations and the template `Developer/Templates/AtlasApp`. `5a721456ef`, `fbef0a5927`; test `atlas-app`
 - [x] A1 — Terminal on libvterm 0.3.3, with tabs and Preferences. `d7b7c4f405`; test `terminal`
 - [ ] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
-  `open -t`. Left: RTF, find and replace, encodings and line endings, printing, the ruler.
+  `open -t`; find and replace through AppKit's Find panel (`10594b5eb5`, test
+  `text-editor-find`); encodings and line endings kept, and chosen in Save As (test
+  `text-editor-encodings`). Left: RTF, printing, the ruler.
   Tests: a round trip in each encoding, find and replace, an RTF document reopened.
 - [x] A3 — System Monitor. `5a1c89ed68`; test `system-monitor`. Per-process energy waits for the power driver's data.
 - [x] A4 — Logs on `log --style ndjson`. `033761cf48`; test `logs`. Nothing writes crash reports yet.
