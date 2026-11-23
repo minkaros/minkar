@@ -318,8 +318,13 @@ static NSPrintOperation *_currentOperation=nil;
      [[NSWorkspace sharedWorkspace] openURL:pdf];
     } else {
      NSPrinter *printer=[_printInfo printer];
+     PMPrintSettings settings=(PMPrintSettings)[_printInfo PMPrintSettings];
+     NSString *title=[self jobTitle] ?: [[_view window] title];
+     /* The job named after the document, as the queue shows it. */
+     if([title length])
+      PMPrintSettingsSetJobName(settings,(CFStringRef)title);
      OSStatus status=printer!=nil ? PMPrinterPrintWithFile((PMPrinter)[printer _PMPrinter],
-        (PMPrintSettings)[_printInfo PMPrintSettings],(PMPageFormat)[_printInfo PMPageFormat],
+        settings,(PMPageFormat)[_printInfo PMPageFormat],
         kPMDocumentFormatPDF,(CFURLRef)pdf) : kPMInvalidPrinter;
      if(status!=kPMNoError)
       NSLog(@"the document could not be printed: %d",(int)status);
