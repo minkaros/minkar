@@ -16,7 +16,7 @@ _Updated 2026-11-21, devel `0c9719239c`_
 | [Dock](Atlas.md#4-dock-and-files) | 🟩🟩🟩🟩🟨 | 4 / 5 | D4 | — |
 | [Files](Atlas.md#4-dock-and-files) | 🟩🟩🟩🟩⬜ | 4 / 5 | — | K4 |
 | [Atlas](ROADMAP.md#phase-5--atlas-desktop) | ⬜🟩⬜ | 1 / 3 | — | LoginWindow |
-| [Apps · DMG](Atlas.md#5-applications) | 🟩🟩🟨🟨⬜ | 2 / 5 | A2 Text Editor, A3–A4 · DMG | A5–A10 |
+| [Apps · DMG](Atlas.md#5-applications) | 🟩🟩🟩🟨⬜ | 3 / 5 | A3–A4 · DMG | A5–A10 |
 | [WebKit](ROADMAP.md#webkit) | 🟨🟦🟩🟩🟩🟨 | 3 / 6 | W1 JSC | — |
 | [GPU track](GPU.md) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Audio](ROADMAP.md#audio-and-media) | 🟩⬜ | 1 / 2 | — | AU7–AU10 |

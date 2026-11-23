@@ -148,12 +148,12 @@
 <text x="20" y="575" font-size="15" font-weight="700" fill="#1a7f37" text-anchor="start">Apps · DMG</text>
 <line x1="805" y1="570" x2="1025" y2="570" stroke="#1a7f37" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="805" y1="570" x2="970" y2="570" stroke="#1a7f37" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="805" y1="570" x2="860" y2="570" stroke="#1a7f37" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="805" y1="570" x2="915" y2="570" stroke="#1a7f37" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="805" cy="570" r="10" fill="#1a7f37" stroke="#ffffff" stroke-width="3"/><path d="M800.5 570 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="805" y="599" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">A0 base</text>
 <circle cx="860" cy="570" r="10" fill="#1a7f37" stroke="#ffffff" stroke-width="3"/><path d="M855.5 570 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="860" y="552" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">A1 Terminal</text>
-<circle cx="915" cy="570" r="9" fill="#ffffff" stroke="#1a7f37" stroke-width="3"/><path d="M915 564 A6 6 0 0 0 915 576 Z" fill="#1a7f37"/>
+<circle cx="915" cy="570" r="10" fill="#1a7f37" stroke="#ffffff" stroke-width="3"/><path d="M910.5 570 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="915" y="599" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">A2 Text Editor</text>
 <circle cx="970" cy="570" r="9" fill="#ffffff" stroke="#1a7f37" stroke-width="3"/><path d="M970 564 A6 6 0 0 0 970 576 Z" fill="#1a7f37"/>
 <text x="970" y="552" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">A3–A4 · DMG</text>

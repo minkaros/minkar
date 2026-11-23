@@ -180,7 +180,7 @@ doc = "Atlas.md#5-applications"
 # Atlas's apps for 19.6.0 (A0 to A4, chapter 5; A5 to A10 moved to 19.6.x
 # on 2026-11-20) and DMG installs (Phase 6).
 stations = [
-  ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "partial"],
+  ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "done"],
   ["A3–A4 · DMG", 970, "partial"], ["A5–A10", 1025, "todo"],
 ]
 
@@ -364,7 +364,7 @@ line = "gpu"
 
 [[board.later]]
 group = "Minkar 19.6.0"
-items = [["App A2: the text editor", "apps"], ["AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices", "audio"],
+items = [["Printing: cupsd and the Printers pane", "apps"], ["AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices", "audio"],
   ["BC2–BC4: the loader, the ABI audit, the API 19 set", "bc"],
   ["MB3: Lock Screen with the graphical login", "mb"], ["Security: the APSL sources replace the subset", "fw"],
   ["The system installer: USB medium, first start", "apps"]]

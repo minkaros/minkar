@@ -82,36 +82,37 @@
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 19.6.0</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">App A2: the text editor</text>
-<circle cx="862.5" cy="171" r="4.5" fill="#3bc4b5"/>
-<text x="874.5" y="176" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">AU7–AU10: USB audio, MIDI,</text>
-<text x="874.5" y="196" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Audio Units, aggregate</text>
-<text x="874.5" y="216" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">devices</text>
-<circle cx="862.5" cy="235" r="4.5" fill="#8b949e"/>
-<text x="874.5" y="240" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">BC2–BC4: the loader, the ABI</text>
-<text x="874.5" y="260" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">audit, the API 19 set</text>
-<circle cx="862.5" cy="279" r="4.5" fill="#ab7df8"/>
-<text x="874.5" y="284" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB3: Lock Screen with the</text>
-<text x="874.5" y="304" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">graphical login</text>
-<circle cx="862.5" cy="323" r="4.5" fill="#d29922"/>
-<text x="874.5" y="328" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Security: the APSL sources</text>
-<text x="874.5" y="348" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">replace the subset</text>
-<circle cx="862.5" cy="367" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="372" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">The system installer: USB</text>
-<text x="874.5" y="392" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">medium, first start</text>
-<text x="856.5" y="430" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.0</text>
-<circle cx="862.5" cy="449" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="454" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A5–A10 (19.6.x)</text>
-<circle cx="862.5" cy="473" r="4.5" fill="#9198a1"/>
-<text x="874.5" y="478" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Darwin 25 (KX1–KX3, Minkar</text>
-<text x="874.5" y="498" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">25.x)</text>
-<circle cx="862.5" cy="517" r="4.5" fill="#f0883e"/>
-<text x="874.5" y="522" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">arm64 boot in QEMU</text>
-<text x="874.5" y="542" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">(ARM1–ARM3)</text>
-<circle cx="862.5" cy="561" r="4.5" fill="#ab7df8"/>
-<text x="874.5" y="566" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftUI: own layer,</text>
-<text x="874.5" y="586" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftCrossUI engine (SU2–SU4)</text>
-<circle cx="862.5" cy="605" r="4.5" fill="#f85149"/>
-<text x="874.5" y="610" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
-<text x="874.5" y="630" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
+<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Printing: cupsd and the</text>
+<text x="874.5" y="172" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Printers pane</text>
+<circle cx="862.5" cy="191" r="4.5" fill="#3bc4b5"/>
+<text x="874.5" y="196" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">AU7–AU10: USB audio, MIDI,</text>
+<text x="874.5" y="216" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Audio Units, aggregate</text>
+<text x="874.5" y="236" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">devices</text>
+<circle cx="862.5" cy="255" r="4.5" fill="#8b949e"/>
+<text x="874.5" y="260" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">BC2–BC4: the loader, the ABI</text>
+<text x="874.5" y="280" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">audit, the API 19 set</text>
+<circle cx="862.5" cy="299" r="4.5" fill="#ab7df8"/>
+<text x="874.5" y="304" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB3: Lock Screen with the</text>
+<text x="874.5" y="324" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">graphical login</text>
+<circle cx="862.5" cy="343" r="4.5" fill="#d29922"/>
+<text x="874.5" y="348" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Security: the APSL sources</text>
+<text x="874.5" y="368" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">replace the subset</text>
+<circle cx="862.5" cy="387" r="4.5" fill="#3fb950"/>
+<text x="874.5" y="392" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">The system installer: USB</text>
+<text x="874.5" y="412" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">medium, first start</text>
+<text x="856.5" y="450" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.0</text>
+<circle cx="862.5" cy="469" r="4.5" fill="#3fb950"/>
+<text x="874.5" y="474" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A5–A10 (19.6.x)</text>
+<circle cx="862.5" cy="493" r="4.5" fill="#9198a1"/>
+<text x="874.5" y="498" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Darwin 25 (KX1–KX3, Minkar</text>
+<text x="874.5" y="518" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">25.x)</text>
+<circle cx="862.5" cy="537" r="4.5" fill="#f0883e"/>
+<text x="874.5" y="542" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">arm64 boot in QEMU</text>
+<text x="874.5" y="562" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">(ARM1–ARM3)</text>
+<circle cx="862.5" cy="581" r="4.5" fill="#ab7df8"/>
+<text x="874.5" y="586" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftUI: own layer,</text>
+<text x="874.5" y="606" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftCrossUI engine (SU2–SU4)</text>
+<circle cx="862.5" cy="625" r="4.5" fill="#f85149"/>
+<text x="874.5" y="630" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
+<text x="874.5" y="650" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
 </svg>
