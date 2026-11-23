@@ -8,3 +8,11 @@
 "Show All Preferences" = "Mostrar todas las preferencias";
 "Back" = "Atrás";
 "Forward" = "Adelante";
+
+/* The grid's sections and the search field. */
+"Personal" = "Personal";
+"Hardware" = "Hardware";
+"Network" = "Red";
+"System" = "Sistema";
+"Other" = "Otros";
+"Search" = "Buscar";

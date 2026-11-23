@@ -12,10 +12,12 @@ SUBDIR =
 APP =		SystemPreferences
 APP_INSTALL_NAME = System Preferences
 APP_INSTALL_DIR = /System/Applications
-SRCS =		main.m PrefsWindowController.m
+# Files' bar controls, from its source (the same back and forward pair).
+.PATH:		${.CURDIR}/../Files
+SRCS =		main.m PrefsWindowController.m FilesSegmentedControl.m
 FRAMEWORKS =	Cocoa PreferencePanes
 MK_WERROR =	no
-CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
+CFLAGS +=	-I${.CURDIR}/../Files -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
 LDFLAGS +=	-lobjc
 # The Spanish texts (the English ones are the keys).
 # The icon (CFBundleIconFile), from the Faience icon theme (GPL-3;

@@ -38,6 +38,7 @@
     if ([pane length])
         [_controller showPaneWithIdentifier:pane];
     [[_controller window] makeKeyAndOrderFront:nil];
+    [[_controller window] makeFirstResponder:nil];	/* the search field shows its placeholder */
     if (_pending != nil) {
         NSArray *urls = _pending;
         _pending = nil;
@@ -57,6 +58,7 @@
         NSString *identifier = [[NSBundle bundleWithURL:url] bundleIdentifier];
         if (identifier != nil && [_controller showPaneWithIdentifier:identifier])
             [[_controller window] makeKeyAndOrderFront:nil];
+            [[_controller window] makeFirstResponder:nil];	/* the search field shows its placeholder */
     }
 }
 
