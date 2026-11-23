@@ -1,0 +1,79 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt MDFIND 1
+.Os Minkar
+.Sh NAME
+.Nm mdfind
+.Nd find files by their metadata
+.Sh SYNOPSIS
+.Nm
+.Op Fl count
+.Op Fl 0
+.Op Fl attr Ar attribute
+.Op Fl onlyin Ar directory ...
+.Fl name Ar name | Ar query
+.Sh DESCRIPTION
+.Nm
+lists the files that match
+.Ar query .
+There is no metadata index yet: the files are searched on the disk, under
+the
+.Fl onlyin
+directories or, by default, the user's home folder,
+.Pa /Applications
+and
+.Pa /System/Applications .
+Invisible files are skipped; a package (an application) is one file.
+.Pp
+A query of words finds the files whose name, or text for a text file,
+has every word, whatever their case.
+An expression compares attributes:
+.Bd -literal -offset indent
+kMDItemFSName == '*.txt'c
+kMDItemContentTypeTree == 'public.image'
+kMDItemFSSize > 1000000 && kMDItemFSContentChangeDate >= $time.today(-7)
+.Ed
+.Pp
+Values in quotes may have
+.Ql *
+wildcards and be followed by
+.Cm c
+(any case),
+.Cm d
+(any diacritics) or
+.Cm w
+(a word).
+Numbers and dates compare with
+.Ql < > <= >= ;
+dates are
+.Cm $time.now ,
+.Cm $time.today ,
+.Cm $time.today( Ns Ar days Ns Cm ) ,
+.Cm $time.iso( Ns Ar date Ns Cm ) .
+Expressions join with
+.Ql && ,
+.Ql || ,
+.Ql \&!
+and parentheses.
+.Bl -tag -width indent
+.It Fl name Ar name
+Files whose name has
+.Ar name .
+.It Fl onlyin Ar directory
+Search only there (the option may be repeated).
+.It Fl count
+Only the number of files found.
+.It Fl attr Ar attribute
+Each file's value of the attribute, after its path.
+.It Fl 0
+NUL characters between the paths.
+.El
+.Pp
+.Fl live
+and
+.Fl s
+need the index and are refused.
+.Sh SEE ALSO
+.Xr mdls 1 ,
+.Xr mdutil 1

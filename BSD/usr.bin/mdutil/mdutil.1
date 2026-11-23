@@ -1,0 +1,33 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt MDUTIL 1
+.Os Minkar
+.Sh NAME
+.Nm mdutil
+.Nd the metadata index's state
+.Sh SYNOPSIS
+.Nm
+.Op Fl sEa
+.Op Fl i Cm on | off
+.Ar volume ...
+.Sh DESCRIPTION
+The system has no metadata index yet:
+.Xr mdfind 1
+searches the disk.
+.Nm
+reports indexing disabled for each
+.Ar volume
+(the mount point of each path given, or every volume with
+.Fl a ) ;
+.Fl i Cm off
+and
+.Fl E
+have nothing to do, and
+.Fl i Cm on
+fails.
+.Sh EXIT STATUS
+0, or 1 when a path cannot be read or indexing cannot be turned on.
+.Sh SEE ALSO
+.Xr mdfind 1 ,
+.Xr mdls 1

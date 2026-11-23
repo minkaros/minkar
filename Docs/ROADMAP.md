@@ -111,7 +111,7 @@ and the resolution changes from System Preferences, in the Atlas visual language
   appearances (Auto by the hour) and the accent color, followed by every app at once, the menu
   bar, the Dock and the Menu Extras (highlighted in the accent, template icons tinted; Lucide's
   icons); test `general-pane`. Left: the remaining fixed greys in AppKit's controls and the apps.
-- [ ] Commands: `mdfind`, `mdls`, `mdutil`, `say`. Done: `lsappinfo` (test `lsappinfo`).
+- [ ] Commands: `say`. Done: `lsappinfo` (test `lsappinfo`); `mdls`, `mdfind`, `mdutil` without an index, `mdfind` searching the disk (test `md-commands`).
 
 ### Phase 6 — Applications and distribution
 

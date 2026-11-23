@@ -31,9 +31,23 @@ CF_EXPORT const CFStringRef kMDItemFSIsExtensionHidden;
 CF_EXPORT const CFStringRef kMDItemFSInvisible;
 CF_EXPORT const CFStringRef kMDItemCFBundleIdentifier;
 CF_EXPORT const CFStringRef kMDItemVersion;
+/* Sizes (a package's: its files'), when it was put where it is, the
+   Finder fields (none here), a bundle's architectures and copyright. */
+CF_EXPORT const CFStringRef kMDItemLogicalSize;
+CF_EXPORT const CFStringRef kMDItemPhysicalSize;
+CF_EXPORT const CFStringRef kMDItemDateAdded;
+CF_EXPORT const CFStringRef kMDItemFSNodeCount;
+CF_EXPORT const CFStringRef kMDItemFSLabel;
+CF_EXPORT const CFStringRef kMDItemFSFinderFlags;
+CF_EXPORT const CFStringRef kMDItemFSCreatorCode;
+CF_EXPORT const CFStringRef kMDItemFSTypeCode;
+CF_EXPORT const CFStringRef kMDItemExecutableArchitectures;
+CF_EXPORT const CFStringRef kMDItemCopyright;
+CF_EXPORT const CFStringRef kMDItemAlternateNames;
+CF_EXPORT const CFStringRef kMDItemDocumentIdentifier;
 
 /* A file's metadata, read from the file system and its type when asked
-   (there is no index: queries are not supported). */
+   (there is no index: mdfind searches the disk). */
 typedef struct __MDItem *MDItemRef;
 
 CF_EXPORT CFTypeID MDItemGetTypeID(void);

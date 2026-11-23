@@ -1,0 +1,40 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt MDLS 1
+.Os Minkar
+.Sh NAME
+.Nm mdls
+.Nd list a file's metadata attributes
+.Sh SYNOPSIS
+.Nm
+.Op Fl name Ar attribute ...
+.Op Fl raw Op Fl nullMarker Ar marker
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+lists the metadata attributes of each
+.Ar file ,
+each name and its value, the names in order: its name, kind, content
+type and the types it conforms to, sizes, dates, owner, and for an
+application its bundle identifier, version and copyright.
+The attributes are read from the file and its type; there is no index.
+.Bl -tag -width indent
+.It Fl name Ar attribute
+Only that attribute (the option may be repeated); one the file does not
+have shows
+.Dq (null) .
+.It Fl raw
+The values alone, in the order asked for, separated by NUL characters,
+for
+.Xr xargs 1
+.Fl 0 .
+.It Fl nullMarker Ar marker
+What a missing value shows with
+.Fl raw .
+.El
+.Sh EXIT STATUS
+0, or 1 when a file cannot be found.
+.Sh SEE ALSO
+.Xr mdfind 1 ,
+.Xr mdutil 1

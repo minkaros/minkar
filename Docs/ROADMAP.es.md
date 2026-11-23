@@ -113,7 +113,7 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
   (Automático según la hora) y el color de acento, que todas las apps siguen al momento, la barra de
   menús, el Dock y los Menu Extras (resaltados con el acento, iconos plantilla teñidos; iconos de
   Lucide); prueba `general-pane`. Falta: los grises fijos que quedan en controles de AppKit y en las apps.
-- [ ] Órdenes: `mdfind`, `mdls`, `mdutil`, `say`. Hecho: `lsappinfo` (prueba `lsappinfo`).
+- [ ] Órdenes: `say`. Hecho: `lsappinfo` (prueba `lsappinfo`); `mdls`, `mdfind`, `mdutil` sin índice, `mdfind` busca en el disco (prueba `md-commands`).
 
 ### Fase 6 — Aplicaciones y distribución
 

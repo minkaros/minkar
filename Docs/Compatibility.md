@@ -188,8 +188,8 @@ CoreLocation, LocalAuthentication, AuthenticationServices, IOBluetooth.
 
 | Service | Status | Notes |
 | --- | --- | --- |
-| Search indexing | Decide | `MDItem` exists, without an indexer |
-| Printing to printers | Decide | PrintCore, `NSPrinter` and printing to PDF exist; libcups is there, `cupsd` is not |
+| Search indexing | Plan (19.6.x, K4) | `MDItem` and `mdls`, `mdfind` (it searches the disk), `mdutil`; no indexer yet (decided 2026-11-23) |
+| Printing to printers | Done | `cupsd` and its commands, the Printers pane, printing through PrintCore to IPP Everywhere printers that take PDF |
 | Wi-Fi and Bluetooth | Decide | No drivers yet |
 | Camera and video capture | Decide | |
 | Keychain with encryption | Plan | The current Security subset is replaced by the APSL Security sources |

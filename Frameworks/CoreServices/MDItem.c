@@ -14,6 +14,7 @@
 #include <dispatch/dispatch.h>
 #include <stdarg.h>
 #include <string.h>
+#include <dirent.h>
 #include <sys/stat.h>
 
 struct __MDItem {
@@ -120,6 +121,45 @@ static CFArrayRef typeTreeOf(CFStringRef type) {
     return tree;
 }
 
+/* A package (an app, a bundle the type system calls one): a file to the
+   user, so its size is its files'. */
+static Boolean isPackage(CFStringRef path) {
+    CFStringRef type = contentTypeOf(path, true);
+    Boolean package = type != NULL && (UTTypeConformsTo(type, CFSTR("com.apple.package")) ||
+                                       UTTypeConformsTo(type, CFSTR("com.apple.bundle")));
+    if (type != NULL)
+        CFRelease(type);
+    return package;
+}
+
+/* The sizes of a directory's files, all the way down (logical, and the
+   blocks they take). */
+static void addSizes(const char *path, long long *logical, long long *physical, int depth) {
+    DIR *dir = depth < 64 ? opendir(path) : NULL;
+    struct dirent *entry;
+    if (dir == NULL)
+        return;
+    while ((entry = readdir(dir)) != NULL) {
+        char child[PATH_MAX];
+        struct stat st;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+        if (snprintf(child, sizeof(child), "%s/%s", path, entry->d_name) >= (int)sizeof(child) || lstat(child, &st) != 0)
+            continue;
+        if (S_ISDIR(st.st_mode))
+            addSizes(child, logical, physical, depth + 1);
+        else {
+            *logical += st.st_size;
+            *physical += (long long)st.st_blocks * 512;
+        }
+    }
+    closedir(dir);
+}
+
+static CFNumberRef numberOf(long long value) {
+    return CFNumberCreate(NULL, kCFNumberLongLongType, &value);
+}
+
 static CFTypeRef bundleValue(CFStringRef path, CFStringRef key) {
     CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);
     CFBundleRef bundle = url != NULL ? CFBundleCreate(NULL, url) : NULL;
@@ -152,15 +192,72 @@ CFTypeRef MDItemCopyAttribute(MDItemRef item, CFStringRef name) {
         if (url != NULL)
             CFRelease(url);
         if (last != NULL && CFEqual(name, kMDItemDisplayName) && directory && CFStringHasSuffix(last, CFSTR(".app"))) {
+            /* An app by the name it shows (its bundle's), else its file's
+               without the extension. */
+            CFTypeRef bundleName = bundleValue(item->path, CFSTR("CFBundleDisplayName"));
+            if (bundleName == NULL || CFGetTypeID(bundleName) != CFStringGetTypeID()) {
+                if (bundleName != NULL)
+                    CFRelease(bundleName);
+                bundleName = bundleValue(item->path, kCFBundleNameKey);
+            }
+            if (bundleName != NULL && CFGetTypeID(bundleName) == CFStringGetTypeID() && CFStringGetLength(bundleName) > 0) {
+                CFRelease(last);
+                return bundleName;
+            }
+            if (bundleName != NULL)
+                CFRelease(bundleName);
             CFStringRef shown = CFStringCreateWithSubstring(NULL, last, CFRangeMake(0, CFStringGetLength(last) - 4));
             CFRelease(last);
             return shown;
         }
         return last;
     }
-    if (CFEqual(name, kMDItemFSSize)) {
-        long long size = (long long)st.st_size;
-        return CFNumberCreate(NULL, kCFNumberLongLongType, &size);
+    if (CFEqual(name, kMDItemFSSize) || CFEqual(name, kMDItemLogicalSize) || CFEqual(name, kMDItemPhysicalSize)) {
+        long long logical = (long long)st.st_size, physical = (long long)st.st_blocks * 512;
+        /* A folder has no size; a package, its files'. */
+        if (directory && isPackage(item->path)) {
+            logical = physical = 0;
+            addSizes(buffer, &logical, &physical, 0);
+        } else if (directory)
+            return NULL;
+        return numberOf(CFEqual(name, kMDItemPhysicalSize) ? physical : logical);
+    }
+    /* When it was put where it is: its inode's last change, the nearest
+       the file system keeps. */
+    if (CFEqual(name, kMDItemDateAdded))
+        return dateOf(st.st_ctimespec);
+    if (CFEqual(name, kMDItemFSNodeCount)) {
+        DIR *dir = directory ? opendir(buffer) : NULL;
+        long long count = 0;
+        struct dirent *entry;
+        if (dir == NULL)
+            return NULL;
+        while ((entry = readdir(dir)) != NULL)
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                count++;
+        closedir(dir);
+        return numberOf(count);
+    }
+    /* The Finder's own fields: none kept here. */
+    if (CFEqual(name, kMDItemFSLabel) || CFEqual(name, kMDItemFSFinderFlags) || CFEqual(name, kMDItemDocumentIdentifier))
+        return numberOf(0);
+    if (CFEqual(name, kMDItemFSCreatorCode) || CFEqual(name, kMDItemFSTypeCode))
+        return CFRetain(CFSTR(""));
+    if (directory && CFEqual(name, kMDItemCopyright))
+        return bundleValue(item->path, CFSTR("NSHumanReadableCopyright"));
+    if (directory && CFStringHasSuffix(item->path, CFSTR(".app")) &&
+        (CFEqual(name, kMDItemExecutableArchitectures) || CFEqual(name, kMDItemAlternateNames))) {
+        CFTypeRef value;
+        if (CFEqual(name, kMDItemExecutableArchitectures))
+            value = CFSTR("x86_64");
+        else {
+            const char *slash = strrchr(buffer, '/');
+            value = CFStringCreateWithFileSystemRepresentation(NULL, slash != NULL ? slash + 1 : buffer);
+        }
+        CFArrayRef result = CFArrayCreate(NULL, &value, 1, &kCFTypeArrayCallBacks);
+        if (CFEqual(name, kMDItemAlternateNames))
+            CFRelease(value);
+        return result;
     }
     if (CFEqual(name, kMDItemFSCreationDate) || CFEqual(name, kMDItemContentCreationDate))
         return dateOf(st.st_birthtimespec);
@@ -181,15 +278,26 @@ CFTypeRef MDItemCopyAttribute(MDItemRef item, CFStringRef name) {
         Boolean hidden = (slash != NULL && slash[1] == '.') || (st.st_flags & UF_HIDDEN);
         return CFRetain(hidden ? kCFBooleanTrue : kCFBooleanFalse);
     }
+    /* An app's name is shown without its extension. */
     if (CFEqual(name, kMDItemFSIsExtensionHidden))
-        return CFRetain(kCFBooleanFalse);
+        return CFRetain(directory && CFStringHasSuffix(item->path, CFSTR(".app")) ? kCFBooleanTrue : kCFBooleanFalse);
     if (CFEqual(name, kMDItemContentType))
         return contentTypeOf(item->path, directory);
     if (CFEqual(name, kMDItemContentTypeTree) || CFEqual(name, kMDItemKind)) {
         CFStringRef type = contentTypeOf(item->path, directory);
         CFTypeRef result = NULL;
         if (type != NULL) {
-            result = CFEqual(name, kMDItemKind) ? (CFTypeRef)UTTypeCopyDescription(type) : (CFTypeRef)typeTreeOf(type);
+            if (CFEqual(name, kMDItemKind)) {
+                /* The kind as shown: "Plain Text Document". */
+                CFStringRef description = UTTypeCopyDescription(type);
+                if (description != NULL) {
+                    CFMutableStringRef kind = CFStringCreateMutableCopy(NULL, 0, description);
+                    CFStringCapitalize(kind, NULL);
+                    CFRelease(description);
+                    result = kind;
+                }
+            } else
+                result = typeTreeOf(type);
             CFRelease(type);
         }
         return result;
@@ -222,10 +330,23 @@ CFArrayRef MDItemCopyAttributeNames(MDItemRef item) {
     const void *names[] = { kMDItemPath, kMDItemFSName, kMDItemDisplayName, kMDItemFSSize, kMDItemFSCreationDate,
                             kMDItemFSContentChangeDate, kMDItemContentCreationDate, kMDItemContentModificationDate,
                             kMDItemLastUsedDate, kMDItemFSOwnerUserID, kMDItemFSOwnerGroupID, kMDItemFSInvisible,
-                            kMDItemFSIsExtensionHidden, kMDItemContentType, kMDItemContentTypeTree, kMDItemKind };
+                            kMDItemFSIsExtensionHidden, kMDItemContentType, kMDItemContentTypeTree, kMDItemKind,
+                            kMDItemLogicalSize, kMDItemPhysicalSize, kMDItemDateAdded, kMDItemFSNodeCount,
+                            kMDItemFSLabel, kMDItemFSFinderFlags, kMDItemFSCreatorCode, kMDItemFSTypeCode,
+                            kMDItemDocumentIdentifier, kMDItemCFBundleIdentifier, kMDItemVersion, kMDItemCopyright,
+                            kMDItemExecutableArchitectures, kMDItemAlternateNames };
     if (item == NULL)
         return NULL;
-    return CFArrayCreate(NULL, names, sizeof(names) / sizeof(names[0]), &kCFTypeArrayCallBacks);
+    /* Those the item has. */
+    CFMutableArrayRef result = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        CFTypeRef value = MDItemCopyAttribute(item, names[i]);
+        if (value != NULL) {
+            CFArrayAppendValue(result, names[i]);
+            CFRelease(value);
+        }
+    }
+    return result;
 }
 
 /* The attributes named, up to a NULL. */

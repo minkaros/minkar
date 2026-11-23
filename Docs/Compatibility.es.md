@@ -192,8 +192,8 @@ AuthenticationServices, IOBluetooth.
 
 | Servicio | Estado | Notas |
 | --- | --- | --- |
-| Indexado para búsquedas | Decide | `MDItem` existe, sin indexador |
-| Imprimir en impresoras | Decide | PrintCore, `NSPrinter` e imprimir a PDF existen; libcups está, `cupsd` no |
+| Indexado para búsquedas | Plan (19.6.x, K4) | `MDItem` y `mdls`, `mdfind` (busca en el disco), `mdutil`; sin indexador todavía (decidido el 23 nov 2026) |
+| Imprimir en impresoras | Hecho | `cupsd` y sus comandos, el panel Impresoras, imprimir por PrintCore en impresoras IPP Everywhere que aceptan PDF |
 | Wi-Fi y Bluetooth | Decide | Todavía sin drivers |
 | Cámara y captura de vídeo | Decide | |
 | Llavero con cifrado | Plan | El subconjunto actual de Security se sustituye por las fuentes APSL de Security |
