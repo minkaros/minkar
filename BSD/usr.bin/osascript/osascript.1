@@ -1,0 +1,67 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt OSASCRIPT 1
+.Os Minkar
+.Sh NAME
+.Nm osascript
+.Nd run AppleScript
+.Sh SYNOPSIS
+.Nm
+.Op Fl l Ar language
+.Op Fl e Ar statement ...
+.Op Fl s Ar flags
+.Op Ar programfile
+.Op Ar argument ...
+.Sh DESCRIPTION
+.Nm
+runs a script in AppleScript, given as
+.Fl e
+lines, a
+.Ar programfile
+or standard input, and prints its result.
+The
+.Ar argument Ns s
+go to the script's
+.Ic on run
+handler.
+Minkar's interpreter runs the commonly used part of the language:
+values (numbers, text, lists, records), variables and properties,
+.Ic if ,
+.Ic repeat ,
+.Ic try ,
+handlers,
+.Ic tell application ,
+the text and list elements
+.Pq Ic item , character , word , paragraph Ic of ,
+and the commands
+.Ic do shell script ,
+.Ic display dialog ,
+.Ic display notification ,
+.Ic say ,
+.Ic delay ,
+.Ic beep ,
+.Ic get volume settings ,
+.Ic set volume ,
+.Ic activate ,
+.Ic quit ,
+.Ic open .
+.Bl -tag -width indent
+.It Fl e Ar statement
+A line of the script; the option may be repeated.
+.It Fl l Ar language
+Only
+.Cm AppleScript .
+.It Fl s Ar flags
+.Cm h :
+the result readable (the default);
+.Cm s :
+as source, which could be compiled again;
+.Cm o :
+errors to standard output;
+.Cm e :
+errors to standard error (the default).
+.El
+.Sh EXIT STATUS
+0, or 1 after a syntax or execution error, printed as
+.Dq Ar start Ns : Ns Ar end Ns : syntax error: Ar message Pq Ar number .

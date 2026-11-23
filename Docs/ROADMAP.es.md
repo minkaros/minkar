@@ -127,7 +127,7 @@ apps 19 en verde (BC4).
 - [ ] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`).
 - [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada.
 - [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
-- [ ] Órdenes: `osascript`, `opendiff`, `tmutil`; las órdenes Tcl de git.
+- [ ] Órdenes: `opendiff`, `tmutil`; las órdenes Tcl de git. Hecho: `osascript`, intérprete propio de la parte más usada de AppleScript (prueba `osascript`).
 
 #### WebKit
 
