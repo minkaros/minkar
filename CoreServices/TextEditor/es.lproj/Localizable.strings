@@ -47,3 +47,18 @@
 "LF (Unix)" = "LF (Unix)";
 "CRLF (Windows)" = "CRLF (Windows)";
 "CR" = "CR";
+
+/* Format */
+"Format" = "Formato";
+"Font" = "Tipo de letra";
+"Show Fonts" = "Mostrar tipos de letra";
+"Bold" = "Negrita";
+"Italic" = "Cursiva";
+"Underline" = "Subrayado";
+"Text" = "Texto";
+"Show Ruler" = "Mostrar regla";
+"Make Rich Text" = "Convertir a texto enriquecido";
+"Make Plain Text" = "Convertir a texto simple";
+"Convert this document to plain text?" = "¿Convertir este documento a texto simple?";
+"Making a rich text document plain will lose all text styles (such as fonts and colors) and attachments." = "Al convertir un documento de texto enriquecido en texto simple se perderán todos los estilos (como tipos de letra y colores) y los archivos adjuntos.";
+"OK" = "Aceptar";

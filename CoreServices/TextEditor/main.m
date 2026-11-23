@@ -82,6 +82,24 @@ static void addMenu(NSString *title, NSMenu *menu)
     [findHolder setSubmenu:find];
     addMenu(NSLocalizedString(@"Edit", nil), edit);
 
+    /* Format, as the reference's: the font panel, bold, italic and
+       underline through the text view and NSFontManager, the ruler, and
+       the document's kind. */
+    NSMenu *format = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Format", nil)];
+    NSMenu *font = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Font", nil)];
+    NSFontManager *fonts = [NSFontManager sharedFontManager];
+    item(font, NSLocalizedString(@"Show Fonts", nil), fonts, @selector(orderFrontFontPanel:), @"t", cmd);
+    [item(font, NSLocalizedString(@"Bold", nil), fonts, @selector(addFontTrait:), @"b", cmd) setTag:NSBoldFontMask];
+    [item(font, NSLocalizedString(@"Italic", nil), fonts, @selector(addFontTrait:), @"i", cmd) setTag:NSItalicFontMask];
+    item(font, NSLocalizedString(@"Underline", nil), nil, @selector(underline:), @"u", cmd);
+    [[format addItemWithTitle:NSLocalizedString(@"Font", nil) action:NULL keyEquivalent:@""] setSubmenu:font];
+    NSMenu *textMenu = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Text", nil)];
+    item(textMenu, NSLocalizedString(@"Show Ruler", nil), nil, @selector(toggleRuler:), @"", 0);
+    [[format addItemWithTitle:NSLocalizedString(@"Text", nil) action:NULL keyEquivalent:@""] setSubmenu:textMenu];
+    [format addItem:[NSMenuItem separatorItem]];
+    item(format, NSLocalizedString(@"Make Rich Text", nil), self, @selector(toggleRichText:), @"t", shift);
+    addMenu(NSLocalizedString(@"Format", nil), format);
+
     NSMenu *window = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Window", nil)];
     item(window, NSLocalizedString(@"Minimize", nil), nil, @selector(performMiniaturize:), @"m", cmd);
     addMenu(NSLocalizedString(@"Window", nil), window);
@@ -97,15 +115,24 @@ static void addMenu(NSString *title, NSMenu *menu)
 /* Started with no documents: a new one. */
 - (BOOL)applicationOpenUntitledFile:(NSApplication *)app
 {
+    /* Started to open files (they came first): no new one besides. */
+    if ([_documents count] > 0)
+        return YES;
     [self newDocument:nil];
     return YES;
 }
 
 - (void)application:(NSApplication *)app openURLs:(NSArray<NSURL *> *)urls
 {
+    /* A new document left as it was made (the one made at launch, before
+       the files came) gives way to them, as on the reference. */
+    EditorDocumentWindow *blank = [_documents count] == 1 && ![_documents[0] fileURL] &&
+        ![_documents[0] isEdited] ? _documents[0] : nil;
     for (NSURL *url in urls)
         if ([url isFileURL])
             [self openURL:url];
+    if (blank != nil && [_documents count] > 1)
+        [blank close];
 }
 
 /* A file: its window if it is open already, else a new one. */
@@ -143,11 +170,14 @@ static void addMenu(NSString *title, NSMenu *menu)
     [_documents removeObject:document];
 }
 
+/* The document the menus act on: the key window's, else the main
+   window's (a panel of the app's may be key). */
 - (EditorDocumentWindow *)front
 {
-    for (EditorDocumentWindow *d in _documents)
-        if ([d.window isKeyWindow] || [d.window isMainWindow])
-            return d;
+    for (NSWindow *window in @[ [NSApp keyWindow] ?: (id)[NSNull null], [NSApp mainWindow] ?: (id)[NSNull null] ])
+        for (EditorDocumentWindow *d in _documents)
+            if (d.window == window)
+                return d;
     return nil;
 }
 
@@ -180,10 +210,21 @@ static void addMenu(NSString *title, NSMenu *menu)
     [[self front] saveAs];
 }
 
+- (void)toggleRichText:(id)sender
+{
+    [[self front] toggleRichText];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem
 {
     SEL action = [menuItem action];
 
+    if (action == @selector(toggleRichText:)) {
+        EditorDocumentWindow *front = [self front];
+        [menuItem setTitle:front != nil && [front isRichText] ? NSLocalizedString(@"Make Plain Text", nil)
+                                                               : NSLocalizedString(@"Make Rich Text", nil)];
+        return front != nil;
+    }
     if (action == @selector(closeDocument:) || action == @selector(saveDocument:) ||
         action == @selector(saveDocumentAs:))
         return [self front] != nil;

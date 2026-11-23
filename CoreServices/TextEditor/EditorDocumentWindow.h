@@ -29,6 +29,9 @@ NS_ASSUME_NONNULL_BEGIN
 /* Saves to its file (or asks where, untitled); NO if not saved. */
 - (BOOL)save;
 - (BOOL)saveAs;
+/* Rich text (RTF) or plain; Make Rich Text / Make Plain Text. */
+- (BOOL)isRichText;
+- (void)toggleRichText;
 /* Closes, asking about unsaved changes; NO if the user cancelled. */
 - (BOOL)close;
 @end

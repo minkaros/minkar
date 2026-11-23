@@ -8,11 +8,15 @@
  * question before unsaved changes are lost. A file keeps its encoding
  * (UTF-8 or UTF-16 by their byte order mark, UTF-8 when it is valid, else
  * Latin-1), its byte order mark and its line endings (LF, CRLF or CR; LF in
- * the window); Save As chooses both (Atlas.md, A2).
+ * the window); Save As chooses both (Atlas.md, A2). An RTF file (by its
+ * extension, or its first bytes) is rich text, saved as RTF; Make Rich
+ * Text and Make Plain Text change a document's kind (plain text loses its
+ * formatting, after a question), as on the reference.
  */
 
 #import "EditorDocumentWindow.h"
 #include <os/log.h>
+#include <string.h>
 
 @interface EditorDocumentWindow () <NSTextViewDelegate, NSWindowDelegate>
 @end
@@ -26,6 +30,8 @@
     BOOL _byteOrderMark;        /* UTF-8's, kept when the file had it */
     NSString *_lineEnding;      /* @"\n", @"\r\n" or @"\r" */
     NSPopUpButton *_encodingChoice, *_lineEndingChoice;   /* Save As */
+    BOOL _rich;                 /* RTF */
+    NSString *_pendingDirectory;  /* where Save As starts, after a change of kind */
     BOOL _edited;
 }
 
@@ -90,7 +96,7 @@ static NSString *withLF(NSString *text)
 
 static NSPoint nextOrigin;
 
-- (void)makeWindowWithText:(NSString *)text
+- (void)makeWindowWithText:(id)text
 {
     NSRect visible = [[NSScreen mainScreen] visibleFrame];
     NSRect frame = NSMakeRect(0, 0, MIN(640, NSWidth(visible) - 80), MIN(480, NSHeight(visible) - 80));
@@ -122,11 +128,20 @@ static NSPoint nextOrigin;
     [_text setAutoresizingMask:NSViewWidthSizable];
     [[_text textContainer] setContainerSize:NSMakeSize(size.width, FLT_MAX)];
     [[_text textContainer] setWidthTracksTextView:YES];
-    [_text setRichText:NO];
+    [_text setRichText:_rich];
+    [_text setUsesFontPanel:_rich];
+    [_text setUsesRuler:_rich];
     [_text setAllowsUndo:YES];
-    /* Plain text in the user's fixed-pitch font (NSFixedPitchFont). */
-    [_text setFont:[NSFont userFixedPitchFontOfSize:13]];
-    [_text setString:text];
+    if (_rich && [text isKindOfClass:[NSAttributedString class]]) {
+        [[_text textStorage] setAttributedString:(NSAttributedString *)text];
+        /* Typing at the start takes the text's formatting there. */
+        if ([(NSAttributedString *)text length] > 0)
+            [_text setTypingAttributes:[(NSAttributedString *)text attributesAtIndex:0 effectiveRange:NULL]];
+    } else {
+        /* Plain text in the user's fixed-pitch font (NSFixedPitchFont). */
+        [_text setFont:_rich ? [NSFont userFontOfSize:13] : [NSFont userFixedPitchFontOfSize:13]];
+        [_text setString:(NSString *)text];
+    }
     /* The insertion point at the start, the top shown, as the reference
        opens a document. */
     [_text setSelectedRange:NSMakeRange(0, 0)];
@@ -157,6 +172,21 @@ static NSPoint nextOrigin;
     NSData *data = [NSData dataWithContentsOfURL:url options:0 error:error];
     if (data == nil)
         return nil;
+    /* RTF: by its extension, or its first bytes. */
+    static const char rtfStart[] = "{\\rtf";
+    if ([[[url pathExtension] lowercaseString] isEqualToString:@"rtf"] ||
+        ([data length] >= 5 && memcmp([data bytes], rtfStart, 5) == 0)) {
+        NSAttributedString *rich = [[NSAttributedString alloc] initWithRTF:data documentAttributes:NULL];
+        if (rich != nil) {
+            _rich = YES;
+            _encoding = NSUTF8StringEncoding;
+            _lineEnding = @"\n";
+            _fileURL = [url copy];
+            [self makeWindowWithText:rich];
+            os_log_info(OS_LOG_DEFAULT, "opened %{public}s (RTF)", [[url path] fileSystemRepresentation]);
+            return self;
+        }
+    }
     NSString *text = decode(data, &_encoding, &_byteOrderMark);
     if (text == nil)
         return nil;
@@ -215,6 +245,18 @@ static NSPoint nextOrigin;
 {
     NSError *error = nil;
     NSString *text = [_text string];
+    if (_rich) {
+        NSData *rtf = [_text RTFFromRange:NSMakeRange(0, [text length])];
+        if (rtf == nil || ![rtf writeToURL:url options:NSDataWritingAtomic error:&error]) {
+            [self cannotSave:url error:error];
+            return NO;
+        }
+        _fileURL = [url copy];
+        os_log_info(OS_LOG_DEFAULT, "saved %{public}s (RTF)", [[url path] fileSystemRepresentation]);
+        _edited = YES;
+        [self setEdited:NO];
+        return YES;
+    }
     if (![_lineEnding isEqualToString:@"\n"])
         text = [text stringByReplacingOccurrencesOfString:@"\n" withString:_lineEnding];
     NSMutableData *data = [[text dataUsingEncoding:_encoding] mutableCopy];
@@ -229,11 +271,7 @@ static NSPoint nextOrigin;
         [data replaceBytesInRange:NSMakeRange(0, 0) withBytes:"\xEF\xBB\xBF" length:3];
 
     if (data == nil || ![data writeToURL:url options:NSDataWritingAtomic error:&error]) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        [alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"The document “%@” could not be saved.", nil),
-                               [[url path] lastPathComponent]]];
-        [alert setInformativeText:[error localizedDescription] ?: @""];
-        [alert runModal];
+        [self cannotSave:url error:error];
         return NO;
     }
     _fileURL = [url copy];
@@ -241,6 +279,56 @@ static NSPoint nextOrigin;
     _edited = YES;	/* the title follows the new name too */
     [self setEdited:NO];
     return YES;
+}
+
+- (void)cannotSave:(NSURL *)url error:(NSError *)error
+{
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"The document “%@” could not be saved.", nil),
+                           [[url path] lastPathComponent]]];
+    [alert setInformativeText:[error localizedDescription] ?: @""];
+    [alert runModal];
+}
+
+- (BOOL)isRichText
+{
+    return _rich;
+}
+
+/* Make Rich Text / Make Plain Text: the document's kind changed, the
+   text kept; to plain text, its formatting goes, after a question. The
+   file's name takes the kind's extension when it is saved next. */
+- (void)toggleRichText
+{
+    if (_rich) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:NSLocalizedString(@"Convert this document to plain text?", nil)];
+        [alert setInformativeText:NSLocalizedString(@"Making a rich text document plain will lose all text styles (such as fonts and colors) and attachments.", nil)];
+        [alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+        [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+        if ([alert runModal] != NSAlertFirstButtonReturn)
+            return;
+    }
+    NSString *plain = [[_text string] copy];
+    _rich = !_rich;
+    [_text setRichText:_rich];
+    [_text setUsesFontPanel:_rich];
+    [_text setUsesRuler:_rich];
+    if (!_rich) {
+        [_text setRulerVisible:NO];
+        [_text setFont:[NSFont userFixedPitchFontOfSize:13]];
+        [_text setString:plain];
+    } else
+        [_text setFont:[NSFont userFontOfSize:13]];
+    if (_fileURL != nil) {
+        NSString *path = [[[_fileURL path] stringByDeletingPathExtension]
+                          stringByAppendingPathExtension:_rich ? @"rtf" : @"txt"];
+        _fileURL = nil;
+        _untitledName = [[path lastPathComponent] stringByDeletingPathExtension];
+        _pendingDirectory = [path stringByDeletingLastPathComponent];
+    }
+    _edited = NO;
+    [self setEdited:YES];
 }
 
 - (BOOL)save
@@ -253,16 +341,23 @@ static NSPoint nextOrigin;
 - (BOOL)saveAs
 {
     NSSavePanel *panel = [NSSavePanel savePanel];
-    [panel setAllowedFileTypes:@[ @"txt" ]];
-    [panel setAllowsOtherFileTypes:YES];
+    NSString *extension = _rich ? @"rtf" : @"txt";
+    [panel setAllowedFileTypes:@[ extension ]];
+    [panel setAllowsOtherFileTypes:!_rich];
 
     [panel setNameFieldStringValue:_fileURL ? [[_fileURL path] lastPathComponent]
-                                            : [_untitledName stringByAppendingPathExtension:@"txt"]];
+                                            : [_untitledName stringByAppendingPathExtension:extension]];
     if (_fileURL != nil)
         [panel setDirectoryURL:[_fileURL URLByDeletingLastPathComponent]];
-    [panel setAccessoryView:[self saveOptionsView]];
+    else if (_pendingDirectory != nil)
+        [panel setDirectoryURL:[NSURL fileURLWithPath:_pendingDirectory isDirectory:YES]];
+    /* The encoding and the line endings are plain text's. */
+    if (!_rich)
+        [panel setAccessoryView:[self saveOptionsView]];
     if ([panel runModal] != NSFileHandlingPanelOKButton || [panel URL] == nil)
         return NO;
+    if (_rich)
+        return [self writeTo:[panel URL]];
     NSStringEncoding chosen = [encodings()[(NSUInteger)[_encodingChoice indexOfSelectedItem]][1] unsignedIntegerValue];
     if (chosen != _encoding)
         _byteOrderMark = NO;
