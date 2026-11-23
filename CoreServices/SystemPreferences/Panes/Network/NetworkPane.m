@@ -20,6 +20,7 @@
 #import <PreferencePanes/PreferencePanes.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #include <os/log.h>
+#import "NetworkAdvanced.h"
 
 @interface NetworkPane : NSPreferencePane
 @end
@@ -150,7 +151,25 @@ static const NSUInteger kMethodCount = 5;
     NSArray *_serviceNames;
     NSTextField *_statusValue, *_statusText, *_address, *_mask, *_router, *_dns, *_domains, *_ipv6;
     NetworkDotView *_dot;
-    NSButton *_add, *_remove, *_revert, *_apply;
+    NSButton *_add, *_remove, *_revert, *_apply, *_advanced;
+    SCPreferencesRef _editing;      /* what Apply commits (the Advanced sheet's changes too) */
+    NetworkAdvanced *_sheet;
+}
+
+/* The preferences being edited: made when first needed, committed by
+   Apply, dropped by Revert. */
+- (SCPreferencesRef)editing
+{
+    if (_editing == NULL)
+        _editing = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    return _editing;
+}
+
+- (void)dropEditing
+{
+    if (_editing != NULL)
+        CFRelease(_editing);
+    _editing = NULL;
 }
 
 - (NSString *)text:(NSString *)english
@@ -321,6 +340,13 @@ static const NSUInteger kMethodCount = 5;
     [_ipv6 setSelectable:YES];
     [view addSubview:_ipv6];
 
+    _advanced = [[NSButton alloc] initWithFrame:NSMakeRect(kWidth - 336, 14, 110, 28)];
+    [_advanced setTitle:[self text:@"Advanced\u2026"]];
+    [_advanced setBezelStyle:NSRoundedBezelStyle];
+    [_advanced setTarget:self];
+    [_advanced setAction:@selector(advanced:)];
+    [view addSubview:_advanced];
+
     _revert = [[NSButton alloc] initWithFrame:NSMakeRect(kWidth - 220, 14, 96, 28)];
     [_revert setTitle:[self text:@"Revert"]];
     [_revert setBezelStyle:NSRoundedBezelStyle];
@@ -357,7 +383,7 @@ static NSString *joined(id array)
 /* The chosen service: its configuration (Setup:) and its state now. */
 - (void)list:(NetworkListView *)list chose:(NSUInteger)index
 {
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = (SCPreferencesRef)CFRetain([self editing]);
     SCNetworkServiceRef service = prefs ? SCNetworkServiceCopy(prefs, (__bridge CFStringRef)_serviceIDs[index]) : NULL;
     SCNetworkProtocolRef ipv4 = service ? SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeIPv4) : NULL;
     SCNetworkProtocolRef dnsp = service ? SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeDNS) : NULL;
@@ -455,9 +481,30 @@ static NSString *joined(id array)
         [self list:_list chose:0];
 }
 
+/* Advanced…: the chosen service's sheet, writing into what Apply commits. */
+- (void)advanced:(id)sender
+{
+    NSInteger index = _list.selected;
+    if (index < 0 || (NSUInteger)index >= [_serviceIDs count])
+        return;
+    _sheet = [[NetworkAdvanced alloc] initWithPreferences:[self editing] serviceID:_serviceIDs[(NSUInteger)index]
+                                                   bundle:[self bundle]];
+    __weak NetworkPane *weakSelf = self;
+    [_sheet beginSheetForWindow:[[self mainView] window] completion:^(BOOL changed) {
+        NetworkPane *pane = weakSelf;
+        if (pane == nil)
+            return;
+        if (changed)
+            [pane list:pane->_list chose:(NSUInteger)index];
+        /* Let go once the sheet's own method has returned. */
+        dispatch_async(dispatch_get_main_queue(), ^{ pane->_sheet = nil; });
+    }];
+}
+
 /* The chosen service as it is set up now: what was typed is dropped. */
 - (void)revert:(id)sender
 {
+    [self dropEditing];
     if (_list.selected >= 0)
         [self list:_list chose:(NSUInteger)_list.selected];
 }
@@ -576,7 +623,7 @@ static NSArray *words(NSTextField *field)
     NSInteger index = _list.selected;
     if (index < 0)
         return;
-    SCPreferencesRef prefs = SCPreferencesCreate(NULL, CFSTR("Network pane"), NULL);
+    SCPreferencesRef prefs = (SCPreferencesRef)CFRetain([self editing]);
     SCNetworkServiceRef service = prefs ? SCNetworkServiceCopy(prefs, (__bridge CFStringRef)_serviceIDs[(NSUInteger)index]) : NULL;
     NSString *method = kMethods[MAX(0, [_method indexOfSelectedItem])];
     BOOL ok = service != NULL;
@@ -602,6 +649,7 @@ static NSArray *words(NSTextField *field)
     }
     os_log_info(OS_LOG_DEFAULT, "network %{public}s %{public}s: %d", [_serviceNames[(NSUInteger)index] UTF8String],
                 method.UTF8String, ok);
+    [self dropEditing];
     if (!ok)
         NSBeep();
     if (service)
