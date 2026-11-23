@@ -169,6 +169,13 @@ static NSString *panelText(NSString *english) {
    NSString *home=NSHomeDirectory();
    NSMutableArray *folders=[NSMutableArray array];
    CGFloat width=480, height=[_message length] ? 168 : 140;
+   /* The app's accessory view (its options: an encoding, a format) goes
+      between the fields and the buttons, the panel grown to hold it. */
+   NSSize accessory=_accessoryView ? [_accessoryView frame].size : NSZeroSize;
+   if(_accessoryView){
+      height+=accessory.height+12;
+      width=MAX(width,accessory.width+40);
+   }
    NSView *content=[[[NSView alloc] initWithFrame:NSMakeRect(0,0,width,height)] autorelease];
    CGFloat top=height-20;
 
@@ -227,6 +234,12 @@ static NSString *panelText(NSString *english) {
    [cancel setTarget:self];
    [cancel setAction:@selector(_cancel:)];
    [content addSubview:cancel];
+
+   if(_accessoryView){
+      [_accessoryView removeFromSuperview];
+      [_accessoryView setFrameOrigin:NSMakePoint(floor((width-accessory.width)/2),50)];
+      [content addSubview:_accessoryView];
+   }
 
    [self setContentView:content];
    [self setContentSize:NSMakeSize(width,height)];
