@@ -19,7 +19,7 @@
  * Enabled), Add period with double-space (NSAutomaticPeriodSubstitution-
  * Enabled) and Use smart quotes and dashes (NSAutomaticQuoteSubstitution-
  * Enabled, NSAutomaticDashSubstitutionEnabled), all on when unset; AppKit's
- * text views follow them.
+ * text views follow them. The Shortcuts tab: KeyboardShortcuts.m.
  */
 
 #import <Cocoa/Cocoa.h>
@@ -27,6 +27,7 @@
 #include <Carbon/Carbon.h>
 #include <notify.h>
 #import "../MenuExtraList.h"
+#import "KeyboardShortcuts.h"
 #include <SkyLight/SkyLight.h>
 #include <os/log.h>
 
@@ -58,6 +59,7 @@ static NSTextField *label(NSString *text, NSRect frame, CGFloat size, NSTextAlig
     NSArray *_enabled;          /* TISInputSourceRef, the enabled ones */
     NSPopUpButton *_add;
     NSButton *_remove, *_showMenu;
+    KeyboardShortcuts *_shortcuts;
 }
 
 /* The Text tab's boxes: their titles and the global keys each sets. */
@@ -196,6 +198,13 @@ static NSSlider *slider(NSRect frame, double value, id target)
     [inputTab setView:input];
     [tabs addTabViewItem:inputTab];
     [self reloadSources];
+
+    /* Shortcuts: the system-wide ones (KeyboardShortcuts.m). */
+    NSTabViewItem *shortcutsTab = [[NSTabViewItem alloc] initWithIdentifier:@"shortcuts"];
+    [shortcutsTab setLabel:[self text:@"Shortcuts"]];
+    _shortcuts = [[KeyboardShortcuts alloc] initWithBundle:[self bundle]];
+    [shortcutsTab setView:[_shortcuts viewWithFrame:NSMakeRect(0, 0, kWidth - 40, 260)]];
+    [tabs insertTabViewItem:shortcutsTab atIndex:[tabs numberOfTabViewItems] - 1];
 
     [root addSubview:tabs];
     [self setMainView:root];

@@ -103,9 +103,10 @@ and the resolution changes from System Preferences, in the Atlas visual language
 - [ ] System Preferences: the app and its panes, with Notifications and Users & Groups (users
   created, deleted, made administrators, passwords, login options; test `users-pane`). Reviewed
   against the reference: General (appearance, accent and highlight colors, scroll bars, the
-  default browser; test `general-pane`), Notifications, Network (test `network-pane`), Displays,
-  Date & Time (test `timezone-change`), Mouse, Sound, Keyboard (Text, Input Sources). Left: the
-  Dock pane, Keyboard's Shortcuts tab, Network's Advanced sheet.
+  default browser; test `general-pane`), Notifications, Network with its Advanced sheet (test
+  `network-pane`), Displays, Date & Time (test `timezone-change`), Mouse, Sound, Keyboard (Text,
+  Input Sources, Shortcuts: the system-wide shortcuts with the reference's numbers in
+  com.apple.symbolichotkeys; tests `hotkeys`, `symbolic-hotkeys`). Left: the Dock pane.
 - [ ] AppKit and the Atlas visual language across the system. Done: the light and dark
   appearances (Auto by the hour) and the accent color, followed by every app at once, the menu
   bar, the Dock and the Menu Extras (highlighted in the accent, template icons tinted; Lucide's

@@ -25,3 +25,18 @@
 "Use smart quotes and dashes" = "Usar comillas y rayas tipográficas";
 "Input Sources" = "Fuentes de entrada";
 "Show Input menu in menu bar" = "Mostrar el menú de entrada en la barra de menús";
+
+/* The Shortcuts tab. */
+"Shortcuts" = "Funciones rápidas";
+"To change a shortcut, double-click it and type the new keys." = "Para cambiar una función rápida, haz doble clic en ella y escribe las teclas nuevas.";
+"Restore Defaults" = "Restaurar valores por omisión";
+"Type the keys" = "Escribe las teclas";
+"Dock" = "Dock";
+"Screenshots" = "Capturas de pantalla";
+"Turn Dock Hiding On/Off" = "Activar/desactivar ocultación del Dock";
+"Move focus to the menu bar" = "Mover el foco a la barra de menús";
+"Move focus to next window" = "Mover el foco a la siguiente ventana";
+"Select the previous input source" = "Seleccionar la fuente de entrada anterior";
+"Select next source in Input menu" = "Seleccionar la siguiente fuente del menú Entrada";
+"Save picture of screen as a file" = "Guardar imagen de la pantalla como archivo";
+"Copy picture of screen to the clipboard" = "Copiar imagen de la pantalla en el portapapeles";
