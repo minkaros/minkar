@@ -105,3 +105,13 @@
 "Next" = "Siguiente";
 "Not found" = "No encontrado";
 "%lu replaced" = "%lu reemplazados";
+
+/* The print panel */
+"Printer:" = "Impresora:";
+"No Printer Selected" = "Ninguna impresora seleccionada";
+"Copies:" = "Copias:";
+"Pages:" = "Páginas:";
+"All" = "Todas";
+"From:" = "Desde:";
+"to:" = "hasta:";
+"PDF" = "PDF";

@@ -15,6 +15,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSDisplay.h>
 #import <AppKit/NSGraphicsContext.h>
+#import <AppKit/NSPrinter.h>
+#import <AppKit/NSWorkspace.h>
+#import <Foundation/NSFileManager.h>
+#import <Foundation/NSPathUtilities.h>
+#import <ApplicationServices/ApplicationServices.h>
+#include <unistd.h>
 
 #import "NSPrintProgressPanelController.h"
 
@@ -90,8 +96,10 @@ static NSPrintOperation *_currentOperation=nil;
    return [[[self alloc] initWithView:view printInfo:printInfo insideRect:rect toData:data type:NSPrintOperationEPSInRect] autorelease];
 }
 
+/* A PDF or EPS of a rect (copying the view), not printing: as on the
+   reference. */
 -(BOOL)isCopyingOperation {
-   return NO;
+   return _type==NSPrintOperationPDFInRect || _type==NSPrintOperationEPSInRect;
 }
 
 -(void)setAccessoryView:(NSView *)view {
@@ -242,13 +250,22 @@ static NSPrintOperation *_currentOperation=nil;
 			return nil;
 		}
     }
-    else {
-     NSLog(@"Printing not implemented without print panel yet");
+    /* Minkar: the document drawn into a PDF of its own, then handed on
+       as the print info says (destroyContext): saved, opened, or printed
+       through PrintCore (with no panel, to the print info's printer). */
+    NSString *temporary=[NSTemporaryDirectory() stringByAppendingPathComponent:
+       [NSString stringWithFormat:@"print-%d-%p.pdf",getpid(),self]];
+    NSURL *url=[NSURL fileURLWithPath:temporary];
+    NSSize paper=[_printInfo paperSize];
+    CGRect media=CGRectMake(0,0,paper.width>0 ? paper.width : 612,paper.height>0 ? paper.height : 792);
+    NSDictionary *auxiliaryInfo=[NSDictionary dictionaryWithObject:[self jobTitle] ?: [[_view window] title] ?: @""
+       forKey:(NSString *)kCGPDFContextTitle];
+
+    context=CGPDFContextCreateWithURL((CFURLRef)url,&media,(CFDictionaryRef)auxiliaryInfo);
+    if(context==NULL)
      return nil;
-    }
-   
-    if((context=(CGContextRef)[[_printInfo dictionary] objectForKey:@"_KGContext"])==nil)
-     return nil;
+    [(id)context autorelease];
+    [[_printInfo dictionary] setObject:url forKey:@"_NSPrintTemporaryURL"];
    } else if(_type==NSPrintOperationPDFInRect){
     NSDictionary *auxiliaryInfo=[NSDictionary dictionaryWithObject:[self jobTitle] ?: [[_view window] title] ?: @"" forKey:(NSString *)kCGPDFContextTitle];
     
@@ -275,9 +292,39 @@ static NSPrintOperation *_currentOperation=nil;
    return [NSGraphicsContext graphicsContextWithGraphicsPort:context flipped:NO];
 }
 
+/* The finished PDF (closed by runOperation) where the print info says:
+   a file (NSPrintSaveJob), opened (NSPrintPreviewJob), or the printer,
+   through PrintCore (NSPrintSpoolJob). */
 -(void)destroyContext {
    if(_type==NSPrintOperationPrinter){
-    [[_printInfo dictionary] removeObjectForKey:@"_KGContext"];
+    NSMutableDictionary *dict=[_printInfo dictionary];
+    NSURL *pdf=[[[dict objectForKey:@"_NSPrintTemporaryURL"] retain] autorelease];
+    NSString *disposition=[_printInfo jobDisposition];
+
+    [dict removeObjectForKey:@"_KGContext"];
+    [dict removeObjectForKey:@"_NSPrintTemporaryURL"];
+    if(pdf==nil)
+     return;
+    if([disposition isEqualToString:NSPrintSaveJob]){
+     NSURL *to=[dict objectForKey:NSPrintJobSavingURL];
+     if(to==nil && [dict objectForKey:NSPrintSavePath]!=nil)
+      to=[NSURL fileURLWithPath:[dict objectForKey:NSPrintSavePath]];
+     if(to!=nil){
+      [[NSFileManager defaultManager] removeItemAtURL:to error:NULL];
+      if(![[NSFileManager defaultManager] moveItemAtURL:pdf toURL:to error:NULL])
+       NSLog(@"the PDF could not be saved at %@",[to path]);
+     }
+    } else if([disposition isEqualToString:NSPrintPreviewJob]){
+     [[NSWorkspace sharedWorkspace] openURL:pdf];
+    } else {
+     NSPrinter *printer=[_printInfo printer];
+     OSStatus status=printer!=nil ? PMPrinterPrintWithFile((PMPrinter)[printer _PMPrinter],
+        (PMPrintSettings)[_printInfo PMPrintSettings],(PMPageFormat)[_printInfo PMPageFormat],
+        kPMDocumentFormatPDF,(CFURLRef)pdf) : kPMInvalidPrinter;
+     if(status!=kPMNoError)
+      NSLog(@"the document could not be printed: %d",(int)status);
+     [[NSFileManager defaultManager] removeItemAtURL:pdf error:NULL];
+    }
    }
 }
 

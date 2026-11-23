@@ -329,6 +329,42 @@ static void readFace(O2Font_FT *self,NSString *name) {
 }
 
 /* Minkar: each glyph's box in font units, from its unscaled outline. */
+/* Minkar: a glyph's PostScript name, as the PDF writer asks for it (its
+   MacRoman encoding by glyph names): the font's own when it has names;
+   else the name of the character it shows (ASCII's standard names,
+   uniXXXX for the rest), or .notdef. */
+static const char *const kASCIINames[95] = {
+   "space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle",
+   "parenleft","parenright","asterisk","plus","comma","hyphen","period","slash",
+   "zero","one","two","three","four","five","six","seven","eight","nine",
+   "colon","semicolon","less","equal","greater","question","at",
+   "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+   "bracketleft","backslash","bracketright","asciicircum","underscore","grave",
+   "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
+   "braceleft","bar","braceright","asciitilde"
+};
+
+-(NSString *)copyGlyphNameForGlyph:(O2Glyph)glyph {
+   char name[128];
+
+   if(_face==NULL)
+    return [@".notdef" copy];
+   if(FT_HAS_GLYPH_NAMES(_face) && FT_Get_Glyph_Name(_face,glyph,name,sizeof(name))==0 && name[0]!='\0')
+    return [[NSString alloc] initWithUTF8String:name];
+
+   FT_UInt  index;
+   FT_ULong code=FT_Get_First_Char(_face,&index);
+   while(index!=0){
+    if(index==glyph){
+     if(code>=32 && code<127)
+      return [[NSString alloc] initWithUTF8String:kASCIINames[code-32]];
+     return [[NSString alloc] initWithFormat:@"uni%04lX",(unsigned long)code];
+    }
+    code=FT_Get_Next_Char(_face,code,&index);
+   }
+   return [@".notdef" copy];
+}
+
 -(BOOL)getGlyphBBoxes:(const O2Glyph *)glyphs count:(size_t)count rects:(O2Rect *)rects {
    if(_face==NULL)
     return NO;

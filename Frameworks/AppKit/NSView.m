@@ -2951,10 +2951,20 @@ drawn:
 
 -(void)beginPageInRect:(NSRect)rect atPlacement:(NSPoint)placement {
    CGContextRef      graphicsPort=NSCurrentGraphicsPort();
-   CGRect            mediaBox=NSMakeRect(0,0,rect.size.width,rect.size.height);
-   NSPrintInfo      *printInfo=[[NSPrintOperation currentOperation] printInfo];
-   NSRect            imageableRect=[printInfo imageablePageBounds];
+   NSPrintOperation *operation=[NSPrintOperation currentOperation];
+   NSPrintInfo      *printInfo=[operation printInfo];
    CGAffineTransform transform=CGAffineTransformIdentity;
+   /* Minkar: a copying operation (a PDF or EPS of a rect) has the rect's
+      size; printing has the paper's, the page's content inside the
+      margins (as on the reference: the left and top margins from the
+      paper's left and top edges). */
+   BOOL              copying=operation==nil || [operation isCopyingOperation];
+   NSSize            paper=[printInfo paperSize];
+   CGRect            mediaBox=copying ? NSMakeRect(0,0,rect.size.width,rect.size.height)
+                                      : NSMakeRect(0,0,paper.width,paper.height);
+   CGFloat           left=copying ? 0 : [printInfo leftMargin];
+   CGFloat           top=copying ? 0 : [printInfo topMargin];
+   CGFloat           height=copying ? rect.size.height : paper.height;
 
    [NSCurrentFocusStack() addObject:self];
 
@@ -2963,7 +2973,9 @@ drawn:
 
    transform=CGAffineTransformIdentity;
    if([self isFlipped]){
-       transform=CGAffineTransformMake(1,0,0,-1,0,[printInfo paperSize].height);
+       transform=CGAffineTransformMake(1,0,0,-1,left,height-top);
+   } else {
+       transform=CGAffineTransformMake(1,0,0,1,left,height-top-rect.size.height);
    }
 
    transform=CGAffineTransformTranslate(transform,-rect.origin.x,-rect.origin.y);
