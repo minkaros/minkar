@@ -230,6 +230,11 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 @property (getter=isAutomaticSpellingCorrectionEnabled) BOOL automaticSpellingCorrectionEnabled;
 @property (getter=isContinuousSpellCheckingEnabled) BOOL continuousSpellCheckingEnabled;
 @property (getter=isRulerVisible) BOOL rulerVisible;
+/* The Find panel (NSFindPanel.m): shown and used through
+   performFindPanelAction: with the menu item's NSFindPanelAction tag. */
+@property BOOL usesFindPanel;
+@property BOOL usesFindBar;
+- (void)performFindPanelAction:(id)sender;
 @property BOOL allowsImageEditing;
 @property (getter=isGrammarCheckingEnabled) BOOL grammarCheckingEnabled;
 - (void)toggleGrammarChecking:(id)sender;

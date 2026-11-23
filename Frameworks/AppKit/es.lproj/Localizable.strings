@@ -93,3 +93,15 @@
 "Do you want to save the changes made to the document “%@”?" = "¿Quieres guardar los cambios hechos en el documento «%@»?";
 "Your changes will be lost if you don’t save them." = "Si no los guardas, se perderán los cambios.";
 "Don’t Save" = "No guardar";
+
+/* The Find panel */
+"Find" = "Buscar";
+"Find:" = "Buscar:";
+"Replace with:" = "Reemplazar por:";
+"Ignore Case" = "Ignorar mayúsculas";
+"Replace All" = "Reemplazar todo";
+"Replace & Find" = "Reemplazar y buscar";
+"Previous" = "Anterior";
+"Next" = "Siguiente";
+"Not found" = "No encontrado";
+"%lu replaced" = "%lu reemplazados";

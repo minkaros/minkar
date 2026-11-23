@@ -9,6 +9,7 @@
 #import <objc/runtime.h>
 #import <sys/param.h>
 #import <AppKit/NSTextView.h>
+#import "NSFindPanel.h"
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSTextContainer.h>
 #import <AppKit/NSTextStorage.h>
@@ -2952,6 +2953,8 @@ static BOOL textSetting(NSString *key) {
     else if ([item action] == @selector(toggleContinuousSpellChecking:)) {
         [item setState: [self isContinuousSpellCheckingEnabled]];
     }
+    else if ([item action] == @selector(performFindPanelAction:))
+        return [self _validateFindPanelAction:item];
     return YES;
 }
 

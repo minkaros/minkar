@@ -231,6 +231,7 @@ SRCS = \
     NSTextTable/NSTextTable.m \
     NSTextTable/NSTextTableBlock.m \
     NSTextView.subproj/NSBidiHelper.m \
+    NSTextView.subproj/NSFindPanel.m \
     NSTextView.subproj/NSLayoutManager.m \
     NSTextView.subproj/NSRangeArray.m \
     NSTextView.subproj/NSRulerMarker+NSTextExtensions.m \
