@@ -216,7 +216,7 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 
 1. Imprimir: hecho (cupsd y sus comandos, el panel Impresoras); falta probarlo con una impresora real en el PC 1.
-2. W0–W3: pestañas de ventana (hecho), mosaico (hecho), restauración de ventanas (hecho), Emoji y símbolos.
+2. W0–W3: pestañas de ventana (hecho), mosaico (hecho), restauración de ventanas (hecho), Emoji y símbolos (hecho; falta elegir la fuente de emoji).
 3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.
 4. La autorización de Security completa: authd (el código APSL del árbol), la base de derechos,

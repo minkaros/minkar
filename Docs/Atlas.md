@@ -402,8 +402,12 @@ are part of Minkar 19.6.0.
   the windows made again at launch by their restoration classes; test
   `text-editor-restore`. Not yet: saving while the app runs (after a crash), NSDocument's
   own restoration, views' restorable state.
-- [ ] **W3 — Emoji & Symbols.** The Edit menu's item and a character panel inserting
-  through `insertText:`. Gate: a character chosen is inserted into Text Editor.
+- [x] **W3 — Emoji & Symbols.** The Edit menu's item and a character panel inserting
+  through `insertText:`. Gate: a character chosen is inserted into Text Editor. Done (23
+  Nov 2026): Emoji & Symbols (Control-Command-Space) at the end of every Edit menu; the
+  Characters panel (emoji and symbol categories, recently used, search by Unicode name);
+  test `text-editor-characters`. Not yet: an emoji font (the emoji categories draw blank;
+  the maintainer chooses the font), flags and skin tones (sequences).
 - [ ] **W4 — Dictation.** *To decide:* it needs an on-device speech recognizer; until then
   the item is not shown.
 

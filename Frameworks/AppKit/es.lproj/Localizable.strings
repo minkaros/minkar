@@ -133,3 +133,24 @@
 /* Window restoration */
 "Quit and Keep Windows" = "Salir y mantener ventanas";
 "Quit and Close All Windows" = "Salir y cerrar todas las ventanas";
+
+/* Emoji & Symbols */
+"Emoji & Symbols" = "Emoji y símbolos";
+"Characters" = "Caracteres";
+"Frequently Used" = "Usados con frecuencia";
+"Smileys & People" = "Emoticonos y personas";
+"Animals & Nature" = "Animales y naturaleza";
+"Food & Drink" = "Comida y bebida";
+"Activity" = "Actividades";
+"Travel & Places" = "Viajes y lugares";
+"Objects" = "Objetos";
+"Symbols" = "Símbolos";
+"Arrows" = "Flechas";
+"Bullets/Stars" = "Viñetas/estrellas";
+"Currency Symbols" = "Símbolos de moneda";
+"Letterlike Symbols" = "Símbolos de tipo letra";
+"Math Symbols" = "Símbolos matemáticos";
+"Punctuation" = "Puntuación";
+"Technical Symbols" = "Símbolos técnicos";
+"Latin" = "Latino";
+"Greek" = "Griego";

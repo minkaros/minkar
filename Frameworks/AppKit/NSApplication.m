@@ -63,6 +63,8 @@ BOOL _NSQuitKeepsWindows(BOOL other);
 NSData *_NSEncodeRestorableState(BOOL keep);
 void _NSWriteRestorableState(NSData *state);
 NSUInteger _NSRestoreWindows(void);
+/* NSCharacterPalette.m */
+void _NSOrderFrontCharacterPalette(void);
 
 #include <sys/types.h>
 #include <sys/un.h>
@@ -1113,6 +1115,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NS_ENDHANDLER
 
    [self _addFullScreenItem];
+   [self _addCharacterPaletteItem];
    [self _addTileItems];
    [self _addTabItems];
    [self _addWindowAlternates];
@@ -1169,6 +1172,30 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if([view numberOfItems]>0 && ![[[view itemArray] lastObject] isSeparatorItem])
     [view addItem:[NSMenuItem separatorItem]];
    [view addItem:full];
+}
+
+/* Emoji & Symbols (Control-Command-Space) at the end of the Edit menu,
+   as AppKit adds it, unless the app has it. */
+-(void)_addCharacterPaletteItem {
+   NSString *localized=[[NSBundle mainBundle] localizedStringForKey:@"Edit" value:@"Edit" table:nil];
+   NSMenu   *edit=nil;
+
+   for(NSMenuItem *item in [[self mainMenu] itemArray])
+    if([item hasSubmenu] && ([[item title] isEqualToString:@"Edit"] || [[item title] isEqualToString:localized]))
+     edit=[item submenu];
+   if(edit==nil || [edit indexOfItemWithTarget:nil andAction:@selector(orderFrontCharacterPalette:)]>=0)
+    return;
+   for(NSMenuItem *item in [edit itemArray])
+    if([item action]==@selector(orderFrontCharacterPalette:))
+     return;
+   NSString *title=[[NSBundle bundleForClass:[NSApplication class]] localizedStringForKey:@"Emoji & Symbols"
+      value:@"Emoji & Symbols" table:nil];
+   NSMenuItem *item=[[[NSMenuItem alloc] initWithTitle:title action:@selector(orderFrontCharacterPalette:) keyEquivalent:@" "] autorelease];
+
+   [item setKeyEquivalentModifierMask:NSCommandKeyMask|NSControlKeyMask];
+   if([edit numberOfItems]>0 && ![[[edit itemArray] lastObject] isSeparatorItem])
+    [edit addItem:[NSMenuItem separatorItem]];
+   [edit addItem:item];
 }
 
 /* Tiling's items, as AppKit adds them to the Window menu after Zoom (or
@@ -2177,8 +2204,9 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    [[NSColorPanel sharedColorPanel] orderFront:sender];
 }
 
+/* Emoji & Symbols: the character panel (NSCharacterPalette.m). */
 -(void)orderFrontCharacterPalette:sender {
-   NSUnimplementedMethod();
+   _NSOrderFrontCharacterPalette();
 }
 
 -(void)hide:sender {//deactivates the application and hides all windows

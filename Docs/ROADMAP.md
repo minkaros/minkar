@@ -210,7 +210,7 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 The maintainer's order (23 Nov 2026). Lane A, one after another:
 
 1. Printing: done (cupsd and its commands, the Printers pane); to be tried on a real printer on PC 1.
-2. W0–W3: window tabs (done), tiling (done), window restoration (done), Emoji & Symbols.
+2. W0–W3: window tabs (done), tiling (done), window restoration (done), Emoji & Symbols (done; the emoji font to choose).
 3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.
 4. Security's authorization in full: authd (the APSL sources in the tree), the rights
