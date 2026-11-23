@@ -101,28 +101,31 @@ static NSColor *currentHighlight(void) {
                                       blue:[[parts objectAtIndex:2] doubleValue] alpha:1];
 }
 
-/* Atlas's dark neutrals: a grey, then alpha (1 when absent). */
+/* Atlas's dark neutrals: a grey, then alpha (1 when absent). Chosen by
+   the maintainer, 23 Nov 2026: windows and menus 0.176, content and text
+   fields 0.20, the tab bar 0.153, borders 0.09, a chosen row 0.13 (darker
+   than its list), text 0.93. */
 typedef struct {
     NSString *name;
     CGFloat white;
 } _NSAtlasDarkGray;
 
 static const _NSAtlasDarkGray kDark[] = {
-    { @"labelColor", 0.90 }, { @"secondaryLabelColor", 0.66 }, { @"tertiaryLabelColor", 0.46 },
-    { @"quaternaryLabelColor", 0.34 }, { @"textColor", 0.92 }, { @"textBackgroundColor", 0.16 },
+    { @"labelColor", 0.93 }, { @"secondaryLabelColor", 0.66 }, { @"tertiaryLabelColor", 0.46 },
+    { @"quaternaryLabelColor", 0.34 }, { @"textColor", 0.93 }, { @"textBackgroundColor", 0.2 },
     { @"selectedTextColor", 0.96 }, { @"unemphasizedSelectedTextColor", 0.92 },
-    { @"unemphasizedSelectedTextBackgroundColor", 0.30 }, { @"placeholderTextColor", 0.46 },
-    { @"headerTextColor", 0.92 }, { @"windowBackgroundColor", 0.21 }, { @"underPageBackgroundColor", 0.15 },
-    { @"windowFrameColor", 0.26 }, { @"windowFrameTextColor", 0.88 }, { @"controlBackgroundColor", 0.16 },
-    { @"controlAlternatingRowColor", 0.19 }, { @"alternatingContentBackgroundColor", 0.19 },
-    { @"unemphasizedSelectedContentBackgroundColor", 0.31 }, { @"gridColor", 0.28 },
-    { @"separatorColor", 0.33 }, { @"controlColor", 0.36 }, { @"controlTextColor", 0.92 },
+    { @"unemphasizedSelectedTextBackgroundColor", 0.13 }, { @"placeholderTextColor", 0.46 },
+    { @"headerTextColor", 0.93 }, { @"windowBackgroundColor", 0.176 }, { @"underPageBackgroundColor", 0.153 },
+    { @"windowFrameColor", 0.176 }, { @"windowFrameTextColor", 0.88 }, { @"controlBackgroundColor", 0.2 },
+    { @"controlAlternatingRowColor", 0.22 }, { @"alternatingContentBackgroundColor", 0.22 },
+    { @"unemphasizedSelectedContentBackgroundColor", 0.13 }, { @"gridColor", 0.12 },
+    { @"separatorColor", 0.09 }, { @"controlColor", 0.36 }, { @"controlTextColor", 0.93 },
     { @"disabledControlTextColor", 0.46 }, { @"selectedControlTextColor", 0.96 },
-    { @"secondarySelectedControlColor", 0.31 }, { @"controlHighlightColor", 0.40 },
+    { @"secondarySelectedControlColor", 0.13 }, { @"controlHighlightColor", 0.40 },
     { @"controlLightHighlightColor", 0.44 }, { @"controlShadowColor", 0.12 },
-    { @"controlDarkShadowColor", 0.06 }, { @"highlightColor", 0.44 }, { @"scrollBarColor", 0.20 },
-    { @"knobColor", 0.46 }, { @"selectedKnobColor", 0.56 }, { @"menuBackgroundColor", 0.23 },
-    { @"menuItemTextColor", 0.92 },
+    { @"controlDarkShadowColor", 0.06 }, { @"highlightColor", 0.44 }, { @"scrollBarColor", 0.2 },
+    { @"knobColor", 0.46 }, { @"selectedKnobColor", 0.56 }, { @"menuBackgroundColor", 0.176 },
+    { @"menuItemTextColor", 0.93 },
 };
 static const size_t kDarkCount = sizeof(kDark) / sizeof(kDark[0]);
 
@@ -163,7 +166,7 @@ static void applyAppearance(BOOL dark) {
         }
     }
     for (size_t i = 0; i < kDarkCount; i++) {
-        NSColor *c = dark ? [NSColor colorWithCalibratedWhite:kDark[i].white alpha:1]
+        NSColor *c = dark ? [NSColor colorWithGenericGamma22White:kDark[i].white alpha:1]
                           : [lightColors objectForKey:kDark[i].name];
         if (c != nil)
             [list setColor:c forKey:kDark[i].name];

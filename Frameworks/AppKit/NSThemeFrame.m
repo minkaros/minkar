@@ -269,7 +269,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         bounds.size.height += cheatSheet;
 
     /* The frame's grey: Atlas's light one, or its dark one. */
-    CGFloat frameGray = _NSSystemAppearanceIsDark() ? 0.24 : 0.8;
+    CGFloat frameGray = _NSSystemAppearanceIsDark() ? 0.176 : 0.8;	/* dark: the windows' grey (23 Nov 2026) */
     O2ContextSetGrayStrokeColor(_context, frameGray, 1);
     O2ContextSetGrayFillColor(_context, frameGray, 1);
 
