@@ -208,9 +208,10 @@ static int check_one(pid_t pid, const char *operation, int kind, const char *nam
 	return 0;
 }
 
+static int check_named(pid_t pid, const char *operation, enum sandbox_filter_type type, const char *name);
+
 int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...) {
 	const char *name = NULL;
-	int kind = -1;
 	int base = (int)type & ~SANDBOX_CHECK_NO_REPORT;
 	if (base != SANDBOX_FILTER_NONE) {
 		va_list ap;
@@ -218,6 +219,26 @@ int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type typ
 		name = va_arg(ap, const char *);
 		va_end(ap);
 	}
+	return check_named(pid, operation, type, name);
+}
+
+/* The same, for the process an audit token names (its pid, the token's
+   sixth word): authd asks so about its clients. */
+int sandbox_check_by_audit_token(audit_token_t token, const char *operation, enum sandbox_filter_type type, ...) {
+	const char *name = NULL;
+	int base = (int)type & ~SANDBOX_CHECK_NO_REPORT;
+	if (base != SANDBOX_FILTER_NONE) {
+		va_list ap;
+		va_start(ap, type);
+		name = va_arg(ap, const char *);
+		va_end(ap);
+	}
+	return check_named((pid_t)token.val[5], operation, type, name);
+}
+
+static int check_named(pid_t pid, const char *operation, enum sandbox_filter_type type, const char *name) {
+	int kind = -1;
+	int base = (int)type & ~SANDBOX_CHECK_NO_REPORT;
 	switch (base) {
 	case SANDBOX_FILTER_PATH:
 		kind = 0;

@@ -625,6 +625,19 @@ xpc_connection_get_context(xpc_connection_t xconn)
 	return (((struct xpc_connection *)xconn)->xc_context);
 }
 
+/* A user's service, or a session's instance of one (xpc/private.h):
+   Minkar's launchd has one domain, the console session's, so the lookup
+   is the service's name alone. */
+void
+xpc_connection_set_target_uid(xpc_connection_t xconn __unused, uid_t uid __unused)
+{
+}
+
+void
+xpc_connection_set_instance(xpc_connection_t xconn __unused, const unsigned char *instance __unused)
+{
+}
+
 /* Connections are never freed yet: the finalizer is kept, not called. */
 void
 xpc_connection_set_finalizer_f(xpc_connection_t connection __unused,

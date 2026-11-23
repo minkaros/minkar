@@ -29,6 +29,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
+#include <limits.h>
 #include <mach/mach.h>
 /* Minkar: no membership service yet: these calls keep their local answers
    (the directory service answers the lookups, ds_module.c). */
@@ -636,7 +637,67 @@ mbr_check_membership_ext(int userid_type, const void *userid, size_t userid_size
 	
 	return rc;
 #else
-	return EIO;
+	/* Minkar: answered here, from the account files through libinfo: the
+	   user (a UUID this file made, a uid or a name) is a member when the
+	   group is its primary group or lists it (getgrouplist). */
+	struct passwd *pw = NULL;
+	struct group *gr = NULL;
+	id_t id;
+
+	if (isMember == NULL)
+		return EINVAL;
+	*isMember = 0;
+	switch (userid_type) {
+	case ID_TYPE_UUID:
+		if (userid_size < sizeof(uuid_t) || memcmp(userid, _user_compat_prefix, COMPAT_PREFIX_LEN) != 0)
+			return ENOENT;
+		memcpy(&id, (const uint8_t *)userid + COMPAT_PREFIX_LEN, sizeof(id));
+		pw = getpwuid((uid_t)ntohl(id));
+		break;
+	case ID_TYPE_UID:
+		memcpy(&id, userid, sizeof(id));
+		pw = getpwuid((uid_t)id);
+		break;
+	case ID_TYPE_USERNAME:
+		pw = getpwnam((const char *)userid);
+		break;
+	default:
+		return EINVAL;
+	}
+	if (pw == NULL)
+		return ENOENT;
+	switch (groupid_type) {
+	case ID_TYPE_UUID:
+		if (memcmp(groupid, _group_compat_prefix, COMPAT_PREFIX_LEN) != 0)
+			return ENOENT;
+		memcpy(&id, (const uint8_t *)groupid + COMPAT_PREFIX_LEN, sizeof(id));
+		gr = getgrgid((gid_t)ntohl(id));
+		break;
+	case ID_TYPE_GID:
+		memcpy(&id, groupid, sizeof(id));
+		gr = getgrgid((gid_t)id);
+		break;
+	case ID_TYPE_GROUPNAME:
+		gr = getgrnam((const char *)groupid);
+		break;
+	default:
+		return EINVAL;
+	}
+	if (gr == NULL)
+		return ENOENT;
+	gid_t wanted = gr->gr_gid;
+	int groups[NGROUPS_MAX + 1], count = NGROUPS_MAX + 1;
+	if (pw->pw_gid == wanted) {
+		*isMember = 1;
+		return 0;
+	}
+	if (getgrouplist(pw->pw_name, (int)pw->pw_gid, groups, &count) != 0)
+		count = NGROUPS_MAX + 1;
+	for (int i = 0; i < count; i++)
+		if ((gid_t)groups[i] == wanted)
+			*isMember = 1;
+	(void)refresh;
+	return 0;
 #endif
 }
 

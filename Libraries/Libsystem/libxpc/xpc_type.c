@@ -338,11 +338,24 @@ xpc_data_create(const void *bytes, size_t length)
 }
 
 #ifdef MACH
+/* A data object with dispatch data's bytes, made contiguous and copied
+   (authd sends a password so, out of band on the reference platform). */
 xpc_object_t
 xpc_data_create_with_dispatch_data(dispatch_data_t ddata)
 {
-	MINKAR_STUB();
-	return (NULL);
+	dispatch_data_t map;
+	const void *bytes = NULL;
+	size_t length = 0;
+	xpc_object_t result;
+
+	if (ddata == NULL)
+		return (NULL);
+	map = dispatch_data_create_map(ddata, &bytes, &length);
+	if (map == NULL)
+		return (NULL);
+	result = xpc_data_create(bytes, length);
+	dispatch_release(map);
+	return (result);
 }
 #endif
 

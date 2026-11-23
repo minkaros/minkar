@@ -15,6 +15,7 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <mach/message.h>
 
 __BEGIN_DECLS
 
@@ -65,6 +66,8 @@ enum sandbox_filter_type {
  * operation: 1 when the process is sandboxed, 0 when it is not.
  */
 int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...);
+/* The same, for the process an audit token names. */
+int sandbox_check_by_audit_token(audit_token_t token, const char *operation, enum sandbox_filter_type type, ...);
 
 __END_DECLS
 

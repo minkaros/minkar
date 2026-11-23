@@ -76,4 +76,29 @@ XPC_EXPORT
 xpc_object_t
 xpc_create_from_plist(uint8_t *buf, size_t length);
 
+/**
+ * @function xpc_connection_set_target_uid
+ *
+ * @abstract
+ * Names whose service a connection is for: a user's (authd reaches a
+ * user's security agent so). Minkar's launchd has one domain for the
+ * console's session, where every service is: the uid is kept, the lookup
+ * is the same.
+ */
+XPC_EXPORT
+void
+xpc_connection_set_target_uid(xpc_connection_t connection, uid_t uid);
+
+/**
+ * @function xpc_connection_set_instance
+ *
+ * @abstract
+ * Names a service's instance (one a session has of its own, by its UUID).
+ * Minkar's services have one instance: the UUID is kept, the lookup is the
+ * same.
+ */
+XPC_EXPORT
+void
+xpc_connection_set_instance(xpc_connection_t connection, const unsigned char *instance);
+
 #endif /* __XPC_PRIVATE_H__ */

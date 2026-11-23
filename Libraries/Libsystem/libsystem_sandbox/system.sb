@@ -1,0 +1,53 @@
+;; SPDX-License-Identifier: BSD-2-Clause
+;; Copyright (c) 2026 The Minkar contributors
+;; Part of Minkar.
+;;
+;; system.sb: what every system daemon's profile gets with
+;; (import "system.sb"): the system's libraries and frameworks and their
+;; data, the devices every program opens, the system's settings, and the
+;; services the system libraries reach on their own (the log, notifications,
+;; the directory service for users and groups, preferences, the network
+;; configuration). Our own, for profiles that import it.
+
+(version 1)
+
+;; The system's code and data.
+(allow file-read*
+       (subpath "/System")
+       (subpath "/usr/lib")
+       (subpath "/usr/share")
+       (subpath "/Library/Preferences")
+       (subpath "/private/var/db/timezone")
+       (literal "/private/etc/localtime")
+       (literal "/private/etc/passwd")
+       (literal "/private/etc/group")
+       (literal "/private/etc/hosts")
+       (literal "/private/etc/resolv.conf")
+       (literal "/private/etc/services")
+       (literal "/private/etc/protocols"))
+
+;; The devices every program opens.
+(allow file-read* file-write*
+       (literal "/dev/null")
+       (literal "/dev/zero")
+       (literal "/dev/dtracehelper"))
+(allow file-read*
+       (literal "/dev/random")
+       (literal "/dev/urandom"))
+
+(allow sysctl-read)
+
+;; The services the system libraries use by themselves.
+(allow mach-lookup
+       (global-name "com.apple.system.logger")
+       (global-name "com.apple.logd")
+       (global-name "com.apple.system.notification_center")
+       (global-name "com.apple.system.opendirectoryd.libinfo")
+       (global-name "com.apple.system.opendirectoryd.api")
+       (global-name "com.apple.system.opendirectoryd.membership")
+       (global-name "com.apple.SystemConfiguration.configd")
+       (global-name "com.apple.cfprefsd.daemon")
+       (global-name "com.apple.distributed_notifications@Uv3"))
+
+(allow ipc-posix-shm-read*
+       (ipc-posix-name "apple.shm.notification_center"))

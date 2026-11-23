@@ -4,7 +4,8 @@
 #
 # libsystem_sandbox: sandbox_init and sandbox_check (sandbox.h). Profiles
 # are compiled here (SBPL, sbpl.c) and enforced by the kernel's sandbox
-# policy, which evaluates them with the same sbeval.c and sbregex.c.
+# policy, which evaluates them with the same sbeval.c and sbregex.c. Our
+# system.sb is the base profile daemons' profiles import.
 
 SUBDIR =
 MK_WERROR = no
@@ -32,6 +33,9 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	rsync -c ${.CURDIR}/sandbox.h ${MINKAR_SDKROOT}/usr/include/sandbox.h
 	# The compiled form and its evaluator, for the kernel's policy.
 	rsync -c ${.CURDIR}/sbblob.h ${MINKAR_SDKROOT}/usr/local/include/minkar/sbblob.h
+	# The base profile system daemons' profiles import (import "system.sb").
+	mkdir -p ${SYSROOT_DIR}/System/Library/Sandbox/Profiles
+	rsync -c ${.CURDIR}/system.sb ${SYSROOT_DIR}/System/Library/Sandbox/Profiles/system.sb
 
 lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 

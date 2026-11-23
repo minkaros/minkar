@@ -687,6 +687,76 @@ static value *fn_ignore(struct interp *in, value *args, struct env *env) {
 	return &in->nil;
 }
 
+/* (import "name.sb"): another profile's rules, here, from the places named
+   profiles are (/System/Library/Sandbox/Profiles, /usr/share/sandbox);
+   Minkar's system.sb holds what every system daemon needs (logd, notifyd,
+   the directory service...). An import of a profile not there, or nested
+   too deep, is an error. */
+static int import_depth;
+
+static value *fn_import(struct interp *in, value *args, struct env *env) {
+	static const char *const dirs[] = { "/System/Library/Sandbox/Profiles", "/usr/share/sandbox" };
+	value *name = arg(args, 0);
+	char path[1024];
+	FILE *file = NULL;
+
+	if (name == NULL || name->type != V_STR) {
+		fail(in, "import takes a profile's name");
+		return &in->nil;
+	}
+	if (import_depth >= 8) {
+		fail(in, "%s: imports nested too deep", name->s);
+		return &in->nil;
+	}
+	for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]) && file == NULL; i++) {
+		if (strchr(name->s, '/') != NULL)
+			snprintf(path, sizeof(path), "%s", name->s);
+		else
+			snprintf(path, sizeof(path), "%s/%s", dirs[i], name->s);
+		file = fopen(path, "r");
+	}
+	if (file == NULL) {
+		fail(in, "import: no profile %s", name->s);
+		return &in->nil;
+	}
+	size_t size = 0, used = 0, got;
+	char *text = NULL;
+	do {
+		if (used + 4096 > size) {
+			size = size ? size * 2 : 8192;
+			char *bigger = realloc(text, size);
+			if (bigger == NULL) {
+				free(text);
+				fclose(file);
+				fail(in, "out of memory");
+				return &in->nil;
+			}
+			text = bigger;
+		}
+		got = fread(text + used, 1, size - used - 1, file);
+		used += got;
+	} while (got > 0);
+	fclose(file);
+	text[used] = '\0';
+
+	struct reader r = { text, 1 };
+	int depth = in->depth;
+	import_depth++;
+	for (;;) {
+		skip_space(&r);
+		if (*r.p == '\0' || in->failed)
+			break;
+		in->depth = 0;
+		value *form = read_form(in, &r);
+		in->depth = 0;
+		eval(in, form, env);
+	}
+	import_depth--;
+	in->depth = depth;
+	free(text);
+	return &in->nil;
+}
+
 /* A string with the regex metacharacters escaped. */
 static value *fn_regex_quote(struct interp *in, value *args, struct env *env) {
 	(void)env;
@@ -1008,7 +1078,7 @@ static const struct {
 	{ "=", fn_num_eq, 0 }, { "<", fn_lt, 0 }, { ">", fn_gt, 0 }, { "<=", fn_le, 0 }, { ">=", fn_ge, 0 },
 	{ "equal?", fn_equal, 0 }, { "eq?", fn_equal, 0 }, { "eqv?", fn_equal, 0 }, { "not", fn_not, 0 },
 	{ "list", fn_list, 0 }, { "debug", fn_ignore, 0 }, { "trace", fn_ignore, 0 },
-	{ "import", fn_ignore, 0 }, { "regex-quote", fn_regex_quote, 0 },
+	{ "import", fn_import, 0 }, { "regex-quote", fn_regex_quote, 0 },
 	{ "allow", fn_allow, 0 }, { "deny", fn_deny, 0 }, { "with", fn_with, 0 },
 	{ "literal", f_literal, 0 }, { "path-literal", f_literal, 0 }, { "subpath", f_subpath, 0 },
 	{ "prefix", f_prefix, 0 }, { "path-prefix", f_prefix, 0 }, { "regex", f_regex, 0 },
