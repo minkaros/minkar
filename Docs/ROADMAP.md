@@ -123,7 +123,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 - [ ] HFS+ compression (decmpfs) through `MinkarFSCompression`; partial.
 - [ ] The rest of hfs's adaptation (`Kernel/_PROVENANCE`).
 - [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image.
-- [ ] Apps: A0, A1, A3, A4 done; A2 partial ([Atlas.md](Atlas.md#5-applications)).
+- [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
 - [ ] Commands: `osascript`, `opendiff`, `tmutil`; git's Tcl commands.
 
 #### WebKit
@@ -209,8 +209,8 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 
 The maintainer's order (23 Nov 2026). Lane A, one after another:
 
-1. A2, Text Editor: the ruler and printing (a minimal print panel over PrintCore, with Save
-   as PDF). Done: find and replace, encodings and line endings, rich text.
+1. Printing: cupsd started by launchd with its commands, and a Printers pane in System
+   Preferences (the maintainer's choice, 23 Nov 2026). A2 is done.
 2. W0–W3: window tabs, tiling, window restoration, Emoji & Symbols.
 3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.

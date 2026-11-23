@@ -126,7 +126,7 @@ apps 19 en verde (BC4).
 - [ ] Compresión de HFS+ (decmpfs) con `MinkarFSCompression`; parcial.
 - [ ] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`).
 - [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada.
-- [ ] Apps: A0, A1, A3, A4 hechas; A2 parcial ([Atlas.md](Atlas.md#5-applications)).
+- [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
 - [ ] Órdenes: `osascript`, `opendiff`, `tmutil`; las órdenes Tcl de git.
 
 #### WebKit
@@ -215,8 +215,8 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 
-1. A2, Text Editor: la regla e imprimir (un panel de impresión mínimo sobre PrintCore, con
-   Guardar como PDF). Hecho: buscar y reemplazar, codificaciones y finales de línea, texto enriquecido.
+1. Imprimir: cupsd arrancado por launchd con sus comandos, y un panel Impresoras en Preferencias
+   del Sistema (decisión del mantenedor, 23 nov 2026). A2 está hecho.
 2. W0–W3: pestañas de ventana, mosaico, restauración de ventanas, Emoji y símbolos.
 3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
    `opendiff`, `tmutil`.

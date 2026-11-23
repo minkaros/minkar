@@ -62,3 +62,6 @@
 "Convert this document to plain text?" = "¿Convertir este documento a texto simple?";
 "Making a rich text document plain will lose all text styles (such as fonts and colors) and attachments." = "Al convertir un documento de texto enriquecido en texto simple se perderán todos los estilos (como tipos de letra y colores) y los archivos adjuntos.";
 "OK" = "Aceptar";
+
+/* File > Print */
+"Print…" = "Imprimir…";

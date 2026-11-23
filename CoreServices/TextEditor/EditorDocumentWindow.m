@@ -331,6 +331,18 @@ static NSPoint nextOrigin;
     [self setEdited:YES];
 }
 
+/* Print…: the text view printed (AppKit's panel: a printer, or PDF),
+   the document's name as the job's. */
+- (void)print
+{
+    NSPrintInfo *info = [[NSPrintInfo sharedPrintInfo] copy];
+    NSPrintOperation *operation = [NSPrintOperation printOperationWithView:_text printInfo:info];
+    NSString *name = _fileURL ? [[_fileURL path] lastPathComponent] : _untitledName;
+
+    [operation setJobTitle:[name stringByDeletingPathExtension]];
+    [operation runOperation];
+}
+
 - (BOOL)save
 {
     if (_fileURL == nil)

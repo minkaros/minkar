@@ -55,7 +55,7 @@ code marks it `// SHORTCUT(<milestone>):`.
 | Menus (chapter 3) | MB0–MB4 | MB0, MB1, MB2, MB3 | MB4 (19.6.x) |
 | Dock (chapter 4) | D0–D4 | D0, D1, D2, D3 | D4 (partial; 19.6.x) |
 | Files (chapter 4) | K0–K4 | K0, K1, K2, K3 | K4 (19.6.x) |
-| Applications (chapter 5) | A0–A10 | A0, A1, A3, A4 | A2 (started; 19.6.0), A5–A10 (19.6.x) |
+| Applications (chapter 5) | A0–A10 | A0, A1, A2, A3, A4 | A5–A10 (19.6.x) |
 | Notifications (5.4) | N0–N2 | N0, N1, N2 | — |
 | Window and text services (5.5) | W0–W4 | — | W0–W3 (19.6.0), W4 (to decide) |
 
@@ -325,11 +325,12 @@ Help menu), Characters (ICU).
 
 - [x] A0 — App foundations and the template `Developer/Templates/AtlasApp`. `5a721456ef`, `fbef0a5927`; test `atlas-app`
 - [x] A1 — Terminal on libvterm 0.3.3, with tabs and Preferences. `d7b7c4f405`; test `terminal`
-- [ ] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
+- [x] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
   `open -t`; find and replace through AppKit's Find panel (`10594b5eb5`, test
   `text-editor-find`); encodings and line endings kept, and chosen in Save As (test
   `text-editor-encodings`); rich text, opened and saved as RTF, Make Rich/Plain Text
-  (`01ee8bd8e6`, test `text-editor-rtf`). Left: printing, the ruler.
+  (`01ee8bd8e6`, test `text-editor-rtf`); the ruler (`087039cdfd`, test `appkit-text-ruler`);
+  printing through AppKit's print panel, to a printer or a PDF (test `text-editor-print`).
   Tests: a round trip in each encoding, find and replace, an RTF document reopened.
 - [x] A3 — System Monitor. `5a1c89ed68`; test `system-monitor`. Per-process energy waits for the power driver's data.
 - [x] A4 — Logs on `log --style ndjson`. `033761cf48`; test `logs`. Nothing writes crash reports yet.

@@ -32,6 +32,8 @@ NS_ASSUME_NONNULL_BEGIN
 /* Rich text (RTF) or plain; Make Rich Text / Make Plain Text. */
 - (BOOL)isRichText;
 - (void)toggleRichText;
+/* Print… : the text through AppKit's print panel and operation. */
+- (void)print;
 /* Closes, asking about unsaved changes; NO if the user cancelled. */
 - (BOOL)close;
 @end

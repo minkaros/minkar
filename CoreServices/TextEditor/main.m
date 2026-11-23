@@ -55,6 +55,8 @@ static void addMenu(NSString *title, NSMenu *menu)
     item(file, NSLocalizedString(@"Close", nil), self, @selector(closeDocument:), @"w", cmd);
     item(file, NSLocalizedString(@"Save", nil), self, @selector(saveDocument:), @"s", cmd);
     item(file, NSLocalizedString(@"Save As…", nil), self, @selector(saveDocumentAs:), @"s", shift);
+    [file addItem:[NSMenuItem separatorItem]];
+    item(file, NSLocalizedString(@"Print…", nil), self, @selector(printDocument:), @"p", cmd);
     addMenu(NSLocalizedString(@"File", nil), file);
 
     /* The text view answers these through the responder chain. */
@@ -210,6 +212,11 @@ static void addMenu(NSString *title, NSMenu *menu)
     [[self front] saveAs];
 }
 
+- (void)printDocument:(id)sender
+{
+    [[self front] print];
+}
+
 - (void)toggleRichText:(id)sender
 {
     [[self front] toggleRichText];
@@ -226,7 +233,7 @@ static void addMenu(NSString *title, NSMenu *menu)
         return front != nil;
     }
     if (action == @selector(closeDocument:) || action == @selector(saveDocument:) ||
-        action == @selector(saveDocumentAs:))
+        action == @selector(saveDocumentAs:) || action == @selector(printDocument:))
         return [self front] != nil;
     return YES;
 }
