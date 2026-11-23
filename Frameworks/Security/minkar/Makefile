@@ -15,10 +15,10 @@ FMWK_COMPAT_VERSION = 1.0.0
 # which talks to authd (BSD/usr.sbin/authd), with its headers; only
 # AuthorizationExecuteWithPrivileges is ours (AuthorizationExecute.c).
 SRCS = SecBase.c AuthorizationExecute.c Authorization.c authutilities.c Keychain.c Crypto.c Transform.c Code.c \
-	Policy.c Trust.c
+	Policy.c Trust.c SecTask.c
 HEADERS = Security.h SecBase.h include/Security/Authorization.h include/Security/AuthorizationTags.h \
 	include/Security/AuthorizationDB.h include/Security/AuthorizationPlugin.h SecItem.h SecKeychain.h SecCertificate.h SecKey.h SecImportExport.h SecTransform.h SecCode.h SecPolicy.h \
-	SecTrust.h
+	SecTrust.h SecTask.h
 SUBDIR =
 
 APSL_AUTH = ${.CURDIR}/../OSX/libsecurity_authorization/lib
