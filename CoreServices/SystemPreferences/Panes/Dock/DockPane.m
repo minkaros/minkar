@@ -13,8 +13,9 @@
  * each change shows at once. Two are the windows' and go to the global
  * domain, where AppKit reads them: Prefer tabs when opening documents
  * (AppleWindowTabbingMode) and Double-click a window's title bar to
- * (AppleActionOnDoubleClick: Maximize, Minimize or None). The view is made
- * in code. */
+ * (AppleActionOnDoubleClick: Maximize, Minimize or None). Changed
+ * elsewhere (Option-Command-D), the controls follow. The view is made in
+ * code. */
 
 #import <Cocoa/Cocoa.h>
 #import <PreferencePanes/PreferencePanes.h>
@@ -96,6 +97,13 @@ static NSString *string(CFStringRef key, CFStringRef domain, NSString *fallback)
     NSButton *_magnify, *_left, *_bottom, *_right, *_autohide;
     NSButton *_doubleClick, *_intoApp, *_animate, *_indicators, *_recents;
     NSPopUpButton *_effect, *_tabs, *_doubleClickAction;
+    int _notifyToken;
+}
+
+- (void)dealloc
+{
+    if (_notifyToken != 0)
+        notify_cancel(_notifyToken);
 }
 
 - (NSString *)text:(NSString *)english
@@ -211,7 +219,39 @@ static NSSlider *slider(NSRect frame, double value, id target, SEL action)
     }
 
     [self setMainView:view];
+    /* Changed elsewhere too (Option-Command-D, the Dock's own menu,
+       defaults): the controls follow, so a change here does not undo it. */
+    __weak DockPane *weakSelf = self;
+    notify_register_dispatch("org.minkar.dock.prefs", &_notifyToken, dispatch_get_main_queue(), ^(int token) {
+        [weakSelf reload];
+    });
     return view;
+}
+
+/* The controls as the preferences have them now. */
+- (void)reload
+{
+    CFPreferencesAppSynchronize(kDockDomain);
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
+    [_size setDoubleValue:number(CFSTR("tilesize"), 48)];
+    [_large setDoubleValue:number(CFSTR("largesize"), 64)];
+    [_magnify setState:flag(CFSTR("magnification")) ? NSOnState : NSOffState];
+    NSString *where = string(CFSTR("orientation"), kDockDomain, @"bottom");
+    [_left setState:[where isEqualToString:@"left"] ? NSOnState : NSOffState];
+    [_right setState:[where isEqualToString:@"right"] ? NSOnState : NSOffState];
+    [_bottom setState:[_left state] == NSOffState && [_right state] == NSOffState ? NSOnState : NSOffState];
+    [_effect selectItemAtIndex:[string(CFSTR("mineffect"), kDockDomain, @"genie") isEqualToString:@"scale"] ? 1 : 0];
+    NSString *tabbing = string(CFSTR("AppleWindowTabbingMode"), kCFPreferencesAnyApplication, @"fullscreen");
+    [_tabs selectItemAtIndex:[tabbing isEqualToString:@"always"] ? 0 : [tabbing isEqualToString:@"manual"] ? 2 : 1];
+    NSString *action = string(CFSTR("AppleActionOnDoubleClick"), kCFPreferencesAnyApplication, @"Maximize");
+    [_doubleClick setState:[action isEqualToString:@"None"] ? NSOffState : NSOnState];
+    [_doubleClickAction selectItemAtIndex:[action isEqualToString:@"Minimize"] ? 1 : 0];
+    [_doubleClickAction setEnabled:[_doubleClick state] == NSOnState];
+    [_intoApp setState:flag(CFSTR("minimize-to-application")) ? NSOnState : NSOffState];
+    [_animate setState:flagOn(CFSTR("launchanim")) ? NSOnState : NSOffState];
+    [_autohide setState:flag(CFSTR("autohide")) ? NSOnState : NSOffState];
+    [_indicators setState:flagOn(CFSTR("show-process-indicators")) ? NSOnState : NSOffState];
+    [_recents setState:flagOn(CFSTR("show-recents")) ? NSOnState : NSOffState];
 }
 
 - (void)choosePosition:(NSButton *)sender

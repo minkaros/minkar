@@ -102,13 +102,13 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
 - [x] Menús: MB0–MB3 hechos (MB4 en 19.6.x).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
-- [ ] Preferencias del sistema: la app y sus paneles, con Notificaciones y Usuarios y grupos (usuarios
+- [x] Preferencias del sistema: la app y sus paneles, con Notificaciones y Usuarios y grupos (usuarios
   creados, eliminados, administradores, contraseñas, opciones de inicio de sesión; prueba `users-pane`).
   Revisados frente a la referencia: General (aspecto, colores de acento y de resaltado, barras de
   desplazamiento, el navegador por omisión; prueba `general-pane`), Notificaciones, Red con su hoja
   Avanzado (prueba `network-pane`), Pantallas, Fecha y hora (prueba `timezone-change`), Ratón, Sonido,
   Teclado (Texto, Fuentes de entrada, Atajos: los atajos de todo el sistema con los números de la
-  referencia en com.apple.symbolichotkeys; pruebas `hotkeys`, `symbolic-hotkeys`). Falta: el panel Dock.
+  referencia en com.apple.symbolichotkeys; pruebas `hotkeys`, `symbolic-hotkeys`), Dock (prueba `dock-pane`).
 - [ ] AppKit y el lenguaje visual de Atlas en todo el sistema. Hecho: los aspectos claro y oscuro
   (Automático según la hora) y el color de acento, que todas las apps siguen al momento, la barra de
   menús, el Dock y los Menu Extras (resaltados con el acento, iconos plantilla teñidos; iconos de

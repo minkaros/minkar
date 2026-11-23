@@ -170,7 +170,7 @@ id = "atlas"
 name = "Atlas"
 color = "pink"
 doc = "ROADMAP.md#phase-5--atlas-desktop"
-stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "partial"], ["Visual design", 760, "todo"]]
+stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "done"], ["Visual design", 760, "todo"]]
 
 [[line]]
 id = "apps"
