@@ -36,7 +36,7 @@ ${BUILD}/scheduler/cupsd: ${.CURDIR}/Makefile ${.CURDIR}/MANIFEST
 	    CPPFLAGS="-I${MINKAR_SDKROOT}/usr/local/include" \
 	    LDFLAGS="-L${MINKAR_SDKROOT}/usr/local/lib" \
 	    PKG_CONFIG=false \
-	    ac_cv_header_Security_Authorization_h=no ac_cv_header_sandbox_h=no \
+	    ac_cv_header_sandbox_h=no \
 	    ./configure --host=x86_64-apple-darwin19 --prefix=/usr \
 	    --sysconfdir=/private/etc --localstatedir=/private/var \
 	    --with-tls=openssl --with-dnssd=mdnsresponder --disable-gssapi \
