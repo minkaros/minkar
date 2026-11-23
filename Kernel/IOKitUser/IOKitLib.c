@@ -108,6 +108,8 @@ gIOKitLibSerializeOptions = kIOCFSerializeToBinary;
 
 extern 	mach_port_t 	mach_task_self();
 const 	mach_port_t 	kIOMasterPortDefault = MACH_PORT_NULL;
+/* Minkar: API 21's name for it. */
+const 	mach_port_t 	kIOMainPortDefault = MACH_PORT_NULL;
 
 static mach_port_t
 __IOGetDefaultMasterPort()
@@ -177,6 +179,13 @@ IOMasterPort( mach_port_t bootstrapPort __unused, mach_port_t * masterPort )
     */
     if (host_port) mach_port_deallocate(mach_task_self(), host_port);
     return result;
+}
+
+/* Minkar: API 21's name for IOMasterPort. */
+kern_return_t
+IOMainPort( mach_port_t bootstrapPort, mach_port_t * mainPort )
+{
+    return IOMasterPort(bootstrapPort, mainPort);
 }
 
 kern_return_t

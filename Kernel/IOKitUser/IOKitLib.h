@@ -102,6 +102,15 @@ typedef void
 extern
 const mach_port_t kIOMasterPortDefault;
 
+/* Minkar: the names API 21 gave them, kIOMainPortDefault and IOMainPort()
+   (the same port and function). */
+extern
+const mach_port_t kIOMainPortDefault;
+
+kern_return_t
+IOMainPort( mach_port_t	bootstrapPort,
+	    mach_port_t *	mainPort );
+
 /*! @function IOMasterPort
     @abstract Returns the mach port used to initiate communication with IOKit.
     @discussion Functions that don't specify an existing object require the IOKit master port to be passed. This function obtains that port.
