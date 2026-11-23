@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.authd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/authd</string>
+	</array>
+	<!-- The service Security.framework's Authorization calls look up. -->
+	<key>MachServices</key>
+	<dict>
+		<key>com.apple.authd</key>
+		<true/>
+	</dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>__CFPREFERENCES_AVOID_DAEMON</key>
+		<string>1</string>
+		<!-- authd is an XPC service: xpc_main listens on this name. -->
+		<key>XPC_SERVICE_NAME</key>
+		<string>com.apple.authd</string>
+	</dict>
+	<key>EnableTransactions</key>
+	<true/>
+</dict>
+</plist>
