@@ -3,8 +3,8 @@
 since	60aa4ff4b1
 image	/bin	42
 image	/sbin	47
-image	/usr/bin	342
-image	/usr/sbin	54
+image	/usr/bin	359
+image	/usr/sbin	65
 tree	BSD/bin	30	32
 tree	BSD/sbin	4	35
 tree	BSD/usr.bin	55	186
@@ -186,6 +186,7 @@ present	logger
 present	login
 present	logname
 present	look
+present	lsappinfo
 present	lsbom
 present	m4
 present	mail

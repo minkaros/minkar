@@ -1,0 +1,48 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.Dd November 23, 2026
+.Dt LSAPPINFO 1
+.Os Minkar
+.Sh NAME
+.Nm lsappinfo
+.Nd show the running applications
+.Sh SYNOPSIS
+.Nm
+.Op Ar command Op Ar args
+.Sh DESCRIPTION
+.Nm
+shows the applications LaunchServices' session knows, each named by its
+ASN
+.Pq Dq ASN:0x0-0x Ns Ar serial Ns Dq : .
+An application
+.Ar app
+is given by its ASN, its process ID, its bundle identifier or its name.
+.Bl -tag -width indent
+.It Cm list
+Every application and what is known of it (the default).
+.It Cm processlist
+Their ASNs, in the order they started.
+.It Cm visibleProcessList Op Fl includeHidden
+The ASNs of the applications shown in the Dock, the front one first;
+hidden ones only with
+.Fl includeHidden .
+.It Cm front
+The front application's ASN.
+.It Cm info Oo Fl only Ar key Oc ... Ar app
+One application; with
+.Fl only ,
+only the keys given:
+.Cm bundleid , pid , name , bundlepath , executablepath , type , version ,
+.Cm hidden , asn .
+.It Cm find Ar key Ns = Ns Ar value ...
+The ASNs of the applications whose
+.Cm bundleid , pid , name
+or
+.Cm type
+match.
+.It Cm setfront Ar app
+Makes the application the front one.
+.El
+.Sh EXIT STATUS
+0 on success; 1 when an application is not found or the session cannot
+be reached; 2 for a wrong command.

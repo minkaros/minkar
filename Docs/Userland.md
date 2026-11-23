@@ -43,9 +43,9 @@ In the system image:
 |---|---:|
 | `/bin` | 42 |
 | `/sbin` | 47 |
-| `/usr/bin` | 342 |
-| `/usr/sbin` | 54 |
-| **Total** | **485** |
+| `/usr/bin` | 359 |
+| `/usr/sbin` | 65 |
+| **Total** | **513** |
 
 Command directories under `BSD/`, at `60aa4ff4b1` (where Minkar left ravynOS) and now:
 
@@ -57,12 +57,12 @@ Command directories under `BSD/`, at `60aa4ff4b1` (where Minkar left ravynOS) an
 | `BSD/usr.sbin` | 7 | 52 |
 | **Total** | **96** | **305** |
 
-354 of the 367 reference commands are in the image; 13 are missing.
+355 of the 367 reference commands are in the image; 12 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
 | BSD and other portable tools | 285 | 0 | Ported from FreeBSD main (or their own upstream), as the ones before. |
-| The reference system's own tools | 38 | 9 | Written for Minkar; many need the graphical system or frameworks of later phases. |
+| The reference system's own tools | 39 | 8 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 15 | 0 | Kept from the original open source (launchd, configd, syslogd...). |
 | File system tools | 6 | 4 | Need the file system in the kernel first (APFS and SMB come after 19.6.0). |
 | Licence to approve | 5 | 0 | Their licence (GPL, Vim, CDDL...) needs the project's approval first. |
@@ -70,7 +70,7 @@ Command directories under `BSD/`, at `60aa4ff4b1` (where Minkar left ravynOS) an
 
 Missing:
 
-- **The reference system's own tools** (9): `fdesctl`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `opendiff`, `osascript`, `say`, `tmutil`
+- **The reference system's own tools** (8): `fdesctl`, `mdfind`, `mdls`, `mdutil`, `opendiff`, `osascript`, `say`, `tmutil`
 - **File system tools** (4): `fsck_apfs`, `mount_apfs`, `mount_smbfs`, `newfs_apfs`
 <!-- commands:end -->
 
@@ -126,6 +126,6 @@ bash, zsh, ksh, tcsh (also `csh`) and dash are in `/etc/shells`.
   (`fsck_apfs`, `mount_apfs`, `newfs_apfs`; no open implementation) and SMB
   (`mount_smbfs`; Samba is GPL). Also `fdesctl`. Minkar's file systems are HFS+, FAT and
   exFAT.
-- The reference system's tools that need a later phase (`lsappinfo`, `mdfind`, `mdls`,
+- The reference system's tools that need a later phase (`mdfind`, `mdls`,
   `mdutil`, `say`, `osascript`, `opendiff`, `tmutil`) are listed in
   [ROADMAP.md](ROADMAP.md).
