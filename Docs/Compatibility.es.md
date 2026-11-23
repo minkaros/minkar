@@ -181,7 +181,7 @@ unidad de salida), AVFoundation, AVKit, Carbon, CFNetwork, Cocoa, Combine, CoreA
 CoreData, CoreFoundation, CoreGraphics, CoreImage (en parte), CoreMedia, CoreServices,
 CoreText, CoreVideo, DiskArbitration, ExceptionHandling, Foundation, ImageIO, IOKit,
 IOSurface, MediaPlayer, OpenDirectory (en parte), OpenGL (Mesa, en vistas y capas),
-OSAKit, PDFKit, PreferencePanes, Quartz, QuartzCore, QuickLook, Security (un
+OSAKit, PDFKit, PreferencePanes, Quartz, QuartzCore, QuickLook, SecurityInterface (el candado), Security (un
 subconjunto), ServiceManagement, System, SystemConfiguration, UniformTypeIdentifiers,
 UserNotifications, VideoToolbox (decodificación), WebKit (sobre el motor de WPE WebKit),
 XCTest y JavaScriptCore (privado). Presentes, a la espera del hardware o de un bloque
@@ -196,7 +196,7 @@ AuthenticationServices, IOBluetooth.
 | Imprimir en impresoras | Hecho | `cupsd` y sus comandos, el panel Impresoras, imprimir por PrintCore en impresoras IPP Everywhere que aceptan PDF |
 | Wi-Fi y Bluetooth | Decide | Todavía sin drivers |
 | Cámara y captura de vídeo | Decide | |
-| Autorización (authd, derechos, contraseña de administrador) | Hecho | authd y cliente APSL, el Agente de autorización de Atlas, `AuthorizationExecuteWithPrivileges`; después, el candado de los paneles |
+| Autorización (authd, derechos, contraseña de administrador) | Hecho | authd y cliente APSL, el Agente de autorización de Atlas, `AuthorizationExecuteWithPrivileges`, el candado de los paneles (SecurityInterface) |
 | Llavero con cifrado | Plan | El subconjunto actual de Security se sustituye por las fuentes APSL de Security |
 | Copias de seguridad (`tmutil`) | Plan (19.6.x) | Se mueve con las copias de seguridad (decidido el 23 nov 2026) |
 | Accesibilidad (lector de pantalla, servidor de accesibilidad) | Decide | |

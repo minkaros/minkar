@@ -12,9 +12,12 @@
  * or Name and password: SHOWFULLNAME) and "Show the Sleep, Restart, and
  * Shut Down buttons" (PowerOffDisabled).
  *
- * Everything goes through OpenDirectory (directoryd): the lock asks for an
- * administrator's name and password, which the pane's node keeps
- * (ODNodeSetCredentials); with it the node creates and deletes users, adds
+ * Everything goes through OpenDirectory (directoryd): the lock is
+ * SecurityInterface's (system.preferences.accounts, an administrator's name
+ * and password in the Authorization Agent's window), and its authorization
+ * is the pane's node's credentials (ODNodeSetCredentialsExtended with
+ * kODAuthenticationTypeWithAuthorizationRef, which directoryd checks with
+ * authd); with it the node creates and deletes users, adds
  * them to admin and takes them out, resets passwords and sets the login
  * window's options (directoryd's own custom calls). The view is made in
  * code.
@@ -23,10 +26,11 @@
 #import <Cocoa/Cocoa.h>
 #import <PreferencePanes/PreferencePanes.h>
 #import <OpenDirectory/OpenDirectory.h>
+#import <SecurityInterface/SFAuthorizationView.h>
 #include <os/log.h>
 #include <unistd.h>
 
-@interface UsersPane : NSPreferencePane <NSTableViewDataSource, NSTableViewDelegate>
+@interface UsersPane : NSPreferencePane <NSTableViewDataSource, NSTableViewDelegate, SFAuthorizationViewDelegate>
 @end
 
 static const CGFloat kWidth = 668, kHeight = 420;
@@ -89,8 +93,8 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
     NSString *_admin;                    /* who unlocked */
     NSMutableArray<NSDictionary *> *_rows; /* kind: header, user, options */
     NSTableView *_list;
-    NSButton *_add, *_remove, *_lock;
-    NSTextField *_lockLabel;
+    NSButton *_add, *_remove;
+    SFAuthorizationView *_lock;
     NSView *_userView, *_optionsView;
     UserPicture *_picture;
     NSTextField *_name, *_kind;
@@ -191,12 +195,11 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
     [view addSubview:_add];
     [view addSubview:_remove];
 
-    _lock = button(@"", NSMakeRect(20, 14, 28, 28), NSMomentaryPushInButton, self, @selector(toggleLock:));
-    [_lock setBezelStyle:NSSmallSquareBezelStyle];
-    [_lock setBordered:NO];
-    _lockLabel = label(@"", NSMakeRect(54, 18, 400, 18), 12, NO);
+    _lock = [[SFAuthorizationView alloc] initWithFrame:NSMakeRect(20, 12, 420, 32)];
+    [_lock setString:"system.preferences.accounts"];
+    [_lock setDelegate:self];
+    [_lock setAutoupdate:YES];
     [view addSubview:_lock];
-    [view addSubview:_lockLabel];
 
     /* A user. */
     _userView = [[NSView alloc] initWithFrame:NSMakeRect(240, 80, 408, 320)];
@@ -231,6 +234,9 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
 
     [self setMainView:view];
     [self reload];
+    /* Open already (root's session, or rights still held). */
+    if ([_lock authorizationState] == SFAuthorizationViewUnlockedState)
+        [self authorizationViewDidAuthorize:_lock];
     [self updateLock];
     return view;
 }
@@ -320,12 +326,6 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
 
 - (void)updateLock
 {
-    NSImage *image = [NSImage imageNamed:_unlocked ? NSImageNameLockUnlockedTemplate : NSImageNameLockLockedTemplate];
-    [_lock setImage:image];
-    if (image == nil)
-        [_lock setTitle:_unlocked ? @"🔓" : @"🔒"];
-    [_lockLabel setStringValue:_unlocked ? [self text:@"Click the lock to prevent further changes."] :
-        [self text:@"Click the lock to make changes."]];
     [self showSelection];
 }
 
@@ -407,32 +407,44 @@ static NSButton *button(NSString *title, NSRect frame, NSButtonType type, id tar
 
 /* ---- Actions ------------------------------------------------------------ */
 
-- (void)toggleLock:(id)sender
+/* The lock opened: its authorization becomes the node's credentials, and
+   the administrator who gave it is kept (not to be locked out). */
+- (void)authorizationViewDidAuthorize:(SFAuthorizationView *)view
 {
-    if (_unlocked) {
-        _unlocked = NO;
-        _admin = nil;
-        _node = nil;   /* a new node, without the credentials */
-        [self updateLock];
+    AuthorizationRef authorization = [[view authorization] authorizationRef];
+    AuthorizationExternalForm external;
+    NSError *error = nil;
+
+    if (AuthorizationMakeExternalForm(authorization, &external) != errAuthorizationSuccess)
+        return;
+    ODNode *node = [ODNode nodeWithSession:[ODSession defaultSession] name:@"/Local/Default" error:NULL];
+    if (![node setCredentialsWithRecordType:kODRecordTypeUsers authenticationType:kODAuthenticationTypeWithAuthorizationRef
+                        authenticationItems:@[ [NSData dataWithBytes:&external length:sizeof(external)] ]
+                              continueItems:NULL context:NULL error:&error]) {
+        os_log_info(OS_LOG_DEFAULT, "users pane: the authorization was refused: %ld", (long)[error code]);
+        [view deauthorize:nil];
         return;
     }
-    NSArray *values = [self ask:[self text:@"System Preferences is trying to unlock Users & Groups preferences."]
-        fields:@[ @[ [self text:@"User Name:"], @NO, NSUserName() ], @[ [self text:@"Password:"], @YES ] ]
-        button:[self text:@"Unlock"]];
-    if (values == nil)
-        return;
-    NSError *error = nil;
-    ODNode *node = [ODNode nodeWithSession:[ODSession defaultSession] name:@"/Local/Default" error:NULL];
-    if (![self isAdmin:values[0]] ||
-        ![node setCredentialsWithRecordType:kODRecordTypeUsers recordName:values[0] password:values[1] error:&error]) {
-        os_log_info(OS_LOG_DEFAULT, "users pane: not unlocked by %{public}s", [values[0] UTF8String]);
-        [self tell:[self text:@"The name and password you entered are not an administrator's."] error:nil];
-        return;
+    NSString *admin = NSUserName();
+    AuthorizationItemSet *info = NULL;
+    if (AuthorizationCopyInfo(authorization, "username", &info) == errAuthorizationSuccess) {
+        if (info != NULL && info->count > 0 && info->items[0].valueLength > 0)
+            admin = [[NSString alloc] initWithBytes:info->items[0].value length:info->items[0].valueLength
+                                           encoding:NSUTF8StringEncoding];
+        AuthorizationFreeItemSet(info);
     }
     _node = node;
     _unlocked = YES;
-    _admin = [values[0] copy];
+    _admin = admin;
     os_log_info(OS_LOG_DEFAULT, "users pane: unlocked by %{public}s", [_admin UTF8String]);
+    [self updateLock];
+}
+
+- (void)authorizationViewDidDeauthorize:(SFAuthorizationView *)view
+{
+    _unlocked = NO;
+    _admin = nil;
+    _node = nil;   /* a new node, without the credentials */
     [self updateLock];
 }
 

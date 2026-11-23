@@ -10,9 +10,9 @@
  * Used, or one) and the default paper size below. + shows the printers
  * CUPS finds (its backends: the network's by DNS-SD, USB) and adds the
  * chosen one, or the one at an address typed, as an IPP Everywhere queue;
- * - deletes one, after a question (both through lpadmin, which cupsd
- * allows a member of admin). The
- * defaults are CUPS's own: org.cups.PrintingPrefs's UseLastPrinter and
+ * - deletes one, after a question; both are an administrator's, behind
+ * the pane's lock (system.preferences.printing), and lpadmin runs as root
+ * with its authorization. The defaults are each user's, CUPS's own: org.cups.PrintingPrefs's UseLastPrinter and
  * DefaultPaperID (read by libcups), the default printer by lpoptions -d.
  */
 
@@ -23,8 +23,10 @@
 #include <ctype.h>
 #include <notify.h>
 #include <os/log.h>
+#import "../PaneLock.h"
 
-@interface PrintersPane : NSPreferencePane <NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate>
+@interface PrintersPane : NSPreferencePane <NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate,
+                                            SFAuthorizationViewDelegate>
 @end
 
 static const CGFloat kWidth = 668, kHeight = 400;
@@ -78,7 +80,8 @@ static NSString *queueName(NSString *name)
 
 @implementation PrintersPane {
     NSTableView *_list;
-    NSButton *_remove;
+    NSButton *_remove, *_plus;
+    SFAuthorizationView *_lock;
     NSBox *_detail;
     NSTextField *_none, *_name, *_location, *_kind, *_status;
     NSPopUpButton *_defaultPrinter, *_paper;
@@ -121,12 +124,12 @@ static NSString *queueName(NSString *name)
     [_list setDelegate:self];
     [scroll setDocumentView:_list];
     [view addSubview:scroll];
-    NSButton *plus = [[NSButton alloc] initWithFrame:NSMakeRect(20, 72, 26, 22)];
-    [plus setTitle:@"+"];
-    [plus setBezelStyle:NSSmallSquareBezelStyle];
-    [plus setTarget:self];
-    [plus setAction:@selector(addPrinter:)];
-    [view addSubview:plus];
+    _plus = [[NSButton alloc] initWithFrame:NSMakeRect(20, 72, 26, 22)];
+    [_plus setTitle:@"+"];
+    [_plus setBezelStyle:NSSmallSquareBezelStyle];
+    [_plus setTarget:self];
+    [_plus setAction:@selector(addPrinter:)];
+    [view addSubview:_plus];
     _remove = [[NSButton alloc] initWithFrame:NSMakeRect(45, 72, 26, 22)];
     [_remove setTitle:@"−"];
     [_remove setBezelStyle:NSSmallSquareBezelStyle];
@@ -177,8 +180,21 @@ static NSString *queueName(NSString *name)
     notify_register_dispatch("com.apple.printerListChange", &_notifyToken, dispatch_get_main_queue(), ^(int token) {
         [weakSelf reload];
     });
-    [self setMainView:view];
-    return view;
+    /* Adding and deleting printers are an administrator's: the lock. */
+    NSView *pane = paneWithLock(view, @"system.preferences.printing", self, &_lock);
+    [self showChosen];
+    [self setMainView:pane];
+    return pane;
+}
+
+- (void)authorizationViewDidAuthorize:(SFAuthorizationView *)view
+{
+    [self showChosen];
+}
+
+- (void)authorizationViewDidDeauthorize:(SFAuthorizationView *)view
+{
+    [self showChosen];
 }
 
 /* ---- The printers ---------------------------------------------------- */
@@ -262,7 +278,8 @@ static NSString *option(cups_dest_t *dest, const char *name)
     for (NSView *v in [[_detail contentView] subviews])
         if (v != _none)
             [v setHidden:!any];
-    [_remove setEnabled:any];
+    [_remove setEnabled:any && paneUnlocked(_lock)];
+    [_plus setEnabled:paneUnlocked(_lock)];
     if (!any)
         return;
     NSDictionary *p = _printers[(NSUInteger)row];
@@ -334,7 +351,7 @@ static NSString *option(cups_dest_t *dest, const char *name)
     [alert addButtonWithTitle:[self text:@"Cancel"]];
     if ([alert runModal] != NSAlertFirstButtonReturn)
         return;
-    int status = runTool(@"/usr/sbin/lpadmin", @[ @"-x", p[@"queue"] ]);
+    int status = paneRunTool(_lock, @"/usr/sbin/lpadmin", @[ @"-x", p[@"queue"] ]);
     os_log_info(OS_LOG_DEFAULT, "printers: deleted %{public}s: %d", [p[@"queue"] UTF8String], status);
     [_list deselectAll:nil];
     [self reload];
@@ -479,7 +496,7 @@ static NSString *addressURI(NSString *address)
                                     @"-D", name ] mutableCopy];
     if ([[_addLocation stringValue] length])
         [arguments addObjectsFromArray:@[ @"-L", [_addLocation stringValue] ]];
-    int status = runTool(@"/usr/sbin/lpadmin", arguments);
+    int status = paneRunTool(_lock, @"/usr/sbin/lpadmin", arguments);
     os_log_info(OS_LOG_DEFAULT, "printers: added %{public}s (%{public}s): %d", [queueName(name) UTF8String],
                 [d[@"uri"] UTF8String], status);
     if (status != 0) {

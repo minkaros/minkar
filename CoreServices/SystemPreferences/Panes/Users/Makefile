@@ -9,7 +9,7 @@ BUNDLE =		Users
 BUNDLE_EXTENSION =	prefPane
 BUNDLE_INSTALL_DIR =	/System/Library/PreferencePanes
 SRCS =			UsersPane.m
-FRAMEWORKS =		Cocoa PreferencePanes OpenDirectory
+FRAMEWORKS =		Cocoa PreferencePanes OpenDirectory SecurityInterface Security
 MK_WERROR =		no
 CFLAGS +=		-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
 LDFLAGS +=		-lobjc

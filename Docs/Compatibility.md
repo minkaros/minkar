@@ -178,7 +178,7 @@ output unit), AVFoundation, AVKit, Carbon, CFNetwork, Cocoa, Combine, CoreAudio,
 CoreFoundation, CoreGraphics, CoreImage (part), CoreMedia, CoreServices, CoreText,
 CoreVideo, DiskArbitration, ExceptionHandling, Foundation, ImageIO, IOKit, IOSurface,
 MediaPlayer, OpenDirectory (part), OpenGL (Mesa, in views and layers), OSAKit, PDFKit,
-PreferencePanes, Quartz, QuartzCore, QuickLook, Security (a subset), ServiceManagement,
+PreferencePanes, Quartz, QuartzCore, QuickLook, Security (a subset), SecurityInterface (the lock), ServiceManagement,
 System, SystemConfiguration, UniformTypeIdentifiers, UserNotifications, VideoToolbox
 (decoding), WebKit (on WPE WebKit's engine), XCTest, and JavaScriptCore (private).
 Present but waiting on hardware or a later block: CoreMIDI, Metal, MetalKit, Vision,
@@ -192,7 +192,7 @@ CoreLocation, LocalAuthentication, AuthenticationServices, IOBluetooth.
 | Printing to printers | Done | `cupsd` and its commands, the Printers pane, printing through PrintCore to IPP Everywhere printers that take PDF |
 | Wi-Fi and Bluetooth | Decide | No drivers yet |
 | Camera and video capture | Decide | |
-| Authorization (authd, rights, administrator's password) | Done | APSL authd and client, Atlas's Authorization Agent, `AuthorizationExecuteWithPrivileges`; the panes' lock next |
+| Authorization (authd, rights, administrator's password) | Done | APSL authd and client, Atlas's Authorization Agent, `AuthorizationExecuteWithPrivileges`, the panes' lock (SecurityInterface) |
 | Keychain with encryption | Plan | The current Security subset is replaced by the APSL Security sources |
 | Backups (`tmutil`) | Plan (19.6.x) | Moved with backups (decided 2026-11-23) |
 | Accessibility (screen reader, accessibility server) | Decide | |
