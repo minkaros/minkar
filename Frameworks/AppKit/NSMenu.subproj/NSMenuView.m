@@ -304,7 +304,7 @@ static void resetHelpMenu(NSMenu *menu) {
             ITEM_MAX(size);
         }
 
-        if([item hasSubmenu] && [[item submenu] numberOfItems] > 0) {
+        if([item hasSubmenu] && [[item submenu] _hasItemsToShow]) {
             size = [[self graphicsStyle] menuItemBranchArrowSize];
             ITEM_MAX(size);
         }
@@ -583,7 +583,7 @@ static void resetHelpMenu(NSMenu *menu) {
         NSMenuItem *item = [items objectAtIndex:_selectedItemIndex];
 
         if([item hasSubmenu]) {
-            if([[[item submenu] itemArray] count] > 0) {
+            if([[item submenu] _fillToOpen]) {
                 NSMenuWindow *branch = [[NSMenuWindow alloc] initWithMenu:[item submenu]];
 
                 [self positionBranchForSelectedItem:branch screen:screen];
@@ -824,7 +824,7 @@ static void resetHelpMenu(NSMenu *menu) {
             }
 			
             // Draw the submenu arrow
-            if([item hasSubmenu] && [[item submenu] numberOfItems] > 0) {
+            if([item hasSubmenu] && [[item submenu] _hasItemsToShow]) {
                 NSSize branchArrowSize = [[self graphicsStyle] menuItemBranchArrowSize];
                 partRect.origin.x = origin.x + NSWidth(itemArea) - branchArrowSize.width;
                 partRect.size.width = branchArrowSize.width;

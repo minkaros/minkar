@@ -188,10 +188,13 @@ static NSArray *recentURLs(CFStringRef which) {
 }
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
+    BOOL any = NO;
+
     [menu removeAllItems];
     for(NSArray *group in @[ @[ @"Applications", (id)kLSSharedFileListRecentApplicationItems ],
                              @[ @"Documents", (id)kLSSharedFileListRecentDocumentItems ] ]) {
         NSArray *urls = recentURLs((CFStringRef)[group objectAtIndex:1]);
+        any |= [urls count] > 0;
         NSMenuItem *header = [menu addItemWithTitle:[group objectAtIndex:0] action:NULL keyEquivalent:@""];
         [header setEnabled:NO];
         for(NSURL *url in urls) {
@@ -208,7 +211,7 @@ static NSArray *recentURLs(CFStringRef which) {
     }
     NSMenuItem *clear = [menu addItemWithTitle:@"Clear Menu" action:@selector(clearRecent:) keyEquivalent:@""];
     [clear setTarget:self];
-    [clear setEnabled:YES];
+    [clear setEnabled:any];	/* nothing to clear: dimmed, as on the reference */
 }
 
 - (void)openRecent:(NSMenuItem *)sender {

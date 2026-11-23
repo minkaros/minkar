@@ -46,6 +46,16 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    context menu, flips) or moved left just enough (the others); at least
    minimumWidth wide. Then tracks it and, with perform, sends the chosen
    item's action; the item chosen, or nil. */
+-(BOOL)_hasItemsToShow {
+   return [_itemArray count]>0 || [_delegate respondsToSelector:@selector(menuNeedsUpdate:)];
+}
+
+-(BOOL)_fillToOpen {
+   if([_itemArray count]==0 && [_delegate respondsToSelector:@selector(menuNeedsUpdate:)])
+    [_delegate menuNeedsUpdate:self];
+   return [_itemArray count]>0;
+}
+
 -(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
     event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
     flips:(BOOL)flips perform:(BOOL)perform {

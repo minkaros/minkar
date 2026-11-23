@@ -31,6 +31,11 @@
 -(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
     event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
     flips:(BOOL)flips perform:(BOOL)perform;
+/* Items now, or a delegate that fills it as it opens (an empty submenu
+   such as Recent Items still has its arrow and opens). */
+-(BOOL)_hasItemsToShow;
+/* Filled by its delegate when empty; YES with items. */
+-(BOOL)_fillToOpen;
 @end
 
 /* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the
