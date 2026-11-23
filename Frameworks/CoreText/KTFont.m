@@ -11,6 +11,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2Exceptions.h>
 #import <Foundation/NSArray.h>
 
+/* AppKit's FreeType font answers this (O2Font_FT.m). */
+@interface NSObject (KTFontLongCharacter)
+-(CGGlyph)_glyphForLongCharacter:(uint32_t)character;
+@end
+
+
 @implementation KTFont
 
 -initWithFont:(CGFontRef)font size:(CGFloat)size {
@@ -188,7 +194,18 @@ static CGFloat postValue(CGFontRef font,size_t offset,CGFloat fallback){
     uint16_t code=characters[i];
     uint8_t  group=code>>8;
     uint8_t  index=code&0xFF;
-    
+
+    /* Minkar: a surrogate pair: its character's glyph (past U+FFFF, which
+       the table below does not hold), the second half none, as CoreText's
+       callers expect. */
+    if(code>=0xD800 && code<0xDC00 && i+1<length && characters[i+1]>=0xDC00 && characters[i+1]<0xE000){
+     uint32_t character=0x10000+((uint32_t)(code-0xD800)<<10)+(characters[i+1]-0xDC00);
+
+     glyphs[i]=[(id)_font respondsToSelector:@selector(_glyphForLongCharacter:)]?
+        [(id)_font _glyphForLongCharacter:character]:0;
+     glyphs[++i]=0;
+     continue;
+    }
     if(_twoLevel[group]==NULL)
      glyphs[i]=0;
     else

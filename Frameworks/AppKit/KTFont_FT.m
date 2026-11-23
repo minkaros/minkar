@@ -91,6 +91,16 @@
    int i;
    for(i=0; i<length; i++)
    {
+      /* Minkar: a surrogate pair is its character's glyph, the second
+         half none (as CoreText gives them). */
+      if(characters[i]>=0xD800 && characters[i]<0xDC00 && i+1<length &&
+         characters[i+1]>=0xDC00 && characters[i+1]<0xE000) {
+         FT_ULong character=0x10000+((FT_ULong)(characters[i]-0xD800)<<10)+(characters[i+1]-0xDC00);
+
+         glyphs[i]=FT_Get_Char_Index(face, character);
+         glyphs[++i]=0;
+         continue;
+      }
       glyphs[i]=FT_Get_Char_Index(face, characters[i]);
    }
 }

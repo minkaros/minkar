@@ -577,6 +577,9 @@ static CFMutableDictionaryRef fallbackFound;	/* character + 1 -> name or kCFNull
 static const char *const cjkFamilies[] = { "Noto Sans CJK JP", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK KR", NULL };
 static const char *const hangulFamilies[] = { "Noto Sans CJK KR", NULL };
 static const char *const arabicFamilies[] = { "Noto Sans Arabic", NULL };
+/* Emoji in the emoji face, not in a text face with a few (DejaVu Sans has
+   some emoticons). */
+static const char *const emojiFamilies[] = { "Noto Emoji", NULL };
 
 static const char *const *preferredFamilies(UTF32Char c) {
     if ((c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F) || (c >= 0xA960 && c <= 0xA97F) ||
@@ -588,6 +591,8 @@ static const char *const *preferredFamilies(UTF32Char c) {
     if ((c >= 0x0600 && c <= 0x06FF) || (c >= 0x0750 && c <= 0x077F) || (c >= 0x0870 && c <= 0x08FF) ||
         (c >= 0xFB50 && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF))
         return arabicFamilies;
+    if ((c >= 0x1F000 && c <= 0x1FAFF) || (c >= 0x2600 && c <= 0x27BF) || (c >= 0x2B00 && c <= 0x2BFF))
+        return emojiFamilies;
     return NULL;
 }
 

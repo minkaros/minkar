@@ -66,6 +66,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return bestFont;
 }
 
+/* Minkar: a character past U+FFFF (an emoji, a rare CJK ideograph), from
+   its surrogate pair: the face fontconfig finds for it, at the font's
+   size (CoreText's fallback, as CTFontCreateForString's). */
+extern CFStringRef _CTFontCopyPostScriptNameForCharacter(UTF32Char character,CFStringRef language);
+
+static NSFont *fontForLongCharacter(UTF32Char c,NSFont *font) {
+   CFStringRef name=_CTFontCopyPostScriptNameForCharacter(c,NULL);
+   NSFont     *result=nil;
+
+   if(name!=NULL){
+    result=[NSFont fontWithName:(NSString *)name size:[font pointSize]];
+    CFRelease(name);
+   }
+   return result;
+}
+
 -(void)fixFontAttributeInRange:(NSRange)range {
     NSString *string =[self string];
     unsigned  location=range.location;
@@ -92,6 +108,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 [string getCharacters:chars range:testRange];
                 for (int i = 0; i < testRange.length; ++i) {
                     unichar charToTest = chars[i];
+                    /* A surrogate pair: one character, two units. */
+                    if (charToTest >= 0xD800 && charToTest < 0xDC00 && i + 1 < testRange.length &&
+                        chars[i + 1] >= 0xDC00 && chars[i + 1] < 0xE000) {
+                        UTF32Char longChar = 0x10000 + ((UTF32Char)(charToTest - 0xD800) << 10) + (chars[i + 1] - 0xDC00);
+
+                        if (fontCharSet == nil)
+                            fontCharSet = [font coveredCharacterSet];
+                        if (![fontCharSet longCharacterIsMember:longChar]) {
+                            NSFont *substitute = fontForLongCharacter(longChar, font);
+                            if (substitute)
+                                [self addAttribute:NSFontAttributeName value:substitute range:NSMakeRange(i + testRange.location, 2)];
+                        }
+                        ++i;
+                        continue;
+                    }
                     // No need to process blanks
                     if ([blankChars characterIsMember:charToTest] == NO && [controlChars characterIsMember:charToTest] == NO) {
                         if (fontCharSet == nil) {

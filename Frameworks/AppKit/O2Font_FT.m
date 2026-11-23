@@ -149,6 +149,7 @@ static const substituteFaces notoSC={ "NotoSansCJKsc-Regular","NotoSansCJKsc-Bol
 static const substituteFaces notoTC={ "NotoSansCJKtc-Regular","NotoSansCJKtc-Bold","NotoSansCJKtc-Regular","NotoSansCJKtc-Bold" };
 static const substituteFaces notoKR={ "NotoSansCJKkr-Regular","NotoSansCJKkr-Bold","NotoSansCJKkr-Regular","NotoSansCJKkr-Bold" };
 static const substituteFaces notoArabic={ "NotoSansArabic-Regular","NotoSansArabic-Bold","NotoSansArabic-Regular","NotoSansArabic-Bold" };
+static const substituteFaces notoEmoji={ "NotoEmoji-Regular","NotoEmoji_700wght","NotoEmoji-Regular","NotoEmoji_700wght" };
 
 static const struct { const char *family; const substituteFaces *faces; } substituteFamilies[]={
    { "helvetica",&liberationSans }, { "helveticaneue",&liberationSans }, { "arial",&liberationSans },
@@ -175,6 +176,8 @@ static const struct { const char *family; const substituteFaces *faces; } substi
    { "nanumgothic",&notoKR }, { "nanummyeongjo",&notoKR },
    { "geezapro",&notoArabic }, { "baghdad",&notoArabic }, { "damascus",&notoArabic }, { "alnile",&notoArabic },
    { "kufistandardgk",&notoArabic }, { "decotypenaskh",&notoArabic },
+   /* Emoji, in black and white for now. */
+   { "applecoloremoji",&notoEmoji }, { ".applecoloremojiui",&notoEmoji },
 };
 
 static NSString *stripSuffix(NSString *string,NSArray *suffixes) {
@@ -491,6 +494,12 @@ static const char *const kASCIINames[95] = {
 }
 
 -(O2Glyph)glyphForCharacter:(unichar)character {
+   return (_face!=NULL)?FT_Get_Char_Index(_face,character):0;
+}
+
+/* Minkar: a character past U+FFFF (an emoji), for KTFont's surrogate
+   pairs. */
+-(O2Glyph)_glyphForLongCharacter:(uint32_t)character {
    return (_face!=NULL)?FT_Get_Char_Index(_face,character):0;
 }
 

@@ -29,6 +29,10 @@
 # Writing systems Inter and the others lack (2026-11-13, OFL 1.1, unchanged
 # with their licenses): Noto Sans CJK (Chinese, Japanese and Korean, the
 # regular and bold collections) and Noto Sans Arabic.
+#
+# Emoji (2026-11-23, OFL 1.1, unchanged with its license): Noto Emoji, in
+# black and white, for the Characters panel and every app's text; the
+# reference's emoji family leads to it.
 
 SUBDIR =
 
@@ -120,5 +124,8 @@ install-fonts: .PHONY
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.notoarabic ${CACHE})/ofl/notosansarabic && \
 	install -C -o 0 -g 0 -m 0644 "$$src/NotoSansArabic[wdth,wght].ttf" ${DIR}/ && \
 	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/NotoSansArabic-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.notoemoji ${CACHE})/ofl/notoemoji && \
+	install -C -o 0 -g 0 -m 0644 "$$src/NotoEmoji[wght].ttf" ${DIR}/ && \
+	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/NotoEmoji-LICENSE.txt
 
 .include <bsd.prog.mk>

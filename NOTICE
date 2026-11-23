@@ -184,6 +184,8 @@ Other components
   (SystemLibrary/Fonts/Inter-LICENSE.txt)
 - Agave 39 (the fixed-pitch font) - SIL Open Font License 1.1
   (SystemLibrary/Fonts/MANIFEST.agave; its LICENSE, installed with it)
+- Noto Emoji (the emoji, black and white) - SIL Open Font License 1.1
+  (SystemLibrary/Fonts/MANIFEST.notoemoji; its OFL.txt, installed with it)
 
 GPL and LGPL components in the image
 Each LGPL library is installed as a dynamic library (or, for

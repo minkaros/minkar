@@ -226,6 +226,11 @@
             
         case 0x200B:
             return NSTypesetterZeroAdvancementAction;
+
+        /* Minkar: a surrogate pair's second half; its first has the
+           character's glyph (NSFont's getGlyphs:). */
+        case 0xDC00 ... 0xDFFF:
+            return NSTypesetterZeroAdvancementAction;
             
         default:
             return NSTypesetterWhitespaceAction;

@@ -806,6 +806,11 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
 
     if(check<' ' || (check>=0x7F && check<=0x9F) || check==0x200B || check==0x2028 || check==0x2029)
      glyphs[i]=NSControlGlyph;
+    /* Minkar: a surrogate pair is one character, one glyph: the first
+       half has it, the second takes no room (a control glyph the
+       typesetter advances by nothing). */
+    else if(check>=0xDC00 && check<0xE000 && i>0 && characters[i-1]>=0xD800 && characters[i-1]<0xDC00)
+     glyphs[i]=NSControlGlyph;
     else
      glyphs[i]=cgGlyphs[i];
    }
