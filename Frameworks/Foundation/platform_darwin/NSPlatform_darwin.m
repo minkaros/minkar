@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 #import <Foundation/NSPlatform_darwin.h>
+#include <os/log.h>
 
 #include <time.h>
 #import <sys/param.h>
@@ -127,9 +128,14 @@ char **NSPlatform_environ() {
    return *_NSGetEnviron();
 }
 
+/* NSLog: the unified log, as on the reference (an app opened from the
+   desktop or by open has no terminal: its stderr is /dev/null), and
+   stderr too. */
 void NSPlatformLogString(NSString *string) {
-    // FIXME: zoe 31/7/26 This should use os_log().
-    fprintf(stderr, "%s\n", [string UTF8String]);
+    const char *text = [string UTF8String];
+
+    os_log(OS_LOG_DEFAULT, "%{public}s", text);
+    fprintf(stderr, "%s\n", text);
 }
 #endif
 
