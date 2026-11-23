@@ -308,15 +308,28 @@ static char userActivityKey;
 
 @end
 
+/* A responder's restorable state: the values of its restorable key
+   paths (NSWindowRestoration.m saves a window's when the app quits
+   keeping its windows). */
 @implementation NSResponder (MinkarRestorableState)
--(void)encodeRestorableStateWithCoder:(NSCoder *)coder { }
--(void)restoreStateWithCoder:(NSCoder *)coder { }
+-(void)encodeRestorableStateWithCoder:(NSCoder *)coder {
+   for(NSString *path in [[self class] restorableStateKeyPaths])
+    [coder encodeObject:[self valueForKeyPath:path] forKey:path];
+}
+-(void)restoreStateWithCoder:(NSCoder *)coder {
+   for(NSString *path in [[self class] restorableStateKeyPaths]){
+    id value=[coder decodeObjectForKey:path];
+
+    if(value!=nil)
+     [self setValue:value forKeyPath:path];
+   }
+}
+/* The state is taken as the app quits: nothing to do sooner. */
 -(void)invalidateRestorableState { }
 +(NSArray *)restorableStateKeyPaths { return [NSArray array]; }
 @end
 
-/* Windows' restoration settings: kept, though Minkar does not restore
-   windows yet (no state is saved between launches). */
+/* Windows' restoration settings (NSWindowRestoration.m). */
 @implementation NSWindow (MinkarRestoration)
 
 static char restorableKey, restorationClassKey;

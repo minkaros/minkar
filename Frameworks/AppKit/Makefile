@@ -293,6 +293,7 @@ SRCS = \
     NSWindowAnimationContext.m \
     NSWindowController.m \
     NSWindowTabGroup.m \
+    NSWindowRestoration.m \
     NSWindowScripting.m \
     NSWorkspace.m \
     NSRunningApplication.m \
@@ -607,6 +608,7 @@ HEADERS = \
     NSWindowController.h \
     NSWindowTab.h \
     NSWindowTabGroup.h \
+    NSWindowRestoration.h \
     NSWindowScripting.h \
     NSWorkspace.h \
     NSRunningApplication.h \

@@ -58,6 +58,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <objc/message.h>
 #import <pthread.h>
 
+/* NSWindowRestoration.m */
+BOOL _NSQuitKeepsWindows(BOOL other);
+NSData *_NSEncodeRestorableState(BOOL keep);
+void _NSWriteRestorableState(NSData *state);
+NSUInteger _NSRestoreWindows(void);
+
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/socket.h>
@@ -1071,6 +1077,10 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    if([types count] > 0)
        controller = [NSDocumentController sharedDocumentController];
 
+   /* The windows kept when the app last quit: then no untitled document. */
+   if (_NSRestoreWindows() > 0)
+      needsUntitled = NO;
+
    if ([self openFiles]) {
       needsUntitled = NO;
    }
@@ -1273,6 +1283,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     { @selector(performMiniaturize:), @selector(miniaturizeAll:), @"Minimize All" },
     { @selector(performZoom:), @selector(_zoomAllWindows:), @"Zoom All" },
     { @selector(arrangeInFront:), @selector(_arrangeInFrontCascading:), @"Arrange in Front" },
+    { @selector(terminate:), @selector(_terminateTogglingKeepWindows:), @"Quit and Keep Windows" },
    };
    NSBundle *appKit=[NSBundle bundleForClass:[NSApplication class]];
 
@@ -2229,7 +2240,37 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    _isRunning=NO;
 }
 
+/* The state kept as the app quits (NSWindowRestoration.m), taken before
+   its documents close; nil: the windows close. */
+static NSData *quitState;
+
+/* Quit's alternate is named for what it does: the other choice than the
+   user's (the General pane's Close windows when quitting an app). */
+-(BOOL)validateMenuItem:(NSMenuItem *)item {
+  if([item action]==@selector(_terminateTogglingKeepWindows:)){
+    NSString *title=_NSQuitKeepsWindows(YES) ? @"Quit and Keep Windows" : @"Quit and Close All Windows";
+
+    [item setTitle:[[NSBundle bundleForClass:[NSApplication class]] localizedStringForKey:title value:title table:nil]];
+  }
+  return YES;
+}
+
+/* Quit and Keep Windows (Option-Command-Q; Quit and Close All Windows when
+   the user keeps them). */
+-(void)_terminateTogglingKeepWindows:sender {
+  [quitState release];
+  quitState=[_NSEncodeRestorableState(_NSQuitKeepsWindows(YES)) retain];
+  [self _terminateWithState];
+}
+
 -(void)terminate:sender
+{
+  [quitState release];
+  quitState=[_NSEncodeRestorableState(_NSQuitKeepsWindows(NO)) retain];
+  [self _terminateWithState];
+}
+
+-(void)_terminateWithState
 {
   [[NSDocumentController sharedDocumentController] closeAllDocumentsWithDelegate:self
                                                              didCloseAllSelector:@selector(_documentController:didCloseAll:contextInfo:)
@@ -2253,6 +2294,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
   if (terminate == YES)
     {
       [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
+      _NSWriteRestorableState(quitState);
 
 
       exit(0);

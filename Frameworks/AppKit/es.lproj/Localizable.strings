@@ -129,3 +129,7 @@
 "Tile Window to Right of Screen" = "Ventana en mosaico a la derecha de la pantalla";
 "Move Window to Left Side of Screen" = "Mover ventana al lado izquierdo de la pantalla";
 "Move Window to Right Side of Screen" = "Mover ventana al lado derecho de la pantalla";
+
+/* Window restoration */
+"Quit and Keep Windows" = "Salir y mantener ventanas";
+"Quit and Close All Windows" = "Salir y cerrar todas las ventanas";
