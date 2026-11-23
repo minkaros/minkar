@@ -1297,7 +1297,10 @@ static NSUInteger selectionNoteDeferred;
       left as it is, as on the reference. */
    BOOL selected=[self isRowSelected:row] || [self isColumnSelected:columnNumber];
 
-   [dataCell setHighlighted:selected];
+   /* The selection's highlight is for the text's color: a check box or
+      radio button in a chosen row keeps the state it has (highlighted,
+      it drew its alternate, checked image). */
+   [dataCell setHighlighted:selected && ![dataCell isKindOfClass:[NSButtonCell class]]];
    [dataCell setBackgroundStyle:(selected && [self _isEmphasized])?NSBackgroundStyleDark:NSBackgroundStyleLight];
    if (selected && [dataCell respondsToSelector:@selector(setDrawsBackground:)])
     [(NSTextFieldCell *)dataCell setDrawsBackground:NO]; // so the selection shows
@@ -1771,6 +1774,11 @@ static NSUInteger selectionNoteDeferred;
      [clickedCell setObjectValue:[self dataSourceObjectValueForTableColumn:clickedColumnObject row:_clickedRow]];
 
      if([clickedCell trackMouse:event inRect:[self frameOfCellAtColumn:_clickedColumn row:_clickedRow] ofView:self untilMouseUp:YES]){
+       /* The column's cell is shared by its rows: drawn while the button
+          was down, it took the last row drawn's value. The clicked row's
+          again, then its next state (a check box in a row other than the
+          last one drawn did not change). */
+       [clickedCell setObjectValue:[self dataSourceObjectValueForTableColumn:clickedColumnObject row:_clickedRow]];
        [clickedCell setNextState];
          NSNumber *value = nil;
          if ([clickedCell isKindOfClass: [NSPopUpButtonCell class]]) {
