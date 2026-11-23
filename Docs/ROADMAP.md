@@ -210,11 +210,14 @@ Intel Gen9. Detail in [GPU.md](GPU.md).
 The maintainer's order (23 Nov 2026). Lane A, one after another:
 
 1. Printing: done (cupsd and its commands, the Printers pane); to be tried on a real printer on PC 1.
-2. W0–W3: window tabs (done), tiling (done), window restoration (done), Emoji & Symbols (done; the emoji font to choose).
+2. W0–W3: window tabs (done), tiling (done), window restoration (done), Emoji & Symbols (done; Noto Emoji, monochrome).
 3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
-   `opendiff`, `tmutil`.
-4. Security's authorization in full: authd (the APSL sources in the tree), the rights
-   database, Atlas's password dialog, the panes' lock (the maintainer's choice, 23 Nov 2026).
+   `opendiff` (done); `tmutil` moved to 19.6.x with backups.
+4. Security's authorization in full (the maintainer's choice, 23 Nov 2026): authd (the APSL
+   sources in the tree) with its rights database, the APSL client in Security.framework,
+   Atlas's Authorization Agent (the password window), `AuthorizationExecuteWithPrivileges`
+   through a setuid trampoline (done; test `image/authorization`); the panes' lock
+   (SecurityInterface) and its use in CUPS and the Users pane next.
 5. The system installer and HFS+ compression.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login

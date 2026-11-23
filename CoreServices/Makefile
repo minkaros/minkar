@@ -43,7 +43,7 @@ SUBDIR += fontcache
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
 # the desktop (Atlas.md, D1), Files, the file manager (K1), and the Menu Extras
 # (Atlas.md, MB1).
-SUBDIR += Dock Files ForceQuit SystemUIServer SystemUIServer/MenuExtras/Clock SystemUIServer/MenuExtras/Volume SystemUIServer/MenuExtras/TextInput \
+SUBDIR += Dock Files ForceQuit AuthorizationAgent SystemUIServer SystemUIServer/MenuExtras/Clock SystemUIServer/MenuExtras/Volume SystemUIServer/MenuExtras/TextInput \
 	SystemUIServer/MenuExtras/Displays SystemUIServer/MenuExtras/Network
 # Text Editor (opens plain text through LaunchServices).
 SUBDIR += TextEditor

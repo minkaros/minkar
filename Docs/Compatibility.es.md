@@ -196,7 +196,8 @@ AuthenticationServices, IOBluetooth.
 | Imprimir en impresoras | Hecho | `cupsd` y sus comandos, el panel Impresoras, imprimir por PrintCore en impresoras IPP Everywhere que aceptan PDF |
 | Wi-Fi y Bluetooth | Decide | Todavía sin drivers |
 | Cámara y captura de vídeo | Decide | |
+| Autorización (authd, derechos, contraseña de administrador) | Hecho | authd y cliente APSL, el Agente de autorización de Atlas, `AuthorizationExecuteWithPrivileges`; después, el candado de los paneles |
 | Llavero con cifrado | Plan | El subconjunto actual de Security se sustituye por las fuentes APSL de Security |
-| Copias de seguridad (`tmutil`) | Plan (Fase 6) | |
+| Copias de seguridad (`tmutil`) | Plan (19.6.x) | Se mueve con las copias de seguridad (decidido el 23 nov 2026) |
 | Accesibilidad (lector de pantalla, servidor de accesibilidad) | Decide | |
 | Asistente de voz, dictado, almacenamiento en la nube, tienda de apps, continuidad entre dispositivos | Out | Servicios del fabricante |

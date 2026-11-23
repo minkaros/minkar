@@ -1,0 +1,10 @@
+/* Authorization Agent */
+"%@ wants to make changes." = "%@ quiere hacer cambios.";
+"Enter an administrator’s name and password to allow this." = "Escribe el nombre y la contraseña de un administrador para permitirlo.";
+"Enter your password to allow this." = "Escribe tu contraseña para permitirlo.";
+"The name or password is incorrect." = "El nombre o la contraseña no son correctos.";
+"User Name:" = "Nombre de usuario:";
+"Password:" = "Contraseña:";
+"Cancel" = "Cancelar";
+"OK" = "Aceptar";
+"An application" = "Una aplicación";

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.authorizationagent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/System/Library/CoreServices/AuthorizationAgent.app/Contents/MacOS/AuthorizationAgent</string>
+	</array>
+	<!-- The services authd asks the user's side and the privileged side of
+	     authorization through (its agent.c). -->
+	<key>MachServices</key>
+	<dict>
+		<key>com.apple.security.agent</key>
+		<true/>
+		<key>com.apple.security.agent.login</key>
+		<true/>
+		<key>com.apple.security.authhost</key>
+		<true/>
+	</dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>__CFPREFERENCES_AVOID_DAEMON</key>
+		<string>1</string>
+	</dict>
+</dict>
+</plist>

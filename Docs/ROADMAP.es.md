@@ -216,11 +216,14 @@ siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 
 1. Imprimir: hecho (cupsd y sus comandos, el panel Impresoras); falta probarlo con una impresora real en el PC 1.
-2. W0–W3: pestañas de ventana (hecho), mosaico (hecho), restauración de ventanas (hecho), Emoji y símbolos (hecho; falta elegir la fuente de emoji).
+2. W0–W3: pestañas de ventana (hecho), mosaico (hecho), restauración de ventanas (hecho), Emoji y símbolos (hecho; Noto Emoji, monocromo).
 3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
-   `opendiff`, `tmutil`.
-4. La autorización de Security completa: authd (el código APSL del árbol), la base de derechos,
-   la ventana de contraseña de Atlas, el candado de los paneles (decisión del mantenedor, 23 nov 2026).
+   `opendiff` (hecho); `tmutil` pasa a 19.6.x con las copias de seguridad.
+4. La autorización de Security completa (decisión del mantenedor, 23 nov 2026): authd (el código
+   APSL del árbol) con su base de derechos, el cliente APSL en Security.framework, el Agente de
+   autorización de Atlas (la ventana de contraseña), `AuthorizationExecuteWithPrivileges` con un
+   trampolín setuid (hecho; prueba `image/authorization`); después, el candado de los paneles
+   (SecurityInterface) y su uso en CUPS y el panel Usuarios.
 5. El instalador del sistema y la compresión de HFS+.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana

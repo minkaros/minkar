@@ -192,7 +192,8 @@ CoreLocation, LocalAuthentication, AuthenticationServices, IOBluetooth.
 | Printing to printers | Done | `cupsd` and its commands, the Printers pane, printing through PrintCore to IPP Everywhere printers that take PDF |
 | Wi-Fi and Bluetooth | Decide | No drivers yet |
 | Camera and video capture | Decide | |
+| Authorization (authd, rights, administrator's password) | Done | APSL authd and client, Atlas's Authorization Agent, `AuthorizationExecuteWithPrivileges`; the panes' lock next |
 | Keychain with encryption | Plan | The current Security subset is replaced by the APSL Security sources |
-| Backups (`tmutil`) | Plan (Phase 6) | |
+| Backups (`tmutil`) | Plan (19.6.x) | Moved with backups (decided 2026-11-23) |
 | Accessibility (screen reader, accessibility server) | Decide | |
 | Voice assistant, dictation, cloud storage, app store, device handoff | Out | The vendor's services |
