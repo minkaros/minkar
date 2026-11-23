@@ -105,8 +105,8 @@ SUBDIR += ScriptingBridge
 SUBDIR += UniformTypeIdentifiers
 # The umbrella apps import and link.
 SUBDIR += Cocoa
-# System Preferences' panes.
-SUBDIR += PreferencePanes
+# System Preferences' panes; the lock their settings sit behind.
+SUBDIR += PreferencePanes SecurityInterface
 # How a program logs and handles exceptions; Quick Look's generators.
 SUBDIR += ExceptionHandling
 # Swift's runtime (/usr/lib/swift) and its test program, from Libraries/swift:
@@ -187,6 +187,7 @@ ApplicationServices: CoreGraphics CoreText ApplicationServices/PrintCore
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
+SecurityInterface: AppKit Security/minkar
 ExceptionHandling: Foundation
 QuickLook: CoreGraphics CoreFoundation
 ../Libraries/swift: CoreFoundation CoreGraphics Foundation
