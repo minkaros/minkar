@@ -136,7 +136,7 @@ apps 19 en verde (BC4).
 - [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — El `WebView` antiguo. `86ed0b5d33`
-- [ ] W5 — Las vistas web de las apps designadas: funciona lo que usa su código (`ac148eb478`); faltan las propias apps.
+- [ ] W5 — Las vistas web de las apps designadas: las notas de versión de Sparkle en Sloth 3.4 y Platypus 5.4.1, las apps Web View de Platypus y la salida HTML de TextMate 2.0.23 funcionan con los binarios publicados (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; pruebas `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 nov 2026). Falta: el actualizador de KeepingYouAwake, que necesita leer firmas de código (BC2).
 
 #### Audio y medios
 

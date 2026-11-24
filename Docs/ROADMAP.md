@@ -133,7 +133,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 - [x] W2 — WebCore and the processes on a Minkar WPE platform. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — The older `WebView`. `86ed0b5d33`
-- [ ] W5 — The designated apps' web views: what their code uses works (`ac148eb478`); the apps themselves left.
+- [ ] W5 — The designated apps' web views: Sparkle's release notes in Sloth 3.4 and Platypus 5.4.1, Platypus's Web View apps and TextMate 2.0.23's HTML output work from the published binaries (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; tests `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 Nov 2026). Left: KeepingYouAwake's updater, which needs code signatures read (BC2).
 
 #### Audio and media
 
