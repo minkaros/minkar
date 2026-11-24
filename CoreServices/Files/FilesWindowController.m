@@ -207,7 +207,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [self watchFolder];
     os_log_info(OS_LOG_DEFAULT, "folder %{public}s", [[folder path] fileSystemRepresentation]);
     _sidebar.currentURL = folder;
-    NSString *name = [[folder path] isEqualToString:@"/"] ? @"Minkar" : [folder lastPathComponent];
+    NSString *name = [[folder path] isEqualToString:@"/"] ? @"Minkar"
+        : [[NSFileManager defaultManager] displayNameAtPath:[folder path]];
     [_title setStringValue:name];
     [_window setTitle:name];
     [self updateButtons];

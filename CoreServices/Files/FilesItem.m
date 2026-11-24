@@ -57,6 +57,8 @@ NSString *FilesSizeString(unsigned long long size)
     } else if (_isFolder) {
         _kind = NSLocalizedString(@"Folder", nil);
         _icon = FilesFolderIconForURL(url);
+        /* Desktop, Documents...: in the user's language (.localized). */
+        _name = [[fm displayNameAtPath:[url path]] copy];
     } else {
         NSString *extension = [[url pathExtension] uppercaseString];
         _kind = [extension length] ? [NSString stringWithFormat:NSLocalizedString(@"%@ File", nil), extension] : NSLocalizedString(@"Document", nil);

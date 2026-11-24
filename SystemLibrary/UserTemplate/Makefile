@@ -27,12 +27,20 @@ DIRS = \
 	0755:Public \
 	0733:Public/Drop_Box
 
+# The folders shown with their name in the user's language (an empty
+# .localized file; SystemFolderLocalizations has the names).
+LOCALIZED = Desktop Documents Downloads Library Movies Music Pictures Public
+
 all: template
 
 template: ${.CURDIR}/Makefile
 .for d in ${DIRS}
 	mkdir -p "${TEMPLATE}/${d:C/^[0-7]*://:S/_/ /g}"
 	chmod ${d:C/:.*//} "${TEMPLATE}/${d:C/^[0-7]*://:S/_/ /g}"
+.endfor
+.for d in ${LOCALIZED}
+	touch "${TEMPLATE}/${d}/.localized"
+	chmod 0644 "${TEMPLATE}/${d}/.localized"
 .endfor
 
 .PHONY: all template

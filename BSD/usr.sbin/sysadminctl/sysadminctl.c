@@ -250,14 +250,18 @@ valid_name(const char *name)
 static void
 make_home(const char *home, uid_t uid, gid_t gid)
 {
+	/* localized: an empty .localized file in it, so it is shown with
+	   its name in the user's language. */
 	static const struct {
 		const char	*name;
 		mode_t		 mode;
+		bool		 localized;
 	} folders[] = {
-		{ "Desktop", 0700 }, { "Documents", 0700 }, { "Downloads", 0700 },
-		{ "Library", 0700 }, { "Movies", 0700 }, { "Music", 0700 },
-		{ "Pictures", 0700 }, { "Public", 0755 },
-		{ "Public/Drop Box", 0733 },
+		{ "Desktop", 0700, true }, { "Documents", 0700, true },
+		{ "Downloads", 0700, true }, { "Library", 0700, true },
+		{ "Movies", 0700, true }, { "Music", 0700, true },
+		{ "Pictures", 0700, true }, { "Public", 0755, true },
+		{ "Public/Drop Box", 0733, false },
 	};
 	char path[PATH_MAX];
 	size_t i;
@@ -274,6 +278,16 @@ make_home(const char *home, uid_t uid, gid_t gid)
 		if (mkdir(path, folders[i].mode) == 0 || errno == EEXIST) {
 			chown(path, uid, gid);
 			chmod(path, folders[i].mode);
+			if (folders[i].localized) {
+				int fd;
+
+				strlcat(path, "/.localized", sizeof(path));
+				fd = open(path, O_WRONLY | O_CREAT, 0644);
+				if (fd >= 0) {
+					fchown(fd, uid, gid);
+					close(fd);
+				}
+			}
 		}
 	}
 }

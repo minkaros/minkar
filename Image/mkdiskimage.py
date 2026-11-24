@@ -254,13 +254,22 @@ def populate_home(root_dir, home_dir, uid, gid):
     template = os.path.join(root_dir, USER_TEMPLATE)
     if not os.path.isdir(template):
         return
-    for parent, dirs, _ in os.walk(template):
+    for parent, dirs, files in os.walk(template):
         for d in sorted(dirs):
             src = os.path.join(parent, d)
             dst = os.path.join(home_dir, os.path.relpath(src, template))
             if os.path.lexists(dst):
                 continue
             os.mkdir(dst)
+            os.chmod(dst, os.stat(src).st_mode & 0o7777)
+            os.chown(dst, uid, gid)
+        # The folders' .localized marks (their names in the user's language).
+        for f in sorted(files):
+            src = os.path.join(parent, f)
+            dst = os.path.join(home_dir, os.path.relpath(src, template))
+            if os.path.lexists(dst):
+                continue
+            shutil.copyfile(src, dst)
             os.chmod(dst, os.stat(src).st_mode & 0o7777)
             os.chown(dst, uid, gid)
 

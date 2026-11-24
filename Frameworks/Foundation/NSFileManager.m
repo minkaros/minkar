@@ -60,7 +60,48 @@ NSString * const NSFileSystemFreeSize=@"NSFileSystemFreeSize";
    return NSThreadSharedInstance(@"NSFileManager");
 }
 
+/* Minkar: the names of the folders marked with an empty .localized file
+   (Desktop, Documents...), in the user's language: the system's table,
+   SystemFolderLocalizations/<language>.lproj. Read once. */
+static NSDictionary *systemFolderNames(void) {
+   static NSDictionary *names;
+   static BOOL loaded;
+
+   @synchronized([NSFileManager class]) {
+      if(!loaded) {
+         NSString *dir=@"/System/Library/CoreServices/SystemFolderLocalizations";
+         NSMutableArray *languages=[NSMutableArray array];
+
+         for(NSString *entry in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir error:NULL])
+            if([[entry pathExtension] isEqualToString:@"lproj"])
+               [languages addObject:[entry stringByDeletingPathExtension]];
+         NSArray *chosen=[NSBundle preferredLocalizationsFromArray:languages];
+         if([chosen count]>0) {
+            NSString *file=[NSString stringWithFormat:@"%@/%@.lproj/SystemFolderLocalizations.strings",
+               dir,[chosen objectAtIndex:0]];
+            NSString *text=[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:NULL];
+            id table=[text propertyListFromStringsFileFormat];
+            if([table isKindOfClass:[NSDictionary class]])
+               names=[table retain];
+         }
+         loaded=YES;
+      }
+   }
+   return names;
+}
+
 -(NSString *)displayNameAtPath:(NSString *)path {
+   NSString *last=[path lastPathComponent];
+   NSString *localized=nil;
+   BOOL isDirectory=NO;
+
+   if([last length]>0 &&
+      [self fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory &&
+      [self fileExistsAtPath:[path stringByAppendingPathComponent:@".localized"]])
+      localized=[systemFolderNames() objectForKey:last];
+   if(localized!=nil)
+      return localized;
+
    NSBundle *bundle=[NSBundle bundleWithPath:path];
    NSString *name=nil;
    if(bundle) {

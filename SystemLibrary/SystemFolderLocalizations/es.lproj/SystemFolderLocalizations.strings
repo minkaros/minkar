@@ -1,0 +1,14 @@
+/* The names of the folders marked with a .localized file. */
+"Applications" = "Aplicaciones";
+"Desktop" = "Escritorio";
+"Documents" = "Documentos";
+"Downloads" = "Descargas";
+"Drop Box" = "Buzón de entrega";
+"Library" = "Biblioteca";
+"Movies" = "Películas";
+"Music" = "Música";
+"Pictures" = "Imágenes";
+"Public" = "Público";
+"Shared" = "Compartida";
+"Users" = "Usuarios";
+"Utilities" = "Utilidades";
