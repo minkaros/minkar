@@ -98,6 +98,15 @@ extern char **environ;
  * the first start. */
 #define LOGIN_WINDOW	"/System/Library/CoreServices/loginwindow.app/Contents/Resources/LoginWindow.app/Contents/MacOS/LoginWindow"
 #define LOGIN_PREFS	"/Library/Preferences/com.apple.loginwindow.plist"
+/* The installation medium (the installer image has this file): its session
+ * is root's, its one application the Installer (I3-I4). */
+#define INSTALL_MEDIUM	"/private/var/db/.MinkarInstallMedium"
+#define INSTALLER_APP	"/System/Library/CoreServices/Installer.app"
+/* A system not yet set up (no administrator made: no .AppleSetupDone, the
+ * reference's name): Setup runs before anyone logs in, makes the first
+ * administrator and says whom to log in, as the login window does (I5). */
+#define SETUP_DONE	"/private/var/db/.AppleSetupDone"
+#define SETUP_APP	"/System/Library/CoreServices/Setup.app/Contents/MacOS/Setup"
 /* How long the applications have to quit. */
 #define QUIT_TIMEOUT	30
 
@@ -121,6 +130,7 @@ static struct {
 	char	shell[PATH_MAX];
 } sessionUser;
 static int firstSession = 1;
+static int installMedium;
 static int sessionEnding;
 static pthread_mutex_t sessionLock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -346,16 +356,28 @@ autoLoginUser(char *out, size_t size)
 
 static void powerOff(uint32_t request);
 
-/* The user of the next session: autoLoginUser the first time, else the
- * login window's answer (restarting or shutting down when it says so). */
+/* The user of the next session: on the installation medium root (the
+ * Installer's session); the first time, Setup's answer on a system not set
+ * up yet, else autoLoginUser; else the login window's answer (restarting or
+ * shutting down when it says so). */
 static void
 chooseUser(void)
 {
 	char name[256];
+	const char *window = LOGIN_WINDOW;
 
 	if (firstSession) {
 		firstSession = 0;
-		if (autoLoginUser(name, sizeof(name)) && setSessionUser(name)) {
+		if (access(INSTALL_MEDIUM, F_OK) == 0) {
+			installMedium = 1;
+			setSessionUser("root");
+			fprintf(stderr, "loginwindow: the installation medium: the Installer\n");
+			return;
+		}
+		if (access(SETUP_DONE, F_OK) != 0 && access(SETUP_APP, X_OK) == 0) {
+			fprintf(stderr, "loginwindow: not set up yet: Setup\n");
+			window = SETUP_APP;
+		} else if (autoLoginUser(name, sizeof(name)) && setSessionUser(name)) {
 			fprintf(stderr, "loginwindow: automatic login of %s\n", name);
 			return;
 		}
@@ -363,7 +385,7 @@ chooseUser(void)
 	for (;;) {
 		int fds[2];
 		posix_spawn_file_actions_t actions;
-		char *argv[] = { LOGIN_WINDOW, NULL };
+		char *argv[] = { (char *)window, NULL };
 		char line[300] = "";
 		pid_t pid;
 		FILE *in;
@@ -378,7 +400,7 @@ chooseUser(void)
 		setenv("HOME", "/var/root", 1);
 		setenv("USER", "root", 1);
 		setenv("LOGNAME", "root", 1);
-		int err = posix_spawn(&pid, LOGIN_WINDOW, &actions, NULL, argv, environ);
+		int err = posix_spawn(&pid, window, &actions, NULL, argv, environ);
 		posix_spawn_file_actions_destroy(&actions);
 		close(fds[1]);
 		if (err != 0) {
@@ -399,6 +421,8 @@ chooseUser(void)
 		line[strcspn(line, "\r\n")] = '\0';
 		if (strncmp(line, "user ", 5) == 0 && setSessionUser(line + 5))
 			return;
+		/* Setup ended without a user: the login window from now on. */
+		window = LOGIN_WINDOW;
 		if (strcmp(line, "restart") == 0)
 			powerOff(kLoginWindowRestart);
 		else if (strcmp(line, "shutdown") == 0)
@@ -426,6 +450,16 @@ startSession(void)
 		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
 	sessionAppCount = 0;
 	sessionEnding = 0;
+	if (installMedium) {
+		/* The installation medium's session: the Installer alone. */
+		if (list != NULL)
+			fclose(list);
+		executableFor(INSTALLER_APP, exe, sizeof(exe));
+		snprintf(sessionApps[0].exe, sizeof(sessionApps[0].exe), "%s", exe);
+		sessionAppCount = 1;
+		startApp(0);
+		return;
+	}
 	if (list == NULL)
 		return;
 	while (fgets(line, sizeof(line), list) != NULL) {

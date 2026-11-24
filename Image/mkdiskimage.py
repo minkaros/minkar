@@ -387,6 +387,13 @@ def build(args):
             permit_root_ssh(root_dir)
         if args.auto_login_user:
             set_auto_login(root_dir, args.auto_login_user)
+        if args.installer_medium:
+            # The installation medium: loginwindow starts the Installer.
+            open(os.path.join(root_dir, 'private/var/db/.MinkarInstallMedium'), 'w').close()
+        else:
+            # Set up already (its accounts are made here): no Setup at the
+            # first start. A system the Installer puts on a disk has not.
+            open(os.path.join(root_dir, 'private/var/db/.AppleSetupDone'), 'w').close()
         if args.launchd_debug:
             # launchd logs at debug level to the console when this exists.
             open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
@@ -435,6 +442,8 @@ def main(argv=None):
     p.add_argument('--loader-pause', type=int, default=0, metavar='SECONDS',
                    help='keep the loader output on screen before the kernel '
                         'starts (hardware tests)')
+    p.add_argument('--installer-medium', action='store_true',
+                   help='the installation medium: it starts the Installer (no Setup, no accounts)')
     p.add_argument('--graphics-mode', metavar='WxH|max',
                    help='display mode the loader sets: native (the display\'s own, from its EDID), WIDTHxHEIGHT (or the '
                         'largest that fits) or max; default: the firmware\'s')

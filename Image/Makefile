@@ -179,6 +179,28 @@ image: ${LOADER}
 	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \
 	    ${INIT_ARGS}
 
+# The installation medium (I3, the maintainer's choices of 23 Nov 2026):
+# the same system, starting the Installer alone (no accounts, no automatic
+# login, no ssh for root, no Setup). Written to a USB stick as it is (dd).
+# INSTALLER_ROOT_AUTHORIZED_KEYS: root's ssh keys, for the installation
+# tests only.
+INSTALLER_IMAGE ?=	${ROOT_BINARY_DIR}/MinkarInstaller.img
+.if !empty(INSTALLER_ROOT_AUTHORIZED_KEYS)
+INSTALLER_ARGS =	--root-authorized-keys ${INSTALLER_ROOT_AUTHORIZED_KEYS} --ssh-root-login
+.endif
+.if !empty(INIT)
+INSTALLER_ARGS +=	--init ${INIT}
+.endif
+
+installer-image: ${LOADER}
+	${PYTHON} ${.CURDIR:H}/tools/mktrustcache.py \
+	    ${TRUST_CACHE_EXCLUDE:S/^/--exclude /} ${SYSROOT_DIR}
+	env -u ROOT_PASSWORD -u ROOT_AUTHORIZED_KEYS -u TEST_USER -u TEST_USER_PASSWORD \
+	    -u AUTO_LOGIN_USER ${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
+	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${INSTALLER_IMAGE} \
+	    --size-mb ${IMAGE_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${BOOT_ARGS}" \
+	    --installer-medium ${INSTALLER_ARGS}
+
 boottest-key:
 	test -f ${BOOTTEST_KEY} || { mkdir -p ${BOOTTEST_KEY:H} && \
 	    ssh-keygen -q -t ed25519 -N '' -C minkar-boottest -f ${BOOTTEST_KEY}; }
