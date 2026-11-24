@@ -280,7 +280,8 @@ static NSImage *bundleIcon(NSString *path) {
 
 /* An icon of the system's set (/System/Library/Icons). */
 static NSImage *systemIcon(NSString *relative) {
-   NSString *path=[@"/System/Library/Icons" stringByAppendingPathComponent:relative];
+   extern NSString *_NSSystemIconPath(NSString *relative);
+   NSString *path=_NSSystemIconPath(relative);
 
    return [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
 }

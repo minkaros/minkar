@@ -72,9 +72,36 @@ static NSMutableArray *_cursorStack=nil;
    NSUnimplementedMethod();
 }
 
+/* The standard cursors by name, made again when a cursor theme is chosen
+   (NSSystemThemes.m). */
+static NSMutableDictionary *_namedCursors=nil;
+
 -initWithName:(NSString *)name {
    _platformCursor=NSPlatformCreateCursorImpWithName(name);
+   if(name!=nil){
+    if(_namedCursors==nil)
+     _namedCursors=[[NSMutableDictionary alloc] init];
+    [_namedCursors setObject:[NSValue valueWithNonretainedObject:self] forKey:name];
+   }
    return self;
+}
+
+/* A cursor theme chosen: each standard cursor's picture made again, and
+   the cursor shown now shown again in the new one. */
+void _NSForgetCursorImages(void) {
+   extern void _NSCursorSkyLightForgetFiles(void);
+
+   if(_CGUsesSkyLight())
+    _NSCursorSkyLightForgetFiles();
+   for(NSString *name in [_namedCursors allKeys]){
+    NSCursor *cursor=[[_namedCursors objectForKey:name] nonretainedObjectValue];
+    id old=cursor->_platformCursor;
+
+    cursor->_platformCursor=NSPlatformCreateCursorImpWithName(name);
+    NSPlatformReleaseCursorImp(old);
+   }
+   if([_cursorStack count])
+    NSPlatformSetCursorImp(((NSCursor *)[_cursorStack lastObject])->_platformCursor);
 }
 
 +(NSCursor *)arrowCursor {

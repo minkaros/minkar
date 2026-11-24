@@ -449,7 +449,22 @@ static NSString *iconPath(NSString *name) {
        nil];
    NSString *relative=[paths objectForKey:name];
 
-   return (relative!=nil)?[@"/System/Library/Icons" stringByAppendingPathComponent:relative]:nil;
+   extern NSString *_NSSystemIconPath(NSString *relative);
+   return (relative!=nil)?_NSSystemIconPath(relative):nil;
+}
+
+/* An icon theme chosen: the standard images made so far, made again from
+   it when next asked for (NSSystemThemes.m). */
+@interface NSImage (NSImageNamedCache)
++(NSMutableDictionary *)allImages;
+@end
+
+void _NSForgetStandardImages(void) {
+   NSMutableDictionary *named=[NSImage allImages];
+
+   for(NSString *name in [named allKeys])
+    if(iconPath(name)!=nil)
+     [named removeObjectForKey:name];
 }
 
 /* The standard image of that name, made and named; nil if it is not one. */

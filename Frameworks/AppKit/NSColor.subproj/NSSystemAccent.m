@@ -151,6 +151,47 @@ static BOOL wantsDark(void) {
     return [globalValue(CFSTR("AppleInterfaceStyle")) isEqual:@"Dark"];
 }
 
+/* An appearance theme (a trial, the maintainer's, 24 Nov 2026): the
+   folder Themes/Appearance/NAME of ~/Library or /Library that
+   MinkarAppearanceTheme names, its Appearance.plist giving, for Light and
+   for Dark, system colors by name: "0.176" a grey (gamma 2.2), "r g b" or
+   "r g b a". Laid over Atlas's own; what it lacks stays Atlas's. */
+static NSDictionary *appearanceTheme(BOOL dark) {
+    NSString *name = globalValue(CFSTR("MinkarAppearanceTheme"));
+
+    if (![name isKindOfClass:[NSString class]] || [name length] == 0 ||
+        [name rangeOfString:@"/"].location != NSNotFound)
+        return nil;
+    for (NSString *base in [NSArray arrayWithObjects:
+            [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Themes/Appearance"],
+            @"/Library/Themes/Appearance", nil]) {
+        NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:
+            [[base stringByAppendingPathComponent:name] stringByAppendingPathComponent:@"Appearance.plist"]];
+        if (plist != nil) {
+            id colors = [plist objectForKey:dark ? @"Dark" : @"Light"];
+            return [colors isKindOfClass:[NSDictionary class]] ? colors : nil;
+        }
+    }
+    return nil;
+}
+
+static NSColor *themeColor(id value) {
+    if (![value isKindOfClass:[NSString class]])
+        return nil;
+    NSArray *parts = [value componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if ([parts count] == 1)
+        return [NSColor colorWithGenericGamma22White:[value doubleValue] alpha:1];
+    if ([parts count] >= 3)
+        return [NSColor colorWithCalibratedRed:[[parts objectAtIndex:0] doubleValue]
+            green:[[parts objectAtIndex:1] doubleValue] blue:[[parts objectAtIndex:2] doubleValue]
+            alpha:[parts count] > 3 ? [[parts objectAtIndex:3] doubleValue] : 1];
+    return nil;
+}
+
+/* The system colors a theme changed, as they were before it: put back
+   when the theme no longer gives them. */
+static NSMutableDictionary *themeReplaced;
+
 /* The neutrals for the appearance: dark ones, or the light ones kept. */
 static void applyAppearance(BOOL dark) {
     NSColorList *list = [NSColorList colorListNamed:@"System"];
@@ -170,6 +211,30 @@ static void applyAppearance(BOOL dark) {
                           : [lightColors objectForKey:kDark[i].name];
         if (c != nil)
             [list setColor:c forKey:kDark[i].name];
+    }
+    /* The theme's colors over them; others it changed before, back. */
+    NSDictionary *theme = appearanceTheme(dark);
+    if (themeReplaced == nil)
+        themeReplaced = [NSMutableDictionary new];
+    for (NSString *key in [themeReplaced allKeys])
+        if ([theme objectForKey:key] == nil) {
+            BOOL neutral = NO;
+            for (size_t i = 0; i < kDarkCount && !neutral; i++)
+                neutral = [kDark[i].name isEqualToString:key];
+            if (!neutral)
+                [list setColor:[themeReplaced objectForKey:key] forKey:key];
+            [themeReplaced removeObjectForKey:key];
+        }
+    for (NSString *key in theme) {
+        NSColor *c = themeColor([theme objectForKey:key]);
+        if (c == nil)
+            continue;
+        if ([themeReplaced objectForKey:key] == nil) {
+            NSColor *was = [list colorWithKey:key];
+            if (was != nil)
+                [themeReplaced setObject:was forKey:key];
+        }
+        [list setColor:c forKey:key];
     }
     appearanceDark = dark;
 }
@@ -307,8 +372,8 @@ static void swapColors(id object, NSDictionary *before, NSDictionary *after) {
 
 /* The keys General writes, as they are in the global domain now. */
 static NSString *colorSettings(void) {
-    return [NSString stringWithFormat:@"%d %@ %@", wantsDark(), globalValue(CFSTR("AppleAccentColor")),
-        globalValue(CFSTR("AppleHighlightColor"))];
+    return [NSString stringWithFormat:@"%d %@ %@ %@", wantsDark(), globalValue(CFSTR("AppleAccentColor")),
+        globalValue(CFSTR("AppleHighlightColor")), globalValue(CFSTR("MinkarAppearanceTheme"))];
 }
 
 /* Seconds until Auto's next hour (7:00 or 19:00), and a moment more. */
@@ -435,6 +500,9 @@ void _NSWatchSystemAccentColors(void) {
         name:_NSColorPreferencesChangedNotification object:nil];
     [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(themeChanged:)
         name:@"AppleInterfaceThemeChangedNotification" object:nil];
+    /* An appearance theme chosen (General's Themes, with icons and cursors). */
+    [[NSDistributedNotificationCenter defaultCenter] addObserver:watcher selector:@selector(themeChanged:)
+        name:@"org.minkar.ThemesChanged" object:nil];
     [watcher tick:nil];
     [watcher watchPreferences];
 }

@@ -107,6 +107,7 @@ SRCS = \
     NSAssetCatalog.m \
     NSImage.m \
     NSImageStandardImages.m \
+    NSSystemThemes.m \
     NSImageCell.m \
     NSImageRep.m \
     NSImageView.m \

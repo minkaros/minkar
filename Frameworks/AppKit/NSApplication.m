@@ -453,6 +453,10 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    /* The accent and highlight colors chosen in System Preferences, and
       their changes. */
    _NSWatchSystemAccentColors();
+   {
+      extern void _NSWatchSystemThemes(void);
+      _NSWatchSystemThemes();
+   }
 
    _dockTile=[[NSDockTile alloc] initWithOwner:self];
    _modalStack=[NSMutableArray new];

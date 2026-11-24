@@ -254,13 +254,32 @@ id _NSCursorSkyLightWithImage(NSImage *image, NSPoint hotSpot);
 /* Atlas's cursor of that name (/System/Library/Cursors, made by
    SystemLibrary/Cursors/gen-cursors.py: NAME.png and its hot spot in
    Cursors.plist), or nil. */
-static id cursorFromFile(const char *name) {
-    static NSDictionary *hotSpots;
-    NSString *dir = @"/System/Library/Cursors";
+/* Each folder's hot spots (Cursors.plist), read once a theme. */
+static NSMutableDictionary *hotSpotsByFolder;
 
-    if (hotSpots == nil)
-        hotSpots = [[NSDictionary alloc] initWithContentsOfFile:[dir stringByAppendingPathComponent:@"Cursors.plist"]];
+void _NSCursorSkyLightForgetFiles(void) {
+    [hotSpotsByFolder removeAllObjects];
+}
+
+static id cursorFromFile(const char *name) {
+    extern NSString *_NSSystemCursorFolder(NSString *name);
+    NSString *dir = _NSSystemCursorFolder([NSString stringWithUTF8String:name]);
+
+    if (hotSpotsByFolder == nil)
+        hotSpotsByFolder = [[NSMutableDictionary alloc] init];
+    NSDictionary *hotSpots = [hotSpotsByFolder objectForKey:dir];
+    if (hotSpots == nil) {
+        hotSpots = [NSDictionary dictionaryWithContentsOfFile:[dir stringByAppendingPathComponent:@"Cursors.plist"]];
+        if (hotSpots == nil)
+            hotSpots = [NSDictionary dictionary];
+        [hotSpotsByFolder setObject:hotSpots forKey:dir];
+    }
     NSDictionary *hot = [hotSpots objectForKey:[NSString stringWithUTF8String:name]];
+    /* A theme's cursor without its hot spot: the system's. */
+    if (hot == nil && ![dir isEqualToString:@"/System/Library/Cursors"]) {
+        NSDictionary *system = [NSDictionary dictionaryWithContentsOfFile:@"/System/Library/Cursors/Cursors.plist"];
+        hot = [system objectForKey:[NSString stringWithUTF8String:name]];
+    }
     if (hot == nil)
         return nil;
     NSString *path = [dir stringByAppendingPathComponent:[NSString stringWithFormat:@"%s.png", name]];
@@ -278,8 +297,11 @@ id _NSCursorSkyLightWithName(NSString *name) {
     for (size_t i = 0; i < sizeof(aliases) / sizeof(aliases[0]); i++)
         if (strcmp(n, aliases[i][0]) == 0)
             n = aliases[i][1];
-    /* The arrow is the server's own (the same picture). */
-    if (strcmp(n, "arrowCursor") != 0) {
+    /* The arrow is the server's own (the same picture), unless a cursor
+       theme has its own arrow. */
+    extern NSString *_NSSystemCursorFolder(NSString *name);
+    if (strcmp(n, "arrowCursor") != 0 ||
+        ![_NSSystemCursorFolder(@"arrowCursor") isEqualToString:@"/System/Library/Cursors"]) {
         id cursor = cursorFromFile(n);
         if (cursor != nil)
             return cursor;
