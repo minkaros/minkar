@@ -173,6 +173,10 @@ copy_item(const char *src, const char *dst, dev_t root_dev)
 	if (Vflag)
 		printf("copying %s\n", src);
 
+	/* A socket belongs to the program that made it: not copied, as on
+	   the reference. */
+	if (S_ISSOCK(sb.st_mode))
+		return;
 	if (S_ISDIR(sb.st_mode)) {
 		if (Xflag && sb.st_dev != root_dev)
 			return;
@@ -209,10 +213,8 @@ copy_item(const char *src, const char *dst, dev_t root_dev)
 			return;
 		}
 		fix_xattrs(dst);
-		if (hfs_compression && hfs_compress_file(dst) < 0) {
-			warn("%s: HFS+ compression", dst);
-			status = 1;
-		}
+		if (hfs_compression)
+			hfs_compress_enqueue(dst);
 		return;
 	}
 	if (S_ISFIFO(sb.st_mode) ? mkfifo(dst, sb.st_mode & 07777) :
@@ -222,6 +224,12 @@ copy_item(const char *src, const char *dst, dev_t root_dev)
 		return;
 	}
 	(void)copyfile(src, dst, NULL, meta_flags());
+}
+
+static void
+compress_failed(const char *path)
+{
+	warn("%s: HFS+ compression", path);
 }
 
 static void
@@ -237,6 +245,8 @@ copy_main(int argc, char **argv)
 			err(1, "%s", dst);
 		dst_dir = true;
 	}
+	if (hfs_compression)
+		hfs_compress_start(compress_failed);
 	for (int i = 0; i < argc - 1; i++) {
 		const char *src = argv[i];
 		struct stat sb;
@@ -259,6 +269,8 @@ copy_main(int argc, char **argv)
 			copy_item(src, d, sb.st_dev);
 		}
 	}
+	if (hfs_compression && hfs_compress_finish() > 0)
+		status = 1;
 }
 
 /* ---------------------------------------------------------------------

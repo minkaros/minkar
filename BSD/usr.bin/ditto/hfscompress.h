@@ -11,4 +11,11 @@
    error (the file kept as it was). */
 int	hfs_compress_file(const char *path);
 
+/* Files compressed by a thread a processor, as they are queued; finish
+   waits for them and says how many failed (each told to failed). */
+typedef void (*hfs_compress_failed_fn)(const char *path);
+void	hfs_compress_start(hfs_compress_failed_fn failed);
+void	hfs_compress_enqueue(const char *path);
+int	hfs_compress_finish(void);
+
 #endif

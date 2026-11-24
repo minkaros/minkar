@@ -14,6 +14,10 @@
  * data fork is emptied and the file flagged UF_COMPRESSED; its times are
  * kept. A file that would not shrink, is empty, has a resource fork or
  * other links, or is not on HFS+, is left alone.
+ *
+ * LZFSE in 64 KB blocks runs at some tens of MB/s on a core: the files are
+ * compressed by a thread a processor (hfs_compress_start, _enqueue,
+ * _finish) while the copy goes on.
  */
 
 #include <sys/types.h>
@@ -23,6 +27,8 @@
 #include <sys/xattr.h>
 
 #include <compression.h>
+#include <pthread.h>
+#include <sys/sysctl.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -198,4 +204,89 @@ out:
 	free(attr);
 	free(scratch);
 	return (rc);
+}
+
+/* ---- Compressing on every processor while the copy goes on ---- */
+
+static pthread_mutex_t qlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t qcond = PTHREAD_COND_INITIALIZER, qroom = PTHREAD_COND_INITIALIZER;
+static char **queue;
+static size_t qhead, qtail, qcap;
+static bool qdone;
+static int qfailures, nthreads;
+static pthread_t *threads;
+static hfs_compress_failed_fn qfailed;
+
+static void *
+worker(void *unused)
+{
+	(void)unused;
+	for (;;) {
+		char *path;
+
+		pthread_mutex_lock(&qlock);
+		while (qhead == qtail && !qdone)
+			pthread_cond_wait(&qcond, &qlock);
+		if (qhead == qtail) {
+			pthread_mutex_unlock(&qlock);
+			return (NULL);
+		}
+		path = queue[qhead++ % qcap];
+		pthread_cond_signal(&qroom);
+		pthread_mutex_unlock(&qlock);
+		if (hfs_compress_file(path) < 0) {
+			pthread_mutex_lock(&qlock);
+			qfailures++;
+			if (qfailed != NULL)
+				qfailed(path);
+			pthread_mutex_unlock(&qlock);
+		}
+		free(path);
+	}
+}
+
+void
+hfs_compress_start(hfs_compress_failed_fn failed)
+{
+	int ncpu = 1;
+	size_t len = sizeof(ncpu);
+
+	if (sysctlbyname("hw.ncpu", &ncpu, &len, NULL, 0) != 0 || ncpu < 1)
+		ncpu = 1;
+	nthreads = ncpu > 16 ? 16 : ncpu;
+	qcap = 4096;
+	queue = calloc(qcap, sizeof(char *));
+	threads = calloc((size_t)nthreads, sizeof(pthread_t));
+	qfailed = failed;
+	for (int i = 0; i < nthreads; i++)
+		pthread_create(&threads[i], NULL, worker, NULL);
+}
+
+void
+hfs_compress_enqueue(const char *path)
+{
+	char *copy = strdup(path);
+
+	if (copy == NULL)
+		return;
+	pthread_mutex_lock(&qlock);
+	while (qtail - qhead == qcap)
+		pthread_cond_wait(&qroom, &qlock);
+	queue[qtail++ % qcap] = copy;
+	pthread_cond_signal(&qcond);
+	pthread_mutex_unlock(&qlock);
+}
+
+int
+hfs_compress_finish(void)
+{
+	pthread_mutex_lock(&qlock);
+	qdone = true;
+	pthread_cond_broadcast(&qcond);
+	pthread_mutex_unlock(&qlock);
+	for (int i = 0; i < nthreads; i++)
+		pthread_join(threads[i], NULL);
+	free(threads);
+	free(queue);
+	return (qfailures);
 }
