@@ -10088,9 +10088,15 @@ job_mig_take_subset(job_t j, mach_port_t *reqport, mach_port_t *rcvright,
 		}
 	}
 
-	mig_allocate((vm_address_t *)&ports, cnt * sizeof(ports[0]));
-	if (!job_assumes(j, ports != NULL)) {
-		goto out_bad;
+	/* Minkar: a subset with no services yet (a session just made, as
+	 * loginwindow makes the Aqua one) is moved too: the empty list
+	 * allocates nothing, which is not a failure (move_subset failed with
+	 * BOOTSTRAP_NO_MEMORY). */
+	if (cnt > 0) {
+		mig_allocate((vm_address_t *)&ports, cnt * sizeof(ports[0]));
+		if (!job_assumes(j, ports != NULL)) {
+			goto out_bad;
+		}
 	}
 
 	LIST_FOREACH(ji, &j->mgr->jobs, sle) {
