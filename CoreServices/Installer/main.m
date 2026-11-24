@@ -593,9 +593,25 @@ static uint64_t usedBytes(NSString *path)
     for (NSString *dir in @[ @"private/var/vm", @"private/var/run", @"private/var/tmp", @"private/var/folders",
                              @"private/var/log", @"private/tmp", @"Users" ]) {
         NSString *path = [target stringByAppendingPathComponent:dir];
-        for (NSString *item in [fm contentsOfDirectoryAtPath:path error:NULL])
-            if (![dir isEqualToString:@"Users"] || ![item isEqualToString:@"Shared"])
-                [fm removeItemAtPath:[path stringByAppendingPathComponent:item] error:NULL];
+        for (NSString *item in [fm contentsOfDirectoryAtPath:path error:NULL]) {
+            NSString *full = [path stringByAppendingPathComponent:item];
+            BOOL isDir = NO;
+            if ([dir isEqualToString:@"Users"] && [item isEqualToString:@"Shared"])
+                continue;
+            /* The logs' own folders stay, empty, with their owners (the
+               window server's, among them, which it cannot make). */
+            if ([dir isEqualToString:@"private/var/log"] &&
+                [fm fileExistsAtPath:full isDirectory:&isDir] && isDir) {
+                for (NSString *inner in [fm subpathsOfDirectoryAtPath:full error:NULL]) {
+                    NSString *f = [full stringByAppendingPathComponent:inner];
+                    BOOL d = NO;
+                    if ([fm fileExistsAtPath:f isDirectory:&d] && !d)
+                        [fm removeItemAtPath:f error:NULL];
+                }
+                continue;
+            }
+            [fm removeItemAtPath:full error:NULL];
+        }
     }
     for (NSString *file in @[ @"private/var/db/.MinkarInstallMedium", @"private/var/db/.AppleSetupDone",
                               @"private/var/db/dhcpclient", @"private/var/db/auth.db" ])
