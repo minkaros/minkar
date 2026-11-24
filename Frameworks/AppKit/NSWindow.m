@@ -1065,6 +1065,10 @@ static char representedURLKey;
     return _animationContext;
 }
 
+/* The window resized whose new frame waits to go to the server with its
+   new picture (setFrame:display:animate:tellWS:). */
+static NSWindow *deferWSFrameOf;
+
 -(void)invalidateContextsWithNewSize:(NSSize)size forceRebuild:(BOOL)forceRebuild {
 #if 0
     O2Image *snapshot = nil;
@@ -1075,7 +1079,8 @@ static char representedURLKey;
 
     if(!NSEqualSizes(_frame.size,size) || forceRebuild) {
         _frame.size = size;
-        [self _updateWSState];
+        if(deferWSFrameOf!=self)
+            [self _updateWSState];
 
         [_context release];
         _context = nil;
@@ -1124,6 +1129,13 @@ static char representedURLKey;
 
     BOOL didSize=NSEqualSizes(newFrame.size,_frame.size)?NO:YES;
     BOOL didMove=NSEqualPoints(newFrame.origin,_frame.origin)?NO:YES;
+    /* A visible window resized and shown again at once: its new picture
+       is drawn first, then the server gets the new frame and the picture
+       together. Told the frame first, the server showed the old picture
+       in the new frame (or none) until the window drew again: the Dock
+       blinked when its magnification was turned on (PC 1). */
+    BOOL atOnce=didSize && display && tellWS && !animate && _isVisible && ![self isMiniaturized] &&
+        _flushDisabled == 0 && [NSView focusView] == nil;	/* not while a view draws */
 
     _frame=newFrame;
     _makeSureIsOnAScreen=YES;
@@ -1132,7 +1144,10 @@ static char representedURLKey;
         NSSize oldSize = [_backgroundView frame].size;
         [_backgroundView setFrameSize:_frame.size];
         [_backgroundView resizeSubviewsWithOldSize:oldSize];
+        if(atOnce)
+            deferWSFrameOf=self;
         [self invalidateContextsWithNewSize:_frame.size forceRebuild:YES];
+        deferWSFrameOf=nil;
         [self resetCursorRects];
         [self saveFrameUsingName:_autosaveFrameName];
         [self postNotificationName:NSWindowDidResizeNotification];
@@ -1143,8 +1158,17 @@ static char representedURLKey;
         [self postNotificationName:NSWindowDidMoveNotification];
     }
 
+    if(atOnce) {
+        [_backgroundView setNeedsDisplay:YES];
+        [self disableFlushWindow];
+        [self displayIfNeeded];
+        [self enableFlushWindow];
+        [self _updateWSState];
+        _damageAll=YES;
+        [self flushWindow];
+    }
     // Sync WS to our new geometry & position before redisplaying
-    if(tellWS)
+    else if(tellWS)
         [self _updateWSState];
 
     // If you setFrame:display:YES before rearranging views with only setFrame:
