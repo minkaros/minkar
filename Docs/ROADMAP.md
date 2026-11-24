@@ -120,7 +120,7 @@ downloaded, mounted and its app run; Atlas complete for daily use (MB2–MB3, D2
 A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 green (BC4).
 
 - [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks attached by the kernel's `MinkarDiskImage`; `hdiutil convert` and `create`.
-- [ ] HFS+ compression (decmpfs) through `MinkarFSCompression`; partial.
+- [x] HFS+ compression (decmpfs): read through `MinkarFSCompression` (zlib, LZVN, LZFSE), written by `ditto --hfsCompression` (LZFSE; test `hfs-compression`).
 - [ ] The rest of hfs's adaptation (`Kernel/_PROVENANCE`).
 - [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image.
 - [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.

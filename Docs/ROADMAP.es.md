@@ -123,7 +123,7 @@ D2–D3, K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU10;
 apps 19 en verde (BC4).
 
 - [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
-- [ ] Compresión de HFS+ (decmpfs) con `MinkarFSCompression`; parcial.
+- [x] Compresión de HFS+ (decmpfs): lectura con `MinkarFSCompression` (zlib, LZVN, LZFSE), escritura con `ditto --hfsCompression` (LZFSE; prueba `hfs-compression`).
 - [ ] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`).
 - [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada.
 - [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.

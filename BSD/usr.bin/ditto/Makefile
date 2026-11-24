@@ -9,7 +9,7 @@ SUBDIR =
 MK_WERROR = no
 MAN =
 PROG =	ditto
-SRCS =	ditto.c
+SRCS =	ditto.c hfscompress.c
 LA =	${ROOT_SOURCE_DIR}/BSD/lib/libarchive
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${LA}/src/libarchive
@@ -17,7 +17,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -
 LDADD = -L${ROOT_BINARY_DIR}${LA} -larchive \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmd -lmd \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat \
-	-lz -L${SYSROOT_DIR}/usr/lib -lbz2 -llzma
+	-lz -L${SYSROOT_DIR}/usr/lib -lbz2 -llzma -lcompression
 
 all: to-sysroot
 

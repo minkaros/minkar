@@ -36,7 +36,9 @@
  * Copying merges each source into dst: a directory's contents go into
  * dst (made if missing), a file goes to dst (or into it, if dst is a
  * directory). Modes, owners (as root), times, extended attributes and
- * ACLs are kept, through copyfile(3). Archives are CPIO (gzip with -z,
+ * ACLs are kept, through copyfile(3); with --hfsCompression, each file
+ * copied to an HFS+ volume is compressed there (LZFSE, hfscompress.c).
+ * Archives are CPIO (gzip with -z,
  * bzip2 with -j) or, with -k, PKZip, through libarchive.
  *
  * Options: -v (say what is copied), -V (every file), -X (do not cross
@@ -64,9 +66,11 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "hfscompress.h"
+
 static bool vflag, Vflag, Xflag;
 static bool rsrc = true, extattr = true, acl = true;
-static bool keep_parent;
+static bool keep_parent, hfs_compression;
 static int status;
 
 static void usage(void) __dead2;
@@ -205,6 +209,10 @@ copy_item(const char *src, const char *dst, dev_t root_dev)
 			return;
 		}
 		fix_xattrs(dst);
+		if (hfs_compression && hfs_compress_file(dst) < 0) {
+			warn("%s: HFS+ compression", dst);
+			status = 1;
+		}
 		return;
 	}
 	if (S_ISFIFO(sb.st_mode) ? mkfifo(dst, sb.st_mode & 07777) :
@@ -494,10 +502,13 @@ main(int argc, char *argv[])
 		else if (strcmp(a, "--noacl") == 0)
 			acl = false;
 		else if (strcmp(a, "--qtn") == 0 || strcmp(a, "--noqtn") == 0 ||
-		    strcmp(a, "--sequesterRsrc") == 0 ||
-		    strcmp(a, "--hfsCompression") == 0 ||
-		    strcmp(a, "--nohfsCompression") == 0 ||
-		    strcmp(a, "--preserveHFSCompression") == 0 ||
+		    strcmp(a, "--sequesterRsrc") == 0)
+			;	/* nothing to do on Minkar */
+		else if (strcmp(a, "--hfsCompression") == 0)
+			hfs_compression = true;
+		else if (strcmp(a, "--nohfsCompression") == 0)
+			hfs_compression = false;
+		else if (strcmp(a, "--preserveHFSCompression") == 0 ||
 		    strcmp(a, "--nopreserveHFSCompression") == 0 ||
 		    strcmp(a, "--persistRootless") == 0 ||
 		    strcmp(a, "--nopersistRootless") == 0)
