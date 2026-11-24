@@ -191,6 +191,9 @@ INSTALLER_BOOT_ARGS ?=	-v keepsyms=1 msgbuf=1048576 panic_summary=1
 # The display's own mode (from its EDID) for the medium, and so, as bless
 # keeps the medium's boot settings, for the system it installs.
 INSTALLER_GRAPHICS_MODE ?=	native
+# The medium as large as its content (0), not IMAGE_SIZE_MB: less to write
+# to a USB stick. The system it installs has the whole disk.
+INSTALLER_SIZE_MB ?=	0
 .if !empty(INSTALLER_ROOT_AUTHORIZED_KEYS)
 INSTALLER_ARGS =	--root-authorized-keys ${INSTALLER_ROOT_AUTHORIZED_KEYS} --ssh-root-login
 .endif
@@ -204,7 +207,7 @@ installer-image: ${LOADER}
 	env -u ROOT_PASSWORD -u ROOT_AUTHORIZED_KEYS -u TEST_USER -u TEST_USER_PASSWORD \
 	    -u AUTO_LOGIN_USER ${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${INSTALLER_IMAGE} \
-	    --size-mb ${IMAGE_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${INSTALLER_BOOT_ARGS}" \
+	    --size-mb ${INSTALLER_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${INSTALLER_BOOT_ARGS}" \
 	    --graphics-mode ${INSTALLER_GRAPHICS_MODE} --installer-medium ${INSTALLER_ARGS}
 
 boottest-key:

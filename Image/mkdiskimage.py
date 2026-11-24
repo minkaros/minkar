@@ -320,6 +320,23 @@ def boot_plist(boot_args, volume_uuid, loader_pause=0, graphics_mode=None):
     return plistlib.dumps(config, fmt=plistlib.FMT_XML)
 
 
+def content_size_mb(sysroot, esp_mb):
+    """A disk just large enough for the sysroot: its files in HFS+'s 4 KB
+    blocks, a quarter more for the catalog, the journal and what the
+    system writes while it runs (logs, caches), 256 MB more, and the EFI
+    partition, rounded up to 64 MB."""
+    total = 0
+    for parent, dirs, files in os.walk(sysroot):
+        for name in files + dirs:
+            try:
+                st = os.lstat(os.path.join(parent, name))
+            except OSError:
+                continue
+            total += (st.st_size + 4095) // 4096 * 4096 + 4096
+    mb = total * 5 // 4 // (1024 * 1024) + 256 + esp_mb + 2
+    return (mb + 63) // 64 * 64
+
+
 def build(args):
     for path, what in ((args.sysroot, 'sysroot'), (args.kernelcache, 'kernelcache'),
                        (args.loader, 'loader')):
@@ -327,6 +344,9 @@ def build(args):
             raise SystemExit('%s not found: %s' % (what, path))
     if os.geteuid() != 0:
         raise SystemExit('must run as root (loop devices and mounts)')
+    if args.size_mb == 0:
+        args.size_mb = content_size_mb(args.sysroot, args.esp_mb)
+        print('size: %d MB (the sysroot\'s content)' % args.size_mb)
 
     volume_id = bytes.fromhex(args.volume_id) if args.volume_id else os.urandom(8)
     if len(volume_id) != 8:
@@ -423,6 +443,7 @@ def main(argv=None):
     p.add_argument('--kernelcache', required=True)
     p.add_argument('--loader', required=True, help='loader.efi')
     p.add_argument('--output', required=True, help='raw disk image to write')
+    # 0: as large as the sysroot needs (content_size_mb).
     p.add_argument('--size-mb', type=int, default=2048)
     p.add_argument('--esp-mb', type=int, default=200)
     p.add_argument('--volume-name', default='Minkar')
