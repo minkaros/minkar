@@ -11,6 +11,6 @@
 
 SUBDIR =	runner pcre2 expat glib libgpg-error libgcrypt libtasn1 httpd libsoup harfbuzz libxml2 \
 		libpng libxkbcommon fontconfig libpsl brotli nghttp2 glib-networking libxslt libffi \
-		libjpeg libepoxy libwebp
+		libjpeg libepoxy libwebp freetype woff2
 
 .include <bsd.subdir.mk>
