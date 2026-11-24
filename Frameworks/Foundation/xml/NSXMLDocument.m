@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSXMLParser.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSData.h>
+#import <Foundation/NSString.h>
 #import <Foundation/NSRaise.h>
 
 @implementation NSXMLDocument
@@ -30,9 +31,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
+/* The string's characters as UTF-8 (a declaration naming another encoding
+   is not followed: the characters are already decoded). */
 -initWithXMLString:(NSString *)string options:(NSUInteger)options error:(NSError **)error {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithData:[string dataUsingEncoding:NSUTF8StringEncoding] options:options error:error];
 }
 
 -(void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qualifiedName attributes:(NSDictionary *)attributes {
@@ -188,15 +190,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _uri=uri;
 }
 
+/* Children know their parent (-parent, -level, -rootDocument, XPath's
+   "..", a namespace declared further up). */
 -(void)setChildren:(NSArray *)children {
+   for(NSXMLNode *child in _children)
+    child->_parent=nil;
    [_children setArray:children];
+   for(NSXMLNode *child in _children)
+    child->_parent=self;
 }
 
 -(void)addChild:(NSXMLNode *)node {
+   node->_parent=self;
    [_children addObject:node];
 }
 
 -(void)insertChild:(NSXMLNode *)child atIndex:(NSUInteger)index {
+   child->_parent=self;
    [_children insertObject:child atIndex:index];
 }
 
@@ -204,14 +214,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSInteger i,count=[children count];
 
    for(i=0;i<count;i++)
-    [_children insertObject:[children objectAtIndex:i] atIndex:index+i];
+    [self insertChild:[children objectAtIndex:i] atIndex:index+i];
 }
 
 -(void)removeChildAtIndex:(NSUInteger)index {
+   ((NSXMLNode *)[_children objectAtIndex:index])->_parent=nil;
    [_children removeObjectAtIndex:index];
 }
 
 -(void)replaceChildAtIndex:(NSUInteger)index withNode:(NSXMLNode *)node {
+   ((NSXMLNode *)[_children objectAtIndex:index])->_parent=nil;
+   node->_parent=self;
    [_children replaceObjectAtIndex:index withObject:node];
 }
 

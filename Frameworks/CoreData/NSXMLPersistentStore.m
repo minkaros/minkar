@@ -108,7 +108,8 @@ static id reverseTransformedValue(NSAttributeDescription *attribute,NSData *data
     }
    }
    else {
-    _document=[[NSXMLDocument alloc] initWithKind:NSXMLDocumentXMLKind options:xmlOptions];
+    _document=[[NSXMLDocument alloc] initWithKind:NSXMLDocumentKind options:xmlOptions];
+    [_document setDocumentContentKind:NSXMLDocumentXMLKind];
     
     NSXMLElement *database=[[NSXMLElement alloc] initWithName:@"database"];
     NSXMLElement *databaseInfo=[[NSXMLElement alloc] initWithName:@"databaseInfo"];

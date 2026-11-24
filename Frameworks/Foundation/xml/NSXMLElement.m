@@ -49,17 +49,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSXMLNode *)attributeForLocalName:(NSString *)name URI:(NSString *)uri {
-   NSUnimplementedMethod();
-   return 0;
+   for(NSXMLNode *attribute in [_attributes allValues])
+    if([[attribute localName] isEqualToString:name] &&
+       ((uri==nil && [attribute URI]==nil) || [[attribute URI] isEqualToString:uri]))
+     return attribute;
+   return nil;
 }
 
 -(NSXMLNode *)attributeForName:(NSString *)name {
    return [_attributes objectForKey:name];
 }
 
+/* By local name in a namespace, whatever prefix stands for it here. */
 -(NSArray *)elementsForLocalName:(NSString *)localName URI:(NSString *)uri {
-   NSUnimplementedMethod();
-   return 0;
+   NSMutableArray *result=[NSMutableArray array];
+
+   for(NSXMLNode *node in _children)
+    if([node kind]==NSXMLElementKind && [[node localName] isEqualToString:localName] &&
+       ((uri==nil && [node URI]==nil) || [[node URI] isEqualToString:uri]))
+     [result addObject:node];
+   return result;
 }
 
 -(NSArray *)elementsForName:(NSString *)name {
@@ -90,6 +99,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    for(i=0;i<count;i++){
     NSXMLNode *add=[attributes objectAtIndex:i];
     
+    add->_parent=self;
     [_attributes setObject:add forKey:[add name]];
    }
 }
@@ -104,12 +114,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSString  *value=[attributes objectForKey:name];
     NSXMLNode *node=[NSXMLNode attributeWithName:name stringValue:value];
     
+    node->_parent=self;
     [_attributes setObject:node forKey:name];
    }
 }
 
+/* Children know their parent (-parent, -level, -rootDocument, XPath's
+   "..", a namespace declared further up). */
 -(void)setChildren:(NSArray *)children {
+   for(NSXMLNode *child in _children)
+    child->_parent=nil;
    [_children setArray:children];
+   for(NSXMLNode *child in _children)
+    child->_parent=self;
 }
 
 -(void)setNamespaces:(NSArray *)namespaces {
@@ -122,6 +139,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)insertChild:(NSXMLNode *)child atIndex:(NSUInteger)index {
+   child->_parent=self;
    [_children insertObject:child atIndex:index];
 }
 
@@ -129,18 +147,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSInteger i,count=[children count];
    
    for(i=0;i<count;i++)
-    [_children insertObject:[children objectAtIndex:i] atIndex:index+i];
+    [self insertChild:[children objectAtIndex:i] atIndex:index+i];
 }
 
 -(void)removeChildAtIndex:(NSUInteger)index {
+   ((NSXMLNode *)[_children objectAtIndex:index])->_parent=nil;
    [_children removeObjectAtIndex:index];
 }
 
 -(void)replaceChildAtIndex:(NSUInteger)index withNode:(NSXMLNode *)node {
+   ((NSXMLNode *)[_children objectAtIndex:index])->_parent=nil;
+   node->_parent=self;
    [_children replaceObjectAtIndex:index withObject:node];
 }
 
 -(void)addAttribute:(NSXMLNode *)attribute {
+   attribute->_parent=self;
    [_attributes setObject:attribute forKey:[attribute name]];
 }
 
