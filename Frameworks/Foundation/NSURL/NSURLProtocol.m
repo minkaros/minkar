@@ -9,6 +9,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSArray.h>
 #import "NSURLProtocol_http.h"
+#import <Foundation/NSMutableDictionary.h>
+#import <Foundation/NSURLRequest.h>
+#import <objc/runtime.h>
+
+NSMutableDictionary *_NSURLRequestProperties(NSURLRequest *request,BOOL create);
+void _NSURLRequestCopyProperties(NSURLRequest *from,NSURLRequest *to);
 
 @implementation NSURLProtocol
 
@@ -47,17 +53,48 @@ static NSMutableArray *_registeredClasses=nil;
    [_registeredClasses removeObjectIdenticalTo:cls];
 }
 
+/* A request's properties (Minkar): kept with the request object and
+   carried by its copies (-[NSURLRequest initWithURLRequest:]), so that a
+   protocol finds what its client put there. TextMate hands its command's
+   output pipe to its own protocol this way (24 Nov 2026). */
+static char _propertiesKey;
+
+NSMutableDictionary *_NSURLRequestProperties(NSURLRequest *request,BOOL create) {
+   NSMutableDictionary *properties;
+
+   if(request==nil)
+    return nil;
+   properties=objc_getAssociatedObject(request,&_propertiesKey);
+   if(properties==nil && create){
+    properties=[NSMutableDictionary dictionary];
+    objc_setAssociatedObject(request,&_propertiesKey,properties,OBJC_ASSOCIATION_RETAIN);
+   }
+   return properties;
+}
+
+void _NSURLRequestCopyProperties(NSURLRequest *from,NSURLRequest *to) {
+   NSMutableDictionary *properties=_NSURLRequestProperties(from,NO);
+
+   if([properties count]>0)
+    objc_setAssociatedObject(to,&_propertiesKey,[[properties mutableCopy] autorelease],OBJC_ASSOCIATION_RETAIN);
+}
+
 +propertyForKey:(NSString *)key inRequest:(NSURLRequest *)request {
-   NSUnimplementedMethod();
-   return 0;
+   return (key!=nil)?[_NSURLRequestProperties(request,NO) objectForKey:key]:nil;
 }
 
 +(void)removePropertyForKey:(NSString *)key inRequest:(NSMutableURLRequest *)request {
-   NSUnimplementedMethod();
+   if(key!=nil)
+    [_NSURLRequestProperties(request,NO) removeObjectForKey:key];
 }
 
 +(void)setProperty:value forKey:(NSString *)key inRequest:(NSMutableURLRequest *)request {
-   NSUnimplementedMethod();
+   if(key==nil)
+    return;
+   if(value==nil)
+    [_NSURLRequestProperties(request,NO) removeObjectForKey:key];
+   else
+    [_NSURLRequestProperties(request,YES) setObject:value forKey:key];
 }
 
 +(BOOL)canInitWithRequest:(NSURLRequest *)request {

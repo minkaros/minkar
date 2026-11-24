@@ -15,6 +15,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSMutableDictionary.h>
 
+extern void _NSURLRequestCopyProperties(NSURLRequest *from,NSURLRequest *to);
+
 @implementation NSURLRequest
 
 -initWithURLRequest:(NSURLRequest *)other {
@@ -37,6 +39,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _allowsExpensive=[other allowsExpensiveNetworkAccess];
    _allowsConstrained=[other allowsConstrainedNetworkAccess];
    _serviceType=[other networkServiceType];
+   _NSURLRequestCopyProperties(other,self);
    return self;
 }
 
