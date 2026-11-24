@@ -94,6 +94,17 @@ os_log_create(const char* subsystem, const char* category)
     return log;
 }
 
+/* The form older binaries call, with their image's header first (Sparkle
+   2.2 in Platypus 5.4, 24 Nov 2026); the image is not needed. */
+os_log_t _os_log_create(void* dso, const char* subsystem, const char* category);
+
+os_log_t
+_os_log_create(void* dso, const char* subsystem, const char* category)
+{
+    (void)dso;
+    return os_log_create(subsystem, category);
+}
+
 bool
 os_log_shim_enabled(os_log_t log, os_log_type_t type)
 {
