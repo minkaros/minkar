@@ -1,0 +1,30 @@
+WebKit: auxiliary processes without the application's descriptors
+
+The process launcher let the web and network processes inherit every
+descriptor of the application (so that GLib could use posix_spawn()). On
+the reference a web view's processes get nothing of the application's.
+An application that streams a page through a pipe of its own (TextMate's
+HTML output, through an NSURLProtocol) never saw the pipe's end: the web
+process, started after the pipe was made, held its write end open. On
+Darwin the launcher now passes only the descriptors it hands over, and
+GLib closes the rest in the child.
+
+--- a/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp
++++ b/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp
+@@ -231,7 +231,16 @@
+     // must not use a child setup fuction.
+     //
+     // Please keep this comment in sync with the duplicate comment in XDGDBusProxy::launch.
++#if OS(DARWIN)
++    // Minkar: the auxiliary processes get only the descriptors given to them
++    // (g_subprocess_launcher_take_fd()), as the reference's do. Inheriting
++    // the application's kept the write end of a pipe it had made open in the
++    // web process, and the application never saw the pipe's end (TextMate's
++    // HTML output, 24 Nov 2026). GLib closes the others after fork().
++    GRefPtr<GSubprocessLauncher> launcher = adoptGRef(g_subprocess_launcher_new(G_SUBPROCESS_FLAGS_NONE));
++#else
+     GRefPtr<GSubprocessLauncher> launcher = adoptGRef(g_subprocess_launcher_new(G_SUBPROCESS_FLAGS_INHERIT_FDS));
++#endif
+     int webkitClientSocketValue = webkitSocketPair.client.release();
+     g_subprocess_launcher_take_fd(launcher.get(), webkitClientSocketValue, webkitClientSocketValue);
+ 

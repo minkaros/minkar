@@ -15,6 +15,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (WebKitWebView *)_webKitView;
 - (void)_setDrawsBackground:(BOOL)draws;
 - (BOOL)_drawsBackground;
+/* A handler for a scheme after the view is made (the older WebView's
+   URL protocols): a scheme already handled keeps its handler. */
+- (void)_addURLSchemeHandler:(id<WKURLSchemeHandler>)handler forURLScheme:(NSString *)scheme;
 @end
 
 @interface WKWebViewConfiguration (WebKitInternal)

@@ -2405,6 +2405,14 @@ static void pagePainted(GObject *object, GAsyncResult *result, gpointer data)
     return [own containsObject:scheme.lowercaseString];
 }
 
+- (void)_addURLSchemeHandler:(id<WKURLSchemeHandler>)handler forURLScheme:(NSString *)scheme {
+    NSString *key = scheme.lowercaseString;
+    if (key.length == 0 || [WKWebView handlesURLScheme:key] || [_configuration urlSchemeHandlerForURLScheme:key] != nil)
+        return;
+    [_configuration setURLSchemeHandler:handler forURLScheme:key];
+    registerSchemes(webkit_web_view_get_context(_webView), @[ key ]);
+}
+
 - (void)_startSchemeTask:(WebKitURISchemeRequest *)request handler:(id<WKURLSchemeHandler>)handler {
     _WKURLSchemeTask *task = [[_WKURLSchemeTask alloc] _initWithRequest:request];
     task->_webView = self;

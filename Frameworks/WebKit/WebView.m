@@ -321,6 +321,160 @@ static void gotData(GObject *object, GAsyncResult *result, gpointer block)
 }
 @end
 
+#pragma mark URL protocols
+
+/* The older WebView loads through the app's NSURLProtocol classes, as the
+ * reference's does: a scheme WebKit does not handle itself is served by
+ * the registered protocol that can take the request (TextMate shows its
+ * commands' HTML output from x-txmt-filehandle: URLs this way, the
+ * request carrying the output's pipe as a property; 24 Nov 2026). Each
+ * such scheme gets a scheme handler that runs the protocol and passes
+ * what it delivers to WebKit; the data is handed over when the load ends. */
+@interface NSURLProtocol (WebKitRegistered)
++ (NSArray *)_registeredClasses;
+@end
+
+static NSMutableSet<NSString *> *localSchemes(void)
+{
+    static NSMutableSet *schemes;
+    if (schemes == nil)
+        schemes = [NSMutableSet set];
+    return schemes;
+}
+
+/* The requests the app asked the main frame to load, by URL: copies made
+   then, carrying its properties (the request WebKit makes again does not);
+   TextMate removes them from its own once its command ends, which may be
+   before the load starts. */
+static NSMutableDictionary<NSString *, NSURLRequest *> *pendingRequests(void)
+{
+    static NSMutableDictionary *requests;
+    if (requests == nil)
+        requests = [NSMutableDictionary dictionary];
+    return requests;
+}
+
+static Class protocolClassForRequest(NSURLRequest *request)
+{
+    NSArray *classes = [NSURLProtocol _registeredClasses];
+    for (NSInteger i = (NSInteger)classes.count - 1; i >= 0; i--) {
+        Class protocolClass = classes[(NSUInteger)i];
+        if ([protocolClass canInitWithRequest:request])
+            return protocolClass;
+    }
+    return Nil;
+}
+
+@interface _WebURLProtocolClient : NSObject <NSURLProtocolClient>
+@property (strong) id<WKURLSchemeTask> task;
+@property (strong) NSURLProtocol *protocol;
+@property BOOL ended;
+@end
+
+@implementation _WebURLProtocolClient
+/* Protocols may call from any thread; the task is the main thread's. */
+- (void)_onMain:(dispatch_block_t)block {
+    if ([NSThread isMainThread])
+        block();
+    else
+        dispatch_async(dispatch_get_main_queue(), block);
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol didReceiveResponse:(NSURLResponse *)response
+ cacheStoragePolicy:(NSURLCacheStoragePolicy)policy {
+    [self _onMain:^{
+        if (!self.ended)
+            [self.task didReceiveResponse:response];
+    }];
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol didLoadData:(NSData *)data {
+    [self _onMain:^{
+        if (!self.ended)
+            [self.task didReceiveData:data];
+    }];
+}
+- (void)URLProtocolDidFinishLoading:(NSURLProtocol *)protocol {
+    [self _onMain:^{
+        if (self.ended)
+            return;
+        self.ended = YES;
+        [self.task didFinish];
+        self.task = nil;
+        self.protocol = nil;
+    }];
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol didFailWithError:(NSError *)error {
+    [self _onMain:^{
+        if (self.ended)
+            return;
+        self.ended = YES;
+        [self.task didFailWithError:error ?: [NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorUnknown userInfo:nil]];
+        self.task = nil;
+        self.protocol = nil;
+    }];
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol wasRedirectedToRequest:(NSURLRequest *)request
+   redirectResponse:(NSURLResponse *)redirectResponse {
+    /* Not followed: the load fails, as one WebKit cannot follow. */
+    [self URLProtocol:protocol didFailWithError:[NSError errorWithDomain:NSURLErrorDomain
+                                                                    code:NSURLErrorRedirectToNonExistentLocation
+                                                                userInfo:nil]];
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol cachedResponseIsValid:(NSCachedURLResponse *)cachedResponse {
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge {
+    /* No one to answer it: the load fails. */
+    [self URLProtocol:protocol didFailWithError:[NSError errorWithDomain:NSURLErrorDomain
+                                                                    code:NSURLErrorUserCancelledAuthentication
+                                                                userInfo:nil]];
+}
+- (void)URLProtocol:(NSURLProtocol *)protocol didCancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge {
+}
+@end
+
+@interface _WebURLProtocolHandler : NSObject <WKURLSchemeHandler>
+@end
+
+@implementation _WebURLProtocolHandler {
+    NSMapTable *_clients;   /* task -> client */
+}
++ (instancetype)sharedHandler {
+    static _WebURLProtocolHandler *handler;
+    if (handler == nil)
+        handler = [_WebURLProtocolHandler new];
+    return handler;
+}
+- (void)webView:(WKWebView *)webView startURLSchemeTask:(id<WKURLSchemeTask>)task {
+    NSString *key = task.request.URL.absoluteString;
+    NSURLRequest *request = (key ? pendingRequests()[key] : nil) ?: task.request;
+    Class protocolClass = protocolClassForRequest(request);
+    if (key)
+        [pendingRequests() removeObjectForKey:key];
+    if (protocolClass == Nil) {
+        [task didFailWithError:[NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorUnsupportedURL userInfo:nil]];
+        return;
+    }
+    _WebURLProtocolClient *client = [_WebURLProtocolClient new];
+    client.task = task;
+    if ([protocolClass respondsToSelector:@selector(canonicalRequestForRequest:)])
+        request = [protocolClass canonicalRequestForRequest:request] ?: request;
+    client.protocol = [[protocolClass alloc] initWithRequest:request cachedResponse:nil client:client];
+    if (_clients == nil)
+        _clients = [NSMapTable strongToStrongObjectsMapTable];
+    [_clients setObject:client forKey:task];
+    [client.protocol startLoading];
+}
+- (void)webView:(WKWebView *)webView stopURLSchemeTask:(id<WKURLSchemeTask>)task {
+    _WebURLProtocolClient *client = [_clients objectForKey:task];
+    [_clients removeObjectForKey:task];
+    if (client == nil || client.ended)
+        return;
+    client.ended = YES;
+    [client.protocol stopLoading];
+    client.task = nil;
+    client.protocol = nil;
+}
+@end
+
 @interface WebFrame ()
 @property (weak) WebView *owner;
 @property (readwrite, strong) WebDataSource *dataSource;
@@ -348,7 +502,13 @@ static void gotData(GObject *object, GAsyncResult *result, gpointer block)
     return _windowObject;
 }
 - (void)loadRequest:(NSURLRequest *)request {
+    NSString *scheme = request.URL.scheme.lowercaseString;
     [self.owner _prepareLoad];
+    if (scheme.length && ![WKWebView handlesURLScheme:scheme] && protocolClassForRequest(request) != Nil) {
+        [self.owner._engine _addURLSchemeHandler:[_WebURLProtocolHandler sharedHandler] forURLScheme:scheme];
+        if (request.URL.absoluteString)
+            pendingRequests()[request.URL.absoluteString] = [request copy];   /* the properties as they are now */
+    }
     [self.owner._engine loadRequest:request];
 }
 - (void)loadData:(NSData *)data MIMEType:(NSString *)MIMEType textEncodingName:(NSString *)encodingName baseURL:(NSURL *)URL {
@@ -435,7 +595,11 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
            [type isEqualToString:@"application/xml"] || [type isEqualToString:@"image/svg+xml"];
 }
 
+/* Its loads go through the app's URL protocols in every web view (see
+   _WebURLProtocolHandler). */
 + (void)registerURLSchemeAsLocal:(NSString *)scheme {
+    if (scheme.length && ![WKWebView handlesURLScheme:scheme])
+        [localSchemes() addObject:scheme.lowercaseString];
 }
 
 - (instancetype)initWithFrame:(NSRect)frame frameName:(NSString *)frameName groupName:(NSString *)groupName {
@@ -453,8 +617,18 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
     return [self initWithFrame:frame frameName:nil groupName:nil];
 }
 
+/* From a nib (Platypus's Web View, 24 Nov 2026): the view's own frame,
+   autoresizing and place, as NSView decodes them; the engine then fills
+   it. It was made at 100x100, whatever the nib said. */
 - (instancetype)initWithCoder:(NSCoder *)coder {
-    return [self initWithFrame:NSMakeRect(0, 0, 100, 100) frameName:nil groupName:nil];
+    if ((self = [super initWithCoder:coder])) {
+        _mainFrame = [WebFrame new];
+        _mainFrame.owner = self;
+        _preferences = [WebPreferences standardPreferences];
+        _drawsBackground = YES;
+        [self _makeEngineWithConfiguration:[WKWebViewConfiguration new]];
+    }
+    return self;
 }
 
 - (void)dealloc {
@@ -472,6 +646,9 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
     }
     configuration.preferences.javaScriptEnabled = _preferences.javaScriptEnabled;
     configuration.preferences.javaScriptCanOpenWindowsAutomatically = _preferences.javaScriptCanOpenWindowsAutomatically;
+    for (NSString *scheme in localSchemes())
+        if ([configuration urlSchemeHandlerForURLScheme:scheme] == nil)
+            [configuration setURLSchemeHandler:[_WebURLProtocolHandler sharedHandler] forURLScheme:scheme];
     _engine = [[WKWebView alloc] initWithFrame:self.bounds configuration:configuration];
     _engine.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     _engine.navigationDelegate = self;
@@ -479,6 +656,11 @@ static WebNavigationType legacyNavigationType(WKNavigationType type)
     [_engine addObserver:self forKeyPath:@"title" options:0 context:NULL];
     [_engine addObserver:self forKeyPath:@"estimatedProgress" options:0 context:NULL];
     [self addSubview:_engine];
+    /* Local schemes may load file: URLs (TextMate's output pages take
+       their style sheets and pictures from its bundles). */
+    WebKitSecurityManager *security = webkit_web_context_get_security_manager(webkit_web_view_get_context(_engine._webKitView));
+    for (NSString *scheme in localSchemes())
+        webkit_security_manager_register_uri_scheme_as_local(security, scheme.UTF8String);
     _WebScriptBridgeRegister(self, webkit_web_view_get_page_id(_engine._webKitView));
     [_preferences _applyTo:_engine._webKitView];
     [_engine _setDrawsBackground:_drawsBackground];
