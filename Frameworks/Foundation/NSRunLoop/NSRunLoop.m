@@ -56,8 +56,12 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
 
 @implementation NSRunLoopDescriptor
 
+/* The source's events handled may remove it from the run loop (a file
+   handle at the end of a child's output), which releases this object: it
+   is kept until its call is over, and armed again only if still wanted
+   (Platypus's apps crashed messaging it freed, 24 Nov 2026). */
 static void descriptorCallBack(CFFileDescriptorRef descriptor,CFOptionFlags flags,void *info) {
-   NSRunLoopDescriptor *self=info;
+   NSRunLoopDescriptor *self=[(NSRunLoopDescriptor *)info retain];
    NSSelectInputSource *source=[[self->_source retain] autorelease];
    NSUInteger events=0;
 
@@ -67,7 +71,9 @@ static void descriptorCallBack(CFFileDescriptorRef descriptor,CFOptionFlags flag
     events|=NSSelectWriteEvent;
    if(events && [source isValid])
     [source processImmediateEvents:events];
-   [self arm];
+   if(CFFileDescriptorIsValid(self->_descriptor))
+    [self arm];
+   [self release];
 }
 
 -initWithSource:(NSSelectInputSource *)source {
