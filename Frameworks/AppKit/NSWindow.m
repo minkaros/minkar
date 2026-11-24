@@ -3633,6 +3633,34 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
 // Exited events need to be sent before entered events
 // The order of the other two is not specific at this time
 
+   /* Minkar: leaving an area that set the cursor for one the pointer is
+      still in (the window frame's resize band for the text inside it):
+      the innermost such area sets it again. */
+   if([update count]==0){
+    BOOL leftCursorArea=NO;
+
+    for(NSTrackingArea *check in exited)
+     if([check options]&NSTrackingCursorUpdate)
+      leftCursorArea=YES;
+    if(leftCursorArea)
+     for(NSTrackingArea *check in [_trackingAreas reverseObjectEnumerator])
+      if(([check options]&NSTrackingCursorUpdate) && [check _mouseInside] && ![exited containsObject:check]){
+       [update addObject:check];
+       break;
+      }
+   }
+   /* The frame's own areas (its resize band) last: their cursor wins over
+      the content's, as on the reference. */
+   {
+    NSMutableArray *frames=[NSMutableArray array];
+
+    for(NSTrackingArea *check in update)
+     if([check _view]==_backgroundView)
+      [frames addObject:check];
+    [update removeObjectsInArray:frames];
+    [update addObjectsFromArray:frames];
+   }
+
    for(NSTrackingArea *check in exited){
     id owner=[check owner];
 

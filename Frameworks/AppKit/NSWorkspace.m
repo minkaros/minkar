@@ -179,7 +179,8 @@ static void diskChanged(DADiskRef disk,CFArrayRef keys,void *context){
    NSString     *bsd=[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""];
    NSURL        *url=[description objectForKey:(NSString *)kDADiskDescriptionVolumePathKey];
    NSString     *name=[description objectForKey:(NSString *)kDADiskDescriptionVolumeNameKey];
-   NSDictionary *old=[volumesByDisk() objectForKey:bsd];
+   /* Kept while posted: removing it from the table would free it. */
+   NSDictionary *old=[[[volumesByDisk() objectForKey:bsd] retain] autorelease];
 
    if(url!=nil && old==nil){
     [volumesByDisk() setObject:volumeInfo(url,name) forKey:bsd];

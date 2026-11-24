@@ -2323,7 +2323,9 @@ static NSData *quitState;
     {
       [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
       _NSWriteRestorableState(quitState);
-
+      /* What the app set last (a window's frame saved as it closed) is
+         written before it goes, as on the reference. */
+      [[NSUserDefaults standardUserDefaults] synchronize];
 
       exit(0);
     }
