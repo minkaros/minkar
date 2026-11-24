@@ -8,7 +8,9 @@ LIB = z
 SRCS = adler32.c crc32.c deflate.c infback.c inffast.c inflate.c inftrees.c \
 	trees.c zutil.c compress.c uncompr.c gzclose.c gzlib.c gzread.c gzwrite.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+# Optimized (the tree builds at -O0 otherwise; 23 Nov 2026: compression
+# ran at 6 MB/s).
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -DHAVE_HIDDEN -D_LARGEFILE64_SOURCE=1
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-install_name,/usr/lib/libz.1.dylib \

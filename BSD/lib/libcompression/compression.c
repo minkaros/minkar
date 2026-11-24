@@ -378,11 +378,15 @@ compression_encode_buffer(uint8_t *__restrict dst, size_t dst_size,
     const uint8_t *__restrict src, size_t src_size, void *__restrict scratch,
     compression_algorithm alg)
 {
-	(void)scratch;
 	if (!supported(alg)) {
 		unsupported(alg);
 		return 0;
 	}
+	/* LZFSE straight into the caller's buffers, with its scratch (or
+	   lzfse's own): the stream path copied and allocated for each call,
+	   and a block-by-block caller (HFS+ compression) ran at a few MB/s. */
+	if (alg == COMPRESSION_LZFSE)
+		return lzfse_encode_buffer(dst, dst_size, src, src_size, scratch);
 	return whole_buffer(COMPRESSION_STREAM_ENCODE, dst, dst_size, src,
 	    src_size, alg);
 }
@@ -392,11 +396,12 @@ compression_decode_buffer(uint8_t *__restrict dst, size_t dst_size,
     const uint8_t *__restrict src, size_t src_size, void *__restrict scratch,
     compression_algorithm alg)
 {
-	(void)scratch;
 	if (!supported(alg)) {
 		unsupported(alg);
 		return 0;
 	}
+	if (alg == COMPRESSION_LZFSE)
+		return lzfse_decode_buffer(dst, dst_size, src, src_size, scratch);
 	return whole_buffer(COMPRESSION_STREAM_DECODE, dst, dst_size, src,
 	    src_size, alg);
 }

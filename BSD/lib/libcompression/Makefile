@@ -15,7 +15,9 @@ MAN =
 SRCS =	compression.c lzfse_decode.c lzfse_decode_base.c lzfse_encode.c \
 	lzfse_encode_base.c lzfse_fse.c lzvn_decode_base.c lzvn_encode_base.c
 
-CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+# Optimized (the tree builds at -O0 otherwise): LZFSE ran at 4 MB/s, and
+# the installer compresses the whole system with it (23 Nov 2026).
+CFLAGS += -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -I${.CURDIR}/dist \
 	-I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/xz/src/liblzma/api \
