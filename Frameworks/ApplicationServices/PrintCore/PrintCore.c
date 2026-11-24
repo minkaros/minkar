@@ -237,8 +237,29 @@ static Paper *standardPaper(size_t i, CFStringRef printerID, const PMPaperMargin
     return p;
 }
 
-/* The locale's paper: Letter where it measures in inches, else A4. */
+/* The default paper: the one chosen in the Printers pane (CUPS's own
+   org.cups.PrintingPrefs DefaultPaperID, a PWG name such as
+   iso_a4_210x297mm), else the locale's: Letter where it measures in
+   inches, else A4. */
 static Paper *defaultPaper(void) {
+    CFStringRef chosen = CFPreferencesCopyAppValue(CFSTR("DefaultPaperID"), CFSTR("org.cups.PrintingPrefs"));
+    if (chosen != NULL && CFGetTypeID(chosen) == CFStringGetTypeID()) {
+        char pwg[64], *first, *second, *rest = pwg;
+        CFStringGetCString(chosen, pwg, sizeof(pwg), kCFStringEncodingUTF8);
+        first = strsep(&rest, "_");
+        second = strsep(&rest, "_");
+        if (first != NULL && second != NULL) {
+            char id[64];
+            snprintf(id, sizeof(id), "%s-%s", first, second);
+            for (size_t i = 0; i < sizeof(standardPapers) / sizeof(standardPapers[0]); i++)
+                if (strcmp(id, standardPapers[i].paperID) == 0) {
+                    CFRelease(chosen);
+                    return standardPaper(i, NULL, NULL);
+                }
+        }
+    }
+    if (chosen != NULL)
+        CFRelease(chosen);
     CFLocaleRef locale = CFLocaleCopyCurrent();
     CFBooleanRef metric = locale ? CFLocaleGetValue(locale, kCFLocaleUsesMetricSystem) : NULL;
     Boolean usesMetric = metric == NULL || CFBooleanGetValue(metric);
