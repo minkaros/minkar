@@ -163,7 +163,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _suppressionButton;
 }
 
--window {
+-(NSWindow *)window {
    return _window;
 }
 
@@ -275,7 +275,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSSize textSize=NSZeroSize;
    NSStringDrawer *drawer=[NSStringDrawer sharedStringDrawer];
    NSImage *icon=[self icon];
-   NSSize iconSize=(icon!=nil)?[icon size]:NSZeroSize;
+   /* Shown 64 points square whatever its size: Sparkle sets the app's own
+      icon, 1024 points, and its panel filled the screen (24 Nov 2026). */
+   NSSize iconSize=(icon!=nil)?NSMakeSize(64,64):NSZeroSize;
    NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:13],NSFontAttributeName,nil];
    NSSize messageSize=NSZeroSize;
    NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:11],NSFontAttributeName,nil];

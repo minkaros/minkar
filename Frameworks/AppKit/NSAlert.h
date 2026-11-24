@@ -62,7 +62,7 @@ enum {
 - (NSString *)helpAnchor;
 - (NSArray *)buttons;
 - (NSButton *)suppressionButton;
-- window;
+- (NSWindow *)window;
 
 - (void)setDelegate:delegate;
 - (void)setAlertStyle:(NSAlertStyle)value;

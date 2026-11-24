@@ -129,7 +129,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [_titleCell font];
 }
 
--contentView {
+-(__kindof NSView *)contentView {
    return [[self subviews] lastObject];
 }
 
@@ -147,6 +147,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setBoxType:(NSBoxType)value {
    _boxType=value;
+   [self _tileContentView];
    [self setNeedsDisplay:YES];
 }
 
@@ -286,6 +287,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSRect grooveRect=_bounds;
    NSRect titleRect=[self titleRect];
 
+   /* A custom box has no title: as in the reference, one made by code keeps
+      "Title" but neither shows it nor makes room for it (Sparkle's release
+      notes lie on one, 24 Nov 2026). */
+   if(_boxType==NSBoxCustom)
+    return grooveRect;
    switch(_titlePosition){
 
     case NSNoTitle:
@@ -312,6 +318,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSView *content=[self contentView];
    NSRect  frame=NSInsetRect([self _grooveRect],_contentViewMargins.width,_contentViewMargins.height);
 
+   /* Within a custom box's border as well (the reference: 6 points in one
+      of the default margins). */
+   if(_boxType==NSBoxCustom)
+    frame=NSInsetRect(frame,[self borderWidth],[self borderWidth]);
+
    if(content!=nil && NSWidth(frame)>0 && NSHeight(frame)>0)
     [content setFrame:frame];
 }
@@ -320,7 +331,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSRect              grooveRect=[self _grooveRect];
    NSRect              titleRect=[self titleRect];
    /* A separator is a line: its title is not shown (a nib can keep one). */
-   BOOL                drawTitle=(_titlePosition!=NSNoTitle && _boxType!=NSBoxSeparator);
+   BOOL                drawTitle=(_titlePosition!=NSNoTitle && _boxType!=NSBoxSeparator && _boxType!=NSBoxCustom);
 
    if([self isTransparent])
     return;
@@ -331,10 +342,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 [[self fillColor] set];
                 NSRectFill(rect);
 
-                if (_borderType != NSNoBorder)
+                if (_borderType != NSNoBorder && [self borderColor] != nil && [self borderWidth] > 0)
                 {
                         [[self borderColor] set];
-                        NSFrameRectWithWidth(_bounds,[self borderWidth]);
+                        /* Over the fill: a clear border leaves it (Sparkle's). */
+                        NSFrameRectWithWidthUsingOperation(_bounds,[self borderWidth],NSCompositingOperationSourceOver);
                 }
         } else if (_boxType == NSBoxSeparator) {
                 // These are just the simple divider lines
@@ -383,9 +395,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
+/* 1 unless set (the documented default; a nib's custom box stores its own). */
 - (CGFloat)borderWidth
 {
-        return [[_customData objectForKey:@"NSBorderWidth2"] doubleValue];
+        NSNumber *width=[_customData objectForKey:@"NSBorderWidth2"];
+        return (width!=nil)?[width doubleValue]:1.0;
 }
 
 - (CGFloat)cornerRadius;
@@ -407,6 +421,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setBorderWidth:(CGFloat)value
 {
         [_customData setObject:[NSNumber numberWithDouble:value] forKey:@"NSBorderWidth2"];
+        [self _tileContentView];
+        [self setNeedsDisplay:YES];
 }
 
 - (void)setCornerRadius:(CGFloat)value

@@ -43,7 +43,7 @@ typedef enum {
 - (NSBorderType)borderType;
 - (NSString *)title;
 - (NSFont *)titleFont;
-- contentView;
+- (__kindof NSView *)contentView;
 - (NSSize)contentViewMargins;
 - (NSTitlePosition)titlePosition;
 - (BOOL)isTransparent;

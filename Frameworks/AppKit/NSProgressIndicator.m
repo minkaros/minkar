@@ -287,55 +287,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)sizeToFit {
 }
 
-- (void)_runThreadedAnimation:(id)arg
-{
-    _endThreadedAnimation = NO;
-
-    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-
-    [self _buildTimer];
-    [self setNeedsDisplay:YES];
-
-    BOOL isRunning = YES;
-    do {
-        isRunning = [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
-                                 beforeDate:[NSDate distantFuture]];
-    } while (isRunning && _endThreadedAnimation == NO);
-
-    [self _invalidateTimer];
-
-    [pool drain];
-}
-
-- (void)_stopThreadedAnimation
-{
-    _endThreadedAnimation = YES;
-}
-
+/* Threaded animation or not, the indicator turns by a timer of the main
+   thread's run loop: its own thread's loop waited for the distant future
+   and never saw stopAnimation: (Platypus's Web View spun on after its
+   script was done, 24 Nov 2026), and drew a view off the main thread. The
+   setting is kept and given back. */
 -(void)startAnimation:sender {
     if (!_isIndeterminate)
         return;
-
-    if (_usesThreadedAnimation) {
-        [NSThread detachNewThreadSelector: @selector(_runThreadedAnimation:) toTarget: self withObject: nil];
-    } else {
-        [self _buildTimer];
-        [self setNeedsDisplay:YES];
+    if (![NSThread isMainThread]) {
+        [self performSelectorOnMainThread:_cmd withObject:sender waitUntilDone:NO];
+        return;
     }
+    [self _buildTimer];
+    [self setNeedsDisplay:YES];
 }
 
 -(void)stopAnimation:sender {
-
     if (!_isIndeterminate)
         return;
-
-    if (_usesThreadedAnimation) {
-        [self _stopThreadedAnimation];
-    } else {
-
-        [self _invalidateTimer];
-        [self setNeedsDisplay:YES];
+    if (![NSThread isMainThread]) {
+        [self performSelectorOnMainThread:_cmd withObject:sender waitUntilDone:NO];
+        return;
     }
+    [self _invalidateTimer];
+    [self setNeedsDisplay:YES];
 }
 
 -(void)animate:sender {
