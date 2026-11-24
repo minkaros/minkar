@@ -122,7 +122,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 - [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks attached by the kernel's `MinkarDiskImage`; `hdiutil convert` and `create`.
 - [x] HFS+ compression (decmpfs): read through `MinkarFSCompression` (zlib, LZVN, LZFSE), written by `ditto --hfsCompression` (LZFSE; test `hfs-compression`).
 - [ ] The rest of hfs's adaptation (`Kernel/_PROVENANCE`).
-- [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image.
+- [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image. Done in QEMU: `bmake installer-image` (I3), the Installer (I4: checks, the disk erased, the system copied compressed, `bless --setBoot`; under two minutes, 405 MB), Setup (I5); the installation test `tools/install-gate.sh` in the tests' repository (I6). Left: the installation on PC 1 and PC 2 from a USB stick, and the medium sized to its contents.
 - [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
 - [ ] Commands: git's Tcl commands. Done: `osascript`, our own interpreter of AppleScript's commonly used part (test `osascript`); `opendiff`, the differences in Text Editor (test `opendiff`). `tmutil` comes with backups in 19.6.x (the maintainer's choice, 23 Nov 2026).
 

@@ -125,7 +125,7 @@ apps 19 en verde (BC4).
 - [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
 - [x] Compresión de HFS+ (decmpfs): lectura con `MinkarFSCompression` (zlib, LZVN, LZFSE), escritura con `ditto --hfsCompression` (LZFSE; prueba `hfs-compression`).
 - [ ] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`).
-- [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada.
+- [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada. Hecho en QEMU: `bmake installer-image` (I3), el Instalador (I4: comprobaciones, borrado del disco, copia comprimida del sistema, `bless --setBoot`; menos de dos minutos, 405 MB), la Configuración inicial (I5); la prueba de instalación `tools/install-gate.sh` en el repositorio de pruebas (I6). Falta: instalar en PC 1 y PC 2 desde una memoria USB, y ajustar el tamaño del medio a su contenido.
 - [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
 - [ ] Órdenes: las órdenes Tcl de git. Hecho: `osascript`, intérprete propio de la parte más usada de AppleScript (prueba `osascript`); `opendiff`, las diferencias en Text Editor (prueba `opendiff`). `tmutil` llega con las copias de seguridad en 19.6.x (decisión del mantenedor, 23 nov 2026).
 
