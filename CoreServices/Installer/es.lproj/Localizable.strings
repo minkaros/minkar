@@ -41,3 +41,6 @@
 "Making the disk start…" = "Preparando el disco para arrancar…";
 "The disk could not be made to start." = "No se ha podido preparar el disco para arrancar.";
 "Done." = "Hecho.";
+"Finishing…" = "Terminando…";
+"The computer restarts in 1 second." = "El equipo se reinicia en 1 segundo.";
+"The computer restarts in %d seconds." = "El equipo se reinicia en %d segundos.";

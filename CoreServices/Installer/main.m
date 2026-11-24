@@ -29,6 +29,9 @@
 #include <errno.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <fcntl.h>
+#include <time.h>
 
 extern char **environ;
 
@@ -158,6 +161,10 @@ static NSArray<NSDictionary *> *installableDisks(void)
     NSMutableString *_log;
     BOOL _checksPassed, _installing;
     NSString *_failure;
+    NSTimer *_countdown;          /* done: the restart, in _secondsLeft */
+    BOOL _restarting;
+    int _secondsLeft;
+    NSTextField *_countdownLabel;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note
@@ -364,6 +371,29 @@ static NSArray<NSDictionary *> *installableDisks(void)
                                                           @"/var/log/install.log on the installation medium."), _failure];
     [_page addSubview:label(body, NSMakeRect(40, 200, 560, 120), 13, NO)];
     [_continue setTitle:text(@"Restart")];
+    /* Installed: the computer restarts by itself after ten seconds, or
+       at once with Restart. */
+    if (ok) {
+        _secondsLeft = 10;
+        _countdownLabel = label(@"", NSMakeRect(40, 150, 560, 20), 13, NO);
+        [_page addSubview:_countdownLabel];
+        [self tick:nil];
+        _countdown = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(tick:)
+                                                    userInfo:nil repeats:YES];
+    }
+}
+
+- (void)tick:(NSTimer *)timer
+{
+    if (timer != nil)
+        _secondsLeft--;
+    if (_secondsLeft <= 0) {
+        [self restart];
+        return;
+    }
+    [_countdownLabel setStringValue:[NSString stringWithFormat:
+        _secondsLeft == 1 ? text(@"The computer restarts in 1 second.")
+                          : text(@"The computer restarts in %d seconds."), _secondsLeft]];
 }
 
 - (void)goBack:(id)sender
@@ -579,7 +609,12 @@ static uint64_t usedBytes(NSString *path)
     [self logLine:@"installed"];
     [_log writeToFile:[target stringByAppendingPathComponent:@"private/var/log/install.log"] atomically:YES
              encoding:NSUTF8StringEncoding error:NULL];
+    /* The new disk's volumes unmounted now: all they hold is written, so
+       the restart need not wait for the disk (it waited over a minute for
+       buffers the compressed copy leaves busy). */
+    [self say:text(@"Finishing…") at:98];
     sync();
+    [self run:@"/usr/sbin/diskutil" arguments:@[ @"unmountDisk", bsd ]];
     [self say:text(@"Done.") at:100];
     dispatch_async(dispatch_get_main_queue(), ^{
         self->_installing = NO;
@@ -587,9 +622,57 @@ static uint64_t usedBytes(NSString *path)
     });
 }
 
+/* Each step of the restart, with its time, in the medium's
+ * /var/log/install-restart.log, made to reach the medium before the next. */
+static void restartLog(NSString *line)
+{
+    static int fd = -1;
+    struct timeval tv;
+    struct tm tm;
+    char when[32];
+
+    if (fd < 0)
+        fd = open("/private/var/log/install-restart.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    gettimeofday(&tv, NULL);
+    localtime_r(&tv.tv_sec, &tm);
+    strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", &tm);
+    NSString *text = [NSString stringWithFormat:@"%s.%03d %@\n", when, (int)(tv.tv_usec / 1000), line];
+    const char *bytes = [text UTF8String];
+    if (fd >= 0) {
+        (void)write(fd, bytes, strlen(bytes));
+        (void)fcntl(fd, F_FULLFSYNC);
+    }
+    os_log(OS_LOG_DEFAULT, "installer: restart: %{public}s", [line UTF8String]);
+}
+
+/* The new system is written and its disk unmounted (installOn:): the
+ * medium is synchronized and the computer restarts without the kernel's
+ * wait for the buffer cache (reboot -n). */
 - (void)restart
 {
+    if (_restarting)
+        return;
+    _restarting = YES;
+    [_countdown invalidate];
+    _countdown = nil;
+    restartLog(_secondsLeft > 0 ? @"Restart pressed" : @"the countdown ended");
+    /* Every other local volume unmounted (the computer's other disks the
+       system mounted), each written as it goes. */
+    struct statfs *mounts = NULL;
+    int n = getmntinfo(&mounts, MNT_NOWAIT);
+    for (int i = 0; i < n; i++) {
+        if (!(mounts[i].f_flags & MNT_LOCAL) || strcmp(mounts[i].f_mntonname, "/") == 0 ||
+            strcmp(mounts[i].f_fstypename, "devfs") == 0)
+            continue;
+        int rc = unmount(mounts[i].f_mntonname, 0);
+        restartLog([NSString stringWithFormat:@"unmount %s (%s, %s): %s", mounts[i].f_mntonname,
+                    mounts[i].f_mntfromname, mounts[i].f_fstypename, rc == 0 ? "done" : strerror(errno)]);
+    }
+    restartLog(@"sync");
     sync();
+    restartLog(@"synchronized; reboot -n");
+    int status = [self run:@"/sbin/reboot" arguments:@[ @"-n" ]];
+    restartLog([NSString stringWithFormat:@"reboot -n returned %d; shutdown -r now", status]);
     [self run:@"/sbin/shutdown" arguments:@[ @"-r", @"now" ]];
 }
 
