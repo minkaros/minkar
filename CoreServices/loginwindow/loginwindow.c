@@ -51,9 +51,14 @@
  * login items are opened by a copy of this program running as the user
  * (-loginitems).
  *
+ * The session is an Aqua session in the user's launchd: a bootstrap subset
+ * of the system's, moved there (loginwindow -aqua), which the session's
+ * programs inherit; its LaunchAgents are loaded in it, those limited to
+ * Aqua as well, and go with it at Log Out. If it cannot be made, the
+ * user's launchd's Background session, as before.
+ *
  * SHORTCUT(Phase 5): no confirmation of its own (the app asking shows
- * one), one session at a time, and the user's launchd's Background session
- * (LaunchAgents limited to Aqua are not loaded).
+ * one), and one session at a time.
  *
  *	loginwindow [-n]	-n: try it out, without restarting or
  *				shutting down, and with the same user's session
@@ -130,6 +135,11 @@ static struct {
 	char	shell[PATH_MAX];
 } sessionUser;
 static int firstSession = 1;
+/* The session's Aqua session: the subset (this process's task bootstrap
+   while it lasts, so that the session's programs inherit it) and the port
+   it lives by (destroyed at the end, which ends it in launchd). */
+static mach_port_t aquaSubset = MACH_PORT_NULL;
+static mach_port_t aquaRequestor = MACH_PORT_NULL;
 static int installMedium;
 static int sessionEnding;
 static pthread_mutex_t sessionLock = PTHREAD_MUTEX_INITIALIZER;
@@ -251,7 +261,7 @@ spawnAsUser(const char *exe, char *const argv[])
 		int n = 0;
 
 		args[n++] = selfPath;
-		args[n++] = "-exec";
+		args[n++] = aquaSubset != MACH_PORT_NULL ? "-exec-aqua" : "-exec";
 		args[n++] = (char *)exe;
 		for (int i = 1; argv[i] != NULL && n < 63; i++)
 			args[n++] = argv[i];
@@ -270,14 +280,15 @@ spawnAsUser(const char *exe, char *const argv[])
  * asked) as the bootstrap, so the user's programs and LaunchAgents share
  * it; then the user's groups and IDs, its home, and EXE. */
 static int
-execAsUser(char *argv[])
+execAsUser(char *argv[], int aqua)
 {
 	const char *user = getenv("USER");
 	struct passwd *pw = user != NULL ? getpwnam(user) : NULL;
 
 	if (pw == NULL || pw->pw_uid == 0)
 		return 126;
-	if (_vprocmgr_move_subset_to_user(pw->pw_uid, "Background", 0) != NULL)
+	/* In the Aqua session (-exec-aqua) the bootstrap inherited is it. */
+	if (!aqua && _vprocmgr_move_subset_to_user(pw->pw_uid, "Background", 0) != NULL)
 		fprintf(stderr, "loginwindow: no launchd of %s's: %s keeps the system's\n",
 		    pw->pw_name, argv[0]);
 	if (initgroups(pw->pw_name, (int)pw->pw_gid) != 0 || setgid(pw->pw_gid) != 0 ||
@@ -290,9 +301,65 @@ execAsUser(char *argv[])
 	return 127;
 }
 
+/* The session's Aqua session: a subset of the system's bootstrap, bound to
+ * a port of this process's, moved to the user's launchd by a copy of this
+ * program (-aqua UID) that has it as its bootstrap. Then this process's
+ * task bootstrap, for the session's programs to inherit (its own lookups
+ * keep the system's, bootstrap_port). 0 if it could not be made. */
+static void aquaEnd(void);
+
+static int
+aquaBegin(void)
+{
+	char uid[16];
+	pid_t pid;
+	int status;
+
+	if (sessionUser.uid == 0)
+		return 0;
+	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &aquaRequestor) != KERN_SUCCESS) {
+		aquaRequestor = MACH_PORT_NULL;
+		return 0;
+	}
+	if (mach_port_insert_right(mach_task_self(), aquaRequestor, aquaRequestor,
+	    MACH_MSG_TYPE_MAKE_SEND) != KERN_SUCCESS ||
+	    bootstrap_subset(bootstrap_port, aquaRequestor, &aquaSubset) != KERN_SUCCESS) {
+		aquaSubset = MACH_PORT_NULL;
+		aquaEnd();
+		return 0;
+	}
+	task_set_bootstrap_port(mach_task_self(), aquaSubset);
+	snprintf(uid, sizeof(uid), "%u", (unsigned)sessionUser.uid);
+	char *argv[] = { selfPath, "-aqua", uid, NULL };
+	if (posix_spawn(&pid, selfPath, NULL, NULL, argv, environ) != 0 ||
+	    waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		fprintf(stderr, "loginwindow: no Aqua session for %s: the Background one\n", sessionUser.name);
+		aquaEnd();
+		return 0;
+	}
+	fprintf(stderr, "loginwindow: Aqua session of %s\n", sessionUser.name);
+	return 1;
+}
+
+/* The Aqua session ended: the system's bootstrap again for what this
+   process starts, and the subset's port gone (launchd ends the session
+   and its agents). */
+static void
+aquaEnd(void)
+{
+	task_set_bootstrap_port(mach_task_self(), bootstrap_port);
+	if (aquaSubset != MACH_PORT_NULL)
+		(void)mach_port_deallocate(mach_task_self(), aquaSubset);
+	if (aquaRequestor != MACH_PORT_NULL)
+		(void)mach_port_destroy(mach_task_self(), aquaRequestor);
+	aquaSubset = aquaRequestor = MACH_PORT_NULL;
+}
+
 /* The user's LaunchAgents loaded (or unloaded) in its launchd: the
- * system's, the computer's and its own. SHORTCUT(Phase 5): the session is
- * the user's launchd's Background one; agents limited to Aqua are left. */
+ * system's, the computer's and its own. In the Aqua session, launchctl
+ * bootstrap -S Aqua loads them all, those limited to Aqua as well; they go
+ * with the session. Otherwise (the Background session) those limited to
+ * Aqua are left. */
 static void
 userAgents(const char *verb)
 {
@@ -302,6 +369,15 @@ userAgents(const char *verb)
 
 	if (sessionUser.uid == 0)
 		return;
+	if (aquaSubset != MACH_PORT_NULL) {
+		if (strcmp(verb, "load") == 0) {
+			char *argv[] = { "/bin/launchctl", "bootstrap", "-S", "Aqua", NULL };
+			if ((pid = spawnAsUser(argv[0], argv)) > 0)
+				(void)waitpid(pid, &status, 0);
+			fprintf(stderr, "loginwindow: load %s's LaunchAgents (Aqua)\n", sessionUser.name);
+		}
+		return;
+	}
 	snprintf(own, sizeof(own), "%s/Library/LaunchAgents", sessionUser.home);
 	char *argv[] = { "/bin/launchctl", (char *)verb, "/System/Library/LaunchAgents",
 	    "/Library/LaunchAgents", own, NULL };
@@ -448,6 +524,7 @@ startSession(void)
 	setenv("SHELL", sessionUser.shell, 1);
 	if (chown("/dev/console", sessionUser.uid, sessionUser.gid) != 0)
 		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
+	(void)aquaBegin();
 	sessionAppCount = 0;
 	sessionEnding = 0;
 	if (installMedium) {
@@ -710,6 +787,7 @@ static void
 endSession(void)
 {
 	userAgents("unload");
+	aquaEnd();
 	if (chown("/dev/console", 0, 0) != 0)
 		fprintf(stderr, "loginwindow: console: %s\n", strerror(errno));
 }
@@ -765,7 +843,15 @@ main(int argc, char *argv[])
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
 	if (argc > 2 && strcmp(argv[1], "-exec") == 0)
-		return execAsUser(argv + 2);
+		return execAsUser(argv + 2, 0);
+	if (argc > 2 && strcmp(argv[1], "-exec-aqua") == 0)
+		return execAsUser(argv + 2, 1);
+	if (argc > 2 && strcmp(argv[1], "-aqua") == 0) {
+		/* As root, with the session's subset as the bootstrap: it made the
+		   user's Aqua session. */
+		uid_t uid = (uid_t)strtoul(argv[2], NULL, 10);
+		return _vprocmgr_move_subset_to_user(uid, "Aqua", 0) == NULL ? 0 : 1;
+	}
 	if (argc > 1 && strcmp(argv[1], "-loginitems") == 0) {
 		/* As the session's user: its login items. */
 		openLoginItems(NULL);
