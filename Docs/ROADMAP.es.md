@@ -136,7 +136,7 @@ apps 19 en verde (BC4).
 - [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — El `WebView` antiguo. `86ed0b5d33`
-- [ ] W5 — Las vistas web de las apps designadas: las notas de versión de Sparkle en Sloth 3.4 y Platypus 5.4.1, las apps Web View de Platypus y la salida HTML de TextMate 2.0.23 funcionan con los binarios publicados (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; pruebas `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 nov 2026). Falta: el actualizador de KeepingYouAwake, que necesita leer firmas de código (BC2).
+- [x] W5 — Las vistas web de las apps designadas: las notas de versión de Sparkle en Sloth 3.4 y Platypus 5.4.1, las apps Web View de Platypus y la salida HTML de TextMate 2.0.23 funcionan con los binarios publicados (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; pruebas `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 nov 2026). KeepingYouAwake pasó a 19.6.x (decisión del mantenedor, 24 nov 2026): su actualizador necesita leer firmas de código (BC2).
 
 #### Audio y medios
 
@@ -160,7 +160,7 @@ referencia.
 - [x] BC1 — La matriz generada, [Compatibility.es.md](Compatibility.es.md).
 - [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas de terceros y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
 - [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin los headers del fabricante.
-- [ ] BC4 — El conjunto de apps 19 en verde; parte de M6.
+- [ ] BC4 — El conjunto de apps 19 en verde; parte de M6. KeepingYouAwake pasó a 19.6.x (24 nov 2026): el conjunto 19 cierra 19.6.0 con las otras seis.
 - [ ] BC5… — Un grupo de apps designadas por cada subida de `ProductVersion`.
 
 ### Carril ARM — arm64
@@ -232,7 +232,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
    de inicio de sesión en el PC 1.
 8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
 
-En paralelo, el carril BC: KeepingYouAwake (el del conjunto 19 sin ventana), BC2, BC0 en la CI.
+En paralelo, el carril BC: BC2, BC0 en la CI.
 Audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.
 
 ## Riesgos

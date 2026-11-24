@@ -133,7 +133,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 - [x] W2 — WebCore and the processes on a Minkar WPE platform. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — The older `WebView`. `86ed0b5d33`
-- [ ] W5 — The designated apps' web views: Sparkle's release notes in Sloth 3.4 and Platypus 5.4.1, Platypus's Web View apps and TextMate 2.0.23's HTML output work from the published binaries (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; tests `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 Nov 2026). Left: KeepingYouAwake's updater, which needs code signatures read (BC2).
+- [x] W5 — The designated apps' web views: Sparkle's release notes in Sloth 3.4 and Platypus 5.4.1, Platypus's Web View apps and TextMate 2.0.23's HTML output work from the published binaries (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; tests `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 Nov 2026). KeepingYouAwake moved to 19.6.x (the maintainer's choice, 24 Nov 2026): its updater needs code signatures read (BC2).
 
 #### Audio and media
 
@@ -155,7 +155,7 @@ public ivar layouts and struct sizes stay as on the reference platform.
 - [x] BC1 — The generated matrix, [Compatibility.md](Compatibility.md).
 - [ ] BC2 — Loader cases: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, third-party signatures and hardened runtime, `SYSTEM_VERSION_COMPAT`; partial.
 - [ ] BC3 — ABI audit from the type encodings in the apps' binaries, without the vendor's headers.
-- [ ] BC4 — App set 19 green; part of M6.
+- [ ] BC4 — App set 19 green; part of M6. KeepingYouAwake moved to 19.6.x (24 Nov 2026): app set 19 closes 19.6.0 with the other six.
 - [ ] BC5… — One group of designated apps per `ProductVersion` rise.
 
 ### Lane ARM — arm64
@@ -226,7 +226,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
    window on PC 1.
 8. The visual language (the light appearance and the controls), once the maintainer decides.
 
-Lane BC alongside: KeepingYouAwake (the one of app set 19 with no window), BC2, BC0 in the
+Lane BC alongside: BC2, BC0 in the
 CI. Audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
 
 ## Risks
