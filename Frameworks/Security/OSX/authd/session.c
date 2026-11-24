@@ -83,7 +83,16 @@ done:
 
 bool session_update(session_t session)
 {
-    return auditon(A_GETSINFO_ADDR, &session->auditinfo, sizeof(session->auditinfo)) == 0;
+    bool ok = auditon(A_GETSINFO_ADDR, &session->auditinfo, sizeof(session->auditinfo)) == 0;
+#ifdef __MINKAR__
+    /* SHORTCUT(19.6.0): Atlas's desktop runs in the initial session until
+       loginwindow makes the user's own (the Aqua session, LoginWindow in
+       the roadmap), and the kernel does not let its flags change: it is
+       taken as the console's, with graphic access. */
+    if (ok && (session->auditinfo.ai_flags & AU_SESSION_FLAG_IS_INITIAL))
+        session->auditinfo.ai_flags |= AU_SESSION_FLAG_HAS_GRAPHIC_ACCESS | AU_SESSION_FLAG_HAS_CONSOLE_ACCESS;
+#endif
+    return ok;
 }
 
 uint64_t session_get_attributes(session_t session)

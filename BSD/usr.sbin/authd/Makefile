@@ -27,7 +27,7 @@ SRCS =	agent.c authdb.c authitems.c authtoken.c authutilities.c ccaudit.c \
 MAN =
 SLF =	/System/Library/Frameworks
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fblocks -Wno-everything \
+	-fblocks -Wno-everything -D__MINKAR__ \
 	-include ${AUTHD}/security.auth-Prefix.pch \
 	-I${SEC}/minkar/authd/compat -I${AUTHD} \
 	-I${SEC}/header_symlinks/macOS -I${SEC}/header_symlinks \
