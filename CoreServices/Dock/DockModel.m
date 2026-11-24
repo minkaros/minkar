@@ -627,6 +627,17 @@ static BOOL badgeAllowed(NSRunningApplication *app)
 
 - (void)applicationsChanged:(NSNotification *)note
 {
+    /* An app that quit takes its minimized windows with it. */
+    if ([note.name isEqualToString:NSWorkspaceDidTerminateApplicationNotification]) {
+        pid_t gone = [note.userInfo[NSWorkspaceApplicationKey] processIdentifier];
+        if (gone > 0) {
+            NSIndexSet *theirs = [_minimized indexesOfObjectsPassingTest:^BOOL(DockTile *tile, NSUInteger i, BOOL *stop) {
+                return tile.ownerPID == gone;
+            }];
+            [_minimized removeObjectsAtIndexes:theirs];
+            [_minimizedInApps removeObjectForKey:@(gone)];
+        }
+    }
     [self rebuild];
     [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
 }

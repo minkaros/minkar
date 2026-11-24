@@ -277,6 +277,8 @@ static NSUInteger separatorCount(DockModel *model)
 /* Where the pointer is along the Dock, or NAN when it is not on it. */
 @property (nonatomic) CGFloat pointerMain;
 - (void)forgetIcons;
+/* The tiles bouncing now, each as high as it is in its bounce. */
+- (void)drawBouncingTiles;
 @end
 
 @interface DockWindow ()
@@ -449,14 +451,14 @@ static NSUInteger separatorCount(DockModel *model)
     return 2 * padding(tile) + tile + indicatorSpace(tile);
 }
 
-/* Room above the bar while a tile bounces for attention (D3): the window
-   grows only then. */
+/* Room above the bar while a tile bounces (D3): a window of its own
+   beyond the Dock's (DockBounceWindow), so the Dock's never changes its
+   size, and so never moves, while a tile bounces. */
 static CGFloat bounceRoom;
 
 + (CGFloat)windowThicknessForModel:(DockModel *)model
 {
     CGFloat extra = model.magnification ? MAX(model.largeSize - model.tileSize, 0) : 0;
-    extra = MAX(extra, bounceRoom);
 
     return ceil([self barThicknessForModel:model] + extra);
 }
@@ -691,6 +693,26 @@ static void drawBadge(NSString *label, NSRect icon)
         DockSpan s = { floor(at), pad, 1, [DockView barThicknessForModel:model] - 2 * pad };
         [[NSColor colorWithGenericGamma22White:dockDark() ? 1.0 : 0.2 alpha:0.35] setFill];
         NSRectFill([self rectForSpan:s]);
+    }
+}
+
+- (void)drawBouncingTiles
+{
+    DockModel *model = self.model;
+    NSArray<DockTile *> *tiles = model.tiles;
+    NSUInteger count = [tiles count];
+    CGFloat mains[count + 1], sizes[count + 1], start, length;
+    CGFloat pad = padding(model.tileSize), ind = indicatorSpace(model.tileSize);
+
+    [self layoutMains:mains sizes:sizes count:count barStart:&start barLength:&length];
+    for (NSUInteger i = 0; i < count; i++) {
+        DockTile *t = tiles[i];
+        CGFloat up = bounceHeight(t, sizes[i]);
+        if (up <= 0 || t.icon == nil || (_dragging && (NSInteger)i == _pressed))
+            continue;
+        DockSpan s = { mains[i], pad + ind + up, sizes[i], sizes[i] };
+        [[self drawableIcon:(t.contentImage ?: t.icon) forSize:sizes[i]] drawInRect:[self rectForSpan:s]
+            fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
     }
 }
 
@@ -1205,6 +1227,49 @@ LoginItemForURL(NSURL *url)
 
 @end
 
+/* ---- Where a tile bounces: beyond the Dock's window ---- */
+
+/* It draws the bouncing tiles as the Dock's view would beyond its own
+   bounds, so the part of a tile above the bar shows here and the rest in
+   the Dock, at the same place. */
+@interface DockBounceView : NSView
+@property (nonatomic, weak) DockView *dockView;
+@end
+
+@implementation DockBounceView
+
+- (BOOL)isOpaque
+{
+    return NO;
+}
+
+- (void)drawRect:(NSRect)dirty
+{
+    [[NSColor clearColor] set];
+    NSRectFill(dirty);
+    NSRect dock = [[self.dockView window] frame], mine = [[self window] frame];
+    NSAffineTransform *shift = [NSAffineTransform transform];
+    [shift translateXBy:NSMinX(dock) - NSMinX(mine) yBy:NSMinY(dock) - NSMinY(mine)];
+    [NSGraphicsContext saveGraphicsState];
+    [shift concat];
+    [self.dockView drawBouncingTiles];
+    [NSGraphicsContext restoreGraphicsState];
+}
+
+@end
+
+@interface DockBounceWindow : NSWindow
+@end
+
+@implementation DockBounceWindow
+
+- (BOOL)canBecomeKeyWindow
+{
+    return NO;
+}
+
+@end
+
 /* ---- The edge the pointer reaches to show a hidden Dock ---- */
 
 @interface DockTriggerWindow : NSWindow
@@ -1263,14 +1328,17 @@ LoginItemForURL(NSURL *url)
 
 /* The minimize effect (mineffect), in kEffectTime. "scale": the image
  * scaled from the window's frame to the tile's, easing out. "genie": the
- * image drawn in strips across the Dock's axis, each moving to the tile
- * with a delay that grows with its distance from the Dock, so the window
- * narrows into the tile like a funnel. Restoring plays it backwards. */
+ * image drawn in strips across the Dock's axis, sliding down a funnel with
+ * curved sides from the window to the tile. Restoring plays it backwards. */
 static const NSTimeInterval kEffectTime = 0.3;
 static const NSTimeInterval kGenieTime = 0.45;
 static const int kGenieStrips = 48;
 
-@interface DockEffectView : NSView
+@interface DockEffectView : NSView {
+    CGImageRef _picture;    /* the window's image */
+    CGImageRef *_strips;    /* genie: its strips, from the Dock's side */
+    int _stripCount;
+}
 @property (nonatomic, strong) NSImage *image;
 @property (nonatomic) DockMinimizeEffect effect;
 @property (nonatomic) DockOrientation orientation;
@@ -1284,6 +1352,45 @@ static const int kGenieStrips = 48;
     return NO;
 }
 
+- (void)dealloc
+{
+    for (int i = 0; i < _stripCount; i++)
+        CGImageRelease(_strips[i]);
+    free(_strips);
+    CGImageRelease(_picture);
+}
+
+/* The window's image, and for the genie its strips across the axis toward
+   the Dock, cut once: each frame then draws only each strip's pixels (the
+   whole image drawn once a strip was far too slow on a large screen). */
+- (void)prepare
+{
+    _picture = CGImageRetain([self.image CGImageForProposedRect:NULL context:nil hints:nil]);
+    if (_picture == NULL || self.effect != DockMinimizeEffectGenie)
+        return;
+    BOOL vertical = self.orientation != DockOrientationBottom;
+    BOOL left = self.orientation == DockOrientationLeft;
+    size_t W = CGImageGetWidth(_picture), H = CGImageGetHeight(_picture);
+    CGFloat depth = vertical ? NSWidth(self.windowRect) : NSHeight(self.windowRect);
+    _stripCount = (int)MIN(160, MAX(kGenieStrips, depth / 5));
+    _strips = calloc(_stripCount, sizeof(CGImageRef));
+    for (int i = 0; i < _stripCount; i++) {
+        double a = (double)i / _stripCount, b = (double)(i + 1) / _stripCount;
+        CGRect cut;  /* in the image's pixels, from its top-left corner */
+        if (!vertical) {
+            size_t y0 = (size_t)floor(H * (1 - b)), y1 = (size_t)ceil(H * (1 - a));
+            cut = CGRectMake(0, y0, W, MAX(1, y1 - y0));
+        } else if (left) {
+            size_t x0 = (size_t)floor(W * a), x1 = (size_t)ceil(W * b);
+            cut = CGRectMake(x0, 0, MAX(1, x1 - x0), H);
+        } else {
+            size_t x0 = (size_t)floor(W * (1 - b)), x1 = (size_t)ceil(W * (1 - a));
+            cut = CGRectMake(x0, 0, MAX(1, x1 - x0), H);
+        }
+        _strips[i] = CGImageCreateWithImageInRect(_picture, cut);
+    }
+}
+
 static double easeInOut(double t)
 {
     return t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
@@ -1291,50 +1398,76 @@ static double easeInOut(double t)
 
 - (void)drawRect:(NSRect)dirty
 {
-    NSSize size = [self.image size];
+    CGContextRef context = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
 
     [[NSColor clearColor] set];
     NSRectFill(dirty);
+    if (_picture == NULL)
+        return;
     if (self.effect == DockMinimizeEffectScale) {
         double k = 1 - (1 - self.progress) * (1 - self.progress);
         NSRect w = self.windowRect, t = self.tileRect;
         NSRect r = NSMakeRect(NSMinX(w) + (NSMinX(t) - NSMinX(w)) * k, NSMinY(w) + (NSMinY(t) - NSMinY(w)) * k,
                               MAX(1, NSWidth(w) + (NSWidth(t) - NSWidth(w)) * k),
                               MAX(1, NSHeight(w) + (NSHeight(t) - NSHeight(w)) * k));
-        [self.image drawInRect:r fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+        CGContextDrawImage(context, NSRectToCGRect(r), _picture);
         return;
     }
-    /* Genie. The axis toward the Dock: down (bottom), left or right; the
-       strips are across it, numbered from the Dock's side. */
+    /* Genie, as a funnel from the window to the tile. Along the axis
+       toward the Dock ("depth": 0 at the tile's near side, growing away
+       from the Dock), the funnel's sides are smooth curves from the tile's
+       width at the tile to the window's width at the window's far side.
+       First the funnel forms (the window's sides bend toward the tile),
+       then the image slides down it: its near edge reaches the tile first
+       and its far edge last, each row as wide as the funnel where it is. */
     BOOL vertical = self.orientation != DockOrientationBottom;
+    BOOL left = self.orientation == DockOrientationLeft;
     NSRect w = self.windowRect, t = self.tileRect;
-    for (int i = 0; i < kGenieStrips; i++) {
-        double a = (double)i / kGenieStrips, b = (double)(i + 1) / kGenieStrips;  /* from the Dock's side */
-        /* Strips nearer the Dock go first; the last ends at progress 1. */
-        double p = MIN(1, MAX(0, self.progress * 1.6 - (a + b) / 2 * 0.6));
-        double move = easeInOut(MIN(1, MAX(0, self.progress * 1.3 - (a + b) / 2 * 0.3)));
-        double narrow = easeInOut(p);
-        NSRect src, dst;
-        if (!vertical) {
-            /* Rows from the bottom of the window. */
-            CGFloat y0 = NSMinY(w) + NSHeight(w) * a, y1 = NSMinY(w) + NSHeight(w) * b;
-            CGFloat ty0 = NSMinY(t) + NSHeight(t) * a, ty1 = NSMinY(t) + NSHeight(t) * b;
-            CGFloat x = NSMinX(w) + (NSMinX(t) - NSMinX(w)) * narrow;
-            CGFloat width = NSWidth(w) + (NSWidth(t) - NSWidth(w)) * narrow;
-            dst = NSMakeRect(x, y0 + (ty0 - y0) * move, MAX(1, width), MAX(0.5, (y1 - y0) + ((ty1 - ty0) - (y1 - y0)) * move));
-            src = NSMakeRect(0, size.height * a, size.width, size.height * (b - a));
-        } else {
-            /* Columns from the Dock's side of the window. */
-            BOOL left = self.orientation == DockOrientationLeft;
-            double fa = left ? a : 1 - b, fb = left ? b : 1 - a;
-            CGFloat x0 = NSMinX(w) + NSWidth(w) * fa, x1 = NSMinX(w) + NSWidth(w) * fb;
-            CGFloat tx0 = NSMinX(t) + NSWidth(t) * fa, tx1 = NSMinX(t) + NSWidth(t) * fb;
-            CGFloat y = NSMinY(w) + (NSMinY(t) - NSMinY(w)) * narrow;
-            CGFloat height = NSHeight(w) + (NSHeight(t) - NSHeight(w)) * narrow;
-            dst = NSMakeRect(x0 + (tx0 - x0) * move, y, MAX(0.5, (x1 - x0) + ((tx1 - tx0) - (x1 - x0)) * move), MAX(1, height));
-            src = NSMakeRect(size.width * fa, 0, size.width * (fb - fa), size.height);
-        }
-        [self.image drawInRect:dst fromRect:src operation:NSCompositeSourceOver fraction:1.0];
+    double p = self.progress;
+    /* In depth: the tile's near and far sides, the window's near and far. */
+    double tNear = 0, tFar, wNear, wFar;
+    /* Across: the tile's and the window's low and high sides. */
+    double tLo, tHi, wLo, wHi;
+    if (!vertical) {
+        tFar = NSHeight(t); wNear = NSMinY(w) - NSMinY(t); wFar = NSMaxY(w) - NSMinY(t);
+        tLo = NSMinX(t); tHi = NSMaxX(t); wLo = NSMinX(w); wHi = NSMaxX(w);
+    } else if (left) {
+        tFar = NSWidth(t); wNear = NSMinX(w) - NSMinX(t); wFar = NSMaxX(w) - NSMinX(t);
+        tLo = NSMinY(t); tHi = NSMaxY(t); wLo = NSMinY(w); wHi = NSMaxY(w);
+    } else {
+        tFar = NSWidth(t); wNear = NSMaxX(t) - NSMaxX(w); wFar = NSMaxX(t) - NSMinX(w);
+        tLo = NSMinY(t); tHi = NSMaxY(t); wLo = NSMinY(w); wHi = NSMaxY(w);
+    }
+    double bend = easeInOut(MIN(1, p / 0.4));                   /* the funnel forming */
+    double nearMove = easeInOut(MIN(1, MAX(0, (p - 0.1) / 0.6)));  /* the image's near edge */
+    double farMove = easeInOut(MIN(1, MAX(0, (p - 0.3) / 0.7)));   /* and its far edge */
+    double nearAt = wNear + (tNear - wNear) * nearMove;
+    double farAt = wFar + (tFar - wFar) * farMove;
+    int strips = _stripCount;
+    for (int i = 0; i < strips && _strips != NULL; i++) {
+        double a = (double)i / strips, b = (double)(i + 1) / strips;   /* from the image's near edge */
+        double d0 = nearAt + (farAt - nearAt) * a, d1 = nearAt + (farAt - nearAt) * b;
+        double dm = (d0 + d1) / 2;
+        /* The funnel's sides at this depth: the tile's below its far side,
+           then a smooth curve up to the window's at the window's far side. */
+        double u = (dm - tFar) / MAX(1, wFar - tFar);
+        u = MIN(1, MAX(0, u));
+        double s = u * u * (3 - 2 * u);
+        double lo = tLo + (wLo - tLo) * s, hi = tHi + (wHi - tHi) * s;
+        lo = wLo + (lo - wLo) * bend;
+        hi = wHi + (hi - wHi) * bend;
+        /* Along the axis in whole pixels, a pixel more so that strips
+           meet without a seam. */
+        double e0 = floor(d0), e1 = MAX(e0 + 1, ceil(d1) + 1);
+        CGRect dst;
+        if (!vertical)
+            dst = CGRectMake(lo, NSMinY(t) + e0, MAX(1, hi - lo), e1 - e0);
+        else if (left)
+            dst = CGRectMake(NSMinX(t) + e0, lo, e1 - e0, MAX(1, hi - lo));
+        else
+            dst = CGRectMake(NSMaxX(t) - e1, lo, e1 - e0, MAX(1, hi - lo));
+        if (_strips[i] != NULL)
+            CGContextDrawImage(context, dst, _strips[i]);
     }
 }
 @end
@@ -1356,6 +1489,9 @@ static double easeInOut(double t)
                                                                 backing:NSBackingStoreBuffered defer:NO];
     DockEffectView *view = [[DockEffectView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(all), NSHeight(all))];
     NSTimeInterval duration = effect == DockMinimizeEffectGenie ? kGenieTime : kEffectTime;
+    /* Shift held: in slow motion, as on the reference platform. */
+    if ([NSEvent modifierFlags] & NSShiftKeyMask)
+        duration *= 10;
     CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
 
     view.image = image;
@@ -1364,6 +1500,7 @@ static double easeInOut(double t)
     view.windowRect = NSOffsetRect(window, -NSMinX(all), -NSMinY(all));
     view.tileRect = NSOffsetRect(tile, -NSMinX(all), -NSMinY(all));
     view.progress = minimizing ? 0 : 1;
+    [view prepare];
     [w setContentView:view];
     [w setOpaque:NO];
     [w setBackgroundColor:[NSColor clearColor]];
@@ -1377,7 +1514,7 @@ static double easeInOut(double t)
     [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 repeats:YES block:^(NSTimer *timer) {
         double t = MIN(1.0, (CFAbsoluteTimeGetCurrent() - start) / duration);
         view.progress = minimizing ? t : 1 - t;
-        [view setNeedsDisplay:YES];
+        [view display];
         if (t >= 1) {
             [timer invalidate];
             [w orderOut:nil];
@@ -1446,6 +1583,7 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     BOOL _shown;              /* autohide: on screen now */
     NSTimer *_slideTimer, *_hideTimer;
     NSTimer *_bounceTimer;    /* while a tile bounces for attention */
+    DockBounceWindow *_bounceWindow;  /* where it bounces, beyond the bar */
     DockSwitcher *_switcher;  /* Command-Tab */
 }
 
@@ -1560,10 +1698,8 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
         any |= tile.bounceStart != 0;
     }
     CGFloat room = any ? ceil(_model.tileSize * 0.5) + 2 : 0;
-    if (room != bounceRoom) {
-        bounceRoom = room;
-        [self layout];
-    }
+    bounceRoom = room;
+    [self placeBounceWindow];
     [_view setNeedsDisplay:YES];
     if (any && _bounceTimer == nil)
         _bounceTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 / 60 target:self selector:@selector(bounceTick:)
@@ -1577,6 +1713,43 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
 - (void)bounceTick:(NSTimer *)timer
 {
     [self bounce];
+}
+
+/* The bouncing tiles' window: beyond the Dock's, on the side away from
+   the screen's edge, while one bounces; else away. */
+- (void)placeBounceWindow
+{
+    if (bounceRoom <= 0 || !_shown) {
+        [_bounceWindow orderOut:nil];
+        return;
+    }
+    if (_bounceWindow == nil) {
+        _bounceWindow = [[DockBounceWindow alloc] initWithContentRect:NSMakeRect(0, 0, 10, 10)
+            styleMask:NSBorderlessWindowMask backing:NSBackingStoreBuffered defer:NO];
+        DockBounceView *view = [[DockBounceView alloc] initWithFrame:NSMakeRect(0, 0, 10, 10)];
+        view.dockView = _view;
+        [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        [_bounceWindow setContentView:view];
+        [_bounceWindow setLevel:CGWindowLevelForKey(kCGDockWindowLevelKey)];
+        [_bounceWindow setOpaque:NO];
+        [_bounceWindow setBackgroundColor:[NSColor clearColor]];
+        [_bounceWindow setHasShadow:NO];
+        [_bounceWindow setHidesOnDeactivate:NO];
+        [_bounceWindow setExcludedFromWindowsMenu:YES];
+        [_bounceWindow setReleasedWhenClosed:NO];
+        [_bounceWindow setIgnoresMouseEvents:YES];
+    }
+    NSRect dock = [self frame], frame;
+    switch (_model.orientation) {
+    case DockOrientationLeft: frame = NSMakeRect(NSMaxX(dock), NSMinY(dock), bounceRoom, NSHeight(dock)); break;
+    case DockOrientationRight: frame = NSMakeRect(NSMinX(dock) - bounceRoom, NSMinY(dock), bounceRoom, NSHeight(dock)); break;
+    default: frame = NSMakeRect(NSMinX(dock), NSMaxY(dock), NSWidth(dock), bounceRoom); break;
+    }
+    if (!NSEqualRects(frame, [_bounceWindow frame]))
+        [_bounceWindow setFrame:frame display:NO];
+    if (![_bounceWindow isVisible])
+        [_bounceWindow orderFront:nil];
+    [[_bounceWindow contentView] setNeedsDisplay:YES];
 }
 
 /* An app's tile drawn by itself (NSDockTile's content view), or its icon
@@ -1616,14 +1789,20 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
         return;
     NSImage *image = ImageOfServerWindow(windowID);
     NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:info.ownerPID];
-    NSUInteger index = [_model addMinimizedWindow:windowID owner:info.ownerPID
-                                            image:image != nil ? ThumbnailFor(image, [app icon]) : nil];
+    /* The effect starts at once (the server has hidden the window); its
+       tile's picture, slower to make, follows. */
+    NSUInteger index = [_model addMinimizedWindow:windowID owner:info.ownerPID image:nil];
     [self layout];
     if (image == nil)
         return;
     [DockEffectWindow animateImage:image window:ScreenFrameOfServerWindow(&info)
                               tile:[self screenRectOfTileAtIndex:index] minimizing:YES
                             effect:_model.minimizeEffect orientation:_model.orientation then:nil];
+    DockTile *tile = [_model tileForMinimizedWindow:windowID];
+    if (tile != nil) {
+        tile.contentImage = ThumbnailFor(image, [app icon]);
+        [_view setNeedsDisplay:YES];
+    }
 }
 
 - (void)windowRestored:(NSNotification *)note
@@ -1753,6 +1932,7 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
     if (!NSEqualRects(frame, [self frame]))
         [self setFrame:frame display:YES];
     [_view setNeedsDisplay:YES];
+    [self placeBounceWindow];
     [self publishReservedArea];
 
     if (_model.autohide) {
