@@ -132,9 +132,11 @@ def arrow(scale=1.0, ox=0.0, oy=0.0):
 
 
 def double_arrow(angle):
-    shaft = line([(9.5, 16), (22.5, 16)], 2.6)
-    left = polygon([(3.6, 16), (10.6, 10.4), (10.6, 21.6)])
-    right = polygon([(28.4, 16), (21.4, 10.4), (21.4, 21.6)])
+    # Two broad heads and the bar between them, as the reference's frame
+    # resize cursors: the heads half as tall as the cursor is long.
+    shaft = line([(10.0, 16), (22.0, 16)], 3.2)
+    left = polygon([(3.5, 16), (11.5, 9.0), (11.5, 23.0)])
+    right = polygon([(28.5, 16), (20.5, 9.0), (20.5, 23.0)])
     return transformed(union(shaft, left, right), angle, 16, 16)
 
 
@@ -255,12 +257,13 @@ def cursors():
 # NSCursor gives, in points): the arrow 11.5 x 18, the I-beam 8.4 x 17.4,
 # the crosshair 15 x 15, the pointing hand 15 x 16.5, the open hand 16 x 16,
 # the closed one 13.5 x 12.5, the resize arrows 17 x 16, the arrow with a
-# badge 19 wide.
+# badge 19 wide. The resize arrows (23 Nov 2026, the maintainer: as large
+# as the arrow beside them) are as long as the arrow is tall.
 SCALES = {
     'arrowCursor': 0.75, 'IBeamCursor': 0.72, 'IBeamCursorForVerticalLayout': 0.67,
     'crosshairCursor': 0.54, 'pointingHandCursor': 0.63, 'openHandCursor': 0.64,
-    'closedHandCursor': 0.71, 'resizeLeftRightCursor': 0.65, 'resizeUpDownCursor': 0.67,
-    'resizeNorthWestSouthEastCursor': 0.62, 'resizeNorthEastSouthWestCursor': 0.62,
+    'closedHandCursor': 0.71, 'resizeLeftRightCursor': 0.66, 'resizeUpDownCursor': 0.66,
+    'resizeNorthWestSouthEastCursor': 0.70, 'resizeNorthEastSouthWestCursor': 0.70,
     'operationNotAllowedCursor': 0.76, 'dragCopyCursor': 0.76, 'dragLinkCursor': 0.76,
     'contextualMenuCursor': 0.70, 'helpCursor': 0.76, 'disappearingItemCursor': 0.75,
     'busyCursor': 0.72,
