@@ -1,0 +1,27 @@
+/* Setup */
+"Set Up Minkar" = "Configurar Minkar";
+"Go Back" = "Atrás";
+"Continue" = "Continuar";
+"Finish" = "Terminar";
+"Welcome" = "Te damos la bienvenida";
+"Choose the language Minkar uses." = "Elige el idioma de Minkar.";
+"Keyboard" = "Teclado";
+"Choose the layout of your keyboard." = "Elige la distribución de tu teclado.";
+"Type here to try it" = "Escribe aquí para probarlo";
+"Time Zone" = "Zona horaria";
+"Choose the region and the city nearest you." = "Elige la región y la ciudad más cercana.";
+"Network" = "Red";
+"Connected (%@)." = "Conectado (%@).";
+"Not connected. Minkar sets up a cabled network by itself; you can set it up later in System Preferences." = "Sin conexión. Minkar configura solo una red por cable; puedes configurarla después en Preferencias del Sistema.";
+"Computer Name" = "Nombre del equipo";
+"The name other computers on the network see this one by." = "El nombre con el que los otros equipos de la red ven este.";
+"Create an Administrator" = "Crea un administrador";
+"The first account of this computer. It administers it: it installs software and changes the system's settings." = "La primera cuenta de este equipo. Lo administra: instala programas y cambia los ajustes del sistema.";
+"Full name:" = "Nombre completo:";
+"Account name:" = "Nombre de cuenta:";
+"Password:" = "Contraseña:";
+"Verify:" = "Repetir:";
+"Enter a full name and an account name." = "Escribe un nombre completo y un nombre de cuenta.";
+"The account name must be new, in lowercase letters and digits." = "El nombre de cuenta debe ser nuevo, con minúsculas y números.";
+"The passwords must match and have 4 characters or more." = "Las contraseñas deben coincidir y tener 4 caracteres o más.";
+"The account could not be made." = "No se ha podido crear la cuenta.";
