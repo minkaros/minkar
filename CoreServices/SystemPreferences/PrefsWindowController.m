@@ -357,6 +357,14 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
     /* Near the top of the screen: the panes grow downward. */
     NSRect visible = [[NSScreen mainScreen] visibleFrame];
     [_window setFrameTopLeftPoint:NSMakePoint(NSMinX(visible) + 180, NSMaxY(visible) - 40)];
+    /* Where it was left, as on the reference: its top left corner (its
+       height is the pane's). */
+    NSRect initial = [_window frame];
+    if ([_window setFrameUsingName:@"System Preferences"]) {
+        NSPoint topLeft = NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]));
+        [_window setFrame:initial display:NO];
+        [_window setFrameTopLeftPoint:topLeft];
+    }
     NSView *root = [[NSView alloc] initWithFrame:[[_window contentView] frame]];
     [_window setContentView:root];
 
@@ -369,7 +377,9 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
         actions:@[ @"showAll:" ] target:self];
     [_all setLabel:NSLocalizedString(@"Show All", nil) forSegment:0];
     _title = [[NSTextField alloc] initWithFrame:NSZeroRect];
+    /* A label: the window moves by it, as by the rest of the bar. */
     [_title setEditable:NO];
+    [_title setSelectable:NO];
     [_title setBordered:NO];
     [_title setDrawsBackground:NO];
     [_title setFont:[NSFont boldSystemFontOfSize:13]];
@@ -565,6 +575,16 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
 - (void)gridView:(PrefsGridView *)view choosePane:(PrefsPaneInfo *)pane
 {
     [self showPaneWithIdentifier:pane.identifier];
+}
+
+- (void)windowDidMove:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"System Preferences"];
+}
+
+- (void)windowWillClose:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"System Preferences"];
 }
 
 @end

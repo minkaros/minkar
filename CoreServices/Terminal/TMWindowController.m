@@ -42,6 +42,12 @@
     }
     [window cascadeTopLeftFromPoint:NSZeroPoint];
     [window center];
+    /* Where the last window was left (moved, resized or closed), as on the
+       reference; a step down and right when another window is there. */
+    if ([window setFrameUsingName:@"Terminal Window"])
+        for (NSWindow *other in [NSApp windows])
+            if (other != window && [other isVisible] && NSEqualPoints([other frame].origin, [window frame].origin))
+                [window setFrameTopLeftPoint:[window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([window frame]), NSMaxY([window frame]))]];
     return self;
 }
 
@@ -159,8 +165,14 @@
     [self updateTitles];
 }
 
+- (void)windowDidMove:(NSNotification *)note
+{
+    [[self window] saveFrameUsingName:@"Terminal Window"];
+}
+
 - (void)windowDidResize:(NSNotification *)note
 {
+    [[self window] saveFrameUsingName:@"Terminal Window"];
     for (TMTerminalView *terminal in [self terminals])
         [terminal fitToScrollView];
     [self updateTitles];
@@ -168,6 +180,7 @@
 
 - (void)windowWillClose:(NSNotification *)note
 {
+    [[self window] saveFrameUsingName:@"Terminal Window"];
     for (TMTerminalView *terminal in [self terminals])
         [terminal.session terminate];
     if (self.closed)

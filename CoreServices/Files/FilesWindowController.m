@@ -82,6 +82,12 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(480, 280)];
     [_window setDelegate:self];
+    /* Where the last window was left (moved, resized or closed), as on the
+       reference; a step down and right when another window is there. */
+    if ([_window setFrameUsingName:@"Files Window"])
+        for (NSWindow *other in [NSApp windows])
+            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin))
+                [_window setFrameTopLeftPoint:[_window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]))]];
 
     FilesContentView *content = [[FilesContentView alloc] initWithFrame:[[_window contentView] frame]];
     content.controller = self;
@@ -641,6 +647,17 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 - (void)windowDidResize:(NSNotification *)note
 {
     [self layout];
+    [_window saveFrameUsingName:@"Files Window"];
+}
+
+- (void)windowDidMove:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"Files Window"];
+}
+
+- (void)windowWillClose:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"Files Window"];
 }
 
 @end

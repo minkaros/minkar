@@ -114,6 +114,12 @@ static NSPoint nextOrigin;
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(240, 160)];
     [_window setDelegate:self];
+    /* Where the last window was left (moved, resized or closed), as on the
+       reference; a step down and right when another window is there. */
+    if ([_window setFrameUsingName:@"Text Editor Window"])
+        for (NSWindow *other in [NSApp windows])
+            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin))
+                [_window setFrameTopLeftPoint:[_window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]))]];
 
     NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:[[_window contentView] bounds]];
     [scroll setHasVerticalScroller:YES];
@@ -482,7 +488,18 @@ static NSPoint nextOrigin;
 
 - (void)windowWillClose:(NSNotification *)note
 {
+    [_window saveFrameUsingName:@"Text Editor Window"];
     [self.delegate documentWindowDidClose:self];
+}
+
+- (void)windowDidMove:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"Text Editor Window"];
+}
+
+- (void)windowDidResize:(NSNotification *)note
+{
+    [_window saveFrameUsingName:@"Text Editor Window"];
 }
 
 - (BOOL)close
