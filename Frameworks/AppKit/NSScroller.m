@@ -468,6 +468,14 @@ static inline float roundFloat(float value){
     float   delta;
 
     event=[[self window] nextEventMatchingMask:NSLeftMouseUpMask|NSLeftMouseDraggedMask];
+    /* Minkar: only where the pointer is now, as in NSCell's tracking. */
+    while([event type]==NSLeftMouseDragged){
+     NSEvent *later=[[self window] nextEventMatchingMask:NSLeftMouseUpMask|NSLeftMouseDraggedMask
+                                               untilDate:[NSDate distantPast] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+     if(later==nil)
+      break;
+     event=later;
+    }
 
     point=[self convertPoint:[event locationInWindow] fromView:nil];
 

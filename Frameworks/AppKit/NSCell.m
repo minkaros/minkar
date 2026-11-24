@@ -872,6 +872,16 @@ static void cellChanged(NSCell *cell){
     [[view window] flushWindow];
 
     event=[[view window] nextEventMatchingMask:NSLeftMouseUpMask|NSLeftMouseDraggedMask];
+    /* Minkar: only where the pointer is now; the drags queued while the
+       control drew and sent its action are passed over (a slider fell
+       behind the pointer, each one drawn and sent). */
+    while([event type]==NSLeftMouseDragged){
+     NSEvent *later=[[view window] nextEventMatchingMask:NSLeftMouseUpMask|NSLeftMouseDraggedMask
+                                               untilDate:[NSDate distantPast] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+     if(later==nil)
+      break;
+     event=later;
+    }
 
    }while(YES);
 
