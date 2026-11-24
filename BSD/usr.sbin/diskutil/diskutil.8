@@ -29,6 +29,10 @@
 .Nm
 .Cm eraseVolume Ar format name disk
 .Nm
+.Cm eraseDisk Ar format name Oo Cm GPT Oc Ar disk
+.Nm
+.Cm partitionDisk Ar disk Oo Ar count Oc Oo Cm GPT Oc Ar format name size ...
+.Nm
 .Cm enableJournal Ar disk | mountPoint
 .Nm
 .Cm resizeVolume Ar disk size | Cm limit
@@ -80,6 +84,23 @@ and mounts it.
 .It Cm enableJournal
 Turns on journaling on a mounted HFS Plus volume, with
 .Nm hfs.util Fl J .
+.It Cm eraseDisk
+Erases a whole disk: a GUID partition table with the EFI System Partition
+(200 MiB, FAT32, named EFI) and one partition of the format, named as
+given, over the rest of the disk.
+.It Cm partitionDisk
+Erases a whole disk into a GUID partition table: the EFI System Partition,
+then each partition given (format, name, size), in order.
+A size of
+.Cm R ,
+.Cm 0
+or
+.Cm 100%
+takes what the others leave; a format of
+.Cm "Free Space"
+leaves its size unused.
+Partitions start on 1 MiB boundaries; FAT32 clusters are as small as its
+least count of clusters allows.
 .It Cm resizeVolume
 Grows a mounted, journaled HFS Plus volume and its GUID partition into the
 free space after it, while it is in use:

@@ -42,6 +42,8 @@
  *	diskutil rename disk name
  *	diskutil verifyVolume | repairVolume disk | mount point
  *	diskutil eraseVolume format name disk
+ *	diskutil eraseDisk format name [GPT] disk
+ *	diskutil partitionDisk disk [count] [GPT] format name size ...
  *	diskutil enableJournal disk | mount point
  *	diskutil resizeVolume disk size | limit
  *	diskutil listFilesystems
@@ -64,6 +66,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid/uuid.h>
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
@@ -97,6 +100,8 @@ usage(void)
 	    "       diskutil rename disk name\n"
 	    "       diskutil verifyVolume | repairVolume disk | mountPoint\n"
 	    "       diskutil eraseVolume format name disk\n"
+	    "       diskutil eraseDisk format name [GPT] disk\n"
+	    "       diskutil partitionDisk disk [count] [GPT] format name size ...\n"
 	    "       diskutil enableJournal disk | mountPoint\n"
 	    "       diskutil resizeVolume disk size | limit\n"
 	    "       diskutil listFilesystems\n");
@@ -1389,6 +1394,384 @@ cmd_resize(int argc, char **argv)
 	return (0);
 }
 
+/*
+ * A whole disk erased and partitioned, as the reference's eraseDisk and
+ * partitionDisk do with a GUID partition table: the EFI System Partition
+ * first (200 MiB, FAT32, named EFI), then each partition asked for, in
+ * order, the last one of size 0 (R, %, "remainder") taking what is left;
+ * each one formatted (newfs) and the disk mounted again. "Free Space" as
+ * the format leaves its size unused. Partitions start on 1 MiB.
+ */
+#define	GPT_ENTRIES	128
+#define	EFI_BYTES	(200ULL * 1024 * 1024)
+#define	ALIGN_BYTES	(1024ULL * 1024)
+
+struct part_req {
+	const struct format	*format;	/* NULL: free space */
+	const char		*name;
+	uint64_t		 bytes;		/* 0: the rest */
+	const uint8_t		*type;
+	const char *const	*args;		/* newfs's, when not the format's */
+	uint64_t		 first, last;
+};
+
+/* FAT32 in 200 MiB: one sector a cluster, for FAT32's least clusters. */
+static const char *const efi_args[] = { "-F", "32", "-c", "1", NULL };
+
+/* FAT32's sectors a cluster for a partition of so many sectors: the
+ * biggest power of two that leaves FAT32's least clusters (65525), up to
+ * 64 (32 KB clusters for 512-byte sectors); newfs_msdos's own choice for
+ * small partitions leaves too few. */
+static const char *
+fat32_cluster(uint64_t sectors, char *buf, size_t len)
+{
+	unsigned c = 64;
+
+	while (c > 1 && sectors / c < 65600)
+		c /= 2;
+	snprintf(buf, len, "%u", c);
+	return (buf);
+}
+
+/* The partition types' GUIDs, as stored (the first three fields little
+ * endian). */
+static const uint8_t type_efi[16] = { 0x28, 0x73, 0x2a, 0xc1, 0x1f, 0xf8, 0xd2, 0x11,
+	0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b };
+static const uint8_t type_hfs[16] = { 0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+	0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac };
+static const uint8_t type_basic[16] = { 0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
+	0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7 };
+
+static void
+gpt_name(uint16_t name[36], const char *utf8)
+{
+	size_t i;
+
+	memset(name, 0, 36 * sizeof(uint16_t));
+	/* ASCII as UTF-16; anything else as '_' (names are labels here). */
+	for (i = 0; i < 35 && utf8[i] != '\0'; i++)
+		name[i] = (unsigned char)utf8[i] < 0x80 ? (uint16_t)utf8[i] : '_';
+}
+
+/* The device's slice n, as it appears once the table is read: diskNsM. */
+static bool
+wait_slice(const char *whole, int n, char *bsd, size_t len)
+{
+	struct stat st;
+	char path[96];
+	int tries;
+
+	snprintf(bsd, len, "%ss%d", whole, n);
+	snprintf(path, sizeof(path), "/dev/%s", bsd);
+	for (tries = 0; tries < 100; tries++) {
+		if (stat(path, &st) == 0)
+			return (true);
+		usleep(100000);
+	}
+	return (false);
+}
+
+static int
+partition_disk(const char *whole, struct part_req *req, int count)
+{
+	struct result r = { false, 0, "" };
+	struct gpt_header *hdr, *bak;
+	uint8_t *mbr, *hbuf, *bbuf, *table;
+	uint64_t blocks, last, first_usable, last_usable, at, align, tblocks;
+	uint32_t bs, i;
+	size_t tsize;
+	char dev[80], h[32], slice[64];
+	const char *args[16];
+	io_service_t media;
+	DADiskRef disk;
+	int fd, n, k, rest = -1;
+
+	disk = disk_arg(whole);
+	printf("Started partitioning on %s\n", whole);
+	printf("Unmounting disk\n");
+	fflush(stdout);
+	DADiskUnmount(disk, kDADiskUnmountOptionWhole, done_cb, &r);
+	wait_for(&r);
+	if (r.status != 0 && r.status != kDAReturnNotMounted)
+		errx(1, "Unable to unmount %s: %s", whole, why(&r));
+
+	snprintf(dev, sizeof(dev), "/dev/r%s", whole);
+	if ((fd = open(dev, O_RDWR | O_EXLOCK)) < 0)
+		err(1, "%s", dev);
+	if (ioctl(fd, DKIOCGETBLOCKSIZE, &bs) != 0 ||
+	    ioctl(fd, DKIOCGETBLOCKCOUNT, &blocks) != 0)
+		err(1, "%s: size", dev);
+	if (bs < 512 || bs > 4096)
+		errx(1, "%s: unexpected block size %u", whole, bs);
+	last = blocks - 1;
+	tsize = GPT_ENTRIES * sizeof(struct gpt_entry);
+	tblocks = (tsize + bs - 1) / bs;
+	first_usable = 2 + tblocks;
+	last_usable = last - 1 - tblocks;
+	align = ALIGN_BYTES / bs;
+
+	/* Where each partition goes: the EFI one, then the others. */
+	at = align;
+	for (k = 0; k < count; k++) {
+		uint64_t want = req[k].bytes / bs;
+
+		if (req[k].bytes == 0) {
+			if (rest >= 0)
+				errx(1, "Only one partition may take the rest of the disk");
+			rest = k;
+		}
+		req[k].first = at;
+		req[k].last = want ? at + want - 1 : 0;
+		if (want)
+			at += (want + align - 1) / align * align;
+	}
+	if (at > last_usable)
+		errx(1, "%s is too small for these partitions", whole);
+	if (rest >= 0) {
+		/* The partition taking the rest: the ones after it move up. */
+		uint64_t after = 0;
+
+		for (k = rest + 1; k < count; k++)
+			after += (req[k].last - req[k].first + 1 + align - 1) / align * align;
+		req[rest].last = (last_usable + 1 - after) / align * align - 1;
+		if (req[rest].last <= req[rest].first)
+			errx(1, "%s is too small for these partitions", whole);
+		at = req[rest].last + 1;
+		for (k = rest + 1; k < count; k++) {
+			uint64_t len = req[k].last - req[k].first + 1;
+
+			req[k].first = at;
+			req[k].last = at + len - 1;
+			at += (len + align - 1) / align * align;
+		}
+	}
+
+	mbr = calloc(1, bs);
+	hbuf = calloc(1, bs);
+	bbuf = calloc(1, bs);
+	table = calloc(tblocks, bs);
+	if (mbr == NULL || hbuf == NULL || bbuf == NULL || table == NULL)
+		err(1, NULL);
+	for (k = 0, i = 0; k < count; k++) {
+		struct gpt_entry *e;
+
+		if (req[k].type == NULL)
+			continue;
+		e = (struct gpt_entry *)(table + (size_t)i++ * sizeof(struct gpt_entry));
+		memcpy(e->type, req[k].type, 16);
+		uuid_generate_random(e->guid);
+		e->first_lba = req[k].first;
+		e->last_lba = req[k].last;
+		gpt_name(e->name, req[k].name);
+	}
+
+	/* The protective map: one 0xEE partition over the disk (or 2 TB). */
+	mbr[446 + 4] = 0xee;
+	{
+		uint32_t first = 1, size = last > 0xffffffffULL ? 0xffffffff : (uint32_t)last;
+
+		mbr[446 + 1] = 0x00; mbr[446 + 2] = 0x02; mbr[446 + 3] = 0x00;
+		mbr[446 + 5] = 0xff; mbr[446 + 6] = 0xff; mbr[446 + 7] = 0xff;
+		memcpy(mbr + 446 + 8, &first, 4);
+		memcpy(mbr + 446 + 12, &size, 4);
+	}
+	mbr[510] = 0x55;
+	mbr[511] = 0xaa;
+
+	hdr = (struct gpt_header *)hbuf;
+	memcpy(hdr->signature, "EFI PART", 8);
+	hdr->revision = 0x00010000;
+	hdr->header_size = 92;
+	hdr->my_lba = 1;
+	hdr->alternate_lba = last;
+	hdr->first_usable = first_usable;
+	hdr->last_usable = last_usable;
+	uuid_generate_random(hdr->disk_guid);
+	hdr->entries_lba = 2;
+	hdr->entry_count = GPT_ENTRIES;
+	hdr->entry_size = sizeof(struct gpt_entry);
+	hdr->entries_crc = crc32_ieee(table, tsize);
+	hdr->header_crc = crc32_ieee(hdr, hdr->header_size);
+	memcpy(bbuf, hbuf, bs);
+	bak = (struct gpt_header *)bbuf;
+	bak->my_lba = last;
+	bak->alternate_lba = 1;
+	bak->entries_lba = last - tblocks;
+	bak->header_crc = 0;
+	bak->header_crc = crc32_ieee(bak, bak->header_size);
+
+	printf("Creating the partition map\n");
+	fflush(stdout);
+	{
+		/* What was there before is gone: the first and last MiB. */
+		uint8_t *zero = calloc(1, ALIGN_BYTES);
+
+		if (zero == NULL)
+			err(1, NULL);
+		pwrite_all(fd, zero, ALIGN_BYTES, 0);
+		pwrite_all(fd, zero, ALIGN_BYTES, (off_t)((blocks * bs) - ALIGN_BYTES));
+		/* An old file system's signature at a partition's start. */
+		for (k = 0; k < count; k++)
+			if (req[k].type != NULL)
+				pwrite_all(fd, zero, 64 * 1024, (off_t)(req[k].first * bs));
+		free(zero);
+	}
+	pwrite_all(fd, mbr, bs, 0);
+	pwrite_all(fd, hbuf, bs, (off_t)bs);
+	pwrite_all(fd, table, tblocks * bs, (off_t)(2 * bs));
+	pwrite_all(fd, table, tblocks * bs, (off_t)(bak->entries_lba * bs));
+	pwrite_all(fd, bbuf, bs, (off_t)(last * bs));
+	(void)ioctl(fd, DKIOCSYNCHRONIZECACHE);
+	close(fd);
+
+	/* The disk read again: its partitions appear. */
+	(void)media_number(whole, kIOMediaSizeKey, &media);
+	(void)IOServiceRequestProbe(media, 0);
+	IOObjectRelease(media);
+
+	for (k = 0, n = 1; k < count; k++) {
+		const struct format *f = req[k].format;
+		int a = 0, j;
+		char raw[96], label[256];
+
+		if (req[k].type == NULL)
+			continue;
+		if (!wait_slice(whole, n++, slice, sizeof(slice)))
+			errx(1, "%s: its partitions did not appear", whole);
+		human((req[k].last - req[k].first + 1) * bs, h, sizeof(h));
+		printf("Formatting %s as %s with name %s (%s)\n", slice,
+		    f->names[0], req[k].name, h);
+		fflush(stdout);
+		strlcpy(label, req[k].name, sizeof(label));
+		if (strcmp(f->kind, "msdos") == 0)
+			for (j = 0; label[j] != '\0'; j++)
+				label[j] = (char)toupper((unsigned char)label[j]);
+		snprintf(raw, sizeof(raw), "/dev/r%s", slice);
+		snprintf(dev, sizeof(dev), "/sbin/newfs_%s", f->kind);
+		args[a++] = dev;
+		{
+			const char *const *fa = req[k].args != NULL ? req[k].args : f->args;
+			static char cluster[8];
+
+			for (j = 0; fa[j] != NULL; j++)
+				args[a++] = fa[j];
+			if (req[k].args == NULL && strcmp(f->kind, "msdos") == 0 &&
+			    fa[0] != NULL && strcmp(fa[1], "32") == 0) {
+				args[a++] = "-c";
+				args[a++] = fat32_cluster(req[k].last - req[k].first + 1,
+				    cluster, sizeof(cluster));
+			}
+		}
+		args[a++] = "-v";
+		args[a++] = label;
+		args[a++] = raw;
+		args[a] = NULL;
+		if (run(args) != 0)
+			errx(1, "Error: -69888: Couldn't format %s", slice);
+	}
+
+	/* diskarbitrationd mounts the new volumes (the EFI one stays as the
+	 * reference leaves it: not mounted). */
+	memset(&r, 0, sizeof(r));
+	DADiskMount(disk, NULL, kDADiskMountOptionWhole, done_cb, &r);
+	wait_for(&r);
+	printf("Finished partitioning on %s\n", whole);
+	CFRelease(disk);
+	return (0);
+}
+
+/* A whole disk by name ("disk2", "/dev/disk2"), not one of its slices. */
+static void
+whole_disk_arg(const char *arg, char *whole, size_t len)
+{
+	char bsd[64];
+
+	if (!bsd_name(arg, bsd, sizeof(bsd)))
+		errx(1, "Could not find disk: %s", arg);
+	whole_of(bsd, whole, len);
+	if (strcmp(whole, bsd) != 0)
+		errx(1, "%s is a partition: give its whole disk (%s)", bsd, whole);
+}
+
+/* The partitions asked for, after the EFI one: format name size ... */
+static int
+parse_parts(char **argv, int argc, struct part_req *req, int max)
+{
+	int n = 1, k;
+
+	req[0].format = find_format("FAT32");
+	req[0].name = "EFI";
+	req[0].bytes = EFI_BYTES;
+	req[0].type = type_efi;
+	req[0].args = efi_args;
+	for (k = 0; k + 2 < argc + 1 && k < argc; k += 3) {
+		const char *fmt = argv[k], *size;
+
+		if (k + 2 >= argc)
+			usage();
+		if (n >= max)
+			errx(1, "Too many partitions");
+		size = argv[k + 2];
+		if (strcasecmp(fmt, "Free Space") == 0 || strcasecmp(fmt, "free") == 0) {
+			req[n].format = NULL;
+			req[n].type = NULL;
+		} else {
+			if ((req[n].format = find_format(fmt)) == NULL)
+				errx(1, "Unrecognized file system: %s (diskutil listFilesystems)", fmt);
+			req[n].type = strcmp(req[n].format->kind, "hfs") == 0 ? type_hfs : type_basic;
+		}
+		req[n].name = argv[k + 1];
+		if (strcmp(size, "0") == 0 || strcasecmp(size, "R") == 0 || strcmp(size, "100%") == 0)
+			req[n].bytes = 0;
+		else
+			req[n].bytes = parse_size(size);
+		n++;
+	}
+	return (n);
+}
+
+static int
+cmd_erase_disk(int argc, char **argv)
+{
+	struct part_req req[2];
+	char whole[64];
+	char *parts[3];
+
+	/* format name [GPT] disk */
+	if (argc == 4 && (strcasecmp(argv[2], "GPT") == 0 || strcasecmp(argv[2], "GPTFormat") == 0)) {
+		argv[2] = argv[3];
+		argc = 3;
+	}
+	if (argc != 3)
+		usage();
+	whole_disk_arg(argv[2], whole, sizeof(whole));
+	parts[0] = argv[0];
+	parts[1] = argv[1];
+	parts[2] = "R";
+	memset(req, 0, sizeof(req));
+	return (partition_disk(whole, req, parse_parts(parts, 3, req, 2)));
+}
+
+static int
+cmd_partition_disk(int argc, char **argv)
+{
+	struct part_req req[16];
+	char whole[64];
+	int skip = 1;
+
+	/* disk [count] [GPT] format name size ... */
+	if (argc < 4)
+		usage();
+	whole_disk_arg(argv[0], whole, sizeof(whole));
+	if (argc > skip && isdigit((unsigned char)argv[skip][0]) && strchr(argv[skip], '.') == NULL &&
+	    strspn(argv[skip], "0123456789") == strlen(argv[skip]))
+		skip++;
+	if (argc > skip && (strcasecmp(argv[skip], "GPT") == 0 || strcasecmp(argv[skip], "GPTFormat") == 0))
+		skip++;
+	memset(req, 0, sizeof(req));
+	return (partition_disk(whole, req, parse_parts(argv + skip, argc - skip, req, 16)));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1434,5 +1817,9 @@ main(int argc, char **argv)
 		return (cmd_enable_journal(argc, argv));
 	if (strcasecmp(verb, "resizeVolume") == 0)
 		return (cmd_resize(argc, argv));
+	if (strcasecmp(verb, "eraseDisk") == 0)
+		return (cmd_erase_disk(argc, argv));
+	if (strcasecmp(verb, "partitionDisk") == 0)
+		return (cmd_partition_disk(argc, argv));
 	usage();
 }
