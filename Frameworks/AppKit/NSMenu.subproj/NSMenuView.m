@@ -1475,6 +1475,12 @@ enum { kNSMenuCancelTrackingSubtype=0x4d43 };
    [self _trackAndPerform:event selecting:NSNotFound startedOpen:NO];
 }
 
+/* The secondary button opens a menu as the primary does: a menu's own
+   view is no context menu of itself. */
+-(void)rightMouseDown:(NSEvent *)event {
+   [self mouseDown:event];
+}
+
 -(void)_trackFromKeyboard {
    [self _trackAndPerform:[NSApp currentEvent] selecting:0 startedOpen:YES];
 }

@@ -262,6 +262,11 @@ static NSMenuItem *systemMenuItem(void) {
         @[ @"Force Quit…", @"forceQuit:", escape, @"o" ], @[ @"-" ],
         @[ @"Sleep", @"sleep:" ], @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ], @[ @"-" ],
         @[ @"Lock Screen", @"lockScreen:", @"q", @"c" ], @[ logOut, @"logOut:", @"Q", @"" ] ];
+    /* The installation medium has no session to leave, lock or set up:
+       only the computer, and restarting or shutting it down. */
+    if([[NSFileManager defaultManager] fileExistsAtPath:@"/private/var/db/.MinkarInstallMedium"])
+        entries = @[ @[ @"About This Computer", @"aboutThisComputer:" ], @[ @"-" ],
+            @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ] ];
     for(NSArray *entry in entries) {
         NSString *title = [entry objectAtIndex:0];
         if([title isEqualToString:@"-"]) {
