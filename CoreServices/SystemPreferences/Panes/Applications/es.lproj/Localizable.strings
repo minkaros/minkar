@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors */
+
+"Defaults" = "Predeterminadas";
+"Open at Login" = "Al iniciar sesión";
+"Permissions" = "Permisos";
+"The app that opens each kind of item:" = "La app que abre cada tipo de elemento:";
+"Web browser" = "Navegador web";
+"Email" = "Correo";
+"Calendar" = "Calendario";
+"Videos" = "Vídeos";
+"Music" = "Música";
+"Images" = "Imágenes";
+"Text editor" = "Editor de texto";
+"Files" = "Archivos";
+"PDF viewer" = "Visor de PDF";
+"None" = "Ninguna";
+"These items open when you log in:" = "Estos elementos se abren al iniciar sesión:";
+"Hide" = "Ocultar";
+"Item" = "Elemento";
+"Add" = "Añadir";
+"To hide an app when you log in, select Hide next to it." = "Para ocultar una app al iniciar sesión, marca «Ocultar» junto a ella.";
+"What each app may reach (the network, your folders, devices, notifications, the screen…) will be chosen here." = "Aquí se elegirá a qué puede acceder cada app (la red, tus carpetas, los dispositivos, las notificaciones, la pantalla…).";

@@ -96,7 +96,8 @@ static const CGFloat kGridWidth = 668;
 static NSArray<NSString *> *knownOrder(void)
 {
     return @[ @"org.minkar.preference.general", @"org.minkar.preference.dock",
-              @"org.minkar.preference.notifications", @"org.minkar.preference.users",
+              @"org.minkar.preference.notifications", @"org.minkar.preference.applications",
+              @"org.minkar.preference.users",
               @"org.minkar.preference.displays", @"org.minkar.preference.keyboard",
               @"org.minkar.preference.mouse", @"org.minkar.preference.sound",
               @"org.minkar.preference.printers",
@@ -149,6 +150,7 @@ static NSUInteger sectionOf(PrefsPaneInfo *pane)
     if (sections == nil)
         sections = @{ @"org.minkar.preference.general": @0, @"org.minkar.preference.dock": @0,
                       @"org.minkar.preference.notifications": @0,
+                      @"org.minkar.preference.applications": @0,
                       @"org.minkar.preference.displays": @1, @"org.minkar.preference.keyboard": @1,
                       @"org.minkar.preference.mouse": @1, @"org.minkar.preference.sound": @1,
                       @"org.minkar.preference.printers": @1,
