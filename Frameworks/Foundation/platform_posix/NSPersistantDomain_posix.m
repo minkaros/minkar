@@ -149,9 +149,12 @@ static dispatch_queue_t writeQueue(void) {
         NSData *xml = [NSPropertyListSerialization dataWithPropertyList:merged format:NSPropertyListXMLFormat_v1_0
                                                                 options:0 error:NULL];
         if (xml == nil || [xml writeToFile:_path atomically:YES] == NO) {
+            /* Not written (a folder not the user's): said, and tried again
+               next time, as the reference's synchronize returns NO; an
+               exception here took down the app (the Dock). */
             [merged release];
-            [NSException raise:NSInternalInconsistencyException
-                        format:@"Cannot synchronize NSUserDefaults to %@", _path];
+            NSLog(@"Cannot synchronize NSUserDefaults to %@", _path);
+            return;
         }
         [_changedKeys removeAllObjects];
     }
