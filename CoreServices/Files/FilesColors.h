@@ -39,8 +39,37 @@ static inline CGFloat FilesDarkGray(CGFloat white)
     return 0.30;
 }
 
+/* With an appearance theme (General's Themes), each grey is the theme's
+   color of its part instead, so that the theme reaches Files. Only the
+   colors every theme gives are used (the window's and the content's
+   backgrounds, text, secondary text, lines); the others are mixes of
+   them, so that they suit the theme: headers and alternate rows the
+   content a little toward the text, a chosen row the sidebar more so. */
+extern BOOL _NSAppearanceThemeActive(void);
+
+static inline NSColor *FilesThemeColor(CGFloat white)
+{
+    if (white < 0.3)
+        return [NSColor labelColor];
+    if (white < 0.6)
+        return [NSColor secondaryLabelColor];
+    if (white >= 0.99)
+        return [NSColor controlBackgroundColor];
+    if (white >= 0.94)
+        return [[NSColor controlBackgroundColor] blendedColorWithFraction:0.06 ofColor:[NSColor labelColor]];
+    if (white >= 0.90)
+        return [NSColor windowBackgroundColor];
+    if (white >= 0.84)
+        return [NSColor separatorColor];
+    if (white >= 0.78)
+        return [[NSColor windowBackgroundColor] blendedColorWithFraction:0.18 ofColor:[NSColor labelColor]];
+    return [[NSColor windowBackgroundColor] blendedColorWithFraction:0.30 ofColor:[NSColor labelColor]];
+}
+
 static inline NSColor *FilesGray(CGFloat white, CGFloat alpha)
 {
+    if (_NSAppearanceThemeActive())
+        return [FilesThemeColor(white) colorWithAlphaComponent:alpha];
     if (FilesDark())
         white = FilesDarkGray(white);
     return [NSColor colorWithGenericGamma22White:white alpha:alpha];

@@ -376,12 +376,25 @@ BOOL _NSSystemAppearanceIsDark(void);
    Preferences), as the reference's does: light, a pale gradient with a
    grey line at its bottom edge and dark text; dark, a charcoal gradient
    with a darker line and light text. */
+BOOL _NSAppearanceThemeActive(void);
+
 NSColor *_NSMenuBarTextColor(void) {
+	if(_NSAppearanceThemeActive())
+		return [NSColor windowFrameTextColor];
 	return [NSColor colorWithGenericGamma22White:_NSSystemAppearanceIsDark()?0.93:0.10 alpha:1];
 }
 
 -(void)drawMenuBarBackgroundInRect:(NSRect)rect {
 	BOOL        dark=_NSSystemAppearanceIsDark();
+
+	/* An appearance theme: its title bars' color, and its lines. */
+	if(_NSAppearanceThemeActive()) {
+		[[NSColor windowFrameColor] setFill];
+		NSRectFill(rect);
+		[[NSColor separatorColor] setFill];
+		NSRectFillUsingOperation(NSMakeRect(NSMinX(rect),NSMinY(rect),NSWidth(rect),1),NSCompositeSourceOver);
+		return;
+	}
 	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithGenericGamma22White:dark?0.17:0.90 alpha:1]
 		endingColor:[NSColor colorWithGenericGamma22White:dark?0.25:0.96 alpha:1]];
 
@@ -433,6 +446,12 @@ BOOL _NSSystemAppearanceIsDark(void);
 /* Atlas's greys for the controls; in the dark appearance the same steps
    on a dark scale (a face at 1.0 is 0.38, darker steps darker still). */
 static NSColor *atlasGray(CGFloat white) {
+   /* An appearance theme: its controls' color, the darker steps toward its
+      text (lines, pressed faces). */
+   if(_NSAppearanceThemeActive()) {
+    NSColor *face=[NSColor controlColor];
+    return white>=1 ? face : [face blendedColorWithFraction:MIN(1,(1-white)*0.9) ofColor:[NSColor labelColor]];
+   }
    if(_NSSystemAppearanceIsDark())
     white=0.38-(1-white)*0.30;
    return [NSColor colorWithGenericGamma22White:white alpha:1];

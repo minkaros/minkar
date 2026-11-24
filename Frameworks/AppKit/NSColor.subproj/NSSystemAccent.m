@@ -192,6 +192,14 @@ static NSColor *themeColor(id value) {
    when the theme no longer gives them. */
 static NSMutableDictionary *themeReplaced;
 
+/* Whether an appearance theme gives colors now: apps that draw with their
+   own greys (Files, the Dock) take the system's colors then. */
+static BOOL themeActive;
+
+BOOL _NSAppearanceThemeActive(void) {
+    return themeActive;
+}
+
 /* The neutrals for the appearance: dark ones, or the light ones kept. */
 static void applyAppearance(BOOL dark) {
     NSColorList *list = [NSColorList colorListNamed:@"System"];
@@ -214,6 +222,7 @@ static void applyAppearance(BOOL dark) {
     }
     /* The theme's colors over them; others it changed before, back. */
     NSDictionary *theme = appearanceTheme(dark);
+    themeActive = [theme count] > 0;
     if (themeReplaced == nil)
         themeReplaced = [NSMutableDictionary new];
     for (NSString *key in [themeReplaced allKeys])

@@ -321,11 +321,21 @@ static NSUInteger separatorCount(DockModel *model)
         _pointerMain = NAN;
         _drawnMain = NAN;
         _icons = [NSMutableDictionary dictionary];
+        /* The system's colors changed (an appearance theme): the bar
+           drawn again in them. */
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(systemColorsChanged:)
+                                                     name:NSSystemColorsDidChangeNotification object:nil];
     }
     return self;
 }
 
 /* -- Icons, ready at the sizes drawn -- */
+
+- (void)systemColorsChanged:(NSNotification *)note
+{
+    _barImage = nil;
+    [self setNeedsDisplay:YES];
+}
 
 - (void)forgetIcons
 {
@@ -567,6 +577,16 @@ static void drawBarPath(NSRect rect)
     NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(rect, 0.5, 0.5)
                                                          xRadius:kBarRadius yRadius:kBarRadius];
     BOOL dark = dockDark();
+    extern BOOL _NSAppearanceThemeActive(void);
+    /* An appearance theme: its window color, see-through, and its lines. */
+    if (_NSAppearanceThemeActive()) {
+        [[[NSColor windowBackgroundColor] colorWithAlphaComponent:0.78] setFill];
+        [path fill];
+        [[NSColor separatorColor] setStroke];
+        [path setLineWidth:1];
+        [path stroke];
+        return;
+    }
     [[NSColor colorWithGenericGamma22White:dark ? 0.30 : 0.96 alpha:dark ? 0.72 : 0.55] setFill];
     [path fill];
     [[NSColor colorWithGenericGamma22White:dark ? 0.12 : 1.0 alpha:dark ? 0.55 : 0.6] setStroke];
@@ -683,7 +703,9 @@ static void drawBadge(NSString *label, NSRect icon)
             drawBadge(badge, rect);
         if (t.application != nil && model.showIndicators) {
             DockSpan d = { mains[i] + sizes[i] / 2 - 2, pad / 2 - 2, 4, 4 };	/* in the bottom margin */
-            [[NSColor colorWithGenericGamma22White:dockDark() ? 0.92 : 0.15 alpha:0.85] setFill];
+            extern BOOL _NSAppearanceThemeActive(void);
+            [(_NSAppearanceThemeActive() ? [NSColor labelColor]
+              : [NSColor colorWithGenericGamma22White:dockDark() ? 0.92 : 0.15 alpha:0.85]) setFill];
             [[NSBezierPath bezierPathWithOvalInRect:[self rectForSpan:d]] fill];
         }
     }
@@ -693,7 +715,9 @@ static void drawBadge(NSString *label, NSRect icon)
             continue;
         CGFloat at = mains[i - 1] + sizes[i - 1] + (gapFor(tile) + separatorSpace(tile)) / 2;
         DockSpan s = { floor(at), pad, 1, [DockView barThicknessForModel:model] - 2 * pad };
-        [[NSColor colorWithGenericGamma22White:dockDark() ? 1.0 : 0.2 alpha:0.35] setFill];
+        extern BOOL _NSAppearanceThemeActive(void);
+        [(_NSAppearanceThemeActive() ? [[NSColor labelColor] colorWithAlphaComponent:0.35]
+          : [NSColor colorWithGenericGamma22White:dockDark() ? 1.0 : 0.2 alpha:0.35]) setFill];
         NSRectFill([self rectForSpan:s]);
     }
 }

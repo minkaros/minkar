@@ -146,6 +146,21 @@ const float NSWindowControlSpacing = 8;
 
 @end
 
+BOOL _NSAppearanceThemeActive(void);
+
+/* The title bar's fill: the frame's grey, or an appearance theme's
+   windowFrameColor. */
+static void setTitlebarFill(O2ContextRef context, CGFloat gray) {
+    if(_NSAppearanceThemeActive()) {
+        NSColor *c = [[NSColor windowFrameColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+        if(c != nil) {
+            O2ContextSetRGBFillColor(context, [c redComponent], [c greenComponent], [c blueComponent], 1);
+            return;
+        }
+    }
+    O2ContextSetGrayFillColor(context, gray, 1);
+}
+
 @implementation NSThemeFrame
 
 
@@ -424,7 +439,7 @@ static const CGFloat kResizeBand = 5, kResizeCorner = 14;
            draws it; the title bar in the frame's grey. */
         O2ContextSetRGBFillColor(_context, r, g, b, a);
         O2ContextFillRect(_context, rect);
-        O2ContextSetGrayFillColor(_context, frameGray, 1);
+        setTitlebarFill(_context, frameGray);
         O2ContextFillRect(_context, NSIntersectionRect(rect, titlebar));
         if(!NSIntersectsRect(rect, titlebar))
             return;
@@ -458,7 +473,7 @@ static const CGFloat kResizeBand = 5, kResizeCorner = 14;
     O2ContextClip(_context);
     O2ContextSetRGBFillColor(_context, r, g, b, a);
     O2ContextFillRect(_context, [self bounds]);
-    O2ContextSetGrayFillColor(_context, frameGray, 1);
+    setTitlebarFill(_context, frameGray);
     O2ContextFillRect(_context, titlebar);
     O2ContextRestoreGState(_context);
 
@@ -492,8 +507,9 @@ static const CGFloat kResizeBand = 5, kResizeCorner = 14;
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
             NSFontAttributeName : [NSFont systemFontOfSize:13.0],
-            NSForegroundColorAttributeName : _NSSystemAppearanceIsDark() ? [NSColor windowFrameTextColor]
-                                                                         : [NSColor colorWithGenericGamma22White:0.25 alpha:1]
+            NSForegroundColorAttributeName : _NSSystemAppearanceIsDark() || _NSAppearanceThemeActive()
+                                                 ? [NSColor windowFrameTextColor]
+                                                 : [NSColor colorWithGenericGamma22White:0.25 alpha:1]
         };
         NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];
