@@ -189,8 +189,10 @@ static NSUInteger separatorCount(DockModel *model)
         return;
     }
     _view.text = text;
-    [self setFrame:frame display:NO];
+    /* Drawn with its new frame: the server shows the new name at once,
+       not the old one stretched into the new frame for a moment. */
     [_view setNeedsDisplay:YES];
+    [self setFrame:frame display:YES];
     [self orderFront:nil];
 }
 
@@ -758,6 +760,17 @@ static void drawBadge(NSString *label, NSRect icon)
     }
     _labelled = index;
     NSRect rect = [self rectForTileAtIndex:(NSUInteger)index];
+    /* Magnified: the name stays above the largest a tile grows to, not on
+       the tile as large as it is now (which it covered as it grew). */
+    if (self.model.magnification) {
+        CGFloat large = MAX(self.model.largeSize, self.model.tileSize);
+        switch ([self orientation]) {
+        case DockOrientationLeft: rect.size.width = MAX(NSWidth(rect), large); break;
+        case DockOrientationRight: rect.origin.x = NSMaxX(rect) - MAX(NSWidth(rect), large);
+                                   rect.size.width = MAX(NSWidth(rect), large); break;
+        default: rect.size.height = MAX(NSHeight(rect), large); break;
+        }
+    }
     NSRect onScreen = rect;
     onScreen.origin.x += NSMinX([[self window] frame]);
     onScreen.origin.y += NSMinY([[self window] frame]);
