@@ -25,3 +25,10 @@
 "Add" = "Añadir";
 "The printer “%@” could not be added." = "No se ha podido añadir la impresora «%@».";
 "Address:" = "Dirección:";
+"Out of paper" = "Sin papel";
+"Paper jam" = "Atasco de papel";
+"Toner low" = "Queda poco tóner";
+"Out of toner" = "Sin tóner";
+"Door open" = "Puerta abierta";
+"Offline" = "Desconectada";
+"Connecting" = "Conectando";

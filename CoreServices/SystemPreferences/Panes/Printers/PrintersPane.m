@@ -214,8 +214,28 @@ static NSString *option(cups_dest_t *dest, const char *name)
         return [self text:@"Paused"];
     if (state == IPP_PSTATE_PROCESSING)
         return [self text:@"Printing"];
-    if ([reasons length] && ![reasons isEqualToString:@"none"])
-        return [NSString stringWithFormat:@"%@ (%@)", [self text:@"Idle"], reasons];
+    /* What the user can act on, in words; CUPS's own notes (cups-*, such as
+       cups-ipp-conformance-failure-report) and mere reports are left out. */
+    NSDictionary *words = @{ @"media-empty": @"Out of paper", @"media-needed": @"Out of paper",
+                             @"media-jam": @"Paper jam", @"toner-low": @"Toner low",
+                             @"toner-empty": @"Out of toner", @"marker-supply-low": @"Toner low",
+                             @"marker-supply-empty": @"Out of toner", @"door-open": @"Door open",
+                             @"cover-open": @"Door open", @"offline": @"Offline",
+                             @"connecting-to-device": @"Connecting" };
+    NSMutableArray *shown = [NSMutableArray array];
+    for (NSString *reason in [reasons componentsSeparatedByString:@","]) {
+        if ([reason isEqualToString:@"none"] || [reason hasPrefix:@"cups-"] || [reason hasSuffix:@"-report"])
+            continue;
+        NSString *keyword = reason;
+        for (NSString *suffix in @[ @"-error", @"-warning" ])
+            if ([keyword hasSuffix:suffix])
+                keyword = [keyword substringToIndex:[keyword length] - [suffix length]];
+        NSString *word = words[keyword];
+        if (word != nil && ![shown containsObject:[self text:word]])
+            [shown addObject:[self text:word]];
+    }
+    if ([shown count])
+        return [NSString stringWithFormat:@"%@ (%@)", [self text:@"Idle"], [shown componentsJoinedByString:@", "]];
     return [self text:@"Idle"];
 }
 
