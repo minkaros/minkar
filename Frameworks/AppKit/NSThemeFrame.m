@@ -55,6 +55,9 @@ extern const CGFloat NSWindowTabBarHeight;
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSMenuItem.h>
 #import <Onyx2D/O2Context.h>
+#import <AppKit/NSCursor.h>
+#import <AppKit/NSEvent.h>
+
 
 extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
     CGFloat *left, CGFloat *bottom, CGFloat *right);
@@ -211,11 +214,131 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     return 0;
 }
 
+/* Minkar: a resizable window is resized from its edges and corners, as on
+   the reference: a band of kResizeBand points inside the frame on each
+   side (the corners reach kResizeCorner along the edges), its cursor the
+   frame's resize cursor. Not in full screen, a sheet or a tile. */
+static const CGFloat kResizeBand = 5, kResizeCorner = 14;
+
+
+-(NSCursorFrameResizePosition)_resizePositionAtPoint:(NSPoint)point {
+    NSWindow  *window = [self window];
+    NSUInteger mask = [window styleMask];
+    NSRect     b = [self bounds];
+    NSCursorFrameResizePosition position = 0;
+
+    if(!(mask & NSResizableWindowMask) || (mask & NSFullScreenWindowMask) || [window isSheet] ||
+       !NSPointInRect(point, b))
+        return 0;
+    BOOL left = point.x < NSMinX(b) + kResizeBand, right = point.x >= NSMaxX(b) - kResizeBand;
+    BOOL bottom = point.y < NSMinY(b) + kResizeBand, top = point.y >= NSMaxY(b) - kResizeBand;
+    if(left || right) {
+        if(point.y < NSMinY(b) + kResizeCorner) bottom = YES;
+        if(point.y >= NSMaxY(b) - kResizeCorner) top = YES;
+    }
+    if(top || bottom) {
+        if(point.x < NSMinX(b) + kResizeCorner) left = YES;
+        if(point.x >= NSMaxX(b) - kResizeCorner) right = YES;
+    }
+    if(left) position |= NSCursorFrameResizePositionLeft;
+    if(right) position |= NSCursorFrameResizePositionRight;
+    if(bottom) position |= NSCursorFrameResizePositionBottom;
+    if(top) position |= NSCursorFrameResizePositionTop;
+    return position;
+}
+
+-(void)resetCursorRects {
+    [super resetCursorRects];
+    if([self _resizePositionAtPoint:NSMakePoint(NSMidX([self bounds]), NSMinY([self bounds]))] == 0)
+        return;
+    NSRect b = [self bounds];
+    CGFloat w = NSWidth(b), h = NSHeight(b);
+    struct { NSRect r; NSCursorFrameResizePosition p; } bands[] = {
+        { NSMakeRect(kResizeCorner, 0, w - 2 * kResizeCorner, kResizeBand), NSCursorFrameResizePositionBottom },
+        { NSMakeRect(kResizeCorner, h - kResizeBand, w - 2 * kResizeCorner, kResizeBand), NSCursorFrameResizePositionTop },
+        { NSMakeRect(0, kResizeCorner, kResizeBand, h - 2 * kResizeCorner), NSCursorFrameResizePositionLeft },
+        { NSMakeRect(w - kResizeBand, kResizeCorner, kResizeBand, h - 2 * kResizeCorner), NSCursorFrameResizePositionRight },
+        { NSMakeRect(0, 0, kResizeCorner, kResizeCorner), NSCursorFrameResizePositionBottomLeft },
+        { NSMakeRect(w - kResizeCorner, 0, kResizeCorner, kResizeCorner), NSCursorFrameResizePositionBottomRight },
+        { NSMakeRect(0, h - kResizeCorner, kResizeCorner, kResizeCorner), NSCursorFrameResizePositionTopLeft },
+        { NSMakeRect(w - kResizeCorner, h - kResizeCorner, kResizeCorner, kResizeCorner), NSCursorFrameResizePositionTopRight },
+    };
+    /* The corners' rects are only their bands, not their insides. */
+    for(unsigned i = 0; i < sizeof(bands) / sizeof(bands[0]); i++) {
+        NSRect r = bands[i].r;
+        if(i >= 4) {
+            NSRect horizontal = NSMakeRect(NSMinX(r), (bands[i].p & NSCursorFrameResizePositionBottom) ? 0 : h - kResizeBand,
+                                           kResizeCorner, kResizeBand);
+            NSRect vertical = NSMakeRect((bands[i].p & NSCursorFrameResizePositionLeft) ? 0 : w - kResizeBand, NSMinY(r),
+                                         kResizeBand, kResizeCorner);
+            NSCursor *c = [NSCursor frameResizeCursorFromPosition:bands[i].p inDirections:NSCursorFrameResizeDirectionsAll];
+            [self addCursorRect:horizontal cursor:c];
+            [self addCursorRect:vertical cursor:c];
+            continue;
+        }
+        [self addCursorRect:r cursor:[NSCursor frameResizeCursorFromPosition:bands[i].p inDirections:NSCursorFrameResizeDirectionsAll]];
+    }
+}
+
+/* Dragging an edge or a corner: the frame follows the pointer on the
+   screen, within the window's minimum and maximum sizes, the opposite
+   edges kept in place. */
+-(void)_resizeFrom:(NSCursorFrameResizePosition)position withEvent:(NSEvent *)event {
+    NSWindow *window = [self window];
+    NSRect    start = [window frame];
+    NSPoint   origin = [NSEvent mouseLocation];
+    NSSize    minSize = [window minSize], maxSize = [window maxSize];
+
+    if(minSize.width < 1) minSize.width = 1;
+    if(minSize.height < 1) minSize.height = 1;
+    if(maxSize.width <= 0) maxSize.width = CGFLOAT_MAX;
+    if(maxSize.height <= 0) maxSize.height = CGFLOAT_MAX;
+    [[NSCursor frameResizeCursorFromPosition:position inDirections:NSCursorFrameResizeDirectionsAll] push];
+    for(;;) {
+        NSEvent *next = [NSApp nextEventMatchingMask:NSLeftMouseDraggedMask | NSLeftMouseUpMask
+                                           untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+        /* Only where the pointer is now: the drags queued meanwhile are
+           passed over (each one would lay the window out again). */
+        while(next != nil && [next type] == NSLeftMouseDragged) {
+            NSEvent *later = [NSApp nextEventMatchingMask:NSLeftMouseDraggedMask | NSLeftMouseUpMask
+                                                untilDate:[NSDate distantPast] inMode:NSEventTrackingRunLoopMode dequeue:YES];
+            if(later == nil)
+                break;
+            next = later;
+        }
+        NSPoint at = [NSEvent mouseLocation];
+        CGFloat dx = at.x - origin.x, dy = at.y - origin.y;
+        NSRect  frame = start;
+
+        if(position & NSCursorFrameResizePositionRight)
+            frame.size.width = MIN(MAX(start.size.width + dx, minSize.width), maxSize.width);
+        if(position & NSCursorFrameResizePositionLeft) {
+            frame.size.width = MIN(MAX(start.size.width - dx, minSize.width), maxSize.width);
+            frame.origin.x = NSMaxX(start) - frame.size.width;
+        }
+        if(position & NSCursorFrameResizePositionTop)
+            frame.size.height = MIN(MAX(start.size.height + dy, minSize.height), maxSize.height);
+        if(position & NSCursorFrameResizePositionBottom) {
+            frame.size.height = MIN(MAX(start.size.height - dy, minSize.height), maxSize.height);
+            frame.origin.y = NSMaxY(start) - frame.size.height;
+        }
+        if(!NSEqualRects(frame, [window frame]))
+            [window setFrame:frame display:YES];
+        if(next == nil || [next type] == NSLeftMouseUp)
+            break;
+    }
+    [NSCursor pop];
+    [window invalidateCursorRectsForView:self];
+}
+
 -(NSView *)hitTest:(NSPoint)point {
     /* The controls are drawn again when the one under the pointer changes. */
     if([self _controlAtPoint:point] != [self _controlAtPoint:pointer])
         [self setNeedsDisplayInRect:NSInsetRect(controls, -2, -2)];
     pointer = point;
+    /* The edges and corners are the frame's, over the content. */
+    if([self _resizePositionAtPoint:[self convertPoint:point fromView:[self superview]]] != 0)
+        return self;
     return [super hitTest:point];
 }
 
@@ -585,6 +708,12 @@ static char titleBarActionKey;
     CGNativeBorderFrameWidthsForStyle([[self window] styleMask], &top, &left, &bottom, &right);
     NSPoint pos = [event locationInWindow];
     NSUInteger mask = [[self window] styleMask];
+    NSCursorFrameResizePosition edge = [self _resizePositionAtPoint:[self convertPoint:pos fromView:nil]];
+
+    if(edge != 0) {
+        [self _resizeFrom:edge withEvent:event];
+        return;
+    }
 
     [self _layoutControls];
     if(NSPointInRect(pos, controls) && ![[self window] _hidesWindowControls]) {
