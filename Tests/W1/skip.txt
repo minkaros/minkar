@@ -1,2 +1,20 @@
 # Tests that fail on Minkar for a known reason, one a line: the test's
 # name as the runner's failed list gives it (suite/file.js.mode), then why.
+# Tests that need more than the 4 GiB a test is given (JSCTEST_memoryLimit,
+# check-host.sh): they make huge strings, arrays or typed arrays on purpose.
+stress/array-from-cloned-arguments-large-length.js needs more than 4 GiB
+stress/array-prototype-flat-reentrant-mutation.js needs more than 4 GiB
+stress/atob-btoa-oom-check.js needs more than 4 GiB
+stress/btoa-string-overflow.js needs more than 4 GiB
+stress/describe-huge-strings.js needs more than 4 GiB
+stress/json-stringified-overflow-2.js needs more than 4 GiB
+stress/large-string-should-not-crash-error-creation.js needs more than 4 GiB
+stress/large-unshift-splice.js needs more than 4 GiB
+stress/operationSwitchCharWithUnknownKeyType-should-avoid-resolving-rope-strings2.js needs more than 4 GiB
+stress/out-of-memory-while-creating-undefined-variable-error.js needs more than 4 GiB
+stress/string-overflow-createError.js needs more than 4 GiB
+stress/string-overflow-createError-builder.js needs more than 4 GiB
+stress/string-overflow-createError-fit.js needs more than 4 GiB
+stress/typed-array-large-slice.js needs more than 4 GiB
+stress/typed-array-set.js needs more than 4 GiB
+stress/unshiftCountSlowCase-correct-postCapacity.js needs more than 4 GiB

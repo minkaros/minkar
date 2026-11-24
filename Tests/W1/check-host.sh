@@ -50,24 +50,66 @@ printf '{ "remotes": [ { "name": "w1", "address": "%s@%s:%s", "remoteDirectory":
     "$user" "$addr" "$port" "$remote" "$idfile" > "$out/remote.json"
 on_host() { ssh ${key:+-i "$key"} -p "$port" "$user@$addr" "$@"; }
 
+# What the runner hands each test on the host: it exports these even when
+# they are not set, and jsc then warns that the empty values are malformed
+# (its output no longer matched ChakraCore's baselines). Seconds, as
+# WebKit's bots give them (the runner scales the timeout by the number of
+# processes); a test's memory up to 4 GiB: without a limit the tests of
+# huge strings and arrays, several at once, took all of PC 1's memory and
+# the machine went down (skip.txt lists those that need more).
+export JSCTEST_timeout=${JSCTEST_timeout:-300}
+export JSCTEST_hardTimeout=${JSCTEST_hardTimeout:-1200}
+export JSCTEST_memoryLimit=${JSCTEST_memoryLimit:-4294967296}
+
+# A suite whose list names paths this tree does not have (wasm.yaml takes
+# JetStream2 from PerformanceTests, which the fetched tree leaves out): it
+# runs from a copy of its directory made of links, its list without them,
+# under the same name (the tests keep their names, and skip.txt its
+# entries). What is left out is said in the gate's output.
+suite_file() {
+	yaml=$webkit/JSTests/$1
+	case $1 in *.yaml) ;; *) echo "JSTests/$1"; return ;; esac
+	ydir=$(dirname "$yaml")
+	missing=$(sed -n 's/^- path: *//p' "$yaml" | while read -r p; do [ -e "$ydir/$p" ] || echo "$p"; done)
+	if [ -z "$missing" ]; then
+		echo "JSTests/$1"
+		return
+	fi
+	copy=$out/.tree/$(dirname "$1")
+	rm -rf "$copy" && mkdir -p "$copy"
+	for e in "$ydir"/* "$ydir"/.[!.]*; do
+		[ -e "$e" ] && ln -s "$e" "$copy/$(basename "$e")"
+	done
+	rm -f "$copy/$(basename "$yaml")"
+	echo "$missing" | awk 'NR == FNR { gone[$0] = 1; next }
+	    /^- path:/ { p = $0; sub(/^- path: */, "", p); skip = (p in gone) }
+	    !skip' - "$yaml" > "$copy/$(basename "$yaml")"
+	echo "$missing" | sed "s|^|w1: $(basename "$1" .yaml): left out (not in the tree): |" >&2
+	echo "$copy/$(basename "$yaml")"
+}
+
 status=0
 for suite in $suites; do
 	name=$(basename "$suite" .yaml)
 	dir=$out/$name
 	on_host "rm -rf $remote && mkdir -p $remote" || { echo "w1-check: cannot reach $host"; exit 1; }
 	start=$(date +%s)
+	file=$(suite_file "$suite")
 	(cd "$webkit" && ruby Tools/Scripts/run-jsc-stress-tests --jsc "$jsc" --os darwin --arch x86_64 \
 	    --remote-config-file "$out/remote.json" --shell-runner --release --quick \
-	    -o "$dir" "JSTests/$suite") > "$out/$name.log" 2>&1
+	    -o "$dir" "$file") > "$out/$name.log" 2>&1
 	on_host "rm -rf $remote"
 	passed=$(grep -c . "$dir/passed" 2>/dev/null) || passed=0
 	failed=$(grep -c . "$dir/failed" 2>/dev/null) || failed=0
 	noresult=$(grep -c . "$dir/noresult" 2>/dev/null) || noresult=0
-	# Failures skip.txt explains (its first word is the test's name).
+	# Failures skip.txt explains: its first word is the test's name, with
+	# its mode (suite/file.js.mode) or without (every mode of the file).
 	unexplained=0
 	if [ "$failed" -gt 0 ]; then
-		unexplained=$(cut -d' ' -f1 "$here/skip.txt" 2>/dev/null | grep -v '^#' |
-		    grep -vxF -f - "$dir/failed" | grep -c .) || unexplained=0
+		unexplained=$(grep -v '^#' "$here/skip.txt" 2>/dev/null | cut -d' ' -f1 |
+		    awk 'NR == FNR { if ($0 != "") known[$0] = 1; next }
+		        { file = $0; sub(/\.js\..*$/, ".js", file) }
+		        !($0 in known) && !(file in known)' - "$dir/failed" | grep -c .) || unexplained=0
 	fi
 	secs=$(($(date +%s) - start))
 	if [ "$passed" -eq 0 ] || [ "$unexplained" -gt 0 ] || [ "$noresult" -gt 0 ]; then
