@@ -58,7 +58,8 @@ static const CGFloat kGridWidth = 668;
        (/System/Library/Icons/<group>/<name>.png); others bring theirs. */
     NSString *system = [_bundle objectForInfoDictionaryKey:@"MinkarPrefPaneSystemIcon"];
     if ([system isKindOfClass:[NSString class]] && [system length] && [system rangeOfString:@".."].location == NSNotFound) {
-        NSString *path = [NSString stringWithFormat:@"/System/Library/Icons/%@.png", system];
+        extern NSString *_NSSystemIconPath(NSString *relative);
+        NSString *path = _NSSystemIconPath([system stringByAppendingPathExtension:@"png"]);
         NSImage *image = [[NSImage alloc] initWithContentsOfFile:path];
         if (image != nil)
             return image;
@@ -417,6 +418,11 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
     NSRect newFrame = [_window frameRectForContentRect:newContent];
     if (NSMinY(newFrame) < NSMinY(visible) + 80)
         newContent.origin.y += NSMinY(visible) + 80 - NSMinY(newFrame);
+    /* Nor past its top: the title bar always shows (on a small screen the
+       window may cover the Dock's room instead). */
+    newFrame = [_window frameRectForContentRect:newContent];
+    if (NSMaxY(newFrame) > NSMaxY(visible))
+        newContent.origin.y -= NSMaxY(newFrame) - NSMaxY(visible);
 
     [_content removeFromSuperview];
     _content = view;

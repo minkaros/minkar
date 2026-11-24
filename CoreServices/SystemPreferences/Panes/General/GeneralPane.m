@@ -34,7 +34,7 @@
 @interface GeneralPane : NSPreferencePane
 @end
 
-static const CGFloat kWidth = 668, kHeight = 560;
+static const CGFloat kWidth = 668, kHeight = 606;
 static const CGFloat kLabelWidth = 200, kLeft = 220;
 
 /* The accents in the reference's order, its AppleAccentColor values, and
@@ -206,6 +206,7 @@ static NSBox *separator(CGFloat y)
     NSArray<GeneralSwatch *> *_swatches;
     NSTextField *_accentName;
     NSPopUpButton *_highlight, *_sidebar, *_browser, *_recent;
+    NSPopUpButton *_appearanceTheme, *_iconTheme, *_cursorTheme;
     NSButton *_hideMenuBar, *_scrollAuto, *_scrollWhen, *_scrollAlways, *_pageNext, *_pageSpot;
     NSButton *_askKeep, *_closeWindows, *_smoothing;
     NSArray<NSString *> *_browsers;
@@ -279,7 +280,26 @@ static NSBox *separator(CGFloat y)
     [_sidebar setTarget:self];
     [_sidebar setAction:@selector(chooseSidebar:)];
     [view addSubview:_sidebar];
-    y -= 32;
+    y -= 34;
+
+    /* Icon and cursor themes (a trial): the themes put in Themes/Icons
+       and Themes/Cursors of /Library or ~/Library, or Atlas's own. */
+    [view addSubview:[self rowLabel:@"Themes:" y:y]];
+    NSArray *kinds = @[ @"Appearance", @"Icons", @"Cursors" ];
+    NSMutableArray *popups = [NSMutableArray array];
+    for (NSUInteger i = 0; i < [kinds count]; i++) {
+        NSPopUpButton *p = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(kLeft + i * 142, y - 4, 134, 26)
+                                                      pullsDown:NO];
+        [p setTarget:self];
+        [p setAction:@selector(chooseTheme:)];
+        [view addSubview:p];
+        [view addSubview:note([self text:kinds[i]], NSMakeRect(kLeft + i * 142 + 4, y - 22, 126, 16))];
+        [popups addObject:p];
+    }
+    _appearanceTheme = popups[0];
+    _iconTheme = popups[1];
+    _cursorTheme = popups[2];
+    y -= 54;
 
     _hideMenuBar = button([self text:@"Automatically hide and show the menu bar"], NSMakeRect(kLeft, y, 400, 22),
                           NSSwitchButton, self, @selector(hideMenuBarChanged:));
@@ -411,6 +431,7 @@ static NSBox *separator(CGFloat y)
     [_pageNext setState:spot ? NSOffState : NSOnState];
 
     [self reloadBrowsers];
+    [self reloadThemes];
 
     [_askKeep setState:[globalValue(@"NSCloseAlwaysConfirmsChanges") boolValue] ? NSOnState : NSOffState];
     id keeps = globalValue(@"NSQuitAlwaysKeepsWindows");
@@ -487,6 +508,45 @@ static NSBox *separator(CGFloat y)
     setGlobal(@"AppleHighlightColor", a->value == 4 ? nil : highlightString(a));
     syncGlobal();
     postDistributed(@"AppleColorPreferencesChangedNotification");
+}
+
+/* A theme popup: Atlas's own first, then the themes found; the chosen one
+   selected (one no longer there: Atlas's). */
+- (void)fillThemes:(NSPopUpButton *)popup names:(NSArray *)names key:(NSString *)key
+{
+    NSString *chosen = globalValue(key);
+
+    [popup removeAllItems];
+    [popup addItemWithTitle:[self text:@"Atlas (standard)"]];
+    [[popup lastItem] setRepresentedObject:@""];
+    for (NSString *name in names) {
+        [popup addItemWithTitle:name];
+        [[popup lastItem] setRepresentedObject:name];
+    }
+    NSInteger index = [chosen isKindOfClass:[NSString class]] ? [popup indexOfItemWithRepresentedObject:chosen] : -1;
+    [popup selectItemAtIndex:index > 0 ? index : 0];
+}
+
+- (void)reloadThemes
+{
+    extern NSArray *_NSIconThemeNames(void);
+    extern NSArray *_NSCursorThemeNames(void);
+    extern NSArray *_NSAppearanceThemeNames(void);
+
+    [self fillThemes:_appearanceTheme names:_NSAppearanceThemeNames() key:@"MinkarAppearanceTheme"];
+    [self fillThemes:_iconTheme names:_NSIconThemeNames() key:@"MinkarIconTheme"];
+    [self fillThemes:_cursorTheme names:_NSCursorThemeNames() key:@"MinkarCursorTheme"];
+}
+
+- (void)chooseTheme:(NSPopUpButton *)sender
+{
+    NSString *key = sender == _appearanceTheme ? @"MinkarAppearanceTheme"
+                  : sender == _iconTheme ? @"MinkarIconTheme" : @"MinkarCursorTheme";
+    NSString *name = [[sender selectedItem] representedObject];
+
+    setGlobal(key, [name length] ? name : nil);
+    syncGlobal();
+    postDistributed(@"org.minkar.ThemesChanged");
 }
 
 - (void)chooseSidebar:(id)sender

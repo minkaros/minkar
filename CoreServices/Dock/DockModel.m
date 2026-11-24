@@ -27,8 +27,10 @@ static NSString *const kRecentApps = @"recent-apps";
 static const NSUInteger kMaxRecentApps = 3;
 
 /* Atlas's icons (SystemLibrary/Icons). */
-static NSString *const kTrashEmptyIconPath = @"/System/Library/Icons/system/user-trash.png";
-static NSString *const kTrashFullIconPath = @"/System/Library/Icons/system/user-trash-full.png";
+/* The Trash's icons, the system's or the icon theme's. */
+extern NSString *_NSSystemIconPath(NSString *relative);
+#define kTrashEmptyIconPath _NSSystemIconPath(@"system/user-trash.png")
+#define kTrashFullIconPath _NSSystemIconPath(@"system/user-trash-full.png")
 
 @interface DockTile ()
 @property (nonatomic, strong) NSImage *icon;
@@ -444,6 +446,9 @@ static BOOL badgeAllowed(NSRunningApplication *app)
                                        NSWorkspaceDidTerminateApplicationNotification,
                                        NSWorkspaceDidActivateApplicationNotification ])
         [center addObserver:self selector:@selector(applicationsChanged:) name:name object:nil];
+    /* An icon theme chosen: the Trash's icon from it. */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themesChanged:)
+                                                 name:@"_NSSystemThemesChangedNotification" object:nil];
     _recent = [NSMutableArray array];
     for (NSURL *url in DockPersistentAppURLs([defaults arrayForKey:kRecentApps] ?: @[]))
         if ([[NSFileManager defaultManager] fileExistsAtPath:[url path]] && [_recent count] < kMaxRecentApps)
@@ -478,6 +483,12 @@ static BOOL badgeAllowed(NSRunningApplication *app)
 }
 
 /* The folder's changes, from the kernel (no polling). */
+- (void)themesChanged:(NSNotification *)note
+{
+    _trashIsFull = !_trashIsFull;   /* so that the icon is loaded again */
+    [self updateTrashIcon];
+}
+
 - (void)watchTrash
 {
     NSString *path = [DockTrashURL() path];

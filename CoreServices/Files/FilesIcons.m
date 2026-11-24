@@ -18,11 +18,20 @@ static NSImage *drawnIcon(void (^draw)(NSRect bounds))
     return image;
 }
 
-/* An icon of Atlas's set, loaded once. */
+extern NSString *_NSSystemIconPath(NSString *relative);
+
+/* An icon of Atlas's set (or of the icon theme chosen), loaded once; all
+   again when a theme is chosen. */
+static NSMutableDictionary<NSString *, NSImage *> *cache;
+
+void FilesForgetSystemIcons(void)
+{
+    [cache removeAllObjects];
+}
+
 static NSImage *systemIcon(NSString *group, NSString *name)
 {
-    static NSMutableDictionary<NSString *, NSImage *> *cache;
-    NSString *path = [NSString stringWithFormat:@"/System/Library/Icons/%@/%@.png", group, name];
+    NSString *path = _NSSystemIconPath([NSString stringWithFormat:@"%@/%@.png", group, name]);
     NSImage *icon;
 
     if (cache == nil)

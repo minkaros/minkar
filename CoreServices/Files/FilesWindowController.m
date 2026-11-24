@@ -71,6 +71,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
     _back = [NSMutableArray array];
     _forward = [NSMutableArray array];
 
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themesChanged:)
+                                                 name:@"_NSSystemThemesChangedNotification" object:nil];
     _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(160, 140, 860, 552)
         styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable |
                   NSWindowStyleMaskResizable | NSWindowStyleMaskFullSizeContentView
@@ -273,6 +275,12 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         FSEventStreamRelease(_watch);
         _watch = NULL;
     }
+}
+
+/* An icon theme chosen: the folder's items with their new icons. */
+- (void)themesChanged:(NSNotification *)note
+{
+    [self folderChanged];
 }
 
 - (void)folderChanged

@@ -30,13 +30,17 @@ static BOOL isVolume(NSURL *url)
     return [[[url URLByDeletingLastPathComponent] path] isEqualToString:@"/Volumes"];
 }
 
-/* A volume's icon: a disk (the system's device icons). */
+extern NSString *_NSSystemIconPath(NSString *relative);
+extern void FilesForgetSystemIcons(void);
+
+/* A volume's icon: a disk (the system's device icons, or the theme's). */
+static NSImage *volumeIconCache;
+
 static NSImage *volumeIcon(void)
 {
-    static NSImage *icon;
-    if (icon == nil)
-        icon = [[NSImage alloc] initWithContentsOfFile:@"/System/Library/Icons/devices/drive-harddisk.png"];
-    return icon;
+    if (volumeIconCache == nil)
+        volumeIconCache = [[NSImage alloc] initWithContentsOfFile:_NSSystemIconPath(@"devices/drive-harddisk.png")];
+    return volumeIconCache;
 }
 
 /* ---- The view ---- */
@@ -417,6 +421,9 @@ static dev_t deviceOf(NSURL *url)
         [ws addObserver:self selector:@selector(volumesChanged:) name:name object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screensChanged:)
                                                  name:NSApplicationDidChangeScreenParametersNotification object:nil];
+    /* An icon theme chosen: the icons made again. */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themesChanged:)
+                                                 name:@"_NSSystemThemesChangedNotification" object:nil];
     [self watchDesktopFolder];
     [self reload];
 }
@@ -455,6 +462,13 @@ static void desktopEvents(ConstFSEventStreamRef stream, void *info, size_t count
 
 /* Volumes first (the mounted ones under /Volumes, by name), then the
    desktop folder's items as Files lists them. */
+- (void)themesChanged:(NSNotification *)note
+{
+    volumeIconCache = nil;
+    FilesForgetSystemIcons();
+    [self reload];
+}
+
 - (void)reload
 {
     NSMutableArray<FilesItem *> *items = [NSMutableArray array];
