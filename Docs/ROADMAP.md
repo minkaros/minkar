@@ -128,7 +128,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 
 #### WebKit
 
-- [ ] W0 — its dependencies in `/usr/lib`: partial (21 of 23 pass their own tests).
+- [x] W0 — its dependencies in `/usr/lib`: all 23 pass their own tests on PC 1 (`bmake w0-check`, 24 Nov 2026), FreeType and WOFF2 by Minkar's own tests, as theirs need downloads (`8db248db40`). Open: in one run six pairs of files extracted on PC 1 shared their data; not seen again, being looked into.
 - [ ] W1 — JavaScriptCore with its JIT: the ES6 suite passes; the other suites left.
 - [x] W2 — WebCore and the processes on a Minkar WPE platform. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`

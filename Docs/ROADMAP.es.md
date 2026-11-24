@@ -131,7 +131,7 @@ apps 19 en verde (BC4).
 
 #### WebKit
 
-- [ ] W0 — Sus dependencias en `/usr/lib`: parcial (21 de 23 pasan sus propias pruebas).
+- [x] W0 — Sus dependencias en `/usr/lib`: las 23 pasan sus propias pruebas en PC 1 (`bmake w0-check`, 24 nov 2026); FreeType y WOFF2 con pruebas propias de Minkar, porque las suyas necesitan descargas (`8db248db40`). Abierto: en una ejecución seis parejas de ficheros extraídos en PC 1 compartían sus datos; no se ha vuelto a ver, se está investigando.
 - [ ] W1 — JavaScriptCore con su JIT: la batería ES6 pasa; faltan las demás.
 - [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
