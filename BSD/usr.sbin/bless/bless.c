@@ -39,13 +39,26 @@
  *
  * The firmware's boot device is the efi-boot-device NVRAM variable;
  * --getBoot reads it (and, without it, says the volume the system started
- * from). NVRAM variables can't be written on this system yet, so
- * --setBoot says so.
+ * from).
+ *
+ * --setBoot (with --mount, --device or --folder: a volume) makes that
+ * volume start: Minkar's loader and kernel cache, as the volume the system
+ * started from has them in its disk's EFI System Partition (or the loader
+ * --bootefi names), go into the EFI System Partition of the volume's disk
+ * (/EFI/BOOT/BOOTX64.EFI, the firmware's default path, and
+ * /Minkar/kernelcache), with /Minkar/org.minkar.boot.plist naming the
+ * volume (boot-uuid) and keeping the rest of the running system's boot
+ * settings. NVRAM variables can't be written on this system yet: the
+ * firmware starts the disk by its default path.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <DiskArbitration/DiskArbitration.h>
 #include <IOKit/IOKitLib.h>
+#include <IOKit/IOBSD.h>
+#include <IOKit/storage/IOMedia.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/attr.h>
 #include <sys/mount.h>
@@ -61,6 +74,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+
+extern char **environ;
 
 ssize_t fsgetpath(char *, size_t, fsid_t *, uint64_t);
 
@@ -343,12 +361,312 @@ get_boot(void)
 	return (0);
 }
 
-static int
-set_boot(void)
+#define	EFI_TYPE	"C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+
+/* A disk's slice that is an EFI System Partition: diskN -> diskNsM. */
+static bool
+esp_of(const char *whole, char *esp, size_t len)
 {
-	fprintf(stderr, "bless: can't set the firmware's boot device: NVRAM "
-	    "variables can't be written on this system yet\n");
-	return (3);
+	for (int n = 1; n <= 32; n++) {
+		char bsd[64];
+		io_service_t media;
+		CFTypeRef content;
+		bool found = false;
+
+		snprintf(bsd, sizeof(bsd), "%ss%d", whole, n);
+		media = IOServiceGetMatchingService(kIOMasterPortDefault,
+		    IOBSDNameMatching(kIOMasterPortDefault, 0, bsd));
+		if (media == IO_OBJECT_NULL)
+			continue;
+		content = IORegistryEntryCreateCFProperty(media, CFSTR(kIOMediaContentKey), NULL, 0);
+		if (content != NULL && CFGetTypeID(content) == CFStringGetTypeID() &&
+		    CFStringCompare(content, CFSTR(EFI_TYPE), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+			found = true;
+		if (content != NULL)
+			CFRelease(content);
+		IOObjectRelease(media);
+		if (found) {
+			strlcpy(esp, bsd, len);
+			return (true);
+		}
+	}
+	return (false);
+}
+
+/* diskNsM -> diskN */
+static void
+whole_of(const char *bsd, char *whole, size_t len)
+{
+	const char *s;
+
+	strlcpy(whole, bsd, len);
+	if ((s = strchr(bsd + 4, 's')) != NULL && (size_t)(s - bsd) < len)
+		whole[s - bsd] = '\0';
+}
+
+static int
+run(const char *const argv[])
+{
+	pid_t pid;
+	int status;
+
+	if (posix_spawn(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0)
+		return (-1);
+	while (waitpid(pid, &status, 0) < 0)
+		if (errno != EINTR)
+			return (-1);
+	return (WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+}
+
+/* Where an EFI System Partition is mounted: where it already is, or a new
+ * directory (*mounted says to unmount it after). */
+static bool
+mount_esp(const char *esp, char *dir, size_t len, bool *mounted)
+{
+	struct statfs *mnt;
+	char dev[80];
+	int n;
+
+	snprintf(dev, sizeof(dev), "/dev/%s", esp);
+	n = getmntinfo(&mnt, MNT_NOWAIT);
+	for (int i = 0; i < n; i++)
+		if (strcmp(mnt[i].f_mntfromname, dev) == 0) {
+			strlcpy(dir, mnt[i].f_mntonname, len);
+			*mounted = false;
+			return (true);
+		}
+	strlcpy(dir, "/tmp/bless.XXXXXX", len);
+	if (mkdtemp(dir) == NULL)
+		return (false);
+	{
+		const char *argv[] = { "/sbin/mount_msdos", dev, dir, NULL };
+
+		if (run(argv) != 0) {
+			rmdir(dir);
+			return (false);
+		}
+	}
+	*mounted = true;
+	return (true);
+}
+
+static void
+unmount_esp(const char *dir, bool mounted)
+{
+	if (!mounted)
+		return;
+	(void)unmount(dir, 0);
+	rmdir(dir);
+}
+
+static bool
+copy_file(const char *from, const char *to)
+{
+	char buf[65536], tmp[MAXPATHLEN];
+	ssize_t n;
+	int in, out;
+	bool ok = true;
+
+	if ((in = open(from, O_RDONLY)) < 0)
+		return (false);
+	snprintf(tmp, sizeof(tmp), "%s.new", to);
+	if ((out = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0) {
+		close(in);
+		return (false);
+	}
+	while ((n = read(in, buf, sizeof(buf))) > 0)
+		if (write(out, buf, (size_t)n) != n) {
+			ok = false;
+			break;
+		}
+	if (n < 0 || fsync(out) != 0)
+		ok = false;
+	close(in);
+	close(out);
+	if (!ok || rename(tmp, to) != 0) {
+		unlink(tmp);
+		return (false);
+	}
+	return (true);
+}
+
+static void
+make_dir(const char *root, const char *sub)
+{
+	char path[MAXPATHLEN];
+
+	snprintf(path, sizeof(path), "%s/%s", root, sub);
+	(void)mkdir(path, 0755);
+}
+
+/* A volume's UUID, as diskarbitrationd says it (the loader's boot-uuid). */
+static bool
+volume_uuid(const char *bsd, char *buf, size_t len)
+{
+	DASessionRef session = DASessionCreate(kCFAllocatorDefault);
+	DADiskRef disk;
+	CFDictionaryRef d;
+	CFUUIDRef uuid;
+	bool ok = false;
+
+	if (session == NULL)
+		return (false);
+	if ((disk = DADiskCreateFromBSDName(kCFAllocatorDefault, session, bsd)) != NULL) {
+		if ((d = DADiskCopyDescription(disk)) != NULL) {
+			uuid = CFDictionaryGetValue(d, kDADiskDescriptionVolumeUUIDKey);
+			if (uuid != NULL && CFGetTypeID(uuid) == CFUUIDGetTypeID()) {
+				CFStringRef s = CFUUIDCreateString(kCFAllocatorDefault, uuid);
+
+				ok = CFStringGetCString(s, buf, len, kCFStringEncodingUTF8);
+				CFRelease(s);
+			}
+			CFRelease(d);
+		}
+		CFRelease(disk);
+	}
+	CFRelease(session);
+	return (ok);
+}
+
+static int
+set_boot(const char *volume, const char *bootefi)
+{
+	struct statfs tsf, rsf;
+	char tbsd[64], twhole[64], tesp[64], rwhole[64], resp[64];
+	char tdir[MAXPATHLEN], rdir[MAXPATHLEN], from[MAXPATHLEN], to[MAXPATHLEN];
+	char uuid[64];
+	bool tmounted = false, rmounted = false, same;
+	CFMutableDictionaryRef plist = NULL;
+	int rc = 1;
+
+	if (volume == NULL)
+		volume = "/";
+	if (statfs(volume, &tsf) != 0)
+		err(1, "%s", volume);
+	if (strncmp(tsf.f_mntfromname, "/dev/disk", 9) != 0 || strcmp(tsf.f_fstypename, "hfs") != 0)
+		errx(1, "%s is not an HFS+ volume on a disk", volume);
+	strlcpy(tbsd, tsf.f_mntfromname + 5, sizeof(tbsd));
+	whole_of(tbsd, twhole, sizeof(twhole));
+	if (!esp_of(twhole, tesp, sizeof(tesp)))
+		errx(1, "%s has no EFI System Partition", twhole);
+	if (!volume_uuid(tbsd, uuid, sizeof(uuid)))
+		errx(1, "%s: no volume UUID", tbsd);
+	if (statfs("/", &rsf) != 0)
+		err(1, "/");
+	whole_of(rsf.f_mntfromname + 5, rwhole, sizeof(rwhole));
+	if (!esp_of(rwhole, resp, sizeof(resp)))
+		errx(1, "%s (the system's disk) has no EFI System Partition", rwhole);
+	same = strcmp(resp, tesp) == 0;
+
+	if (!mount_esp(tesp, tdir, sizeof(tdir), &tmounted))
+		errx(1, "Could not mount %s", tesp);
+	if (same)
+		strlcpy(rdir, tdir, sizeof(rdir));
+	else if (!mount_esp(resp, rdir, sizeof(rdir), &rmounted)) {
+		warnx("Could not mount %s", resp);
+		goto out;
+	}
+
+	make_dir(tdir, "EFI");
+	make_dir(tdir, "EFI/BOOT");
+	make_dir(tdir, "Minkar");
+	/* The loader, at the firmware's default path. */
+	if (bootefi != NULL)
+		strlcpy(from, bootefi, sizeof(from));
+	else
+		snprintf(from, sizeof(from), "%s/EFI/BOOT/BOOTX64.EFI", rdir);
+	snprintf(to, sizeof(to), "%s/EFI/BOOT/BOOTX64.EFI", tdir);
+	if (!same || bootefi != NULL) {
+		if (!copy_file(from, to)) {
+			warn("%s", from);
+			goto out;
+		}
+		snprintf(from, sizeof(from), "%s/Minkar/kernelcache", rdir);
+		snprintf(to, sizeof(to), "%s/Minkar/kernelcache", tdir);
+		if (!copy_file(from, to)) {
+			warn("%s", from);
+			goto out;
+		}
+	}
+	/* The boot settings: the running system's, the volume this one. */
+	snprintf(from, sizeof(from), "%s/Minkar/org.minkar.boot.plist", rdir);
+	{
+		CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)from, strlen(from), false);
+		CFReadStreamRef in = CFReadStreamCreateWithFile(NULL, url);
+		CFPropertyListRef old = NULL;
+
+		if (in != NULL && CFReadStreamOpen(in)) {
+			old = CFPropertyListCreateWithStream(NULL, in, 0, kCFPropertyListImmutable, NULL, NULL);
+			CFReadStreamClose(in);
+		}
+		if (in != NULL)
+			CFRelease(in);
+		CFRelease(url);
+		if (old != NULL && CFGetTypeID(old) == CFDictionaryGetTypeID())
+			plist = CFDictionaryCreateMutableCopy(NULL, 0, old);
+		else
+			plist = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks,
+			    &kCFTypeDictionaryValueCallBacks);
+		if (old != NULL)
+			CFRelease(old);
+	}
+	{
+		CFStringRef u = CFStringCreateWithCString(NULL, uuid, kCFStringEncodingUTF8);
+		CFDataRef data;
+
+		CFDictionarySetValue(plist, CFSTR("boot-uuid"), u);
+		CFDictionarySetValue(plist, CFSTR("boot-file"), CFSTR("\\Minkar\\kernelcache"));
+		CFRelease(u);
+		data = CFPropertyListCreateData(NULL, plist, kCFPropertyListXMLFormat_v1_0, 0, NULL);
+		snprintf(to, sizeof(to), "%s/Minkar/org.minkar.boot.plist", tdir);
+		{
+			int fd = open(to, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+			bool ok = fd >= 0 && data != NULL &&
+			    write(fd, CFDataGetBytePtr(data), (size_t)CFDataGetLength(data)) == CFDataGetLength(data) &&
+			    fsync(fd) == 0;
+
+			if (fd >= 0)
+				close(fd);
+			if (data != NULL)
+				CFRelease(data);
+			if (!ok) {
+				warn("%s", to);
+				goto out;
+			}
+		}
+	}
+	if (!quiet)
+		printf("%s (%s) starts from %s's EFI System Partition (%s)\n", volume, uuid, twhole, tesp);
+	if (verbose)
+		printf("NVRAM variables can't be written on this system yet: the firmware starts "
+		    "%s by its default path\n", twhole);
+	rc = 0;
+out:
+	if (plist != NULL)
+		CFRelease(plist);
+	if (!same)
+		unmount_esp(rdir, rmounted);
+	unmount_esp(tdir, tmounted);
+	return (rc);
+}
+
+/* Where a device ("disk2s2", "/dev/disk2s2") is mounted. */
+static const char *
+device_mount(const char *device)
+{
+	static char dir[MAXPATHLEN];
+	struct statfs *mnt;
+	char dev[80];
+	int n;
+
+	snprintf(dev, sizeof(dev), "%s%s", strncmp(device, "/dev/", 5) == 0 ? "" : "/dev/", device);
+	n = getmntinfo(&mnt, MNT_NOWAIT);
+	for (int i = 0; i < n; i++)
+		if (strcmp(mnt[i].f_mntfromname, dev) == 0) {
+			strlcpy(dir, mnt[i].f_mntonname, sizeof(dir));
+			return (dir);
+		}
+	errx(1, "%s is not mounted", device);
 }
 
 static void
@@ -357,7 +675,7 @@ usage(void)
 	fprintf(stderr,
 	    "Usage: bless [--info] [mountpoint]\n"
 	    "       bless --folder directory [--file file] [--setBoot]\n"
-	    "       bless --mount mountpoint | --device device --setBoot\n"
+	    "       bless --mount mountpoint | --device device --setBoot [--bootefi file]\n"
 	    "       bless --unbless directory\n"
 	    "       bless --getBoot\n");
 	exit(1);
@@ -367,7 +685,7 @@ int
 main(int argc, char *argv[])
 {
 	enum { O_INFO = 1, O_FOLDER, O_FILE, O_MOUNT, O_DEVICE, O_SETBOOT,
-	    O_GETBOOT, O_UNBLESS, O_VERBOSE, O_QUIET, O_IGNORED, O_IGNORED_ARG };
+	    O_GETBOOT, O_UNBLESS, O_VERBOSE, O_QUIET, O_IGNORED, O_IGNORED_ARG, O_BOOTEFI };
 	static const struct option longopts[] = {
 		{ "info",	optional_argument,	NULL, O_INFO },
 		{ "folder",	required_argument,	NULL, O_FOLDER },
@@ -382,11 +700,11 @@ main(int argc, char *argv[])
 		{ "nextonly",	no_argument,		NULL, O_IGNORED },
 		{ "legacy",	no_argument,		NULL, O_IGNORED },
 		{ "label",	required_argument,	NULL, O_IGNORED_ARG },
-		{ "bootefi",	optional_argument,	NULL, O_IGNORED_ARG },
+		{ "bootefi",	required_argument,	NULL, O_BOOTEFI },
 		{ NULL, 0, NULL, 0 }
 	};
 	const char *folder = NULL, *file = NULL, *unblessed = NULL;
-	const char *info_path = NULL;
+	const char *info_path = NULL, *volume = NULL, *bootefi = NULL;
 	bool do_info = false, setboot = false, getboot = false, target = false;
 	int ch, rc = 0;
 
@@ -403,8 +721,15 @@ main(int argc, char *argv[])
 			file = optarg;
 			break;
 		case O_MOUNT:
+			target = true;
+			volume = optarg;
+			break;
 		case O_DEVICE:
 			target = true;
+			volume = device_mount(optarg);
+			break;
+		case O_BOOTEFI:
+			bootefi = optarg;
 			break;
 		case O_SETBOOT:
 			setboot = true;
@@ -443,6 +768,6 @@ main(int argc, char *argv[])
 	else if (!target && !setboot)
 		usage();
 	if (rc == 0 && setboot)
-		rc = set_boot();
+		rc = set_boot(volume != NULL ? volume : folder, bootefi);
 	return (rc);
 }
