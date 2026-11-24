@@ -3769,12 +3769,16 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
         return ([self styleMask] & NSWindowStyleMaskTitled) && ([self styleMask] & NSWindowStyleMaskResizable) &&
             ![self isKindOfClass:[NSPanel class]];
     /* Window tabs: Show/Hide Tab Bar; the others need tabs, or windows
-       to merge. A window that cannot be a tab has none of them. */
+       to merge. A window that cannot be a tab has none of them: hidden,
+       as on the reference (Transmission's window disallows tabbing). */
     SEL action = [item action];
     if (action == @selector(toggleTabBar:) || action == @selector(selectNextTab:) || action == @selector(selectPreviousTab:) ||
         action == @selector(moveTabToNewWindow:) || action == @selector(mergeAllWindows:)) {
-        if ([self tabbingMode] == NSWindowTabbingModeDisallowed || [self isKindOfClass:[NSPanel class]] ||
-            !([self styleMask] & NSWindowStyleMaskTitled))
+        BOOL cannot = [self tabbingMode] == NSWindowTabbingModeDisallowed || [self isKindOfClass:[NSPanel class]] ||
+            !([self styleMask] & NSWindowStyleMaskTitled);
+        if ([item isKindOfClass:[NSMenuItem class]] && [(NSMenuItem *)item isHidden] != cannot)
+            [(NSMenuItem *)item setHidden:cannot];
+        if (cannot)
             return NO;
         if (action == @selector(toggleTabBar:)) {
             NSString *key = [[self tabGroup] isTabBarVisible] ? @"Hide Tab Bar" : @"Show Tab Bar";
