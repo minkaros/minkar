@@ -153,12 +153,31 @@ UInt32 _AudioDeviceCopyIDs(AudioDeviceID *ids, UInt32 capacity) {
     return n;
 }
 
+/* Whether a device plays through a display (HDMI, DisplayPort): a
+   graphics card's audio, which a display may not even have speakers for. */
+static Boolean isDisplayAudio(const Device *d) {
+    io_registry_entry_t parent;
+    UInt32 transport = kAudioDeviceTransportTypeUnknown;
+
+    if (IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
+        transport = (UInt32)numberProperty(parent, "IOAudioDeviceTransportType", 0);
+        IOObjectRelease(parent);
+    }
+    return transport == kAudioDeviceTransportTypeHDMI ||
+           transport == kAudioDeviceTransportTypeDisplayPort;
+}
+
+/* The default output: the first device that is not a display's (the
+   computer's own outputs), else the first device. */
 AudioDeviceID _AudioDeviceDefaultOutput(void) {
     AudioDeviceID id = kAudioObjectUnknown;
 
     pthread_mutex_lock(&devicesLock);
     findDevices();
-    if (deviceCount > 0)
+    for (UInt32 i = 0; i < deviceCount && id == kAudioObjectUnknown; i++)
+        if (!isDisplayAudio(&devices[i]))
+            id = devices[i].id;
+    if (id == kAudioObjectUnknown && deviceCount > 0)
         id = devices[0].id;
     pthread_mutex_unlock(&devicesLock);
     return id;

@@ -147,6 +147,7 @@ enum {
     kAudioDeviceTransportTypePCI = 'pci ',
     kAudioDeviceTransportTypeUSB = 'usb ',
     kAudioDeviceTransportTypeHDMI = 'hdmi',
+    kAudioDeviceTransportTypeDisplayPort = 'dprt',
 };
 
 
