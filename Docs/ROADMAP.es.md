@@ -132,7 +132,7 @@ apps 19 en verde (BC4).
 #### WebKit
 
 - [x] W0 — Sus dependencias en `/usr/lib`: las 23 pasan sus propias pruebas en PC 1 (`bmake w0-check`, 24 nov 2026); FreeType y WOFF2 con pruebas propias de Minkar, porque las suyas necesitan descargas (`8db248db40`). Abierto: en una ejecución seis parejas de ficheros extraídos en PC 1 compartían sus datos; no se ha vuelto a ver, se está investigando.
-- [ ] W1 — JavaScriptCore con su JIT: la batería ES6 pasa; faltan las demás.
+- [x] W1 — JavaScriptCore con su JIT: las doce suites de JSTests pasan en el PC 1 (`bmake w1-check`, 24 nov 2026: 28 133 pruebas; stress 20 141, mozilla-tests 2 247, microbenchmarks 1 597, wasm 1 450, modules 1 122, ChakraCore 877, es6 605, y las de perfiladores y fuzz). Quedan fuera: 16 pruebas de stress que necesitan más de los 4 GiB que recibe cada prueba (`Tests/W1/skip.txt`) y tres entradas de wasm cuyos ficheros no trae el árbol descargado (JetStream2, las pruebas de la plataforma web). `27a2277e77`
 - [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — El `WebView` antiguo. `86ed0b5d33`

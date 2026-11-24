@@ -129,7 +129,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 #### WebKit
 
 - [x] W0 — its dependencies in `/usr/lib`: all 23 pass their own tests on PC 1 (`bmake w0-check`, 24 Nov 2026), FreeType and WOFF2 by Minkar's own tests, as theirs need downloads (`8db248db40`). Open: in one run six pairs of files extracted on PC 1 shared their data; not seen again, being looked into.
-- [ ] W1 — JavaScriptCore with its JIT: the ES6 suite passes; the other suites left.
+- [x] W1 — JavaScriptCore with its JIT: all twelve JSTests suites pass on PC 1 (`bmake w1-check`, 24 Nov 2026: 28 133 tests; stress 20 141, mozilla-tests 2 247, microbenchmarks 1 597, wasm 1 450, modules 1 122, ChakraCore 877, es6 605, and the profiler and fuzz suites). Left out: 16 stress tests that need more than the 4 GiB a test is given (`Tests/W1/skip.txt`), and three wasm entries whose files the fetched tree does not have (JetStream2, the web platform tests). `27a2277e77`
 - [x] W2 — WebCore and the processes on a Minkar WPE platform. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — The older `WebView`. `86ed0b5d33`
