@@ -86,7 +86,11 @@ private:
 
     bool scsiInquiry();
     bool scsiReadCapacity10();
+    UInt32 requestSense();
+    bool waitUntilReady();
     bool scsiReadWrite10(UInt64 block, UInt32 nblks, IOMemoryDescriptor *buffer,
+                         UInt64 bufOff, bool write);
+    bool scsiReadWrite10One(UInt64 block, UInt32 nblks, IOMemoryDescriptor *buffer,
                          UInt64 bufOff, bool write);
 };
 

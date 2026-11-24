@@ -282,6 +282,7 @@ bool MinkarXHCIPort::start(IOService *provider)
     fProvider->setBusMasterEnable(true);
 
     fCmdLock = IOLockAlloc();
+    fBOTLock = IOLockAlloc();
     if (!fCmdLock) {
         XHCI_Log("Failed to alloc command lock");
         return false;
@@ -455,6 +456,7 @@ void MinkarXHCIPort::free()
     if (fUSBBus) { fUSBBus->release(); fUSBBus = NULL; }
 
     if (fCmdLock) { IOLockFree(fCmdLock); fCmdLock = NULL; }
+    if (fBOTLock) { IOLockFree(fBOTLock); fBOTLock = NULL; }
     if (fEventLock) { IOLockFree(fEventLock); fEventLock = NULL; }
     if (fBARMap) { fBARMap->release(); fBARMap = NULL; }
     if (fBARDesc) { fBARDesc->release(); fBARDesc = NULL; }
@@ -2143,7 +2145,7 @@ bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, U
     if (!controlTransfer(slotId, getCfgFull, cfgBuf, totalLen, true)) { IOFree(cfgBuf, totalLen); return false; }
 
     bool foundMSC = false;
-    UInt8 bulkInEp = 0, bulkOutEp = 0;
+    UInt8 bulkInEp = 0, bulkOutEp = 0, mscInterface = 0;
     UInt16 bulkInMaxPkt = 0, bulkOutMaxPkt = 0;
 
     UInt32 off = 0;
@@ -2158,6 +2160,8 @@ bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, U
             inMSCInterface = (ifd->bInterfaceClass == USB_IF_CLASS_MASS_STORAGE &&
                               ifd->bInterfaceSubClass == USB_IF_SUBCLASS_SCSI &&
                               ifd->bInterfaceProtocol == USB_IF_PROTOCOL_BULK_ONLY);
+            if (inMSCInterface && !foundMSC)
+                mscInterface = ifd->bInterfaceNumber;
             if (inMSCInterface) foundMSC = true;
         } else if (type == 5 /* endpoint */ && len >= sizeof(USBEndpointDescriptor)) {
             USBEndpointDescriptor *epd = (USBEndpointDescriptor *)(cfgBuf + off);
@@ -2238,6 +2242,7 @@ bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, U
     m.bulkInEp = bulkInEp;
     m.bulkOutEp = bulkOutEp;
     m.bulkMaxPacket = bulkInMaxPkt;
+    m.interfaceNum = mscInterface;
 
     MinkarXHCIMassStorageDisk *disk = new MinkarXHCIMassStorageDisk;
     if (!disk) return false;
@@ -2284,6 +2289,56 @@ bool MinkarXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
     return true;
 }
 
+/* A bulk endpoint usable again after a failed transfer: the controller's
+ * side (Reset Endpoint when Halted, then the ring's dequeue pointer moved to
+ * where we enqueue next, which drops whatever TD was stranded) and the
+ * device's (CLEAR_FEATURE(ENDPOINT_HALT), which also resets its data
+ * toggle). */
+void MinkarXHCIPort::resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in)
+{
+    SlotResources &sr = fSlots[slotId];
+    UInt32 dci = in ? (epNum * 2 + 1) : (epNum * 2);
+    XHCIDeviceContext *dc = (XHCIDeviceContext *)sr.deviceCtxMem->getBytesNoCopy();
+    UInt32 state = dc->ep[dci - 1].dword0 & 0x7;
+    UInt8 rc = 0;
+
+    if (state == 2 /* Halted */)
+        doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_RESET_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
+    else if (state == 1 /* Running */)
+        doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_STOP_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
+    IOBufferMemoryDescriptor *ringMem = in ? sr.bulkInRingMem : sr.bulkOutRingMem;
+    UInt32 enqueue = in ? sr.bulkInEnqueue : sr.bulkOutEnqueue;
+    UInt8 cycle = in ? sr.bulkInCycle : sr.bulkOutCycle;
+    UInt64 deq = ringMem->getPhysicalAddress() + (UInt64)enqueue * sizeof(XHCITRB);
+    doCommand(deq | (cycle ? 1 : 0), 0,
+              TRB_SET_TYPE(TRB_TYPE_SET_TR_DEQUEUE) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
+    fXferDone[slotId][dci].pending = false;
+
+    USBSetupPacket setup;
+    setup.bmRequestType = 0x02;	/* standard, endpoint */
+    setup.bRequest = 1;		/* CLEAR_FEATURE */
+    setup.wValue = 0;		/* ENDPOINT_HALT */
+    setup.wIndex = (in ? 0x80 : 0) | epNum;
+    setup.wLength = 0;
+    controlTransfer(slotId, setup, NULL, 0, false);
+}
+
+/* The Bulk-Only Transport's Reset Recovery (its specification, 5.3.4):
+ * Bulk-Only Mass Storage Reset, then both bulk endpoints cleared. */
+void MinkarXHCIPort::botResetRecovery(MSCDevice &m)
+{
+    USBSetupPacket setup;
+    setup.bmRequestType = 0x21;	/* class, interface */
+    setup.bRequest = 0xFF;		/* Bulk-Only Mass Storage Reset */
+    setup.wValue = 0;
+    setup.wIndex = m.interfaceNum;
+    setup.wLength = 0;
+    controlTransfer(m.slotId, setup, NULL, 0, false);
+    resetBulkEndpoint(m.slotId, m.bulkInEp, true);
+    resetBulkEndpoint(m.slotId, m.bulkOutEp, false);
+    XHCI_Log("usb storage slot %u: reset recovery", m.slotId);
+}
+
 IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
                                     const void *cbwCB, UInt8 cbwLen,
                                     UInt32 dataLen, bool dataIn,
@@ -2292,7 +2347,26 @@ IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
     int idx = -1;
     for (int i = 0; i < 16; i++) if (fMSC[i].valid && fMSC[i].slotId == slotId) { idx = i; break; }
     if (idx < 0) return kIOReturnNoDevice;
-    MSCDevice &m = fMSC[idx];
+    /* One command at a time: the transport's three phases (CBW, data,
+     * CSW) of two commands interleaved made the device stall (as launchd
+     * started reading from several threads). */
+    IOLockLock(fBOTLock);
+    IOReturn result = botTransferLocked(fMSC[idx], cbwCB, cbwLen, dataLen, dataIn, buffer, bufOff);
+    /* A command the device failed (CHECK CONDITION) is an answer: its
+       sense data say why, and a reset would clear them. Only the
+       transport's failures (a stall, a timeout, a phase error) reset. */
+    if (result != kIOReturnSuccess && result != kIOReturnNoMemory && result != kIOReturnDeviceError)
+        botResetRecovery(fMSC[idx]);
+    IOLockUnlock(fBOTLock);
+    return result;
+}
+
+IOReturn MinkarXHCIPort::botTransferLocked(MSCDevice &m,
+                                    const void *cbwCB, UInt8 cbwLen,
+                                    UInt32 dataLen, bool dataIn,
+                                    IOMemoryDescriptor *buffer, UInt64 bufOff)
+{
+    UInt32 slotId = m.slotId;
 
     static UInt32 tag = 1;
     UInt64 mask = 0xFFFFFFFFFFFFFFFFULL;
@@ -2324,7 +2398,7 @@ IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
         xferMem->release();
     }
 
-    bool statusOk = false;
+    bool statusOk = false, commandFailed = false;
     if (ok) {
         IOBufferMemoryDescriptor *cswMem = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
             kernel_task, kIOMemoryPhysicallyContiguous | kIODirectionInOut, sizeof(USBBOTCommandStatusWrapper), mask);
@@ -2333,7 +2407,9 @@ IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
             if (bulkTransfer(slotId, m.bulkInEp, true, cswMem, sizeof(USBBOTCommandStatusWrapper), 2000)) {
                 USBBOTCommandStatusWrapper *csw = (USBBOTCommandStatusWrapper *)cswMem->getBytesNoCopy();
                 statusOk = (csw->dCSWSignature == BOT_CSW_SIGNATURE && csw->bCSWStatus == 0);
-                if (!statusOk)
+                if (csw->dCSWSignature == BOT_CSW_SIGNATURE && csw->bCSWStatus == 1)
+                    commandFailed = true;
+                else if (!statusOk)
                     XHCI_Log("BOT CSW sig=%08x tag=%08x status=%u", csw->dCSWSignature, csw->dCSWTag, csw->bCSWStatus);
             }
             cswMem->release();
@@ -2341,5 +2417,7 @@ IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
     }
 
     cbwMem->release();
+    if (commandFailed)
+        return kIOReturnDeviceError;	/* CHECK CONDITION: ask REQUEST SENSE why */
     return statusOk ? kIOReturnSuccess : kIOReturnIOError;
 }

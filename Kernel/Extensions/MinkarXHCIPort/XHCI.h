@@ -170,6 +170,7 @@ enum {
     TRB_TYPE_CONFIGURE_EP     = 12,
     TRB_TYPE_EVALUATE_CONTEXT = 13,
     TRB_TYPE_RESET_EP         = 14,
+    TRB_TYPE_STOP_EP          = 15,
     TRB_TYPE_SET_TR_DEQUEUE   = 16,
     TRB_TYPE_NOOP_CMD         = 23,
     TRB_TYPE_TRANSFER_EVENT   = 32,

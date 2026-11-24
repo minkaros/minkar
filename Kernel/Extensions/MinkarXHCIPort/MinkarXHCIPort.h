@@ -69,6 +69,7 @@ private:
         UInt8    bulkInEp;       /* endpoint number, 1-15 */
         UInt8    bulkOutEp;
         UInt16   bulkMaxPacket;
+        UInt8    interfaceNum;   /* the interface the class reset goes to */
         UInt64   capacityBlocks;
         UInt32   blockSize;
         char     vendor[9];
@@ -113,6 +114,7 @@ private:
     UInt32                fMaxPorts;
     UInt32                fContextSize; /* 32 or 64 bytes/context */
     IOLock              * fCmdLock;
+    IOLock              * fBOTLock;     /* one USB storage command at a time */
 
     /* MSI-driven event ring servicing. doCommand()/waitTransferEvent() still
      * poll serviceEventRing() + IOSleep(1) themselves either way (identical
@@ -310,6 +312,10 @@ private:
     void releaseInterruptEndpoint(InterruptInEndpoint &intr);
     void waitForEvent(UInt32 ms, volatile bool *done);
     void resetHaltedControlEndpoint(UInt32 slotId);
+    void resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in);
+    void botResetRecovery(MSCDevice &m);
+    IOReturn botTransferLocked(MSCDevice &m, const void *cbwCB, UInt8 cbwLen, UInt32 dataLen, bool dataIn,
+                               IOMemoryDescriptor *buffer, UInt64 bufOff);
     void resetHaltedInterruptEndpoint(InterruptInEndpoint &intr, UInt32 dci, UInt8 cc);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
     bool bulkEndpointConfigured(UInt32 slotId, bool in) const

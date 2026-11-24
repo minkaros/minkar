@@ -34,6 +34,8 @@
 OSDefineMetaClassAndStructors(MinkarXHCIMassStorageDisk, IOBlockStorageDevice);
 
 /* SCSI opcodes we need */
+#define SCSI_TEST_UNIT_READY  0x00
+#define SCSI_REQUEST_SENSE    0x03
 #define SCSI_INQUIRY          0x12
 #define SCSI_READ_CAPACITY10  0x25
 #define SCSI_READ10           0x28
@@ -63,7 +65,19 @@ MinkarXHCIMassStorageDisk::initWithPort(MinkarXHCIPort *parent, UInt32 mscIndex)
 
     if (!scsiInquiry())
         XHCI_Log("usbdisk%u: INQUIRY failed (continuing)", mscIndex);
-    if (!scsiReadCapacity10())
+    /* A card reader (and many sticks) first answers "not ready" or "the
+     * medium changed" (UNIT ATTENTION): its sense data are read, and it is
+     * asked again until the medium is ready, for up to ten seconds. */
+    waitUntilReady();
+    bool capacity = false;
+    for (int i = 0; i < 5 && !capacity; i++) {
+        capacity = scsiReadCapacity10();
+        if (!capacity) {
+            requestSense();
+            IOSleep(200);
+        }
+    }
+    if (!capacity)
         XHCI_Log("usbdisk%u: READ CAPACITY(10) failed", mscIndex);
     MinkarSetStorageCharacteristics(this, fVendorStr, fProductStr, fRevisionStr,
         NULL, kIOPropertyPhysicalInterconnectTypeUSB, false);
@@ -90,6 +104,46 @@ MinkarXHCIMassStorageDisk::free()
 {
     fParent = NULL;
     super::free();
+}
+
+/* REQUEST SENSE: why the last command failed (and, for UNIT ATTENTION,
+ * the condition cleared). Its sense key, ASC and ASCQ, as one number. */
+UInt32
+MinkarXHCIMassStorageDisk::requestSense()
+{
+    UInt8 cdb[6] = { SCSI_REQUEST_SENSE, 0, 0, 0, 18, 0 };
+    IOBufferMemoryDescriptor *buf = IOBufferMemoryDescriptor::inTaskWithOptions(
+        kernel_task, kIODirectionInOut, 18);
+    UInt32 sense = 0;
+
+    if (!buf) return 0;
+    bzero(buf->getBytesNoCopy(), 18);
+    if (fParent->botTransfer(fSlotId, cdb, sizeof(cdb), 18, true, buf, 0) == kIOReturnSuccess) {
+        const UInt8 *d = (const UInt8 *)buf->getBytesNoCopy();
+        sense = ((UInt32)(d[2] & 0xF) << 16) | ((UInt32)d[12] << 8) | d[13];
+    }
+    buf->release();
+    return sense;
+}
+
+bool
+MinkarXHCIMassStorageDisk::waitUntilReady()
+{
+    UInt8 cdb[6] = { SCSI_TEST_UNIT_READY, 0, 0, 0, 0, 0 };
+
+    for (int i = 0; i < 50; i++) {
+        if (fParent->botTransfer(fSlotId, cdb, sizeof(cdb), 0, false, NULL, 0) == kIOReturnSuccess) {
+            if (i > 0)
+                XHCI_Log("usbdisk%u: ready after %d tries", fMscIndex, i + 1);
+            return true;
+        }
+        UInt32 sense = requestSense();
+        if (i < 3 || (i % 10) == 0)
+            XHCI_Log("usbdisk%u: not ready, sense %x/%02x/%02x", fMscIndex,
+                     (unsigned)(sense >> 16), (unsigned)((sense >> 8) & 0xFF), (unsigned)(sense & 0xFF));
+        IOSleep(200);
+    }
+    return false;
 }
 
 bool
@@ -141,8 +195,28 @@ MinkarXHCIMassStorageDisk::scsiReadCapacity10()
     return ok;
 }
 
+/* Whole requests are cut into commands of at most 1 MB: the storage stack
+ * asks for many MB at once (a big file read ahead), and one command that
+ * long outlived the transfer's time limit and needed as big a bounce
+ * buffer, physically contiguous. */
 bool
 MinkarXHCIMassStorageDisk::scsiReadWrite10(UInt64 block, UInt32 nblks,
+                                          IOMemoryDescriptor *buffer, UInt64 bufOff, bool write)
+{
+    UInt32 most = fBlockSize ? (1024 * 1024) / fBlockSize : 2048;
+    if (most == 0) most = 1;
+    while (nblks > most) {
+        if (!scsiReadWrite10One(block, most, buffer, bufOff, write))
+            return false;
+        block += most;
+        bufOff += (UInt64)most * fBlockSize;
+        nblks -= most;
+    }
+    return scsiReadWrite10One(block, nblks, buffer, bufOff, write);
+}
+
+bool
+MinkarXHCIMassStorageDisk::scsiReadWrite10One(UInt64 block, UInt32 nblks,
                                           IOMemoryDescriptor *buffer, UInt64 bufOff, bool write)
 {
     if (!fParent) return false;
@@ -165,6 +239,8 @@ MinkarXHCIMassStorageDisk::scsiReadWrite10(UInt64 block, UInt32 nblks,
     for (int attempt = 0; attempt < 4; attempt++) {
         IOReturn ret = fParent->botTransfer(fSlotId, cdb, sizeof(cdb), dataLen, !write, buffer, bufOff);
         if (ret == kIOReturnSuccess) return true;
+        if (ret == kIOReturnDeviceError)
+            requestSense();
         XHCI_Log("usbdisk%u BOT %s block=%llu nblks=%u attempt %d failed, retrying",
                 fMscIndex, write ? "write" : "read", block, nblks, attempt);
     }
