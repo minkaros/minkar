@@ -322,6 +322,20 @@ static void readFace(O2Font_FT *self,NSString *name) {
    return self;
 }
 
+/* Minkar: the file the face was read from, for PDF to embed (a printer
+   without the font drew nothing): its bytes, or the file's when it holds
+   this face alone (a collection's faces are not taken apart). */
+-(NSData *)pdfFontFileData {
+   if(_data!=nil)
+    return _data;
+   if(_path==nil || _faceIndex!=0)
+    return nil;
+   NSData *file=[NSData dataWithContentsOfFile:_path options:NSDataReadingMappedIfSafe error:NULL];
+   if([file length]>=4 && memcmp([file bytes],"ttcf",4)==0)
+    return nil;
+   return file;
+}
+
 -(void)dealloc {
    if(_face!=NULL)
     FT_Done_Face(_face);
