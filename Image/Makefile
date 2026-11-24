@@ -185,6 +185,12 @@ image: ${LOADER}
 # INSTALLER_ROOT_AUTHORIZED_KEYS: root's ssh keys, for the installation
 # tests only.
 INSTALLER_IMAGE ?=	${ROOT_BINARY_DIR}/MinkarInstaller.img
+# Its messages on the screen (serial=3 moves the console to a serial port,
+# which a computer's screen then never shows).
+INSTALLER_BOOT_ARGS ?=	-v keepsyms=1 msgbuf=1048576 panic_summary=1
+# The display's own mode (from its EDID) for the medium, and so, as bless
+# keeps the medium's boot settings, for the system it installs.
+INSTALLER_GRAPHICS_MODE ?=	native
 .if !empty(INSTALLER_ROOT_AUTHORIZED_KEYS)
 INSTALLER_ARGS =	--root-authorized-keys ${INSTALLER_ROOT_AUTHORIZED_KEYS} --ssh-root-login
 .endif
@@ -198,8 +204,8 @@ installer-image: ${LOADER}
 	env -u ROOT_PASSWORD -u ROOT_AUTHORIZED_KEYS -u TEST_USER -u TEST_USER_PASSWORD \
 	    -u AUTO_LOGIN_USER ${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${INSTALLER_IMAGE} \
-	    --size-mb ${IMAGE_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${BOOT_ARGS}" \
-	    --installer-medium ${INSTALLER_ARGS}
+	    --size-mb ${IMAGE_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${INSTALLER_BOOT_ARGS}" \
+	    --graphics-mode ${INSTALLER_GRAPHICS_MODE} --installer-medium ${INSTALLER_ARGS}
 
 boottest-key:
 	test -f ${BOOTTEST_KEY} || { mkdir -p ${BOOTTEST_KEY:H} && \

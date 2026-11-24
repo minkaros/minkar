@@ -195,6 +195,11 @@ static NSString *networkState(void)
     [content addSubview:_continue];
     [self show:0];
     [_window center];
+    /* Always in the middle of the screen, whatever its mode: also when
+       the display changes after the window is shown (the display driver
+       moves from the firmware's mode to the display's own). */
+    [[NSNotificationCenter defaultCenter] addObserver:_window selector:@selector(center)
+        name:NSApplicationDidChangeScreenParametersNotification object:nil];
     [_window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
 }
