@@ -22,7 +22,7 @@ CFLAGS.cpu_copy_in_cksum_gen.o = -fno-builtin
 CFLAGS.cpu_in_cksum_gen.o = -fno-builtin
 CFLAGS.os_channel_event.o = -fno-builtin
 
-CFLAGS = \
+CFLAGS = -Os -fno-builtin \
 	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-implicit-int -Wno-implicit-function-declaration \
 	-Wno-int-conversion -Wno-incompatible-sysroot \
