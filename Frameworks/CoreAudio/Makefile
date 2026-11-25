@@ -10,7 +10,7 @@ MK_WERROR = no
 FRAMEWORK = CoreAudio
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = AudioHardware.c AudioDevices.c AudioDeviceIO.c AudioServerUser.c HostTime.c
+SRCS = AudioHardware.c AudioDevices.c AudioDeviceIO.c AudioAggregate.c AudioServerUser.c HostTime.c
 HEADERS = CoreAudio.h CoreAudioTypes.h AudioHardware.h HostTime.h AudioServerPlugIn.h
 SUBDIR =
 

@@ -14,6 +14,7 @@
 
 #include "AudioHardware.h"
 #include "AudioDevices.h"
+#include "AudioAggregate.h"
 #include "AudioServerTypes.h"
 #include "AudioServerUser.h"
 #include <mach/mach.h>
@@ -38,6 +39,7 @@ typedef struct IOProc {
     vm_size_t           areaSize;
     semaphore_t         wake, done;
     mach_port_t         client;     /* its death ends the session */
+    void               *aggregate;  /* an aggregate device's run (its sub-devices' IO) */
 } IOProc;
 
 static pthread_mutex_t procsLock = PTHREAD_MUTEX_INITIALIZER;
@@ -173,6 +175,21 @@ OSStatus AudioDeviceStart(AudioObjectID device, AudioDeviceIOProcID id) {
         pthread_mutex_unlock(&procsLock);
         return noErr;
     }
+    if (_AudioAggregateIs(device)) {
+        /* Its sub-devices' procedures run it: started outside the lock
+           (they take it themselves). */
+        AudioDeviceIOProc proc = p->proc;
+        void *clientData = p->clientData;
+        OSStatus status;
+        p->running = 1;
+        pthread_mutex_unlock(&procsLock);
+        void *run = _AudioAggregateStart(device, proc, clientData, &status);
+        pthread_mutex_lock(&procsLock);
+        p->aggregate = run;
+        p->running = run != NULL;
+        pthread_mutex_unlock(&procsLock);
+        return status;
+    }
     if (audioServer() == MACH_PORT_NULL || !_AudioDeviceGetUIDCString(device, uid, sizeof(uid))) {
         pthread_mutex_unlock(&procsLock);
         return kAudioHardwareNotRunningError;
@@ -215,6 +232,15 @@ static void stopProc(IOProc *p) {
 
     if (!p->running)
         return;
+    if (p->aggregate != NULL) {
+        void *run = p->aggregate;
+        p->aggregate = NULL;
+        p->running = 0;
+        pthread_mutex_unlock(&procsLock);
+        _AudioAggregateStop(run);
+        pthread_mutex_lock(&procsLock);
+        return;
+    }
     p->running = 0;
     /* The service lets the thread go (it signals wake as the session
        ends). */

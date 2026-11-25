@@ -11,6 +11,7 @@
  */
 
 #include "AudioDevices.h"
+#include "AudioAggregate.h"
 #include "AudioServerTypes.h"
 #include "AudioServerUser.h"
 #include <mach/mach.h>
@@ -217,7 +218,8 @@ UInt32 _AudioDeviceCopyIDs(AudioDeviceID *ids, UInt32 capacity) {
         ids[n] = devices[n].id;
     n = deviceCount;
     pthread_mutex_unlock(&devicesLock);
-    return n;
+    /* Then this process's aggregate devices. */
+    return n + _AudioAggregateCopyIDs(ids + (n < capacity ? n : capacity), n < capacity ? capacity - n : 0);
 }
 
 /* Whether a device plays through a display (HDMI, DisplayPort): a
@@ -277,6 +279,8 @@ AudioDeviceID _AudioDeviceWithUID(CFStringRef uid) {
     AudioDeviceID id = kAudioObjectUnknown;
 
     if (uid == NULL)
+        return id;
+    if ((id = _AudioAggregateWithUID(uid)) != kAudioObjectUnknown)
         return id;
     pthread_mutex_lock(&devicesLock);
     findDevices();
@@ -428,6 +432,8 @@ static UInt32 streamsIn(Device *d, AudioObjectPropertyScope scope, AudioStreamID
 Boolean _AudioDeviceExists(AudioObjectID id) {
     Boolean input;
 
+    if (_AudioAggregateIs(id))
+        return true;
     return deviceWithID(id) != NULL || streamOwner(id, &input) != NULL;
 }
 
@@ -508,6 +514,8 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
 
     if (a == NULL)
         return false;
+    if (d == NULL && _AudioAggregateIs(id))
+        return _AudioAggregateHasProperty(id, a);
     if (d == NULL)
         return streamOwner(id, &input) != NULL && streamHas(a->mSelector);
     switch (a->mSelector) {
@@ -550,6 +558,8 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
 }
 
 Boolean _AudioDeviceIsPropertySettable(AudioObjectID id, const AudioObjectPropertyAddress *a) {
+    if (_AudioAggregateIs(id))
+        return _AudioAggregateIsPropertySettable(id, a);
     switch (a->mSelector) {
     case kAudioDevicePropertyVolumeScalar:
     case kAudioDevicePropertyVolumeDecibels:
@@ -565,6 +575,8 @@ UInt32 _AudioDevicePropertySize(AudioObjectID id, const AudioObjectPropertyAddre
     Device *d = deviceWithID(id);
     Boolean input;
 
+    if (d == NULL && _AudioAggregateIs(id))
+        return _AudioAggregatePropertySize(id, a);
     if (d == NULL && streamOwner(id, &input) != NULL)
         return streamSize(a->mSelector);
     switch (a->mSelector) {
@@ -612,6 +624,8 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     Level l;
     Boolean input;
 
+    if (d == NULL && _AudioAggregateIs(id))
+        return _AudioAggregateGetProperty(id, a, ioSize, out);
     if (d == NULL) {
         Device *owner = streamOwner(id, &input);
         return owner != NULL ? streamGet(owner, input, a, ioSize, out) : kAudioHardwareBadObjectError;
@@ -780,6 +794,8 @@ OSStatus _AudioDeviceSetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     UInt32 n;
     Level l;
 
+    if (d == NULL && _AudioAggregateIs(id))
+        return _AudioAggregateSetProperty(id, a, size, data);
     if (d == NULL)
         return kAudioHardwareBadObjectError;
     if (!_AudioDeviceHasProperty(id, a) || !_AudioDeviceIsPropertySettable(id, a))

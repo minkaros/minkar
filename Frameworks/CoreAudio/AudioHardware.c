@@ -11,6 +11,7 @@
 
 #include "AudioHardware.h"
 #include "AudioDevices.h"
+#include "AudioAggregate.h"
 #include <Block.h>
 #include <dispatch/dispatch.h>
 #include <notify.h>
@@ -276,6 +277,35 @@ static void volumeChanged(void) {
             }
             if (l.address.mSelector != kAudioObjectPropertySelectorWildcard)
                 break;
+        }
+    }
+    pthread_mutex_unlock(&lock);
+}
+
+/* The device list changed (an aggregate made or destroyed): the system
+   object's listeners of it are told. */
+void _AudioHardwareDevicesChanged(void) {
+    pthread_mutex_lock(&lock);
+    for (size_t i = 0; i < listenerCount; i++) {
+        Listener l = listeners[i];
+        if (l.object != kAudioObjectSystemObject || !listensTo(&l, kAudioHardwarePropertyDevices))
+            continue;
+        AudioObjectPropertyAddress address = { kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal,
+                                               kAudioObjectPropertyElementMain };
+        if (l.block != NULL) {
+            AudioObjectPropertyListenerBlock block = (AudioObjectPropertyListenerBlock)_Block_copy(l.block);
+            dispatch_queue_t queue = l.queue != NULL ? (dispatch_queue_t)l.queue
+                                                     : dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+            dispatch_async(queue, ^{
+                block(1, &address);
+                _Block_release(block);
+            });
+        } else if (l.proc != NULL) {
+            AudioObjectPropertyListenerProc proc = l.proc;
+            void *clientData = l.clientData;
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                proc(kAudioObjectSystemObject, 1, &address, clientData);
+            });
         }
     }
     pthread_mutex_unlock(&lock);
