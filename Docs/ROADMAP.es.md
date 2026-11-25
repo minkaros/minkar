@@ -37,8 +37,8 @@ las apps designadas que necesitan uno mayor pasan el gate BC.
 
 | Minkar | Kernel | Qué la cierra |
 | --- | --- | --- |
-| 19.6.0 | Darwin 19.6.0 | Los gates M5 y M6 (con el audio AU1–AU10) y el conjunto de apps 19 en verde (BC4) |
-| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, las apps A5–A10; `ProductVersion` puede subir por conjuntos de apps |
+| 19.6.0 | Darwin 19.6.0 | Los gates M5 y M6 (con el audio AU1–AU6 y AU8–AU10) y el conjunto de apps 19 en verde (BC4) |
+| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, las apps A5–A10, el audio AU7; `ProductVersion` puede subir por conjuntos de apps |
 | 25.x | Darwin 25 | KX3: todos los gates pasan con el kernel nuevo |
 | Después | Su Darwin | Apps designadas, arm64, SwiftUI, rendimiento |
 
@@ -123,7 +123,7 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
 
 Gate M6, Minkar 19.6.0: instalado en una máquina física desde su propio medio USB; un DMG
 descargado, montado y su app ejecutada; Atlas completo para el uso diario (MB2–MB3,
-D2–D3, K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU10; el conjunto de
+D2–D3, K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU6 y AU8–AU10; el conjunto de
 apps 19 en verde (BC4).
 
 - [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
@@ -147,7 +147,7 @@ apps 19 en verde (BC4).
 Frameworks propios de Minkar sobre FFmpeg (LGPL) y dav1d; sin GTK, Qt ni GStreamer.
 
 - [x] AU1–AU6 — IOAudioFamily y HDA, el servicio de audio y CoreAudio, AudioToolbox, FFmpeg y dav1d, CoreMedia y AVFoundation, los medios de WebKit. `f39b73ee62`
-- [ ] AU7 — USB Audio Class 2.0.
+- [ ] AU7 — USB Audio Class 2.0. Pasa a 19.6.x (decisión del mantenedor, 25 nov 2026): no hay interfaz de audio USB con la que probarlo.
 - [x] AU8 — CoreMIDI, framework y servicio: midiserver y el lado cliente de CoreMIDI, extremos virtuales entre procesos, el driver IAC (prueba `coremidi`, 24 nov 2026). `22ade151db`
 - [x] AU9 — Alojar Audio Units, y Accelerate: bundles de componentes cargados, AUGraph, instrumentos musicales, AUConverter, GenericOutput y MultiChannelMixer; vDSP, vForce y las conversiones de vImage (prueba `au-hosting`, 24 nov 2026). `2f42b66c97`
 - [x] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia. Plug-ins del servidor de audio alojados por audiod (`33ad929fb2`, prueba `hal-plugin`), dispositivos agregados (`fa1561eee4`, prueba `aggregate-device`), taps de proceso (`e71a3fdb95`, prueba `process-tap`); la temporización de la salida medida con `tools/audio-timing.c` de las pruebas en PC 1, en QEMU y en la referencia (cifras fuera del repositorio): en PC 1 la variación del ciclo es de 0,014 ms y la deriva de 0,2 ppm; la salida va dos ciclos por delante, uno más que la referencia (25 nov 2026).
@@ -236,7 +236,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
 
 En paralelo, el carril BC: BC2, BC0 en la CI.
-Audio AU7–AU10 y la GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.
+La GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.
 
 ## Riesgos
 

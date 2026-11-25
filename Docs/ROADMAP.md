@@ -36,8 +36,8 @@ the designated apps that need a higher one pass gate BC.
 
 | Minkar | Kernel | What closes it |
 | --- | --- | --- |
-| 19.6.0 | Darwin 19.6.0 | Gates M5 and M6 (with audio AU1–AU10) and app set 19 green (BC4) |
-| 19.6.x | Darwin 19.6.0 | Fixes, MB4, D4, K4, apps A5–A10; `ProductVersion` may rise by app sets |
+| 19.6.0 | Darwin 19.6.0 | Gates M5 and M6 (with audio AU1–AU6 and AU8–AU10) and app set 19 green (BC4) |
+| 19.6.x | Darwin 19.6.0 | Fixes, MB4, D4, K4, apps A5–A10, audio AU7; `ProductVersion` may rise by app sets |
 | 25.x | Darwin 25 | KX3: every gate passes on the new kernel |
 | Later | Its Darwin | Designated apps, arm64, SwiftUI, performance |
 
@@ -120,7 +120,7 @@ and the resolution changes from System Preferences, in the Atlas visual language
 
 Gate M6, Minkar 19.6.0: installed on a physical machine from its own USB medium; a DMG
 downloaded, mounted and its app run; Atlas complete for daily use (MB2–MB3, D2–D3, K2–K3,
-A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 green (BC4).
+A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU6 and AU8–AU10; app set 19 green (BC4).
 
 - [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks attached by the kernel's `MinkarDiskImage`; `hdiutil convert` and `create`.
 - [x] HFS+ compression (decmpfs): read through `MinkarFSCompression` (zlib, LZVN, LZFSE), written by `ditto --hfsCompression` (LZFSE; test `hfs-compression`).
@@ -143,7 +143,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU10; app set 19 gree
 Minkar's own frameworks on FFmpeg (LGPL) and dav1d; no GTK, Qt or GStreamer.
 
 - [x] AU1–AU6 — IOAudioFamily and HDA, the audio service and CoreAudio, AudioToolbox, FFmpeg and dav1d, CoreMedia and AVFoundation, WebKit's media. `f39b73ee62`
-- [ ] AU7 — USB Audio Class 2.0.
+- [ ] AU7 — USB Audio Class 2.0. Moved to 19.6.x (the maintainer's choice, 25 Nov 2026): no USB audio interface to try it on.
 - [x] AU8 — CoreMIDI, framework and service: midiserver and CoreMIDI's client side, virtual endpoints between processes, the IAC Driver (test `coremidi`, 24 Nov 2026). `22ade151db`
 - [x] AU9 — Hosting Audio Units, and Accelerate: component bundles loaded, AUGraph, music devices, AUConverter, GenericOutput and MultiChannelMixer; vDSP, vForce and vImage's conversions (test `au-hosting`, 24 Nov 2026). `2f42b66c97`
 - [x] AU10 — Aggregate devices and device plug-ins; latency and drift measured against the reference. Audio server plug-ins hosted by audiod (`33ad929fb2`, test `hal-plugin`), aggregate devices (`fa1561eee4`, test `aggregate-device`), process taps (`e71a3fdb95`, test `process-tap`); the output's timing measured with the tests' `tools/audio-timing.c` on PC 1, in QEMU and on the reference (figures kept outside the repository): on PC 1 the cycle's jitter is 0.014 ms and the drift 0.2 ppm; the output runs two cycles ahead, one more than the reference (25 Nov 2026).
@@ -229,7 +229,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
 8. The visual language (the light appearance and the controls), once the maintainer decides.
 
 Lane BC alongside: BC2, BC0 in the
-CI. Audio AU7–AU10 and the GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
+CI. The GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
 
 ## Risks
 
