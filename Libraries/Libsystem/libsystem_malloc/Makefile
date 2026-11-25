@@ -10,7 +10,7 @@ SRCS = \
 
 SLF = /System/Library/Frameworks
 SYSPRIVHDR = System.framework/Versions/B/PrivateHeaders
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -w -momit-leaf-frame-pointer \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -Os -w -momit-leaf-frame-pointer \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE \
 	-DDISPATCH_USE_DTRACE=0 -DOSATOMIC_DEPRECATED=0 \
 	-DOSATOMIC_USE_INLINED=0 -DOS_UNFAIR_LOCK_INLINE=0 \
