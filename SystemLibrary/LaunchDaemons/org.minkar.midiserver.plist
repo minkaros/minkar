@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ midiserver, the MIDI server (AU8): the MIDI setup and its traffic
+ between processes, for CoreMIDI. Started when a process first asks.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.midiserver</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/midiserver</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.midiserver</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/midiserver.log</string>
+</dict>
+</plist>

@@ -2,9 +2,9 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# CoreMIDI.framework: MIDI clients, ports and endpoints, and packet lists.
-# Minkar has no MIDI server or devices yet: clients and ports work, there
-# are no sources or destinations, and what is sent goes nowhere.
+# CoreMIDI.framework (AU8): MIDI clients, ports, devices, entities and
+# endpoints, properties and notifications, and packet lists sent between
+# processes, through the MIDI server (CoreServices/midiserver).
 
 MK_WERROR = no
 FRAMEWORK = CoreMIDI

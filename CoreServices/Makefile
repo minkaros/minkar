@@ -27,6 +27,8 @@ SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 # The pasteboard server (Phase 4).
 SUBDIR += pboard pboard/tests
 SUBDIR += audiod
+# The MIDI server (AU8).
+SUBDIR += midiserver
 # The notification center's session service (Atlas.md, 5.6, N0).
 SUBDIR += notificationd
 SUBDIR += distnoted
