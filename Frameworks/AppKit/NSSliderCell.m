@@ -327,13 +327,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSGradient*)circularSliderBackgroundGradient
 {
-        static NSGradient* gradient = nil;
-        if (gradient == nil) {
-                gradient = [[NSGradient alloc] initWithColorsAndLocations: [NSColor whiteColor], 0,
-                                        [NSColor lightGrayColor], 0.5,
-                                        [NSColor whiteColor], 1, nil];
-        }
-        return gradient;
+        /* Atlas's greys, the dark appearance's in the dark (not kept: the
+           appearance may change). */
+        return [[[NSGradient alloc] initWithColorsAndLocations: _NSControlGray(1.0), 0,
+                                        _NSControlGray(0.82), 0.5,
+                                        _NSControlGray(1.0), 1, nil] autorelease];
 }
 
 - (NSGradient*)circularSliderForegroundGradient
@@ -381,7 +379,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         NSBezierPath* path = [NSBezierPath bezierPathWithOvalInRect: sliderRect];
 
         if ([self isEnabled]) {
-                [[NSColor whiteColor] set];
+                [_NSControlGray(1.0) set];
         } else {
                 [[NSColor controlColor] set];
         }

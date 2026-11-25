@@ -4,6 +4,7 @@
  * Part of Minkar.
  */
 
+#import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSVisualEffectView.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSImage.h>
@@ -74,22 +75,25 @@
 
 /* Each material's surface, translucent where Atlas draws it so. */
 -(NSColor *)_materialColor {
+   /* The light surfaces in the dark appearance: Atlas's greys for it,
+      keeping each material's translucency. */
+   BOOL dark=_NSSystemAppearanceIsDark();
    BOOL active=(_state==NSVisualEffectStateActive) || (_state==NSVisualEffectStateFollowsWindowActiveState && [[self window] isKeyWindow]);
 
    switch(_material){
     case NSVisualEffectMaterialSidebar:
-     return [NSColor colorWithGenericGamma22White:0.91 alpha:0.96];
+     return [NSColor colorWithGenericGamma22White:dark?0.18:0.91 alpha:0.96];
     case NSVisualEffectMaterialMenu:
-     return [NSColor colorWithGenericGamma22White:0.97 alpha:0.96];
+     return [NSColor colorWithGenericGamma22White:dark?0.16:0.97 alpha:0.96];
     case NSVisualEffectMaterialPopover:
-     return [NSColor colorWithGenericGamma22White:0.96 alpha:0.98];
+     return [NSColor colorWithGenericGamma22White:dark?0.20:0.96 alpha:0.98];
     case NSVisualEffectMaterialTitlebar:
     case NSVisualEffectMaterialHeaderView:
-     return [NSColor colorWithGenericGamma22White:active?0.91:0.95 alpha:1];
+     return [NSColor colorWithGenericGamma22White:dark?(active?0.22:0.19):(active?0.91:0.95) alpha:1];
     case NSVisualEffectMaterialSelection:
      return (_emphasized && active)?[NSColor selectedContentBackgroundColor]:[NSColor unemphasizedSelectedContentBackgroundColor];
     case NSVisualEffectMaterialToolTip:
-     return [NSColor colorWithGenericGamma22White:0.98 alpha:0.97];
+     return [NSColor colorWithGenericGamma22White:dark?0.22:0.98 alpha:0.97];
     case NSVisualEffectMaterialHUDWindow:
     case NSVisualEffectMaterialDark:
     case NSVisualEffectMaterialUltraDark:

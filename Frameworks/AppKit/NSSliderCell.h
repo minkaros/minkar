@@ -18,6 +18,8 @@ typedef enum {
 typedef enum {
     NSLinearSlider = 0,
     NSCircularSlider = 1,
+    NSSliderTypeLinear = NSLinearSlider,
+    NSSliderTypeCircular = NSCircularSlider,
 } NSSliderType;
 
 @interface NSSliderCell : NSActionCell {

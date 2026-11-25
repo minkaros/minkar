@@ -23,6 +23,7 @@
  */
 
 #import <objc/runtime.h>
+#import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSWindow-Private.h>
@@ -372,7 +373,7 @@ static const CGFloat kResizeBand = 5, kResizeCorner = 14;
     if([[self window] isSheet]) {
         [[[self window] backgroundColor] setFill];
         NSRectFill(rect);
-        [[NSColor colorWithGenericGamma22White:0.70 alpha:1] set];
+        [_NSControlGray(0.70) set];
         NSFrameRect([self bounds]);
         return;
     }

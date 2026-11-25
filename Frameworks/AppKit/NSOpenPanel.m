@@ -6,6 +6,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSOpenPanel.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSDisplay.h>
@@ -103,12 +104,12 @@ static const CGFloat kOpenRowHeight=20;
 
 -(void)drawRect:(NSRect)dirty {
    NSFont *font=[NSFont systemFontOfSize:12];
-   NSDictionary *plain=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor blackColor], NSForegroundColorAttributeName, nil];
-   NSDictionary *grey=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor colorWithGenericGamma22White:0.6 alpha:1], NSForegroundColorAttributeName, nil];
+   NSDictionary *plain=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor controlTextColor], NSForegroundColorAttributeName, nil];
+   NSDictionary *grey=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor disabledControlTextColor], NSForegroundColorAttributeName, nil];
    NSDictionary *white=[NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, [NSColor whiteColor], NSForegroundColorAttributeName, nil];
    BOOL key=[[self window] firstResponder]==self;
 
-   [[NSColor whiteColor] set];
+   [[NSColor controlBackgroundColor] set];
    NSRectFill(dirty);
    for(NSUInteger i=0;i<[_entries count];i++) {
       NSRect row=[self rectForRow:i];
@@ -117,7 +118,7 @@ static const CGFloat kOpenRowHeight=20;
       NSDictionary *entry=[_entries objectAtIndex:i];
       BOOL selected=[_selected containsIndex:i], enabled=[[entry objectForKey:@"enabled"] boolValue];
       if(selected) {
-         [(key ? [NSColor colorWithSRGBRed:0.25 green:0.50 blue:0.85 alpha:1] : [NSColor colorWithGenericGamma22White:0.84 alpha:1]) set];
+         [(key ? [NSColor selectedContentBackgroundColor] : [NSColor unemphasizedSelectedContentBackgroundColor]) set];
          NSRectFill(row);
       }
       NSImage *icon=[[NSWorkspace sharedWorkspace] iconForFile:[entry objectForKey:@"path"]];

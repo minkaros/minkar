@@ -153,7 +153,7 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
 -_labelColor {
    if([_tabView tabViewType]==NSTopTabsBezelBorder && [_tabView selectedTabViewItem]==self)
     return [NSColor whiteColor];
-   return [NSColor blackColor];
+   return [NSColor controlTextColor];
 }
 
 -(NSDictionary *)labelAttributes {

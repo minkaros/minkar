@@ -18,19 +18,31 @@ enum {
     NSYearMonthDatePickerElementFlag = 0x00c0,
     NSYearMonthDayDatePickerElementFlag = 0x00e0,
     NSEraDatePickerElementFlag = 0x0100,
+    /* The names since API 12 (10.12). */
+    NSDatePickerElementFlagHourMinute = NSHourMinuteDatePickerElementFlag,
+    NSDatePickerElementFlagHourMinuteSecond = NSHourMinuteSecondDatePickerElementFlag,
+    NSDatePickerElementFlagTimeZone = NSTimeZoneDatePickerElementFlag,
+    NSDatePickerElementFlagYearMonth = NSYearMonthDatePickerElementFlag,
+    NSDatePickerElementFlagYearMonthDay = NSYearMonthDayDatePickerElementFlag,
+    NSDatePickerElementFlagEra = NSEraDatePickerElementFlag,
 };
 typedef NSUInteger NSDatePickerElementFlags;
 
 enum {
     NSSingleDateMode = 0,
-    NSRangeDateMode = 1
+    NSRangeDateMode = 1,
+    NSDatePickerModeSingle = NSSingleDateMode,
+    NSDatePickerModeRange = NSRangeDateMode,
 };
 typedef NSUInteger NSDatePickerMode;
 
 enum {
     NSTextFieldAndStepperDatePickerStyle = 0,
     NSClockAndCalendarDatePickerStyle = 1,
-    NSTextFieldDatePickerStyle = 2
+    NSTextFieldDatePickerStyle = 2,
+    NSDatePickerStyleTextFieldAndStepper = NSTextFieldAndStepperDatePickerStyle,
+    NSDatePickerStyleClockAndCalendar = NSClockAndCalendarDatePickerStyle,
+    NSDatePickerStyleTextField = NSTextFieldDatePickerStyle,
 };
 typedef NSUInteger NSDatePickerStyle;
 

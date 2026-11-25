@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <sys/param.h>
+#import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSSegmentedCell.h>
 #import <AppKit/NSAccessibilityElement.h>
 #import <AppKit/NSRaise.h>
@@ -374,23 +375,23 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
    strip=NSMakeRect(NSMinX(cellFrame),floor(NSMidY(cellFrame)-height/2),MIN(total,NSWidth(cellFrame)),height);
 
    NSBezierPath *shape=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(strip,0.5,0.5) xRadius:5 yRadius:5];
-   [[NSColor whiteColor] setFill];
+   [_NSControlGray(1.0) setFill];
    [shape fill];
 
    segmentFrame=strip;
    for(i=0;i<count;i++){
     segmentFrame.size.width=[[_segmentComputedWidths objectAtIndex:i] doubleValue];
     if([[_segments objectAtIndex:i] isSelected]){
-     [([self isEnabled] ? [NSColor controlAccentColor] : [NSColor colorWithGenericGamma22White:0.78 alpha:1]) setFill];
+     [([self isEnabled] ? [NSColor controlAccentColor] : _NSControlGray(0.78)) setFill];
      [_NSSegmentPath(NSInsetRect(segmentFrame,0,0.5),4.5,i==0,i==count-1) fill];
     }
     else if(i>0 && ![[_segments objectAtIndex:i-1] isSelected]){
-     [[NSColor colorWithGenericGamma22White:0.82 alpha:1] setFill];
+     [_NSControlGray(0.82) setFill];
      NSRectFill(NSMakeRect(NSMinX(segmentFrame),NSMinY(segmentFrame)+4,1,NSHeight(segmentFrame)-8));
     }
     segmentFrame.origin.x+=segmentFrame.size.width;
    }
-   [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
+   [_NSControlGray(0.72) setStroke];
    [shape stroke];
 
    segmentFrame=strip;

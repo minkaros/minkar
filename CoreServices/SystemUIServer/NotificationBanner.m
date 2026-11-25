@@ -104,20 +104,22 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
     BOOL alert = self.banner.alert;
     CGFloat x = 60, y = 12, width = NSWidth(self.bounds) - x - 12 - (alert ? kColumnWidth : 0);
 
-    [[NSColor colorWithGenericGamma22White:0.97 alpha:0.98] setFill];
+    /* In the appearance: light, or dark in the dark one. */
+    BOOL dark = [[[NSApp effectiveAppearance] name] isEqualToString:NSAppearanceNameDarkAqua];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.19 : 0.97 alpha:0.98] setFill];
     [path fill];
-    [[NSColor colorWithGenericGamma22White:0.72 alpha:1] setStroke];
+    [[NSColor colorWithGenericGamma22White:dark ? 0.35 : 0.72 alpha:1] setStroke];
     [path stroke];
     [self.icon drawInRect:NSMakeRect(12, (kHeight - 36) / 2, 36, 36)
                  fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
-    drawLine(title, [NSFont boldSystemFontOfSize:13], [NSColor blackColor], NSMakeRect(x, y, width, 17));
+    drawLine(title, [NSFont boldSystemFontOfSize:13], [NSColor labelColor], NSMakeRect(x, y, width, 17));
     y += 18;
     if (subtitle.length > 0) {
-        drawLine(subtitle, [NSFont systemFontOfSize:12], [NSColor blackColor], NSMakeRect(x, y, width, 16));
+        drawLine(subtitle, [NSFont systemFontOfSize:12], [NSColor labelColor], NSMakeRect(x, y, width, 16));
         y += 16;
     }
     if (text.length > 0)
-        drawLine(text, [NSFont systemFontOfSize:12], [NSColor darkGrayColor], NSMakeRect(x, y, width, 16));
+        drawLine(text, [NSFont systemFontOfSize:12], [NSColor secondaryLabelColor], NSMakeRect(x, y, width, 16));
     if (alert) {
         /* An alert's column, on the right: its action (or Options, for
            several) over Close; Close alone if it has none. */
@@ -125,7 +127,7 @@ static void drawLine(NSString *text, NSFont *font, NSColor *color, NSRect rect)
         NSArray *actions = self.actions;
         NSString *close = n[@kNCKeyCloseTitle];
         NSFont *font = [NSFont systemFontOfSize:12];
-        NSColor *line = [NSColor colorWithGenericGamma22White:0.72 alpha:1];
+        NSColor *line = [NSColor colorWithGenericGamma22White:dark ? 0.35 : 0.72 alpha:1];
 
         if (close.length == 0 || [close isEqualToString:@"Close"])
             close = NSLocalizedString(@"Close", @"an alert's button");
@@ -155,7 +157,7 @@ static void drawCentered(NSString *text, NSFont *font, NSRect rect)
     style.lineBreakMode = NSLineBreakByTruncatingTail;
     [text drawInRect:NSMakeRect(NSMinX(rect) + 4, NSMinY(rect) + (NSHeight(rect) - size.height) / 2,
                                 NSWidth(rect) - 8, size.height)
-      withAttributes:@{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor blackColor],
+      withAttributes:@{ NSFontAttributeName : font, NSForegroundColorAttributeName : [NSColor labelColor],
                         NSParagraphStyleAttributeName : style }];
 }
 

@@ -19,6 +19,12 @@ typedef struct _Margins {
     float bottom;
 } Margins;
 
+/* Atlas's grey for a control: white as in the light appearance, the dark
+   appearance's (or the theme's) step for it otherwise. Private. */
+NSColor *_NSControlGray(CGFloat white);
+/* Whether the system's appearance is the dark one (AppleInterfaceStyle). */
+BOOL _NSSystemAppearanceIsDark(void);
+
 @interface NSGraphicsStyle : NSObject {
     NSView *_view;
 }

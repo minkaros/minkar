@@ -457,6 +457,13 @@ static NSColor *atlasGray(CGFloat white) {
    return [NSColor colorWithGenericGamma22White:white alpha:1];
 }
 
+/* Atlas's grey for a control, for AppKit's own drawing outside the style:
+   the light appearance's value given, the dark one's taken in the dark
+   (and a theme's). */
+NSColor *_NSControlGray(CGFloat white) {
+   return atlasGray(white);
+}
+
 static NSColor *atlasAccent(void) {
    NSColor *accent=[NSColor controlAccentColor];
 

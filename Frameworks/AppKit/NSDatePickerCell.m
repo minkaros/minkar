@@ -573,9 +573,9 @@ static void drawCentered(NSString *string,NSRect rect,NSDictionary *attributes);
    CGFloat           y=flipped?-1:1;
    int               i;
 
-   [[NSColor whiteColor] setFill];
+   [_NSControlGray(1.0) setFill];
    [face fill];
-   [[NSColor colorWithGenericGamma22White:0.62 alpha:1] setStroke];
+   [_NSControlGray(0.62) setStroke];
    [face setLineWidth:2];
    [face stroke];
    for(i=1;i<=12;i++){
@@ -590,8 +590,8 @@ static void drawCentered(NSString *string,NSRect rect,NSDictionary *attributes);
        [NSColor secondaryLabelColor],NSForegroundColorAttributeName,nil]);
 
    struct { CGFloat angle,length,width; NSColor *color; } hands[3]={
-    { M_PI/2-(([now hour]%12)+[now minute]/60.0)*M_PI/6,r*0.5,3,[NSColor blackColor] },
-    { M_PI/2-([now minute]+[now second]/60.0)*M_PI/30,r*0.72,2,[NSColor blackColor] },
+    { M_PI/2-(([now hour]%12)+[now minute]/60.0)*M_PI/6,r*0.5,3,[NSColor labelColor] },
+    { M_PI/2-([now minute]+[now second]/60.0)*M_PI/30,r*0.72,2,[NSColor labelColor] },
     { M_PI/2-[now second]*M_PI/30,r*0.8,1,[NSColor systemRedColor] },
    };
    for(i=0;i<3;i++){

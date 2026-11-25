@@ -92,7 +92,7 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
     NSRectFill(self.bounds);
     if (self.notifications.count == 0) {
         drawText(NSLocalizedString(@"No Notifications", @"the notification center, empty"),
-                 [NSFont systemFontOfSize:13], [NSColor grayColor], NSMakeRect(0, 22, width, 18), NSTextAlignmentCenter);
+                 [NSFont systemFontOfSize:13], [NSColor secondaryLabelColor], NSMakeRect(0, 22, width, 18), NSTextAlignmentCenter);
         return;
     }
     [self.notifications enumerateObjectsUsingBlock:^(NSDictionary *n, NSUInteger i, BOOL *stop) {
@@ -107,10 +107,10 @@ static void drawText(NSString *text, NSFont *font, NSColor *color, NSRect rect, 
             icon = [[NSWorkspace sharedWorkspace] iconForFileType:@"app"];
         [icon drawInRect:NSMakeRect(12, top + 14, 32, 32) fromRect:NSZeroRect
                operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];
-        drawText(n[@kNCKeyAppName] ?: @"", [NSFont systemFontOfSize:11], [NSColor grayColor],
+        drawText(n[@kNCKeyAppName] ?: @"", [NSFont systemFontOfSize:11], [NSColor secondaryLabelColor],
                  NSMakeRect(x, top + 6, textWidth - 48, 14), NSTextAlignmentLeft);
         if ([n[@kNCKeyDate] isKindOfClass:[NSDate class]])
-            drawText([time stringFromDate:n[@kNCKeyDate]], [NSFont systemFontOfSize:11], [NSColor grayColor],
+            drawText([time stringFromDate:n[@kNCKeyDate]], [NSFont systemFontOfSize:11], [NSColor secondaryLabelColor],
                      NSMakeRect(width - 60, top + 6, 48, 14), NSTextAlignmentRight);
         drawText(n[@kNCKeyTitle] ?: @"", [NSFont boldSystemFontOfSize:13], [NSColor labelColor],
                  NSMakeRect(x, top + 22, textWidth, 17), NSTextAlignmentLeft);

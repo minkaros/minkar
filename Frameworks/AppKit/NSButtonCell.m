@@ -790,9 +790,10 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
        fill=0.80;
       else if(on)
        fill=0.84;
-      [[NSColor colorWithGenericGamma22White:fill alpha:1] setFill];
+      /* Atlas's greys: the dark appearance's in the dark. */
+      [_NSControlGray(fill) setFill];
       [path fill];
-      [[NSColor colorWithGenericGamma22White:[self isEnabled]?0.66:0.82 alpha:1] setStroke];
+      [_NSControlGray([self isEnabled]?0.66:0.82) setStroke];
       [path setLineWidth:1];
       [path stroke];
      }
@@ -810,9 +811,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
          [self isEnabled]?[NSColor controlTextColor]:[NSColor disabledControlTextColor],NSForegroundColorAttributeName,nil];
       NSSize        mark=[@"?" sizeWithAttributes:attributes];
 
-      [[NSColor colorWithGenericGamma22White:pressed?0.84:1.0 alpha:1] setFill];
+      [_NSControlGray(pressed?0.84:1.0) setFill];
       [circle fill];
-      [[NSColor colorWithGenericGamma22White:pressed?0.58:0.70 alpha:1] setStroke];
+      [_NSControlGray(pressed?0.58:0.70) setStroke];
       [circle setLineWidth:1];
       [circle stroke];
       [@"?" drawAtPoint:NSMakePoint(floor(NSMidX(face)-mark.width/2),floor(NSMidY(face)-mark.height/2)) withAttributes:attributes];
@@ -853,9 +854,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
       NSRect  face=NSInsetRect(NSMakeRect(NSMinX(original)+1,y,NSWidth(original)-2,height),0.5,0.5);
       NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4];
 
-      [[NSColor colorWithGenericGamma22White:[self isHighlighted]?0.78:0.87 alpha:1] setFill];
+      [_NSControlGray([self isHighlighted]?0.78:0.87) setFill];
       [path fill];
-      [[NSColor colorWithGenericGamma22White:[self isEnabled]?0.45:0.70 alpha:1] setStroke];
+      [_NSControlGray([self isEnabled]?0.45:0.70) setStroke];
       [path stroke];
      }
      break;
@@ -1095,9 +1096,11 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
     if (isTextured && [title length]) {
 // FIXME: use shadow in attributed string and implement shadow text drawing
         const BOOL pressed=[self state] && ([self showsStateBy] & NSChangeBackgroundCellMask);
-        const CGFloat fgGray = (pressed) ? 0.98 : 0.0;
+        /* Dark on the light faces, light on the dark appearance's. */
+        const BOOL dark = _NSSystemAppearanceIsDark();
+        const CGFloat fgGray = (pressed != dark) ? 0.98 : 0.0;
         const CGFloat fgGrayDisabled = 0.5;
-        const CGFloat shadowGray = (pressed) ? 0.07 : 0.93;
+        const CGFloat shadowGray = (pressed != dark) ? 0.07 : 0.93;
         const CGFloat shadowAlpha = ([self isHighlighted]) ? 0.15 : 0.25;
         NSString *baseTitle = [NSString stringWithString:[title string]];
         NSMutableDictionary *shadowAttrs = [[[title attributesAtIndex:0 effectiveRange:NULL] mutableCopy] autorelease];
