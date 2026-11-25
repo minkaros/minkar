@@ -52,8 +52,6 @@ void pdchmac_final_fn_dummy(const struct ccdigest_info *di, cchmac_ctx_t ctx,
 void pdchmac_fn_dummy(const struct ccdigest_info *di, unsigned long key_len,
     const void *key, unsigned long data_len, const void *data, unsigned char *mac);
 
-extern const struct ccmode_xts pdcaes_xts_encrypt_dummy;
-extern const struct ccmode_xts pdcaes_xts_decrypt_dummy;
 extern const struct ccmode_gcm pdcaes_gcm_encrypt_dummy;
 extern const struct ccmode_gcm pdcaes_gcm_decrypt_dummy;
 extern const struct ccmode_ecb pdcdes_ecb_encrypt_dummy;

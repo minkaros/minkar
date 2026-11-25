@@ -14,6 +14,8 @@ extern const struct ccmode_ecb pdcaes_ecb_encrypt;
 extern const struct ccmode_ecb pdcaes_ecb_decrypt;
 extern const struct ccmode_cbc pdcaes_cbc_encrypt;
 extern const struct ccmode_cbc pdcaes_cbc_decrypt;
+extern const struct ccmode_xts pdcaes_xts_encrypt;
+extern const struct ccmode_xts pdcaes_xts_decrypt;
 extern const struct ccdigest_info ccsha256_ltc_di;
 
 const struct crypto_functions pdcrypto_internal_functions = {
@@ -35,8 +37,8 @@ const struct crypto_functions pdcrypto_internal_functions = {
 	.ccaes_ecb_decrypt = &pdcaes_ecb_decrypt,
 	.ccaes_cbc_encrypt = &pdcaes_cbc_encrypt,
 	.ccaes_cbc_decrypt = &pdcaes_cbc_decrypt,
-	.ccaes_xts_encrypt = &pdcaes_xts_encrypt_dummy,
-	.ccaes_xts_decrypt = &pdcaes_xts_decrypt_dummy,
+	.ccaes_xts_encrypt = &pdcaes_xts_encrypt,
+	.ccaes_xts_decrypt = &pdcaes_xts_decrypt,
 	.ccaes_gcm_encrypt = &pdcaes_gcm_encrypt_dummy,
 	.ccaes_gcm_decrypt = &pdcaes_gcm_decrypt_dummy,
 	.ccdes_ecb_encrypt = &pdcdes_ecb_encrypt_dummy,

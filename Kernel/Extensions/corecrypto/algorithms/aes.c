@@ -303,3 +303,109 @@ const struct ccmode_cbc pdcaes_cbc_decrypt = {
 	.cbc = cbc_decrypt,
 	.custom = NULL,
 };
+
+/*
+ * XTS-AES (IEEE 1619): the kernel's encrypted swap (vm_swap_encrypt). Two
+ * keys of the same length, one for the data, one for the tweak; the tweak
+ * is the sector's IV encrypted with the tweak key, and is multiplied by
+ * alpha in GF(2^128) (little-endian, x^128 + x^7 + x^2 + x + 1) after
+ * each block: C = E(P ^ T) ^ T. Whole blocks only, as the kernel uses it.
+ */
+struct xts_key {
+	struct aes_key data, tweak;
+};
+
+struct xts_tweak {
+	uint8_t t[16];
+};
+
+static int
+xts_init(const struct ccmode_xts *xts, ccxts_ctx *ctx, size_t key_len, const void *data_key, const void *tweak_key)
+{
+	struct xts_key *k = (struct xts_key *)ctx;
+	(void)xts;
+	if (expand_key(&k->data, key_len, data_key) != 0)
+		return -1;
+	return expand_key(&k->tweak, key_len, tweak_key);
+}
+
+static void
+xts_key_sched(const struct ccmode_xts *xts, ccxts_ctx *ctx, size_t key_len, const void *data_key, const void *tweak_key)
+{
+	(void)xts_init(xts, ctx, key_len, data_key, tweak_key);
+}
+
+static int
+xts_set_tweak(const ccxts_ctx *ctx, ccxts_tweak *tweak, const void *iv)
+{
+	encrypt_block(&((const struct xts_key *)ctx)->tweak, iv, ((struct xts_tweak *)tweak)->t);
+	return 0;
+}
+
+static void
+xts_next(uint8_t *t)
+{
+	uint8_t carry = t[15] >> 7;
+	for (int i = 15; i > 0; i--)
+		t[i] = (uint8_t)((t[i] << 1) | (t[i - 1] >> 7));
+	t[0] = (uint8_t)((t[0] << 1) ^ (carry ? 0x87 : 0));
+}
+
+static void *
+xts_crypt(const ccxts_ctx *ctx, ccxts_tweak *tweak, size_t nblocks, const void *in, void *out, int decrypt)
+{
+	const struct xts_key *k = (const struct xts_key *)ctx;
+	uint8_t *t = ((struct xts_tweak *)tweak)->t;
+	const uint8_t *i = in;
+	uint8_t *o = out;
+	uint8_t x[16];
+
+	for (; nblocks > 0; nblocks--, i += 16, o += 16) {
+		for (int b = 0; b < 16; b++)
+			x[b] = i[b] ^ t[b];
+		if (decrypt)
+			decrypt_block(&k->data, x, x);
+		else
+			encrypt_block(&k->data, x, x);
+		for (int b = 0; b < 16; b++)
+			o[b] = x[b] ^ t[b];
+		xts_next(t);
+	}
+	return t;
+}
+
+static void *
+xts_encrypt(const ccxts_ctx *ctx, ccxts_tweak *tweak, size_t nblocks, const void *in, void *out)
+{
+	return xts_crypt(ctx, tweak, nblocks, in, out, 0);
+}
+
+static void *
+xts_decrypt(const ccxts_ctx *ctx, ccxts_tweak *tweak, size_t nblocks, const void *in, void *out)
+{
+	return xts_crypt(ctx, tweak, nblocks, in, out, 1);
+}
+
+const struct ccmode_xts pdcaes_xts_encrypt = {
+	.size = ccn_sizeof_size(sizeof(struct xts_key)),
+	.tweak_size = ccn_sizeof_size(sizeof(struct xts_tweak)),
+	.block_size = CCAES_BLOCK_SIZE,
+	.init = xts_init,
+	.key_sched = xts_key_sched,
+	.set_tweak = xts_set_tweak,
+	.xts = xts_encrypt,
+	.custom = NULL,
+	.custom1 = NULL,
+};
+
+const struct ccmode_xts pdcaes_xts_decrypt = {
+	.size = ccn_sizeof_size(sizeof(struct xts_key)),
+	.tweak_size = ccn_sizeof_size(sizeof(struct xts_tweak)),
+	.block_size = CCAES_BLOCK_SIZE,
+	.init = xts_init,
+	.key_sched = xts_key_sched,
+	.set_tweak = xts_set_tweak,
+	.xts = xts_decrypt,
+	.custom = NULL,
+	.custom1 = NULL,
+};

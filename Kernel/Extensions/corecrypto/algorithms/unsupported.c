@@ -94,9 +94,7 @@ const struct ccmode_ecb pdcblowfish_ecb_decrypt_dummy = { .init = ecb_init };
 const struct ccmode_ecb pdccast_ecb_encrypt_dummy = { .init = ecb_init };
 const struct ccmode_ecb pdccast_ecb_decrypt_dummy = { .init = ecb_init };
 
-/* AES-XTS, AES-GCM and RC4: empty descriptions, as before. */
-const struct ccmode_xts pdcaes_xts_encrypt_dummy;
-const struct ccmode_xts pdcaes_xts_decrypt_dummy;
+/* AES-GCM and RC4: empty descriptions, as before (AES-XTS is aes.c's). */
 const struct ccmode_gcm pdcaes_gcm_encrypt_dummy;
 const struct ccmode_gcm pdcaes_gcm_decrypt_dummy;
 const struct ccrc4_info pdcrc4_info_dummy;
