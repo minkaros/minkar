@@ -432,7 +432,7 @@ static UInt32 streamsIn(Device *d, AudioObjectPropertyScope scope, AudioStreamID
 Boolean _AudioDeviceExists(AudioObjectID id) {
     Boolean input;
 
-    if (_AudioAggregateIs(id))
+    if (_AudioAggregateIs(id) || _AudioTapIs(id) || _AudioProcessIs(id))
         return true;
     return deviceWithID(id) != NULL || streamOwner(id, &input) != NULL;
 }
@@ -516,6 +516,10 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
         return false;
     if (d == NULL && _AudioAggregateIs(id))
         return _AudioAggregateHasProperty(id, a);
+    if (d == NULL && _AudioTapIs(id))
+        return _AudioTapHasProperty(id, a);
+    if (d == NULL && _AudioProcessIs(id))
+        return _AudioProcessHasProperty(id, a);
     if (d == NULL)
         return streamOwner(id, &input) != NULL && streamHas(a->mSelector);
     switch (a->mSelector) {
@@ -558,6 +562,8 @@ Boolean _AudioDeviceHasProperty(AudioObjectID id, const AudioObjectPropertyAddre
 }
 
 Boolean _AudioDeviceIsPropertySettable(AudioObjectID id, const AudioObjectPropertyAddress *a) {
+    if (_AudioTapIs(id) || _AudioProcessIs(id))
+        return false;
     if (_AudioAggregateIs(id))
         return _AudioAggregateIsPropertySettable(id, a);
     switch (a->mSelector) {
@@ -577,6 +583,10 @@ UInt32 _AudioDevicePropertySize(AudioObjectID id, const AudioObjectPropertyAddre
 
     if (d == NULL && _AudioAggregateIs(id))
         return _AudioAggregatePropertySize(id, a);
+    if (d == NULL && _AudioTapIs(id))
+        return _AudioTapPropertySize(id, a);
+    if (d == NULL && _AudioProcessIs(id))
+        return _AudioProcessPropertySize(id, a);
     if (d == NULL && streamOwner(id, &input) != NULL)
         return streamSize(a->mSelector);
     switch (a->mSelector) {
@@ -626,6 +636,10 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
 
     if (d == NULL && _AudioAggregateIs(id))
         return _AudioAggregateGetProperty(id, a, ioSize, out);
+    if (d == NULL && _AudioTapIs(id))
+        return _AudioTapGetProperty(id, a, ioSize, out);
+    if (d == NULL && _AudioProcessIs(id))
+        return _AudioProcessGetProperty(id, a, ioSize, out);
     if (d == NULL) {
         Device *owner = streamOwner(id, &input);
         return owner != NULL ? streamGet(owner, input, a, ioSize, out) : kAudioHardwareBadObjectError;

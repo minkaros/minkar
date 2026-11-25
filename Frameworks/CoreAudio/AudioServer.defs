@@ -57,3 +57,28 @@ routine stop_io(
 routine copy_devices(
 	server			: mach_port_t;
 	out devices		: pointer_t, dealloc);
+
+/* A process tap (AU10): description, a binary property list (a dictionary
+   of AudioServerTypes.h's kAudioServerTap... keys). The client's port ends
+   the tap when the client dies. Out: the tap's number, its shared area (a
+   memory entry of size bytes, an AudioServerTapArea and its ring). */
+routine create_tap(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	description		: pointer_t;
+	client			: mach_port_make_send_t;
+	out tap			: int32_t;
+	out area		: mach_port_move_send_t;
+	out size		: uint32_t;
+	out result		: int32_t);
+
+routine destroy_tap(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	tap			: int32_t;
+	out result		: int32_t);
+
+/* The processes that play or record now: their pids (int32_t each). */
+routine copy_processes(
+	server			: mach_port_t;
+	out pids		: pointer_t, dealloc);

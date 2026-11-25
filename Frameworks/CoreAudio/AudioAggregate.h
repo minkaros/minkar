@@ -26,6 +26,22 @@ _AU_HIDDEN OSStatus _AudioAggregateSetProperty(AudioObjectID id, const AudioObje
 _AU_HIDDEN void *_AudioAggregateStart(AudioObjectID id, AudioDeviceIOProc proc, void *clientData, OSStatus *status);
 _AU_HIDDEN void _AudioAggregateStop(void *run);
 
+/* Process objects and taps (AudioTap.m). */
+struct AudioServerTapArea;
+_AU_HIDDEN Boolean _AudioProcessIs(AudioObjectID id);
+_AU_HIDDEN AudioObjectID _AudioProcessWithPID(pid_t pid);
+_AU_HIDDEN UInt32 _AudioProcessCopyIDs(AudioObjectID *ids, UInt32 capacity);
+_AU_HIDDEN Boolean _AudioProcessHasProperty(AudioObjectID id, const AudioObjectPropertyAddress *a);
+_AU_HIDDEN UInt32 _AudioProcessPropertySize(AudioObjectID id, const AudioObjectPropertyAddress *a);
+_AU_HIDDEN OSStatus _AudioProcessGetProperty(AudioObjectID id, const AudioObjectPropertyAddress *a, UInt32 *ioSize, void *out);
+_AU_HIDDEN Boolean _AudioTapIs(AudioObjectID id);
+_AU_HIDDEN UInt32 _AudioTapCopyIDs(AudioObjectID *ids, UInt32 capacity);
+_AU_HIDDEN AudioObjectID _AudioTapWithUID(CFStringRef uid);
+_AU_HIDDEN struct AudioServerTapArea *_AudioTapArea(AudioObjectID id);
+_AU_HIDDEN Boolean _AudioTapHasProperty(AudioObjectID id, const AudioObjectPropertyAddress *a);
+_AU_HIDDEN UInt32 _AudioTapPropertySize(AudioObjectID id, const AudioObjectPropertyAddress *a);
+_AU_HIDDEN OSStatus _AudioTapGetProperty(AudioObjectID id, const AudioObjectPropertyAddress *a, UInt32 *ioSize, void *out);
+
 /* The system object's device list changed: its listeners are told. */
 _AU_HIDDEN void _AudioHardwareDevicesChanged(void);
 

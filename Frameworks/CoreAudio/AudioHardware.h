@@ -198,6 +198,34 @@ enum {
 OSStatus AudioHardwareCreateAggregateDevice(CFDictionaryRef inDescription, AudioObjectID *outDeviceID);
 OSStatus AudioHardwareDestroyAggregateDevice(AudioObjectID inDeviceID);
 
+/* Process taps (AU10): a tap object made from a CATapDescription; its
+   audio comes as an input of an aggregate device that lists it. */
+enum {
+    kAudioHardwarePropertyTapList = 'tps#',
+    kAudioHardwarePropertyTranslateUIDToTap = 'uidt',
+    kAudioHardwarePropertyProcessObjectList = 'prs#',
+    kAudioHardwarePropertyTranslatePIDToProcessObject = 'id2p',
+    kAudioTapPropertyUID = 'tuid',
+    kAudioTapPropertyDescription = 'tdsc',
+    kAudioTapPropertyFormat = 'tfmt',
+    kAudioProcessPropertyPID = 'ppid',
+    kAudioProcessPropertyBundleID = 'pbid',
+    kAudioProcessPropertyDevices = 'pdv#',
+    kAudioProcessPropertyIsRunning = 'pir?',
+    kAudioProcessPropertyIsRunningInput = 'piri',
+    kAudioProcessPropertyIsRunningOutput = 'piro',
+    kAudioProcessClassID = 'clnt',
+};
+
+#ifdef __OBJC__
+@class CATapDescription;
+#else
+typedef struct CATapDescription CATapDescription;
+#endif
+
+OSStatus AudioHardwareCreateProcessTap(CATapDescription *inDescription, AudioObjectID *outTapID);
+OSStatus AudioHardwareDestroyProcessTap(AudioObjectID inTapID);
+
 enum {
     kAudioObjectClassID = 'aobj',
     kAudioSystemObjectClassID = 'asys',

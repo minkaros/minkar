@@ -82,6 +82,7 @@ typedef struct Device {
     int             clients;
     PlugInDevice   *plugin;             /* an audio server plug-in's device, or NULL */
     int             hasInput;
+    float          *tapMix;             /* the taps' samples of a cycle (kMaxTaps of them) */
 } Device;
 
 typedef struct Session {
@@ -94,6 +95,27 @@ typedef struct Session {
     volatile int    active;
     pid_t           pid;
 } Session;
+
+/* A process tap (AU10): what some processes play on a device, mixed and
+   written to a ring the client reads (AudioServerTapArea). */
+#define kMaxTaps        8
+#define kMaxTapPIDs     64
+
+typedef struct Tap {
+    int32_t         id;                 /* 0: free */
+    pid_t           owner;
+    mach_port_t     client;             /* watched for its death */
+    pid_t           pids[kMaxTapPIDs];
+    int             pidCount;
+    int             exclusive, mono, mute;
+    struct Device  *device;
+    AudioServerTapArea *area;
+    vm_size_t       areaSize;
+    volatile int    active;
+} Tap;
+
+static Tap taps[kMaxTaps];
+static int32_t nextTap = 1;
 
 static Device devices[kMaxDevices];
 static int deviceCount, engineCount;
@@ -444,6 +466,30 @@ static void makeRealtime(Device *d) {
         syslog(LOG_WARNING, "%s: no real-time policy", d->uid);
 }
 
+/* Whether a tap takes a process's samples. */
+static int tapTakes(const Tap *t, pid_t pid) {
+    int listed = 0;
+    for (int i = 0; i < t->pidCount && !listed; i++)
+        listed = t->pids[i] == pid;
+    return t->exclusive ? !listed : listed;
+}
+
+/* A cycle's tapped samples (stereo) into the tap's ring, in its channels. */
+static void tapWrite(Tap *t, const float *in, uint32_t frames) {
+    AudioServerTapArea *a = t->area;
+    float *ring = (float *)((char *)a + a->ringOffset);
+    uint64_t w = a->written;
+    for (uint32_t i = 0; i < frames; i++) {
+        float *at = ring + ((w + i) % a->ringFrames) * a->channels;
+        if (a->channels == 1)
+            at[0] = (in[i * kChannels] + in[i * kChannels + 1]) / 2;
+        else
+            for (uint32_t c = 0; c < a->channels; c++)
+                at[c] = c < kChannels ? in[i * kChannels + c] : 0;
+    }
+    __atomic_store_n(&a->written, w + frames, __ATOMIC_RELEASE);
+}
+
 /* One cycle's clients: each given the cycle's times and input and woken,
    then waited for until the deadline; their samples summed into mix. */
 static void serveClients(Device *d, uint64_t cycle, uint32_t kFramesPerCycle, uint64_t now, double nowFrame,
@@ -479,6 +525,21 @@ static void serveClients(Device *d, uint64_t cycle, uint32_t kFramesPerCycle, ui
     }
     pthread_mutex_unlock(&lock);
 
+    /* The device's taps, as this cycle starts. */
+    Tap *tapped[kMaxTaps];
+    int tapCount = 0;
+    pthread_mutex_lock(&lock);
+    for (int t = 0; t < kMaxTaps; t++)
+        if (taps[t].id != 0 && taps[t].active && taps[t].device == d)
+            tapped[tapCount++] = &taps[t];
+    pthread_mutex_unlock(&lock);
+    if (tapCount > 0 && d->tapMix == NULL)
+        d->tapMix = calloc((size_t)kMaxTaps * kMaxFrames * kChannels, sizeof(float));
+    if (d->tapMix == NULL)
+        tapCount = 0;
+    if (tapCount > 0)
+        memset(d->tapMix, 0, (size_t)kMaxTaps * kMaxFrames * kChannels * sizeof(float));
+
     memset(mix, 0, (size_t)kFramesPerCycle * kChannels * sizeof(float));
     for (int i = 0; i < count; i++) {
         Session *s = woken[i];
@@ -495,9 +556,23 @@ static void serveClients(Device *d, uint64_t cycle, uint32_t kFramesPerCycle, ui
             continue;
         }
         const float *samples = (const float *)((const char *)s->area + s->area->samplesOffset);
-        for (uint32_t k = 0; k < kFramesPerCycle * kChannels; k++)
-            mix[k] += samples[k];
+        /* Into the taps that take this process, and into the mix unless
+           one of them mutes it. */
+        int muted = 0;
+        for (int t = 0; t < tapCount; t++) {
+            if (!tapTakes(tapped[t], s->pid))
+                continue;
+            float *into = d->tapMix + (size_t)t * kMaxFrames * kChannels;
+            for (uint32_t k = 0; k < kFramesPerCycle * kChannels; k++)
+                into[k] += samples[k];
+            muted |= tapped[t]->mute == 1 || (tapped[t]->mute == 2 && tapped[t]->area->readers > 0);
+        }
+        if (!muted)
+            for (uint32_t k = 0; k < kFramesPerCycle * kChannels; k++)
+                mix[k] += samples[k];
     }
+    for (int t = 0; t < tapCount; t++)
+        tapWrite(tapped[t], d->tapMix + (size_t)t * kMaxFrames * kChannels, kFramesPerCycle);
 }
 
 static void *deviceThread(void *arg) {
@@ -837,6 +912,169 @@ kern_return_t ass_stop_io(mach_port_t server, audit_token_t token, int32_t sessi
     return KERN_SUCCESS;
 }
 
+/* Under the lock. A cycle that took the tap in finishes before its area
+   goes. */
+static void endTap(Tap *t) {
+    Device *d = t->device;
+    t->active = 0;
+    if (d != NULL && d->running) {
+        uint64_t seen = d->completedCycles;
+        pthread_mutex_unlock(&lock);
+        while (d->running && d->completedCycles < seen + 1)
+            usleep(1000);
+        pthread_mutex_lock(&lock);
+    }
+    vm_deallocate(mach_task_self(), (vm_address_t)t->area, t->areaSize);
+    mach_port_deallocate(mach_task_self(), t->client);
+    syslog(LOG_INFO, "tap %d of pid %d ended", t->id, t->owner);
+    memset(t, 0, sizeof(*t));
+}
+
+static int dictionaryInt(CFDictionaryRef d, const char *key, int fallback) {
+    CFStringRef k = CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8);
+    CFTypeRef v = CFDictionaryGetValue(d, k);
+    int n = fallback;
+    CFRelease(k);
+    if (v != NULL && CFGetTypeID(v) == CFNumberGetTypeID())
+        CFNumberGetValue(v, kCFNumberIntType, &n);
+    else if (v != NULL && CFGetTypeID(v) == CFBooleanGetTypeID())
+        n = CFBooleanGetValue(v);
+    return n;
+}
+
+kern_return_t ass_create_tap(mach_port_t server, audit_token_t token, vm_offset_t description,
+    mach_msg_type_number_t descriptionCount, mach_port_t client, int32_t *tap, mach_port_t *area, uint32_t *size,
+    int32_t *result) {
+    CFDataRef bytes = CFDataCreate(NULL, (const UInt8 *)description, (CFIndex)descriptionCount);
+    CFPropertyListRef plist = CFPropertyListCreateWithData(NULL, bytes, 0, NULL, NULL);
+    Tap *t = NULL;
+    Device *d = NULL;
+
+    CFRelease(bytes);
+    vm_deallocate(mach_task_self(), description, descriptionCount);
+    *tap = 0;
+    *area = MACH_PORT_NULL;
+    *size = 0;
+    *result = 'nope';
+    if (plist == NULL || CFGetTypeID(plist) != CFDictionaryGetTypeID()) {
+        if (plist != NULL)
+            CFRelease(plist);
+        mach_port_deallocate(mach_task_self(), client);
+        return KERN_SUCCESS;
+    }
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < kMaxTaps && t == NULL; i++)
+        if (taps[i].id == 0)
+            t = &taps[i];
+    /* Its device: the one named, else the default output (the first
+       engine's, as CoreAudio chooses it). */
+    CFStringRef uid = CFDictionaryGetValue(plist, CFSTR(kAudioServerTapDevice));
+    char uidBuffer[512];
+    if (uid != NULL && CFGetTypeID(uid) == CFStringGetTypeID() &&
+        CFStringGetCString(uid, uidBuffer, sizeof(uidBuffer), kCFStringEncodingUTF8))
+        d = deviceWithUID(uidBuffer);
+    for (int i = 0; d == NULL && i < deviceCount; i++)
+        if (devices[i].plugin == NULL)
+            d = &devices[i];
+    if (d == NULL && deviceCount > 0)
+        d = &devices[0];
+    if (t == NULL || d == NULL) {
+        *result = d == NULL ? '!dev' : 'nope';
+        pthread_mutex_unlock(&lock);
+        CFRelease(plist);
+        mach_port_deallocate(mach_task_self(), client);
+        return KERN_SUCCESS;
+    }
+    memset(t, 0, sizeof(*t));
+    CFArrayRef pids = CFDictionaryGetValue(plist, CFSTR(kAudioServerTapPIDs));
+    for (CFIndex i = 0; pids != NULL && CFGetTypeID(pids) == CFArrayGetTypeID() && i < CFArrayGetCount(pids) &&
+                        t->pidCount < kMaxTapPIDs; i++) {
+        CFNumberRef n = CFArrayGetValueAtIndex(pids, i);
+        int pid;
+        if (CFGetTypeID(n) == CFNumberGetTypeID() && CFNumberGetValue(n, kCFNumberIntType, &pid))
+            t->pids[t->pidCount++] = pid;
+    }
+    t->exclusive = dictionaryInt(plist, kAudioServerTapExclusive, 0);
+    t->mono = dictionaryInt(plist, kAudioServerTapMono, 0);
+    t->mute = dictionaryInt(plist, kAudioServerTapMute, 0);
+    CFRelease(plist);
+    t->device = d;
+    t->owner = audit_token_to_pid(token);
+    t->client = client;
+    uint32_t channels = t->mono ? 1 : kChannels;
+    size_t header = 64 * ((sizeof(AudioServerTapArea) + 63) / 64);
+    t->areaSize = round_page(header + (size_t)kAudioServerTapRingFrames * channels * sizeof(float));
+    vm_address_t address = 0;
+    if (vm_allocate(mach_task_self(), &address, t->areaSize, VM_FLAGS_ANYWHERE) != KERN_SUCCESS) {
+        memset(t, 0, sizeof(*t));
+        pthread_mutex_unlock(&lock);
+        mach_port_deallocate(mach_task_self(), client);
+        return KERN_SUCCESS;
+    }
+    t->area = (AudioServerTapArea *)address;
+    t->area->version = kAudioServerInterfaceVersion;
+    t->area->channels = channels;
+    t->area->sampleRate = d->sampleRate > 0 ? d->sampleRate :
+        (double)numberProperty(d->engine, CFSTR("IOAudioEngineSampleRate"), 48000);
+    t->area->ringFrames = kAudioServerTapRingFrames;
+    t->area->ringOffset = (uint32_t)header;
+    memory_object_size_t entrySize = t->areaSize;
+    mach_make_memory_entry_64(mach_task_self(), &entrySize, address, VM_PROT_READ | VM_PROT_WRITE, area,
+                              MACH_PORT_NULL);
+    mach_port_t previous;
+    mach_port_request_notification(mach_task_self(), client, MACH_NOTIFY_DEAD_NAME, 0, notifyPort,
+                                   MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous);
+    t->id = nextTap++;
+    t->active = 1;
+    *tap = t->id;
+    *size = (uint32_t)t->areaSize;
+    *result = 0;
+    syslog(LOG_INFO, "tap %d of pid %d on %s: %d pids%s, %u channels, mute %d", t->id, t->owner, d->uid,
+           t->pidCount, t->exclusive ? " excluded" : "", channels, t->mute);
+    pthread_mutex_unlock(&lock);
+    return KERN_SUCCESS;
+}
+
+kern_return_t ass_destroy_tap(mach_port_t server, audit_token_t token, int32_t tap, int32_t *result) {
+    pid_t pid = audit_token_to_pid(token);
+    *result = 'nope';
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < kMaxTaps; i++)
+        if (taps[i].id == tap && tap != 0 && taps[i].owner == pid) {
+            endTap(&taps[i]);
+            *result = 0;
+            break;
+        }
+    pthread_mutex_unlock(&lock);
+    return KERN_SUCCESS;
+}
+
+kern_return_t ass_copy_processes(mach_port_t server, vm_offset_t *data, mach_msg_type_number_t *count) {
+    int32_t pids[kMaxSessions];
+    int n = 0;
+    vm_address_t address = 0;
+
+    *data = 0;
+    *count = 0;
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < kMaxSessions; i++) {
+        int seen = 0;
+        if (sessions[i].id == 0)
+            continue;
+        for (int k = 0; k < n; k++)
+            seen |= pids[k] == sessions[i].pid;
+        if (!seen)
+            pids[n++] = sessions[i].pid;
+    }
+    pthread_mutex_unlock(&lock);
+    if (n > 0 && vm_allocate(mach_task_self(), &address, n * sizeof(int32_t), VM_FLAGS_ANYWHERE) == KERN_SUCCESS) {
+        memcpy((void *)address, pids, n * sizeof(int32_t));
+        *data = address;
+        *count = (mach_msg_type_number_t)(n * sizeof(int32_t));
+    }
+    return KERN_SUCCESS;
+}
+
 kern_return_t ass_copy_devices(mach_port_t server, vm_offset_t *data, mach_msg_type_number_t *count) {
     CFMutableArrayRef list = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
     CFDataRef bytes;
@@ -871,6 +1109,9 @@ static void clientDied(mach_port_t name) {
     for (int i = 0; i < kMaxSessions; i++)
         if (sessions[i].id != 0 && sessions[i].client == name)
             endSession(&sessions[i]);
+    for (int i = 0; i < kMaxTaps; i++)
+        if (taps[i].id != 0 && taps[i].client == name)
+            endTap(&taps[i]);
     pthread_mutex_unlock(&lock);
     mach_port_deallocate(mach_task_self(), name);
 }

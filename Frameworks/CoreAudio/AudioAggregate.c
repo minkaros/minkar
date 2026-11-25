@@ -41,6 +41,8 @@ typedef struct Aggregate {
     CFStringRef subUIDs[kMaxSubDevices];
     UInt32 subCount;
     UInt32 main;                /* index of the main sub-device */
+    CFStringRef tapUIDs[kMaxSubDevices];
+    UInt32 tapCount;
     Boolean stacked, isPrivate;
 } Aggregate;
 
@@ -164,7 +166,12 @@ static UInt32 inputBuffers(const Aggregate *a) {
     UInt32 n = 0;
     for (UInt32 i = 0; i < a->subCount; i++)
         n += subHasInput(a, i);
-    return n;
+    return n + a->tapCount;     /* and one for each tap */
+}
+
+static UInt32 tapChannels(CFStringRef uid) {
+    AudioServerTapArea *area = _AudioTapArea(_AudioTapWithUID(uid));
+    return area != NULL ? area->channels : kChannels;
 }
 
 /* ---- Making and destroying ---- */
@@ -234,6 +241,16 @@ OSStatus AudioHardwareCreateAggregateDevice(CFDictionaryRef description, AudioOb
     memset(a, 0, sizeof(*a));
     for (UInt32 k = 0; k < foundCount; k++)
         a->subUIDs[a->subCount++] = CFRetain(found[k]);
+    /* Its taps, by UID (dictionaries, or strings). */
+    CFArrayRef tapList = value(description, kAudioAggregateDeviceTapListKey);
+    for (CFIndex i = 0; tapList != NULL && CFGetTypeID(tapList) == CFArrayGetTypeID() &&
+                        i < CFArrayGetCount(tapList) && a->tapCount < kMaxSubDevices; i++) {
+        CFTypeRef entry = CFArrayGetValueAtIndex(tapList, i);
+        CFStringRef tapUID = CFGetTypeID(entry) == CFDictionaryGetTypeID() ?
+            string(value(entry, kAudioSubTapUIDKey)) : string(entry);
+        if (tapUID != NULL)
+            a->tapUIDs[a->tapCount++] = CFRetain(tapUID);
+    }
     mainUID = string(value(description, kAudioAggregateDeviceMainSubDeviceKey));
     if (mainUID == NULL)
         mainUID = string(value(description, kAudioAggregateDeviceClockDeviceKey));
@@ -261,6 +278,8 @@ OSStatus AudioHardwareDestroyAggregateDevice(AudioObjectID id) {
     }
     for (UInt32 i = 0; i < a->subCount; i++)
         CFRelease(a->subUIDs[i]);
+    for (UInt32 i = 0; i < a->tapCount; i++)
+        CFRelease(a->tapUIDs[i]);
     CFRelease(a->uid);
     CFRelease(a->name);
     CFRelease(a->composition);
@@ -424,8 +443,11 @@ OSStatus _AudioAggregateGetProperty(AudioObjectID id, const AudioObjectPropertyA
         UInt32 n = isInputScope(p) ? inputBuffers(a) : outputBuffers(a);
         list->mNumberBuffers = n;
         for (UInt32 i = 0; i < n; i++) {
-            list->mBuffers[i].mNumberChannels = kChannels;
-            list->mBuffers[i].mDataByteSize = cycle * kChannels * sizeof(Float32);
+            /* The taps' buffers last, in their own channels. */
+            UInt32 tap = isInputScope(p) && i >= n - a->tapCount ? i - (n - a->tapCount) : UINT32_MAX;
+            UInt32 channels = tap != UINT32_MAX ? tapChannels(a->tapUIDs[tap]) : kChannels;
+            list->mBuffers[i].mNumberChannels = channels;
+            list->mBuffers[i].mDataByteSize = cycle * channels * sizeof(Float32);
             list->mBuffers[i].mData = NULL;
         }
         break;
@@ -483,6 +505,41 @@ typedef struct Sub {
     Ring *out, *in;             /* not the main's */
 } Sub;
 
+/* A tap read through its shared ring, on the tapped device's clock. */
+typedef struct TapReader {
+    AudioServerTapArea *area;
+    double read, rate;
+    UInt32 target;
+} TapReader;
+
+static void tapRead(TapReader *t, float *out, UInt32 frames) {
+    AudioServerTapArea *a = t->area;
+    const float *ring = (const float *)((const char *)a + a->ringOffset);
+    UInt32 ch = a->channels;
+    uint64_t w = __atomic_load_n(&a->written, __ATOMIC_ACQUIRE);
+    double fill = (double)w - t->read;
+    if (fill < frames || fill > a->ringFrames - 2.0 * frames) {
+        t->read = (double)w - t->target - frames;
+        if (t->read < 0)
+            t->read = 0;
+        fill = (double)w - t->read;
+    }
+    double error = (fill - frames - t->target) / (double)t->target;
+    double wanted = 1 + 0.002 * error;
+    wanted = wanted > 1.005 ? 1.005 : wanted < 0.995 ? 0.995 : wanted;
+    t->rate += (wanted - t->rate) * 0.05;
+    for (UInt32 i = 0; i < frames; i++) {
+        double at = t->read + i * t->rate;
+        uint64_t k = (uint64_t)at;
+        float f = (float)(at - (double)k);
+        for (UInt32 c = 0; c < ch; c++) {
+            float x = ring[(k % a->ringFrames) * ch + c], y = ring[((k + 1) % a->ringFrames) * ch + c];
+            out[i * ch + c] = (uint64_t)at + 1 > w ? 0 : x + (y - x) * f;
+        }
+    }
+    t->read += frames * t->rate;
+}
+
 struct Run {
     AudioObjectID id;
     AudioDeviceIOProc proc;
@@ -490,6 +547,8 @@ struct Run {
     UInt32 subCount, main, inputs;
     Boolean stacked;
     Sub subs[kMaxSubDevices];
+    TapReader taps[kMaxSubDevices];
+    UInt32 tapCount, subInputs;
     float *outMemory, *inMemory;
     AudioBufferList *outList, *inList;
 };
@@ -546,6 +605,13 @@ static OSStatus subIO(AudioObjectID device, const AudioTimeStamp *now, const Aud
         } else
             ringRead(t->in, to, frames);
     }
+    /* The taps', after the sub-devices' inputs, in their channels. */
+    for (UInt32 i = 0; i < r->tapCount; i++) {
+        AudioBuffer *b = &r->inList->mBuffers[r->subInputs + i];
+        b->mNumberChannels = r->taps[i].area->channels;
+        b->mDataByteSize = frames * b->mNumberChannels * sizeof(float);
+        tapRead(&r->taps[i], b->mData, frames);
+    }
     r->proc(r->id, now, r->inputs > 0 ? r->inList : NULL, inputTime, r->outList, outputTime, r->clientData);
     /* The output: the main's buffer to its device, the others' to their
        rings (stacked: the one buffer to all). */
@@ -560,6 +626,8 @@ static OSStatus subIO(AudioObjectID device, const AudioTimeStamp *now, const Aud
 }
 
 static void freeRun(Run *r) {
+    for (UInt32 i = 0; i < r->tapCount; i++)
+        __atomic_fetch_sub(&r->taps[i].area->readers, 1, __ATOMIC_RELAXED);
     for (UInt32 i = 0; i < r->subCount; i++) {
         free(r->subs[i].out);
         free(r->subs[i].in);
@@ -621,6 +689,21 @@ void *_AudioAggregateStart(AudioObjectID id, AudioDeviceIOProc proc, void *clien
             if (s->in != NULL)
                 ringInit(s->in, 2 * cycle);
         }
+    }
+    r->subInputs = r->inputs;
+    for (UInt32 i = 0; i < copy.tapCount; i++) {
+        AudioServerTapArea *area = _AudioTapArea(_AudioTapWithUID(copy.tapUIDs[i]));
+        if (area == NULL)
+            continue;
+        TapReader *t = &r->taps[r->tapCount++];
+        t->area = area;
+        t->rate = 1;
+        t->target = 2 * cycle;
+        t->read = (double)__atomic_load_n(&area->written, __ATOMIC_ACQUIRE) - t->target;
+        if (t->read < 0)
+            t->read = 0;
+        __atomic_fetch_add(&area->readers, 1, __ATOMIC_RELAXED);
+        r->inputs++;
     }
     r->outList = newList(copy.stacked ? 1 : copy.subCount, &r->outMemory);
     r->inList = newList(r->inputs, &r->inMemory);

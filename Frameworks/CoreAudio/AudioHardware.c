@@ -33,6 +33,10 @@ static Boolean systemHas(AudioObjectPropertySelector selector) {
     case kAudioObjectPropertyClass:
     case kAudioHardwarePropertyTranslateUIDToDevice:
     case kAudioHardwarePropertyRunLoop:
+    case kAudioHardwarePropertyTapList:
+    case kAudioHardwarePropertyTranslateUIDToTap:
+    case kAudioHardwarePropertyProcessObjectList:
+    case kAudioHardwarePropertyTranslatePIDToProcessObject:
         return true;
     default:
         return false;
@@ -55,6 +59,16 @@ static UInt32 systemSize(AudioObjectPropertySelector selector) {
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer:
         return sizeof(CFStringRef);
+    case kAudioHardwarePropertyTapList: {
+        AudioObjectID ids[kMaxListed];
+        UInt32 n = _AudioTapCopyIDs(ids, kMaxListed);
+        return (n < kMaxListed ? n : kMaxListed) * (UInt32)sizeof(AudioObjectID);
+    }
+    case kAudioHardwarePropertyProcessObjectList: {
+        AudioObjectID ids[64];
+        UInt32 n = _AudioProcessCopyIDs(ids, 64);
+        return (n < 64 ? n : 64) * (UInt32)sizeof(AudioObjectID);
+    }
     case kAudioHardwarePropertyRunLoop:
         return sizeof(CFRunLoopRef);
     default:
@@ -113,7 +127,9 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
     if (status != noErr)
         return status;
     if (ioDataSize == NULL || (*ioDataSize < size && address->mSelector != kAudioHardwarePropertyDevices &&
-                               address->mSelector != kAudioObjectPropertyOwnedObjects))
+                               address->mSelector != kAudioObjectPropertyOwnedObjects &&
+                               address->mSelector != kAudioHardwarePropertyTapList &&
+                               address->mSelector != kAudioHardwarePropertyProcessObjectList))
         return kAudioHardwareBadPropertySizeError;
     switch (address->mSelector) {
     case kAudioObjectPropertyName:
@@ -152,6 +168,28 @@ OSStatus AudioObjectGetPropertyData(AudioObjectID object, const AudioObjectPrope
         break;
     case kAudioHardwarePropertyRunLoop:
         *(CFRunLoopRef *)outData = notificationRunLoop;
+        break;
+    case kAudioHardwarePropertyTapList:
+    case kAudioHardwarePropertyProcessObjectList: {
+        AudioObjectID ids[64];
+        UInt32 n = address->mSelector == kAudioHardwarePropertyTapList ? _AudioTapCopyIDs(ids, 64)
+                                                                        : _AudioProcessCopyIDs(ids, 64);
+        UInt32 fit = *ioDataSize / (UInt32)sizeof(AudioObjectID);
+        if (n > 64)
+            n = 64;
+        if (n > fit)
+            n = fit;
+        memcpy(outData, ids, n * sizeof(AudioObjectID));
+        size = n * (UInt32)sizeof(AudioObjectID);
+        break;
+    }
+    case kAudioHardwarePropertyTranslateUIDToTap:
+        *(AudioObjectID *)outData = qualifierSize >= sizeof(CFStringRef) && qualifier != NULL ?
+            _AudioTapWithUID(*(const CFStringRef *)qualifier) : kAudioObjectUnknown;
+        break;
+    case kAudioHardwarePropertyTranslatePIDToProcessObject:
+        *(AudioObjectID *)outData = qualifierSize >= sizeof(pid_t) && qualifier != NULL ?
+            _AudioProcessWithPID(*(const pid_t *)qualifier) : kAudioObjectUnknown;
         break;
     default:
         *(AudioObjectID *)outData = kAudioObjectUnknown;

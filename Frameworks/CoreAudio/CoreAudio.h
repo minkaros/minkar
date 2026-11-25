@@ -8,3 +8,4 @@
 #include <CoreAudio/AudioHardware.h>
 #include <CoreAudio/HostTime.h>
 #include <CoreAudio/AudioServerPlugIn.h>
+#include <CoreAudio/CATapDescription.h>

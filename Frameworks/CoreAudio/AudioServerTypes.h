@@ -67,4 +67,30 @@ typedef struct AudioServerArea {
     volatile uint64_t inputHostTime;
 } AudioServerArea;
 
+/* A process tap's description (create_tap): the pids it takes (or, when
+   exclusive, every pid but those), mono, mixed down, its mute behavior
+   (CATapMuteBehavior), the device's UID (none: the default output). */
+#define kAudioServerTapPIDs             "pids"
+#define kAudioServerTapExclusive        "exclusive"
+#define kAudioServerTapMono             "mono"
+#define kAudioServerTapMixdown          "mixdown"
+#define kAudioServerTapMute             "mute"
+#define kAudioServerTapDevice           "device"
+
+#define kAudioServerTapRingFrames       16384
+
+/* A tap's shared area: the service writes the tapped processes' samples
+   (channels interleaved float) into the ring after it, frame by frame
+   (written counts them all); the client reads behind. readers counts the
+   clients reading it (a tap muted when tapped mutes while one is). */
+typedef struct AudioServerTapArea {
+    uint32_t version;
+    uint32_t channels;
+    double   sampleRate;
+    uint32_t ringFrames;
+    uint32_t ringOffset;            /* from the area's start */
+    volatile uint64_t written;
+    volatile uint32_t readers;
+} AudioServerTapArea;
+
 #endif /* _AUDIOSERVERTYPES_H_ */
