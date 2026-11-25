@@ -78,7 +78,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dispatch/dispatch.h>
+#include <libproc.h>
+#include <sys/event.h>
 #include <sys/reboot.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
@@ -202,6 +206,136 @@ forceQuitHotKey(void *unused)
 			}
 		}
 		sleep(1);
+	}
+	return NULL;
+}
+
+/* Out of memory for applications (25 Nov 2026): when the compressor and
+ * the swap files are full, the kernel tells (EVFILT_MEMORYSTATUS,
+ * NOTE_MEMORYSTATUS_LOW_SWAP), again every few seconds while it lasts.
+ * The Force Quit window opens to say so, with what each application
+ * takes (the time is published as org.minkar.memory.low's state for it).
+ * When the user has not freed memory a minute after, the application
+ * that takes the most is forced to quit, then another every
+ * half a minute while the kernel still tells.
+ *
+ * Tests simulate the kernel's note (its sysctl for it exists only in
+ * debug kernels): org.minkar.memory.low-simulate counts as one while
+ * /var/run/org.minkar.memory.simulate exists and is root's. */
+#define kLowMemoryNotification "org.minkar.memory.low"
+/* The kernel's values (xnu's bsd/sys/event.h, private to it there). */
+#ifndef EVFILT_MEMORYSTATUS
+#define EVFILT_MEMORYSTATUS (-14)
+#endif
+#ifndef NOTE_MEMORYSTATUS_LOW_SWAP
+#define NOTE_MEMORYSTATUS_LOW_SWAP 0x00000008
+#endif
+#define kLowMemorySimulate "org.minkar.memory.low-simulate"
+#define kLowMemorySimulateFile "/var/run/org.minkar.memory.simulate"
+#define kLowMemoryGrace 60
+#define kLowMemoryNext 30
+
+/* The application taking the most memory (its footprint): an app
+ * bundle's executable, whoever runs it, not one of the system's own
+ * (CoreServices: the Dock, Files, the menu bar's, this window). */
+static pid_t
+largestApplication(uint64_t *footprint, char *path, size_t pathSize)
+{
+	int count = proc_listallpids(NULL, 0);
+	pid_t *pids = count > 0 ? calloc((size_t)count + 16, sizeof(pid_t)) : NULL;
+	pid_t best = 0;
+
+	*footprint = 0;
+	if (pids == NULL)
+		return 0;
+	count = proc_listallpids(pids, (int)((count + 16) * sizeof(pid_t)));
+	for (int i = 0; i < count; i++) {
+		struct proc_bsdshortinfo info;
+		struct rusage_info_v2 usage;
+		char exe[PROC_PIDPATHINFO_MAXSIZE];
+		if (pids[i] <= 1 ||
+		    proc_pidinfo(pids[i], PROC_PIDT_SHORTBSDINFO, 0, &info, sizeof(info)) != sizeof(info) ||
+		    proc_pidpath(pids[i], exe, sizeof(exe)) <= 0 ||
+		    strstr(exe, ".app/Contents/MacOS/") == NULL ||
+		    strncmp(exe, "/System/Library/CoreServices/", 29) == 0 ||
+		    proc_pid_rusage(pids[i], RUSAGE_INFO_V2, (rusage_info_t *)&usage) != 0)
+			continue;
+		if (usage.ri_phys_footprint > *footprint) {
+			*footprint = usage.ri_phys_footprint;
+			best = pids[i];
+			snprintf(path, pathSize, "%s", exe);
+		}
+	}
+	free(pids);
+	return best;
+}
+
+static void *
+lowMemoryWatcher(void *unused)
+{
+	int kq = kqueue(), token = -1;
+	struct kevent change, event;
+	time_t first = 0, lastKill = 0;
+
+	(void)unused;
+	notify_register_check(kLowMemoryNotification, &token);
+	EV_SET(&change, 0, EVFILT_MEMORYSTATUS, EV_ADD | EV_CLEAR, NOTE_MEMORYSTATUS_LOW_SWAP, 0, NULL);
+	if (kq < 0 || kevent(kq, &change, 1, NULL, 0, NULL) != 0) {
+		fprintf(stderr, "loginwindow: cannot watch for low memory\n");
+		return NULL;
+	}
+	EV_SET(&change, 1, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, NULL);
+	kevent(kq, &change, 1, NULL, 0, NULL);
+	int simulate;
+	notify_register_dispatch(kLowMemorySimulate, &simulate,
+	    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(int t) {
+		struct stat st;
+		struct kevent trigger;
+		if (lstat(kLowMemorySimulateFile, &st) != 0 || st.st_uid != 0 || !S_ISREG(st.st_mode))
+			return;
+		EV_SET(&trigger, 1, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+		kevent(kq, &trigger, 1, NULL, 0, NULL);
+	});
+	for (;;) {
+		/* A quiet two minutes: the shortage is over. */
+		struct timespec wait = { 120, 0 };
+		int n = kevent(kq, NULL, 0, &event, 1, &wait);
+		time_t now = time(NULL);
+		if (n == 0) {
+			if (first != 0)
+				fprintf(stderr, "loginwindow: memory is back\n");
+			first = 0;
+			continue;
+		}
+		if (n < 0 || (event.filter == EVFILT_MEMORYSTATUS && !(event.fflags & NOTE_MEMORYSTATUS_LOW_SWAP)))
+			continue;
+		if (first == 0) {
+			first = now;
+			fprintf(stderr, "loginwindow: out of memory for applications: Force Quit opened\n");
+			if (token >= 0)
+				notify_set_state(token, (uint64_t)now);
+			notify_post(kLowMemoryNotification);
+			CFURLRef url = CFURLCreateWithFileSystemPath(NULL,
+			    CFSTR("/System/Library/CoreServices/ForceQuit.app"), kCFURLPOSIXPathStyle, true);
+			(void)LSOpenCFURLRef(url, NULL);
+			CFRelease(url);
+			continue;
+		}
+		if (now - first < kLowMemoryGrace || now - lastKill < kLowMemoryNext) {
+			fprintf(stderr, "loginwindow: still out of memory (%lds)\n", (long)(now - first));
+			continue;
+		}
+		uint64_t footprint;
+		char path[PROC_PIDPATHINFO_MAXSIZE] = "";
+		pid_t pid = largestApplication(&footprint, path, sizeof(path));
+		if (pid <= 0)
+			fprintf(stderr, "loginwindow: still out of memory, and no application to quit\n");
+		if (pid > 0) {
+			fprintf(stderr, "loginwindow: still out of memory: %s (pid %d, %llu MB) forced to quit\n", path, pid,
+			    (unsigned long long)(footprint >> 20));
+			kill(pid, SIGKILL);
+			lastKill = now;
+		}
 	}
 	return NULL;
 }
@@ -877,9 +1011,10 @@ main(int argc, char *argv[])
 	pthread_mutex_lock(&sessionLock);
 	startSession();
 	pthread_mutex_unlock(&sessionLock);
-	pthread_t reaper, hotKey;
+	pthread_t reaper, hotKey, lowMemory;
 	pthread_create(&reaper, NULL, respawn, NULL);
 	pthread_create(&hotKey, NULL, forceQuitHotKey, NULL);
+	pthread_create(&lowMemory, NULL, lowMemoryWatcher, NULL);
 
 	for (;;) {
 		union {
