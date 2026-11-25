@@ -69,6 +69,11 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    
    NSMapTableKeyCallBacks objectToUidKeyCb = NSNonRetainedObjectMapKeyCallBacks;
    objectToUidKeyCb.isEqual = NULL;
+   /* Minkar: and the pointer's hash with it. With -hash, objects equal in
+      kind collided (an NSDictionary's hash is its count): every lookup ran
+      along one chain and archiving went quadratic (20 000 dictionaries:
+      minutes). */
+   objectToUidKeyCb.hash = NULL;
    // setting the equality callback to NULL means that the maptable will use pointer comparison.
    // this is necessary to properly archive classes like NSMutableString which encodes an internal immutable
    // object that returns YES to -isEqual with the mutable parent (and thus wouldn't get encoded at all without this change)
@@ -302,9 +307,20 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
 	   then every archiver's) is written as the class's, alone, as the
 	   reference writes it (no $classes); a superclass's is not used. */
 	NSString *archName = [self _mappedNameOfClass:archClassObject];
+	/* Minkar: one class description for every object of a class, as the
+	   reference writes it (it was one each: a larger archive). */
+	static char classMapsKey;
+	NSMutableDictionary *classMaps = objc_getAssociatedObject(self, &classMapsKey);
+	if (classMaps == nil) {
+		classMaps = [NSMutableDictionary dictionary];
+		objc_setAssociatedObject(self, &classMapsKey, classMaps, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+	NSString *classMapKey = archName != nil ? [@"=" stringByAppendingString:archName] : archClass;
+	NSDictionary *classMap = [classMaps objectForKey:classMapKey];
 	NSMutableArray *supers = [[NSMutableArray alloc] init];
-	NSDictionary *classMap;
-	if (archName != nil)
+	if (classMap != nil)
+		;
+	else if (archName != nil)
 		classMap = [NSDictionary dictionaryWithObject:archName forKey:@"$classname"];
 	else {
 		[supers addObject:archClass];
@@ -321,6 +337,7 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
 	}
 		
 	[supers release];
+	[classMaps setObject:classMap forKey:classMapKey];
                                     
         [[_plistStack lastObject] setObject:[self plistForObject:classMap flag:YES] forKey:@"$class"];
         [_plistStack removeLastObject];
