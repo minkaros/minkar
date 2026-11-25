@@ -370,6 +370,10 @@ def main(argv=None):
     plan_path = os.path.join(args.apps, 'bc-plan.json')
     with open(plan_path, 'w') as f:
         json.dump(plan(runnable, args.wait, disk is not None), f, indent=1)
+    # This run's log only: a boottest that stops before booting (a missing
+    # option) must not leave an earlier run's results to be read.
+    if os.path.exists(args.log):
+        os.remove(args.log)
     boot = subprocess.run([sys.executable, '-B', BOOTTEST, '--image', args.image, '--gate', 'BC',
                            '--bc-plan', plan_path, '--log', args.log,
                            '--timeout', str(args.timeout)] +
