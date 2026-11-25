@@ -149,7 +149,7 @@ Frameworks propios de Minkar sobre FFmpeg (LGPL) y dav1d; sin GTK, Qt ni GStream
 - [x] AU1–AU6 — IOAudioFamily y HDA, el servicio de audio y CoreAudio, AudioToolbox, FFmpeg y dav1d, CoreMedia y AVFoundation, los medios de WebKit. `f39b73ee62`
 - [ ] AU7 — USB Audio Class 2.0.
 - [x] AU8 — CoreMIDI, framework y servicio: midiserver y el lado cliente de CoreMIDI, extremos virtuales entre procesos, el driver IAC (prueba `coremidi`, 24 nov 2026). `22ade151db`
-- [ ] AU9 — Alojar Audio Units, y Accelerate.
+- [x] AU9 — Alojar Audio Units, y Accelerate: bundles de componentes cargados, AUGraph, instrumentos musicales, AUConverter, GenericOutput y MultiChannelMixer; vDSP, vForce y las conversiones de vImage (prueba `au-hosting`, 24 nov 2026). `2f42b66c97`
 - [ ] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia.
 
 ### Carril BC — Compatibilidad binaria

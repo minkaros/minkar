@@ -82,9 +82,9 @@ nube del fabricante) u obsoleto.
 | CoreImage | 5 | 41 de 49 | Partial |
 | LocalAuthentication | 5 | 1 de 1 | Partial |
 | MediaPlayer | 5 | 17 de 25 | Partial |
-| Accelerate | 4 | 0 de 47 | Plan (AU9) |
+| Accelerate | 4 | 0 de 47 | Partial |
 | CoreLocation | 4 | 7 de 7 | Partial |
-| CoreMIDI | 4 | 24 de 25 | Plan (AU8) |
+| CoreMIDI | 4 | 24 de 25 | Partial |
 | QuickLookThumbnailing | 4 | 0 de 5 | Decide |
 | QuickLookUI | 4 | 0 de 5 | Decide |
 | ScreenCaptureKit | 4 | 0 de 14 | Decide |
@@ -141,13 +141,13 @@ framework que Minkar tiene si tiene línea aquí. Un framework que falta y no ti
 Decide. Los símbolos que faltan en los frameworks que Minkar tiene están en el registro de
 stubs ruidosos.
 
-- **Accelerate**: Plan (AU9) — vDSP, BLAS y LAPACK sobre OpenBLAS (BSD-3).
+- **Accelerate**: Partial — vDSP (aritmética, transformadas de Fourier, filtros), vForce y las conversiones de vImage que importan las apps (AU9); BLAS y LAPACK cuando una app los pida.
 - **AudioUnit**: Plan (AU9) — la unidad de salida existe; alojar unidades de terceros y CoreAudioKit en AU9.
 - **AuthenticationServices**: Partial — sin proveedores de inicio de sesión.
 - **ColorSync**: Plan — sobre Little CMS.
 - **CoreImage**: Partial — el registro de CIFilter, las unidades de imagen y un contexto sobre CoreGraphics; faltan los kernels y la mayoría de los filtros.
 - **CoreLocation**: Partial — los servicios de ubicación, apagados.
-- **CoreMIDI**: Plan (AU8) — clientes y puertos; los endpoints y el servicio MIDI en AU8.
+- **CoreMIDI**: Partial — el servidor MIDI, endpoints virtuales entre procesos y el driver IAC (AU8); aún sin drivers de hardware MIDI.
 - **DeviceCheck**: Out — servicio en la nube del fabricante.
 - **IOBluetooth**: Partial — sin driver de Bluetooth.
 - **LocalAuthentication**: Partial — todavía no hay con qué autenticar.

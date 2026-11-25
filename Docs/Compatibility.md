@@ -81,9 +81,9 @@ services) or deprecated.
 | CoreImage | 5 | 41 of 49 | Partial |
 | LocalAuthentication | 5 | 1 of 1 | Partial |
 | MediaPlayer | 5 | 17 of 25 | Partial |
-| Accelerate | 4 | 0 of 47 | Plan (AU9) |
+| Accelerate | 4 | 0 of 47 | Partial |
 | CoreLocation | 4 | 7 of 7 | Partial |
-| CoreMIDI | 4 | 24 of 25 | Plan (AU8) |
+| CoreMIDI | 4 | 24 of 25 | Partial |
 | QuickLookThumbnailing | 4 | 0 of 5 | Decide |
 | QuickLookUI | 4 | 0 of 5 | Decide |
 | ScreenCaptureKit | 4 | 0 of 14 | Decide |
@@ -139,13 +139,13 @@ Status and notes, written by hand: the table takes the status from here, and lis
 framework Minkar has only when it has a line here. A missing framework without a line is
 Decide. Symbols missing from the frameworks Minkar has are in the noisy-stub log.
 
-- **Accelerate**: Plan (AU9) — vDSP, BLAS and LAPACK on OpenBLAS (BSD-3).
+- **Accelerate**: Partial — vDSP (arithmetic, Fourier transforms, filters), vForce and the vImage conversions the apps import (AU9); BLAS and LAPACK when an app asks for them.
 - **AudioUnit**: Plan (AU9) — the output unit exists; hosting third-party units and CoreAudioKit in AU9.
 - **AuthenticationServices**: Partial — no sign-on providers.
 - **ColorSync**: Plan — on Little CMS.
 - **CoreImage**: Partial — CIFilter's registry, image units and a context over CoreGraphics; kernels and most filters left.
 - **CoreLocation**: Partial — location services off.
-- **CoreMIDI**: Plan (AU8) — clients and ports; endpoints and the MIDI service in AU8.
+- **CoreMIDI**: Partial — the MIDI server, virtual endpoints between processes and the IAC Driver (AU8); no MIDI hardware drivers yet.
 - **DeviceCheck**: Out — the vendor's cloud service.
 - **IOBluetooth**: Partial — no Bluetooth driver.
 - **LocalAuthentication**: Partial — nothing to authenticate with yet.
