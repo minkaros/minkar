@@ -146,7 +146,7 @@ Minkar's own frameworks on FFmpeg (LGPL) and dav1d; no GTK, Qt or GStreamer.
 - [ ] AU7 — USB Audio Class 2.0.
 - [x] AU8 — CoreMIDI, framework and service: midiserver and CoreMIDI's client side, virtual endpoints between processes, the IAC Driver (test `coremidi`, 24 Nov 2026). `22ade151db`
 - [x] AU9 — Hosting Audio Units, and Accelerate: component bundles loaded, AUGraph, music devices, AUConverter, GenericOutput and MultiChannelMixer; vDSP, vForce and vImage's conversions (test `au-hosting`, 24 Nov 2026). `2f42b66c97`
-- [ ] AU10 — Aggregate devices and device plug-ins; latency and drift measured against the reference.
+- [x] AU10 — Aggregate devices and device plug-ins; latency and drift measured against the reference. Audio server plug-ins hosted by audiod (`33ad929fb2`, test `hal-plugin`), aggregate devices (`fa1561eee4`, test `aggregate-device`), process taps (`e71a3fdb95`, test `process-tap`); the output's timing measured with the tests' `tools/audio-timing.c` on PC 1, in QEMU and on the reference (figures kept outside the repository): on PC 1 the cycle's jitter is 0.014 ms and the drift 0.2 ppm; the output runs two cycles ahead, one more than the reference (25 Nov 2026).
 
 ### Lane BC — Binary compatibility
 

@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-24"
-commit  = "2f42b66c97"
+commit  = "e71a3fdb95"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 

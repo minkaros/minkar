@@ -150,7 +150,7 @@ Frameworks propios de Minkar sobre FFmpeg (LGPL) y dav1d; sin GTK, Qt ni GStream
 - [ ] AU7 — USB Audio Class 2.0.
 - [x] AU8 — CoreMIDI, framework y servicio: midiserver y el lado cliente de CoreMIDI, extremos virtuales entre procesos, el driver IAC (prueba `coremidi`, 24 nov 2026). `22ade151db`
 - [x] AU9 — Alojar Audio Units, y Accelerate: bundles de componentes cargados, AUGraph, instrumentos musicales, AUConverter, GenericOutput y MultiChannelMixer; vDSP, vForce y las conversiones de vImage (prueba `au-hosting`, 24 nov 2026). `2f42b66c97`
-- [ ] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia.
+- [x] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia. Plug-ins del servidor de audio alojados por audiod (`33ad929fb2`, prueba `hal-plugin`), dispositivos agregados (`fa1561eee4`, prueba `aggregate-device`), taps de proceso (`e71a3fdb95`, prueba `process-tap`); la temporización de la salida medida con `tools/audio-timing.c` de las pruebas en PC 1, en QEMU y en la referencia (cifras fuera del repositorio): en PC 1 la variación del ciclo es de 0,014 ms y la deriva de 0,2 ppm; la salida va dos ciclos por delante, uno más que la referencia (25 nov 2026).
 
 ### Carril BC — Compatibilidad binaria
 
