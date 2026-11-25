@@ -91,12 +91,15 @@ Gate M5: from boot, a graphical session starts, an app opens from the Dock, File
 and the resolution changes from System Preferences, in the Atlas visual language. Detail:
 [Atlas.md](Atlas.md).
 
-- [ ] LoginWindow: authentication through Directory Services, the user's `LaunchAgents`, Lock Screen.
+- [x] LoginWindow: authentication through Directory Services, the user's `LaunchAgents`, Lock Screen.
   Directory Services done: OpenDirectory (APSL) and its service in `directoryd` (users,
   groups, passwords; test `opendirectory`). The login window and the user's session done
   (autoLoginUser, the users' list, the session's apps as the user, Log Out back to the window;
-  test `login-window`); the user's `LaunchAgents` in its own launchd (the Background session;
-  Aqua-only agents later); Lock Screen (test `lock-screen`).
+  test `login-window`); the user's session an Aqua session in its own launchd, its `LaunchAgents`
+  loaded there, those limited to Aqua too (`d39d9b1b29`, `637ca4f310`, 24 Nov 2026); Lock Screen
+  (test `lock-screen`). On PC 1 the login window shows about 5 s after launchd (measured on
+  24 Nov 2026); when the firmware found no display at power-on (the KVM on the other machine)
+  the RX 6600's driver waits for the saved display to come, and the window shows then.
 - [x] Menus: MB0–MB3 done (MB4 in 19.6.x).
 - [x] Dock: D0–D3 done (D4 in 19.6.x).
 - [x] Files: K0–K3 done (K4 in 19.6.x).
@@ -222,8 +225,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
    `_lpadmin`. Done.
 5. The system installer and HFS+ compression.
 6. WebKit: W0, W1, W5.
-7. LoginWindow: the user's Aqua session (agents limited to Aqua); the wait before the login
-   window on PC 1.
+7. LoginWindow: done (24 Nov 2026).
 8. The visual language (the light appearance and the controls), once the maintainer decides.
 
 Lane BC alongside: BC2, BC0 in the

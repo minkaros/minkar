@@ -93,12 +93,16 @@ Gate M5: desde el arranque empieza una sesión gráfica, se abre una app desde e
 navega y la resolución cambia desde Preferencias del sistema, con el lenguaje visual de
 Atlas. Detalle: [Atlas.md](Atlas.md).
 
-- [ ] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
+- [x] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
   Directory Services hecho: OpenDirectory (APSL) y su servicio en `directoryd` (usuarios,
   grupos, contraseñas; prueba `opendirectory`). Hechas la ventana de inicio de sesión y la sesión del usuario
   (autoLoginUser, la lista de usuarios, las apps de la sesión como el usuario, Log Out de vuelta a la ventana;
-  prueba `login-window`); los `LaunchAgents` del usuario en su propio launchd (la sesión Background;
-  los limitados a Aqua, después); la pantalla bloqueada (prueba `lock-screen`).
+  prueba `login-window`); la sesión del usuario es una sesión Aqua en su propio launchd, con sus
+  `LaunchAgents` cargados allí, también los limitados a Aqua (`d39d9b1b29`, `637ca4f310`, 24 nov 2026);
+  la pantalla bloqueada (prueba `lock-screen`). En el PC 1 la ventana de inicio de sesión aparece unos
+  5 s después de launchd (medido el 24 nov 2026); si el firmware no encontró pantalla al encender (el
+  KVM en el otro equipo), el driver de la RX 6600 espera a que aparezca la pantalla guardada, y entonces
+  se muestra la ventana.
 - [x] Menús: MB0–MB3 hechos (MB4 en 19.6.x).
 - [x] Dock: D0–D3 hechos (D4 en 19.6.x).
 - [x] Files: K0–K3 hechos (K4 en 19.6.x).
@@ -228,8 +232,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
    en `_lpadmin`. Hecho.
 5. El instalador del sistema y la compresión de HFS+.
 6. WebKit: W0, W1, W5.
-7. LoginWindow: la sesión Aqua del usuario (agentes limitados a Aqua); la espera hasta la ventana
-   de inicio de sesión en el PC 1.
+7. LoginWindow: hecho (24 nov 2026).
 8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
 
 En paralelo, el carril BC: BC2, BC0 en la CI.
