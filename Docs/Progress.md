@@ -4,7 +4,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 `bmake progress`; [ROADMAP.md](ROADMAP.md) is the source of truth.
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-21, devel `0c9719239c`_
+_Updated 2026-11-24, devel `3dfb39907f`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
