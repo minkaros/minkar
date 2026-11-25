@@ -202,7 +202,13 @@ GPL or LGPL code is linked statically into Minkar's own.
 - rsync 3.5.1 - GPL-3.0-or-later, with its OpenSSL and xxhash exception
   (BSD/usr.bin/rsync/dist/COPYING; popt: BSD/usr.bin/rsync/dist/popt/COPYING)
 - git 2.56.0 - GPL-2.0 (BSD/usr.bin/git/dist/COPYING; xdiff and parts of
-  compat LGPL-2.1, sha1dc MIT, reftable BSD-3: see the files)
+  compat LGPL-2.1, sha1dc MIT, reftable BSD-3: see the files), with gitk
+  and git gui - GPL-2.0 (dist/gitk-git, dist/git-gui)
+- Tcl 8.5.19 and 8.6.16 - Tcl/Tk License, BSD-style (BSD/usr.bin/tcl/MANIFEST,
+  BSD/usr.bin/tcl8.6/MANIFEST; license.terms, installed in
+  /usr/share/licenses/tcl and tcl8.6)
+- Tk 8.6.16 - Tcl/Tk License, BSD-style (BSD/usr.bin/tk/MANIFEST;
+  license.terms, installed in /usr/share/licenses/tk)
 - Userspace RCU (liburcu) 0.15 - LGPL-2.1-or-later, a dynamic library
   (BSD/lib/liburcu/dist/LICENSE.md, LICENSES/)
 - GLib 2.86.1 (GLib, GObject, GIO) - LGPL-2.1-or-later, dynamic

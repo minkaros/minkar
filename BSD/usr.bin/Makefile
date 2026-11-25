@@ -34,7 +34,7 @@ SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintr
 	gencat cap_mkdb last indent ctags timeout passwd \
 	uuidgen asa c99 finger newgrp pagesize unzip zip at \
 	ipcs ipcrm htop builtin xxd nano bash rsync vim ksh llvm-tools chpass shlock mail lex telnet quota openssl bind \
-	ruby python perl tcl ftp rlogin arch vm_stat caffeinate open lsbom talk localedef heimdal csrutil hdiutil leaks sample fs_usage pmset \
+	ruby python perl tcl tcl8.6 tk ftp rlogin arch vm_stat caffeinate open lsbom talk localedef heimdal csrutil hdiutil leaks sample fs_usage pmset \
 	cups
 
 .include <bsd.subdir.mk>

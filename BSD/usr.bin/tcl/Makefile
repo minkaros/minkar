@@ -9,7 +9,8 @@
 # same framework, version 8.5 (compatibility version 8.5.0), its scripts
 # in Resources/Scripts, tclsh8.5 inside it with /usr/bin/tclsh8.5 and
 # /usr/bin/tclsh linking to it, and the manuals. The SDK gets the whole
-# framework, with its headers, tclConfig.sh and stub library.
+# framework, with its headers, tclConfig.sh and stub library. Its
+# Versions/8.6 is ../tcl8.6's (the Tcl of Tk 8.6): left alone here.
 #
 # Tcl's configure picks its Darwin build (the framework, CoreFoundation)
 # by asking uname: it runs with a uname that answers as Minkar does. Its
@@ -59,8 +60,8 @@ ${.OBJDIR}/.installed: ${STAGE}/${FW}/Versions/${V}/Tcl
 	mkdir -p ${SYSROOT_DIR}/${FW} ${MINKAR_SDKROOT}/${FW}
 	rsync -rlc --delete --exclude Headers --exclude PrivateHeaders \
 	    --exclude tclConfig.sh --exclude 'libtclstub*' --exclude pkgconfig \
-	    ${STAGE}/${FW}/ ${SYSROOT_DIR}/${FW}/
-	rsync -rlc --delete ${STAGE}/${FW}/ ${MINKAR_SDKROOT}/${FW}/
+	    --exclude /Versions/8.6 ${STAGE}/${FW}/ ${SYSROOT_DIR}/${FW}/
+	rsync -rlc --delete --exclude /Versions/8.6 ${STAGE}/${FW}/ ${MINKAR_SDKROOT}/${FW}/
 	rsync -rl ${STAGE}/usr/bin/ ${SYSROOT_DIR}/usr/bin/
 	rsync -rlc ${STAGE}/usr/share/man/ ${SYSROOT_DIR}/usr/share/man/
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
