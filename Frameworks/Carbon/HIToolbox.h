@@ -10,6 +10,9 @@
 #include <MacTypes.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
+#include <Carbon/HIShape.h>
+#include <Carbon/HITheme.h>
+#include <Carbon/MacWindows.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,57 +80,6 @@ OSStatus TSMSetDocumentProperty(TSMDocumentID docID, TSMDocumentPropertyTag prop
 OSStatus TSMGetDocumentProperty(TSMDocumentID docID, TSMDocumentPropertyTag propertyTag,
     UInt32 bufferSize, UInt32 *actualSize, void *propertyBuffer);
 OSStatus TSMRemoveDocumentProperty(TSMDocumentID docID, TSMDocumentPropertyTag propertyTag);
-
-/* Appearance metrics, in points: Atlas's. */
-typedef UInt32 ThemeMetric;
-enum {
-    kThemeMetricScrollBarWidth = 0,
-    kThemeMetricSmallScrollBarWidth = 1,
-    kThemeMetricCheckBoxHeight = 2,
-    kThemeMetricRadioButtonHeight = 3,
-    kThemeMetricEditTextWhitespace = 4,
-    kThemeMetricEditTextFrameOutset = 5,
-    kThemeMetricListBoxFrameOutset = 6,
-    kThemeMetricFocusRectOutset = 7
-};
-enum { themeInvalidMetricErr = -30570 };
-OSStatus GetThemeMetric(ThemeMetric inMetric, SInt32 *outMetric);
-
-/* A button drawn in Atlas's look. */
-typedef UInt32 ThemeDrawState;
-typedef UInt16 ThemeButtonKind;
-typedef UInt16 ThemeButtonValue;
-typedef UInt16 ThemeButtonAdornment;
-typedef UInt32 HIThemeOrientation;
-enum {
-    kThemeStateInactive = 0,
-    kThemeStateActive = 1,
-    kThemeStatePressed = 2,
-    kThemeStateDisabled = 0
-};
-enum {
-    kThemeButtonOff = 0,
-    kThemeButtonOn = 1,
-    kThemeButtonMixed = 2
-};
-enum {
-    kHIThemeOrientationNormal = 0,
-    kHIThemeOrientationInverted = 1
-};
-typedef struct {
-    UInt32 version;
-    ThemeDrawState state;
-    ThemeButtonKind kind;
-    ThemeButtonValue value;
-    ThemeButtonAdornment adornment;
-    union {
-        struct { CFAbsoluteTime start; CFAbsoluteTime current; } time;
-        struct { UInt32 index; } frame;
-    } animation;
-} HIThemeButtonDrawInfo;
-
-OSStatus HIThemeDrawButton(const CGRect *inBounds, const HIThemeButtonDrawInfo *inDrawInfo,
-    CGContextRef inContext, HIThemeOrientation inOrientation, CGRect *outLabelRect);
 
 #ifdef __cplusplus
 }
