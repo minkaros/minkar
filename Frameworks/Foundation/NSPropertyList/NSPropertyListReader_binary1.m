@@ -174,15 +174,18 @@ static id ExtractUID(NSPropertyListReader_binary1 *bplist, uint64_t offset) {
                 dictionaries from XML plists on the fly.
         */
 
-        uint64_t                        value;
+        /* Minkar: a UID's marker 0x8n is followed by n + 1 bytes (not 1 << n,
+           as an integer's): read as an integer, a UID of 4 bytes (over 65535
+           objects in a keyed archive) took 8 and unarchiving failed. */
+        uint8_t                         size = (bplist->_bytes[offset] & 0x0F) + 1;
 
-        if (!ReadSelfSizedInt(bplist, offset, &value, NULL))
+        if (size > 8 || offset + 1 + size > bplist->_length)
         {
                 NSLog(@"Bad binary plist: invalid UID object.");
                 return nil;
         }
 
-        return [[CFUID alloc] initWithUnsignedLongLong:value];
+        return [[CFUID alloc] initWithUnsignedLongLong:ReadSizedInt(bplist, offset + 1, size)];
 }
 
 
