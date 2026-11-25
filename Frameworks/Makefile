@@ -22,10 +22,6 @@ SUBDIR += CoreServices/LaunchServices
 SUBDIR += CoreServices/FSEvents
 SUBDIR += CoreServices
 SUBDIR += Foundation
-# OpenDirectory (APSL) and its CFOpenDirectory inside it: user records and
-# passwords through opendirectoryd, for loginwindow and the Users pane.
-SUBDIR += OpenDirectory/Core
-SUBDIR += OpenDirectory
 # IOSurface (roadmap step 4): pixel buffers shared across processes.
 SUBDIR += IOSurface
 SUBDIR += Onyx2D
@@ -39,6 +35,11 @@ SUBDIR += ../PrivateFrameworks/SkyLight
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
 SUBDIR += CoreText
+# OpenDirectory (APSL) and its CFOpenDirectory inside it, after
+# CoreGraphics (Foundation's NSGeometry.h includes its headers): user records and
+# passwords through opendirectoryd, for loginwindow and the Users pane.
+SUBDIR += OpenDirectory/Core
+SUBDIR += OpenDirectory
 # Security: Minkar's own subset for now (the APSL sources beside it are
 # to replace it). On CoreFoundation only; before CUPS, whose configure
 # links its checks with it.
@@ -149,7 +150,7 @@ CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE 
 CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation
 OpenDirectory/Core: CoreFoundation SystemConfiguration
-OpenDirectory: OpenDirectory/Core Foundation
+OpenDirectory: OpenDirectory/Core Foundation CoreGraphics
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation ../BSD/lib/libsqlite3
