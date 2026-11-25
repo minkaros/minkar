@@ -89,6 +89,7 @@ SUBDIR += AudioUnit
 SUBDIR += CoreMedia
 SUBDIR += VideoToolbox
 SUBDIR += CoreMIDI
+SUBDIR += Accelerate
 SUBDIR += Metal
 SUBDIR += MetalKit
 SUBDIR += LocalAuthentication
@@ -169,6 +170,7 @@ AudioUnit: AudioToolbox
 CoreMedia: CoreFoundation CoreVideo CoreAudio AudioToolbox
 VideoToolbox: CoreMedia CoreVideo ../BSD/lib/ffmpeg
 CoreMIDI: CoreFoundation
+Accelerate: CoreFoundation
 Metal: Foundation
 MetalKit: Metal QuartzCore AppKit
 LocalAuthentication: Foundation
