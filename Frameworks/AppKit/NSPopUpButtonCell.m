@@ -510,6 +510,36 @@ static char menuItemKey;
 
 	[super drawBezelWithFrame: frame inView: controlView];
 
+	/* A rounded bezel: the arrows on an accent-colored end of its face (the
+	   face NSButtonCell draws: inset by 2, its height for the control size,
+	   centered). */
+	/* So is a pop-up made in code (no bezel style set: NSButtonCell draws
+	   the push button face on its frame, as its control size adjusts it). */
+	if( _arrowPosition != NSPopUpNoArrow && [self isBordered] &&
+	    ([self bezelStyle] == NSRoundedBezelStyle || [self bezelStyle] == 0) )
+	{
+		NSRect face;
+
+		if ([self bezelStyle] == NSRoundedBezelStyle) {
+			CGFloat height = MIN(NSHeight(frame), 22 - [self controlSize] * 3);
+
+			face = NSInsetRect(frame, 2, 0);
+			face.origin.y = floor(NSMidY(frame) - height / 2);
+			face.size.height = height;
+		}
+		else {
+			NSRect adjustment = [self getControlSizeAdjustment:[controlView isFlipped]];
+
+			face = frame;
+			face.size.width -= adjustment.size.width;
+			face.size.height -= adjustment.size.height;
+			face.origin.x += adjustment.origin.x;
+			face.origin.y += adjustment.origin.y;
+		}
+		[[controlView graphicsStyle] drawPopUpButtonArrowInFace:face pullsDown:_pullsDown enabled:[self isEnabled]];
+		return;
+	}
+
 	// Now draw the arrow
     if( _arrowPosition != NSPopUpNoArrow )
 	{

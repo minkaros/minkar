@@ -123,6 +123,7 @@ APPKIT_EXPORT NSColor *_NSMenuBarTextColor(void);
 
 @interface NSGraphicsStyle (NSComboBox)
 - (void)drawComboBoxButtonInRect:(NSRect)rect enabled:(BOOL)enabled bordered:(BOOL)bordered pressed:(BOOL)pressed;
+- (void)drawPopUpButtonArrowInFace:(NSRect)face pullsDown:(BOOL)pullsDown enabled:(BOOL)enabled;
 @end
 
 @interface NSGraphicsStyle (NSTabView)

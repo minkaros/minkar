@@ -978,6 +978,49 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
 
 @end
 
+@implementation NSGraphicsStyle (NSPopUpButtonArrow)
+
+/* A pop-up button's arrows, as the reference draws them in both
+   appearances: the right end of its face (16 points, inside its rounded
+   corners) in the accent color, grey when disabled, with white chevrons,
+   up and down (a pull-down: down only). Measured on the reference: in the
+   dark appearance the blue accent goes from #1a62e6 at the top to #1758ce
+   at the bottom. */
+-(void)drawPopUpButtonArrowInFace:(NSRect)face pullsDown:(BOOL)pullsDown enabled:(BOOL)enabled {
+   NSRect       inner=NSInsetRect(face,0.5,0.5);
+   CGFloat      radius=MIN(5,MIN(NSWidth(inner),NSHeight(inner))/2);
+   NSRect       cap=NSMakeRect(NSMaxX(face)-17,NSMinY(face),17,NSHeight(face));
+   NSColor     *accent=enabled?atlasAccent():atlasGray(0.78);
+   NSGradient  *gradient=[[NSGradient alloc] initWithStartingColor:atlasDarker(accent,0.11) endingColor:accent];
+
+   if(NSWidth(inner)<=24 || NSHeight(inner)<=0){
+    [gradient release];
+    return;
+   }
+   [NSGraphicsContext saveGraphicsState];
+   [[NSBezierPath bezierPathWithRoundedRect:inner xRadius:radius yRadius:radius] addClip];
+   [gradient drawInRect:cap angle:atlasFlipped()?-90:90];
+   [NSGraphicsContext restoreGraphicsState];
+   [gradient release];
+
+   NSRect arrows=NSMakeRect(NSMinX(cap),NSMinY(cap),NSWidth(cap)-1,NSHeight(cap));
+   NSColor *white=enabled?[NSColor whiteColor]:[NSColor colorWithGenericGamma22White:1 alpha:0.7];
+
+   if(pullsDown)
+    atlasChevron(arrows,0,7,white);
+   else {
+    NSRect up=arrows,down=arrows;
+
+    /* In the view's sense: the up chevron above the middle. */
+    up.origin.y+=atlasFlipped()?-3:3;
+    down.origin.y-=atlasFlipped()?-3:3;
+    atlasChevron(up,1,6,white);
+    atlasChevron(down,0,6,white);
+   }
+}
+
+@end
+
 @implementation NSGraphicsStyle (NSTabView)
 
 /* Tabs on the pane's top edge: the chosen one white and joined to it. */
