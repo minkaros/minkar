@@ -28,6 +28,8 @@
  *-------------------------------------------------------------------*/
 
 #import <Onyx2D/O2Image.h>
+#include <stdlib.h>
+#include <string.h>
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2ColorSpace.h>
 #import <Onyx2D/O2DataProvider.h>
@@ -36,8 +38,52 @@
 
 @implementation O2Image
 
+ONYX2D_STATIC_INLINE const void *scanlineAtY(O2Image *self,int y);
+
+/* 1-bit gray (an X bitmap, a stipple: Tk's): the most significant bit
+   first, 1 white and 0 black, as a gray sample of 0 or 255. */
+static uint8_t *O2ImageRead_G1_to_A8(O2Image *self,int x,int y,uint8_t *alpha,int length){
+   const uint8_t *scanline=scanlineAtY(self,y);
+   int i;
+
+   if(scanline==NULL)
+    return NULL;
+   BOOL inverted=self->_decode!=NULL && self->_decode[0]>self->_decode[1];
+   for(i=0;i<length;i++){
+    int  bit=x+i;
+    BOOL set=(scanline[bit>>3]&(0x80>>(bit&7)))!=0;
+    alpha[i]=(set!=inverted)?0xFF:0x00;
+   }
+   return NULL;
+}
+
+static O2argb8u *O2ImageRead_G1_to_argb8u(O2Image *self,int x,int y,O2argb8u *span,int length){
+   const uint8_t *scanline=scanlineAtY(self,y);
+   int i;
+
+   if(scanline==NULL)
+    return NULL;
+   BOOL inverted=self->_decode!=NULL && self->_decode[0]>self->_decode[1];
+   for(i=0;i<length;i++){
+    int     bit=x+i;
+    BOOL    set=(scanline[bit>>3]&(0x80>>(bit&7)))!=0;
+    uint8_t value=(set!=inverted)?0xFF:0x00;
+    span[i].r=span[i].g=span[i].b=value;
+    span[i].a=0xFF;
+   }
+   return NULL;
+}
+
 ONYX2D_STATIC BOOL initFunctionsForMonochrome(O2Image *self,size_t bitsPerComponent,size_t bitsPerPixel,O2BitmapInfo bitmapInfo){
    switch(bitsPerComponent){
+    case 1:
+     if(bitsPerPixel==1){
+      self->_read_a8u=O2ImageRead_G1_to_A8;
+      self->_read_argb8u=O2ImageRead_G1_to_argb8u;
+      return YES;
+     }
+     break;
+
     case 8:
      switch(bitsPerPixel){
       case 8:
@@ -318,7 +364,13 @@ renderingIntent:(O2ColorRenderingIntent)renderingIntent {
    _bitmapInfo=bitmapInfo;
     _decoder=[decoder retain];
    _provider=[provider retain];
-  // _decode=NULL;
+   /* The decode array (two values a component), kept: 1-bit images
+      follow it (Tk's {1, 0} turns their bits over). */
+   if(decode!=NULL){
+    size_t count=2*(colorSpace!=nil?O2ColorSpaceGetNumberOfComponents(colorSpace):1);
+    _decode=NSZoneMalloc(NULL,count*sizeof(O2Float));
+    memcpy(_decode,decode,count*sizeof(O2Float));
+   }
    _interpolate=interpolate;
    _isMask=NO;
    _renderingIntent=renderingIntent;
@@ -391,9 +443,55 @@ renderingIntent:(O2ColorRenderingIntent)renderingIntent {
    _mask=image;
 }
 
--copyWithMask:(O2Image *)image {
-   O2UnimplementedMethod();
-   return nil;
+/* The image with the mask's samples as an inverse alpha (an image mask's
+   or a gray image's: 0 shows the image, 1 hides it, as Quartz documents
+   it), made as a new premultiplied RGBA image. The mask is sampled at the
+   image's size. Tk makes its bitmap cursors this way. */
+static void releaseMaskedBytes(void *info,const void *data,size_t size){
+   free((void *)data);
+}
+
+-copyWithMask:(O2Image *)mask {
+   size_t   width=_width,height=_height,y,x;
+   uint8_t *bytes;
+
+   if(mask==nil || width==0 || height==0 || _read_argb8u==NULL || mask->_read_a8u==NULL)
+    return nil;
+   bytes=malloc(width*height*4);
+   if(bytes==NULL)
+    return nil;
+   {
+    O2argb8u row[width];
+    uint8_t  covered[mask->_width>0?mask->_width:1];
+
+    for(y=0;y<height;y++){
+     size_t   maskY=mask->_height==height?y:(y*mask->_height)/height;
+     O2argb8u *span=_read_argb8u(self,0,(int)y,row,(int)width);
+
+     if(span==NULL)
+      span=row;
+     mask->_read_a8u(mask,0,(int)maskY,covered,(int)mask->_width);
+     for(x=0;x<width;x++){
+      size_t  maskX=mask->_width==width?x:(x*mask->_width)/width;
+      unsigned alpha=(255-covered[maskX])*span[x].a/255;
+      uint8_t *out=bytes+(y*width+x)*4;
+
+      /* Premultiplied by the source's alpha already: by the mask's too. */
+      out[0]=(uint8_t)(span[x].r*(255-covered[maskX])/255);
+      out[1]=(uint8_t)(span[x].g*(255-covered[maskX])/255);
+      out[2]=(uint8_t)(span[x].b*(255-covered[maskX])/255);
+      out[3]=(uint8_t)alpha;
+     }
+    }
+   }
+   O2DataProviderRef provider=O2DataProviderCreateWithData(NULL,bytes,width*height*4,releaseMaskedBytes);
+   O2ColorSpaceRef   rgb=O2ColorSpaceCreateDeviceRGB();
+   O2Image *result=[[O2Image alloc] initWithWidth:width height:height bitsPerComponent:8 bitsPerPixel:32 bytesPerRow:width*4
+       colorSpace:rgb bitmapInfo:kO2ImageAlphaPremultipliedLast|kO2BitmapByteOrder32Big decoder:NULL provider:provider
+       decode:NULL interpolate:_interpolate renderingIntent:_renderingIntent];
+   O2ColorSpaceRelease(rgb);
+   O2DataProviderRelease(provider);
+   return result;
 }
 
 -copyWithMaskingColors:(const O2Float *)components {
