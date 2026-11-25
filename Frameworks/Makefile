@@ -8,8 +8,6 @@ SUBDIR += ../Kernel/IOKitUser
 # CFNetwork: Minkar's subset (the proxy API); the APSL sources wait.
 SUBDIR += CFNetwork/minkar
 SUBDIR += SystemConfiguration
-# Its privileged helper, for SCPreferences opened with an authorization.
-SUBDIR += SystemConfiguration/SCHelper
 # DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
 SUBDIR += DiskArbitration
 # libcompression (from BSD/lib) and the liblzma it links (CoreText's xz):
@@ -45,6 +43,9 @@ SUBDIR += CoreText
 # to replace it). On CoreFoundation only; before CUPS, whose configure
 # links its checks with it.
 SUBDIR += Security/minkar
+# SystemConfiguration's privileged helper, for SCPreferences opened with an
+# authorization: it links Security, so after it.
+SUBDIR += SystemConfiguration/SCHelper
 # PrintCore and AppKit link libcups and include its headers; CUPS (with the
 # OpenSSL it uses for TLS) is built here, as the BSD stage comes later.
 # The stage builds these directories in the order listed here.
