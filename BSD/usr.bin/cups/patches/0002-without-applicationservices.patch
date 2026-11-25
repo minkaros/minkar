@@ -1,0 +1,30 @@
+Minkar: CUPS without the ApplicationServices umbrella, which is built
+after it (its PrintCore links libcups), so a clean build did not find
+it. The USB backend includes CoreFoundation instead (usb-darwin.c uses
+only CoreFoundation and IOKit, and includes them itself); cupsd is not
+linked weakly with ApplicationServices. Without <ApplicationServices/
+ApplicationServices.h> (ac_cv_header_..._h=no in the Makefile) cupsd
+does not turn a PPD's APPrinterIconPath icon into a PNG.
+
+--- a/configure	2026-11-25 16:39:48.271328254 -0500
++++ b/configure	2026-11-25 16:39:48.279327874 -0500
+@@ -6890,7 +6890,7 @@
+   darwin*) :
+ 
+     BACKLIBS="$BACKLIBS -framework IOKit"
+-    SERVERLIBS="$SERVERLIBS -framework IOKit -weak_framework ApplicationServices"
++    SERVERLIBS="$SERVERLIBS -framework IOKit"
+     LIBS="-framework CoreFoundation -framework Security $LIBS"
+     PKGCONFIG_LIBS_STATIC="$PKGCONFIG_LIBS_STATIC -framework CoreFoundation -framework Security"
+ 
+--- a/backend/usb.c	2026-11-25 16:39:08.891200550 -0500
++++ b/backend/usb.c	2026-11-25 16:39:08.924198981 -0500
+@@ -15,7 +15,7 @@
+ 
+ #ifdef __APPLE__
+    /* A header order dependency requires this be first */
+-#  include <ApplicationServices/ApplicationServices.h>
++#  include <CoreFoundation/CoreFoundation.h>
+ #endif /* __APPLE__ */
+ 
+ #include "backend-private.h"

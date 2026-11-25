@@ -7,7 +7,8 @@
 # platform has them (decided 13 Nov 2026); cupsd, its backends and its
 # commands (the maintainer's choice, 23 Nov 2026), cupsd started by
 # launchd. Without the reference's Authorization tags (cupsd's own
-# authentication) and ColorSync (patches/: no printer color profiles).
+# authentication), ColorSync (patches/: no printer color profiles) and
+# ApplicationServices, built after it (patches/: no PPD printer icons).
 # pdfcopy (pdf.convs) hands PDF to the printers that take it. Filters and
 # backends run as _lp without CUPS's sandbox profile (as on Linux): its
 # SBPL is beyond what Minkar's sandbox reads yet.
@@ -37,6 +38,7 @@ ${BUILD}/scheduler/cupsd: ${.CURDIR}/Makefile ${.CURDIR}/MANIFEST
 	    LDFLAGS="-L${MINKAR_SDKROOT}/usr/local/lib" \
 	    PKG_CONFIG=false \
 	    ac_cv_header_sandbox_h=no \
+	    ac_cv_header_ApplicationServices_ApplicationServices_h=no \
 	    ./configure --host=x86_64-apple-darwin19 --prefix=/usr \
 	    --sysconfdir=/private/etc --localstatedir=/private/var \
 	    --with-tls=openssl --with-dnssd=mdnsresponder --disable-gssapi \
