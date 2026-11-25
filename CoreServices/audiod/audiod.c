@@ -10,7 +10,7 @@
  * A device's IO runs on a real-time thread while it has clients. Each cycle
  * (its frames set by the device's first client, 512 unless it asks for
  * fewer) it chooses the frames of the device's timeline the cycle's samples
- * will be played at, ahead of the hardware by two cycles and the engine's
+ * will be played at, ahead of the hardware by one cycle and the engine's
  * sample offset; it copies the frames the input recorded last, behind the
  * hardware, into each client's shared area with those times, and wakes
  * the clients; it waits for each one, at most until
@@ -53,6 +53,11 @@
 #define kMaxFrames      kAudioServerMaxFramesPerCycle
 #define kChannels       kAudioServerChannels
 #define kSamplesOffset  128     /* the samples, after the area's header */
+/* How far ahead of the hardware a cycle is written, in cycles, and how
+   long before the hardware reaches it the mix is written (a fraction of a
+   cycle): measured against the reference (AU10c). */
+#define kLeadCycles     1
+#define kDeadlineMargin 8.0
 
 typedef struct Device {
     char            uid[512];
@@ -583,11 +588,11 @@ static void *deviceThread(void *arg) {
     double hostPerFrame = 1e9 / d->sampleRate * timebase.denom / timebase.numer;
 
     makeRealtime(d);
-    /* Two cycles and the engine's offset ahead of the hardware: a cycle
-       starts when the hardware is that far before its frames, so clients
-       have almost two cycles to render (one was too little for a client's
-       first cycles, which take page faults). */
-    uint64_t lead = d->sampleOffset + 2 * kFramesPerCycle;
+    /* One cycle and the engine's offset ahead of the hardware (AU10c: the
+       output's latency, below the reference's): a cycle starts when the
+       hardware is that far before its frames; clients have until an eighth
+       of a cycle before the offset, and the mix is written then. */
+    uint64_t lead = d->sampleOffset + kLeadCycles * kFramesPerCycle;
     d->lastMeasured = 0;
     d->inputMeasured = -1;              /* the first measure sets it */
     double nowFrame = measureFrame(d);
@@ -648,7 +653,7 @@ static void *deviceThread(void *arg) {
         double inputAge = d->inputMeasured - (double)readFrame;
         uint64_t inputHost = now - (uint64_t)((inputAge > 0 ? inputAge : 0) * hostPerFrame);
         uint64_t outputHost = now + (uint64_t)(((double)writeFrame - nowFrame) * hostPerFrame);
-        double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / 4.0;
+        double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / kDeadlineMargin;
         uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
 
         cycle++;
@@ -676,7 +681,7 @@ static void *plugInThread(void *arg) {
     const uint32_t kFramesPerCycle = d->framesPerCycle;
     double hostPerFrame = 1e9 / d->sampleRate * timebase.denom / timebase.numer;
     uint64_t cycle = 0;
-    uint64_t lead = d->sampleOffset + 2 * kFramesPerCycle;
+    uint64_t lead = d->sampleOffset + kLeadCycles * kFramesPerCycle;
     uint32_t inputSafety = PlugInDeviceSafetyOffset(d->plugin, 1);
     uint64_t wake = mach_absolute_time();
     double nowFrame = PlugInDeviceFrameAt(d->plugin, wake);
@@ -704,7 +709,7 @@ static void *plugInThread(void *arg) {
         double readFrame = floor(nowFrame) - inputSafety - kFramesPerCycle;
         uint64_t inputHost = now - (uint64_t)((nowFrame - readFrame) * hostPerFrame);
         uint64_t outputHost = now + (uint64_t)(((double)writeFrame - nowFrame) * hostPerFrame);
-        double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / 4.0;
+        double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / kDeadlineMargin;
         uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
 
         cycle++;
