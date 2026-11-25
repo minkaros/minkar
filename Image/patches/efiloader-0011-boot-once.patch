@@ -1,0 +1,34 @@
+Minkar: /Minkar/org.minkar.boot.once.plist, when present, holds one
+boot's settings (read over org.minkar.boot.plist's); it is deleted before
+the boot goes on, so the next boot is the usual one whatever becomes of
+this one (a system tried out with bless --setBoot --nextonly).
+
+--- a/MdeModulePkg/Application/Loader/config.c	2026-11-25 09:27:14.487255660 -0500
++++ b/MdeModulePkg/Application/Loader/config.c	2026-11-25 09:27:14.518254219 -0500
+@@ -167,4 +167,26 @@
+ 
+     rawConfig[size] = '\0'; // terminate for the string scanner
+     ParseBootConfig(rawConfig);
++
++    /* Minkar: a boot's settings for once (bless --setBoot --nextonly,
++       trying a system out): read over the usual ones, and the file deleted
++       before anything else, so the next boot is the usual one whatever
++       becomes of this one. */
++    CHAR8 onceConfig[EFI_PAGE_SIZE];
++    EFI_FILE_HANDLE onceFile;
++    if(EFI_ERROR(OpenBootVolume(&Root)))
++        return;
++    if(EFI_ERROR(Root->Open(Root, &onceFile, UEFI_STR("\\Minkar\\org.minkar.boot.once.plist"),
++                            EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0))) {
++        Root->Close(Root);
++        return;
++    }
++    size = sizeof(onceConfig) - 1;
++    EFI_STATUS readStatus = onceFile->Read(onceFile, &size, &onceConfig);
++    EFI_STATUS deleteStatus = onceFile->Delete(onceFile);   /* closes it too */
++    Root->Close(Root);
++    if(EFI_ERROR(readStatus) || EFI_ERROR(deleteStatus))
++        return;     /* not deleted: never used, or every boot would be this one */
++    onceConfig[size] = '\0';
++    ParseBootConfig(onceConfig);
+ }
