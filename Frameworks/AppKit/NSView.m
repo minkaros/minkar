@@ -2867,7 +2867,12 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
            [[NSColor yellowColor] set];
            NSRectFill(rect);
        }
-      else if(!NSViewLayersEnabled && _layer!=nil && !isSurfaceLayer(_layer))
+      /* A layer whose delegate is the view, which draws itself (Tk made
+         its layer, then asked for one): the view's drawing is the layer's,
+         as a layer-backed view's (drawLayer:inContext: on the reference),
+         with the view in focus. */
+      else if(!NSViewLayersEnabled && _layer!=nil && !isSurfaceLayer(_layer) &&
+              !([_layer delegate]==(id)self && drawsItself(self)))
            drawHostedLayerTree(self,graphicsPort);
       else {
            /* An OpenGL surface shows here from under the window. */
