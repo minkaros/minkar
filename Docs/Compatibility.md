@@ -16,7 +16,7 @@ records how far it got in [progress/compatibility.tsv](progress/compatibility.ts
 (`BC_UPDATE=yes` writes it).
 
 <!-- compat:matrix:begin -->
-_Checked: 2026-11-21; ProductVersion 10.15; the gate took 17 minutes under KVM, with the apps disk._
+_Checked: 2026-11-24; ProductVersion 10.15; the gate took 17 minutes under KVM, with the apps disk._
 
 7 of 17 apps show a window.
 
@@ -24,27 +24,27 @@ _Checked: 2026-11-21; ProductVersion 10.15; the gate took 17 minutes under KVM, 
 
 | App | Version | Minimum | Architectures | Result | Menus | Reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| Firefox | 160.0 | 10.15 | arm64, x86_64 | `window` | yes | as minkar; a window at 0,22, 1280x702 |
+| Firefox | 160.0 | 10.15 | arm64, x86_64 | `window` | yes | as minkar; a window at 0,22, 1280x708 |
 | HexFiend | 2.18.1 | 10.14.6 | arm64, x86_64 | `window` | yes | as minkar; a window at 167,275, 367x442 |
-| KeepingYouAwake | 1.6.8 | 10.13 | arm64, x86_64 | `no-window` | no | as minkar; running after 120s without a document window (only a panel, 416x169, at level 8); 2026-11-21 17:00:27.580 KeepingYouAwake[371:10da6f7c0] unexpected character 76 'v' at 7 |
+| KeepingYouAwake | 1.6.8 | 10.13 | arm64, x86_64 | `no-window` | no | as minkar; running after 40s without a document window (only a panel, 416x169, at level 8); 2026-11-25 01:01:42.412 KeepingYouAwake[385:10495a7c0] unexpected character 76 'v' at 7 |
 | Platypus | 5.4.1 | 10.11 | arm64, x86_64 | `window` | yes | as minkar; a window at 308,127, 664x546 |
-| Sloth | 3.4 | 10.13 | arm64, x86_64 | `window` | yes | as minkar; a window at 322,91, 892x633 |
-| TextMate | 2.0.23 | 10.12 | arm64, x86_64 | `window` | yes | as minkar; a window at 426,162, 427x422 |
-| Thunderbird | 160.0 | 10.15 | arm64, x86_64 | `window` | yes | as minkar; a window at 0,22, 1280x702 |
+| Sloth | 3.4 | 10.13 | arm64, x86_64 | `window` | yes | as minkar; a window at 322,97, 892x633 |
+| TextMate | 2.0.23 | 10.12 | arm64, x86_64 | `window` | yes | as minkar; a window at 426,164, 427x425 |
+| Thunderbird | 160.0 | 10.15 | arm64, x86_64 | `window` | no | as minkar; a window at 0,22, 1280x708 |
 
 ### The next designated apps (BC5 on)
 
 | App | Version | Minimum | Architectures | Result | Menus | Reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| Cyberduck | 9.6.0 | 10.13 | arm64, x86_64 | `at-start` | no | as minkar; exit status 1, after its run loop started; Couldn't spawn command: su |
+| Cyberduck | 9.6.0 | 10.13 | arm64, x86_64 | `at-start` | no | as minkar; exit status 0, after its run loop started;  |
 | IINA | 1.5.1 | 11 | arm64, x86_64 | `min-version` | no | requires 11, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/PrivateFrameworks/PIP.framework/Versions/A/PIP Referenced from: /Applications/IINA.app/Contents/MacOS/IINA Reason: image not found  |
 | iTerm2 | 3.7.8 | 13.0 | arm64, x86_64 | `min-version` | no | requires 13.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/iTerm.app/Contents/MacOS/iTerm2: restricted entitlement keychain-access-groups outside the trust cache |
 | KeePassXC | 2.8.0 | 12.0 | x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/KeePassXC.app/Contents/MacOS/KeePassXC: restricted entitlement keychain-access-groups outside the trust cache |
 | LibreOffice | 26.8.3 | 11.0.0 | x86_64 | `min-version` | no | requires 11.0.0, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/Frameworks/Kerberos.framework/Versions/A/Kerberos Referenced from: /Applications/LibreOffice.app/Contents/Frameworks/libmergedlo.dylib Reason: image not found  |
 | Skim | 1.7.19 | 10.13 | arm64, x86_64 | `window` | yes | as minkar; a window at 334,104, 480x382 |
 | Transmission | 4.1.4 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: no-load: as minkar; dyld: Library not loaded: /System/Library/Frameworks/QuickLookUI.framework/Versions/A/QuickLookUI Referenced from: /Applications/Transmission.app/Contents/MacOS/Transmission Reason: image not found  |
-| UTM | 5.0.9 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: signature: as minkar; MinkarCodeIntegrity: refused /Applications/UTM.app/Contents/MacOS/UTM: restricted entitlement com.apple.vm.device-access outside the trust cache |
-| VLC | 3.0.24 | 10.7.5 | arm64, x86_64 | `at-start` | no | as minkar; exit status 0, after its run loop started; [00007f903d4a3c40] [cli] lua interface error: Error loading script /Applications/VLC.app/Contents/MacOS/share/lua/intf/cli.luac: ...kage/macosx/../../../share/lua/intf/modules/host.lua:286: Interrupted. |
+| UTM | 5.0.9 | 12.0 | arm64, x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: install: ditto from the disk image failed |
+| VLC | 3.0.24 | 10.7.5 | arm64, x86_64 | `no-window` | no | as minkar; running after 40s without a document window (only a panel, 472x195, at level 8); 2026-11-25 01:08:43.774 VLC[1891:1030c47c0] PDF unimplemented: /work/build/minkar-tc/Frameworks/Onyx2D/O2PDFOperators.m 580 SMask not implemented, name=None |
 | VSCodium | 1.143.17232 | 12.0 | x86_64 | `min-version` | no | requires 12.0, Minkar reports 10.15; run anyway: install: hdiutil attach: hdiutil: attach failed - no mountable file systems |
 
 Results, from the least far to the furthest:

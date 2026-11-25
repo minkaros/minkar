@@ -155,7 +155,7 @@ public ivar layouts and struct sizes stay as on the reference platform.
 - [x] BC1 — The generated matrix, [Compatibility.md](Compatibility.md).
 - [ ] BC2 — Loader cases: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, third-party signatures and hardened runtime, `SYSTEM_VERSION_COMPAT`; partial.
 - [ ] BC3 — ABI audit from the type encodings in the apps' binaries, without the vendor's headers.
-- [ ] BC4 — App set 19 green; part of M6. KeepingYouAwake moved to 19.6.x (24 Nov 2026): app set 19 closes 19.6.0 with the other six.
+- [x] BC4 — App set 19 green; part of M6. KeepingYouAwake moved to 19.6.x (24 Nov 2026): app set 19 closes 19.6.0 with the other six, which open their windows from their published binaries (`bmake bc-check`, 24 Nov 2026: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend; Skim too; [Compatibility.md](Compatibility.md)).
 - [ ] BC5… — One group of designated apps per `ProductVersion` rise.
 
 ### Lane ARM — arm64

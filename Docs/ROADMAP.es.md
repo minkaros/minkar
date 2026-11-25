@@ -160,7 +160,7 @@ referencia.
 - [x] BC1 — La matriz generada, [Compatibility.es.md](Compatibility.es.md).
 - [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas de terceros y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
 - [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin los headers del fabricante.
-- [ ] BC4 — El conjunto de apps 19 en verde; parte de M6. KeepingYouAwake pasó a 19.6.x (24 nov 2026): el conjunto 19 cierra 19.6.0 con las otras seis.
+- [x] BC4 — El conjunto de apps 19 en verde; parte de M6. KeepingYouAwake pasó a 19.6.x (24 nov 2026): el conjunto 19 cierra 19.6.0 con las otras seis, que abren su ventana desde sus binarios publicados (`bmake bc-check`, 24 nov 2026: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend; también Skim; [Compatibility.es.md](Compatibility.es.md)).
 - [ ] BC5… — Un grupo de apps designadas por cada subida de `ProductVersion`.
 
 ### Carril ARM — arm64
