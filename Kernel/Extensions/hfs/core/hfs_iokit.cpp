@@ -44,6 +44,13 @@
 bool panic_on_assert;
 #endif
 
+/* Minkar: the kernel's private part of pexpert.h (exported to kexts by
+ * Private.exports), which the headers the kext is built with leave out. */
+#ifndef kPEICanHasAssertions
+#define kPEICanHasAssertions	0x00000001
+extern "C" uint32_t PE_i_can_has_kernel_configuration(void);
+#endif
+
 #if DEBUG
 bool hfs_corruption_panics = true;
 #endif
@@ -77,7 +84,7 @@ bool com_apple_filesystems_hfs::start(IOService *provider)
 		return false;
 
 #ifndef panic_on_assert
-	panic_on_assert = true;
+	panic_on_assert = PE_i_can_has_kernel_configuration() & kPEICanHasAssertions;
 #endif
 
 #if DEBUG
