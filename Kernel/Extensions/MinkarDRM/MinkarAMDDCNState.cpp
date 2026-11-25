@@ -315,9 +315,17 @@ MinkarAMDFramebuffer::darkThread(void *fb, wait_result_t)
 	static const uint32_t hpdReg[5] = { dcn302_HPD0_DC_HPD_INT_STATUS, dcn302_HPD1_DC_HPD_INT_STATUS,
 	    dcn302_HPD2_DC_HPD_INT_STATUS, dcn302_HPD3_DC_HPD_INT_STATUS, dcn302_HPD4_DC_HPD_INT_STATUS };
 	bool lit = false;
+	unsigned waited = 0;	/* half seconds without the display's plug */
 	LOG("waiting for display %08x on HPD %u", s->key, s->hpd + 1);
 	while (!lit && !self->isInactive()) {
 		if (!(self->readReg(hpdReg[s->hpd]) & 0x2)) {
+			/* Said once: the screen stays dark until that display
+			   comes (a KVM switched to another machine, the display
+			   off). Lighting another display needs a mode set of its
+			   own, which this driver does not do yet. */
+			if (++waited == 30)
+				LOG("no display after 15 s: still waiting for display %08x on HPD %u "
+				    "(switched away, or off?)", s->key, s->hpd + 1);
 			IOSleep(500);
 			continue;
 		}
