@@ -4,7 +4,7 @@ SRCS = data.c runtime.c
 
 MK_WERROR = no
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -Os -fno-builtin --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -momit-leaf-frame-pointer -w \
         -Wno-implicit-function-declaration \
         -Wno-int-conversion -Wno-implicit-int \
