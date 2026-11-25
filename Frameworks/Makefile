@@ -81,6 +81,9 @@ SUBDIR += UserNotifications
 SUBDIR += ServiceManagement
 SUBDIR += AddressBook
 SUBDIR += OSAKit
+# pixman (BSD/lib): HIShape's regions; the window server links it too
+# (CoreServices stage, after this one).
+SUBDIR += ../BSD/lib/libpixman
 SUBDIR += Carbon
 # PDF documents (Quartz re-exports it).
 SUBDIR += PDFKit
@@ -164,7 +167,7 @@ Security/minkar: CoreFoundation
 AddressBook: Foundation
 AudioToolbox: CoreFoundation CoreAudio ../BSD/lib/ffmpeg
 OSAKit: Foundation
-Carbon: CoreServices ApplicationServices
+Carbon: CoreServices ApplicationServices ../BSD/lib/libpixman
 PDFKit: AppKit CoreGraphics Onyx2D
 Quartz: AppKit QuickLook PDFKit
 CoreAudio: CoreFoundation ../Kernel/IOKitUser
