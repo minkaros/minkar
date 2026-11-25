@@ -28,7 +28,12 @@ SRCS = \
     algorithms/yarrow/prng.c \
     algorithms/yarrow/yarrowUtils.c
 
-CFLAGS = -DXNU_KERNEL_PRIVATE=1 -DPRIVATE=1 -DCC_KERNEL=1 \
+# Optimized (-Os, as kexts are built; without it the kernel's encrypted
+# swap ran at 1.7 MB/s, AES taking 152 ms a 256 KB segment), and no
+# implicit SSE: kernel code must not touch the user's vector registers;
+# no builtins: printf must not become puts, which the kernel lacks.
+CFLAGS = -Os -fno-builtin -mno-implicit-float \
+	-DXNU_KERNEL_PRIVATE=1 -DPRIVATE=1 -DCC_KERNEL=1 \
 	-Wno-sign-conversion -Wno-int-conversion \
 	-Wno-implicit-function-declaration \
 	-Wno-incompatible-library-redeclaration \
