@@ -69,7 +69,7 @@ ARM_SRCS = pow.c pow_data.c exp_data.c math_err.c
 CFLAGS.${s} = -I${.CURDIR}/arm
 .endfor
 
-CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
+CFLAGS = -O2 -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-Wno-nullability-completeness -fno-math-errno -fno-builtin \
 	-I${.CURDIR}/include -I${MSUN}/src -I${MSUN}/x86 -I${MSUN}/ld80 \
 	-I${MSUN}/amd64 -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include \
