@@ -14,13 +14,30 @@
 #include <mach/mach_types.h>
 
 #define kAudioServerName                "org.minkar.audiod"
-#define kAudioServerInterfaceVersion    2
+#define kAudioServerInterfaceVersion    3
 #define kAudioServerFramesPerCycle      512     /* unless the first client asks otherwise */
 #define kAudioServerMinFramesPerCycle   64
 #define kAudioServerMaxFramesPerCycle   4096
 #define kAudioServerChannels            2
 
 typedef char as_name_t[512];
+
+/* A plug-in device's description (copy_devices): its UID (the key the
+   service knows it by), name, manufacturer, transport type, nominal rate,
+   channels of its output and input, latency and safety offset in frames
+   (output, input), whether it can be the default device. */
+#define kAudioServerDeviceUID           "uid"
+#define kAudioServerDeviceName          "name"
+#define kAudioServerDeviceManufacturer  "manufacturer"
+#define kAudioServerDeviceTransport     "transport"
+#define kAudioServerDeviceSampleRate    "rate"
+#define kAudioServerDeviceOutChannels   "out"
+#define kAudioServerDeviceInChannels    "in"
+#define kAudioServerDeviceOutLatency    "latency-out"
+#define kAudioServerDeviceInLatency     "latency-in"
+#define kAudioServerDeviceOutSafety     "safety-out"
+#define kAudioServerDeviceInSafety      "safety-in"
+#define kAudioServerDeviceCanBeDefault  "default"
 
 /*
  * At the start of the area. The service writes the cycle's times before it

@@ -50,3 +50,10 @@ routine stop_io(
 	ServerAuditToken token	: audit_token_t;
 	session			: int32_t;
 	out result		: int32_t);
+
+/* The devices of the audio server plug-ins the service hosts (AU10): a
+   binary property list, an array of dictionaries (AudioServerTypes.h's
+   kAudioServerDevice... keys), in memory the client deallocates. */
+routine copy_devices(
+	server			: mach_port_t;
+	out devices		: pointer_t, dealloc);

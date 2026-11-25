@@ -10,7 +10,7 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	audiod
-SRCS =	audiod.c AudioServerServer.c
+SRCS =	audiod.c plugins.c AudioServerServer.c
 MAN =
 CA = ${ROOT_SOURCE_DIR}/Frameworks/CoreAudio
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

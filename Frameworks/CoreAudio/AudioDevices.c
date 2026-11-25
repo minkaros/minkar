@@ -12,6 +12,9 @@
 
 #include "AudioDevices.h"
 #include "AudioServerTypes.h"
+#include "AudioServerUser.h"
+#include <mach/mach.h>
+#include <servers/bootstrap.h>
 #include <IOKit/IOKitLib.h>
 #include <math.h>
 #include <stddef.h>
@@ -30,6 +33,7 @@ typedef struct Device {
     Boolean         hasInput;
     UInt32          framesPerCycle; /* asked of the audio service */
     CFStringRef     uid;
+    CFDictionaryRef plugIn;         /* a plug-in's device (engine 0): its description from the service */
 } Device;
 
 static pthread_mutex_t devicesLock = PTHREAD_MUTEX_INITIALIZER;
@@ -43,6 +47,9 @@ static CFTypeRef copyProperty(io_registry_entry_t entry, const char *key) {
     CFRelease(name);
     return value;
 }
+
+/* A plug-in device's number (AudioServerTypes.h's keys), or fallback. */
+static double plugInNumber(const void *device, const char *key, double fallback);
 
 static SInt64 numberProperty(io_registry_entry_t entry, const char *key, SInt64 fallback) {
     CFTypeRef value = copyProperty(entry, key);
@@ -93,6 +100,65 @@ static Boolean hasStream(io_service_t engine, SInt64 direction) {
     return found;
 }
 
+/* The devices of the audio service's plug-ins (AU10), after the engines:
+   their descriptions, asked of the service. */
+static void findPlugInDevices(void) {
+    mach_port_t server = MACH_PORT_NULL;
+    vm_offset_t data = 0;
+    mach_msg_type_number_t count = 0;
+
+    if (bootstrap_look_up(bootstrap_port, kAudioServerName, &server) != KERN_SUCCESS)
+        return;
+    if (as_copy_devices(server, &data, &count) == KERN_SUCCESS && data != 0) {
+        CFDataRef bytes = CFDataCreate(NULL, (const UInt8 *)data, (CFIndex)count);
+        CFPropertyListRef list = CFPropertyListCreateWithData(NULL, bytes, 0, NULL, NULL);
+        CFRelease(bytes);
+        vm_deallocate(mach_task_self(), data, count);
+        if (list != NULL && CFGetTypeID(list) == CFArrayGetTypeID())
+            for (CFIndex i = 0; i < CFArrayGetCount(list) && deviceCount < kMaxDevices; i++) {
+                CFDictionaryRef description = CFArrayGetValueAtIndex(list, i);
+                CFStringRef uid = CFGetTypeID(description) == CFDictionaryGetTypeID() ?
+                    CFDictionaryGetValue(description, CFSTR(kAudioServerDeviceUID)) : NULL;
+                if (uid == NULL || CFGetTypeID(uid) != CFStringGetTypeID())
+                    continue;
+                Device *d = &devices[deviceCount];
+                memset(d, 0, sizeof(*d));
+                d->id = kFirstDeviceID + deviceCount;
+                d->plugIn = CFRetain(description);
+                d->uid = CFRetain(uid);
+                d->hasInput = plugInNumber(d, kAudioServerDeviceInChannels, 0) > 0;
+                d->framesPerCycle = kAudioServerFramesPerCycle;
+                deviceCount++;
+            }
+        if (list != NULL)
+            CFRelease(list);
+    }
+    mach_port_deallocate(mach_task_self(), server);
+}
+
+static double plugInNumber(const void *device, const char *key, double fallback) {
+    const Device *d = device;
+    CFStringRef k;
+    CFTypeRef v;
+    double n = fallback;
+    if (d->plugIn == NULL)
+        return fallback;
+    k = CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8);
+    v = CFDictionaryGetValue(d->plugIn, k);
+    CFRelease(k);
+    if (v != NULL && CFGetTypeID(v) == CFNumberGetTypeID())
+        CFNumberGetValue(v, kCFNumberDoubleType, &n);
+    return n;
+}
+
+/* A device's number: the engine's registry property, or the plug-in
+   device's description key. */
+static SInt64 deviceNumber(const Device *d, const char *engineKey, const char *plugInKey, SInt64 fallback) {
+    if (d->plugIn != NULL)
+        return (SInt64)plugInNumber(d, plugInKey, (double)fallback);
+    return numberProperty(d->engine, engineKey, fallback);
+}
+
 /* The engines, once: each output engine is a device, in the registry's
    order. Its UID is its path in the registry, the same from boot to boot
    for the same hardware. */
@@ -128,6 +194,7 @@ static void findDevices(void) {
         deviceCount++;
     }
     IOObjectRelease(engines);
+    findPlugInDevices();
 }
 
 static Device *deviceWithID(AudioObjectID id) {
@@ -159,6 +226,8 @@ static Boolean isDisplayAudio(const Device *d) {
     io_registry_entry_t parent;
     UInt32 transport = kAudioDeviceTransportTypeUnknown;
 
+    if (d->plugIn != NULL)
+        return false;
     if (IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
         transport = (UInt32)numberProperty(parent, "IOAudioDeviceTransportType", 0);
         IOObjectRelease(parent);
@@ -175,7 +244,10 @@ AudioDeviceID _AudioDeviceDefaultOutput(void) {
     pthread_mutex_lock(&devicesLock);
     findDevices();
     for (UInt32 i = 0; i < deviceCount && id == kAudioObjectUnknown; i++)
-        if (!isDisplayAudio(&devices[i]))
+        if (!isDisplayAudio(&devices[i]) && devices[i].plugIn == NULL)
+            id = devices[i].id;
+    for (UInt32 i = 0; i < deviceCount && id == kAudioObjectUnknown; i++)
+        if (devices[i].plugIn != NULL && plugInNumber(&devices[i], kAudioServerDeviceCanBeDefault, 1) != 0)
             id = devices[i].id;
     if (id == kAudioObjectUnknown && deviceCount > 0)
         id = devices[0].id;
@@ -244,7 +316,8 @@ static Device *streamOwner(AudioObjectID id, Boolean *input) {
 /* The format the IOProc and the hardware use: interleaved float. */
 static void deviceFormat(Device *d, AudioStreamBasicDescription *f) {
     memset(f, 0, sizeof(*f));
-    f->mSampleRate = (Float64)numberProperty(d->engine, "IOAudioEngineSampleRate", 0);
+    f->mSampleRate = (Float64)plugInNumber(d, kAudioServerDeviceSampleRate,
+                                           (double)numberProperty(d->engine, "IOAudioEngineSampleRate", 0));
     f->mFormatID = kAudioFormatLinearPCM;
     f->mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
     f->mChannelsPerFrame = kAudioServerChannels;
@@ -572,7 +645,12 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     case kAudioObjectPropertyName:
     case kAudioObjectPropertyManufacturer: {
         CFTypeRef value = NULL;
-        if (IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
+        if (d->plugIn != NULL) {
+            value = CFDictionaryGetValue(d->plugIn, a->mSelector == kAudioObjectPropertyName ?
+                                         CFSTR(kAudioServerDeviceName) : CFSTR(kAudioServerDeviceManufacturer));
+            if (value != NULL)
+                CFRetain(value);
+        } else if (IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
             value = copyProperty(parent, a->mSelector == kAudioObjectPropertyName ?
                                  "IOAudioDeviceName" : "IOAudioDeviceManufacturerName");
             IOObjectRelease(parent);
@@ -595,8 +673,8 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         *(UInt32 *)out = kAudioObjectClassID;
         break;
     case kAudioDevicePropertyTransportType: {
-        UInt32 transport = kAudioDeviceTransportTypeUnknown;
-        if (IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
+        UInt32 transport = (UInt32)plugInNumber(d, kAudioServerDeviceTransport, kAudioDeviceTransportTypeUnknown);
+        if (d->plugIn == NULL && IORegistryEntryGetParentEntry(d->engine, kIOServicePlane, &parent) == KERN_SUCCESS) {
             transport = (UInt32)numberProperty(parent, "IOAudioDeviceTransportType", 0);
             IOObjectRelease(parent);
         }
@@ -604,7 +682,8 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         break;
     }
     case kAudioDevicePropertyNominalSampleRate:
-        *(Float64 *)out = (Float64)numberProperty(d->engine, "IOAudioEngineSampleRate", 0);
+        *(Float64 *)out = (Float64)plugInNumber(d, kAudioServerDeviceSampleRate,
+                                                (double)numberProperty(d->engine, "IOAudioEngineSampleRate", 0));
         break;
     case kAudioDevicePropertyDeviceIsAlive:
         *(UInt32 *)out = 1;
@@ -621,11 +700,13 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
         ((AudioValueRange *)out)->mMaximum = 1024;
         break;
     case kAudioDevicePropertyLatency:
-        *(UInt32 *)out = (UInt32)numberProperty(d->engine, isInput(a) ? "IOAudioEngineInputSampleLatency" :
-                                                "IOAudioEngineOutputSampleLatency", 0);
+        *(UInt32 *)out = (UInt32)deviceNumber(d, isInput(a) ? "IOAudioEngineInputSampleLatency" :
+                                              "IOAudioEngineOutputSampleLatency",
+                                              isInput(a) ? kAudioServerDeviceInLatency : kAudioServerDeviceOutLatency, 0);
         break;
     case kAudioDevicePropertySafetyOffset:
-        *(UInt32 *)out = (UInt32)numberProperty(d->engine, "IOAudioEngineSampleOffset", 0);
+        *(UInt32 *)out = (UInt32)deviceNumber(d, "IOAudioEngineSampleOffset",
+                                              isInput(a) ? kAudioServerDeviceInSafety : kAudioServerDeviceOutSafety, 0);
         break;
     case kAudioDevicePropertyStreamConfiguration: {
         /* One buffer of interleaved channels, as the IOProc gets it. */
@@ -639,7 +720,8 @@ OSStatus _AudioDeviceGetProperty(AudioObjectID id, const AudioObjectPropertyAddr
     case kAudioDevicePropertyStreamFormat: {
         AudioStreamBasicDescription *f = out;
         memset(f, 0, sizeof(*f));
-        f->mSampleRate = (Float64)numberProperty(d->engine, "IOAudioEngineSampleRate", 0);
+        f->mSampleRate = (Float64)plugInNumber(d, kAudioServerDeviceSampleRate,
+                                               (double)numberProperty(d->engine, "IOAudioEngineSampleRate", 0));
         f->mFormatID = kAudioFormatLinearPCM;
         f->mFormatFlags = kAudioFormatFlagsNativeFloatPacked;
         f->mChannelsPerFrame = kAudioServerChannels;

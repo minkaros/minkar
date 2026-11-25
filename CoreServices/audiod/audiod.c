@@ -46,6 +46,7 @@
 
 #include "AudioServerTypes.h"
 #include "AudioServerServer.h"
+#include "plugins.h"
 
 #define kMaxDevices     8
 #define kMaxSessions    32
@@ -79,6 +80,8 @@ typedef struct Device {
     double          inputMeasured;      /* the input's frame, on its own timeline */
     double          inputSlack;         /* frames the input came late by, kept as margin */
     int             clients;
+    PlugInDevice   *plugin;             /* an audio server plug-in's device, or NULL */
+    int             hasInput;
 } Device;
 
 typedef struct Session {
@@ -93,7 +96,7 @@ typedef struct Session {
 } Session;
 
 static Device devices[kMaxDevices];
-static int deviceCount;
+static int deviceCount, engineCount;
 static Session sessions[kMaxSessions];
 static int32_t nextSession = 1;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -249,6 +252,7 @@ static void findDevices(void) {
             continue;
         }
         Device *d = &devices[deviceCount++];
+        engineCount++;
         strlcpy(d->uid, path, sizeof(d->uid));
         d->engine = engine;
         d->volume = findControl(engine, 'levl', 'vlme');
@@ -257,6 +261,21 @@ static void findDevices(void) {
         syslog(LOG_INFO, "device %s", d->uid);
     }
     IOObjectRelease(engines);
+}
+
+/* The plug-ins' devices, after the engines (AU10). */
+static void findPlugInDevices(void) {
+    PlugInsLoad();
+    for (int i = 0; i < PlugInDeviceCount() && deviceCount < kMaxDevices; i++) {
+        PlugInDevice *p = PlugInDeviceAt(i);
+        Device *d = &devices[deviceCount++];
+        strlcpy(d->uid, PlugInDeviceUID(p), sizeof(d->uid));
+        d->plugin = p;
+        d->sampleRate = PlugInDeviceSampleRate(p);
+        d->sampleOffset = PlugInDeviceSafetyOffset(p, 0);
+        d->hasInput = PlugInDeviceHasInput(p);
+        d->channels = kChannels;
+    }
 }
 
 static Device *deviceWithUID(const char *uid) {
@@ -329,6 +348,7 @@ static int openDevice(Device *d) {
             d->inputBitDepth = inStream.fFormat.fBitWidth;
         }
     }
+    d->hasInput = d->inputBuffer != NULL;
     d->channels = stream.fFormat.fNumChannels;
     d->bitDepth = stream.fFormat.fBitWidth;
     d->bytesPerFrame = d->channels * d->bitDepth / 8;
@@ -424,6 +444,62 @@ static void makeRealtime(Device *d) {
         syslog(LOG_WARNING, "%s: no real-time policy", d->uid);
 }
 
+/* One cycle's clients: each given the cycle's times and input and woken,
+   then waited for until the deadline; their samples summed into mix. */
+static void serveClients(Device *d, uint64_t cycle, uint32_t kFramesPerCycle, uint64_t now, double nowFrame,
+                         double writeFrame, uint64_t outputHost, double readFrame, uint64_t inputHost,
+                         const float *recorded, uint64_t deadline, float *mix) {
+    Session *woken[kMaxSessions];
+    int count = 0;
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < kMaxSessions; i++) {
+        Session *s = &sessions[i];
+        if (s->id == 0 || s->device != d || !s->active)
+            continue;
+        s->area->nowSampleTime = nowFrame;
+        s->area->nowHostTime = now;
+        s->area->outputSampleTime = writeFrame;
+        s->area->outputHostTime = outputHost;
+        s->area->framesPerCycle = kFramesPerCycle;
+        if (s->area->inputChannels > 0) {
+            memcpy((char *)s->area + s->area->inputSamplesOffset, recorded,
+                   kFramesPerCycle * kChannels * sizeof(float));
+            s->area->inputSampleTime = readFrame;
+            s->area->inputHostTime = inputHost;
+        }
+        __sync_synchronize();
+        s->area->cycle = cycle;
+        /* A done signalled after an earlier cycle's deadline is not
+           this cycle's. */
+        mach_timespec_t none = { 0, 0 };
+        while (semaphore_timedwait(s->done, none) == KERN_SUCCESS)
+            ;
+        semaphore_signal(s->wake);
+        woken[count++] = s;
+    }
+    pthread_mutex_unlock(&lock);
+
+    memset(mix, 0, (size_t)kFramesPerCycle * kChannels * sizeof(float));
+    for (int i = 0; i < count; i++) {
+        Session *s = woken[i];
+        uint64_t left = mach_absolute_time();
+        mach_timespec_t wait = { 0, 0 };
+        if (deadline > left) {
+            double nanos = hostToNanos(deadline - left);
+            wait.tv_sec = (unsigned)(nanos / 1e9);
+            wait.tv_nsec = (clock_res_t)(nanos - wait.tv_sec * 1e9);
+        }
+        if (semaphore_timedwait(s->done, wait) != KERN_SUCCESS) {
+            s->area->late++;
+            d->lateCycles++;
+            continue;
+        }
+        const float *samples = (const float *)((const char *)s->area + s->area->samplesOffset);
+        for (uint32_t k = 0; k < kFramesPerCycle * kChannels; k++)
+            mix[k] += samples[k];
+    }
+}
+
 static void *deviceThread(void *arg) {
     Device *d = arg;
     static float mix[kMaxFrames * kChannels], recorded[kMaxFrames * kChannels];
@@ -501,55 +577,8 @@ static void *deviceThread(void *arg) {
         uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
 
         cycle++;
-        Session *woken[kMaxSessions];
-        int count = 0;
-        pthread_mutex_lock(&lock);
-        for (int i = 0; i < kMaxSessions; i++) {
-            Session *s = &sessions[i];
-            if (s->id == 0 || s->device != d || !s->active)
-                continue;
-            s->area->nowSampleTime = nowFrame;
-            s->area->nowHostTime = now;
-            s->area->outputSampleTime = (double)writeFrame;
-            s->area->outputHostTime = outputHost;
-            s->area->framesPerCycle = kFramesPerCycle;
-            if (s->area->inputChannels > 0) {
-                memcpy((char *)s->area + s->area->inputSamplesOffset, recorded,
-                       kFramesPerCycle * kChannels * sizeof(float));
-                s->area->inputSampleTime = (double)readFrame;
-                s->area->inputHostTime = inputHost;
-            }
-            __sync_synchronize();
-            s->area->cycle = cycle;
-            /* A done signalled after an earlier cycle's deadline is not
-               this cycle's. */
-            mach_timespec_t none = { 0, 0 };
-            while (semaphore_timedwait(s->done, none) == KERN_SUCCESS)
-                ;
-            semaphore_signal(s->wake);
-            woken[count++] = s;
-        }
-        pthread_mutex_unlock(&lock);
-
-        memset(mix, 0, sizeof(mix));
-        for (int i = 0; i < count; i++) {
-            Session *s = woken[i];
-            uint64_t left = mach_absolute_time();
-            mach_timespec_t wait = { 0, 0 };
-            if (deadline > left) {
-                double nanos = hostToNanos(deadline - left);
-                wait.tv_sec = (unsigned)(nanos / 1e9);
-                wait.tv_nsec = (clock_res_t)(nanos - wait.tv_sec * 1e9);
-            }
-            if (semaphore_timedwait(s->done, wait) != KERN_SUCCESS) {
-                s->area->late++;
-                d->lateCycles++;
-                continue;
-            }
-            const float *samples = (const float *)((const char *)s->area + s->area->samplesOffset);
-            for (uint32_t k = 0; k < kFramesPerCycle * kChannels; k++)
-                mix[k] += samples[k];
-        }
+        serveClients(d, cycle, kFramesPerCycle, now, nowFrame, (double)writeFrame, outputHost, (double)readFrame,
+                     inputHost, recorded, deadline, mix);
         writeFrames(d, writeFrame, mix, kFramesPerCycle);
         writeFrame += kFramesPerCycle;
         readFrame += kFramesPerCycle;
@@ -562,12 +591,90 @@ static void *deviceThread(void *arg) {
     return NULL;
 }
 
+/* A plug-in's device: its clock is the driver's zero time stamps, read
+   each cycle; the same cycles as an engine's, two ahead of the device and
+   its safety offset, the input read behind it by its safety offset. */
+static void *plugInThread(void *arg) {
+    Device *d = arg;
+    float *mix = calloc(kMaxFrames * kChannels, sizeof(float));
+    float *recorded = calloc(kMaxFrames * kChannels, sizeof(float));
+    const uint32_t kFramesPerCycle = d->framesPerCycle;
+    double hostPerFrame = 1e9 / d->sampleRate * timebase.denom / timebase.numer;
+    uint64_t cycle = 0;
+    uint64_t lead = d->sampleOffset + 2 * kFramesPerCycle;
+    uint32_t inputSafety = PlugInDeviceSafetyOffset(d->plugin, 1);
+    uint64_t wake = mach_absolute_time();
+    double nowFrame = PlugInDeviceFrameAt(d->plugin, wake);
+    uint64_t writeFrame = (uint64_t)(nowFrame > 0 ? nowFrame : 0) + lead;
+
+    if (mix == NULL || recorded == NULL) {
+        free(mix);
+        free(recorded);
+        return NULL;
+    }
+    makeRealtime(d);
+    while (d->running) {
+        mach_wait_until(wake);
+        if (!d->running)
+            break;
+        uint64_t now = mach_absolute_time();
+        nowFrame = PlugInDeviceFrameAt(d->plugin, now);
+        if ((double)writeFrame < nowFrame + d->sampleOffset) {
+            syslog(LOG_WARNING, "%s: behind at cycle %llu (%.0f frames late)", d->uid,
+                   (unsigned long long)cycle, nowFrame + d->sampleOffset - (double)writeFrame);
+            writeFrame = (uint64_t)nowFrame + lead;
+            d->resyncs++;
+        }
+        /* The input: the cycle before what the device has recorded. */
+        double readFrame = floor(nowFrame) - inputSafety - kFramesPerCycle;
+        uint64_t inputHost = now - (uint64_t)((nowFrame - readFrame) * hostPerFrame);
+        uint64_t outputHost = now + (uint64_t)(((double)writeFrame - nowFrame) * hostPerFrame);
+        double deadlineFrame = (double)writeFrame - d->sampleOffset - kFramesPerCycle / 4.0;
+        uint64_t deadline = now + (uint64_t)((deadlineFrame > nowFrame ? deadlineFrame - nowFrame : 0) * hostPerFrame);
+
+        cycle++;
+        if (d->hasInput)
+            PlugInDeviceCycle(d->plugin, cycle, kFramesPerCycle, now, nowFrame, readFrame, inputHost, recorded,
+                              0, 0, NULL);
+        serveClients(d, cycle, kFramesPerCycle, now, nowFrame, (double)writeFrame, outputHost, readFrame,
+                     inputHost, recorded, deadline, mix);
+        PlugInDeviceCycle(d->plugin, cycle, kFramesPerCycle, now, nowFrame, readFrame, inputHost, NULL,
+                          (double)writeFrame, outputHost, mix);
+        writeFrame += kFramesPerCycle;
+        d->completedCycles++;
+        double ahead = (double)(writeFrame - lead) - nowFrame;
+        wake = now + (uint64_t)((ahead > 0 ? ahead : 0) * hostPerFrame);
+    }
+    free(mix);
+    free(recorded);
+    return NULL;
+}
+
+static int startPlugInDevice(Device *d, uint32_t frames) {
+    d->framesPerCycle = frames;
+    if (!PlugInDeviceStartIO(d->plugin)) {
+        d->clients--;
+        return 0;
+    }
+    d->running = 1;
+    if (pthread_create(&d->thread, NULL, plugInThread, d) != 0) {
+        d->running = 0;
+        PlugInDeviceStopIO(d->plugin);
+        d->clients--;
+        return 0;
+    }
+    syslog(LOG_INFO, "%s: running, %u frames a cycle (a plug-in's device)", d->uid, d->framesPerCycle);
+    return 1;
+}
+
 /* The device's IO started with its first client, stopped with its last. */
 static int startDevice(Device *d, uint32_t frames) {
     if (d->clients++ > 0)
         return 1;
     if (frames < kAudioServerMinFramesPerCycle || frames > kMaxFrames)
         frames = kAudioServerFramesPerCycle;
+    if (d->plugin != NULL)
+        return startPlugInDevice(d, frames);
     if (!openDevice(d)) {
         d->clients--;
         return 0;
@@ -601,7 +708,10 @@ static void stopDevice(Device *d) {
     pthread_mutex_unlock(&lock);
     pthread_join(d->thread, NULL);
     pthread_mutex_lock(&lock);
-    IOConnectCallScalarMethod(d->connection, kIOAudioEngineMethodStop, NULL, 0, NULL, NULL);
+    if (d->plugin != NULL)
+        PlugInDeviceStopIO(d->plugin);
+    else
+        IOConnectCallScalarMethod(d->connection, kIOAudioEngineMethodStop, NULL, 0, NULL, NULL);
     syslog(LOG_INFO, "%s: stopped after %llu cycles (%llu input resyncs), %llu late client cycles, %llu resyncs",
            d->uid, (unsigned long long)d->completedCycles, (unsigned long long)d->inputResyncs,
            (unsigned long long)d->lateCycles, (unsigned long long)d->resyncs);
@@ -686,7 +796,7 @@ kern_return_t ass_start_io(mach_port_t server, audit_token_t token, as_name_t ui
     s->area->framesPerCycle = d->framesPerCycle;
     s->area->channels = kChannels;
     s->area->samplesOffset = kSamplesOffset;
-    s->area->inputChannels = d->inputBuffer != NULL ? kChannels : 0;
+    s->area->inputChannels = d->hasInput ? kChannels : 0;
     s->area->inputSamplesOffset = kSamplesOffset + kMaxFrames * kChannels * sizeof(float);
     s->area->sampleRate = d->sampleRate;
     entrySize = s->areaSize;
@@ -727,6 +837,34 @@ kern_return_t ass_stop_io(mach_port_t server, audit_token_t token, int32_t sessi
     return KERN_SUCCESS;
 }
 
+kern_return_t ass_copy_devices(mach_port_t server, vm_offset_t *data, mach_msg_type_number_t *count) {
+    CFMutableArrayRef list = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    CFDataRef bytes;
+    vm_address_t address = 0;
+
+    *data = 0;
+    *count = 0;
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < deviceCount; i++)
+        if (devices[i].plugin != NULL) {
+            CFDictionaryRef description = PlugInDeviceCopyDescription(devices[i].plugin);
+            CFArrayAppendValue(list, description);
+            CFRelease(description);
+        }
+    pthread_mutex_unlock(&lock);
+    bytes = CFPropertyListCreateData(NULL, list, kCFPropertyListBinaryFormat_v1_0, 0, NULL);
+    CFRelease(list);
+    if (bytes == NULL)
+        return KERN_SUCCESS;
+    if (vm_allocate(mach_task_self(), &address, (vm_size_t)CFDataGetLength(bytes), VM_FLAGS_ANYWHERE) == KERN_SUCCESS) {
+        memcpy((void *)address, CFDataGetBytePtr(bytes), (size_t)CFDataGetLength(bytes));
+        *data = address;
+        *count = (mach_msg_type_number_t)CFDataGetLength(bytes);
+    }
+    CFRelease(bytes);
+    return KERN_SUCCESS;
+}
+
 /* A client's port died: its sessions end. */
 static void clientDied(mach_port_t name) {
     pthread_mutex_lock(&lock);
@@ -750,6 +888,7 @@ int main(int argc, char **argv) {
     openlog("audiod", LOG_PID | LOG_PERROR, LOG_DAEMON);
     mach_timebase_info(&timebase);
     findDevices();
+    findPlugInDevices();
     if (bootstrap_check_in(bootstrap_port, kAudioServerName, &service) != KERN_SUCCESS) {
         syslog(LOG_ERR, "cannot check in %s", kAudioServerName);
         return 1;
@@ -768,8 +907,11 @@ int main(int argc, char **argv) {
         uint64_t now = mach_absolute_time();
         if (now >= nextCheck) {
             pthread_mutex_lock(&lock);
-            if (deviceCount == 0)
+            if (engineCount == 0 && deviceCount < kMaxDevices) {
+                /* Engines go before the plug-ins' devices: found late,
+                   they are added after them. */
                 findDevices();
+            }
             checkSettings();
             pthread_mutex_unlock(&lock);
             nextCheck = now + nanosToHost(2e9);

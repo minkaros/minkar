@@ -116,13 +116,105 @@ enum {
     kAudioStreamPropertyAvailableVirtualFormats = 'sfma',
     kAudioStreamPropertyPhysicalFormat = 'pft ',
     kAudioStreamPropertyAvailablePhysicalFormats = 'pfta',
+
+    /* Every object's. */
+    kAudioObjectPropertyCreator = 'oplg',
+    kAudioObjectPropertyModelName = 'lmod',
+    kAudioObjectPropertyElementName = 'lchn',
+    kAudioObjectPropertyControlList = 'ctrl',
+    kAudioObjectPropertyCustomPropertyInfoList = 'cust',
+
+    /* The system object's plug-ins. */
+    kAudioHardwarePropertyPlugInList = 'plg#',
+    kAudioHardwarePropertyTranslateBundleIDToPlugIn = 'bidp',
+
+    /* A plug-in's. */
+    kAudioPlugInPropertyBundleID = 'piid',
+    kAudioPlugInPropertyDeviceList = 'dev#',
+    kAudioPlugInPropertyTranslateUIDToDevice = 'uidd',
+    kAudioPlugInPropertyBoxList = 'box#',
+    kAudioPlugInPropertyClockDeviceList = 'clk#',
+    kAudioPlugInCreateAggregateDevice = 'cagg',
+    kAudioPlugInDestroyAggregateDevice = 'dagg',
+
+    /* A device's, about its clock and its use. */
+    kAudioDevicePropertyModelUID = 'muid',
+    kAudioDevicePropertyRelatedDevices = 'akin',
+    kAudioDevicePropertyClockDomain = 'clkd',
+    kAudioDevicePropertyDeviceCanBeDefaultDevice = 'dflt',
+    kAudioDevicePropertyDeviceCanBeDefaultSystemDevice = 'sflt',
+    kAudioDevicePropertyDeviceIsRunningSomewhere = 'gone',
+    kAudioDevicePropertyAvailableNominalSampleRates = 'nsr#',
+    kAudioDevicePropertyIsHidden = 'hidn',
+    kAudioDevicePropertyZeroTimeStampPeriod = 'ring',
+    kAudioDevicePropertyClockIsStable = 'cstb',
+    kAudioDevicePropertyIcon = 'icon',
+    kAudioDevicePropertyActualSampleRate = 'asrt',
+
+    /* Aggregate devices'. */
+    kAudioAggregateDevicePropertyFullSubDeviceList = 'grup',
+    kAudioAggregateDevicePropertyActiveSubDeviceList = 'agrp',
+    kAudioAggregateDevicePropertyComposition = 'acom',
+    kAudioAggregateDevicePropertyMainSubDevice = 'amst',
+    kAudioAggregateDevicePropertyMasterSubDevice = kAudioAggregateDevicePropertyMainSubDevice,
+    kAudioAggregateDevicePropertyClockDevice = 'apcd',
+    kAudioAggregateDevicePropertyTapList = 'tap#',
+    kAudioAggregateDevicePropertySubTapList = 'atap',
+    kAudioSubDevicePropertyExtraLatency = 'xltc',
+    kAudioSubDevicePropertyDriftCompensation = 'drft',
+    kAudioSubDevicePropertyDriftCompensationQuality = 'drfq',
+
+    /* Controls'. */
+    kAudioControlPropertyScope = 'cscp',
+    kAudioControlPropertyElement = 'celm',
+    kAudioLevelControlPropertyScalarValue = 'lcsv',
+    kAudioLevelControlPropertyDecibelValue = 'lcdv',
+    kAudioLevelControlPropertyDecibelRange = 'lcdr',
+    kAudioBooleanControlPropertyValue = 'bcvl',
 };
+
+/* An aggregate device's description (AudioHardwareCreateAggregateDevice). */
+#define kAudioAggregateDeviceUIDKey "uid"
+#define kAudioAggregateDeviceNameKey "name"
+#define kAudioAggregateDeviceMainSubDeviceKey "master"
+#define kAudioAggregateDeviceMasterSubDeviceKey kAudioAggregateDeviceMainSubDeviceKey
+#define kAudioAggregateDeviceClockDeviceKey "clock"
+#define kAudioAggregateDeviceIsPrivateKey "private"
+#define kAudioAggregateDeviceIsStackedKey "stacked"
+#define kAudioAggregateDeviceSubDeviceListKey "subdevices"
+#define kAudioAggregateDeviceTapListKey "taps"
+#define kAudioAggregateDeviceTapAutoStartKey "tapautostart"
+#define kAudioSubDeviceUIDKey "uid"
+#define kAudioSubDeviceNameKey "name"
+#define kAudioSubDeviceInputChannelsKey "channels-in"
+#define kAudioSubDeviceOutputChannelsKey "channels-out"
+#define kAudioSubDeviceExtraInputLatencyKey "latency-in"
+#define kAudioSubDeviceExtraOutputLatencyKey "latency-out"
+#define kAudioSubDeviceDriftCompensationKey "drift"
+#define kAudioSubDeviceDriftCompensationQualityKey "drift quality"
+#define kAudioSubTapUIDKey "uid"
+#define kAudioSubTapDriftCompensationKey "drift"
+
+OSStatus AudioHardwareCreateAggregateDevice(CFDictionaryRef inDescription, AudioObjectID *outDeviceID);
+OSStatus AudioHardwareDestroyAggregateDevice(AudioObjectID inDeviceID);
 
 enum {
     kAudioObjectClassID = 'aobj',
     kAudioSystemObjectClassID = 'asys',
     kAudioDeviceClassID = 'adev',
     kAudioStreamClassID = 'astr',
+    kAudioPlugInClassID = 'aplg',
+    kAudioAggregateDeviceClassID = 'aagg',
+    kAudioSubDeviceClassID = 'asub',
+    kAudioEndPointDeviceClassID = 'edev',
+    kAudioClockDeviceClassID = 'aclk',
+    kAudioBoxClassID = 'abox',
+    kAudioTapClassID = 'tcls',
+    kAudioControlClassID = 'actl',
+    kAudioLevelControlClassID = 'levl',
+    kAudioVolumeControlClassID = 'vlme',
+    kAudioBooleanControlClassID = 'togl',
+    kAudioMuteControlClassID = 'mute',
 };
 
 enum {
@@ -148,6 +240,17 @@ enum {
     kAudioDeviceTransportTypeUSB = 'usb ',
     kAudioDeviceTransportTypeHDMI = 'hdmi',
     kAudioDeviceTransportTypeDisplayPort = 'dprt',
+    kAudioDeviceTransportTypeAggregate = 'grup',
+    kAudioDeviceTransportTypeAutoAggregate = 'fgrp',
+    kAudioDeviceTransportTypeVirtual = 'virt',
+    kAudioDeviceTransportTypeBluetooth = 'blue',
+    kAudioDeviceTransportTypeBluetoothLE = 'blea',
+    kAudioDeviceTransportTypeFireWire = '1394',
+    kAudioDeviceTransportTypeThunderbolt = 'thun',
+    kAudioDeviceTransportTypeAirPlay = 'airp',
+    kAudioDeviceTransportTypeAVB = 'eavb',
+    kAudioDeviceTransportTypeContinuityCaptureWired = 'ccwd',
+    kAudioDeviceTransportTypeContinuityCaptureWireless = 'ccwl',
 };
 
 
