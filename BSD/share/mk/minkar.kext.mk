@@ -14,6 +14,13 @@ SDKROOT = ${MINKAR_SDKROOT}
 SRCS += kmod_info.c
 OBJS = ${SRCS:C/\..*$/.o/}
 
+# Kexts are built optimized, as the kernel is (they were built without
+# optimization: corecrypto's AES took 152 ms a swap segment), with no
+# implicit SSE (kernel code must not touch the user's vector registers) and
+# no builtins (printf must not become puts, which the kernel lacks). A kext
+# may set KEXT_OPTIMIZE (-O0 to debug one).
+KEXT_OPTIMIZE ?= -Os
+CFLAGS += ${KEXT_OPTIMIZE} -fno-builtin -mno-implicit-float
 CFLAGS += -DKERNEL --sysroot=${SDKROOT} -I${SDKROOT}/usr/include \
 	-I${SDKROOT}/usr/local/include -I${SDKROOT}/usr/local/include/kernel
 CXXFLAGS += -fapple-kext ${CFLAGS}

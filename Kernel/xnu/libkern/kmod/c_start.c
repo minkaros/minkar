@@ -75,8 +75,14 @@ OSKextGetCurrentLoadTag(void)
 	return (OSKextLoadTag)KMOD_INFO_NAME.id;
 }
 
-__private_extern__ void
-__cxa_atexit(void)
+/*
+ * Minkar: a kext's static objects register their destructors here (as
+ * __cxa_atexit, which returns 0 on success); they are not run (a kext is
+ * not unloaded with them). It was declared void: optimized callers read
+ * whatever was in the return register and trapped when it was not 0.
+ */
+__private_extern__ int
+__cxa_atexit(void (*func)(void *) __unused, void *arg __unused, void *dso __unused)
 {
-	return;
+	return 0;
 }
