@@ -65,9 +65,11 @@ ${FRAMEWORK}: ${FRAMEWORK_DIR} lib${LIB}.a
 ${HEADER_DIR}:
 	mkdir -p ${HEADER_DIR}
 
+# -L: a header may be a symbolic link to the sources it comes from (rsync
+# skips links otherwise, silently).
 _copy_headers: ${HEADER_DIR}
 .for hdr in ${HEADERS}
-	rsync -c ${.CURDIR}/${hdr} ${HEADER_DIR}/${hdr:T}
+	rsync -cL ${.CURDIR}/${hdr} ${HEADER_DIR}/${hdr:T}
 .endfor
 .if exists(${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes)
 	# How Swift sees this framework (Developer/Minkar.sdk/apinotes/README.md).
@@ -82,7 +84,7 @@ _fmwk_headers += _copy_headers
 _copy_private_headers: ${FRAMEWORK_DIR}
 	mkdir -p ${PRIVHDR_DIR}
 .for hdr in ${PRIVATE_HEADERS}
-	rsync -c ${.CURDIR}/${hdr} ${PRIVHDR_DIR}/${hdr:T}
+	rsync -cL ${.CURDIR}/${hdr} ${PRIVHDR_DIR}/${hdr:T}
 .endfor
 
 ${FRAMEWORK}: _copy_private_headers
