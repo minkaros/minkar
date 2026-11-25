@@ -14,6 +14,7 @@
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioToolbox/ExtendedAudioFile.h>
 #include <AudioToolbox/AudioServices.h>
+#include <AudioToolbox/AUGraph.h>
 #include <AudioUnit/AudioUnit.h>
 #include <stdio.h>
 

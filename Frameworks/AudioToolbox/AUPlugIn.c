@@ -20,7 +20,8 @@ AudioComponentMethod _AUPlugInMethod(AudioUnit unit, SInt16 selector) {
 }
 
 static OSStatus plugInCreate(AudioUnit unit) {
-    AudioComponentPlugInInterface *iface = unit->component->factory(&unit->component->description);
+    AudioComponentFactoryFunction factory = _AUComponentFactory(unit->component);
+    AudioComponentPlugInInterface *iface = factory != NULL ? factory(&unit->component->description) : NULL;
     OSStatus status;
 
     if (iface == NULL)

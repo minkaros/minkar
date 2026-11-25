@@ -35,6 +35,9 @@ struct ComponentInstanceRecord {
     } notifies[8];
     int                     notifyCount;
     void                   *state;          /* the class's */
+    /* kAudioUnitProperty_MakeConnection on a unit of AudioToolbox's: the
+       input's render callback renders the source. */
+    AudioUnitConnection     connections[16];
 };
 
 #define kAUInstanceMagic 0x41554e54u     /* 'AUNT' */
@@ -67,7 +70,15 @@ struct OpaqueAudioComponent {
     UInt32 version;
     const AUClass *cls;
     AudioComponentFactoryFunction factory;  /* a component the app registered */
+    /* A component from a bundle: its factory, loaded when first used. */
+    CFURLRef bundleURL;
+    char *factoryName;
+    CFBundleRef bundle;
 };
+
+/* The component's factory, its bundle loaded if needed (AUComponent.c). */
+__attribute__((visibility("hidden")))
+AudioComponentFactoryFunction _AUComponentFactory(const struct OpaqueAudioComponent *c);
 
 /* Tells the unit's listeners a property changed. */
 __attribute__((visibility("hidden")))
@@ -80,6 +91,10 @@ void _AURenderNotify(AudioUnit unit, AudioUnitRenderActionFlags flags, const Aud
 
 __attribute__((visibility("hidden"))) extern const AUClass _AUOutputClass;
 __attribute__((visibility("hidden"))) extern const AUClass _AUPlugInClass;
+/* AudioToolbox's own units (AUBasicUnits.c). */
+__attribute__((visibility("hidden"))) extern const AUClass _AUGenericOutputClass;
+__attribute__((visibility("hidden"))) extern const AUClass _AUConverterClass;
+__attribute__((visibility("hidden"))) extern const AUClass _AUMixerClass;
 /* A registered component's method for a selector, or NULL (AUPlugIn.c). */
 __attribute__((visibility("hidden")))
 AudioComponentMethod _AUPlugInMethod(AudioUnit unit, SInt16 selector);

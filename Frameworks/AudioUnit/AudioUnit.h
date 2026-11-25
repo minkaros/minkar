@@ -44,6 +44,15 @@ enum {
     kAudioUnitType_Effect = 'aufx',
     kAudioUnitType_Mixer = 'aumx',
     kAudioUnitType_FormatConverter = 'aufc',
+    kAudioUnitType_MusicEffect = 'aumf',
+    kAudioUnitType_OfflineEffect = 'auol',
+    kAudioUnitType_Generator = 'augn',
+    kAudioUnitType_Panner = 'aupn',
+    kAudioUnitType_MIDIProcessor = 'aumi',
+    kAudioUnitSubType_GenericOutput = 'genr',
+    kAudioUnitSubType_AUConverter = 'conv',
+    kAudioUnitSubType_MultiChannelMixer = 'mcmx',
+    kAudioUnitSubType_DLSSynth = 'dls ',
     kAudioUnitSubType_HALOutput = 'ahal',
     kAudioUnitSubType_DefaultOutput = 'def ',
     kAudioUnitSubType_SystemOutput = 'sys ',
@@ -64,5 +73,6 @@ enum {
 #include <AudioUnit/AUComponent.h>
 #include <AudioUnit/AudioUnitProperties.h>
 #include <AudioUnit/AudioOutputUnit.h>
+#include <AudioUnit/MusicDevice.h>
 
 #endif

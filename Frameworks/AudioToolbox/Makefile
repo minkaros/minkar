@@ -11,10 +11,11 @@ FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 SRCS = AudioServices.c AUComponent.c AUPlugIn.c AUFormat.c AUOutputUnit.c AudioConverter.c \
   AudioQueue.c AudioFile.c ExtendedAudioFile.c \
-  AudioFormat.c AudioFileStream.c resample.c ATCodec.c
+  AudioFormat.c AudioFileStream.c resample.c ATCodec.c \
+  AUBasicUnits.c AUGraph.c
 HEADERS = AudioToolbox.h AudioServices.h AudioConverter.h \
   AudioQueue.h AudioFile.h ExtendedAudioFile.h AudioFormat.h \
-  AudioFileStream.h
+  AudioFileStream.h AUGraph.h
 
 .PATH: ${.CURDIR}/speexdsp
 SUBDIR =

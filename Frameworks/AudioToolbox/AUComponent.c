@@ -3,15 +3,17 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Audio components: the units AudioToolbox has and those the app
- * registers (a factory and its plug-in interface), found by description,
- * and the AudioUnit calls, checked and passed to each unit's class. A
- * registry that loads outside bundles comes later (AU9).
+ * Audio components: the units AudioToolbox has, those the app registers
+ * (a factory and its plug-in interface) and those in component bundles
+ * (.component, their Info.plist's AudioComponents; the bundle loaded when
+ * a unit is first made), found by description, and the AudioUnit calls,
+ * checked and passed to each unit's class.
  */
 
 #include "AUInternal.h"
 #include <AudioToolbox/AudioToolbox.h>
 #include <Block.h>
+#include <dirent.h>
 #include <dispatch/dispatch.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +26,12 @@ static const struct OpaqueAudioComponent components[] = {
       "Minkar: AUHAL", 0x10000, &_AUOutputClass },
     { { kAudioUnitType_Output, kAudioUnitSubType_SystemOutput, kAudioUnitManufacturer_Apple, 0, 0 },
       "Minkar: SystemOutputUnit", 0x10000, &_AUOutputClass },
+    { { kAudioUnitType_Output, kAudioUnitSubType_GenericOutput, kAudioUnitManufacturer_Apple, 0, 0 },
+      "Minkar: GenericOutput", 0x10000, &_AUGenericOutputClass },
+    { { kAudioUnitType_FormatConverter, kAudioUnitSubType_AUConverter, kAudioUnitManufacturer_Apple, 0, 0 },
+      "Minkar: AUConverter", 0x10000, &_AUConverterClass },
+    { { kAudioUnitType_Mixer, kAudioUnitSubType_MultiChannelMixer, kAudioUnitManufacturer_Apple, 0, 0 },
+      "Minkar: MultiChannelMixer", 0x10000, &_AUMixerClass },
 };
 
 #define kBuiltIn (sizeof(components) / sizeof(components[0]))
@@ -33,8 +41,13 @@ static pthread_mutex_t registryLock = PTHREAD_MUTEX_INITIALIZER;
 static struct OpaqueAudioComponent **registered;
 static size_t registeredCount;
 
+static void addComponent(struct OpaqueAudioComponent *c);
+static pthread_once_t bundlesOnce = PTHREAD_ONCE_INIT;
+static void loadBundles(void);
+
 static size_t componentCount(void) {
     size_t n;
+    pthread_once(&bundlesOnce, loadBundles);
     pthread_mutex_lock(&registryLock);
     n = kBuiltIn + registeredCount;
     pthread_mutex_unlock(&registryLock);
@@ -127,18 +140,137 @@ AudioComponent AudioComponentRegister(const AudioComponentDescription *desc, CFS
     c->version = version;
     c->cls = &_AUPlugInClass;
     c->factory = factory;
+    pthread_once(&bundlesOnce, loadBundles);
+    addComponent(c);
+    return isComponent(c) ? c : NULL;
+}
+
+/* Kept (never freed: a component lives as long as the process), or freed
+   if there is no room. */
+static void addComponent(struct OpaqueAudioComponent *c) {
+    struct OpaqueAudioComponent **grown;
     pthread_mutex_lock(&registryLock);
     grown = realloc(registered, (registeredCount + 1) * sizeof(*registered));
     if (grown == NULL) {
         pthread_mutex_unlock(&registryLock);
         free((void *)c->name);
+        free(c->factoryName);
+        if (c->bundleURL != NULL)
+            CFRelease(c->bundleURL);
         free(c);
-        return NULL;
+        return;
     }
     registered = grown;
     registered[registeredCount++] = c;
     pthread_mutex_unlock(&registryLock);
-    return c;
+}
+
+/* ---- Component bundles ------------------------------------------------- */
+
+static OSType fourCC(CFTypeRef value) {
+    char b[8] = "";
+    if (value == NULL || CFGetTypeID(value) != CFStringGetTypeID() ||
+        !CFStringGetCString(value, b, sizeof(b), kCFStringEncodingMacRoman) || strlen(b) != 4)
+        return 0;
+    return ((OSType)(unsigned char)b[0] << 24) | ((OSType)(unsigned char)b[1] << 16) |
+           ((OSType)(unsigned char)b[2] << 8) | (OSType)(unsigned char)b[3];
+}
+
+static char *copyString(CFTypeRef value) {
+    char b[512];
+    if (value == NULL || CFGetTypeID(value) != CFStringGetTypeID() ||
+        !CFStringGetCString(value, b, sizeof(b), kCFStringEncodingUTF8))
+        return NULL;
+    return strdup(b);
+}
+
+/* The bundle's AudioComponents, each a component whose factory is the
+   named function of the bundle's executable. */
+static void loadBundle(const char *path) {
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)path, (CFIndex)strlen(path), true);
+    CFDictionaryRef info = url != NULL ? CFBundleCopyInfoDictionaryForURL(url) : NULL;
+    CFArrayRef list = info != NULL ? CFDictionaryGetValue(info, CFSTR("AudioComponents")) : NULL;
+    if (list != NULL && CFGetTypeID(list) == CFArrayGetTypeID()) {
+        for (CFIndex i = 0; i < CFArrayGetCount(list); i++) {
+            CFDictionaryRef entry = CFArrayGetValueAtIndex(list, i);
+            if (CFGetTypeID(entry) != CFDictionaryGetTypeID())
+                continue;
+            AudioComponentDescription d = { fourCC(CFDictionaryGetValue(entry, CFSTR("type"))),
+                                            fourCC(CFDictionaryGetValue(entry, CFSTR("subtype"))),
+                                            fourCC(CFDictionaryGetValue(entry, CFSTR("manufacturer"))), 0, 0 };
+            char *factory = copyString(CFDictionaryGetValue(entry, CFSTR("factoryFunction")));
+            char *name = copyString(CFDictionaryGetValue(entry, CFSTR("name")));
+            CFTypeRef version = CFDictionaryGetValue(entry, CFSTR("version"));
+            SInt32 v = 0;
+            struct OpaqueAudioComponent *c;
+            if (d.componentType == 0 || d.componentSubType == 0 || d.componentManufacturer == 0 || factory == NULL ||
+                (c = calloc(1, sizeof(*c))) == NULL) {
+                free(factory);
+                free(name);
+                continue;
+            }
+            if (version != NULL && CFGetTypeID(version) == CFNumberGetTypeID())
+                CFNumberGetValue(version, kCFNumberSInt32Type, &v);
+            c->description = d;
+            c->name = name != NULL ? name : strdup("");
+            c->version = (UInt32)v;
+            c->cls = &_AUPlugInClass;
+            c->bundleURL = CFRetain(url);
+            c->factoryName = factory;
+            addComponent(c);
+        }
+    }
+    if (info != NULL)
+        CFRelease(info);
+    if (url != NULL)
+        CFRelease(url);
+}
+
+static void loadDirectory(const char *dir) {
+    DIR *d = opendir(dir);
+    struct dirent *e;
+    if (d == NULL)
+        return;
+    while ((e = readdir(d)) != NULL) {
+        size_t n = strlen(e->d_name);
+        char path[1024];
+        if (n > 10 && strcmp(e->d_name + n - 10, ".component") == 0 &&
+            snprintf(path, sizeof(path), "%s/%s", dir, e->d_name) < (int)sizeof(path))
+            loadBundle(path);
+    }
+    closedir(d);
+}
+
+/* The places the reference documents: the user's, the computer's, the
+   system's. */
+static void loadBundles(void) {
+    const char *home = getenv("HOME");
+    char path[1024];
+    if (home != NULL && snprintf(path, sizeof(path), "%s/Library/Audio/Plug-Ins/Components", home) < (int)sizeof(path))
+        loadDirectory(path);
+    loadDirectory("/Library/Audio/Plug-Ins/Components");
+    loadDirectory("/System/Library/Components");
+}
+
+AudioComponentFactoryFunction _AUComponentFactory(const struct OpaqueAudioComponent *c) {
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    struct OpaqueAudioComponent *m = (struct OpaqueAudioComponent *)c;
+    AudioComponentFactoryFunction f;
+    pthread_mutex_lock(&lock);
+    if (m->factory == NULL && m->bundleURL != NULL && m->factoryName != NULL) {
+        if (m->bundle == NULL)
+            m->bundle = CFBundleCreate(NULL, m->bundleURL);
+        if (m->bundle != NULL && CFBundleLoadExecutable(m->bundle)) {
+            CFStringRef name = CFStringCreateWithCString(NULL, m->factoryName, kCFStringEncodingUTF8);
+            m->factory = (AudioComponentFactoryFunction)CFBundleGetFunctionPointerForName(m->bundle, name);
+            CFRelease(name);
+        }
+        if (m->factory == NULL)
+            fprintf(stderr, "AudioComponent: %s: no factory %s in its bundle\n", m->name, m->factoryName);
+    }
+    f = m->factory;
+    pthread_mutex_unlock(&lock);
+    return f;
 }
 
 OSStatus AudioComponentCopyConfigurationInfo(AudioComponent c, CFDictionaryRef *out) {
@@ -293,13 +425,45 @@ OSStatus AudioUnitGetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioUnitS
     return unit->cls->getProperty(unit, id, scope, element, data, ioSize);
 }
 
+static Boolean isPlugIn(AudioUnit unit);
+
+/* A connection's input: the source unit rendered into the buffers. */
+static OSStatus renderConnection(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *time,
+                                 UInt32 bus, UInt32 frames, AudioBufferList *data) {
+    const AudioUnitConnection *c = refCon;
+    return AudioUnitRender(c->sourceAudioUnit, flags, time, c->sourceOutputNumber, frames, data);
+}
+
+/* MakeConnection on AudioToolbox's units: a render callback (a unit from
+   a bundle or the app handles the property itself). */
+static OSStatus makeConnection(AudioUnit unit, const void *data, UInt32 size) {
+    const AudioUnitConnection *c = data;
+    AURenderCallbackStruct cb = { NULL, NULL };
+    if (c == NULL || size < sizeof(*c))
+        return kAudioUnitErr_InvalidPropertyValue;
+    if (c->destInputNumber >= sizeof(unit->connections) / sizeof(unit->connections[0]))
+        return kAudioUnitErr_InvalidElement;
+    if (c->sourceAudioUnit != NULL && !alive(c->sourceAudioUnit))
+        return kAudioUnitErr_InvalidPropertyValue;
+    unit->connections[c->destInputNumber] = *c;
+    if (c->sourceAudioUnit != NULL) {
+        cb.inputProc = renderConnection;
+        cb.inputProcRefCon = &unit->connections[c->destInputNumber];
+    }
+    return unit->cls->setProperty(unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input,
+                                  c->destInputNumber, &cb, sizeof(cb));
+}
+
 OSStatus AudioUnitSetProperty(AudioUnit unit, AudioUnitPropertyID id, AudioUnitScope scope,
                               AudioUnitElement element, const void *data, UInt32 size) {
     OSStatus status;
 
     if (!alive(unit))
         return kAudio_ParamError;
-    status = unit->cls->setProperty(unit, id, scope, element, data, size);
+    if (id == kAudioUnitProperty_MakeConnection && !isPlugIn(unit))
+        status = makeConnection(unit, data, size);
+    else
+        status = unit->cls->setProperty(unit, id, scope, element, data, size);
     if (status == noErr)
         _AUPropertyChanged(unit, id, scope, element);
     return status;
@@ -567,6 +731,49 @@ void CAShowFile(void *object, FILE *file) {
 
 void CAShow(void *object) {
     CAShowFile(object, stdout);
+}
+
+/* ---- Music devices ---------------------------------------------------- */
+
+/* The unit's method for a music device selector: only units from bundles
+   or the app have them (AudioToolbox has no instrument of its own). */
+static AudioComponentMethod musicMethod(AudioUnit unit, SInt16 selector) {
+    return alive(unit) && isPlugIn(unit) ? _AUPlugInMethod(unit, selector) : NULL;
+}
+
+OSStatus MusicDeviceMIDIEvent(MusicDeviceComponent unit, UInt32 status, UInt32 data1, UInt32 data2,
+                              UInt32 offsetSampleFrame) {
+    AudioComponentMethod m = musicMethod(unit, kMusicDeviceMIDIEventSelect);
+    if (!alive(unit))
+        return kAudio_ParamError;
+    return m != NULL ? ((MusicDeviceMIDIEventProc)m)(unit->state, status, data1, data2, offsetSampleFrame)
+                     : kAudio_UnimplementedError;
+}
+
+OSStatus MusicDeviceSysEx(MusicDeviceComponent unit, const UInt8 *data, UInt32 length) {
+    AudioComponentMethod m = musicMethod(unit, kMusicDeviceSysExSelect);
+    if (!alive(unit) || (data == NULL && length > 0))
+        return kAudio_ParamError;
+    return m != NULL ? ((MusicDeviceSysExProc)m)(unit->state, data, length) : kAudio_UnimplementedError;
+}
+
+OSStatus MusicDeviceStartNote(MusicDeviceComponent unit, MusicDeviceInstrumentID instrument,
+                              MusicDeviceGroupID group, NoteInstanceID *outNote, UInt32 offsetSampleFrame,
+                              const MusicDeviceNoteParams *params) {
+    AudioComponentMethod m = musicMethod(unit, kMusicDeviceStartNoteSelect);
+    if (!alive(unit) || params == NULL)
+        return kAudio_ParamError;
+    return m != NULL ? ((MusicDeviceStartNoteProc)m)(unit->state, instrument, group, outNote, offsetSampleFrame, params)
+                     : kAudio_UnimplementedError;
+}
+
+OSStatus MusicDeviceStopNote(MusicDeviceComponent unit, MusicDeviceGroupID group, NoteInstanceID note,
+                             UInt32 offsetSampleFrame) {
+    AudioComponentMethod m = musicMethod(unit, kMusicDeviceStopNoteSelect);
+    if (!alive(unit))
+        return kAudio_ParamError;
+    return m != NULL ? ((MusicDeviceStopNoteProc)m)(unit->state, group, note, offsetSampleFrame)
+                     : kAudio_UnimplementedError;
 }
 
 OSStatus AudioOutputUnitStart(AudioUnit unit) {
