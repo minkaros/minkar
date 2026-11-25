@@ -3,12 +3,14 @@
 # Part of Minkar.
 #
 # git 2.56.0 (GPL-2.0, dist/COPYING; approved for Minkar 2026-10-27),
-# upstream's release tarball in dist/ without its tests, translations,
-# git-gui, gitk and contrib (but contrib/completion),
-# unchanged. Built with git's own Makefile and its Darwin settings, in a
+# upstream's release tarball in dist/ without its tests, translations and
+# contrib (but contrib/completion), unchanged; gitk and git gui (gitk-git/,
+# git-gui/, without their translations) added on 2026-11-24. Built with git's own Makefile and its Darwin settings, in a
 # copy of dist/ in the object directory (git builds in its source tree).
-# HTTPS through libcurl (Mbed TLS), zlib, libiconv. No Perl, Python, Tcl,
-# gettext, Rust, OpenSSL or expat; no FSMonitor daemon (it needs FSEvents).
+# HTTPS through libcurl (Mbed TLS), zlib, libiconv; gitk and git gui on
+# Tcl/Tk 8.6 (/usr/bin/wish: ../tk). No Perl, Python, gettext, Rust, OpenSSL
+# or expat; no FSMonitor daemon (it needs FSEvents). Building git gui's
+# index of its Tcl library runs the build host's tclsh.
 # Installs /usr/bin/git and its helpers in /usr/libexec/git-core, the
 # templates in /usr/share/git-core and the release's prebuilt manual pages
 # (man/, from git-manpages-2.56.0.tar.xz).
@@ -39,7 +41,9 @@ ${GIT_SRC}/config.mak: ${.CURDIR}/Makefile ${.CURDIR}/dist/Makefile
 	echo 'LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}'; \
 	echo 'NO_PERL = YesPlease'; \
 	echo 'NO_PYTHON = YesPlease'; \
-	echo 'NO_TCLTK = YesPlease'; \
+	echo 'TCLTK_PATH = /usr/bin/wish'; \
+	echo 'TCL_PATH = tclsh'; \
+	echo 'NO_MSGFMT = YesPlease'; \
 	echo 'NO_GETTEXT = YesPlease'; \
 	echo 'NO_RUST = YesPlease'; \
 	echo 'NO_OPENSSL = YesPlease'; \
