@@ -18,6 +18,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSMenuItem
 
+/* Whether the user's own key equivalents (set in the Keyboard pane)
+   replace an app's: Minkar keeps the app's; the setting is kept. */
+static BOOL usesUserKeyEquivalents=YES;
+
++(BOOL)usesUserKeyEquivalents {
+   return usesUserKeyEquivalents;
+}
+
++(void)setUsesUserKeyEquivalents:(BOOL)flag {
+   usesUserKeyEquivalents=flag;
+}
+
 +(NSMenuItem *)separatorItem {
    return [[[self alloc] initWithTitle:nil action:NULL keyEquivalent:nil] autorelease];
 }

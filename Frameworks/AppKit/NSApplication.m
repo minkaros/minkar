@@ -2411,12 +2411,27 @@ static NSData *quitState;
     }
 }
 
+/* The Services menu: the one the app set (kept, as the reference keeps
+   it: Tk gives one it does not hold itself), else the main menu's. */
+static char servicesMenuKey;
+
 -(NSMenu *)servicesMenu {
-   return [[NSApp mainMenu] _menuWithName:@"_NSServicesMenu"];
+   NSMenu *menu=objc_getAssociatedObject(self,&servicesMenuKey);
+
+   return menu!=nil?menu:[[NSApp mainMenu] _menuWithName:@"_NSServicesMenu"];
 }
 
 -(void)setServicesMenu:(NSMenu *)menu {
-   NSUnimplementedMethod();
+   objc_setAssociatedObject(self,&servicesMenuKey,menu,OBJC_ASSOCIATION_RETAIN);
+}
+
+/* The application menu (the main menu's first item's), as some apps name
+   it (Tk): the menu bar shows the first item's menu as that menu
+   already, so it is only kept. */
+static char appleMenuKey;
+
+-(void)setAppleMenu:(NSMenu *)menu {
+   objc_setAssociatedObject(self,&appleMenuKey,menu,OBJC_ASSOCIATION_RETAIN);
 }
 
 -servicesProvider {

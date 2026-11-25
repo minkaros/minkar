@@ -120,6 +120,9 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 @property BOOL masksToBounds;
 /* Sublayers are laid out with y down; the layer's own contents are not. */
 @property(getter=isGeometryFlipped) BOOL geometryFlipped;
+/* Whether its contents are drawn flipped: the layer's and its ancestors'
+   geometryFlipped taken together. */
+- (BOOL)contentsAreFlipped;
 @property BOOL contentsOpaque;
 @property BOOL allowsEdgeAntialiasing;
 @property CAEdgeAntialiasingMask edgeAntialiasingMask;

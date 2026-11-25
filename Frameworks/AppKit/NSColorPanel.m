@@ -23,6 +23,11 @@ NSString * const NSColorPanelColorDidChangeNotification=@"NSColorPanelColorDidCh
 
 @implementation NSColorPanel
 
+/* The panel's look in a modal session (apps that run it modally ask for
+   it, Tk): Minkar's panel looks the same either way. */
+-(void)_setUseModalAppearance:(BOOL)flag {
+}
+
 static NSColorPanel *_colorPanel=nil;
 static NSUInteger    _pickerMask=0;
 

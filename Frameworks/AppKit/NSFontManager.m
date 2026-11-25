@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <objc/runtime.h>
 #import <AppKit/NSFontManager.h>
+#import <AppKit/NSAttributedString.h>
 #include <stdlib.h>
 #import <AppKit/NSFontPanel.h>
 
@@ -377,6 +378,15 @@ static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface) {
      }
     }
    }
+}
+
+/* The font of the selection's attributes (NSFontAttributeName), as the
+   font panel shows it. */
+-(void)setSelectedAttributes:(NSDictionary *)attributes isMultiple:(BOOL)flag {
+   NSFont *font=[attributes objectForKey:NSFontAttributeName];
+
+   if(font!=nil)
+    [self setSelectedFont:font isMultiple:flag];
 }
 
 -(void)setSelectedFont:(NSFont *)font isMultiple:(BOOL)flag {

@@ -83,6 +83,16 @@ typedef enum {
 } CGBlendMode;
 
 typedef int CGTextDrawingMode;
+enum {
+    kCGTextFill = 0,
+    kCGTextStroke = 1,
+    kCGTextFillStroke = 2,
+    kCGTextInvisible = 3,
+    kCGTextFillClip = 4,
+    kCGTextStrokeClip = 5,
+    kCGTextFillStrokeClip = 6,
+    kCGTextClip = 7
+};
 
 COREGRAPHICS_EXPORT CFTypeID CGContextGetTypeID(void);
 COREGRAPHICS_EXPORT CGContextRef _Nullable CGContextRetain(CGContextRef _Nullable context);

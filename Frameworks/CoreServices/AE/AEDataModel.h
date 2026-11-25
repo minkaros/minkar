@@ -168,6 +168,8 @@ enum {
 
 enum {
     kCoreEventClass = 'aevt',
+    kAEMiscStandards = 'misc',
+    kAEDoScript = 'dosc',
     kAEOpenApplication = 'oapp',
     kAEOpenDocuments = 'odoc',
     kAEPrintDocuments = 'pdoc',

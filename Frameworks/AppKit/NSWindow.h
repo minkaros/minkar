@@ -149,6 +149,10 @@ APPKIT_EXPORT NSString *const NSWindowDidChangeBackingPropertiesNotification;
 APPKIT_EXPORT NSString *const NSBackingPropertyOldScaleFactorKey;
 APPKIT_EXPORT NSString *const NSBackingPropertyOldColorSpaceKey;
 APPKIT_EXPORT NSString *const NSWindowDidResizeNotification;
+APPKIT_EXPORT NSString *const NSWindowWillEnterFullScreenNotification;
+APPKIT_EXPORT NSString *const NSWindowDidEnterFullScreenNotification;
+APPKIT_EXPORT NSString *const NSWindowWillExitFullScreenNotification;
+APPKIT_EXPORT NSString *const NSWindowDidExitFullScreenNotification;
 APPKIT_EXPORT NSString *const NSWindowDidUpdateNotification;
 APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;
 APPKIT_EXPORT NSString *const NSWindowWillStartLiveResizeNotification;
@@ -633,6 +637,8 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (NSPoint)convertPointToScreen:(NSPoint)point;
 - (NSPoint)convertPointFromScreen:(NSPoint)point;
 - (void)toggleFullScreen:(id)sender;
+@property NSSize minFullScreenContentSize;
+@property NSSize maxFullScreenContentSize;
 @property NSWindowAnimationBehavior animationBehavior;
 - (void)invalidateRestorableState;
 
@@ -704,6 +710,10 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (void)windowDidMove:(NSNotification *)note;
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)size;
 - (void)windowDidResize:(NSNotification *)note;
+- (void)windowWillEnterFullScreen:(NSNotification *)note;
+- (void)windowDidEnterFullScreen:(NSNotification *)note;
+- (void)windowWillExitFullScreen:(NSNotification *)note;
+- (void)windowDidExitFullScreen:(NSNotification *)note;
 - (void)windowDidUpdate:(NSNotification *)note;
 - (BOOL)windowShouldClose:sender;
 - (void)windowWillClose:(NSNotification *)note;
@@ -738,6 +748,10 @@ typedef NS_ENUM(NSInteger, NSTitlebarSeparatorStyle) {
 - (void)windowDidMove:(NSNotification *)note;
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)size;
 - (void)windowDidResize:(NSNotification *)note;
+- (void)windowWillEnterFullScreen:(NSNotification *)note;
+- (void)windowDidEnterFullScreen:(NSNotification *)note;
+- (void)windowWillExitFullScreen:(NSNotification *)note;
+- (void)windowDidExitFullScreen:(NSNotification *)note;
 - (void)windowDidUpdate:(NSNotification *)note;
 - (BOOL)windowShouldClose:sender;
 - (void)windowWillClose:(NSNotification *)note;

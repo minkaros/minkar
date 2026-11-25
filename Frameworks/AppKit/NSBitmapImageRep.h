@@ -44,6 +44,13 @@ typedef enum {
     NSAlphaFirstBitmapFormat = 0x01,
     NSAlphaNonpremultipliedBitmapFormat = 0x02,
     NSFloatingPointSamplesBitmapFormat = 0x04,
+    NSBitmapFormatAlphaFirst = NSAlphaFirstBitmapFormat,
+    NSBitmapFormatAlphaNonpremultiplied = NSAlphaNonpremultipliedBitmapFormat,
+    NSBitmapFormatFloatingPointSamples = NSFloatingPointSamplesBitmapFormat,
+    NSBitmapFormatSixteenBitLittleEndian = (1 << 8),
+    NSBitmapFormatThirtyTwoBitLittleEndian = (1 << 9),
+    NSBitmapFormatSixteenBitBigEndian = (1 << 10),
+    NSBitmapFormatThirtyTwoBitBigEndian = (1 << 11),
 } NSBitmapFormat;
 
 APPKIT_EXPORT NSString *NSImageCompressionFactor;

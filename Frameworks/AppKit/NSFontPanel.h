@@ -9,6 +9,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSPanel.h>
 
+/* What the font panel shows (an object answering -validModesForFontPanel:). */
+typedef NSUInteger NSFontPanelModeMask;
+enum {
+    NSFontPanelModeMaskFace = 1 << 0,
+    NSFontPanelModeMaskSize = 1 << 1,
+    NSFontPanelModeMaskCollection = 1 << 2,
+    NSFontPanelModeMaskUnderlineEffect = 1 << 8,
+    NSFontPanelModeMaskStrikethroughEffect = 1 << 9,
+    NSFontPanelModeMaskTextColorEffect = 1 << 10,
+    NSFontPanelModeMaskDocumentColorEffect = 1 << 11,
+    NSFontPanelModeMaskShadowEffect = 1 << 12,
+    NSFontPanelModeMaskAllEffects = 0xFFF00,
+    NSFontPanelModesMaskStandardModes = 0xFFFF,
+    NSFontPanelModesMaskAllModes = 0xFFFFFFFF,
+    NSFontPanelFaceModeMask = NSFontPanelModeMaskFace,
+    NSFontPanelSizeModeMask = NSFontPanelModeMaskSize,
+    NSFontPanelCollectionModeMask = NSFontPanelModeMaskCollection,
+    NSFontPanelUnderlineEffectModeMask = NSFontPanelModeMaskUnderlineEffect,
+    NSFontPanelStrikethroughEffectModeMask = NSFontPanelModeMaskStrikethroughEffect,
+    NSFontPanelTextColorEffectModeMask = NSFontPanelModeMaskTextColorEffect,
+    NSFontPanelDocumentColorEffectModeMask = NSFontPanelModeMaskDocumentColorEffect,
+    NSFontPanelShadowEffectModeMask = NSFontPanelModeMaskShadowEffect,
+    NSFontPanelAllEffectsModeMask = NSFontPanelModeMaskAllEffects,
+    NSFontPanelStandardModesMask = NSFontPanelModesMaskStandardModes,
+    NSFontPanelAllModesMask = NSFontPanelModesMaskAllModes
+};
+
 @class NSTextField, NSTableView, NSButton, NSFont, NSPopUpButton, NSColorWell, NSSlider, NSMutableArray, NSArray, NSDictionary;
 
 /* The font panel, as the reference platform lays it out: a row of text

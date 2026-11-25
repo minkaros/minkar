@@ -93,6 +93,14 @@ NSString * const NSWindowDidChangeBackingPropertiesNotification=@"NSWindowDidCha
 NSString * const NSBackingPropertyOldScaleFactorKey=@"NSBackingPropertyOldScaleFactorKey";
 NSString * const NSBackingPropertyOldColorSpaceKey=@"NSBackingPropertyOldColorSpaceKey";
 NSString * const NSWindowDidResizeNotification=@"NSWindowDidResizeNotification";
+/* A window about to be shown, and shown (not in the API's headers; Tk
+   observes them, as the reference posts them). */
+NSString * const NSWindowWillOrderOnScreenNotification=@"NSWindowWillOrderOnScreenNotification";
+NSString * const NSWindowDidOrderOnScreenNotification=@"NSWindowDidOrderOnScreenNotification";
+NSString * const NSWindowWillEnterFullScreenNotification=@"NSWindowWillEnterFullScreenNotification";
+NSString * const NSWindowDidEnterFullScreenNotification=@"NSWindowDidEnterFullScreenNotification";
+NSString * const NSWindowWillExitFullScreenNotification=@"NSWindowWillExitFullScreenNotification";
+NSString * const NSWindowDidExitFullScreenNotification=@"NSWindowDidExitFullScreenNotification";
 NSString * const NSWindowDidUpdateNotification=@"NSWindowDidUpdateNotification";
 NSString * const NSWindowWillCloseNotification=@"NSWindowWillCloseNotification";
 NSString * const NSWindowWillMoveNotification=@"NSWindowWillMoveNotification";
@@ -928,6 +936,10 @@ static char representedURLKey;
     { NSWindowDidResignKeyNotification,@selector(windowDidResignKey:) },
     { NSWindowDidResignMainNotification,@selector(windowDidResignMain:) },
     { NSWindowDidResizeNotification,@selector(windowDidResize:) },
+    { NSWindowWillEnterFullScreenNotification,@selector(windowWillEnterFullScreen:) },
+    { NSWindowDidEnterFullScreenNotification,@selector(windowDidEnterFullScreen:) },
+    { NSWindowWillExitFullScreenNotification,@selector(windowWillExitFullScreen:) },
+    { NSWindowDidExitFullScreenNotification,@selector(windowDidExitFullScreen:) },
     { NSWindowWillStartLiveResizeNotification,@selector(windowWillStartLiveResize:) },
     { NSWindowDidEndLiveResizeNotification,@selector(windowDidEndLiveResize:) },
     { NSWindowDidUpdateNotification,@selector(windowDidUpdate:) },
@@ -2590,13 +2602,17 @@ static void sendAppearance(NSView *view,SEL selector) {
     if(!NSEqualRects(constrained,_frame))
      [self setFrame:constrained display:NO];
    }
-   if(appearing)
+   if(appearing){
     sendAppearance([self _backgroundView],@selector(viewWillAppear));
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowWillOrderOnScreenNotification object:self];
+   }
    if(disappearing)
     sendAppearance([self _backgroundView],@selector(viewWillDisappear));
    [self _orderWindow:place relativeTo:relativeTo];
-   if(appearing)
+   if(appearing){
     sendAppearance([self _backgroundView],@selector(viewDidAppear));
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidOrderOnScreenNotification object:self];
+   }
    if(disappearing)
     sendAppearance([self _backgroundView],@selector(viewDidDisappear));
 }
@@ -4157,16 +4173,40 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 
 /* Full screen: the window takes its screen's visible frame, and gets its
    frame back when toggled again (there are no full screen spaces). */
+/* The content's size range in full screen: kept (Minkar's full screen is
+   the screen's visible frame, as the reference's is without a range). */
+static char minFullScreenKey, maxFullScreenKey;
+
+-(NSSize)minFullScreenContentSize {
+   return [objc_getAssociatedObject(self,&minFullScreenKey) sizeValue];
+}
+
+-(void)setMinFullScreenContentSize:(NSSize)size {
+   objc_setAssociatedObject(self,&minFullScreenKey,[NSValue valueWithSize:size],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(NSSize)maxFullScreenContentSize {
+   return [objc_getAssociatedObject(self,&maxFullScreenKey) sizeValue];
+}
+
+-(void)setMaxFullScreenContentSize:(NSSize)size {
+   objc_setAssociatedObject(self,&maxFullScreenKey,[NSValue valueWithSize:size],OBJC_ASSOCIATION_RETAIN);
+}
+
 -(void)toggleFullScreen:(id)sender {
    NSValue *saved=objc_getAssociatedObject(self,&fullScreenFrameKey);
 
    if(saved!=nil){
+    [self postNotificationName:NSWindowWillExitFullScreenNotification];
     objc_setAssociatedObject(self,&fullScreenFrameKey,nil,OBJC_ASSOCIATION_RETAIN);
     [self setFrame:[saved rectValue] display:YES];
+    [self postNotificationName:NSWindowDidExitFullScreenNotification];
    }
    else {
+    [self postNotificationName:NSWindowWillEnterFullScreenNotification];
     objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
     [self setFrame:[[self screen] ?: [NSScreen mainScreen] visibleFrame] display:YES];
+    [self postNotificationName:NSWindowDidEnterFullScreenNotification];
    }
 }
 

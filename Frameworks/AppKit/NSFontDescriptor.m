@@ -18,6 +18,7 @@ NSString * const NSFontMatrixAttribute=@"NSFontMatrixAttribute";
 NSString * const NSFontCharacterSetAttribute=@"NSFontCharacterSetAttribute";
 NSString * const NSFontTraitsAttribute=@"NSFontTraitsAttribute";
 NSString * const NSFontFaceAttribute=@"NSFontFaceAttribute";
+NSString * const NSFontCascadeListAttribute=@"NSCTFontCascadeListAttribute";
 NSString * const NSFontFixedAdvanceAttribute=@"NSFontFixedAdvanceAttribute";
 NSString * const NSFontVisibleNameAttribute=@"NSFontVisibleNameAttribute";
 

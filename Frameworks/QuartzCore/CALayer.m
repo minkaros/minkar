@@ -541,6 +541,14 @@ VALUE_PROPERTY(BOOL,allowsEdgeAntialiasing,setAllowsEdgeAntialiasing,_allowsEdge
 VALUE_PROPERTY(CAEdgeAntialiasingMask,edgeAntialiasingMask,setEdgeAntialiasingMask,_edgeAntialiasingMask)
 
 -(BOOL)isGeometryFlipped { return _geometryFlipped; }
+
+-(BOOL)contentsAreFlipped {
+   BOOL flipped=NO;
+   for(CALayer *layer=self;layer!=nil;layer=[layer superlayer])
+    if([layer isGeometryFlipped])
+     flipped=!flipped;
+   return flipped;
+}
 /* Where the sublayers go and how the contents are drawn change: drawn
    again, but not displayed again (the contents stay the app's). */
 -(void)setGeometryFlipped:(BOOL)value {

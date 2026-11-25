@@ -628,13 +628,59 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
    return nil;
 }
 
+/* The font that draws the characters from the first on: this one if it
+   has their glyphs, otherwise the one the system falls back to (Core
+   Text's cascade). actualCoveredLength: how many, from the first, it
+   draws. Tk asks for it for each character it cannot draw. */
+-(NSFont *)bestMatchingFontForCharacters:(const unichar *)characters length:(NSUInteger)length
+    attributes:(NSDictionary *)attributes actualCoveredLength:(NSUInteger *)covered {
+   CTFontRef font=_ctFont;
+   NSFont   *result=self;
+   NSUInteger count=0;
+
+   if(characters==NULL || length==0){
+    if(covered!=NULL)
+     *covered=0;
+    return self;
+   }
+   if(font!=NULL){
+    CGGlyph glyph;
+    if(!CTFontGetGlyphsForCharacters(font,characters,&glyph,1) || glyph==0){
+     CFStringRef string=CFStringCreateWithCharactersNoCopy(NULL,characters,(CFIndex)length,kCFAllocatorNull);
+     CTFontRef fallback=CTFontCreateForString(font,string,CFRangeMake(0,(CFIndex)length));
+     CFRelease(string);
+     if(fallback!=NULL){
+      CFStringRef name=CTFontCopyPostScriptName(fallback);
+      NSFont *other=name!=NULL?[NSFont fontWithName:(NSString *)name size:[self pointSize]]:nil;
+      if(name!=NULL)
+       CFRelease(name);
+      font=fallback;
+      if(other!=nil)
+       result=other;
+     }
+    }
+    while(count<length){
+     CGGlyph g;
+     if(!CTFontGetGlyphsForCharacters(font,characters+count,&g,1) || g==0)
+      break;
+     count++;
+    }
+    if(font!=_ctFont)
+     CFRelease(font);
+   }
+   if(covered!=NULL)
+    *covered=count>0?count:1;
+   return result;
+}
+
 -(NSFont *)screenFont {
    return self;
 }
 
+/* The font for the screen in that rendering mode: the font itself, as
+   -screenFont (Minkar draws outlines, antialiased, in every mode). */
 -(NSFont *)screenFontWithRenderingMode:(NSFontRenderingMode)mode {
-   NSUnimplementedMethod();
-   return nil;
+   return self;
 }
 
 -(NSRect)boundingRectForFont {
