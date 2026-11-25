@@ -41,7 +41,7 @@ COMMON_DEFS = -D__LIBC__ -D_FORTIFY_SOURCE=0 -DPR_13085474_CHECK=0 \
 	-D__DARWIN_UNIX03 -D__DARWIN_64_BIT_INO_T -D__DARWIN_NON_CANCELABLE \
 	-D__DARWIN_VERS_1050
 
-CFLAGS = --target=${CpuArch}-apple-darwin --sysroot=${MINKAR_SDKROOT} \
+CFLAGS = -Os --target=${CpuArch}-apple-darwin --sysroot=${MINKAR_SDKROOT} \
 	 ${COMMON_DEFS} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-std=gnu11 -fdollars-in-identifiers -fno-common -fverbose-asm -w \
 	-Wno-error=shorten-64-to-32 -Wno-int-conversion -Wno-implicit-int \
