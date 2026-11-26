@@ -175,7 +175,9 @@ all: install-extlib
 # changes no file the tree depends on otherwise). An autotools tree's
 # generated files are made newer than their sources, in their order
 # (aclocal.m4, then what is made from it, a second later: the same instant
-# is not enough, as find touches them in its own order). A tree copied from the
+# is not enough, as find touches them in its own order), both in the past:
+# a newer configure checks that a file it creates is not older than its
+# own files, to the hundredth of a second. A tree copied from the
 # repository has its files' dates in checkout order, and make would run
 # configure again, without the environment it was first given (libtool then
 # takes the build host's GNU ld).
@@ -199,7 +201,7 @@ ${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTL
 		patch -s -p1 -d ${SRC}.part < ${EXTLIB_DIR}/patches/$$p || exit 1; \
 	done && \
 	if [ "${EXTLIB_SYSTEM}" = autotools ]; then \
-		t=$$(date +%s) && \
+		t=$$(($$(date +%s) - 2)) && \
 		find ${SRC}.part -name aclocal.m4 -exec touch -d @$$t {} + && \
 		find ${SRC}.part \( -name configure -o -name config.h.in -o \
 		    -name Makefile.in \) -exec touch -d @$$((t + 1)) {} +; \
