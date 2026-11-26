@@ -19,7 +19,8 @@ MK_WERROR = no
 LIB = commonCrypto
 SRCS = digest.c digest_spi.c hmac.c aes.c cryptor.c keyderivation.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+# Optimised (-O2: digests and ciphers): it was built without any -O.
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -I${MINKAR_SDKROOT}/usr/include/Private \
 	-Wno-deprecated-declarations -Wno-nullability-completeness
 
@@ -28,7 +29,7 @@ LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
 	-Wl,-current_version,60165 -Wl,-compatibility_version,1 \
 	-Wl,-install_name,/usr/lib/system/libcommonCrypto.dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
-	-nodefaultlibs -lsystem_c -lsystem_malloc -lsystem_kernel -ldyld \
+	-nodefaultlibs -lsystem_c -lsystem_platform -lsystem_malloc -lsystem_kernel -ldyld \
 	-Wl,-unexported_symbol,__cc_*
 
 all: ${.OBJDIR}/lib${LIB}.dylib
