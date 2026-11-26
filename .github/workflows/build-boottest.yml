@@ -158,6 +158,9 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS,LOGDIR \
             env LOGDIR="$BUILD_DIR/logs" tools/ci/build-stages.sh
+          # The build ran as root and made the log directory root's: the
+          # steps after it write their logs there as the runner's user.
+          sudo chown "$(id -u):$(id -g)" "$BUILD_DIR/logs"
 
       - name: Check the toolchain against its manifest
         # tools/toolchain/MANIFEST: the sources' trees, the tools' versions,
