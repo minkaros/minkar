@@ -10,7 +10,7 @@ SLF = /System/Library/Frameworks
 # notify_probes.h stands in for the header dtrace -h would generate from
 # notify_probes.d: the probes are no-ops.
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -Os --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DPRIVATE -D__APPLE__ -fblocks -DDISPATCH_USE_DTRACE=0 \
 	-DTARGET_OS_BRIDGE=0 \
 	-w -Wno-int-conversion -Wno-implicit-int \
