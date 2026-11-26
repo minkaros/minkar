@@ -56,6 +56,8 @@
 		<string>0.306 0.306 0.306</string>
 		<key>secondaryLabelColor</key>
 		<string>0.706 0.706 0.706</string>
+		<key>selectedTextColor</key>
+		<string>0.878 0.878 0.878</string>
 		<key>separatorColor</key>
 		<string>0.239 0.239 0.239</string>
 		<key>tertiaryLabelColor</key>
@@ -127,6 +129,8 @@
 		<string>0.867 0.867 0.867</string>
 		<key>secondaryLabelColor</key>
 		<string>0.467 0.459 0.478</string>
+		<key>selectedTextColor</key>
+		<string>0.259 0.255 0.267</string>
 		<key>separatorColor</key>
 		<string>0.808 0.808 0.808</string>
 		<key>tertiaryLabelColor</key>
