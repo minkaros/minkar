@@ -99,6 +99,12 @@ static NSPoint nextOrigin;
 - (void)makeWindowWithText:(id)text
 {
     NSRect visible = [[NSScreen mainScreen] visibleFrame];
+
+    /* No display yet (the computer started without one): a screen of the
+       usual size to place it on, or the window had a negative size and
+       never showed. */
+    if (NSIsEmptyRect(visible))
+        visible = NSMakeRect(0, 0, 1024, 768);
     NSRect frame = NSMakeRect(0, 0, MIN(640, NSWidth(visible) - 80), MIN(480, NSHeight(visible) - 80));
 
     /* Each new window a step down and right of the last. */
