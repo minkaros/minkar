@@ -387,6 +387,11 @@ def main(argv=None):
         r = judge(app, found.get(app['name']), product)
         rows.append(r)
         before = last.get(app['name'])
+        # Not run because its download failed (the network's doing, not
+        # Minkar's; the maintainer's choice, 26 Nov 2026): no regression,
+        # and the failed download is still reported below.
+        if before and r['result'] == 'not-run' and fetch.returncode != 0:
+            before = None
         if before and before['version'] == r['version'] and int(r['stage']) < int(before['stage']):
             regressions.append('%s: %s (stage %s) before, %s (stage %s) now: %s' % (
                 r['app'], before['result'], before['stage'], r['result'], r['stage'], r['reason']))
