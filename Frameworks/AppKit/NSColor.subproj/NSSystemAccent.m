@@ -197,6 +197,14 @@ static NSColor *themeColor(id value) {
         return [NSColor colorWithGenericGamma22White:[value doubleValue] alpha:1];
     /* sRGB, as a color picked from the screen or written in hex is (the
        calibrated space, gamma 1.8, showed them lighter). */
+    /* A grey (r = g = b, most of a theme): Atlas's own kind, gamma 2.2,
+       which drawing reads as cheaply as before; an sRGB color is matched
+       on every read, and the window's background is read on every frame
+       drawn (a video played 2 % slower). */
+    if ([parts count] >= 3 && [[parts objectAtIndex:0] doubleValue] == [[parts objectAtIndex:1] doubleValue] &&
+        [[parts objectAtIndex:1] doubleValue] == [[parts objectAtIndex:2] doubleValue])
+        return [NSColor colorWithGenericGamma22White:[[parts objectAtIndex:0] doubleValue]
+            alpha:[parts count] > 3 ? [[parts objectAtIndex:3] doubleValue] : 1];
     if ([parts count] >= 3)
         return [NSColor colorWithSRGBRed:[[parts objectAtIndex:0] doubleValue]
             green:[[parts objectAtIndex:1] doubleValue] blue:[[parts objectAtIndex:2] doubleValue]
@@ -226,8 +234,21 @@ static NSDictionary *currentTheme;
    MinkarSwitchOnColor, MinkarLevelColor, MinkarMenuBarColor,
    MinkarMenuBarLineColor, MinkarMenuBarTextColor, MinkarAccentColor,
    MinkarSidebarSelectionColor). */
+/* The theme's colors made from their strings once, until it changes
+   (asked for on every draw of a control). */
+static NSMutableDictionary *themeColorCache;
+
 NSColor *_NSAppearanceThemeColor(NSString *key) {
-    return themeActive ? themeColor([currentTheme objectForKey:key]) : nil;
+    if (!themeActive || key == nil)
+        return nil;
+    if (themeColorCache == nil)
+        themeColorCache = [NSMutableDictionary new];
+    id color = [themeColorCache objectForKey:key];
+    if (color == nil) {
+        color = themeColor([currentTheme objectForKey:key]) ?: (id)[NSNull null];
+        [themeColorCache setObject:color forKey:key];
+    }
+    return color == [NSNull null] ? nil : color;
 }
 
 /* The neutrals for the appearance: dark ones, or the light ones kept. */
@@ -255,6 +276,7 @@ static void applyAppearance(BOOL dark) {
     themeActive = [theme count] > 0;
     [currentTheme release];
     currentTheme = [theme retain];
+    [themeColorCache removeAllObjects];
     if (themeReplaced == nil)
         themeReplaced = [NSMutableDictionary new];
     for (NSString *key in [themeReplaced allKeys])
