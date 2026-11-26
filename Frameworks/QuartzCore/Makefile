@@ -55,7 +55,8 @@ HEADERS= \
 RESOURCES_FILES = Info.plist
 RESOURCES_DIRS = English.lproj
 
-CFLAGS = -I${.CURDIR:H} -fblocks -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+# Optimised: it was built without any -O (the compositor's hot paths).
+CFLAGS = -O2 -I${.CURDIR:H} -fblocks -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
 # The YCbCr conversion runs for every pixel of every video frame shown.
 CFLAGS.CAYUVImage.c = -O2
 LDFLAGS = -framework IOSurface \
