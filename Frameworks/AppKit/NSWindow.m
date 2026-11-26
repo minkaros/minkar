@@ -1933,6 +1933,12 @@ static char titlebarSeparatorKey;
    if ( !screen) return rect;
    NSRect visRect = [screen visibleFrame];
 
+   /* Minkar: no display yet (a computer started without one: the window
+      server waits for it): the screen is empty, and a window cut to it
+      had no height and never showed. Left as it is. */
+   if(NSIsEmptyRect(visRect))
+    return rect;
+
    /* Minkar: a resizable window taller than the visible area is cut to
       it, so its title bar stays below the menu bar (as documented). */
    if(([self styleMask]&NSWindowStyleMaskResizable) && rect.size.height>visRect.size.height){
