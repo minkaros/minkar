@@ -78,6 +78,8 @@ HEADERS= \
 	CoreText.h
 
 RESOURCES=Info.plist
+# Optimised: it was built without any -O.
+CFLAGS+= -O2
 CFLAGS+= -I${.CURDIR:H}/OpenGL -I${.CURDIR:H} -I${.OBJDIR:H} -fblocks \
 	-I${.CURDIR}/Foundation/Headers -I${.OBJDIR} \
 	-I${ROOT_SOURCE_DIR}/CoreServices -Wno-implicit-function-declaration \
