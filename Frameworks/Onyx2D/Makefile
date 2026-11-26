@@ -240,6 +240,8 @@ CFLAGS.${f} += -I${.CURDIR}/lcms2/include -fvisibility=hidden -Wno-everything
 .endfor
 
 RESOURCES = Info.plist English.lproj
+# Optimised: it was built without any -O (2D drawing's hot paths).
+CFLAGS += -O2
 CFLAGS += -I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/Foundation/Headers \
         -I${ROOT_SOURCE_DIR}/BSD/lib/libjpeg \
         -I${ROOT_SOURCE_DIR}/BSD/lib/libpng -I${.OBJDIR}/png \
