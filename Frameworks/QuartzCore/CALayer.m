@@ -485,9 +485,23 @@ static void layerChanged(CALayer *layer);
 /* Minkar: every layer of the tree that needs it displayed, as a commit
    would, before a view composes the tree it hosts. */
 -(void)_minkarDisplayTreeIfNeeded {
+   NSArray *children;
+
    [self displayIfNeeded];
-   for(CALayer *child in [[_sublayers copy] autorelease])
-    [child _minkarDisplayTreeIfNeeded];
+   /* The app changes the tree from its own threads (Firefox's compositor):
+      the list is copied under the tree's lock, else setSublayers: on
+      another thread freed it as it was copied and the main thread used a
+      freed layer (Firefox hung in its crash handler on PC 1, opening a
+      tab). Displayed outside it: a delegate may change the tree. */
+   [treeLock() lock];
+   /* A new array (copy gives an immutable array back itself), its layers
+      retained by it. */
+   children=[[NSArray alloc] initWithArray:_sublayers];
+   [treeLock() unlock];
+   NSUInteger count=[children count];
+   for(NSUInteger i=0;i<count;i++)
+    [[children objectAtIndex:i] _minkarDisplayTreeIfNeeded];
+   [children release];
 }
 
 -(void)drawInContext:(CGContextRef)context {
