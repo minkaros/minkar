@@ -496,7 +496,7 @@ static CGFloat bounceRoom;
 - (void)layoutMains:(CGFloat *)mains sizes:(CGFloat *)sizes count:(NSUInteger)count
          barStart:(CGFloat *)barStart barLength:(CGFloat *)barLength
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     CGFloat tile = model.tileSize, gap = gapFor(tile), sep = separatorSpace(tile);
     CGFloat base = [DockView baseLengthForModel:model];
     CGFloat baseStart = round(([self mainLength] - base) / 2);
@@ -668,7 +668,7 @@ static void drawBadge(NSString *label, NSRect icon)
 
 - (void)drawRect:(NSRect)dirty
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSArray<DockTile *> *tiles = model.tiles;
     NSUInteger count = [tiles count];
     CGFloat mains[count + 1], sizes[count + 1], start, length;
@@ -726,7 +726,7 @@ static void drawBadge(NSString *label, NSRect icon)
 
 - (void)drawBouncingTiles
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSArray<DockTile *> *tiles = model.tiles;
     NSUInteger count = [tiles count];
     CGFloat mains[count + 1], sizes[count + 1], start, length;
@@ -947,7 +947,7 @@ static void drawBadge(NSString *label, NSRect icon)
 - (void)mouseDragged:(NSEvent *)event
 {
     NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
-    DockModel *model = self.model;
+    DockModel *model = _model;
 
     /* The minimized windows and the Trash stay where they are. */
     if (_pressed < 0 || (NSUInteger)_pressed >= model.minimizedIndex)
@@ -985,7 +985,7 @@ static void drawBadge(NSString *label, NSRect icon)
 - (void)mouseUp:(NSEvent *)event
 {
     NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSArray<DockTile *> *tiles = model.tiles;
 
     [_pressTimer invalidate];
@@ -1049,7 +1049,7 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
  * part, kept in the Dock. The tile it would go to is shown dimmed. */
 - (NSDragOperation)dropOperationFor:(id<NSDraggingInfo>)info
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSArray<NSURL *> *urls = DraggedFileURLs(info);
     NSInteger index = [self tileIndexAtPoint:[self convertPoint:[info draggingLocation] fromView:nil]];
     NSDragOperation operation = NSDragOperationNone;
@@ -1092,7 +1092,7 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
 
 - (BOOL)performDragOperation:(id<NSDraggingInfo>)info
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSArray<NSURL *> *urls = DraggedFileURLs(info);
     NSInteger index = [self tileIndexAtPoint:[self convertPoint:[info draggingLocation] fromView:nil]];
     NSDragOperation operation = [self dropOperationFor:info];
@@ -1138,7 +1138,7 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
 
 - (void)showMenuForTile:(NSUInteger)index event:(NSEvent *)event
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     DockTile *tile = model.tiles[index];
     if (tile.kind == DockTileKindTrash) {
         [self showTrashMenuWithEvent:event];
@@ -1193,7 +1193,7 @@ static BOOL AllApplications(NSArray<NSURL *> *urls)
 /* The Trash's menu: open it, or empty it. */
 - (void)showTrashMenuWithEvent:(NSEvent *)event
 {
-    DockModel *model = self.model;
+    DockModel *model = _model;
     NSMenu *menu = [[NSMenu alloc] initWithTitle:model.trashTile.label];
     NSMenuItem *item;
 
@@ -1709,6 +1709,10 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
      suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
     [center addObserver:self selector:@selector(tileDrawn:) name:@"org.minkar.dock.tile" object:nil
      suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+    /* Files' Add to Dock: the application, its path the object, kept after
+       the kept ones (where it is when it is kept already). */
+    [center addObserver:self selector:@selector(keepRequested:) name:@"org.minkar.dock.keep" object:nil
+     suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(appActivated:)
         name:NSWorkspaceDidActivateApplicationNotification object:nil];
     [self layout];
@@ -1722,6 +1726,27 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
             [tile.application processIdentifier] == pid)
             return tile;
     return nil;
+}
+
+- (void)keepRequested:(NSNotification *)note
+{
+    NSString *path = [note object];
+    DockModel *model = _model;
+
+    if (![path isKindOfClass:[NSString class]] || ![[[path pathExtension] lowercaseString] isEqualToString:@"app"] ||
+        ![[NSFileManager defaultManager] fileExistsAtPath:path])
+        return;
+    NSURL *url = [[NSURL fileURLWithPath:path] URLByStandardizingPath];
+    DockTile *tile = nil;
+    for (DockTile *k in model.tiles)
+        if ([[k.URL URLByStandardizingPath] isEqual:url])
+            tile = k;
+    if (tile != nil && [model isKept:tile])
+        return;
+    if (tile == nil)
+        tile = [model tileForApplicationURL:url];
+    [model keepTile:tile atIndex:model.firstRunningIndex];
+    os_log_info(OS_LOG_DEFAULT, "kept %{public}s (Add to Dock)", [path fileSystemRepresentation]);
 }
 
 - (void)attentionRequested:(NSNotification *)note
