@@ -279,6 +279,7 @@ static NSUInteger separatorCount(DockModel *model)
 /* Where the pointer is along the Dock, or NAN when it is not on it. */
 @property (nonatomic) CGFloat pointerMain;
 - (void)forgetIcons;
+- (void)forgetPointerUnlessInside;
 /* The tiles bouncing now, each as high as it is in its bounce. */
 - (void)drawBouncingTiles;
 @end
@@ -298,6 +299,7 @@ static NSUInteger separatorCount(DockModel *model)
     BOOL _dropRemoves;        /* dragged off the Dock */
     NSPoint _dragPoint;
     NSTimer *_pressTimer;
+    NSTimer *_pointerCheck;   /* while the pointer is on the Dock */
     NSTrackingArea *_tracking;
     DockDragWindow *_dragWindow;
     NSInteger _labelled;      /* the tile whose label shows, or -1 */
@@ -814,6 +816,26 @@ static void drawBadge(NSString *label, NSRect icon)
     if (self.model.magnification)
         [self magnifiedNeedsDisplay];
     [self showLabelForPoint:p];
+    /* An exit may never come (a pointer leaving fast while another app is
+       active): where the pointer is, checked until it is off the Dock. */
+    if (_pointerCheck == nil)
+        _pointerCheck = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *t) {
+            (void)t;
+            [self checkPointerStillInside];
+        }];
+}
+
+- (void)checkPointerStillInside
+{
+    NSPoint screen = [NSEvent mouseLocation];
+    NSPoint p = [self convertPoint:[[self window] convertRectFromScreen:NSMakeRect(screen.x, screen.y, 0, 0)].origin
+                          fromView:nil];
+
+    if (isnan(self.pointerMain)) {
+        [_pointerCheck invalidate];
+        _pointerCheck = nil;
+    } else if (!NSPointInRect(p, [self bounds]))
+        [self mouseExited:nil];
 }
 
 /* The bar and its tiles where they will be drawn now. */
@@ -872,6 +894,20 @@ static void drawBadge(NSString *label, NSRect icon)
     [self.dockWindow pointerInside:NO];
     if (self.model.magnification)
         [self magnifiedNeedsDisplay];
+}
+
+/* Where the pointer really is: a pointer that left fast, while another
+   app was active, may have sent no exit, and the place it was last seen
+   stayed (magnification turned on then magnified the tiles there). */
+- (void)forgetPointerUnlessInside
+{
+    NSPoint screen = [NSEvent mouseLocation];
+    NSPoint p = [self convertPoint:[[self window] convertRectFromScreen:NSMakeRect(screen.x, screen.y, 0, 0)].origin
+                          fromView:nil];
+
+    if (isnan(self.pointerMain) || NSPointInRect(p, [self bounds]))
+        return;
+    [self mouseExited:nil];
 }
 
 - (void)mouseDown:(NSEvent *)event
@@ -2000,6 +2036,7 @@ static NSRect ScreenFrameOfServerWindow(const SLSWindowInfo *info)
 
 - (void)modelChanged:(NSNotification *)note
 {
+    [_view forgetPointerUnlessInside];
     [_view forgetIcons];    /* tiles or sizes may have gone */
     [self layout];
     [self bounce];          /* an app that starts bounces (launchanim) */
