@@ -50,7 +50,9 @@ CFLAGS.objc-auto.o = -fexceptions
 CFLAGS.objc-exception.o = -fexceptions
 CFLAGS.objc-lockdebug.o = -Os
 
-COMMONFLAGS = --sysroot=${MINKAR_SDKROOT} \
+# Optimised: the runtime was built without any -O (every message send's
+# slow path, retain and release, class loading).
+COMMONFLAGS = -Os --sysroot=${MINKAR_SDKROOT} \
 		-mmacos-version-min=${MACOS_VERSION_MIN} \
 		-momit-leaf-frame-pointer \
 		-fdollars-in-identifiers \
