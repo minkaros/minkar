@@ -103,6 +103,8 @@ fmwk-install-hook:
 	rsync -rlc ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
 	rsync -rlc ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.framework.mk>
 
 # The MIG headers come before any object.

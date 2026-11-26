@@ -24,4 +24,6 @@ fmwk-install-hook:
 	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
 	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.framework.mk>

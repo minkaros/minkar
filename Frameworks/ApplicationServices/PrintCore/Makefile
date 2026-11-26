@@ -28,4 +28,6 @@ fmwk-install-hook:
 	ln -sfn Versions/Current/Frameworks ${dir}${PARENT}/Frameworks
 .endfor
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.framework.mk>

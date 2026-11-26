@@ -37,4 +37,6 @@ fmwk-install-hook:
 	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}/System/Library/Frameworks
 .endfor
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.framework.mk>
