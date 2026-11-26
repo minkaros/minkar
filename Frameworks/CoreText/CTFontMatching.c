@@ -24,6 +24,10 @@ extern CFStringRef _CGFontCopyNameForID(CGFontRef font, uint16_t nameID);
 
 /* A font made from memory keeps its bytes here (not a public key). */
 static const CFStringRef kFontDataAttribute = CFSTR("_CTFontDataAttribute");
+/* A font made from data (a web page's) in its own descriptor: the font
+   itself, so a font made from the descriptor is it and not whichever font
+   its name finds (Minkar's own key). */
+static const CFStringRef kGraphicsFontAttribute = CFSTR("_CTFontGraphicsFontAttribute");
 
 /* fontconfig is not safe to use from several threads at once. */
 static pthread_mutex_t fcLock = PTHREAD_MUTEX_INITIALIZER;
@@ -441,7 +445,16 @@ CTFontRef CTFontCreateWithFontDescriptor(CTFontDescriptorRef descriptor, CGFloat
 
     CTFontRef font = NULL;
     CFDataRef data = CFDictionaryGetValue(attributes, kFontDataAttribute);
-    if (data != NULL) {
+    CGFontRef own = (CGFontRef)CFDictionaryGetValue(attributes, kGraphicsFontAttribute);
+    CFStringRef ownName = own != NULL ? CGFontCopyPostScriptName(own) : NULL;
+    CFStringRef asked = CFDictionaryGetValue(attributes, kCTFontNameAttribute);
+    /* The descriptor of a font made from data, its name unchanged: that
+       font (by its name, another font: Firefox drew a web font's glyphs
+       with it, YouTube's headings on PC 1). */
+    if (own != NULL && ownName != NULL && asked != NULL && CFGetTypeID(asked) == CFStringGetTypeID() &&
+        CFEqual(asked, ownName)) {
+        font = CTFontCreateWithGraphicsFont(own, size, NULL, NULL);
+    } else if (data != NULL) {
         CGDataProviderRef provider = CGDataProviderCreateWithCFData(data);
         CGFontRef cg = provider != NULL ? CGFontCreateWithDataProvider(provider) : NULL;
         if (provider != NULL)
@@ -461,6 +474,8 @@ CTFontRef CTFontCreateWithFontDescriptor(CTFontDescriptorRef descriptor, CGFloat
         if (match != NULL)
             CFRelease(match);
     }
+    if (ownName != NULL)
+        CFRelease(ownName);
     return applyVariation(font, CFDictionaryGetValue(attributes, kCTFontVariationAttribute));
 }
 
@@ -529,6 +544,8 @@ CTFontDescriptorRef CTFontCopyFontDescriptor(CTFontRef font) {
         CFDictionarySetValue(d, kCTFontTraitsAttribute, traits);
         CFRelease(traits);
         CFDictionarySetValue(d, kCTFontSizeAttribute, sizeNumber);
+        if (cg != NULL)
+            CFDictionarySetValue(d, kGraphicsFontAttribute, cg);
         result = createDescriptor(d);
         CFRelease(d);
     }
