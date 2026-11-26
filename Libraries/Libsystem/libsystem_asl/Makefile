@@ -18,7 +18,7 @@ SRCS =  asl.c \
 	asl_ipcUser.c
 
 SLF = /System/Library/Frameworks
-CFLAGS = -DXPC_DEBUG -DMACH -D__APPLE__ -D__DARWIN_C_LEVEL=__DARWIN_C_FULL \
+CFLAGS = -Os -DXPC_DEBUG -DMACH -D__APPLE__ -D__DARWIN_C_LEVEL=__DARWIN_C_FULL \
 	-D_DARWIN_C_SOURCE -D_POSIX_C_SOURCE=200809L -fblocks \
 	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-implicit-function-declaration \
