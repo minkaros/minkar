@@ -8,7 +8,10 @@
 #
 # FIXME: DMIHelper still uses the old build rules and is not built yet.
 
-SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Demo
+# directoryd's static libraries (BSD/lib, whose stage comes after this
+# one): built first.
+SUBDIR = ../BSD/lib/libbsdcompat ../BSD/lib/libpw \
+	../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Demo
 # The window server and its test client (SkyLight.framework is built
 # in the Frameworks stage, and pixman, its compositor's library, with
 # Carbon there).
