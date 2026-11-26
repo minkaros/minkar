@@ -165,11 +165,14 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
 - (void)drawRect:(NSRect)dirty
 {
     NSRect bounds = NSInsetRect([self bounds], 0.5, 0.5);
-    NSBezierPath *capsule = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:6 yRadius:6];
+    NSBezierPath *capsule = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:5 yRadius:5];
     NSUInteger count = [_glyphs count];
 
-    /* With a theme: its face (1), track (0.80, 0.87) and border (0.70). */
-    [(_NSAppearanceThemeActive() ? FilesControlGray(1) : FilesGray(0.985, 1)) setFill];
+    /* As AppKit's segmented controls draw it (NSSegmentedCell), in the
+       theme's greys, light or dark: a face of 1, its border 0.70; the
+       selected segment in the accent color, its icon white; a pressed one
+       the pressed button's grey. */
+    [FilesControlGray(1.0) setFill];
     [capsule fill];
 
     [NSGraphicsContext saveGraphicsState];
@@ -177,14 +180,14 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
     for (NSUInteger i = 0; i < count; i++) {
         NSRect r = [self rectForSegment:(NSInteger)i];
         if ((NSInteger)i == _selectedSegment) {
-            [FilesControlGray(0.80) setFill];
+            [[NSColor controlAccentColor] setFill];
             NSRectFill(r);
         } else if ((NSInteger)i == _pressed && [self isEnabledForSegment:(NSInteger)i]) {
-            [FilesControlGray(0.87) setFill];
+            [FilesControlGray(0.82) setFill];
             NSRectFill(r);
         }
         if (i > 0) {
-            [(_NSAppearanceThemeActive() ? FilesControlGray(0.70) : FilesGray(0.78, 1)) setFill];
+            [FilesControlGray(0.70) setFill];
             NSRectFill(NSMakeRect(floor(NSMinX(r)), 0, 1, NSHeight([self bounds])));
         }
     }
@@ -196,10 +199,11 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
 
     for (NSUInteger i = 0; i < count; i++) {
         BOOL enabled = [self isEnabledForSegment:(NSInteger)i];
-        NSColor *ink = (NSInteger)i == _selectedSegment ? FilesGray(0.12, 1)
-                                                        : FilesGray(0.30, 1);
+        /* The controls' text color, which the dark appearance makes light. */
+        NSColor *ink = (NSInteger)i == _selectedSegment ? [NSColor whiteColor]
+                                                        : [NSColor controlTextColor];
         if (!enabled)
-            ink = FilesGray(0.30, 0.30);
+            ink = [NSColor disabledControlTextColor];
         [ink setFill];
         [ink setStroke];
         drawGlyph((FilesGlyph)[_glyphs[i] integerValue], [self rectForSegment:(NSInteger)i]);
