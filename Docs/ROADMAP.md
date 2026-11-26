@@ -157,7 +157,7 @@ The designated apps' published x86-64 binaries start and work without recompilin
 apps and how far each gets are in [Compatibility.md](Compatibility.md). Install names,
 public ivar layouts and struct sizes stay as on the reference platform.
 
-- [ ] BC0 — Gate BC (`bmake bc-check`) in the CI with every designated app; waits for its first CI run.
+- [x] BC0 — Gate BC (`bmake bc-check`) in the CI with every designated app: green on 26 Nov 2026 (run 45834032966, `17505a91f2`), the 17 apps run as the test user, 7 with a window, no regression.
 - [x] BC1 — The generated matrix, [Compatibility.md](Compatibility.md).
 - [ ] BC2 — Loader cases: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, third-party signatures and hardened runtime, `SYSTEM_VERSION_COMPAT`; partial.
 - [ ] BC3 — ABI audit from the type encodings in the apps' binaries, without the vendor's headers.
@@ -168,7 +168,7 @@ public ivar layouts and struct sizes stay as on the reference platform.
 
 On the new kernel, in a virtual machine only for now.
 
-- [ ] ARM0 — The userland and frameworks compile for arm64 in the CI (about 96 % of the objects); nothing is linked or booted.
+- [x] ARM0 — The userland and frameworks compile for arm64 in the CI (about 96 % of the objects); nothing is linked or booted. Green in the CI on 26 Nov 2026 (run 45834032966).
 - [ ] ARM1 — Darwin 25 boots on arm64 in a VM to gate M2; the boot target is not decided.
 - [ ] ARM2 — The desktop on arm64 in QEMU.
 - [ ] ARM3 — The designated apps' arm64 binaries start.
@@ -232,8 +232,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
 7. LoginWindow: done (24 Nov 2026).
 8. The visual language: done (approved 25 Nov 2026).
 
-Lane BC alongside: BC2, BC0 in the
-CI. The GPU (R2b on PC 1) in parallel, as always; what needs PC 2 waits for 19.6.x.
+Lane BC alongside: BC2 (BC0 done: the CI is green, 26 Nov 2026). The GPU (R2b on PC 1) in parallel, as always; what needs PC 2 waits for 19.6.x.
 
 ## Risks
 

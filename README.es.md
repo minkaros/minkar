@@ -34,7 +34,7 @@ mismo commit.
 - Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados
 - Después de 19.6.0: las apps A5–A10, las pruebas en el PC 2, Darwin 25, arm64 en QEMU, SwiftUI
 
-_Actualizado el 2026-11-26, devel `228f82b367`_
+_Actualizado el 2026-11-26, devel `04c182d470`_
 <!-- progress:readme:end -->
 
 Todos los hitos: [Docs/Progress.md](Docs/Progress.md). Qué apps funcionan y hasta dónde:

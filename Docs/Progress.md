@@ -4,7 +4,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 `bmake progress`; [ROADMAP.md](ROADMAP.md) is the source of truth.
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-26, devel `228f82b367`_
+_Updated 2026-11-26, devel `04c182d470`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -20,9 +20,9 @@ _Updated 2026-11-26, devel `228f82b367`_
 | [WebKit](ROADMAP.md#webkit) | 🟨🟦🟩🟩🟩🟨 | 3 / 6 | W1 JSC | — |
 | [GPU track](GPU.md) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Audio](ROADMAP.md#audio-and-media) | 🟩⬜ | 1 / 2 | — | AU7–AU10 |
-| [Lane BC](ROADMAP.md#lane-bc--binary-compatibility) | 🟩🟦🟩🟨⬜⬜⬜ | 2 / 7 | BC0 gate | BC3 ABI |
+| [Lane BC](ROADMAP.md#lane-bc--binary-compatibility) | 🟩🟩🟩🟨⬜⬜⬜ | 3 / 7 | BC2 loader | BC3 ABI |
 | [Lane KX](ROADMAP.md#lane-kx--new-kernel-darwin-25) | 🟩⬜⬜⬜ | 1 / 4 | — | KX1 M2 |
-| [Lane ARM](ROADMAP.md#lane-arm--arm64) | 🟦⬜⬜⬜ | 0 / 4 | ARM0 build | ARM1 M2 |
+| [Lane ARM](ROADMAP.md#lane-arm--arm64) | 🟩⬜⬜⬜ | 1 / 4 | — | ARM1 M2 |
 | [Lane SU](ROADMAP.md#lane-su--swiftui) | 🟦🟩🟦⬜⬜⬜ | 1 / 6 | SU0 report, SU1 design | SU2 engine |
 | [Lane R](ROADMAP.md#lane-r--structure) | 🟦⬜⬜⬜⬜ | 0 / 5 | R0 inventory | R1 toolchain |
 

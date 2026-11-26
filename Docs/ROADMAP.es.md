@@ -163,7 +163,7 @@ recompilarlos; las apps y hasta dónde llega cada una están en
 las ivars públicas y los tamaños de las structs se mantienen como en la plataforma de
 referencia.
 
-- [ ] BC0 — El gate BC (`bmake bc-check`) en la CI con todas las apps designadas; espera su primera ejecución en la CI.
+- [x] BC0 — El gate BC (`bmake bc-check`) en la CI con todas las apps designadas: en verde el 26 nov 2026 (ejecución 45834032966, `17505a91f2`), las 17 apps con el usuario de pruebas, 7 con ventana, sin regresiones.
 - [x] BC1 — La matriz generada, [Compatibility.es.md](Compatibility.es.md).
 - [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas de terceros y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
 - [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin los headers del fabricante.
@@ -174,7 +174,7 @@ referencia.
 
 Con el kernel nuevo, y por ahora solo en una máquina virtual.
 
-- [ ] ARM0 — El userland y los frameworks compilan para arm64 en la CI (cerca del 96 % de los objetos); no se enlaza ni se arranca nada.
+- [x] ARM0 — El userland y los frameworks compilan para arm64 en la CI (cerca del 96 % de los objetos); no se enlaza ni se arranca nada. En verde en la CI el 26 nov 2026 (ejecución 45834032966).
 - [ ] ARM1 — Darwin 25 arranca en arm64 en una VM hasta el gate M2; el destino de arranque no está decidido.
 - [ ] ARM2 — El escritorio en arm64 en QEMU.
 - [ ] ARM3 — Arrancan los binarios arm64 de las apps designadas.
@@ -240,7 +240,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 7. LoginWindow: hecho (24 nov 2026).
 8. El lenguaje visual: hecho (aprobado el 25 nov 2026).
 
-En paralelo, el carril BC: BC2, BC0 en la CI.
+En paralelo, el carril BC: BC2 (BC0 hecho: la CI está en verde, 26 nov 2026).
 La GPU (R2b en el PC 1) en paralelo, como siempre; lo que necesita el PC 2 espera a 19.6.x.
 
 ## Riesgos
