@@ -171,7 +171,7 @@ static NSArray<NSDictionary *> *installableDisks(void)
 {
     [self makeMenu];
     _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 640, 460)
-                                          styleMask:NSTitledWindowMask | NSMiniaturizableWindowMask
+                                          styleMask:NSTitledWindowMask   /* nothing to minimize it to */
                                             backing:NSBackingStoreBuffered defer:NO];
     [_window setTitle:text(@"Install Minkar")];
     NSView *content = [_window contentView];
