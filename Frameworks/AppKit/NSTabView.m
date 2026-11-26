@@ -583,8 +583,8 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
 
                [_selectedItem drawLabel:_allowsTruncatedLabels inRect: labelRect];
 
-               if ([[self window] firstResponder] == self)
-                  NSDottedFrameRect(NSInsetRect(labelRect,-1,0));
+               /* Minkar: no dotted rectangle round the selected tab's
+                  label (Cocotron's); the reference draws none. */
             }
             break;
         }

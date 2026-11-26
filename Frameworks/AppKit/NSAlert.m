@@ -230,6 +230,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSButton *)addButtonWithTitle:(NSString *)title {
    NSButton *result=[[NSButton alloc] init];
+   [result setBezelStyle:NSRoundedBezelStyle];   /* the reference's push buttons */
    [result setTitle:title];
    [result setTarget:self];
    [result setAction:@selector(_alertButton:)];

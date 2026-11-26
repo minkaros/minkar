@@ -904,11 +904,14 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 -(NSRect)drawTitle:(NSAttributedString *)title withFrame:(NSRect)titleRect inView:(NSView *)controlView {
     BOOL defaulted=([[controlView window] defaultButtonCell]==self) || [_keyEquivalent isEqualToString:@"\r"];
 
-    /* White on the accent-colored default button and on an inline pill. */
+    /* White on the accent-colored default button and on an inline pill;
+       a button made in code with no bezel style set (0) has the same
+       face as a rounded one, so the same title. */
     BOOL pressed=([self highlightsBy]&NSPushInCellMask) && [self isHighlighted];
 
     if([title length] && [self isBordered] &&
-       (([self isEnabled] && _bezelStyle==NSRoundedBezelStyle && (defaulted || pressed)) || _bezelStyle==NSInlineBezelStyle)){
+       (([self isEnabled] && (_bezelStyle==NSRoundedBezelStyle || _bezelStyle==0) && (defaulted || pressed)) ||
+        _bezelStyle==NSInlineBezelStyle)){
      NSMutableAttributedString *white=[[title mutableCopy] autorelease];
 
      [white addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0,[white length])];
@@ -916,24 +919,10 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     }
     [title _clipAndDrawInRect:titleRect];
 
-    BOOL drawDottedRect=NO;
-
-    if([[controlView window] firstResponder]==controlView){
-
-     if([controlView isKindOfClass:[NSMatrix class]]){
-      NSMatrix *matrix=(NSMatrix *)controlView;
-
-      drawDottedRect=([matrix keyCell]==self)?YES:NO;
-     }
-     else if([controlView isKindOfClass:[NSControl class]]){
-      NSControl *control=(NSControl *)controlView;
-
-      drawDottedRect=([control selectedCell]==self)?YES:NO;
-     }
-    }
-
-    if(drawDottedRect)
-     NSDottedFrameRect(NSInsetRect(titleRect,1,1));
+    /* Minkar: no dotted rectangle round the title of the control with
+       the focus (Cocotron's): the reference draws none on buttons and
+       pop-up buttons, which take the focus only with full keyboard
+       access, and then as a ring round the whole control. */
 
     return titleRect; //FIXME: wrong value
 }
