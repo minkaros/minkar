@@ -31,10 +31,31 @@ static KTFont *ktFontOf(CTFontRef font) {
 #include <stdlib.h>
 #include <CoreGraphics/CGContext.h>
 
+/* The descriptor's variation applied to cgFont (a new instance), or NULL
+   when it has none. */
+static CGFontRef copyWithDescriptorVariation(CGFontRef cgFont,CFTypeRef attributes) {
+   CFDictionaryRef variation=(attributes!=NULL)
+       ?(CFDictionaryRef)CTFontDescriptorCopyAttribute((CTFontDescriptorRef)attributes,kCTFontVariationAttribute):NULL;
+   CGFontRef instance=NULL;
+
+   if(variation!=NULL && CFGetTypeID(variation)==CFDictionaryGetTypeID() && CFDictionaryGetCount(variation)>0)
+    instance=CGFontCreateCopyWithVariations(cgFont,variation);
+   if(variation!=NULL)
+    CFRelease(variation);
+   return instance;
+}
+
+/* With the descriptor's variation, as the reference applies it: Firefox
+   gives a web page's variable font its weight so (it was left out, and
+   every weight drew as the default one). */
 CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgFont,CGFloat size,CGAffineTransform *xform,CFTypeRef attributes) {
    if(cgFont==NULL)
     return NULL;
-   return (CTFontRef)[[KTFont alloc] initWithFont:cgFont size:(size>0)?size:12.0];
+   CGFontRef instance=copyWithDescriptorVariation(cgFont,attributes);
+   CTFontRef result=(CTFontRef)[[KTFont alloc] initWithFont:instance!=NULL?instance:cgFont size:(size>0)?size:12.0];
+   if(instance!=NULL)
+    CGFontRelease(instance);
+   return result;
 }
 
 CTFontRef CTFontCreateUIFontForLanguage(CTFontUIFontType uiFontType,CGFloat size,CFStringRef language) {
@@ -201,14 +222,7 @@ CTFontRef CTFontCreateCopyWithAttributes(CTFontRef font, CGFloat size, const CGA
     NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
     return CTFontCreateWithName((CFStringRef)name,pointSize,NULL);
    }
-   CFDictionaryRef variation=(attributes!=NULL)
-       ?(CFDictionaryRef)CTFontDescriptorCopyAttribute((CTFontDescriptorRef)attributes,kCTFontVariationAttribute):NULL;
-   CGFontRef instance=NULL;
-
-   if(variation!=NULL && CFGetTypeID(variation)==CFDictionaryGetTypeID() && CFDictionaryGetCount(variation)>0)
-    instance=CGFontCreateCopyWithVariations(cg,variation);
-   if(variation!=NULL)
-    CFRelease(variation);
+   CGFontRef instance=copyWithDescriptorVariation(cg,attributes);
    CTFontRef result=CTFontCreateWithGraphicsFont(instance!=NULL?instance:cg,pointSize,NULL,NULL);
    if(instance!=NULL)
     CGFontRelease(instance);

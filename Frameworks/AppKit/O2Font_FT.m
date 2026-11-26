@@ -430,6 +430,12 @@ static const char *const kASCIINames[95] = {
 
     if(value==nil)
      value=[variations objectForKey:[NSNumber numberWithUnsignedInt:(unsigned)axis->tag]];
+    /* Its tag as four letters ("wght"): the name CGFontCopyVariationAxes
+       gives an axis whose font names it nowhere, which Firefox asks by. */
+    if(value==nil){
+     char tag[5]={(char)(axis->tag>>24),(char)(axis->tag>>16),(char)(axis->tag>>8),(char)axis->tag,0};
+     value=[variations objectForKey:[NSString stringWithUTF8String:tag]];
+    }
     coords[i]=axis->def;
     if([value respondsToSelector:@selector(doubleValue)]){
      double v=[value doubleValue];
