@@ -17,4 +17,6 @@ CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-co
 LDFLAGS +=	-lobjc
 RESOURCES =	${.CURDIR}/es.lproj
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

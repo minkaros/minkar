@@ -30,4 +30,6 @@ NotificationCenterUser.c NotificationCenterUser.h: ${NC}/NotificationCenter.defs
 	    -server /dev/null -sheader /dev/null ${.ALLSRC}
 DockModel.o: NotificationCenterUser.h
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

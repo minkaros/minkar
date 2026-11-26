@@ -38,4 +38,6 @@ to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/System/Library/CoreServices
 	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/System/Library/CoreServices/${PROG}
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <bsd.prog.mk>

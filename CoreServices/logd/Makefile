@@ -40,4 +40,6 @@ to-sysroot: ${PROG}
 	# For the log command.
 	rsync -cL ${.CURDIR}/logd.defs ${.CURDIR}/logd_record.h ${MINKAR_SDKROOT}/usr/local/include/minkar
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <bsd.prog.mk>

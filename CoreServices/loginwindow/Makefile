@@ -37,4 +37,6 @@ to-sysroot: ${PROG}
 	install -C -m 0444 -o 0 -g 0 ${.CURDIR}/loginwindow-Info.plist ${APP}/Info.plist
 	install -C -m 0444 -o 0 -g 0 ${.CURDIR}/SessionApplications ${APP}/Resources/SessionApplications
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <bsd.prog.mk>

@@ -44,4 +44,6 @@ to-sysroot: ${PROG}
 	install -C -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/${PROG}
 	install -d -m 0755 -o 0 -g 0 ${SYSROOT_DIR}/private/var/db/fseventsd
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <bsd.prog.mk>

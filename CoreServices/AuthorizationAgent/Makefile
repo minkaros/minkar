@@ -26,4 +26,6 @@ launchd-job: .PHONY
 	mkdir -p ${SYSROOT_DIR}/System/Library/LaunchDaemons
 	install -C -m 0644 ${.CURDIR}/org.minkar.authorizationagent.plist ${SYSROOT_DIR}/System/Library/LaunchDaemons/
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

@@ -19,4 +19,6 @@ LDFLAGS +=	-lobjc
 # its source is in SystemLibrary/Icons).
 RESOURCES =	${.CURDIR}/es.lproj ${.CURDIR}/TextEditor.png
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

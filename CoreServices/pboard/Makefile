@@ -41,4 +41,6 @@ to-sysroot: ${PROG}
 	# nobody (UID and GID -2), who cannot write /var/log.
 	install -d -m 0755 -o 4294967294 -g 4294967294 ${SYSROOT_DIR}/private/var/log/pboard
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <bsd.prog.mk>

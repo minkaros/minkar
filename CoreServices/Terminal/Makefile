@@ -28,4 +28,6 @@ LDFLAGS +=	-lobjc
 RESOURCES =	${.CURDIR}/en.lproj ${.CURDIR}/es.lproj ${.CURDIR}/TerminalHelp.help ${VTERM_LICENSES} \
 		${ROOT_SOURCE_DIR}/SystemLibrary/Icons/png/apps/Terminal.png
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

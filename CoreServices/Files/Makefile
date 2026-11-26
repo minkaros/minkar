@@ -21,4 +21,6 @@ LDFLAGS +=	-lobjc
 # in SystemLibrary/Icons).
 RESOURCES =	${.CURDIR}/es.lproj ${.CURDIR}/Files.png
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>

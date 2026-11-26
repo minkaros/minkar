@@ -15,4 +15,6 @@ LDFLAGS +=	-lobjc
 RESOURCES =	${.CURDIR}/en.lproj ${.CURDIR}/es.lproj ${.CURDIR}/SystemMonitorHelp.help \
 		${ROOT_SOURCE_DIR}/SystemLibrary/Icons/png/apps/SystemMonitor.png
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 .include <minkar.app.mk>
