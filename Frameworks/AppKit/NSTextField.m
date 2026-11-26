@@ -253,7 +253,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)textDidEndEditing:(NSNotification *)note {
-    
+   /* Kept until the event ends: the delegate may take the field away
+      (a name edited in place, removed when its editing ends), and the
+      rest of this method still uses it. */
+   [[self retain] autorelease];
+
    int movement=[[[note userInfo] objectForKey:@"NSTextMovement"] intValue];
 
    [super textDidEndEditing:note];

@@ -510,6 +510,10 @@ static NSMutableDictionary *cellClassDictionary = nil;
     if([note object]!=_currentEditor)
     return;
 
+    /* Kept until the event ends: NSControlTextDidEndEditingNotification's
+       observers may take the control away. */
+    [[self retain] autorelease];
+
     [self validateEditing];
     [self abortEditing];
 
