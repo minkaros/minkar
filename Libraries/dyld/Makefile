@@ -30,7 +30,8 @@ SRCS = ./src/start_glue.s \
 	./dyld3/libdyldEntryVector.cpp \
 	./src/objc_constants.c
 
-COMMONFLAGS = -w --target=${CpuArch}-apple-darwin -dylib \
+# Optimised: dyld was built without any -O (every app's launch).
+COMMONFLAGS = -Os -w --target=${CpuArch}-apple-darwin -dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	--sysroot=${MINKAR_SDKROOT} -DPRIVATE  \
 	-DBUILDING_LIBDYLD -DWITHOUT_SANDBOX -DBROKEN_VECTOR_BASE \
