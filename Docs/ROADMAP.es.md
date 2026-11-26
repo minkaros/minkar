@@ -38,7 +38,7 @@ las apps designadas que necesitan uno mayor pasan el gate BC.
 | Minkar | Kernel | Qué la cierra |
 | --- | --- | --- |
 | 19.6.0 | Darwin 19.6.0 | Los gates M5 y M6 (con el audio AU1–AU6 y AU8–AU10) y el conjunto de apps 19 en verde (BC4) |
-| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, las apps A5–A10, el audio AU7; `ProductVersion` puede subir por conjuntos de apps |
+| 19.6.x | Darwin 19.6.0 | Correcciones, MB4, D4, K4, las apps A5–A10, el audio AU7, las pruebas en el PC 2; `ProductVersion` puede subir por conjuntos de apps |
 | 25.x | Darwin 25 | KX3: todos los gates pasan con el kernel nuevo |
 | Después | Su Darwin | Apps designadas, arm64, SwiftUI, rendimiento |
 
@@ -129,7 +129,7 @@ apps 19 en verde (BC4).
 - [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
 - [x] Compresión de HFS+ (decmpfs): lectura con `MinkarFSCompression` (zlib, LZVN, LZFSE), escritura con `ditto --hfsCompression` (LZFSE; prueba `hfs-compression`).
 - [x] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`): fuera la protección contra el bucle de la lista de sysctl, que ya se construye una sola vez (`a2bd5df4fd`); las aserciones vuelven a depender de la configuración del núcleo (`e0ef2f1168`). Lote: 1043 pruebas y gate M2, 24 nov 2026.
-- [ ] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada. Hecho en QEMU: `bmake installer-image` (I3), el Instalador (I4: comprobaciones, borrado del disco, copia comprimida del sistema, `bless --setBoot`; menos de dos minutos, 405 MB), la Configuración inicial (I5); la prueba de instalación `tools/install-gate.sh` en el repositorio de pruebas (I6). Hecho en PC 1 (24 nov 2026): el medio arranca desde un lector de tarjetas USB e instala en el disco SATA en unos cuatro minutos; el sistema instalado arranca en el modo propio de la pantalla, con la Configuración inicial en español y sonido por el códec de la placa (`/var/log/install.log` en PC 1; commits 1b6817027b, 4bee1bce14). El medio tiene el tamaño de su contenido (2112 MB; `installer-image`). Falta: instalar en PC 2.
+- [x] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada. Hecho en QEMU: `bmake installer-image` (I3), el Instalador (I4: comprobaciones, borrado del disco, copia comprimida del sistema, `bless --setBoot`; menos de dos minutos, 405 MB), la Configuración inicial (I5); la prueba de instalación `tools/install-gate.sh` en el repositorio de pruebas (I6). Hecho en PC 1 (24 nov 2026): el medio arranca desde un lector de tarjetas USB e instala en el disco SATA en unos cuatro minutos; el sistema instalado arranca en el modo propio de la pantalla, con la Configuración inicial en español y sonido por el códec de la placa (`/var/log/install.log` en PC 1; commits 1b6817027b, 4bee1bce14). El medio tiene el tamaño de su contenido (2112 MB; `installer-image`). La instalación en el PC 2 pasa a 19.6.x (decisión del responsable, 25 nov 2026): el PC 2 es el servidor de desarrollo hasta que haya otro.
 - [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
 - [x] Órdenes: las órdenes Tcl de git, gitk y git gui, sobre Tcl/Tk 8.6 (Aqua) con HIShape y HITheme de Carbon (`2055508f88`–`3dfb39907f`; pruebas `tcltk-git`, `carbon-hitheme`, 24 nov 2026). Hecho también: `osascript`, intérprete propio de la parte más usada de AppleScript (prueba `osascript`); `opendiff`, las diferencias en Text Editor (prueba `opendiff`). `tmutil` llega con las copias de seguridad en 19.6.x (decisión del mantenedor, 23 nov 2026).
 
@@ -212,7 +212,9 @@ El núcleo se queda en un repositorio; el resto sale por pasos. Detalle en
 ### Pista de la GPU
 
 En paralelo con todo, y base del requisito de rendimiento. GCN 1.0 (PC 2): G1–G4 hechos,
-falta G5 (Metal); lo siguiente, los relojes de la GPU. RDNA2 (PC 1): R0–R2 hechos; lo
+falta G5 (Metal); los relojes de la GPU, y todas las pruebas en el PC 2, pasan a 19.6.x
+(decisión del responsable, 25 nov 2026: el PC 2 es el servidor de desarrollo hasta que haya
+otro). RDNA2 (PC 1): R0–R2 hechos; lo
 siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
 
 ## Próximos pasos
@@ -236,7 +238,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
 
 En paralelo, el carril BC: BC2, BC0 en la CI.
-La GPU (relojes en el PC 2, R2b en el PC 1) en paralelo, como siempre.
+La GPU (R2b en el PC 1) en paralelo, como siempre; lo que necesita el PC 2 espera a 19.6.x.
 
 ## Riesgos
 

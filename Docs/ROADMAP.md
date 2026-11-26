@@ -37,7 +37,7 @@ the designated apps that need a higher one pass gate BC.
 | Minkar | Kernel | What closes it |
 | --- | --- | --- |
 | 19.6.0 | Darwin 19.6.0 | Gates M5 and M6 (with audio AU1–AU6 and AU8–AU10) and app set 19 green (BC4) |
-| 19.6.x | Darwin 19.6.0 | Fixes, MB4, D4, K4, apps A5–A10, audio AU7; `ProductVersion` may rise by app sets |
+| 19.6.x | Darwin 19.6.0 | Fixes, MB4, D4, K4, apps A5–A10, audio AU7, the tests on PC 2; `ProductVersion` may rise by app sets |
 | 25.x | Darwin 25 | KX3: every gate passes on the new kernel |
 | Later | Its Darwin | Designated apps, arm64, SwiftUI, performance |
 
@@ -125,7 +125,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU6 and AU8–AU10; a
 - [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks attached by the kernel's `MinkarDiskImage`; `hdiutil convert` and `create`.
 - [x] HFS+ compression (decmpfs): read through `MinkarFSCompression` (zlib, LZVN, LZFSE), written by `ditto --hfsCompression` (LZFSE; test `hfs-compression`).
 - [x] The rest of hfs's adaptation (`Kernel/_PROVENANCE`): the sysctl list's loop guard gone, the list built once (`a2bd5df4fd`); assertions from the kernel's configuration again (`e0ef2f1168`). Lote: 1043 tests and gate M2, 24 Nov 2026.
-- [ ] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image. Done in QEMU: `bmake installer-image` (I3), the Installer (I4: checks, the disk erased, the system copied compressed, `bless --setBoot`; under two minutes, 405 MB), Setup (I5); the installation test `tools/install-gate.sh` in the tests' repository (I6). Done on PC 1 (24 Nov 2026): the medium boots from a USB card reader and installs on the SATA disk in about four minutes; the installed system starts at the display's own mode, with Setup in Spanish and sound from the board's codec (`/var/log/install.log` on PC 1; commits 1b6817027b, 4bee1bce14). The medium is as large as its content (2112 MB, `installer-image`). Left: the installation on PC 2.
+- [x] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image. Done in QEMU: `bmake installer-image` (I3), the Installer (I4: checks, the disk erased, the system copied compressed, `bless --setBoot`; under two minutes, 405 MB), Setup (I5); the installation test `tools/install-gate.sh` in the tests' repository (I6). Done on PC 1 (24 Nov 2026): the medium boots from a USB card reader and installs on the SATA disk in about four minutes; the installed system starts at the display's own mode, with Setup in Spanish and sound from the board's codec (`/var/log/install.log` on PC 1; commits 1b6817027b, 4bee1bce14). The medium is as large as its content (2112 MB, `installer-image`). The installation on PC 2 moved to 19.6.x (the maintainer's choice, 25 Nov 2026): PC 2 is the development host until there is another.
 - [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
 - [x] Commands: git's Tcl commands, gitk and git gui, on Tcl/Tk 8.6 (Aqua) with Carbon's HIShape and HITheme (`2055508f88`–`3dfb39907f`; tests `tcltk-git`, `carbon-hitheme`, 24 Nov 2026). Done too: `osascript`, our own interpreter of AppleScript's commonly used part (test `osascript`); `opendiff`, the differences in Text Editor (test `opendiff`). `tmutil` comes with backups in 19.6.x (the maintainer's choice, 23 Nov 2026).
 
@@ -205,7 +205,8 @@ The core stays in one repository; the rest leaves it in steps. Detail in
 ### GPU track
 
 In parallel with everything, feeding the performance requirement. GCN 1.0 (PC 2): G1–G4
-done, G5 (Metal) left, the GPU's clocks next. RDNA2 (PC 1): R0–R2 done, R2b next. Then
+done, G5 (Metal) left; the GPU's clocks, and every test on PC 2, moved to 19.6.x (the
+maintainer's choice, 25 Nov 2026: PC 2 is the development host until there is another). RDNA2 (PC 1): R0–R2 done, R2b next. Then
 Intel Gen9. Detail in [GPU.md](GPU.md).
 
 ## Next steps
@@ -229,7 +230,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
 8. The visual language (the light appearance and the controls), once the maintainer decides.
 
 Lane BC alongside: BC2, BC0 in the
-CI. The GPU (clocks on PC 2, R2b on PC 1) in parallel, as always.
+CI. The GPU (R2b on PC 1) in parallel, as always; what needs PC 2 waits for 19.6.x.
 
 ## Risks
 

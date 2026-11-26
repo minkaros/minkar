@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-24"
-commit  = "e71a3fdb95"
+updated = "2026-11-25"
+commit = "866f9e3a95"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -301,11 +301,11 @@ progress = [
   "Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language",
   "Gate BC in the CI and the API 19 app set (lane BC)",
   "Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5",
-  "GPU drivers: the clocks on PC 2's GCN 1.0, the display modes on PC 1's RDNA2",
+  "GPU drivers: the display modes on PC 1's RDNA2 (PC 2's tests in 19.6.x)",
 ]
 next = [
   "Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices",
-  "After 19.6.0: the apps A5–A10, Darwin 25, arm64 in QEMU, SwiftUI",
+  "After 19.6.0: the apps A5–A10, the tests on PC 2, Darwin 25, arm64 in QEMU, SwiftUI",
 ]
 works_es = [
   "Arranca en PC x86-64 genéricos (PC 1, PC 2) y en QEMU, desde SATA, NVMe o virtio, con todas las CPU",
@@ -320,11 +320,11 @@ progress_es = [
   "Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual",
   "El gate BC en la CI y el conjunto de apps de la API 19 (carril BC)",
   "Minkar 19.6.0 (gate M6): el instalador del sistema, la compresión de HFS+, el Editor de texto, W5 de WebKit",
-  "Drivers de GPU: los relojes de la GCN 1.0 del PC 2, los modos de pantalla de la RDNA2 del PC 1",
+  "Drivers de GPU: los modos de pantalla de la RDNA2 del PC 1 (las pruebas del PC 2, en 19.6.x)",
 ]
 next_es = [
   "Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados",
-  "Después de 19.6.0: las apps A5–A10, Darwin 25, arm64 en QEMU, SwiftUI",
+  "Después de 19.6.0: las apps A5–A10, las pruebas en el PC 2, Darwin 25, arm64 en QEMU, SwiftUI",
 ]
 
 # The work board. "line" picks a card's colour; "here" marks a station of
@@ -339,7 +339,7 @@ line = "webkit"
 
 [[board.now]]
 title = "GPU: clocks, then G5"
-note = "G4 measured on PC 2; its clocks, then the 3D path, for the performance gate"
+note = "G4 measured on PC 2; its clocks and the 3D path in 19.6.x (PC 2 is the development host)"
 line = "gpu"
 
 [[board.now]]

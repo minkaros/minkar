@@ -27,14 +27,14 @@ mismo commit.
 - Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual
 - El gate BC en la CI y el conjunto de apps de la API 19 (carril BC)
 - Minkar 19.6.0 (gate M6): el instalador del sistema, la compresión de HFS+, el Editor de texto, W5 de WebKit
-- Drivers de GPU: los relojes de la GCN 1.0 del PC 2, los modos de pantalla de la RDNA2 del PC 1
+- Drivers de GPU: los modos de pantalla de la RDNA2 del PC 1 (las pruebas del PC 2, en 19.6.x)
 
 **Siguiente**
 
 - Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados
-- Después de 19.6.0: las apps A5–A10, Darwin 25, arm64 en QEMU, SwiftUI
+- Después de 19.6.0: las apps A5–A10, las pruebas en el PC 2, Darwin 25, arm64 en QEMU, SwiftUI
 
-_Actualizado el 2026-11-21, devel `0c9719239c`_
+_Actualizado el 2026-11-25, devel `866f9e3a95`_
 <!-- progress:readme:end -->
 
 Todos los hitos: [Docs/Progress.md](Docs/Progress.md). Qué apps funcionan y hasta dónde:

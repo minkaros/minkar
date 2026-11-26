@@ -26,14 +26,14 @@ Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 - Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language
 - Gate BC in the CI and the API 19 app set (lane BC)
 - Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5
-- GPU drivers: the clocks on PC 2's GCN 1.0, the display modes on PC 1's RDNA2
+- GPU drivers: the display modes on PC 1's RDNA2 (PC 2's tests in 19.6.x)
 
 **Next**
 
 - Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices
-- After 19.6.0: the apps A5–A10, Darwin 25, arm64 in QEMU, SwiftUI
+- After 19.6.0: the apps A5–A10, the tests on PC 2, Darwin 25, arm64 in QEMU, SwiftUI
 
-_Updated 2026-11-21, devel `0c9719239c`_
+_Updated 2026-11-25, devel `866f9e3a95`_
 <!-- progress:readme:end -->
 
 Every milestone: [Docs/Progress.md](Docs/Progress.md). Which apps run and how far:
