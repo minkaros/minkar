@@ -78,7 +78,10 @@ static const CGFloat kRow = 24, kSection = 26;
         /* The folder shown: a grey row, or the appearance's own color for
            it (Atlas's: grey, with white text, chosen 25 Nov 2026). */
         NSColor *chosen = _NSAppearanceThemeColor(@"MinkarSidebarSelectionColor");
-        BOOL current = [[row[@"url"] path] isEqualToString:[self.currentURL path]];
+        /* Compared resolved: the home folder is /var/root, the folder
+           shown /private/var/root (/var is a link). */
+        BOOL current = [[[row[@"url"] URLByResolvingSymlinksInPath] path]
+            isEqualToString:[[self.currentURL URLByResolvingSymlinksInPath] path]];
         if (current) {
             [(chosen ?: FilesGray(0.82, 1)) setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(r, 8, 1) xRadius:5 yRadius:5] fill];
