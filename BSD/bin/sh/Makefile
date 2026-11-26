@@ -36,7 +36,7 @@ SRCS =  bltin/echo.c \
 	printf.c \
 	test.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DSHELL -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/../../lib/libedit/src \
         -Wno-nullability-completeness
 

@@ -11,7 +11,7 @@ WARNS ?= 0
 MAN =
 PROG =	notifyutil
 SRCS =	notifyutil.c
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -Wno-deprecated-declarations \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_notify \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c

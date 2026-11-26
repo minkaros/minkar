@@ -8,7 +8,7 @@ MAN =
 PROJ_VER = @(\#)PROGRAM:newfs_hfs  PROJECT:hfs-556~41\n
 IOKIT_STORAGE = ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOStorageFamily
 LIBUTIL = ${ROOT_SOURCE_DIR}/BSD/lib/libutil
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -I${.CURDIR} -I${.CURDIR:H}/mount_hfs/include -I${LIBUTIL} \
         -I${ROOT_SOURCE_DIR}/Frameworks -I${ROOT_SOURCE_DIR}/Frameworks/CoreServices \
         -I${IOKIT_STORAGE} \

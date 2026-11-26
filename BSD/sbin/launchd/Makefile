@@ -23,7 +23,7 @@ COMMONFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MI
 	-I${MINKAR_SDKROOT}/usr/local/include
 
 MIG_FLAGS =	${COMMONFLAGS} -D__MigTypeCheck
-CFLAGS =	${COMMONFLAGS} -Wno-nullability-completeness
+CFLAGS =	-O2 ${COMMONFLAGS} -Wno-nullability-completeness
 LDFLAGS =	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 

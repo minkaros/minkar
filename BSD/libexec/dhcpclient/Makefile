@@ -10,7 +10,7 @@ PROG =	dhcpclient
 SRCS =	main.c iface.c dhcp4.c ipv6.c dhcp6.c store.c
 MAN =
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wall -Wextra -Wno-nullability-completeness \
 	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

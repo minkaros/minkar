@@ -4,7 +4,7 @@ PROG = grep
 MAN = grep.1 
 SRCS = file.c grep.c queue.c util.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -DWITHOUT_LZMA -DWITHOUT_FASTMATCH \
 	-DWITHOUT_NLS -I${ROOT_SOURCE_DIR}/Libraries/zlib \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \

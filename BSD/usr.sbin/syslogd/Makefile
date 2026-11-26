@@ -22,7 +22,7 @@ SLF =	/System/Library/Frameworks
 SRCS =	syslogd.c daemon.c dbserver.c asl_action.c bsd_in.c bsd_out.c \
 	klog_in.c remote.c udp_in.c asl_common.c asl_memory.c asl_ipcServer.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-deprecated-declarations \
 	-I${.OBJDIR} -I${.CURDIR} -I${ASLCOMMON} -I${LIBASL} \

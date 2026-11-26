@@ -13,7 +13,7 @@ LIBLAUNCH =	${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch
 LAUNCHD =	${ROOT_SOURCE_DIR}/BSD/sbin/launchd
 LIBSYSTEM =	${ROOT_SOURCE_DIR}/Libraries/Libsystem
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DPRIVATE -fblocks -Wno-nullability-completeness \
 	-I${LAUNCHD} -I${LIBLAUNCH} -I${LIBSYSTEM}/private \
 	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders \

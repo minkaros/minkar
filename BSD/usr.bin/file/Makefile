@@ -13,7 +13,7 @@ PROG = file
 SRCS = file.c
 MAGICLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmagic
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DHAVE_CONFIG_H -DMAGIC='"/usr/share/file/magic"' \
 	-I${MAGICLIB} -I${ROOT_SOURCE_DIR}/BSD/lib/libmagic \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libmagic/src -Wno-nullability-completeness

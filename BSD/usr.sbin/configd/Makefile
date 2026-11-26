@@ -47,7 +47,7 @@ SRCS +=	dnsinfo_create.c dnsinfo_server.c dnsinfo_flatfile.c \
 	libSystemConfiguration_server.c
 SRCS +=	sc_sha256.c	# SystemConfiguration's (hidden there), for dnsinfo and IPMonitor
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-elaborated-enum-base -Wno-deprecated-declarations \
 	-I${.OBJDIR} -I${CONFIGD}/configd.tproj -I${CONFIGD}/Plugins/IPMonitor \

@@ -7,7 +7,7 @@ PROG = fetch
 FETCHLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libfetch
 MDLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmd
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libfetch \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
 	-include sys/ioctl.h -Wno-nullability-completeness

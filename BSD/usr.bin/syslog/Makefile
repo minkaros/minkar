@@ -19,7 +19,7 @@ SLF =	/System/Library/Frameworks
 .PATH: ${.OBJDIR} ${ASLCOMMON}
 SRCS =	syslog.c asl_ipcUser.c asl_common.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-deprecated-declarations \
 	-I${.OBJDIR} -I${.CURDIR} -I${ASLCOMMON} -I${LIBASL} \

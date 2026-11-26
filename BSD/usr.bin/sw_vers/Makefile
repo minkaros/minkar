@@ -4,7 +4,7 @@ SRCS = sw_vers.c
 MAN =
 MK_WERROR = no
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 

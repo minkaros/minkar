@@ -11,7 +11,7 @@ MAN =
 PROG =	ditto
 SRCS =	ditto.c hfscompress.c
 LA =	${ROOT_SOURCE_DIR}/BSD/lib/libarchive
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${LA}/src/libarchive
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD = -L${ROOT_BINARY_DIR}${LA} -larchive \

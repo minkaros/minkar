@@ -21,7 +21,7 @@ SLF =	/System/Library/Frameworks
 SRCS =	notifyd.c notify_proc.c pathwatch.c service.c timer.c \
 	notify_ipcServer.c notifyServer.c
 
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = -O2 --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-I${.OBJDIR} -I${.CURDIR} -I${LIBNOTIFY} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
