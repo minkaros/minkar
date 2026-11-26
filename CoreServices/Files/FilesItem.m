@@ -62,7 +62,12 @@ void FilesSetSortKey(FilesSortKey key)
     _modified = [[attributes fileModificationDate] copy];
     _created = [[attributes fileCreationDate] copy];
     if (_isApplication) {
-        NSString *display = [[NSBundle bundleWithURL:url] objectForInfoDictionaryKey:@"CFBundleName"];
+        /* Info.plist read from the disk (NSBundle keeps what it read first
+           for the process: an app seen while being copied kept its name
+           without the plist). */
+        NSDictionary *info = [NSDictionary dictionaryWithContentsOfURL:
+                                  [url URLByAppendingPathComponent:@"Contents/Info.plist"]];
+        NSString *display = [info[@"CFBundleName"] isKindOfClass:[NSString class]] ? info[@"CFBundleName"] : nil;
         if ([display length])
             _name = [display copy];
         _kind = NSLocalizedString(@"Application", nil);

@@ -255,12 +255,22 @@ static void diskDisappeared(DADiskRef disk,void *context){
  * named and with the image types NSImage reads. Others get the generic
  * application icon (applications) or nil. */
 static NSImage *bundleIcon(NSString *path) {
-   NSBundle *bundle=[NSBundle bundleWithPath:path];
-   NSString *name=[[bundle infoDictionary] objectForKey:@"CFBundleIconFile"];
+   /* Read from the disk each time, not through NSBundle, which keeps one
+      bundle a path for the process: an app seen while it was being copied
+      (no Resources yet) kept the generic icon in Files for good. */
+   NSString *contents=[path stringByAppendingPathComponent:@"Contents"];
+   NSDictionary *info=[NSDictionary dictionaryWithContentsOfFile:[contents stringByAppendingPathComponent:@"Info.plist"]];
+   NSString *resources=[contents stringByAppendingPathComponent:@"Resources"];
 
-   if([name length]==0)
+   if(info==nil){
+      NSBundle *bundle=[NSBundle bundleWithPath:path];
+      info=[bundle infoDictionary];
+      resources=[bundle resourcePath];
+   }
+   NSString *name=[info objectForKey:@"CFBundleIconFile"];
+
+   if(![name isKindOfClass:[NSString class]] || [name length]==0)
       return nil;
-   NSString *resources=[bundle resourcePath];
    // Minkar: the name is often given without its .icns.
    NSArray *candidates=[NSArray arrayWithObjects:name,
       [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"icns"],
