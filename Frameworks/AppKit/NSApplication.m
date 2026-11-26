@@ -352,7 +352,15 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
         NSRect frame = [window frame];
         frame.origin.y = top - (NSMaxY(was) - NSMaxY(frame)) - frame.size.height;
         NSScreen *screen = [window screen];
-        frame = [window constrainFrameRect:frame toScreen:screen != nil ? screen : main];
+        NSScreen *target = screen != nil ? screen : main;
+        /* A window with a title bar is kept inside the visible area, as
+           AppKit does on the reference; a borderless one (a desktop, a
+           backdrop the size of the screen) keeps its frame while it is on
+           the screen, else it went up by the Dock's height and left a
+           black band below. Left off the screen, it is brought back. */
+        if(([window styleMask] & NSWindowStyleMaskTitled) ||
+           !NSIntersectsRect(frame, [target frame]))
+            frame = [window constrainFrameRect:frame toScreen:target];
         if(!NSEqualRects(frame, [window frame]))
             [window setFrame:frame display:[window isVisible]];
         else
