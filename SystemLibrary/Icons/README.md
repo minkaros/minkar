@@ -23,8 +23,8 @@ Installed in `/System/Library/Icons/<group>/<name>.png`:
 
 | Group           | What                                       |
 |-----------------|--------------------------------------------|
-| `places`        | folders, blue: the default                 |
-| `places-sand`   | the same folders, sand                     |
+| `places`        | folders, sand: the default (Atlas's look, chosen 25 Nov 2026) |
+| `places-blue`   | the same folders, blue                     |
 | `places-orange` | the same folders, orange                   |
 | `system`        | the Trash (empty, full), desktop, document |
 | `devices`       | computers, disks, media, input and network devices |

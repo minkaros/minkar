@@ -17,12 +17,15 @@ install-icons: .PHONY
 	# keep their dates, removed ones go.
 	rm -rf ${STAGE}
 	mkdir -p ${STAGE} ${DIR}
+	# A group left empty (a renamed one, in a tree copied over) is skipped.
 	cd ${.CURDIR}/png && for g in *; do \
+		ls $$g/*.png >/dev/null 2>&1 || continue; \
 		mkdir -p ${STAGE}/$$g && \
 		install -C -o 0 -g 0 -m 0644 $$g/*.png ${STAGE}/$$g/ || exit 1; \
 	done
 	mkdir -p ${STAGE}/Sources
 	cd ${.CURDIR}/svg && for g in *; do \
+		ls $$g/*.svgz >/dev/null 2>&1 || continue; \
 		mkdir -p ${STAGE}/Sources/$$g && \
 		install -C -o 0 -g 0 -m 0644 $$g/*.svgz ${STAGE}/Sources/$$g/ || exit 1; \
 	done
