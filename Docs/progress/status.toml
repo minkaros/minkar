@@ -32,7 +32,7 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-25"
+updated = "2026-11-26"
 commit = "866f9e3a95"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]

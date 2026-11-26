@@ -113,10 +113,13 @@ Atlas. Detalle: [Atlas.md](Atlas.md).
   Avanzado (prueba `network-pane`), Pantallas, Fecha y hora (prueba `timezone-change`), Ratón, Sonido,
   Teclado (Texto, Fuentes de entrada, Atajos: los atajos de todo el sistema con los números de la
   referencia en com.apple.symbolichotkeys; pruebas `hotkeys`, `symbolic-hotkeys`), Dock (prueba `dock-pane`).
-- [ ] AppKit y el lenguaje visual de Atlas en todo el sistema. Hecho: los aspectos claro y oscuro
+- [x] AppKit y el lenguaje visual de Atlas en todo el sistema. Hecho: los aspectos claro y oscuro
   (Automático según la hora) y el color de acento, que todas las apps siguen al momento, la barra de
   menús, el Dock y los Menu Extras (resaltados con el acento, iconos plantilla teñidos; iconos de
-  Lucide); prueba `general-pane`. Falta: los grises fijos que quedan en controles de AppKit y en las apps.
+  Lucide); prueba `general-pane`. Sin grises fijos en los controles de AppKit ni en las apps (`4e680fc747`,
+  prueba `appkit-dark-controls`). El aspecto de Atlas, aprobado por el mantenedor (25 nov 2026): ventanas
+  y controles #ececec en claro y #555555 en oscuro, bordes de control definidos, la barra de menús
+  #444444, acento azul, interruptor verde, carpetas color arena (`97657a1692`, `14896a5867`, `228f82b367`).
 - [x] Órdenes: `lsappinfo` (prueba `lsappinfo`); `mdls`, `mdfind`, `mdutil` sin índice, `mdfind` busca en el disco (prueba `md-commands`); `say` con eSpeak NG, en un proceso aparte (prueba `say`).
 
 ### Fase 6 — Aplicaciones y distribución
@@ -235,7 +238,7 @@ El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
 5. El instalador del sistema y la compresión de HFS+.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: hecho (24 nov 2026).
-8. El lenguaje visual (el aspecto claro y los controles), cuando el mantenedor decida.
+8. El lenguaje visual: hecho (aprobado el 25 nov 2026).
 
 En paralelo, el carril BC: BC2, BC0 en la CI.
 La GPU (R2b en el PC 1) en paralelo, como siempre; lo que necesita el PC 2 espera a 19.6.x.

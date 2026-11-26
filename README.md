@@ -33,7 +33,7 @@ Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 - Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices
 - After 19.6.0: the apps A5–A10, the tests on PC 2, Darwin 25, arm64 in QEMU, SwiftUI
 
-_Updated 2026-11-25, devel `866f9e3a95`_
+_Updated 2026-11-26, devel `866f9e3a95`_
 <!-- progress:readme:end -->
 
 Every milestone: [Docs/Progress.md](Docs/Progress.md). Which apps run and how far:

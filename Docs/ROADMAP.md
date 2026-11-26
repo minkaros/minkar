@@ -110,10 +110,13 @@ and the resolution changes from System Preferences, in the Atlas visual language
   `network-pane`), Displays, Date & Time (test `timezone-change`), Mouse, Sound, Keyboard (Text,
   Input Sources, Shortcuts: the system-wide shortcuts with the reference's numbers in
   com.apple.symbolichotkeys; tests `hotkeys`, `symbolic-hotkeys`), Dock (test `dock-pane`).
-- [ ] AppKit and the Atlas visual language across the system. Done: the light and dark
+- [x] AppKit and the Atlas visual language across the system. Done: the light and dark
   appearances (Auto by the hour) and the accent color, followed by every app at once, the menu
   bar, the Dock and the Menu Extras (highlighted in the accent, template icons tinted; Lucide's
-  icons); test `general-pane`. Left: the remaining fixed greys in AppKit's controls and the apps.
+  icons); test `general-pane`. No fixed greys left in AppKit's controls and the apps (`4e680fc747`,
+  test `appkit-dark-controls`). Atlas's look approved by the maintainer (25 Nov 2026): light
+  #ececec and dark #555555 windows and controls, defined control borders, the menu bar #444444,
+  a blue accent, a green switch, sand folders (`97657a1692`, `14896a5867`, `228f82b367`).
 - [x] Commands: `lsappinfo` (test `lsappinfo`); `mdls`, `mdfind`, `mdutil` without an index, `mdfind` searching the disk (test `md-commands`); `say` through eSpeak NG, a process of its own (test `say`).
 
 ### Phase 6 — Applications and distribution
@@ -227,7 +230,7 @@ The maintainer's order (23 Nov 2026). Lane A, one after another:
 5. The system installer and HFS+ compression.
 6. WebKit: W0, W1, W5.
 7. LoginWindow: done (24 Nov 2026).
-8. The visual language (the light appearance and the controls), once the maintainer decides.
+8. The visual language: done (approved 25 Nov 2026).
 
 Lane BC alongside: BC2, BC0 in the
 CI. The GPU (R2b on PC 1) in parallel, as always; what needs PC 2 waits for 19.6.x.
