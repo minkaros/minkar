@@ -16,6 +16,8 @@ SUBDIR_DEPEND_ruby =	openssl
 SUBDIR_DEPEND_python =	openssl
 # CUPS (libcups) uses OpenSSL for TLS.
 SUBDIR_DEPEND_cups =	openssl
+# Tk is configured against Tcl 8.6's tclConfig.sh, in the SDK's Tcl.framework.
+SUBDIR_DEPEND_tk =	tcl8.6
 SUBDIR = apply basename chroot cut dirname env false find getopt grep 
 SUBDIR += head killall login make patch pfetch printf sed sw_vers 
 SUBDIR += tail tee time touch true uname users whereis which xargs yes
