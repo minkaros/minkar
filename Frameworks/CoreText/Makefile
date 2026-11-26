@@ -21,7 +21,7 @@ fontconfig: libxml2
 clean:
 	rm -f ${.OBJDIR}/*.o ${.OBJDIR}/*.pico
 
-CFLAGS = -I${.CURDIR:H}  -I${.CURDIR}/fontconfig/fontconfig -I${.CURDIR}/fontconfig
+CFLAGS = -O2 -I${.CURDIR:H}  -I${.CURDIR}/fontconfig/fontconfig -I${.CURDIR}/fontconfig
 
 fontresources:
 	mkdir -p ${FRAMEWORK_DIR}/Versions/A/Resources ${SYSROOT_DIR}/etc/fonts/conf.d
