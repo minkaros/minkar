@@ -56,6 +56,13 @@ enum { kRecentIOSurfaces = 16 };
 @property (readwrite, strong) id surface;
 /* A surface of the new size, given to the client but not committed yet. */
 @property (strong) WSSurface *pendingSurface;
+/* Resized, its old surface still shown: shown in its old frame
+ * (shownFrame) until the new surface comes, so the old picture is never
+ * seen in the new frame (a label whose name changed showed the old name
+ * in the new place for a frame); for kResizeWaitNs at most. */
+@property BOOL resizing;
+@property SLSRect shownFrame;
+@property uint64_t resizingSince;
 /* The IOSurfaces it showed last (SLSWindowSetIOSurface), most recent
  * last: an app that shows a few in turn (a CAMetalLayer's drawables) gets
  * the same backing again, and the compositor keeps what it took of it (a
@@ -158,6 +165,8 @@ windowWithID(SLSWindowID windowID)
 
 /* What the window covers on screen, if it is on screen: its frame, or its
  * surface where a surface of the old size is still shown. */
+static void damageRect(WSWindow *w, SLSRect r);
+
 static void
 damageWindow(WSWindow *w)
 {
@@ -166,10 +175,18 @@ damageWindow(WSWindow *w)
 
 	if (!w.onScreen)
 		return;
+	if (w.resizing)
+		damageRect(w, w.shownFrame);
 	if (surface != nil && surface.width > r.width)
 		r.width = surface.width;
 	if (surface != nil && surface.height > r.height)
 		r.height = surface.height;
+	damageRect(w, r);
+}
+
+static void
+damageRect(WSWindow *w, SLSRect r)
+{
 	if (w.hasShadow) {
 		r.x -= kWSShadowRadius;
 		r.y -= kWSShadowRadius - kWSShadowOffsetY;
@@ -177,6 +194,18 @@ damageWindow(WSWindow *w)
 		r.height += 2 * kWSShadowRadius;
 	}
 	WSDamageGlobalRect(r);
+}
+
+static const uint64_t kResizeWaitNs = 100000000;
+
+/* The resize shown: the old frame and the new one drawn again. */
+static void
+endResizing(WSWindow *w)
+{
+	if (!w.resizing)
+		return;
+	damageWindow(w);
+	w.resizing = NO;
 }
 
 static BOOL
@@ -338,7 +367,23 @@ void
 WSWindowSetFrame(WSWindow *w, SLSRect frame)
 {
 	double dx = frame.x - w.frame.x, dy = frame.y - w.frame.y;
+	BOOL resized = frame.width != w.frame.width || frame.height != w.frame.height;
+	WSSurface *shown = w.surface;
 
+	/* A new size with a picture shown: that picture stays in its frame
+	 * until the window's new one comes (wss_window_commit). */
+	if (resized && !w.resizing && w.onScreen && [shown isKindOfClass:[WSSurface class]] &&
+	    shown.committed) {
+		w.shownFrame = w.frame;
+		w.resizing = YES;
+		w.resizingSince = WSNanoseconds();
+		__weak WSWindow *weak = w;
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)kResizeWaitNs + 1000000), WSIPCQueue, ^{
+			WSWindow *later = weak;
+			if (later != nil && later.resizing && WSNanoseconds() - later.resizingSince >= kResizeWaitNs)
+				endResizing(later);
+		});
+	}
 	damageWindow(w);
 	w.frame = frame;
 	damageWindow(w);
@@ -986,13 +1031,19 @@ wss_window_commit(mach_port_t server, audit_token_t token, uint32_t window, uint
 		*result = kSLSErrorIllegalArgument;
 		return KERN_SUCCESS;
 	}
-	if (w.pendingSurface != nil) {
+	BOOL swapped = w.pendingSurface != nil;
+	if (swapped) {
 		/* The new size shows from now: the old area and the new one change. */
 		damageWindow(w);
 		w.surface = w.pendingSurface;
 		w.pendingSurface = nil;
 		first = YES;
 	}
+	/* A new picture: the resize shows now, all at once (one after
+	 * another while a window is resized by hand, each as it comes). */
+	if (w.resizing && (swapped || (surface.width == (uint32_t)ceil(w.frame.width) &&
+	    surface.height == (uint32_t)ceil(w.frame.height))))
+		endResizing(w);
 	if (first)
 		damageWindow(w);
 	else if (w.onScreen)
@@ -1230,7 +1281,7 @@ WSWindowSnapshot(void)
 
 	for (WSWindow *w in [stack reverseObjectEnumerator]) {
 		WSFrameItem *item = [[WSFrameItem alloc] init];
-		item.frame = w.frame;
+		item.frame = w.resizing ? w.shownFrame : w.frame;
 		item.alpha = w.alpha;
 		item.surface = w.surface;
 		/* A shielding window is opaque black until its app draws in it
