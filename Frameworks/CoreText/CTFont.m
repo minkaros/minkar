@@ -186,10 +186,33 @@ CTFontRef CTFontCreateWithName(CFStringRef name, CGFloat size, const CGAffineTra
    return font;
 }
 
+/* The same font (its own CGFont: a font made from data, as a web page's,
+   is not found again by name), at size, with the descriptor's variation
+   applied when it has one. It was made again by name, attributes left
+   out: a page's variable font (a heading's weight) became the stand-in
+   font, its glyphs another font's. */
 CTFontRef CTFontCreateCopyWithAttributes(CTFontRef font, CGFloat size, const CGAffineTransform *matrix, CFTypeRef attributes) {
-   KTFont *self=ktFontOf(font);
-   NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
-   return CTFontCreateWithName((CFStringRef)name,(size>0)?size:[self pointSize],matrix);
+   KTFont    *self=ktFontOf(font);
+   CGFontRef  cg=[self _cgFont];
+   CGFloat    pointSize=(size>0)?size:[self pointSize];
+
+   (void)matrix;
+   if(cg==NULL){
+    NSString *name=[(NSString *)CTFontCopyFullName(self) autorelease];
+    return CTFontCreateWithName((CFStringRef)name,pointSize,NULL);
+   }
+   CFDictionaryRef variation=(attributes!=NULL)
+       ?(CFDictionaryRef)CTFontDescriptorCopyAttribute((CTFontDescriptorRef)attributes,kCTFontVariationAttribute):NULL;
+   CGFontRef instance=NULL;
+
+   if(variation!=NULL && CFGetTypeID(variation)==CFDictionaryGetTypeID() && CFDictionaryGetCount(variation)>0)
+    instance=CGFontCreateCopyWithVariations(cg,variation);
+   if(variation!=NULL)
+    CFRelease(variation);
+   CTFontRef result=CTFontCreateWithGraphicsFont(instance!=NULL?instance:cg,pointSize,NULL,NULL);
+   if(instance!=NULL)
+    CGFontRelease(instance);
+   return result;
 }
 
 CFStringRef CTFontCopyPostScriptName(CTFontRef font) {
