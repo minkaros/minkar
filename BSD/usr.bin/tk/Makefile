@@ -35,9 +35,15 @@ SDK_CFLAGS =	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN
 SDK_LDFLAGS =	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 		--ld-path=${LD}
 
-${STAGE}/${FW}/Versions/${V}/Tk: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile ${TCLFW}/tclConfig.sh
-	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
-	rm -rf ${.OBJDIR}/build ${STAGE} ${.OBJDIR}/fakebin && \
+# The fetched tree, copied with Minkar's patches (patches/) applied.
+PATCHES !=	ls ${.CURDIR}/patches/*.patch 2>/dev/null || true
+
+${STAGE}/${FW}/Versions/${V}/Tk: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile ${TCLFW}/tclConfig.sh ${PATCHES}
+	fetched=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
+	rm -rf ${.OBJDIR}/build ${.OBJDIR}/src ${STAGE} ${.OBJDIR}/fakebin && \
+	cp -R $$fetched ${.OBJDIR}/src && \
+	for p in ${PATCHES}; do patch -s -d ${.OBJDIR}/src -p1 < $$p || exit 1; done && \
+	src=${.OBJDIR}/src && \
 	mkdir -p ${.OBJDIR}/build ${.OBJDIR}/fakebin && \
 	printf '#!/bin/sh\ncase "$$1" in -r) echo 19.6.0 ;; -m|-p) echo x86_64 ;; -n) echo minkar ;; *) echo Darwin ;; esac\n' \
 	    > ${.OBJDIR}/fakebin/uname && chmod 755 ${.OBJDIR}/fakebin/uname && \

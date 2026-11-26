@@ -1,0 +1,30 @@
+Minkar: a font's ascent and descent rounded up, not to the nearest
+whole pixel: the line then holds its glyphs whole. With the fonts that
+stand in for the reference's (DejaVu Sans Mono for Monaco), gitk's lines
+were half a pixel shorter than their letters, the next line covering
+their tops.
+
+--- a/macosx/tkMacOSXFont.c	2026-11-26 09:51:23.530653422 -0500
++++ b/macosx/tkMacOSXFont.c	2026-11-26 09:51:23.563651731 -0500
+@@ -347,8 +347,8 @@
+     nsFont = [nsFont screenFontWithRenderingMode:renderingMode];
+     GetTkFontAttributesForNSFont(nsFont, faPtr);
+     fmPtr = &fontPtr->font.fm;
+-    fmPtr->ascent = (int)floor([nsFont ascender] + [nsFont leading] + 0.5);
+-    fmPtr->descent = (int)floor(-[nsFont descender] + 0.5);
++    fmPtr->ascent = (int)ceil([nsFont ascender] + [nsFont leading]);
++    fmPtr->descent = (int)ceil(-[nsFont descender]);
+     fmPtr->maxWidth = (int)[nsFont maximumAdvancement].width;
+     fmPtr->fixed = [nsFont isFixedPitch];   /* Does not work for all fonts */
+ 
+@@ -367,8 +367,8 @@
+ 	kern = [nsFont advancementForGlyph:glyphs[2]].width -
+ 		[fontPtr->nsFont advancementForGlyph:glyphs[2]].width;
+     }
+-    descent = (int)floor(-bounds.origin.y + 0.5);
+-    ascent = (int)floor(bounds.size.height + bounds.origin.y + 0.5);
++    descent = (int)ceil(-bounds.origin.y);
++    ascent = (int)ceil(bounds.size.height + bounds.origin.y);
+     if (ascent > fmPtr->ascent) {
+ 	fmPtr->ascent = ascent;
+     }
