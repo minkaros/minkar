@@ -26,6 +26,10 @@
 # Xenon; its static fonts, normal width), fixed-pitch; Libre Caslon Condensed; and ANRT's Gotico-Antiqua
 # revivals of fifteenth-century types.
 #
+# Roboto (OFL 1.1, chosen 2026-11-26), its variable fonts at the commit
+# MANIFEST.roboto pins, unchanged with their license: web pages and apps
+# ask for it by name.
+#
 # Writing systems Inter and the others lack (2026-11-13, OFL 1.1, unchanged
 # with their licenses): Noto Sans CJK (Chinese, Japanese and Korean, the
 # regular and bold collections) and Noto Sans Arabic.
@@ -56,6 +60,7 @@ DEJAVU =	DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSans-Oblique.ttf DejaVuSans-Bo
 		DejaVuSansMono.ttf DejaVuSansMono-Bold.ttf DejaVuSansMono-Oblique.ttf \
 		DejaVuSansMono-BoldOblique.ttf
 GELASIO =	'Gelasio[wght].ttf' 'Gelasio-Italic[wght].ttf'
+ROBOTO =	'Roboto[wdth,wght].ttf' 'Roboto-Italic[wdth,wght].ttf'
 PAGELLA =	texgyrepagella-regular.otf texgyrepagella-bold.otf texgyrepagella-italic.otf \
 		texgyrepagella-bolditalic.otf
 
@@ -86,6 +91,11 @@ install-fonts: .PHONY
 		install -C -o 0 -g 0 -m 0644 "$$src/$$f" ${DIR}/ || exit 1; \
 	done && \
 	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/Gelasio-LICENSE.txt
+	src=$$(${FETCH} ${.CURDIR}/MANIFEST.roboto ${CACHE})/ofl/roboto && \
+	for f in ${ROBOTO}; do \
+		install -C -o 0 -g 0 -m 0644 "$$src/$$f" ${DIR}/ || exit 1; \
+	done && \
+	install -C -o 0 -g 0 -m 0644 $$src/OFL.txt ${DIR}/Roboto-LICENSE.txt
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST.texgyre ${CACHE}) && \
 	for f in ${PAGELLA}; do \
 		install -C -o 0 -g 0 -m 0644 $$src/fonts/opentype/public/tex-gyre/$$f ${DIR}/ || exit 1; \

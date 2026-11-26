@@ -1,0 +1,8 @@
+# Roboto (SIL Open Font License 1.1): the variable fonts as Google Fonts
+# publishes them, at a fixed commit, installed unchanged, with their
+# license. Pages and apps ask for it by name (YouTube's own pages,
+# Material apps).
+git https://github.com/google/fonts
+commit 5bb28733cec313b63fbd415b574b5ae35c8aa8b8
+name google-fonts-roboto
+path ofl/roboto
