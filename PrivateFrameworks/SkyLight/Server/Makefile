@@ -68,4 +68,7 @@ to-sysroot: ${PROG}
 	    --entitlements ${.CURDIR}/WindowServer.entitlements \
 	    ${SYSROOT_DIR}${RESOURCES}/WindowServer
 
+# Optimised: it was built without any -O (the window server composes
+# every frame of the desktop).
+CFLAGS += -O2
 .include <bsd.prog.mk>

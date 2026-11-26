@@ -33,4 +33,7 @@ fmwk-install-hook:
 	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR}
 	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
 
+# Optimised: it was built without any -O (the window server composes
+# every frame of the desktop).
+CFLAGS += -O2
 .include <minkar.framework.mk>
