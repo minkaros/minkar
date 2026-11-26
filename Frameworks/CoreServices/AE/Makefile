@@ -17,6 +17,8 @@ MK_WERROR = no
 SRCS = AEDataModel.c AppleEvents.c
 HEADERS = AE.h AEDataModel.h AppleEvents.h
 MODULEMAP = AE.modulemap
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 CFLAGS += -I${.CURDIR} -F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 
 PARENT = /System/Library/Frameworks/CoreServices.framework

@@ -20,6 +20,8 @@ SRCS = LSSession.c LSSessionUser.c LSOpen.c UTType.c UTCoreTypes.c LSConstants.c
 HEADERS = LaunchServices.h LSInfo.h LSOpen.h UTType.h UTCoreTypes.h LSQuarantine.h LSSharedFileList.h
 PRIVATE_HEADERS = LSSession.h
 MODULEMAP = LaunchServices.modulemap
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 CFLAGS += -I${.OBJDIR} -I${.CURDIR}
 CLEANFILES += LSSessionUser.c LSSessionUser.h
 

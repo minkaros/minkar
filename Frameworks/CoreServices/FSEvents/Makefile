@@ -17,6 +17,8 @@ MK_WERROR = no
 
 SRCS = FSEvents.c fseventsdUser.c
 HEADERS = FSEvents.h
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 CFLAGS += -I${.OBJDIR} -I${.CURDIR}
 CLEANFILES += fseventsdUser.c fseventsd.h
 

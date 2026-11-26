@@ -9,6 +9,8 @@ HEADERS = CoreServices.h Metadata.h MacErrors.h MacMemory.h Files.h Aliases.h Fo
 
 RESOURCES=Info.plist English.lproj
 
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 CFLAGS = -I${.CURDIR:H} -F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 SUBDIR =
 # LaunchServices, FSEvents and AE (built before this one, in Frameworks/Makefile)

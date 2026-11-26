@@ -13,6 +13,8 @@ MK_WERROR = no
 
 SRCS = IOSurface.c IOSurfaceRegistryUser.c
 HEADERS = IOSurface.h IOSurfaceRef.h IOSurfaceTypes.h IOSurfaceAPI.h
+# Optimised: it was built without any -O.
+CFLAGS += -O2
 CFLAGS += -I${.OBJDIR} -I${.OBJDIR}/include -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM
 LDFLAGS += -framework CoreFoundation -framework IOKit
