@@ -276,6 +276,9 @@ static char windowAppearanceKey;
 static char contentTitleContext;
 
 static BOOL hasKeyViewLoop(NSView *view);
+@interface NSView (KeyViewLoopOrigin)
+-(BOOL)_hasExplicitNextKeyView;
+@end
 
 @implementation NSWindow
 
@@ -2170,8 +2173,28 @@ static BOOL hasKeyViewLoop(NSView *view) {
    }
 }
 
+/* A view with no next key view (made by code after the window was first
+   shown, as a page of an assistant): the loop calculated from where the
+   views are, as the reference does, so Tab goes on to the next field. */
+static BOOL hasExplicitKeyViewLoop(NSView *view) {
+   if([view _hasExplicitNextKeyView])
+    return YES;
+   for(NSView *subview in [view subviews])
+    if(hasExplicitKeyViewLoop(subview))
+     return YES;
+   return NO;
+}
+
+/* Only when the app set no key view loop of its own: with one, a view
+   outside it keeps the focus on Tab, as on the reference. */
+-(void)_recalculateKeyViewLoopIfMissingFor:(NSView *)view {
+   if(![self autorecalculatesKeyViewLoop] && [view nextKeyView]==nil && !hasExplicitKeyViewLoop(_contentView))
+    [self recalculateKeyViewLoop];
+}
+
 /* No view to go to: the focus stays (as on the reference). */
 -(void)selectKeyViewFollowingView:(NSView *)view {
+   [self _recalculateKeyViewLoopIfMissingFor:view];
    NSView *next=[view nextValidKeyView];
 
    if(next!=nil)
@@ -2179,6 +2202,7 @@ static BOOL hasKeyViewLoop(NSView *view) {
 }
 
 -(void)selectKeyViewPrecedingView:(NSView *)view {
+   [self _recalculateKeyViewLoopIfMissingFor:view];
    NSView *next=[view previousValidKeyView];
 
    if(next!=nil)
@@ -2186,6 +2210,9 @@ static BOOL hasKeyViewLoop(NSView *view) {
 }
 
 -(void)recalculateKeyViewLoopIfNeeded {
+    extern int _NSCalculatingKeyViewLoop;
+
+    _NSCalculatingKeyViewLoop++;
     if(YES){
       //  _needsKeyViewLoop=NO;
 
@@ -2203,6 +2230,7 @@ static BOOL hasKeyViewLoop(NSView *view) {
             }
         }
     }
+    _NSCalculatingKeyViewLoop--;
 }
 
 -(void)recalculateKeyViewLoop {

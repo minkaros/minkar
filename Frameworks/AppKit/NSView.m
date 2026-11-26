@@ -1622,7 +1622,19 @@ static NSView *framingView;
     _previousKeyView = previous;
 }
 
+/* Whether the app (a nib's connection or code) set this view's next key
+   view, rather than AppKit when it calculated the window's loop: a window
+   whose loop is the app's own leaves Tab to it (NSWindow). */
+int _NSCalculatingKeyViewLoop;
+static char explicitNextKeyViewKey;
+
+-(BOOL)_hasExplicitNextKeyView {
+    return objc_getAssociatedObject(self,&explicitNextKeyViewKey)!=nil;
+}
+
 -(void)setNextKeyView:(NSView *)next {
+    if (!_NSCalculatingKeyViewLoop)
+        objc_setAssociatedObject(self,&explicitNextKeyViewKey,next!=nil?(id)kCFBooleanTrue:nil,OBJC_ASSOCIATION_RETAIN);
     if (next)
         [next _setPreviousKeyView:self];
     else
