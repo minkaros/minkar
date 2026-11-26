@@ -681,10 +681,14 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
        with a line under it. */
     [FilesGray(1, 1) set];
     NSRectFill(dirty);
-    /* The bar: in the dark, the windows' grey (0.17), its line dark. */
-    [(FilesDark() ? [NSColor colorWithGenericGamma22White:0.17 alpha:1] : FilesGray(0.82, 1)) set];
+    /* The bar: in the dark, the windows' grey (0.17), its line dark; with
+       an appearance theme, the theme's title bar and lines, light or dark. */
+    BOOL theme = _NSAppearanceThemeActive();
+    [(theme ? [NSColor windowFrameColor] : FilesDark() ? [NSColor colorWithGenericGamma22White:0.17 alpha:1]
+                                                        : FilesGray(0.82, 1)) set];
     NSRectFill(NSIntersectionRect(dirty, NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), kBarHeight)));
-    [(FilesDark() ? [NSColor colorWithGenericGamma22White:0.09 alpha:1] : FilesGray(0.74, 1)) set];
+    [(theme ? [NSColor separatorColor] : FilesDark() ? [NSColor colorWithGenericGamma22White:0.09 alpha:1]
+                                                      : FilesGray(0.74, 1)) set];
     NSRectFill(NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), 1));
     [FilesGray(0.85, 1) set];
     NSRectFill(NSMakeRect(0, 21, NSWidth(b), 1));

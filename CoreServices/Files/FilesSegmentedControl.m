@@ -168,7 +168,8 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
     NSBezierPath *capsule = [NSBezierPath bezierPathWithRoundedRect:bounds xRadius:6 yRadius:6];
     NSUInteger count = [_glyphs count];
 
-    [FilesGray(0.985, 1) setFill];
+    /* With a theme: its face (1), track (0.80, 0.87) and border (0.70). */
+    [(_NSAppearanceThemeActive() ? FilesControlGray(1) : FilesGray(0.985, 1)) setFill];
     [capsule fill];
 
     [NSGraphicsContext saveGraphicsState];
@@ -176,20 +177,20 @@ static void drawGlyph(FilesGlyph glyph, NSRect rect)
     for (NSUInteger i = 0; i < count; i++) {
         NSRect r = [self rectForSegment:(NSInteger)i];
         if ((NSInteger)i == _selectedSegment) {
-            [FilesGray(0.80, 1) setFill];
+            [FilesControlGray(0.80) setFill];
             NSRectFill(r);
         } else if ((NSInteger)i == _pressed && [self isEnabledForSegment:(NSInteger)i]) {
-            [FilesGray(0.87, 1) setFill];
+            [FilesControlGray(0.87) setFill];
             NSRectFill(r);
         }
         if (i > 0) {
-            [FilesGray(0.78, 1) setFill];
+            [(_NSAppearanceThemeActive() ? FilesControlGray(0.70) : FilesGray(0.78, 1)) setFill];
             NSRectFill(NSMakeRect(floor(NSMinX(r)), 0, 1, NSHeight([self bounds])));
         }
     }
     [NSGraphicsContext restoreGraphicsState];
 
-    [FilesGray(0.70, 1) setStroke];
+    [FilesControlGray(0.70) setStroke];
     [capsule setLineWidth:1];
     [capsule stroke];
 

@@ -309,9 +309,13 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
 
 - (void)drawRect:(NSRect)dirty
 {
-    [(FilesDark() ? [NSColor colorWithGenericGamma22White:0.17 alpha:1] : FilesGray(0.82, 1)) set];
+    /* With an appearance theme, the theme's title bar and lines. */
+    BOOL theme = _NSAppearanceThemeActive();
+    [(theme ? [NSColor windowFrameColor] : FilesDark() ? [NSColor colorWithGenericGamma22White:0.17 alpha:1]
+                                                        : FilesGray(0.82, 1)) set];
     NSRectFill(dirty);
-    [(FilesDark() ? [NSColor colorWithGenericGamma22White:0.09 alpha:1] : FilesGray(0.74, 1)) set];
+    [(theme ? [NSColor separatorColor] : FilesDark() ? [NSColor colorWithGenericGamma22White:0.09 alpha:1]
+                                                      : FilesGray(0.74, 1)) set];
     NSRectFill(NSMakeRect(0, 0, NSWidth([self bounds]), 1));
 }
 

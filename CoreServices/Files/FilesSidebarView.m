@@ -75,13 +75,23 @@ static const CGFloat kRow = 24, kSection = 26;
             [row[@"section"] drawAtPoint:NSMakePoint(12, NSMinY(r) + 8) withAttributes:section];
             continue;
         }
-        if ([[row[@"url"] path] isEqualToString:[self.currentURL path]]) {
-            [FilesGray(0.82, 1) setFill];
+        /* The folder shown: a grey row, or the appearance's own color for
+           it (Atlas's: grey, with white text, chosen 25 Nov 2026). */
+        NSColor *chosen = _NSAppearanceThemeColor(@"MinkarSidebarSelectionColor");
+        BOOL current = [[row[@"url"] path] isEqualToString:[self.currentURL path]];
+        if (current) {
+            [(chosen ?: FilesGray(0.82, 1)) setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(r, 8, 1) xRadius:5 yRadius:5] fill];
         }
         [FilesFolderIconForURL(row[@"url"]) drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect
                             operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
-        [row[@"title"] drawAtPoint:NSMakePoint(38, NSMinY(r) + 4) withAttributes:plain];
+        NSDictionary *attrs = plain;
+        if (current && chosen != nil) {
+            NSMutableDictionary *white = [plain mutableCopy];
+            white[NSForegroundColorAttributeName] = [NSColor whiteColor];
+            attrs = white;
+        }
+        [row[@"title"] drawAtPoint:NSMakePoint(38, NSMinY(r) + 4) withAttributes:attrs];
     }
 }
 

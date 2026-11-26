@@ -66,6 +66,19 @@ static inline NSColor *FilesThemeColor(CGFloat white)
     return [[NSColor windowBackgroundColor] blendedColorWithFraction:0.30 ofColor:[NSColor labelColor]];
 }
 
+/* A control's grey (the bar's buttons): with an appearance theme, AppKit's
+   for its controls (the theme's face, track and border); otherwise
+   Files's own. */
+extern NSColor *_NSControlGray(CGFloat white);
+extern NSColor *_NSAppearanceThemeColor(NSString *key);
+static inline NSColor *FilesGray(CGFloat white, CGFloat alpha);
+static inline NSColor *FilesControlGray(CGFloat white)
+{
+    if (_NSAppearanceThemeActive())
+        return _NSControlGray(white);
+    return FilesGray(white, 1);
+}
+
 static inline NSColor *FilesGray(CGFloat white, CGFloat alpha)
 {
     if (_NSAppearanceThemeActive())
