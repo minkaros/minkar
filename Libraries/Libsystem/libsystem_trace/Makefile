@@ -4,7 +4,7 @@ LIB = system_trace
 SRCS = log.c signpost.c init.c activity.c format.c stub.c logd_client.c
 
 SLF = /System/Library/Frameworks
-CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
+CFLAGS = -Os -fno-builtin -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-ObjC -x objective-c -fblocks \
 	-DNUL=\'\0\' -Wno-nullability-completeness \
 	-I${MINKAR_SDKROOT}/usr/local/include/kernel \
