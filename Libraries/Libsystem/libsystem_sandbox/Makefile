@@ -39,4 +39,6 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 
 lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

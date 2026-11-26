@@ -35,5 +35,7 @@ copyincs: ${INCS}
 	rsync -cL ${.CURDIR}/${inc} ${INCSDIR}/
 .endfor
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>
 

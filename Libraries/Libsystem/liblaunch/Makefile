@@ -58,4 +58,6 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 # (OBJS is only set by bsd.lib.mk).
 ${SRCS:T:R:S/$/.o/}: helper.h job.h
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

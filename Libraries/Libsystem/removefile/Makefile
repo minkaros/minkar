@@ -31,4 +31,6 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	cd ${.CURDIR} && env PLATFORM=MacOSX DSTROOT=${MINKAR_SDKROOT} \
           bash ${.CURDIR}/xcodescripts/install_files.sh
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

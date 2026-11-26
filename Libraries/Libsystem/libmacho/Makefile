@@ -29,4 +29,6 @@ lib${LIB}.dylib: prep lib${LIB}.a
 	rsync -cL ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	rsync -cL ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

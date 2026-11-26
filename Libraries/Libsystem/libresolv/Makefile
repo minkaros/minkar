@@ -49,4 +49,6 @@ CLEANFILES +=	${RESOLVLIB}
 
 .PHONY: install-sdk install-sysroot
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

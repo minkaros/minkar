@@ -52,4 +52,6 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	rsync -cL ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	rsync -cL ${INCS} ${MINKAR_SDKROOT}/usr/local/include/
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>

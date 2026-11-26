@@ -46,4 +46,6 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 #SUBDIR = libdns_services
 
 .include <bsd.lib.mk>
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.subdir.mk>

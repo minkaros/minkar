@@ -67,4 +67,6 @@ headers:
 	  ${path}/System/Library/CoreServices/
 .endfor
 
+# Optimised: it was built without any -O.
+CFLAGS += -Os
 .include <bsd.lib.mk>
