@@ -78,9 +78,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if (options&NSUncachedRead)
     NSLog(@"-[%@ %s] option NSUncachedRead currently ignored.",[self class],sel_getName(_cmd));
 
-   if (options&NSMappedRead)
+   /* Minkar: mapped, then unmapped when the data goes (it was freed with
+      free(), and malloc aborted on the mapped address: Logs showing a
+      crash report). An empty file cannot be mapped: read. */
+   BOOL mapped=NO;
+   if (options&NSMappedRead) {
     bytes=[[NSPlatform currentPlatform] mapContentsOfFile:path length:&length];
-   else
+    mapped=(bytes!=NULL);
+   }
+   if(!mapped)
     bytes=NSPlatformContentsOfFile(path,&length);
 
    if(bytes==NULL){
@@ -95,6 +101,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return nil;
    }
 
+   if(mapped)
+    return [self initWithBytesNoCopy:bytes length:length deallocator:^(void *b, NSUInteger l) {
+       munmap(b, l);
+    }];
    return [self initWithBytesNoCopy:bytes length:length];
 }
 
