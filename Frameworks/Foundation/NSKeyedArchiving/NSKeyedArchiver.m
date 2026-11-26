@@ -67,7 +67,11 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    _nameToClass=NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0);
    _pass=0;
    
-   NSMapTableKeyCallBacks objectToUidKeyCb = NSNonRetainedObjectMapKeyCallBacks;
+   /* Minkar: the objects kept while the archive is made, as the reference
+      keeps them: an object encoded and freed (an encodeObject:[X new] under
+      ARC) left its address in the table, and a new object made there (a
+      class description) took the freed one's UID. */
+   NSMapTableKeyCallBacks objectToUidKeyCb = NSObjectMapKeyCallBacks;
    objectToUidKeyCb.isEqual = NULL;
    /* Minkar: and the pointer's hash with it. With -hash, objects equal in
       kind collided (an NSDictionary's hash is its count): every lookup ran
