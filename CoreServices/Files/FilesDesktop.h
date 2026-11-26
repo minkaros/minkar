@@ -20,6 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithOpener:(void (^)(NSURL *url))opener;
 - (void)show;
 - (void)reload;
+/* Volumes ejected (told when one cannot be). */
+- (void)eject:(NSArray<NSURL *> *)urls;
 
 /* What the desktop shows, in order (for the tests: its log). */
 @property (nonatomic, readonly) NSArray<NSURL *> *itemURLs;

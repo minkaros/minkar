@@ -9,6 +9,9 @@
  */
 
 #import "FilesWindowController.h"
+#import "FilesCommands.h"
+#import "FilesPathBar.h"
+#import "FilesPreferences.h"
 #import "FilesColors.h"
 #import "FilesSegmentedControl.h"
 #import "FilesSidebarView.h"
@@ -27,7 +30,18 @@
 /* The bar is the title bar too (a full-size content view): 52 points, a
    unified toolbar's height on the reference platform, its controls in line
    with the window's buttons. */
-static const CGFloat kBarHeight = 52, kStatusHeight = 22, kSidebarWidth = 170;
+static const CGFloat kBarHeight = 52, kStatusHeight = 22, kSidebarWidth = 170, kPathBarHeight = 22;
+
+/* View's bars, for every window (the reference keeps them per window and
+   remembers the last): the FilesShowSidebar, FilesShowStatusBar and
+   FilesShowPathBar defaults. */
+static BOOL showing(NSString *key, BOOL byDefault)
+{
+    id value = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    return value != nil ? [value boolValue] : byDefault;
+}
+
+NSString *const FilesBarsChangedNotification = @"FilesBarsChangedNotification";
 
 @interface FilesWindowController () <FilesBrowserViewDelegate, FilesColumnViewDelegate, FilesSidebarViewDelegate,
                                      NSWindowDelegate>
@@ -48,6 +62,7 @@ static const CGFloat kBarHeight = 52, kStatusHeight = 22, kSidebarWidth = 170;
     FilesColumnView *_columns;
     FilesSegmentedControl *_navigation, *_viewModes;
     NSTextField *_title, *_status;
+    FilesPathBar *_pathBar;
     FSEventStreamRef _watch;      /* the folder shown, while it changes */
     dispatch_queue_t _watchQueue;
 }
@@ -73,6 +88,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themesChanged:)
                                                  name:@"_NSSystemThemesChangedNotification" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(preferencesChanged:)
+                                                 name:FilesPreferencesChangedNotification object:nil];
     _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(160, 140, 860, 552)
         styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable |
                   NSWindowStyleMaskResizable | NSWindowStyleMaskFullSizeContentView
@@ -111,6 +128,13 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_status setAlignment:NSCenterTextAlignment];
     [_status setTextColor:FilesGray(0.35, 1)];
 
+    _pathBar = [[FilesPathBar alloc] initWithFrame:NSMakeRect(0, 0, 100, kPathBarHeight)];
+    __weak FilesWindowController *weakSelf = self;
+    _pathBar.chooser = ^(NSURL *chosen) {
+        [weakSelf goToFolder:chosen];
+    };
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(barsChanged:)
+                                                 name:FilesBarsChangedNotification object:nil];
     _sidebar = [[FilesSidebarView alloc] initWithFrame:NSMakeRect(0, 0, kSidebarWidth, 100)];
     _sidebar.delegate = self;
     _scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
@@ -131,7 +155,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_columnScroll setHidden:YES];
 
     for (NSView *view in @[ _navigation, _title, _viewModes,
-                            _sidebar, _scroll, _columnScroll, _status ])
+                            _sidebar, _scroll, _columnScroll, _status, _pathBar ])
         [content addSubview:view];
     [self layout];
     [self goToFolder:folder remember:NO];
@@ -165,18 +189,28 @@ static NSTextField *label(CGFloat size, BOOL bold)
        The folder's name is in the middle of what is left. */
     NSSize nav = [_navigation naturalSize], modes = [_viewModes naturalSize];
     CGFloat mid = top + kBarHeight / 2;
-    CGFloat navX = kSidebarWidth + 10;
+    CGFloat navX = showing(@"FilesShowSidebar", YES) ? kSidebarWidth + 10 : 84;
     CGFloat modesX = NSWidth(b) - 10 - modes.width;
     [_navigation setFrame:NSMakeRect(navX, floor(mid - nav.height / 2), nav.width, nav.height)];
     [_viewModes setFrame:NSMakeRect(modesX, floor(mid - modes.height / 2), modes.width, modes.height)];
     CGFloat left = navX + nav.width + 10, right = modesX - 10;
     [_title setFrame:NSMakeRect(left, floor(mid - 10), MAX(right - left, 0), 20)];
+    /* The sidebar, the status bar and the path bar as View shows them;
+       without the sidebar, back and forward still clear the window's
+       buttons. */
+    BOOL sidebar = showing(@"FilesShowSidebar", YES), status = showing(@"FilesShowStatusBar", YES);
+    BOOL path = showing(@"FilesShowPathBar", NO);
+    CGFloat side = sidebar ? kSidebarWidth : 0;
+    CGFloat bottom = (status ? kStatusHeight : 0) + (path ? kPathBarHeight : 0);
+    [_sidebar setHidden:!sidebar];
+    [_status setHidden:!status];
+    [_pathBar setHidden:!path];
     [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b) - kBarHeight)];
-    NSRect content = NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
-                                NSHeight(b) - kBarHeight - kStatusHeight);
+    NSRect content = NSMakeRect(side, bottom, NSWidth(b) - side, NSHeight(b) - kBarHeight - bottom);
     [_scroll setFrame:content];
     [_columnScroll setFrame:content];
-    [_status setFrame:NSMakeRect(kSidebarWidth, 3, NSWidth(b) - kSidebarWidth, 16)];
+    [_status setFrame:NSMakeRect(side, 3, NSWidth(b) - side, 16)];
+    [_pathBar setFrame:NSMakeRect(side, status ? kStatusHeight : 0, NSWidth(b) - side, kPathBarHeight)];
     [_browser relayout];
     [_columns relayout];
 }
@@ -209,6 +243,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [self watchFolder];
     os_log_info(OS_LOG_DEFAULT, "folder %{public}s", [[folder path] fileSystemRepresentation]);
     _sidebar.currentURL = folder;
+    _pathBar.URL = folder;
+    FilesNoteRecentFolder(folder);
     NSString *name = [[folder path] isEqualToString:@"/"] ? @"Minkar"
         : [[NSFileManager defaultManager] displayNameAtPath:[folder path]];
     [_title setStringValue:name];
@@ -224,6 +260,11 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
 - (void)selectItemNamed:(NSString *)name
 {
+    /* An item made a moment ago (revealed before the folder's change
+       came): the folder read again first. */
+    if (_browser.mode != FilesViewModeColumns && name != nil &&
+        ![[_browser.items valueForKeyPath:@"URL.lastPathComponent"] containsObject:name])
+        _browser.items = [FilesItem itemsInFolder:_folder error:NULL] ?: _browser.items;
     if (_browser.mode == FilesViewModeColumns)
         [_columns selectItemNamed:name];
     else
@@ -247,6 +288,15 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         size_t n = folder ? strlen(folder) : 0;
         BOOL here = folder && strncmp(path, folder, n) == 0 &&
             (strcmp(path + n, "/") == 0 || (strcmp(folder, "/") == 0 && strcmp(path, "/") == 0));
+        /* Inside an app of this folder: one being copied shows first
+           without its Info.plist (a plain folder named .app, no icon of
+           its own) and is read again as it fills in. */
+        if (!here && folder && strncmp(path, folder, n) == 0 &&
+            (path[n] == '/' || strcmp(folder, "/") == 0)) {
+            const char *child = path + n + (path[n] == '/');
+            const char *slash = strchr(child, '/');
+            here = slash != NULL && slash - child > 4 && strncmp(slash - 4, ".app", 4) == 0;
+        }
         if (here || (flags[i] & kFSEventStreamEventFlagMustScanSubDirs)) {
             [self performSelectorOnMainThread:@selector(folderChanged) withObject:nil waitUntilDone:NO];
             return;
@@ -318,6 +368,16 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         FSEventStreamInvalidate(_watch);
         FSEventStreamRelease(_watch);
     }
+}
+
+- (BOOL)canGoBack
+{
+    return [_back count] > 0;
+}
+
+- (BOOL)canGoForward
+{
+    return [_forward count] > 0;
 }
 
 - (void)updateButtons
@@ -462,6 +522,34 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 /* Paths (NSFilenamesPboardType) for apps that read the older type, and
    file URLs. */
+- (void)preferencesChanged:(NSNotification *)note
+{
+    [self reloadSelecting:nil];
+}
+
+- (void)barsChanged:(NSNotification *)note
+{
+    [self layout];
+    os_log_info(OS_LOG_DEFAULT, "bars sidebar=%d status=%d path=%d", ![_sidebar isHidden], ![_status isHidden],
+                ![_pathBar isHidden]);
+}
+
+/* The folder read again in the order View > Sort By chose. */
+- (void)sortChanged
+{
+    [self reloadSelecting:nil];
+    os_log_info(OS_LOG_DEFAULT, "sorted %ld %{public}s: %{public}s", (long)FilesCurrentSortKey(),
+                [[_folder path] fileSystemRepresentation],
+                [[[_browser.items valueForKeyPath:@"URL.lastPathComponent"] componentsJoinedByString:@"|"] UTF8String]);
+}
+
+- (IBAction)deselectAll:(id)sender
+{
+    if (_browser.mode == FilesViewModeColumns)
+        return;
+    [_browser selectItemsNamed:@[]];
+}
+
 - (IBAction)selectAll:(id)sender
 {
     if (_browser.mode != FilesViewModeColumns)

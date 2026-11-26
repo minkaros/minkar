@@ -37,6 +37,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (IBAction)rename:(nullable id)sender;
 - (IBAction)moveToTrash:(nullable id)sender;
 - (IBAction)putBack:(nullable id)sender;
+- (IBAction)deselectAll:(nullable id)sender;
+/* View's bars changed (FilesShowSidebar, FilesShowStatusBar,
+   FilesShowPathBar): every window lays itself out again. */
+extern NSString *const FilesBarsChangedNotification;
+- (void)sortChanged;
+@property (nonatomic, readonly) BOOL canGoBack, canGoForward;
 /* The file URLs on the general pasteboard. */
 + (NSArray<NSURL *> *)pasteboardURLs;
 /* The folder shown read again now, then name selected. */

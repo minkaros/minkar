@@ -10,6 +10,7 @@
 #import "FilesItem.h"
 #import "FilesInfoWindow.h"
 #import "FilesOperations.h"
+#import "FilesPreferences.h"
 #include <CoreServices/CoreServices.h>
 #include <os/log.h>
 #include <sys/stat.h>
@@ -424,6 +425,9 @@ static dev_t deviceOf(NSURL *url)
     /* An icon theme chosen: the icons made again. */
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(themesChanged:)
                                                  name:@"_NSSystemThemesChangedNotification" object:nil];
+    /* Preferences: which disks show, hidden files. */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(preferencesChanged:)
+                                                 name:FilesPreferencesChangedNotification object:nil];
     [self watchDesktopFolder];
     [self reload];
 }
@@ -469,15 +473,25 @@ static void desktopEvents(ConstFSEventStreamRef stream, void *info, size_t count
     [self reload];
 }
 
+- (void)preferencesChanged:(NSNotification *)note
+{
+    [self reload];
+}
+
 - (void)reload
 {
     NSMutableArray<FilesItem *> *items = [NSMutableArray array];
     NSMutableArray *volumes = [NSMutableArray array];
 
-    for (NSString *path in [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths])
-        if ([[path stringByDeletingLastPathComponent] isEqualToString:@"/Volumes"])
-            [volumes addObject:path];
+    /* As Preferences chose: the startup disk (Hard disks), the mounted
+       volumes (External disks). */
+    if (FilesDesktopShowsVolumes())
+        for (NSString *path in [[NSWorkspace sharedWorkspace] mountedLocalVolumePaths])
+            if ([[path stringByDeletingLastPathComponent] isEqualToString:@"/Volumes"])
+                [volumes addObject:path];
     [volumes sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    if (FilesDesktopShowsStartupDisk())
+        [items addObject:[[FilesItem alloc] initWithURL:[NSURL fileURLWithPath:@"/" isDirectory:YES]]];
     for (NSString *path in volumes)
         [items addObject:[[FilesItem alloc] initWithURL:[NSURL fileURLWithPath:path isDirectory:YES]]];
     NSURL *desktop = [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@"Desktop"]];

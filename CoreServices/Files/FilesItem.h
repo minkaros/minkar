@@ -16,13 +16,27 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isApplication;  /* an .app bundle */
 @property (nonatomic, readonly) unsigned long long size;
 @property (nonatomic, readonly, nullable, copy) NSDate *modified;
+@property (nonatomic, readonly, nullable, copy) NSDate *created;
 @property (nonatomic, readonly, copy) NSString *kind;
 @property (nonatomic, readonly) NSImage *icon;
 
 - (instancetype)initWithURL:(NSURL *)url;
-/* A folder's entries, folders first then by name; hidden ones left out. */
+/* A folder's entries in the order View > Sort By chose (folders first,
+   then by name when none was chosen); hidden ones left out. */
 + (NSArray<FilesItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error;
 @end
+
+/* View > Sort By, the app's (the FilesSortBy default): how items are
+   ordered, folders always first. */
+typedef NS_ENUM(NSInteger, FilesSortKey) {
+    FilesSortByName = 0,
+    FilesSortByKind,
+    FilesSortByDateModified,
+    FilesSortByDateCreated,
+    FilesSortBySize,
+};
+FilesSortKey FilesCurrentSortKey(void);
+void FilesSetSortKey(FilesSortKey key);
 
 /* The locale of the language the file manager's texts are shown in (dates). */
 NSLocale *FilesDisplayLocale(void);

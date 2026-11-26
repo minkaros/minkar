@@ -8,6 +8,7 @@
 
 #import "FilesItem.h"
 #import "FilesIcons.h"
+#import "FilesPreferences.h"
 
 NSLocale *FilesDisplayLocale(void)
 {
@@ -29,6 +30,17 @@ NSString *FilesSizeString(unsigned long long size)
     return [NSString stringWithFormat:value < 10 ? @"%.1f %@" : @"%.0f %@", value, units[unit]];
 }
 
+FilesSortKey FilesCurrentSortKey(void)
+{
+    NSInteger key = [[NSUserDefaults standardUserDefaults] integerForKey:@"FilesSortBy"];
+    return key >= FilesSortByName && key <= FilesSortBySize ? (FilesSortKey)key : FilesSortByName;
+}
+
+void FilesSetSortKey(FilesSortKey key)
+{
+    [[NSUserDefaults standardUserDefaults] setInteger:key forKey:@"FilesSortBy"];
+}
+
 @implementation FilesItem
 
 - (instancetype)initWithURL:(NSURL *)url
@@ -48,6 +60,7 @@ NSString *FilesSizeString(unsigned long long size)
     _isFolder = directory && !_isApplication;
     _size = directory ? 0 : [attributes fileSize];
     _modified = [[attributes fileModificationDate] copy];
+    _created = [[attributes fileCreationDate] copy];
     if (_isApplication) {
         NSString *display = [[NSBundle bundleWithURL:url] objectForInfoDictionaryKey:@"CFBundleName"];
         if ([display length])
@@ -71,18 +84,37 @@ NSString *FilesSizeString(unsigned long long size)
 {
     NSArray *names = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[folder path] error:error];
     NSMutableArray *items = [NSMutableArray array];
+    BOOL showHidden = FilesShowsHiddenFiles(), foldersFirst = FilesSortsFoldersFirst();
 
     if (names == nil)
         return nil;
     for (NSString *name in names) {
-        if ([name hasPrefix:@"."])
+        if ([name hasPrefix:@"."] && !showHidden)
             continue;
         [items addObject:[[FilesItem alloc] initWithURL:[folder URLByAppendingPathComponent:name]]];
     }
+    FilesSortKey key = FilesCurrentSortKey();
     [items sortUsingComparator:^NSComparisonResult(FilesItem *a, FilesItem *b) {
-        if (a.isFolder != b.isFolder)
+        if (foldersFirst && a.isFolder != b.isFolder)
             return a.isFolder ? NSOrderedAscending : NSOrderedDescending;
-        return [a.name localizedStandardCompare:b.name];
+        NSComparisonResult r = NSOrderedSame;
+        switch (key) {
+        case FilesSortByKind:
+            r = [a.kind localizedStandardCompare:b.kind];
+            break;
+        case FilesSortByDateModified:   /* newest first, as the reference */
+            r = [b.modified ?: [NSDate distantPast] compare:a.modified ?: [NSDate distantPast]];
+            break;
+        case FilesSortByDateCreated:
+            r = [b.created ?: [NSDate distantPast] compare:a.created ?: [NSDate distantPast]];
+            break;
+        case FilesSortBySize:           /* largest first */
+            r = a.size == b.size ? NSOrderedSame : (a.size > b.size ? NSOrderedAscending : NSOrderedDescending);
+            break;
+        case FilesSortByName:
+            break;
+        }
+        return r != NSOrderedSame ? r : [a.name localizedStandardCompare:b.name];
     }];
     return items;
 }
