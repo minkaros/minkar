@@ -19,9 +19,25 @@ echo "w0-check: copying the tests to $host"
 tar -C "$sysroot/usr/local/tests" -cf - w0 w0-tools | $ssh "$host" \
     'rm -rf /usr/local/tests/w0 /usr/local/tests/w0-tools && mkdir -p /usr/local/tests &&
     tar -C /usr/local/tests -xf -' || exit 1
+# Every file's SHA-1 on the machine, after the copy and after the run:
+# once (24 Nov 2026) six pairs of test files came to share their data on
+# PC 1; not seen again, so watched for here.
+sums() { $ssh "$host" 'cd /usr/local/tests && find w0 w0-tools -type f -exec shasum {} +' | awk '{ print $2, $1 }' | LC_ALL=C sort; }
+want=$(mktemp); before=$(mktemp); after=$(mktemp)
+(cd "$sysroot/usr/local/tests" && find w0 w0-tools -type f -exec shasum {} +) | awk '{ print $2, $1 }' | LC_ALL=C sort > "$want"
+sums > "$before"
 echo "w0-check: running them on $host"
 $ssh "$host" '/usr/local/tests/w0/run.sh' 2>&1 | tee "$log" | grep '^w0: '
+sums > "$after"
 failed=0
+copied=$(LC_ALL=C join "$want" "$before" | awk '$2 != $3' | wc -l)
+changed=$(LC_ALL=C join "$before" "$after" | awk '$2 != $3' | wc -l)
+if [ "$copied" -ne 0 ] || [ "$changed" -ne 0 ]; then
+	echo "w0-check: files not as copied: $copied after the copy, $changed changed by the run"
+	LC_ALL=C join "$before" "$after" | awk '$2 != $3 { print "w0-check:   " $1 }' | head -20
+	failed=1
+fi
+rm -f "$want" "$before" "$after"
 for lib in "$@"; do
 	grep -q "^w0: $lib passed" "$log" || { echo "w0-check: $lib did not pass"; failed=1; }
 done
