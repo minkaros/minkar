@@ -380,7 +380,7 @@ BOOL _NSAppearanceThemeActive(void);
 
 NSColor *_NSMenuBarTextColor(void) {
 	if(_NSAppearanceThemeActive())
-		return [NSColor windowFrameTextColor];
+		return _NSAppearanceThemeColor(@"MinkarMenuBarTextColor") ?: [NSColor windowFrameTextColor];
 	return [NSColor colorWithGenericGamma22White:_NSSystemAppearanceIsDark()?0.93:0.10 alpha:1];
 }
 
@@ -389,9 +389,10 @@ NSColor *_NSMenuBarTextColor(void) {
 
 	/* An appearance theme: its title bars' color, and its lines. */
 	if(_NSAppearanceThemeActive()) {
-		[[NSColor windowFrameColor] setFill];
+		/* Its own menu bar color and line when it gives them. */
+		[(_NSAppearanceThemeColor(@"MinkarMenuBarColor") ?: [NSColor windowFrameColor]) setFill];
 		NSRectFill(rect);
-		[[NSColor separatorColor] setFill];
+		[(_NSAppearanceThemeColor(@"MinkarMenuBarLineColor") ?: [NSColor separatorColor]) setFill];
 		NSRectFillUsingOperation(NSMakeRect(NSMinX(rect),NSMinY(rect),NSWidth(rect),1),NSCompositeSourceOver);
 		return;
 	}
@@ -449,8 +450,19 @@ static NSColor *atlasGray(CGFloat white) {
    /* An appearance theme: its controls' color, the darker steps toward its
       text (lines, pressed faces). */
    if(_NSAppearanceThemeActive()) {
-    NSColor *face=[NSColor controlColor];
-    return white>=1 ? face : [face blendedColorWithFraction:MIN(1,(1-white)*0.9) ofColor:[NSColor labelColor]];
+    NSColor *face=[NSColor controlColor], *given=nil;
+
+    /* The steps a theme may give itself: a face's lower part, the tracks
+       and pressed faces, the lines. */
+    if(white>=1)
+     return face;
+    if(white>=0.93)
+     given=_NSAppearanceThemeColor(@"MinkarControlFaceBottomColor");
+    else if(white>=0.78)
+     given=_NSAppearanceThemeColor(@"MinkarControlTrackColor");
+    else if(white>=0.40)
+     given=_NSAppearanceThemeColor(@"MinkarControlBorderColor");
+    return given ?: [face blendedColorWithFraction:MIN(1,(1-white)*0.9) ofColor:[NSColor labelColor]];
    }
    if(_NSSystemAppearanceIsDark())
     white=0.38-(1-white)*0.30;
@@ -771,7 +783,7 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
 }
 
 -(void)drawProgressIndicatorChunk:(NSRect)rect {
-   NSColor *accent=atlasAccent();
+   NSColor *accent=_NSAppearanceThemeColor(@"MinkarProgressColor") ?: atlasAccent();
 
    if(NSWidth(rect)<1)
     return;

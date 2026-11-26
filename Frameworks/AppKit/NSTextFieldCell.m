@@ -338,13 +338,14 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     backRect=NSInsetRect(backRect,-1,-1);
       break;
 
-     /* A white rounded field with a thin border (search fields). */
+     /* A rounded field with a thin border (search fields). */
      case NSTextFieldRoundedBezel:{
       NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:5 yRadius:5];
 
-      [([self isEnabled]?[NSColor textBackgroundColor]:[NSColor colorWithGenericGamma22White:0.97 alpha:1]) setFill];
+      [([self isEnabled]?[NSColor textBackgroundColor]:_NSControlGray(0.97)) setFill];
       [path fill];
-      [[NSColor colorWithGenericGamma22White:0.74 alpha:1] setStroke];
+      /* Atlas's grey for a line: the dark appearance's (or a theme's) too. */
+      [_NSControlGray(0.74) setStroke];
       [path stroke];
      }
       break;

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Dark</key>
+	<dict>
+		<key>MinkarAccentColor</key>
+		<string>0.192 0.404 0.627</string>
+		<key>MinkarControlBorderColor</key>
+		<string>0.239 0.239 0.239</string>
+		<key>MinkarControlFaceBottomColor</key>
+		<string>0.314 0.314 0.314</string>
+		<key>MinkarControlTrackColor</key>
+		<string>0.318 0.318 0.318</string>
+		<key>MinkarLevelColor</key>
+		<string>0.863 0.612 0.271</string>
+		<key>MinkarMenuBarColor</key>
+		<string>0.267 0.267 0.267</string>
+		<key>MinkarMenuBarLineColor</key>
+		<string>0.161 0.161 0.161</string>
+		<key>MinkarMenuBarTextColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>MinkarProgressColor</key>
+		<string>0.475 0.475 0.475</string>
+		<key>MinkarSidebarSelectionColor</key>
+		<string>0.471 0.471 0.471</string>
+		<key>MinkarSliderFillColor</key>
+		<string>0.486 0.486 0.486</string>
+		<key>MinkarSwitchOnColor</key>
+		<string>0.420 0.510 0.329</string>
+		<key>alternatingContentBackgroundColor</key>
+		<string>0.290 0.290 0.290</string>
+		<key>controlBackgroundColor</key>
+		<string>0.267 0.267 0.267</string>
+		<key>controlColor</key>
+		<string>0.333 0.333 0.333</string>
+		<key>controlTextColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>disabledControlTextColor</key>
+		<string>0.576 0.596 0.592</string>
+		<key>gridColor</key>
+		<string>0.200 0.200 0.200</string>
+		<key>headerTextColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>knobColor</key>
+		<string>0.475 0.475 0.475</string>
+		<key>labelColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>menuBackgroundColor</key>
+		<string>0.333 0.333 0.333</string>
+		<key>menuItemTextColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>placeholderTextColor</key>
+		<string>0.576 0.596 0.592</string>
+		<key>scrollBarColor</key>
+		<string>0.306 0.306 0.306</string>
+		<key>secondaryLabelColor</key>
+		<string>0.706 0.706 0.706</string>
+		<key>separatorColor</key>
+		<string>0.239 0.239 0.239</string>
+		<key>tertiaryLabelColor</key>
+		<string>0.576 0.596 0.592</string>
+		<key>textBackgroundColor</key>
+		<string>0.267 0.267 0.267</string>
+		<key>textColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>underPageBackgroundColor</key>
+		<string>0.310 0.310 0.310</string>
+		<key>windowBackgroundColor</key>
+		<string>0.333 0.333 0.333</string>
+		<key>windowFrameColor</key>
+		<string>0.333 0.333 0.333</string>
+		<key>windowFrameTextColor</key>
+		<string>0.878 0.878 0.878</string>
+	</dict>
+	<key>Light</key>
+	<dict>
+		<key>MinkarAccentColor</key>
+		<string>0.192 0.404 0.620</string>
+		<key>MinkarControlBorderColor</key>
+		<string>0.616 0.616 0.616</string>
+		<key>MinkarControlFaceBottomColor</key>
+		<string>0.882 0.882 0.882</string>
+		<key>MinkarControlTrackColor</key>
+		<string>0.867 0.867 0.867</string>
+		<key>MinkarLevelColor</key>
+		<string>0.867 0.608 0.271</string>
+		<key>MinkarMenuBarColor</key>
+		<string>0.267 0.267 0.267</string>
+		<key>MinkarMenuBarLineColor</key>
+		<string>0.161 0.161 0.161</string>
+		<key>MinkarMenuBarTextColor</key>
+		<string>0.878 0.878 0.878</string>
+		<key>MinkarProgressColor</key>
+		<string>0.463 0.463 0.463</string>
+		<key>MinkarSidebarSelectionColor</key>
+		<string>0.455 0.455 0.455</string>
+		<key>MinkarSliderFillColor</key>
+		<string>0.475 0.475 0.475</string>
+		<key>MinkarSwitchOnColor</key>
+		<string>0.506 0.643 0.337</string>
+		<key>alternatingContentBackgroundColor</key>
+		<string>0.965 0.965 0.965</string>
+		<key>controlBackgroundColor</key>
+		<string>1.000 1.000 1.000</string>
+		<key>controlColor</key>
+		<string>0.925 0.925 0.925</string>
+		<key>controlTextColor</key>
+		<string>0.259 0.255 0.267</string>
+		<key>disabledControlTextColor</key>
+		<string>0.612 0.592 0.580</string>
+		<key>gridColor</key>
+		<string>0.659 0.659 0.659</string>
+		<key>headerTextColor</key>
+		<string>0.259 0.255 0.267</string>
+		<key>knobColor</key>
+		<string>0.616 0.616 0.616</string>
+		<key>labelColor</key>
+		<string>0.259 0.255 0.267</string>
+		<key>menuBackgroundColor</key>
+		<string>0.925 0.925 0.925</string>
+		<key>menuItemTextColor</key>
+		<string>0.259 0.255 0.267</string>
+		<key>placeholderTextColor</key>
+		<string>0.612 0.592 0.580</string>
+		<key>scrollBarColor</key>
+		<string>0.867 0.867 0.867</string>
+		<key>secondaryLabelColor</key>
+		<string>0.467 0.459 0.478</string>
+		<key>separatorColor</key>
+		<string>0.808 0.808 0.808</string>
+		<key>tertiaryLabelColor</key>
+		<string>0.612 0.592 0.580</string>
+		<key>textBackgroundColor</key>
+		<string>1.000 1.000 1.000</string>
+		<key>textColor</key>
+		<string>0.259 0.255 0.267</string>
+		<key>underPageBackgroundColor</key>
+		<string>0.863 0.863 0.863</string>
+		<key>windowBackgroundColor</key>
+		<string>0.925 0.925 0.925</string>
+		<key>windowFrameColor</key>
+		<string>0.851 0.851 0.851</string>
+		<key>windowFrameTextColor</key>
+		<string>0.259 0.255 0.267</string>
+	</dict>
+</dict>
+</plist>

@@ -636,6 +636,7 @@ HEADERS = \
 
 RESOURCES_DIRS = en.lproj de.lproj fr.lproj es.lproj
 RESOURCES_FILES = Info.plist \
+	NSColor.subproj/AtlasAppearance.plist \
 	NSMenu.subproj/NSMenuArrow.tiff \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-18.png \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-36.png \

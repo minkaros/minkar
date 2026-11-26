@@ -189,7 +189,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    double value=[self doubleValue];
 
    if(_warningValue==0 && _criticalValue==0)
-    return [NSColor systemGreenColor];
+    return _NSAppearanceThemeColor(@"MinkarLevelColor") ?: [NSColor systemGreenColor];
    if(_warningValue<=_criticalValue){
     if(value>=_criticalValue)
      return [NSColor systemRedColor];

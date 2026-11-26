@@ -76,7 +76,8 @@
     CGFloat  height = MIN(HEIGHT, NSHeight(bounds)), width = MIN(WIDTH, NSWidth(bounds));
     NSRect   track = NSMakeRect(NSMinX(bounds), floor(NSMidY(bounds) - height / 2), width, height);
     BOOL     on = (_switchState == NSOnState);
-    NSColor *fill = on ? [NSColor controlAccentColor] : _NSControlGray(0.82);
+    NSColor *fill = on ? (_NSAppearanceThemeColor(@"MinkarSwitchOnColor") ?: [NSColor controlAccentColor])
+                       : _NSControlGray(0.82);
     NSBezierPath *pill = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(track, 0.5, 0.5)
         xRadius:height / 2 - 0.5 yRadius:height / 2 - 0.5];
     CGFloat  knob = height - 4;

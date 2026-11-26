@@ -295,7 +295,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     fill=NSMakeRect(NSMinX(bar),floor(NSMidY(bar)-2),NSMidX(knob)-NSMinX(bar),4);
    if(NSWidth(fill)<=0 || NSHeight(fill)<=0)
     return;
-   [[NSColor controlAccentColor] setFill];
+   [(_NSAppearanceThemeColor(@"MinkarSliderFillColor") ?: [NSColor controlAccentColor]) setFill];
    [[NSBezierPath bezierPathWithRoundedRect:fill xRadius:2 yRadius:2] fill];
 }
 

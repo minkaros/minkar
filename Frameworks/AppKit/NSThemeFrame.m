@@ -153,7 +153,9 @@ BOOL _NSAppearanceThemeActive(void);
    windowFrameColor. */
 static void setTitlebarFill(O2ContextRef context, CGFloat gray) {
     if(_NSAppearanceThemeActive()) {
-        NSColor *c = [[NSColor windowFrameColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+        /* sRGB's components, as the context fills in device RGB (the
+           calibrated ones, gamma 1.8, came out darker). */
+        NSColor *c = [[NSColor windowFrameColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
         if(c != nil) {
             O2ContextSetRGBFillColor(context, [c redComponent], [c greenComponent], [c blueComponent], 1);
             return;

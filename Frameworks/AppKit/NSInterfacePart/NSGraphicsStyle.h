@@ -24,6 +24,8 @@ typedef struct _Margins {
 NSColor *_NSControlGray(CGFloat white);
 /* Whether the system's appearance is the dark one (AppleInterfaceStyle). */
 BOOL _NSSystemAppearanceIsDark(void);
+/* A color the appearance theme gives by name, nil without one. */
+NSColor *_NSAppearanceThemeColor(NSString *key);
 
 @interface NSGraphicsStyle : NSObject {
     NSView *_view;

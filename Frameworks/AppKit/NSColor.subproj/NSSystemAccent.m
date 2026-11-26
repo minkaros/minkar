@@ -155,13 +155,27 @@ static BOOL wantsDark(void) {
    folder Themes/Appearance/NAME of ~/Library or /Library that
    MinkarAppearanceTheme names, its Appearance.plist giving, for Light and
    for Dark, system colors by name: "0.176" a grey (gamma 2.2), "r g b" or
-   "r g b a". Laid over Atlas's own; what it lacks stays Atlas's. */
+   "r g b a" (sRGB). Laid over Atlas's own; what it lacks stays Atlas's. */
+static NSDictionary *atlasAppearance(BOOL dark) {
+    static NSDictionary *plist;
+
+    if (plist == nil)
+        plist = [[NSDictionary alloc] initWithContentsOfFile:
+            [[NSBundle bundleForClass:[NSColorList class]] pathForResource:@"AtlasAppearance" ofType:@"plist"]];
+    id colors = [plist objectForKey:dark ? @"Dark" : @"Light"];
+    return [colors isKindOfClass:[NSDictionary class]] ? colors : nil;
+}
+
 static NSDictionary *appearanceTheme(BOOL dark) {
     NSString *name = globalValue(CFSTR("MinkarAppearanceTheme"));
 
+    /* None chosen (or not found): Atlas's own look, approved by the
+       maintainer on 25 Nov 2026 (AtlasAppearance.plist): light #ececec,
+       dark #555555, defined control borders, a blue accent, a green
+       switch, an orange level. */
     if (![name isKindOfClass:[NSString class]] || [name length] == 0 ||
         [name rangeOfString:@"/"].location != NSNotFound)
-        return nil;
+        return atlasAppearance(dark);
     for (NSString *base in [NSArray arrayWithObjects:
             [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Themes/Appearance"],
             @"/Library/Themes/Appearance", nil]) {
@@ -172,7 +186,7 @@ static NSDictionary *appearanceTheme(BOOL dark) {
             return [colors isKindOfClass:[NSDictionary class]] ? colors : nil;
         }
     }
-    return nil;
+    return atlasAppearance(dark);
 }
 
 static NSColor *themeColor(id value) {
@@ -181,8 +195,10 @@ static NSColor *themeColor(id value) {
     NSArray *parts = [value componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if ([parts count] == 1)
         return [NSColor colorWithGenericGamma22White:[value doubleValue] alpha:1];
+    /* sRGB, as a color picked from the screen or written in hex is (the
+       calibrated space, gamma 1.8, showed them lighter). */
     if ([parts count] >= 3)
-        return [NSColor colorWithCalibratedRed:[[parts objectAtIndex:0] doubleValue]
+        return [NSColor colorWithSRGBRed:[[parts objectAtIndex:0] doubleValue]
             green:[[parts objectAtIndex:1] doubleValue] blue:[[parts objectAtIndex:2] doubleValue]
             alpha:[parts count] > 3 ? [[parts objectAtIndex:3] doubleValue] : 1];
     return nil;
@@ -198,6 +214,20 @@ static BOOL themeActive;
 
 BOOL _NSAppearanceThemeActive(void) {
     return themeActive;
+}
+
+/* The appearance theme's colors for the appearance shown. */
+static NSDictionary *currentTheme;
+
+/* A color the appearance theme gives by name, nil when there is no theme
+   or it does not give it: besides the system colors, the controls' own
+   (MinkarControlBorderColor, MinkarControlFaceBottomColor,
+   MinkarControlTrackColor, MinkarProgressColor, MinkarSliderFillColor,
+   MinkarSwitchOnColor, MinkarLevelColor, MinkarMenuBarColor,
+   MinkarMenuBarLineColor, MinkarMenuBarTextColor, MinkarAccentColor,
+   MinkarSidebarSelectionColor). */
+NSColor *_NSAppearanceThemeColor(NSString *key) {
+    return themeActive ? themeColor([currentTheme objectForKey:key]) : nil;
 }
 
 /* The neutrals for the appearance: dark ones, or the light ones kept. */
@@ -223,6 +253,8 @@ static void applyAppearance(BOOL dark) {
     /* The theme's colors over them; others it changed before, back. */
     NSDictionary *theme = appearanceTheme(dark);
     themeActive = [theme count] > 0;
+    [currentTheme release];
+    currentTheme = [theme retain];
     if (themeReplaced == nil)
         themeReplaced = [NSMutableDictionary new];
     for (NSString *key in [themeReplaced allKeys])
@@ -253,6 +285,16 @@ void _NSApplySystemAccentColors(void) {
     const NSAccentTones *tones = currentAccent();
     NSColor *accent = rgb(tones->accent, 1), *rows = rgb(tones->list, 1);
     NSColor *selection = currentHighlight() ?: rgb(tones->selection, 1);
+    NSColor *themeAccent = _NSAppearanceThemeColor(@"MinkarAccentColor");
+
+    /* An appearance theme's own accent (Atlas's blue) while none is chosen
+       in General: the controls, chosen rows and (unless a highlight is
+       chosen) the text's selection, lighter. One chosen there wins. */
+    if (themeAccent != nil && globalValue(CFSTR("AppleAccentColor")) == nil) {
+        accent = rows = themeAccent;
+        if (currentHighlight() == nil)
+            selection = [themeAccent blendedColorWithFraction:0.6 ofColor:[NSColor whiteColor]];
+    }
 
     /* In the dark, the highlight half as bright: light text stays legible. */
     if (appearanceDark)
@@ -263,7 +305,7 @@ void _NSApplySystemAccentColors(void) {
     [list setColor:accent forKey:@"controlAccentColor"];
     [list setColor:accent forKey:@"selectedMenuItemColor"];
     [list setColor:accent forKey:@"textInsertionPointColor"];
-    [list setColor:rgb(tones->accent, 0.5) forKey:@"keyboardFocusIndicatorColor"];
+    [list setColor:[accent colorWithAlphaComponent:0.5] forKey:@"keyboardFocusIndicatorColor"];
     [list setColor:rows forKey:@"selectedContentBackgroundColor"];
     [list setColor:rows forKey:@"alternateSelectedControlColor"];
     [list setColor:selection forKey:@"selectedTextBackgroundColor"];
