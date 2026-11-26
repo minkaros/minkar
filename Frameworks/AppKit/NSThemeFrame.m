@@ -169,18 +169,41 @@ static void setTitlebarFill(O2ContextRef context, CGFloat gray) {
 
 enum { kControlClose, kControlMini, kControlZoom };
 
-/* Atlas's window controls, drawn (no artwork): grey discs with their
- * sign, close rightmost, then zoom and minimize; close turns red under
- * the pointer; a control the window lacks is faint and has no sign. */
+/* An NSColor's components into the context's fill or stroke color. */
+static void setColor(O2Context *context, NSColor *color, BOOL stroke) {
+    CGFloat r = 0, g = 0, b = 0, a = 1;
+    NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+    if(rgb == nil)
+        rgb = [color colorUsingColorSpaceName:NSDeviceRGBColorSpace];
+    [rgb getRed:&r green:&g blue:&b alpha:&a];
+    if(stroke)
+        O2ContextSetRGBStrokeColor(context, r, g, b, a);
+    else
+        O2ContextSetRGBFillColor(context, r, g, b, a);
+}
+
+/* Atlas's window controls, drawn (no artwork): discs in the theme's
+ * control face with its darker border, as its buttons (light or dark),
+ * their sign in the controls' text color; under the pointer the pressed
+ * button's face, close red; a control the window lacks is faint and has
+ * no sign. */
 static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled, BOOL hover) {
     O2ContextSaveGState(context);
     if(!enabled)
-        O2ContextSetGrayFillColor(context, 0.86, 1);
+        setColor(context, _NSControlGray(0.90), NO);
     else if(hover && kind == kControlClose)
         O2ContextSetRGBFillColor(context, 0.86, 0.33, 0.29, 1);
     else
-        O2ContextSetGrayFillColor(context, hover ? 0.62 : 0.72, 1);
+        setColor(context, _NSControlGray(hover ? 0.84 : 1.0), NO);
     O2ContextFillEllipseInRect(context, rect);
+    /* The border, inside the disc: the theme's control border. */
+    if(hover && enabled && kind == kControlClose)
+        O2ContextSetRGBStrokeColor(context, 0.70, 0.22, 0.19, 1);
+    else
+        setColor(context, _NSControlGray(enabled ? 0.55 : 0.75), YES);
+    O2ContextSetLineWidth(context, 1);
+    O2ContextStrokeEllipseInRect(context, NSInsetRect(rect, 0.5, 0.5));
     if(enabled) {
         CGFloat inset = 3.5, midX = NSMidX(rect), midY = NSMidY(rect);
         CGFloat lo = NSMinX(rect) + inset, hi = NSMaxX(rect) - inset;
@@ -188,7 +211,10 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         O2Point lines[4];
         unsigned count = 0;
 
-        O2ContextSetGrayStrokeColor(context, (hover && kind == kControlClose) ? 1 : 0.22, 1);
+        if(hover && kind == kControlClose)
+            O2ContextSetGrayStrokeColor(context, 1, 1);
+        else
+            setColor(context, [NSColor controlTextColor], YES);
         O2ContextSetLineWidth(context, 1.5);
         O2ContextSetLineCap(context, kO2LineCapRound);
         switch(kind) {
