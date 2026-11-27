@@ -16,6 +16,7 @@ typedef NSString *AVCaptureSessionPreset;
 
 FOUNDATION_EXPORT AVCaptureDeviceType const AVCaptureDeviceTypeBuiltInWideAngleCamera;
 FOUNDATION_EXPORT AVCaptureDeviceType const AVCaptureDeviceTypeExternalUnknown;
+FOUNDATION_EXPORT AVCaptureDeviceType const AVCaptureDeviceTypeExternal;
 FOUNDATION_EXPORT AVCaptureDeviceType const AVCaptureDeviceTypeBuiltInMicrophone;
 
 FOUNDATION_EXPORT NSNotificationName const AVCaptureDeviceWasConnectedNotification;

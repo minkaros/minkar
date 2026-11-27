@@ -9,12 +9,17 @@
 #import <Foundation/NSRunLoop.h>
 #import <Foundation/NSString.h>
 #import <objc/runtime.h>
+#import <objc/runtime.h>
 #include <math.h>
 
 NSString * const kCAFilterLinear=@"linear";
 NSString * const kCAFilterNearest=@"nearest";
 NSString * const kCAFilterTrilinear=@"trilinear";
 
+CADynamicRange const CADynamicRangeAutomatic=@"automatic";
+CADynamicRange const CADynamicRangeStandard=@"standard";
+CADynamicRange const CADynamicRangeConstrainedHigh=@"constrainedHigh";
+CADynamicRange const CADynamicRangeHigh=@"high";
 NSString * const kCAGravityCenter=@"center";
 NSString * const kCAGravityTop=@"top";
 NSString * const kCAGravityBottom=@"bottom";
@@ -1100,3 +1105,18 @@ static void layerChanged(CALayer *layer) {
    if(view!=nil)
     [view performSelectorOnMainThread:@selector(_minkarLayerTreeDidChange) withObject:nil waitUntilDone:NO];
 }
+
+static char preferredDynamicRangeKey;
+
+@implementation CALayer (DynamicRange)
+
+-(CADynamicRange)preferredDynamicRange {
+   NSString *range=objc_getAssociatedObject(self,&preferredDynamicRangeKey);
+   return range!=nil?range:CADynamicRangeAutomatic;
+}
+
+-(void)setPreferredDynamicRange:(CADynamicRange)range {
+   objc_setAssociatedObject(self,&preferredDynamicRangeKey,range,OBJC_ASSOCIATION_COPY);
+}
+
+@end

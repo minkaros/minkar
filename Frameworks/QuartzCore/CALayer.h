@@ -50,6 +50,13 @@ CA_EXPORT NSString *const kCAGravityResize;
 CA_EXPORT NSString *const kCAGravityResizeAspect;
 CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 
+/* The range of brightness a layer's contents should be shown with. */
+typedef NSString *CADynamicRange;
+CA_EXPORT CADynamicRange const CADynamicRangeAutomatic;
+CA_EXPORT CADynamicRange const CADynamicRangeStandard;
+CA_EXPORT CADynamicRange const CADynamicRangeConstrainedHigh;
+CA_EXPORT CADynamicRange const CADynamicRangeHigh;
+
 @interface CALayer : NSObject {
     CALayerContext *_context;
     CALayer *_superlayer;
@@ -202,4 +209,10 @@ CA_EXPORT NSString *const kCAGravityResizeAspectFill;
 + (void)_minkarUnlockTree;
 /* Displays the tree's layers that need it (on the main thread). */
 - (void)_minkarDisplayTreeIfNeeded;
+@end
+
+@interface CALayer (DynamicRange)
+/* Kept and given back; the screens are shown in standard range, so the
+   contents are drawn as they are whatever is asked. */
+@property(copy) CADynamicRange preferredDynamicRange;
 @end

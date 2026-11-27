@@ -12,6 +12,7 @@
 #define KEY(name) NSString *const name = @#name
 KEY(AVCaptureDeviceTypeBuiltInWideAngleCamera);
 KEY(AVCaptureDeviceTypeExternalUnknown);
+KEY(AVCaptureDeviceTypeExternal);
 KEY(AVCaptureDeviceTypeBuiltInMicrophone);
 KEY(AVCaptureDeviceWasConnectedNotification);
 KEY(AVCaptureDeviceWasDisconnectedNotification);

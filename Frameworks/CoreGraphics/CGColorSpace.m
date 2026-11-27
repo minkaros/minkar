@@ -88,6 +88,9 @@ const CFStringRef kCGColorSpaceDisplayP3_HLG=CFSTR("kCGColorSpaceDisplayP3_HLG")
 const CFStringRef kCGColorSpaceDisplayP3_PQ_EOTF=CFSTR("kCGColorSpaceDisplayP3_PQ_EOTF");
 const CFStringRef kCGColorSpaceITUR_2020_HLG=CFSTR("kCGColorSpaceITUR_2020_HLG");
 const CFStringRef kCGColorSpaceITUR_2020_PQ_EOTF=CFSTR("kCGColorSpaceITUR_2020_PQ_EOTF");
+/* BT.2100: BT.2020 primaries with the HLG or PQ transfer. */
+const CFStringRef kCGColorSpaceITUR_2100_HLG=CFSTR("kCGColorSpaceITUR_2100_HLG");
+const CFStringRef kCGColorSpaceITUR_2100_PQ=CFSTR("kCGColorSpaceITUR_2100_PQ");
 const CFStringRef kCGColorSpaceExtendedLinearDisplayP3=CFSTR("kCGColorSpaceExtendedLinearDisplayP3");
 const CFStringRef kCGColorSpaceExtendedLinearITUR_2020=CFSTR("kCGColorSpaceExtendedLinearITUR_2020");
 const CFStringRef kCGColorSpaceGenericGray=CFSTR("kCGColorSpaceGenericGray");
@@ -158,7 +161,7 @@ const CFStringRef kCGColorSpaceGenericCMYK=CFSTR("kCGColorSpaceGenericCMYK");
 
 static O2ColorSpaceModel modelOfName(CFStringRef name) {
    static const CFStringRef *gray[]={&kCGColorSpaceGenericGray,&kCGColorSpaceGenericGrayGamma2_2,&kCGColorSpaceExtendedGray,&kCGColorSpaceLinearGray,&kCGColorSpaceExtendedLinearGray};
-   static const CFStringRef *rgb[]={&kCGColorSpaceSRGB,&kCGColorSpaceGenericRGB,&kCGColorSpaceGenericRGBLinear,&kCGColorSpaceAdobeRGB1998,&kCGColorSpaceDisplayP3,&kCGColorSpaceExtendedSRGB,&kCGColorSpaceLinearSRGB,&kCGColorSpaceExtendedLinearSRGB,&kCGColorSpaceITUR_709,&kCGColorSpaceITUR_2020,&kCGColorSpaceROMMRGB,&kCGColorSpaceDCIP3,&kCGColorSpaceACESCGLinear,&kCGColorSpaceGenericXYZ,&kCGColorSpaceDisplayP3_HLG,&kCGColorSpaceDisplayP3_PQ_EOTF,&kCGColorSpaceITUR_2020_HLG,&kCGColorSpaceITUR_2020_PQ_EOTF,&kCGColorSpaceExtendedLinearDisplayP3,&kCGColorSpaceExtendedLinearITUR_2020};
+   static const CFStringRef *rgb[]={&kCGColorSpaceSRGB,&kCGColorSpaceGenericRGB,&kCGColorSpaceGenericRGBLinear,&kCGColorSpaceAdobeRGB1998,&kCGColorSpaceDisplayP3,&kCGColorSpaceExtendedSRGB,&kCGColorSpaceLinearSRGB,&kCGColorSpaceExtendedLinearSRGB,&kCGColorSpaceITUR_709,&kCGColorSpaceITUR_2020,&kCGColorSpaceROMMRGB,&kCGColorSpaceDCIP3,&kCGColorSpaceACESCGLinear,&kCGColorSpaceGenericXYZ,&kCGColorSpaceDisplayP3_HLG,&kCGColorSpaceDisplayP3_PQ_EOTF,&kCGColorSpaceITUR_2020_HLG,&kCGColorSpaceITUR_2020_PQ_EOTF,&kCGColorSpaceITUR_2100_HLG,&kCGColorSpaceITUR_2100_PQ,&kCGColorSpaceExtendedLinearDisplayP3,&kCGColorSpaceExtendedLinearITUR_2020};
    size_t i;
 
    if(name==NULL)

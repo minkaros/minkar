@@ -80,6 +80,8 @@ COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceDisplayP3_HLG;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceDisplayP3_PQ_EOTF;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceITUR_2020_HLG;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceITUR_2020_PQ_EOTF;
+COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceITUR_2100_HLG;
+COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceITUR_2100_PQ;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceExtendedLinearDisplayP3;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceExtendedLinearITUR_2020;
 COREGRAPHICS_EXPORT const CFStringRef kCGColorSpaceGenericGray;
