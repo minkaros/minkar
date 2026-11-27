@@ -9,6 +9,8 @@
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSWorkspace.h>
+#import <AppKit/NSPasteboard.h>
+#import <AppKit/NSPreviewRepresentingActivityItem.h>
 #import <Foundation/Foundation.h>
 
 NSSharingServiceName const NSSharingServiceNameComposeEmail = @"NSSharingServiceNameComposeEmail";
@@ -26,6 +28,21 @@ NSSharingServiceName const NSSharingServiceNameCloudSharing = @"NSSharingService
 
 /* What an item says in a message: its text, a link's address, a file's path. */
 static NSString *textOfItem(id item) {
+    /* An item with a preview: the item inside. */
+    if ([item conformsToProtocol:@protocol(NSPreviewRepresentableActivityItem)])
+        item = [item item];
+    /* An object that writes itself to a pasteboard: its URL or text. */
+    if ([item conformsToProtocol:@protocol(NSPasteboardWriting)] && ![item isKindOfClass:[NSURL class]] &&
+        ![item isKindOfClass:[NSString class]] && ![item isKindOfClass:[NSAttributedString class]]) {
+        NSArray *types = [item writableTypesForPasteboard:[NSPasteboard generalPasteboard]];
+        for (NSString *type in @[ NSPasteboardTypeURL, NSPasteboardTypeString ])
+            if ([types containsObject:type]) {
+                id value = [item pasteboardPropertyListForType:type];
+                if ([value isKindOfClass:[NSString class]])
+                    return value;
+            }
+        return nil;
+    }
     if ([item isKindOfClass:[NSURL class]])
         return [item isFileURL] ? [item path] : [item absoluteString];
     if ([item isKindOfClass:[NSAttributedString class]])

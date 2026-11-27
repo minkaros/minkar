@@ -34,6 +34,10 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
 }
 
 #import <AppKit/NSWindow-Private.h>
+#import <AppKit/NSMenuItemBadge.h>
+
+/* Between a menu item's badge and its key equivalent. */
+static const CGFloat kBadgeGap = 10;
 #include <SkyLight/SkyLight.h>
 
 extern int _CGUsesSkyLight(void);
@@ -354,11 +358,21 @@ static void resetHelpMenu(NSMenu *menu) {
             maxTitleWidth = MAX(maxTitleWidth, titleAndIconWidth);
             height = MAX(height, size.height);
             
-            if([[item keyEquivalent] length] != 0)
             {
-                size = [[self graphicsStyle] menuItemTextSize:[item _keyEquivalentDescription]];
-                maxKeyWidth = MAX(maxKeyWidth, size.width);
-                height = MAX(height, size.height);
+                /* The key equivalent and the badge before it share the
+                   right side. */
+                float keyWidth = 0;
+                if([[item keyEquivalent] length] != 0) {
+                    size = [[self graphicsStyle] menuItemTextSize:[item _keyEquivalentDescription]];
+                    keyWidth = size.width;
+                    height = MAX(height, size.height);
+                }
+                if([[[item badge] stringValue] length] != 0) {
+                    size = [[self graphicsStyle] menuItemTextSize:[[item badge] stringValue]];
+                    keyWidth += size.width + (keyWidth > 0 ? kBadgeGap : 0);
+                    height = MAX(height, size.height);
+                }
+                maxKeyWidth = MAX(maxKeyWidth, keyWidth);
             }
             height = MAX(height, gutterSize.height);
             height = MAX(height, rightArrowSize.height);
@@ -851,16 +865,30 @@ static void resetHelpMenu(NSMenu *menu) {
             }
 			
             // Draw the key equivalent
+            CGFloat rightEdge = origin.x + NSWidth(itemArea) - [[self graphicsStyle] menuItemBranchArrowSize].width;
             if([[item keyEquivalent] length] != 0) {
                 NSString *keyString = [item _keyEquivalentDescription];
-                NSSize branchArrowSize = [[self graphicsStyle] menuItemBranchArrowSize];
                 NSSize keyEquivalentSize = [[self graphicsStyle] menuItemTextSize:keyString];
 				
-                partRect.origin.x = origin.x + NSWidth(itemArea) - branchArrowSize.width - keyEquivalentSize.width;
+                partRect.origin.x = rightEdge - keyEquivalentSize.width;
                 CENTER_PART_RECT_VERTICALLY(keyEquivalentSize);
                 [[self graphicsStyle] drawMenuItemText:keyString
                                                 inRect:partRect
                                                enabled:showsEnabled
+                                              selected:selected];
+                rightEdge = partRect.origin.x - kBadgeGap;
+            }
+
+            // The badge, before the key equivalent
+            if([[[item badge] stringValue] length] != 0) {
+                NSString *badgeString = [[item badge] stringValue];
+                NSSize badgeSize = [[self graphicsStyle] menuItemTextSize:badgeString];
+
+                partRect.origin.x = rightEdge - badgeSize.width;
+                CENTER_PART_RECT_VERTICALLY(badgeSize);
+                [[self graphicsStyle] drawMenuItemText:badgeString
+                                                inRect:partRect
+                                               enabled:NO
                                               selected:selected];
             }
 			

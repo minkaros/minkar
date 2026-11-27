@@ -285,6 +285,10 @@ SRCS = \
     NSPasteboardItem.m \
     NSAppearance.m \
     NSVisualEffectView.m \
+    NSGlassEffectView.m \
+    NSMenuItemBadge.m \
+    NSImageSymbolConfiguration.m \
+    NSPreviewRepresentingActivityItem.m \
     NSSplitViewController.m \
     NSTabViewController.m \
     NSWindow-Drag.m \
@@ -599,6 +603,10 @@ HEADERS = \
     NSPasteboardItem.h \
     NSAppearance.h \
     NSVisualEffectView.h \
+    NSGlassEffectView.h \
+    NSMenuItemBadge.h \
+    NSImageSymbolConfiguration.h \
+    NSPreviewRepresentingActivityItem.h \
     NSSplitViewController.h \
     NSTabViewController.h \
     NSWindow-Drag.h \
