@@ -1,7 +1,7 @@
 MK_WERROR = no
 
 LIB = System.B
-SRCS = init.c CompatibilityHacks.c stubs.c
+SRCS = init.c CompatibilityHacks.c stubs.c responsibility.c
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -w \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
