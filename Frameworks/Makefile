@@ -103,6 +103,7 @@ SUBDIR += Vision
 SUBDIR += IOBluetooth
 SUBDIR += MediaPlayer
 SUBDIR += AuthenticationServices
+SUBDIR += Accessibility
 SUBDIR += AVFoundation
 SUBDIR += AVKit
 # VLC's and UTM's interfaces link it (21 Nov 2026).
@@ -185,6 +186,7 @@ IOBluetooth: Foundation
 MediaPlayer: Foundation CoreGraphics
 ScriptingBridge: Foundation
 AuthenticationServices: Foundation
+Accessibility: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
 UniformTypeIdentifiers: Foundation CoreServices
