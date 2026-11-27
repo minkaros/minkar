@@ -11,6 +11,7 @@ recorded here when they are taken. A line that a later one replaces says so.
 | --- | --- | --- |
 | 2026-11-27 | Files' sidebar selection is the controls' blue (#31679e) with white text, in the light and dark appearances | [Atlas.md](Atlas.md) |
 | 2026-11-27 | 19.6.0 ships with `ProductFamily` "Pre Alpha" | [ROADMAP.md](ROADMAP.md#next-steps) |
+| 2026-11-27 | The boot screen: the loader draws it, the kernel's own bar goes on (`kern.boot_progress`; the window server sets 100); Option held or pressed again for the picker (firmware need not report a key held since power-on); development and test images stay verbose | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-27 | The graphical boot is part of 19.6.0, in the installed system and the installer; verbose stays optional | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-27 | Printing over USB (the USB user client, IOUSBLib, CUPS's USB backend) is part of 19.6.0 | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-26 | Firefox's own sources (MPL) and Mozilla's public symbols may be read to find what it expects of the system; the fixes go into Minkar, Firefox is not patched | [Compatibility.md](Compatibility.md) |
