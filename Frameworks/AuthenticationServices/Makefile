@@ -6,13 +6,24 @@
 # sign-on providers, web authentication sessions handed to the browser).
 # Minkar has no sign-on extensions and no broker for web authentication
 # sessions yet: requests are not handled, and none reach a browser.
+# Public key credentials (passkeys and security keys) have their full
+# request and credential classes, but no platform authenticator or CTAP
+# transport stands behind them yet, so every request ends not handled.
 
 MK_WERROR = no
 FRAMEWORK = AuthenticationServices
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = ASAuthorization.m
-HEADERS = AuthenticationServices.h ASAuthorization.h
+SRCS = ASAuthorization.m \
+	ASAuthorizationPublicKeyCredential.m \
+	ASAuthorizationPlatformPublicKeyCredential.m \
+	ASAuthorizationSecurityKeyPublicKeyCredential.m \
+	ASAuthorizationWebBrowserPublicKeyCredentialManager.m
+HEADERS = AuthenticationServices.h ASAuthorization.h \
+	ASAuthorizationPublicKeyCredential.h \
+	ASAuthorizationPlatformPublicKeyCredential.h \
+	ASAuthorizationSecurityKeyPublicKeyCredential.h \
+	ASAuthorizationWebBrowserPublicKeyCredentialManager.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks

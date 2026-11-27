@@ -5,3 +5,7 @@
  */
 
 #import <AuthenticationServices/ASAuthorization.h>
+#import <AuthenticationServices/ASAuthorizationPublicKeyCredential.h>
+#import <AuthenticationServices/ASAuthorizationPlatformPublicKeyCredential.h>
+#import <AuthenticationServices/ASAuthorizationSecurityKeyPublicKeyCredential.h>
+#import <AuthenticationServices/ASAuthorizationWebBrowserPublicKeyCredentialManager.h>

@@ -4,14 +4,10 @@
  * Part of Minkar.
  */
 
-#import <AuthenticationServices/AuthenticationServices.h>
+#import "ASAuthorizationInternal.h"
 
 NSString *const ASAuthorizationErrorDomain = @"com.apple.AuthenticationServices.AuthorizationError";
 NSString *const ASWebAuthenticationSessionErrorDomain = @"com.apple.AuthenticationServices.WebAuthenticationSession";
-
-@interface ASAuthorizationRequest ()
-- (instancetype)_initWithProvider:(id<ASAuthorizationProvider>)provider;
-@end
 
 @implementation ASAuthorizationRequest
 
@@ -96,27 +92,79 @@ NSString *const ASWebAuthenticationSessionErrorDomain = @"com.apple.Authenticati
 @end
 
 @implementation ASAuthorization
-@end
 
-@implementation ASAuthorizationController
-
-- (instancetype)initWithAuthorizationRequests:(NSArray<ASAuthorizationRequest *> *)authorizationRequests {
-    if ((self = [super init]) != nil)
-        _authorizationRequests = [authorizationRequests copy];
+- (instancetype)_initWithProvider:(id<ASAuthorizationProvider>)provider
+                       credential:(id<ASAuthorizationCredential>)credential {
+    if ((self = [super init]) != nil) {
+        _provider = provider;
+        _credential = credential;
+    }
     return self;
 }
 
-/* Nothing on the system handles these requests. */
-- (void)performRequests {
+@end
+
+@implementation ASAuthorizationController {
+    /* Bumped by every performRequests and cancel; a pending completion
+       whose number is no longer current has been superseded. */
+    NSUInteger _generation;
+    BOOL _inFlight;
+}
+
+- (instancetype)initWithAuthorizationRequests:(NSArray<ASAuthorizationRequest *> *)authorizationRequests {
+    if ((self = [super init]) != nil)
+        _authorizationRequests = [authorizationRequests copy] ?: @[];
+    return self;
+}
+
+/* Tells the delegate, on the main queue, unless superseded meanwhile. */
+- (void)_finishGeneration:(NSUInteger)generation withErrorCode:(ASAuthorizationError)code description:(NSString *)description {
     dispatch_async(dispatch_get_main_queue(), ^{
+        @synchronized (self) {
+            if (!self->_inFlight || self->_generation != generation)
+                return;
+            self->_inFlight = NO;
+        }
         id<ASAuthorizationControllerDelegate> delegate = self.delegate;
         if ([delegate respondsToSelector:@selector(authorizationController:didCompleteWithError:)])
             [delegate authorizationController:self didCompleteWithError:
-                [NSError errorWithDomain:ASAuthorizationErrorDomain code:ASAuthorizationErrorNotHandled userInfo:nil]];
+                [NSError errorWithDomain:ASAuthorizationErrorDomain code:code
+                                userInfo:@{ NSLocalizedDescriptionKey: description }]];
     });
 }
 
+/*
+ * Nothing on the system can satisfy a request yet: there are no sign-on
+ * extensions, no platform authenticator (passkeys kept by the system) and
+ * no CTAP transport to reach security keys over USB, NFC or Bluetooth.
+ * Every set of requests therefore ends, asynchronously on the main queue,
+ * with ASAuthorizationErrorNotHandled: the documented code for a request
+ * that no authorizer on the system handled. A browser turns that into the
+ * WebAuthn NotAllowedError, which is what the specification asks for when
+ * no authenticator is available.
+ */
+- (void)performRequests {
+    NSUInteger generation;
+    @synchronized (self) {
+        generation = ++_generation;
+        _inFlight = YES;
+    }
+    NSString *description = _authorizationRequests.count == 0
+        ? @"No authorization requests were given."
+        : @"No credential provider or authenticator on this system can handle the authorization requests.";
+    [self _finishGeneration:generation withErrorCode:ASAuthorizationErrorNotHandled description:description];
+}
+
+/* Ends a request still in flight with ASAuthorizationErrorCanceled. */
 - (void)cancel {
+    NSUInteger generation;
+    @synchronized (self) {
+        if (!_inFlight)
+            return;
+        generation = ++_generation;
+    }
+    [self _finishGeneration:generation withErrorCode:ASAuthorizationErrorCanceled
+                description:@"The authorization requests were canceled."];
 }
 
 @end

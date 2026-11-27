@@ -18,7 +18,12 @@ typedef NS_ENUM(NSInteger, ASAuthorizationError) {
     ASAuthorizationErrorNotHandled = 1003,
     ASAuthorizationErrorFailed = 1004,
     ASAuthorizationErrorNotInteractive = 1005,
+    ASAuthorizationErrorMatchedExcludedCredential = 1006,
 };
+
+/* The window an authorization's user interface is attached to. */
+@class NSWindow;
+typedef NSWindow *ASPresentationAnchor;
 
 typedef NS_ENUM(NSInteger, ASWebAuthenticationSessionErrorCode) {
     ASWebAuthenticationSessionErrorCodeCanceledLogin = 1,
@@ -77,6 +82,7 @@ typedef NS_ENUM(NSInteger, ASWebAuthenticationSessionErrorCode) {
 @end
 
 @protocol ASAuthorizationControllerPresentationContextProviding <NSObject>
+- (ASPresentationAnchor)presentationAnchorForAuthorizationController:(ASAuthorizationController *)controller;
 @end
 
 @interface ASAuthorizationController : NSObject
