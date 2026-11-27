@@ -23,7 +23,7 @@
 		<key>MinkarProgressColor</key>
 		<string>0.475 0.475 0.475</string>
 		<key>MinkarSidebarSelectionColor</key>
-		<string>0.471 0.471 0.471</string>
+		<string>0.192 0.404 0.627</string>
 		<key>MinkarSliderFillColor</key>
 		<string>0.486 0.486 0.486</string>
 		<key>MinkarSwitchOnColor</key>
@@ -96,7 +96,7 @@
 		<key>MinkarProgressColor</key>
 		<string>0.463 0.463 0.463</string>
 		<key>MinkarSidebarSelectionColor</key>
-		<string>0.455 0.455 0.455</string>
+		<string>0.192 0.404 0.620</string>
 		<key>MinkarSliderFillColor</key>
 		<string>0.475 0.475 0.475</string>
 		<key>MinkarSwitchOnColor</key>

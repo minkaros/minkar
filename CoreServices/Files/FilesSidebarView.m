@@ -76,7 +76,8 @@ static const CGFloat kRow = 24, kSection = 26;
             continue;
         }
         /* The folder shown: a grey row, or the appearance's own color for
-           it (Atlas's: grey, with white text, chosen 25 Nov 2026). */
+           it (Atlas's: the controls' blue, with white text, in the light
+           and dark appearances; the maintainer's choice, 27 Nov 2026). */
         NSColor *chosen = _NSAppearanceThemeColor(@"MinkarSidebarSelectionColor");
         /* Compared resolved: the home folder is /var/root, the folder
            shown /private/var/root (/var is a link). */

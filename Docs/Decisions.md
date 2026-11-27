@@ -9,6 +9,7 @@ recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-27 | Files' sidebar selection is the controls' blue (#31679e) with white text, in the light and dark appearances | [Atlas.md](Atlas.md) |
 | 2026-11-27 | 19.6.0 ships with `ProductFamily` "Pre Alpha" | [ROADMAP.md](ROADMAP.md#next-steps) |
 | 2026-11-27 | The graphical boot is part of 19.6.0, in the installed system and the installer; verbose stays optional | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-27 | Printing over USB (the USB user client, IOUSBLib, CUPS's USB backend) is part of 19.6.0 | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
