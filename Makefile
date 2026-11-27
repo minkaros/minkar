@@ -172,7 +172,7 @@ progress: .PHONY
 
 # Bootable disk image and QEMU boot test (Image/Makefile). Not part of
 # "world": they need root, network access for the EFI loader, and time.
-efiloader image installer-image boottest boottest-key: .PHONY
+efiloader image installer-image release-image boottest boottest-key: .PHONY
 	${MAKE} -C ${.CURDIR}/Image ${.TARGET}
 
 # ------------------------------------------------------------------------

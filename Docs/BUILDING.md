@@ -277,6 +277,22 @@ temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 `/sbin/launchd` instead.
 
+## The installation medium and the release image
+
+    sudo env SUBDIR= INIT= bmake -m /work/minkar/BSD/share/mk installer-image
+    sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk release-image
+
+`installer-image` writes `../build/MinkarInstaller.img`, the medium that
+starts the Installer (written to a USB stick as it is); the system it
+installs is a copy of the medium's own. `release-image` makes the medium
+that is published, `../build/Minkar-<version>.img`: launchd itself as PID 1,
+no ssh keys for root, and nothing of the tests (`/usr/local`, left out with
+`mkdiskimage.py --exclude`). Then `Image/check-release.sh` mounts it
+read-only and checks that it has no test accounts, no password, key or ssh
+login for root, no automatic login, nothing of `/usr/local`, a graphical
+boot, and the version and family of the top Makefile (`PROD_VERSION`,
+`PROD_FAMILY`).
+
 ## Common errors
 
 * `Could not find bsd.mkopt.mk` (and `bsd.opts.mk`, `bsd.linker.mk`)\

@@ -219,6 +219,9 @@ INSTALLER_ARGS =	--root-authorized-keys ${INSTALLER_ROOT_AUTHORIZED_KEYS} --ssh-
 .if !empty(INIT)
 INSTALLER_ARGS +=	--init ${INIT}
 .endif
+# Paths of the system left off the medium (and so off the systems it
+# installs).
+INSTALLER_EXCLUDE ?=
 
 installer-image: ${LOADER} ${PICKER_ICONS}/.done
 	${PYTHON} ${.CURDIR:H}/tools/mktrustcache.py \
@@ -228,7 +231,19 @@ installer-image: ${LOADER} ${PICKER_ICONS}/.done
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${INSTALLER_IMAGE} \
 	    --picker-icons ${PICKER_ICONS} \
 	    --size-mb ${INSTALLER_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${INSTALLER_BOOT_ARGS}" \
-	    --graphics-mode ${INSTALLER_GRAPHICS_MODE} --installer-medium ${INSTALLER_ARGS}
+	    --graphics-mode ${INSTALLER_GRAPHICS_MODE} --installer-medium ${INSTALLER_ARGS} \
+	    ${INSTALLER_EXCLUDE:S/^/--exclude /}
+
+# The release: the installation medium with nothing of the development
+# images. launchd itself as PID 1 (no INIT), no ssh keys for root, and
+# nothing of the tests (/usr/local: Tests/W0, W1 and the test tools), then
+# checked (check-release.sh). Named after the version.
+RELEASE_IMAGE ?=	${ROOT_BINARY_DIR}/Minkar-${PROD_VERSION}.img
+RELEASE_EXCLUDE ?=	/usr/local
+release-image: .PHONY
+	${MAKE} -C ${.CURDIR} installer-image INIT= INSTALLER_ROOT_AUTHORIZED_KEYS= \
+	    INSTALLER_IMAGE=${RELEASE_IMAGE} INSTALLER_EXCLUDE="${RELEASE_EXCLUDE}"
+	sh ${.CURDIR}/check-release.sh ${RELEASE_IMAGE} "${PROD_VERSION}" "${PROD_FAMILY}"
 
 boottest-key:
 	test -f ${BOOTTEST_KEY} || { mkdir -p ${BOOTTEST_KEY:H} && \

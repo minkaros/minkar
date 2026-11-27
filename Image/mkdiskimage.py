@@ -131,8 +131,16 @@ def case_collisions(tree):
     return drop, conflicts
 
 
-def copy_tree(src, dst):
-    """Copy src into dst keeping owners, modes and symbolic links (needs root)."""
+def excluded(path, leave_out):
+    """Whether path (relative to the sysroot, without its leading './') is
+    one of leave_out (absolute paths in the image) or inside one."""
+    path = '/' + os.path.normpath(path).lstrip('/')
+    return any(path == p or path.startswith(p.rstrip('/') + '/') for p in leave_out)
+
+
+def copy_tree(src, dst, leave_out=()):
+    """Copy src into dst keeping owners, modes and symbolic links (needs
+    root), without the paths in leave_out (absolute, in the image)."""
     drop, conflicts = case_collisions(src)
     if conflicts:
         raise SystemExit('names that differ only in case cannot share a volume:\n' +
@@ -142,6 +150,8 @@ def copy_tree(src, dst):
     excludes = []
     for path in drop:
         excludes += ['--exclude', './' + path]
+    for path in leave_out:
+        excludes += ['--exclude', './' + path.strip('/')]
     # Hard links become separate files (about 6 MB more): Linux's hfsplus
     # driver makes link records without the link-chain flag Darwin's HFS
     # expects, so the kernel logged "hfs: set hardlink bit" on the console,
@@ -328,13 +338,16 @@ def boot_plist(boot_args, volume_uuid, loader_pause=0, graphics_mode=None, volum
     return plistlib.dumps(config, fmt=plistlib.FMT_XML)
 
 
-def content_size_mb(sysroot, esp_mb):
+def content_size_mb(sysroot, esp_mb, leave_out=()):
     """A disk just large enough for the sysroot: its files in HFS+'s 4 KB
     blocks, a quarter more for the catalog, the journal and what the
     system writes while it runs (logs, caches), 256 MB more, and the EFI
     partition, rounded up to 64 MB."""
     total = 0
     for parent, dirs, files in os.walk(sysroot):
+        rel = os.path.relpath(parent, sysroot)
+        dirs[:] = [d for d in dirs if not excluded(os.path.join(rel, d), leave_out)]
+        files = [f for f in files if not excluded(os.path.join(rel, f), leave_out)]
         for name in files + dirs:
             try:
                 st = os.lstat(os.path.join(parent, name))
@@ -353,7 +366,7 @@ def build(args):
     if os.geteuid() != 0:
         raise SystemExit('must run as root (loop devices and mounts)')
     if args.size_mb == 0:
-        args.size_mb = content_size_mb(args.sysroot, args.esp_mb)
+        args.size_mb = content_size_mb(args.sysroot, args.esp_mb, args.exclude)
         print('size: %d MB (the sysroot\'s content)' % args.size_mb)
 
     volume_id = bytes.fromhex(args.volume_id) if args.volume_id else os.urandom(8)
@@ -413,7 +426,7 @@ def build(args):
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)
         mounts.append(root_dir)
         # HFS+ stores BSD owners and modes; tar as root keeps them.
-        copy_tree(args.sysroot, root_dir)
+        copy_tree(args.sysroot, root_dir, args.exclude)
         # Mount points the kernel needs before userland runs (devfs on /dev).
         for mount_point in MOUNT_POINTS:
             path = os.path.join(root_dir, mount_point)
@@ -496,6 +509,9 @@ def main(argv=None):
     p.add_argument('--loader-pause', type=int, default=0, metavar='SECONDS',
                    help='keep the loader output on screen before the kernel '
                         'starts (hardware tests)')
+    p.add_argument('--exclude', action='append', default=[], metavar='PATH',
+                   help='leave this path of the image (absolute, e.g. /usr/local) out of the '
+                   'root volume; may be repeated')
     p.add_argument('--installer-medium', action='store_true',
                    help='the installation medium: it starts the Installer (no Setup, no accounts)')
     p.add_argument('--graphics-mode', metavar='WxH|max',
