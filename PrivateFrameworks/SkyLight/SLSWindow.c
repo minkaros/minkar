@@ -377,3 +377,42 @@ SLSGetStatusItemPosition(SLSWindowID window, double *position)
 		*position = placed;
 	return result;
 }
+
+int
+SLSSetWindowTitle(SLSWindowID window, const char *title)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	char text[256];
+	size_t n = title != NULL ? strlen(title) : 0;
+
+	if (n > sizeof(text) - 1) {
+		/* Cut at a character: not inside a UTF-8 sequence. */
+		n = sizeof(text) - 1;
+		while (n > 0 && ((unsigned char)title[n] & 0xC0) == 0x80)
+			n--;
+	}
+	if (n > 0)
+		memcpy(text, title, n);
+	text[n] = 0;
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_title(server, window, text, (mach_msg_type_number_t)n + 1, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+char *
+SLSCopyWindowTitle(SLSWindowID window)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	char text[256];
+	mach_msg_type_number_t n = sizeof(text);
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_get_title(server, window, &result, text, &n) != KERN_SUCCESS ||
+	    result != kSLSErrorSuccess || n == 0)
+		return NULL;
+	text[n < sizeof(text) ? n : sizeof(text) - 1] = 0;
+	return text[0] != 0 ? strdup(text) : NULL;
+}

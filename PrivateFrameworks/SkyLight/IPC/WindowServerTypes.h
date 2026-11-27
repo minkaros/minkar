@@ -52,6 +52,8 @@ typedef SLSWindowLayer ws_window_layer_list_t[kSLSMaxWindowLayers];
 typedef SLSEventTapInfo ws_tap_list_t[kSLSMaxEventTaps];
 /* A window image, out of line. */
 typedef uint8_t *ws_pixels_t;
+/* A window title, UTF-8 with its NUL (window_set_title, window_get_title). */
+typedef char ws_window_title_t[256];
 
 
 #endif

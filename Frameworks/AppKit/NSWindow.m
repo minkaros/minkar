@@ -1361,6 +1361,11 @@ static NSWindow *deferWSFrameOf;
 /* The title (and the edited mark, which the frame draws) to the window
  * server and on the bar again. */
 -(void)_updatePlatformWindowTitle {
+    /* The server keeps it for the window list (kCGWindowName): the
+       Window menus of others, screen sharing's choice of windows. */
+    SLSWindowID window=[self _skyLightWindowID];
+    if(window!=0)
+        SLSSetWindowTitle(window,[_title length]>0?[_title UTF8String]:NULL);
     [self _updateWSState];
     [_backgroundView setNeedsDisplay:YES];
 }

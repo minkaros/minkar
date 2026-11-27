@@ -84,6 +84,7 @@ type ws_tap_info_t = struct[12] of uint32_t
 	ctype: SLSEventTapInfo;
 type ws_tap_list_t = array[*:32] of ws_tap_info_t;
 type ws_pixels_t = ^array[] of uint8_t;
+type ws_window_title_t = array[*:256] of char;
 type ws_hid_state_t = struct[104] of uint32_t
 	ctype: SLSHIDState;
 
@@ -746,3 +747,20 @@ routine hotkey_set(
 	modifiers		: uint32_t;
 	enabled			: int32_t;
 	out result		: int32_t);
+
+/* ---- Window titles (interface version 27) ---- */
+
+/* A window's title, UTF-8, at most 255 bytes: see SLSSetWindowTitle. */
+routine window_set_title(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	title			: ws_window_title_t;
+	out result		: int32_t);
+
+/* Any window's title: see SLSCopyWindowTitle. */
+routine window_get_title(
+	server			: mach_port_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out title		: ws_window_title_t);

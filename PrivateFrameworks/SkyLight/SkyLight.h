@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	26
+#define kSLSInterfaceVersion	27
 
 typedef int32_t SLSConnectionID;
 
@@ -434,6 +434,13 @@ int SLSMoveStatusItem(SLSWindowID window, double x, double *position);
 /* Its position now: an app keeps all its items' after a move, so they
  * come back in the same order. */
 int SLSGetStatusItemPosition(SLSWindowID window, double *position);
+
+/* A window's title, which the window list gives others
+ * (kCGWindowName): set by its owner (UTF-8; longer than 255 bytes is
+ * cut at a character), read by anyone. NULL or "" clears it. */
+int SLSSetWindowTitle(SLSWindowID window, const char *title);
+/* The title, a new string (free it), or NULL when it has none. */
+char *SLSCopyWindowTitle(SLSWindowID window);
 
 /*
  * Minimized windows (interface version 9), for the Dock, which keeps them

@@ -1423,3 +1423,42 @@ wss_status_item_get_position(mach_port_t server, audit_token_t token, uint32_t w
 		*position = statusPosition(w);
 	return KERN_SUCCESS;
 }
+
+kern_return_t
+wss_window_set_title(mach_port_t server, audit_token_t token, uint32_t window, char *title,
+    mach_msg_type_number_t length, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	(void)server;
+	if (w == nil)
+		return KERN_SUCCESS;
+	NSString *text = length > 0 ? [[NSString alloc] initWithBytes:title length:strnlen(title, length)
+	    encoding:NSUTF8StringEncoding] : nil;
+	w.title = text.length > 0 ? text : nil;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_get_title(mach_port_t server, uint32_t window, int32_t *result, char *title,
+    mach_msg_type_number_t *length)
+{
+	WSWindow *w = windowWithID(window);
+	const char *text = w.title.UTF8String;
+	size_t n = text != NULL ? strlen(text) : 0;
+
+	(void)server;
+	*length = 0;
+	if (w == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	if (n > 255)
+		n = 255;
+	memcpy(title, text != NULL ? text : "", n);
+	title[n] = 0;
+	*length = (mach_msg_type_number_t)n + 1;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}

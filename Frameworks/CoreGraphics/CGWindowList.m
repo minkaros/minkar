@@ -128,6 +128,16 @@ static CFDictionaryRef copy_sls_description(SLSWindowID window)
             CFRelease(name);
         }
     }
+    /* Its title, when its owner gave one. */
+    char *title = SLSCopyWindowTitle(info.window);
+    if (title != NULL) {
+        CFStringRef name = CFStringCreateWithCString(NULL, title, kCFStringEncodingUTF8);
+        if (name != NULL) {
+            CFDictionarySetValue(d, kCGWindowName, name);
+            CFRelease(name);
+        }
+        free(title);
+    }
     /* As on the reference platform, only present for on-screen windows. */
     if (info.flags & kSLSWindowOnScreen)
         CFDictionarySetValue(d, kCGWindowIsOnscreen, kCFBooleanTrue);

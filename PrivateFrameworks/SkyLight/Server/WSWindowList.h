@@ -59,6 +59,8 @@
 @property BOOL hiddenWithParent;
 /* Its drag regions (SLSIntRect arrays, window coordinates). */
 @property (copy) NSData *dragRects;
+/* Its title, as its owner set it (the window list's kCGWindowName). */
+@property (copy) NSString *title;
 @property (copy) NSData *dragExcludes;
 
 /* Whether (x, y), in the window's coordinates, starts a server-side move. */
