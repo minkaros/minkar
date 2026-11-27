@@ -279,6 +279,7 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 + (NSArray *)imageUnfilteredTypes;
 + (BOOL)canInitWithPasteboard:(NSPasteboard *)pasteboard;
 @property (copy) NSString *accessibilityDescription;
+@property NSRect alignmentRect;
 
 /* Minkar: as properties too, for dot syntax. */
 @property (getter=isCachedSeparately) BOOL cachedSeparately;

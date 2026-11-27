@@ -83,3 +83,10 @@ typedef enum {
 @property BOOL usesItemFromMenu;
 
 @end
+
+@interface NSPopUpButtonCell (MinkarAttachedPopUp)
+@property BOOL altersStateOfSelectedItem;
+-(void)attachPopUpWithFrame:(NSRect)frame inView:(NSView *)view;
+-(void)dismissPopUp;
+-(void)performClickWithFrame:(NSRect)frame inView:(NSView *)view;
+@end

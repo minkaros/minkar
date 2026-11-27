@@ -329,6 +329,16 @@ NSEvent *NSEventRunLocalMonitors(NSEvent *event) {
    return 0;
 }
 
+/* A pen's tilt and its barrel pressure: no tablet is driven yet, so
+   every event is a mouse's, upright and without them. */
+-(NSPoint)tilt {
+   return NSZeroPoint;
+}
+
+-(float)tangentialPressure {
+   return 0;
+}
+
 -(CGFloat)scrollingDeltaX {
    return [self deltaX];
 }

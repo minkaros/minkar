@@ -75,3 +75,7 @@ APPKIT_EXPORT NSString *const NSPopoverDidCloseNotification;
 - (void)popoverWillClose:(NSNotification *)notification;
 - (void)popoverDidClose:(NSNotification *)notification;
 @end
+
+@interface NSPopover (MinkarHideAnchor)
+@property BOOL shouldHideAnchor;
+@end

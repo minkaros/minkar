@@ -39,6 +39,12 @@ static NSPrintOperation *_currentOperation=nil;
    return _currentOperation;
 }
 
+/* The operation the panels and the views being printed read; an app may
+   set it (Firefox does, around its print panel). Not retained. */
++(void)setCurrentOperation:(NSPrintOperation *)operation {
+   _currentOperation=operation;
+}
+
 -initWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo insideRect:(NSRect)rect toData:(NSMutableData *)data type:(NSInteger)type {
    _view=[view retain];
    _printInfo=[printInfo copy];

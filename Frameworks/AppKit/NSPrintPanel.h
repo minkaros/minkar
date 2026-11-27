@@ -4,7 +4,7 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSSet.h>
-@class NSMutableDictionary, NSViewController;
+@class NSMutableDictionary, NSViewController, NSPrintInfo, NSWindow;
 
 enum {
 
@@ -31,6 +31,9 @@ typedef NSInteger NSPrintPanelOptions;
 - (NSPrintPanelOptions)options;
 
 - (NSInteger)runModal;
+- (NSInteger)runModalWithPrintInfo:(NSPrintInfo *)printInfo;
+- (void)beginSheetWithPrintInfo:(NSPrintInfo *)printInfo modalForWindow:(NSWindow *)window delegate:delegate
+                didEndSelector:(SEL)didEndSelector contextInfo:(void *)contextInfo;
 
 - (void)updateFromPrintInfo;
 - (void)finalWritePrintInfo;

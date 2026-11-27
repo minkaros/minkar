@@ -1163,3 +1163,19 @@ static char accessibilityDescriptionKey;
 }
 
 @end
+
+/* The image's alignment rectangle: its whole size unless set. */
+static char alignmentRectKey;
+
+@implementation NSImage (MinkarAlignmentRect)
+
+-(NSRect)alignmentRect {
+   NSValue *rect=objc_getAssociatedObject(self,&alignmentRectKey);
+   return rect!=nil?[rect rectValue]:NSMakeRect(0,0,[self size].width,[self size].height);
+}
+
+-(void)setAlignmentRect:(NSRect)rect {
+   objc_setAssociatedObject(self,&alignmentRectKey,[NSValue valueWithRect:rect],OBJC_ASSOCIATION_RETAIN);
+}
+
+@end

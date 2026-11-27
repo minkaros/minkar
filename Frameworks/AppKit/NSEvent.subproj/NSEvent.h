@@ -356,6 +356,8 @@ typedef NS_ENUM(short, NSEventSubtype) {
 @property (readonly) NSInteger buttonNumber;
 @property (readonly) NSInteger eventNumber;
 @property (readonly) float pressure;
+@property (readonly) NSPoint tilt;
+@property (readonly) float tangentialPressure;
 @property (readonly) CGFloat deltaX;
 @property (readonly) CGFloat deltaY;
 @property (readonly) CGFloat deltaZ;

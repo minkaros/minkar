@@ -26,6 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 + (NSPrintOperation *)currentOperation;
++ (void)setCurrentOperation:(NSPrintOperation *)operation;
 
 + (NSPrintOperation *)printOperationWithView:(NSView *)view;
 + (NSPrintOperation *)printOperationWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo;

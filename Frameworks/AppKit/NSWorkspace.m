@@ -1007,3 +1007,41 @@ static NSDictionary *launchConfigurationOfConfiguration(NSWorkspaceOpenConfigura
 -(BOOL)accessibilityDisplayShouldReduceMotion { return NO; }
 -(BOOL)accessibilityDisplayShouldInvertColors { return NO; }
 @end
+
+/* The items to the Trash (each user's, as the file manager's command
+   does), and the handler called on the main queue with where each went;
+   the error is the first one met, the others still moved. */
+@implementation NSWorkspace (MinkarRecycle)
+
+-(void)recycleURLs:(NSArray *)urls completionHandler:(void (^)(NSDictionary *newURLs, NSError *error))handler {
+   NSArray *items=[[urls copy] autorelease];
+   void (^done)(NSDictionary *, NSError *)=[[handler copy] autorelease];
+
+   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),^{
+      NSMutableDictionary *moved=[NSMutableDictionary dictionary];
+      NSError *first=nil;
+      NSFileManager *manager=[[[NSFileManager alloc] init] autorelease];
+
+      for(NSURL *url in items){
+       NSURL   *result=nil;
+       NSError *error=nil;
+       if([manager trashItemAtURL:url resultingItemURL:&result error:&error]){
+        if(result!=nil)
+         [moved setObject:result forKey:url];
+       }
+       else if(first==nil)
+        first=error;
+      }
+      if(done!=nil){
+       [moved retain];
+       [first retain];
+       dispatch_async(dispatch_get_main_queue(),^{
+          done(moved,first);
+          [moved release];
+          [first release];
+       });
+      }
+   });
+}
+
+@end

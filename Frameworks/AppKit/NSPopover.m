@@ -9,6 +9,7 @@
  * elsewhere) or on Escape.
  */
 
+#import <objc/runtime.h>
 #import <AppKit/NSPopover.h>
 #import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSApplication.h>
@@ -42,6 +43,7 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
 @public
     NSRectEdge _arrowEdge;   /* the bubble's side the arrow leaves from */
     CGFloat _arrowPosition;  /* along that side, from its start */
+    BOOL _hidesArrow;        /* the bubble alone (shouldHideAnchor) */
 }
 @end
 
@@ -112,6 +114,8 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     [bubble fill];
     [border setStroke];
     [bubble stroke];
+    if(_hidesArrow)
+        return;
     [arrow closePath];
     [fill setFill];
     [arrow fill];
@@ -304,6 +308,7 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     frame = NSIntegralRect(frame);
 
     /* The arrow leaves the bubble on the side facing the anchor. */
+    frameView->_hidesArrow = [self shouldHideAnchor];
     switch(edge) {
         case NSMaxYEdge: frameView->_arrowEdge = NSMinYEdge; break;
         case NSMinYEdge: frameView->_arrowEdge = NSMaxYEdge; break;
@@ -398,6 +403,22 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     [[_positioningView window] makeKeyWindow];
     [self _post:NSPopoverDidCloseNotification selector:@selector(popoverDidClose:) userInfo:info];
     [self autorelease];
+}
+
+@end
+
+/* Whether the popover is drawn without the arrow to what it is shown
+   for (Firefox's panels are). */
+static char shouldHideAnchorKey;
+
+@implementation NSPopover (MinkarHideAnchor)
+
+- (BOOL)shouldHideAnchor {
+    return [objc_getAssociatedObject(self, &shouldHideAnchorKey) boolValue];
+}
+
+- (void)setShouldHideAnchor:(BOOL)flag {
+    objc_setAssociatedObject(self, &shouldHideAnchorKey, [NSNumber numberWithBool:flag], OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

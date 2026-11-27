@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <dispatch/dispatch.h>
 #import <AppKit/NSSpellChecker.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSMenu.h>
@@ -405,11 +406,15 @@ static NSSpellChecker *shared=nil;
 	return 0;
 }
 
-#ifdef NS_BLOCKS
+/* Automatic correction is off in Minkar (no corrections are offered),
+   so no indicator is shown: the handler hears, on the main queue, that
+   no string was accepted, as when the user dismisses one. */
 -(void)showCorrectionIndicatorOfType:(NSCorrectionIndicatorType)type primaryString:(NSString *)primaryString alternativeStrings:(NSArray *)alternativeStrings forStringInRect:(NSRect)rect view:(NSView *)view completionHandler:(void (^)(NSString *acceptedString))completionBlock {
-	NSUnimplementedMethod();
+	if(completionBlock!=nil){
+	 void (^handler)(NSString *)=[[completionBlock copy] autorelease];
+	 dispatch_async(dispatch_get_main_queue(),^{ handler(nil); });
+	}
 }
-#endif
 
 -(NSString *)correctionForWordRange:(NSRange)range inString:(NSString *)string language:(NSString *)language inSpellDocumentWithTag:(NSInteger)tag {
 	NSUnimplementedMethod();
@@ -420,8 +425,8 @@ static NSSpellChecker *shared=nil;
 	NSUnimplementedMethod();
 }
 
+/* No indicator is ever shown (above): nothing to dismiss. */
 -(void)dismissCorrectionIndicatorForView:(NSView *)view {
-	NSUnimplementedMethod();
 }
 
 #pragma mark -

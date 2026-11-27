@@ -19,6 +19,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSRaise.h>
 #import <objc/runtime.h>
+#import <AppKit/NSApplication.h>
+#import <AppKit/NSWindow.h>
 
 static char menuItemKey;
 
@@ -742,4 +744,65 @@ static char menuItemKey;
    objc_setAssociatedObject(self,&menuItemKey,item,OBJC_ASSOCIATION_RETAIN);
    [self synchronizeTitleAndSelectedItem];
 }
+@end
+
+/* Minkar: a cell shown without a control of its own (Firefox opens its
+   <select> menus so): the frame and view it is attached to, the menu
+   popped up there, and whether choosing an item changes its state. */
+
+static char attachedViewKey, attachedFrameKey, altersStateKey;
+
+@implementation NSPopUpButtonCell (MinkarAttachedPopUp)
+
+-(BOOL)altersStateOfSelectedItem {
+   NSNumber *value=objc_getAssociatedObject(self,&altersStateKey);
+   return value!=nil?[value boolValue]:YES;
+}
+
+/* Minkar's pop-up menus mark no item as chosen, so NO is how they are
+   shown already; the setting is kept and reported. */
+-(void)setAltersStateOfSelectedItem:(BOOL)flag {
+   objc_setAssociatedObject(self,&altersStateKey,[NSNumber numberWithBool:flag],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(void)attachPopUpWithFrame:(NSRect)frame inView:(NSView *)view {
+   objc_setAssociatedObject(self,&attachedViewKey,view,OBJC_ASSOCIATION_ASSIGN);
+   objc_setAssociatedObject(self,&attachedFrameKey,[NSValue valueWithRect:frame],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(void)dismissPopUp {
+   objc_setAssociatedObject(self,&attachedViewKey,nil,OBJC_ASSOCIATION_ASSIGN);
+   objc_setAssociatedObject(self,&attachedFrameKey,nil,OBJC_ASSOCIATION_RETAIN);
+}
+
+/* The menu at the frame (under it pulled down, over it with the chosen
+   item in place otherwise), until an item is chosen or it is dismissed;
+   the chosen item's action is sent and, unless pulled down, it becomes the
+   selected one. */
+-(void)performClickWithFrame:(NSRect)frame inView:(NSView *)view {
+   NSMenu *menu=_menu;
+
+   if(view==nil || [view window]==nil || [menu numberOfItems]==0)
+    return;
+   if(_pullsDown){
+    menu=[[_menu copy] autorelease];
+    [menu removeItemAtIndex:0];
+   }
+   NSRect onScreen=[view convertRect:frame toView:nil];
+   onScreen.origin=[[view window] convertBaseToScreen:onScreen.origin];
+   NSMenuItem *positioned=nil;
+   if(!_pullsDown && _selectedIndex>=0 && _selectedIndex<[menu numberOfItems])
+    positioned=[menu itemAtIndex:_selectedIndex];
+   NSPoint at=_pullsDown?NSMakePoint(NSMinX(onScreen),NSMinY(onScreen)):NSMakePoint(NSMinX(onScreen),NSMaxY(onScreen));
+
+   NSMenuItem *item=[menu _popUpAtScreenPoint:at positioning:positioned event:[NSApp currentEvent]
+      startedOpen:NO minimumWidth:onScreen.size.width flips:NO perform:YES];
+   if(item!=nil && !_pullsDown){
+    NSInteger index=[menu indexOfItem:item];
+    if(index!=NSNotFound)
+     [self selectItemAtIndex:index];
+   }
+   [self dismissPopUp];
+}
+
 @end

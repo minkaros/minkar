@@ -11,6 +11,9 @@
  */
 
 #import <AppKit/NSPrintPanel.h>
+#import <objc/runtime.h>
+#import <objc/message.h>
+#include <dispatch/dispatch.h>
 #import <AppKit/NSPrintOperation.h>
 #import <AppKit/NSPrintInfo.h>
 #import <AppKit/NSPrinter.h>
@@ -170,7 +173,7 @@ static NSTextField *printLabel(NSString *title, NSRect frame, NSView *view) {
    if(c->_savePDF){
     /* PDF: where a save panel says, named after the job. */
     NSSavePanel *save=[NSSavePanel savePanel];
-    NSString *title=[[[NSPrintOperation currentOperation] printInfo] dictionary][@"_title"] ?: @"Untitled";
+    NSString *title=[[self _printInfo] dictionary][@"_title"] ?: @"Untitled";
     [save setAllowedFileTypes:[NSArray arrayWithObject:@"pdf"]];
     [save setNameFieldStringValue:[[title stringByDeletingPathExtension] stringByAppendingPathExtension:@"pdf"]];
     if([save runModal]!=NSFileHandlingPanelOKButton || [save URL]==nil)
@@ -187,15 +190,49 @@ static NSTextField *printLabel(NSString *title, NSRect frame, NSView *view) {
    return NSOKButton;
 }
 
+/* The print info the panel shows and changes: the one it was given
+   (runModalWithPrintInfo:, the sheet), else the current operation's. */
+static char givenPrintInfoKey;
+
+-(NSPrintInfo *)_printInfo {
+   NSPrintInfo *given=objc_getAssociatedObject(self,&givenPrintInfoKey);
+   return given!=nil?given:[[NSPrintOperation currentOperation] printInfo];
+}
+
+-(NSInteger)runModalWithPrintInfo:(NSPrintInfo *)printInfo {
+   objc_setAssociatedObject(self,&givenPrintInfoKey,printInfo,OBJC_ASSOCIATION_RETAIN);
+   NSInteger result=[self runModal];
+   objc_setAssociatedObject(self,&givenPrintInfoKey,nil,OBJC_ASSOCIATION_RETAIN);
+   return result;
+}
+
+/* As a sheet: the panel is run on its own once this returns (Minkar's
+   print panel is a modal panel), then the delegate is told the result,
+   as -panel:returnCode:contextInfo: is. */
+-(void)beginSheetWithPrintInfo:(NSPrintInfo *)printInfo modalForWindow:(NSWindow *)window delegate:delegate
+                didEndSelector:(SEL)didEndSelector contextInfo:(void *)contextInfo {
+   [self retain];
+   [printInfo retain];
+   [delegate retain];
+   dispatch_async(dispatch_get_main_queue(),^{
+      NSInteger result=[self runModalWithPrintInfo:printInfo];
+      if(delegate!=nil && didEndSelector!=NULL && [delegate respondsToSelector:didEndSelector])
+       ((void (*)(id,SEL,NSPrintPanel *,NSInteger,void *))objc_msgSend)(delegate,didEndSelector,self,result,contextInfo);
+      [delegate release];
+      [printInfo release];
+      [self release];
+   });
+}
+
 -(void)updateFromPrintInfo {
-   NSDictionary *source=[[[NSPrintOperation currentOperation] printInfo] dictionary];
+   NSDictionary *source=[[self _printInfo] dictionary];
    
    [_attributes release];
    _attributes=[source mutableCopy];
 }
 
 -(void)finalWritePrintInfo {
-   NSMutableDictionary *destination=[[[NSPrintOperation currentOperation] printInfo] dictionary];
+   NSMutableDictionary *destination=[[self _printInfo] dictionary];
    
    [destination addEntriesFromDictionary:_attributes];
 }

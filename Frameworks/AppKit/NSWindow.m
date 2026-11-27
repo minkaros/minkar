@@ -1796,8 +1796,8 @@ static char standardButtonsKey;
    NSUnimplementedMethod();
 }
 
+/* Minkar's desktop has one space, the active one: every window is on it. */
 -(BOOL)isOnActiveSpace {
-   NSUnimplementedMethod();
    return YES;
 }
 

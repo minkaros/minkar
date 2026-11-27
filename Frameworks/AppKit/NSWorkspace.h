@@ -215,3 +215,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 @property (readonly) BOOL accessibilityDisplayShouldReduceMotion;
 @property (readonly) BOOL accessibilityDisplayShouldInvertColors;
 @end
+
+@interface NSWorkspace (MinkarRecycle)
+-(void)recycleURLs:(NSArray *)urls completionHandler:(void (^)(NSDictionary *newURLs, NSError *error))handler;
+@end
