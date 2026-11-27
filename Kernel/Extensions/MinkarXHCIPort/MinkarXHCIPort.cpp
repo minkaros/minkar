@@ -1764,8 +1764,11 @@ IOReturn MinkarXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
 #define kMaxTRBTransferBytes 0x10000U
 
 bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
-                                 IOBufferMemoryDescriptor *xferMem, UInt32 len, UInt32 timeoutMs)
+                                 IOBufferMemoryDescriptor *xferMem, UInt32 len, UInt32 timeoutMs,
+                                 UInt32 *done, UInt8 *ccOut)
 {
+    if (done) *done = 0;
+    if (ccOut) *ccOut = 0;
     SlotResources &sr = fSlots[slotId];
     volatile XHCITRB *ring = in ? sr.bulkInRing : sr.bulkOutRing;
     UInt32 &enqueue = in ? sr.bulkInEnqueue : sr.bulkOutEnqueue;
@@ -1798,6 +1801,12 @@ bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
         UInt64 pushedPhys = ring == sr.bulkInRing
             ? sr.bulkInRingMem->getPhysicalAddress()
             : sr.bulkOutRingMem->getPhysicalAddress();
+        /* A caller that takes the timeout as an answer (an app polling a
+           bulk IN pipe) is told, not logged for. */
+        if (ccOut) {
+            *ccOut = kBulkTimedOut;
+            return false;
+        }
         XHCI_Log("bulk transfer timed out slot=%u ep=%u dci=%u in=%d len=%u "
                 "epState=%u epType=%u ctrlrDeq=%016llx ringBase=%016llx enq=%u USBSTS=%08x",
                 slotId, epNum, dci, in, len,
@@ -1809,7 +1818,14 @@ bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
     }
     if (cc != TRB_CC_SUCCESS && cc != TRB_CC_SHORT_PACKET) {
         XHCI_Log("bulk transfer failed slot=%u ep=%u in=%d len=%u cc=%u", slotId, epNum, in, len, cc);
+        if (ccOut) *ccOut = cc;
         return false;
+    }
+    if (done) {
+        /* The event's transfer length is what its TRB did not move; it
+           tells the whole transfer only when one TRB carried it. */
+        UInt32 residual = fXferDone[slotId][dci].status & 0xFFFFFF;
+        *done = (cc == TRB_CC_SHORT_PACKET && len <= kMaxTRBTransferBytes && residual <= len) ? len - residual : len;
     }
     return true;
 }
@@ -2211,6 +2227,13 @@ bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, U
          * its own IOUSBInterface nub for the same physical interface -
          * observed as every USB HID device (keyboard, mouse) starting
          * twice and producing doubled/stuck-feeling input. */
+        /* Its place on the bus, as apps name a device (CUPS's usb backend
+         * among them): the bus in the top byte, then a nibble for each
+         * port on the way, the root port first. */
+        UInt32 location = 0x14000000u | (((rootPort0based + 1) & 0xF) << 20);
+        for (UInt32 tier = 0; tier < 5; tier++)
+            location |= ((routeString >> (4 * tier)) & 0xF) << (16 - 4 * tier);
+        dev->setProperty(kUSBDevicePropertyLocationID, location, 32);
         dev->registerService();
         /* Kept, to be taken away when its device goes (our reference). */
         if (slotId < 64) {
@@ -2294,7 +2317,7 @@ bool MinkarXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
  * where we enqueue next, which drops whatever TD was stranded) and the
  * device's (CLEAR_FEATURE(ENDPOINT_HALT), which also resets its data
  * toggle). */
-void MinkarXHCIPort::resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in)
+void MinkarXHCIPort::resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in, bool clearHalt)
 {
     SlotResources &sr = fSlots[slotId];
     UInt32 dci = in ? (epNum * 2 + 1) : (epNum * 2);
@@ -2313,6 +2336,8 @@ void MinkarXHCIPort::resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in)
     doCommand(deq | (cycle ? 1 : 0), 0,
               TRB_SET_TYPE(TRB_TYPE_SET_TR_DEQUEUE) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
     fXferDone[slotId][dci].pending = false;
+    if (!clearHalt)
+        return;
 
     USBSetupPacket setup;
     setup.bmRequestType = 0x02;	/* standard, endpoint */

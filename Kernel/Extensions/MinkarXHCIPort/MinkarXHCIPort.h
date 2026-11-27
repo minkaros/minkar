@@ -312,7 +312,9 @@ private:
     void releaseInterruptEndpoint(InterruptInEndpoint &intr);
     void waitForEvent(UInt32 ms, volatile bool *done);
     void resetHaltedControlEndpoint(UInt32 slotId);
-    void resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in);
+    /* clearHalt: the device's side too (after a stall; not after a
+       timeout, where the device kept its data toggle). */
+    void resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in, bool clearHalt = true);
     void botResetRecovery(MSCDevice &m);
     IOReturn botTransferLocked(MSCDevice &m, const void *cbwCB, UInt8 cbwLen, UInt32 dataLen, bool dataIn,
                                IOMemoryDescriptor *buffer, UInt64 bufOff);
@@ -338,8 +340,13 @@ private:
                          void *buf, UInt16 len, bool in);
     bool configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inMaxPkt,
                                 UInt8 outEp, UInt16 outMaxPkt);
+    /* done, when given: the bytes moved (fewer than len when an IN
+       transfer ends with a short packet); cc, when given: the completion
+       code of a failed transfer (kBulkTimedOut when none came). */
+    enum { kBulkTimedOut = 0xFF };
     bool bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
-                      IOBufferMemoryDescriptor *xferMem, UInt32 len, UInt32 timeoutMs);
+                      IOBufferMemoryDescriptor *xferMem, UInt32 len, UInt32 timeoutMs,
+                      UInt32 *done = NULL, UInt8 *ccOut = NULL);
 
     /* Slot Context Hub/NumberOfPorts/TTT update via Configure Endpoint (only
      * the A0 slot-context flag set, no endpoints touched) so the xHC treats

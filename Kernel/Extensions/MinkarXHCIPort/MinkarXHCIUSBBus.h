@@ -39,6 +39,9 @@ public:
 
     virtual IOReturn UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                    Endpoint *endpoint, bool isWrite) APPLE_KEXT_OVERRIDE;
+    virtual IOReturn UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+                                   Endpoint *endpoint, bool isWrite, UInt32 *done,
+                                   UInt32 timeoutMS = 0) APPLE_KEXT_OVERRIDE;
 
 private:
     MinkarXHCIPort *fPort;

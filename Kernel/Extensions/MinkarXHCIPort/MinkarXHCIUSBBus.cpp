@@ -98,6 +98,13 @@ IOReturn MinkarXHCIUSBBus::UIMDeviceRequest(IOUSBDevRequest *request, USBDeviceA
 IOReturn MinkarXHCIUSBBus::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                        Endpoint *endpoint, bool isWrite)
 {
+    return UIMReadWrite(buffer, address, endpoint, isWrite, NULL);
+}
+
+IOReturn MinkarXHCIUSBBus::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+                                       Endpoint *endpoint, bool isWrite, UInt32 *done, UInt32 timeoutMS)
+{
+    if (done) *done = 0;
     UInt32 slotId = address;
     if (slotId >= 64 || !endpoint || !buffer || !fPort) return kIOReturnBadArgument;
     if (endpoint->transferType != kUSBBulk && endpoint->transferType != kUSBInterrupt)
@@ -105,25 +112,43 @@ IOReturn MinkarXHCIUSBBus::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAdd
 
     UInt32 len = (UInt32)buffer->getLength();
     if (!len) return kIOReturnSuccess;
+    UInt32 moved = len;
 
     if (endpoint->transferType == kUSBInterrupt) {
         if (isWrite)
             return kIOReturnUnsupported;
-        return fPort->interruptTransfer(slotId, endpoint->number, buffer, len, 20);
+        IOReturn r = fPort->interruptTransfer(slotId, endpoint->number, buffer, len, 20);
+        if (done && r == kIOReturnSuccess) *done = len;
+        return r;
     }
 
-    IOBufferMemoryDescriptor *bounce =
-        IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task, kIODirectionInOut, len);
+    /* Physically contiguous, as bulkTransfer gives the controller its
+       first physical address only (a buffer across pages sent other
+       memory). */
+    IOBufferMemoryDescriptor *bounce = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
+        kernel_task, kIOMemoryPhysicallyContiguous | kIODirectionInOut, len, 0xFFFFFFFFFFFFFFFFULL);
     if (!bounce) return kIOReturnNoMemory;
 
     if (isWrite)
         buffer->readBytes(0, bounce->getBytesNoCopy(), len);
 
-    bool ok = fPort->bulkTransfer(slotId, endpoint->number, !isWrite, bounce, len, 5000);
+    UInt8 cc = 0;
+    bool ok = fPort->bulkTransfer(slotId, endpoint->number, !isWrite, bounce, len,
+                                  timeoutMS ? timeoutMS : 5000, &moved, &cc);
 
     if (ok && !isWrite)
-        buffer->writeBytes(0, bounce->getBytesNoCopy(), len);
-
+        buffer->writeBytes(0, bounce->getBytesNoCopy(), moved);
+    if (ok && done)
+        *done = moved;
     bounce->release();
-    return ok ? kIOReturnSuccess : kIOReturnError;
+    if (ok)
+        return kIOReturnSuccess;
+
+    /* The endpoint made usable again: a transfer left on its ring would
+       take the next one's data. After a timeout the device keeps its data
+       toggle, so only the controller's side is reset. */
+    fPort->resetBulkEndpoint(slotId, endpoint->number, !isWrite, cc != MinkarXHCIPort::kBulkTimedOut);
+    if (cc == MinkarXHCIPort::kBulkTimedOut)
+        return kIOUSBTransactionTimeout;
+    return cc == TRB_CC_STALL ? kIOUSBPipeStalled : kIOReturnError;
 }
