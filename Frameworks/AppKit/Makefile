@@ -162,6 +162,8 @@ SRCS = \
     NSParagraphStyle.m \
     NSPasteboard.m \
     PasteboardUser.c \
+    PasteboardProviderUser.c \
+    PasteboardProviderServer.c \
     NSPathCell.m \
     NSPathComponentCell.m \
     NSPathControl.m \
@@ -753,7 +755,18 @@ PasteboardUser.c Pasteboard.h: ${.CURDIR}/Pasteboard/Pasteboard.defs
 	    -user PasteboardUser.c -header Pasteboard.h \
 	    -server /dev/null -sheader /dev/null ${.ALLSRC}
 
-NSPasteboard.o: Pasteboard.h
+# A process's pasteboard provider (types it promised): its client and its
+# server, both in NSPasteboard.
+CLEANFILES += PasteboardProviderUser.c PasteboardProvider.h \
+	PasteboardProviderServer.c PasteboardProviderServer.h
+PasteboardProviderUser.c PasteboardProvider.h PasteboardProviderServer.c PasteboardProviderServer.h: \
+    ${.CURDIR}/Pasteboard/PasteboardProvider.defs
+	${MIG} -cc ${CC} -novouchers -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    -isysroot ${MINKAR_SDKROOT} -I${.CURDIR}/Pasteboard \
+	    -user PasteboardProviderUser.c -header PasteboardProvider.h \
+	    -server PasteboardProviderServer.c -sheader PasteboardProviderServer.h ${.ALLSRC}
+
+NSPasteboard.o: Pasteboard.h PasteboardProvider.h PasteboardProviderServer.h
 
 make-obj-dirs: .PHONY
 	echo ${FRAMEWORK} ${TARGET} in ${.OBJDIR}

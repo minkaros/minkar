@@ -13,6 +13,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <servers/bootstrap.h>
 #include <string.h>
 #include "Pasteboard.h"		/* MIG, generated from Pasteboard/Pasteboard.defs */
+#include "PasteboardProvider.h"	/* MIG, from Pasteboard/PasteboardProvider.defs: */
+#include "PasteboardProviderServer.h"	/* its client and its server */
+#import <AppKit/NSApplication.h>
+#import <AppKit/NSPasteboardItem.h>
 #import <AppKit/NSWorkspace.h>
 #include <CoreServices/CoreServices.h>
 
@@ -52,6 +56,14 @@ static BOOL passesURLOptions(id object, NSDictionary *options) {
  * own, so other processes of the same user see what this one writes.
  * Types are stored as uniform type identifiers; the older NS*PboardType
  * names are taken as the same types, and types lists both.
+ *
+ * Data given later: the types an owner declares (pasteboard:
+ * provideDataForType:), an item's types with a data provider and the
+ * types a writer marks NSPasteboardWritingPromised are promised to the
+ * server with this process's provider port, a Mach port on the main run
+ * loop. A reader in another process asks that port for the data, and
+ * waits at most ten seconds (PasteboardProvider.defs); one in this
+ * process gets it directly.
  */
 
 NSString *const NSPasteboardTypeString = @"public.utf8-plain-text";
@@ -164,6 +176,65 @@ static BOOL nameFits(NSString *name, char *out) {
                                   encoding:NSUTF8StringEncoding];
 }
 
+@interface NSPasteboard () {
+   NSMutableDictionary *_promised;   /* type -> the writer that gives it */
+}
+-(BOOL)_provideLocally:(NSString *)type;
+-(NSInteger)_ownChangeCount;
+-(NSData *)_serverDataForType:(NSString *)type result:(int32_t *)result;
+@end
+
+@interface NSPasteboardItem (NSPasteboardPromises)
+-(id)_dataProviderForType:(NSPasteboardType)type;
+-(id)_storedValueForType:(NSPasteboardType)type;
+@end
+
+/* ---- This process's provider port ---- */
+
+static mach_port_t sProviderPort = MACH_PORT_NULL;
+static CFAbsoluteTime sLastProvided;
+
+/* When this process last gave promised data (a drag's source waits for
+   the drop's answer while it does). */
+CFAbsoluteTime _NSPasteboardLastProvidedTime(void);
+CFAbsoluteTime _NSPasteboardLastProvidedTime(void) {
+   return sLastProvided;
+}
+
+static void providerReceived(CFMachPortRef port, void *message, CFIndex size, void *info) {
+   union {
+      mig_reply_error_t error;
+      uint8_t bytes[1024];
+   } reply;
+
+   @autoreleasepool {
+      PasteboardProvider_server((mach_msg_header_t *)message, &reply.error.Head);
+   }
+   if (reply.error.Head.msgh_remote_port != MACH_PORT_NULL && reply.error.RetCode != MIG_NO_REPLY)
+      mach_msg(&reply.error.Head, MACH_SEND_MSG | MACH_SEND_TIMEOUT, reply.error.Head.msgh_size, 0,
+         MACH_PORT_NULL, 1000, MACH_PORT_NULL);
+}
+
+static mach_port_t providerPort(void) {
+   @synchronized([NSPasteboard class]) {
+      if (sProviderPort == MACH_PORT_NULL) {
+         CFMachPortRef port = CFMachPortCreate(NULL, providerReceived, NULL, NULL);
+         if (port == NULL)
+            return MACH_PORT_NULL;
+         CFRunLoopSourceRef source = CFMachPortCreateRunLoopSource(NULL, port, 0);
+         CFRunLoopRef main = CFRunLoopGetMain();
+         /* Also while the main thread tracks a drag or runs a panel. */
+         CFRunLoopAddSource(main, source, kCFRunLoopCommonModes);
+         for (NSString *mode in [NSArray arrayWithObjects:NSDefaultRunLoopMode,
+                NSEventTrackingRunLoopMode, NSModalPanelRunLoopMode, nil])
+            CFRunLoopAddSource(main, source, (CFStringRef)mode);
+         CFRelease(source);
+         sProviderPort = CFMachPortGetPort(port);
+      }
+      return sProviderPort;
+   }
+}
+
 @implementation NSPasteboard
 
 static NSMutableDictionary *sPasteboards;
@@ -195,6 +266,7 @@ static NSMutableDictionary *sPasteboards;
 }
 
 -(void)dealloc {
+   [_promised release];
    [_owner release];
    [_name release];
    [_declaredTypes release];
@@ -223,6 +295,11 @@ static NSMutableDictionary *sPasteboards;
    return count;
 }
 
+/* The change count of this process's last clear or declare. */
+-(NSInteger)_ownChangeCount {
+   return _changeCount;
+}
+
 /* Whether this process still owns what it declared last. */
 -(BOOL)_declaredStillCurrent {
    return [_declaredTypes count] > 0 && [self changeCount] == _changeCount;
@@ -237,10 +314,38 @@ static NSMutableDictionary *sPasteboards;
    _owner = nil;
    _changeCount = count;
    [_declaredTypes removeAllObjects];
+   [_promised removeAllObjects];
    if (previous != nil && [previous respondsToSelector:@selector(pasteboardChangedOwner:)])
       [previous pasteboardChangedOwner:self];
    [previous release];
    return count;
+}
+
+/* Types given later, promised to the server with this process's port. */
+-(void)_promiseTypes:(NSArray *)types {
+   NSMutableData *kinds = [NSMutableData data];
+   pb_name_t n;
+   int32_t result = -1;
+
+   for (NSString *t in types) {
+      const char *c = [canonicalType(t) UTF8String];
+      if (c != NULL && strlen(c) < sizeof(pb_name_t))
+         [kinds appendBytes:c length:strlen(c) + 1];
+   }
+   mach_port_t port = providerPort();
+   if ([kinds length] == 0 || !nameFits(_name, n) || port == MACH_PORT_NULL ||
+       mach_port_insert_right(mach_task_self(), port, port, MACH_MSG_TYPE_MAKE_SEND) != KERN_SUCCESS)
+      return;
+   /* The send right goes with the message; not sent, it is still ours. */
+   if (PB_CALL(pb_promise(server, n, (int32_t)_changeCount, (uint8_t *)[kinds bytes],
+       (mach_msg_type_number_t)[kinds length], port, &result)) == MACH_SEND_INVALID_DEST)
+      mach_port_deallocate(mach_task_self(), port);
+}
+
+/* The types of an owner that gives data later. */
+-(void)_promiseOwnerTypes:(NSArray *)types {
+   if ([_owner respondsToSelector:@selector(pasteboard:provideDataForType:)])
+      [self _promiseTypes:types];
 }
 
 -(NSInteger)declareTypes:(NSArray *)types owner:(id)owner {
@@ -249,6 +354,7 @@ static NSMutableDictionary *sPasteboards;
    for (NSString *t in types)
       if (![_declaredTypes containsObject:canonicalType(t)])
          [_declaredTypes addObject:canonicalType(t)];
+   [self _promiseOwnerTypes:types];
    return count;
 }
 
@@ -262,6 +368,8 @@ static NSMutableDictionary *sPasteboards;
    for (NSString *t in types)
       if (![_declaredTypes containsObject:canonicalType(t)])
          [_declaredTypes addObject:canonicalType(t)];
+   if (owner != nil)
+      [self _promiseOwnerTypes:types];
    return _changeCount;
 }
 
@@ -318,14 +426,21 @@ static NSMutableDictionary *sPasteboards;
    return nil;
 }
 
--(NSData *)_serverDataForType:(NSString *)type {
+/* The type's data in the server; result: 0 there, 1 promised, -1 neither. */
+-(NSData *)_serverDataForType:(NSString *)type result:(int32_t *)out {
    pb_name_t n, k;
    uint8_t *bytes = NULL;
    mach_msg_type_number_t len = 0;
    int32_t result = -1;
 
+   if (out != NULL)
+      *out = -1;
    if (!nameFits(_name, n) || !nameFits(canonicalType(type), k) ||
-       PB_CALL(pb_get_data(server, n, k, &bytes, &len, &result)) != KERN_SUCCESS || result != 0)
+       PB_CALL(pb_get_data(server, n, k, &bytes, &len, &result)) != KERN_SUCCESS)
+      return nil;
+   if (out != NULL)
+      *out = result;
+   if (result != 0)
       return nil;
    NSData *data = [NSData dataWithBytes:bytes length:len];
    if (bytes != NULL)
@@ -333,15 +448,64 @@ static NSMutableDictionary *sPasteboards;
    return data;
 }
 
--(NSData *)dataForType:(NSString *)type {
-   NSData *data = [self _serverDataForType:type];
-   /* Declared and not written yet: the owner gives it now. */
-   if (data == nil && _owner != nil && [self _declaredStillCurrent] &&
-       [_declaredTypes containsObject:canonicalType(type)] &&
+-(void)_writeValue:(id)value forType:(NSString *)type {
+   if ([value isKindOfClass:[NSData class]])
+      [self setData:value forType:type];
+   else if ([value isKindOfClass:[NSString class]])
+      [self setString:value forType:type];
+   else if (value != nil)
+      [self setPropertyList:value forType:type];
+}
+
+/* A type this process promised or declared and has not written: its
+   writer, item's data provider or owner gives it now. */
+-(BOOL)_provideLocally:(NSString *)type {
+   NSString *t = canonicalType(type);
+   if (![self _declaredStillCurrent])
+      return NO;
+   id writer = [[[_promised objectForKey:t] retain] autorelease];
+   if (writer != nil) {
+      if ([writer isKindOfClass:[NSPasteboardItem class]]) {
+         id provider = [writer _dataProviderForType:t];
+         [provider pasteboard:self item:writer provideDataForType:t];
+         /* Given to the item rather than to the pasteboard. */
+         if ([self _serverDataForType:t result:NULL] == nil)
+            [self _writeValue:[writer _storedValueForType:t] forType:t];
+      } else
+         [self _writeValue:[writer pasteboardPropertyListForType:t] forType:t];
+      return YES;
+   }
+   if (_owner != nil && [_declaredTypes containsObject:t] &&
        [_owner respondsToSelector:@selector(pasteboard:provideDataForType:)]) {
       [_owner pasteboard:self provideDataForType:type];
-      data = [self _serverDataForType:type];
+      return YES;
    }
+   return NO;
+}
+
+/* A type another process promised: asked of it, through its port. */
+-(BOOL)_askProviderForType:(NSString *)type {
+   pb_name_t n, k;
+   mach_port_t port = MACH_PORT_NULL;
+   int32_t count = 0, result = -1;
+
+   if (!nameFits(_name, n) || !nameFits(canonicalType(type), k) ||
+       PB_CALL(pb_provider(server, n, &port, &count)) != KERN_SUCCESS || port == MACH_PORT_NULL)
+      return NO;
+   /* This process's own port: what it promised is no longer current. */
+   if (port != sProviderPort &&
+       pbp_provide(port, n, k, count, &result) != KERN_SUCCESS)
+      result = -1;
+   mach_port_deallocate(mach_task_self(), port);
+   return result == 0;
+}
+
+-(NSData *)dataForType:(NSString *)type {
+   int32_t result;
+   NSData *data = [self _serverDataForType:type result:&result];
+
+   if (data == nil && ([self _provideLocally:type] || (result == 1 && [self _askProviderForType:type])))
+      data = [self _serverDataForType:type result:NULL];
    return data;
 }
 
@@ -384,14 +548,32 @@ static NSMutableDictionary *sPasteboards;
 
 /* ---- Objects (10.6 and later) ---- */
 
+/* Whether a writer gives this type only when it is read: an item's type
+   with a data provider, or one the writer marks promised. */
+static BOOL givenLater(id object, NSString *type, NSPasteboard *pasteboard) {
+   if ([object isKindOfClass:[NSPasteboardItem class]])
+      return [object _dataProviderForType:type] != nil && [object _storedValueForType:type] == nil;
+   return [object respondsToSelector:@selector(writingOptionsForType:pasteboard:)] &&
+      ([object writingOptionsForType:type pasteboard:pasteboard] & NSPasteboardWritingPromised);
+}
+
 -(BOOL)writeObjects:(NSArray *)objects {
    BOOL wrote = NO;
+   NSMutableArray *later = [NSMutableArray array];
    for (id object in objects) {
       if (![object respondsToSelector:@selector(writableTypesForPasteboard:)])
          continue;
       NSArray *types = [object writableTypesForPasteboard:self];
       [self addTypes:types owner:nil];
       for (NSString *type in types) {
+         if (givenLater(object, type, self)) {
+            if (_promised == nil)
+               _promised = [[NSMutableDictionary alloc] init];
+            [_promised setObject:object forKey:canonicalType(type)];
+            [later addObject:type];
+            wrote = YES;
+            continue;
+         }
          id plist = [object pasteboardPropertyListForType:type];
          if ([plist isKindOfClass:[NSData class]])
             wrote |= [self setData:plist forType:type];
@@ -401,6 +583,7 @@ static NSMutableDictionary *sPasteboards;
             wrote |= [self setPropertyList:plist forType:type];
       }
    }
+   [self _promiseTypes:later];
    return wrote;
 }
 
@@ -526,3 +709,24 @@ static NSMutableDictionary *sPasteboards;
 }
 
 @end
+
+/* ---- What another process asks of this one ---- */
+
+kern_return_t pbps_provide(mach_port_t provider, pb_name_t name, pb_name_t kind, int32_t count,
+    int32_t *result) {
+   NSString *pasteboardName = [NSString stringWithUTF8String:name];
+   NSString *type = [NSString stringWithUTF8String:kind];
+   NSPasteboard *pasteboard = nil;
+
+   *result = -1;
+   sLastProvided = CFAbsoluteTimeGetCurrent();
+   if (pasteboardName != nil)
+      @synchronized([NSPasteboard class]) {
+         pasteboard = [[[sPasteboards objectForKey:pasteboardName] retain] autorelease];
+      }
+   if (pasteboard != nil && type != nil && [pasteboard _ownChangeCount] == count &&
+       [pasteboard _provideLocally:type] && [pasteboard _serverDataForType:type result:NULL] != nil)
+      *result = 0;
+   sLastProvided = CFAbsoluteTimeGetCurrent();
+   return KERN_SUCCESS;
+}

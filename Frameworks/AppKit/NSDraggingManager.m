@@ -244,6 +244,9 @@ static BOOL overridesDraggingUpdated(id destination){
    return info->_lastOperation;
 }
 
+/* NSPasteboard: when this process last gave data it promised. */
+extern CFAbsoluteTime _NSPasteboardLastProvidedTime(void);
+
 /* Location is in the window coordinates of the event's window. The image
    follows the mouse in a window of its own; the window under the mouse
    is told of the drag (entered, updated, exited) and, on mouse up, of the
@@ -350,7 +353,9 @@ static BOOL overridesDraggingUpdated(id destination){
     performSequence=++remoteSequence;
     if(remoteOperation!=NSDragOperationNone){
      postDragEvent(remote,kSLSDragPerform,performSequence,info->_sourceMask,info->_screenLocation,dragServerWindow);
-     while(!performAnswered && [limit timeIntervalSinceNow]>0)
+     /* Longer while the destination reads data this process promised
+        (it is still writing a promised file, say). */
+     while(!performAnswered && ([limit timeIntervalSinceNow]>0 || CFAbsoluteTimeGetCurrent()-_NSPasteboardLastProvidedTime()<2.0))
       [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
     }
     else

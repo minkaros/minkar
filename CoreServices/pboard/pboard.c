@@ -31,6 +31,9 @@
  * change count and data by type, kept in memory by the caller's user ID:
  * a user's pasteboards are the user's own. Started on demand by launchd
  * (org.minkar.pboard); its interface is Frameworks/AppKit/Pasteboard.
+ * Types can also be promised: the promising process's port is kept with
+ * them and handed to readers, who ask that process for the data; the
+ * server itself never waits on another process.
  */
 
 #include <bsm/libbsm.h>
@@ -55,6 +58,8 @@ typedef struct Pasteboard {
 	int32_t			count;
 	CFMutableArrayRef	types;		/* CFString, in the order written */
 	CFMutableDictionaryRef	data;		/* type -> CFData */
+	CFMutableArrayRef	promised;	/* CFString: promised, maybe not written yet */
+	mach_port_t		provider;	/* a send right to the promising process */
 	uint64_t		bytes;
 	struct Pasteboard	*next;
 } Pasteboard;
@@ -96,6 +101,7 @@ find(User *u, const char *name, int create)
 	p->types = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
 	p->data = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks,
 	    &kCFTypeDictionaryValueCallBacks);
+	p->promised = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
 	p->next = u->pasteboards;
 	u->pasteboards = p;
 	return p;
@@ -106,6 +112,11 @@ empty(User *u, Pasteboard *p)
 {
 	CFArrayRemoveAllValues(p->types);
 	CFDictionaryRemoveAllValues(p->data);
+	CFArrayRemoveAllValues(p->promised);
+	if (p->provider != MACH_PORT_NULL) {
+		mach_port_deallocate(mach_task_self(), p->provider);
+		p->provider = MACH_PORT_NULL;
+	}
 	u->bytes -= p->bytes;
 	p->bytes = 0;
 }
@@ -205,10 +216,15 @@ pbs_types(mach_port_t server, audit_token_t token, pb_name_t name, uint8_t **typ
 	*typesCnt = 0;
 	if (p == NULL)
 		return KERN_SUCCESS;
-	for (CFIndex i = 0; i < CFArrayGetCount(p->types); i++) {
+	/* The written types, then the promised ones not written yet. */
+	CFIndex written = CFArrayGetCount(p->types);
+	for (CFIndex i = 0; i < written + CFArrayGetCount(p->promised); i++) {
 		char t[256];
-		if (!CFStringGetCString(CFArrayGetValueAtIndex(p->types, i), t, sizeof(t),
-		    kCFStringEncodingUTF8))
+		CFStringRef type = i < written ? CFArrayGetValueAtIndex(p->types, i) :
+		    CFArrayGetValueAtIndex(p->promised, i - written);
+		if (i >= written && CFDictionaryContainsKey(p->data, type))
+			continue;
+		if (!CFStringGetCString(type, t, sizeof(t), kCFStringEncodingUTF8))
 			continue;
 		size_t n = strlen(t) + 1;
 		char *grown = realloc(list, len + n);
@@ -233,7 +249,9 @@ pbs_get_data(mach_port_t server, audit_token_t token, pb_name_t name, pb_name_t 
 
 	*data = NULL;
 	*dataCnt = 0;
-	*result = d != NULL ? 0 : -1;
+	/* 1: not written, but promised. */
+	*result = d != NULL ? 0 : p != NULL && t != NULL && CFArrayContainsValue(p->promised,
+	    CFRangeMake(0, CFArrayGetCount(p->promised)), t) ? 1 : -1;
 	if (d != NULL)
 		replyBytes(CFDataGetBytePtr(d), (size_t)CFDataGetLength(d), data, dataCnt);
 	if (t != NULL)
@@ -253,9 +271,53 @@ pbs_release(mach_port_t server, audit_token_t token, pb_name_t name)
 			empty(u, p);
 			CFRelease(p->types);
 			CFRelease(p->data);
+			CFRelease(p->promised);
 			free(p);
 			break;
 		}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+pbs_promise(mach_port_t server, audit_token_t token, pb_name_t name, int32_t count,
+    uint8_t *kinds, mach_msg_type_number_t kindsCnt, mach_port_t port, int32_t *result)
+{
+	Pasteboard *p = find(userFor(token), name, 0);
+
+	*result = -1;
+	if (p == NULL || p->count != count) {
+		if (port != MACH_PORT_NULL)
+			mach_port_deallocate(mach_task_self(), port);
+	} else {
+		for (size_t at = 0; at < kindsCnt; ) {
+			size_t l = strnlen((const char *)kinds + at, kindsCnt - at);
+			CFStringRef t = l > 0 ? CFStringCreateWithBytes(NULL, kinds + at, (CFIndex)l,
+			    kCFStringEncodingUTF8, false) : NULL;
+			if (t != NULL && !CFArrayContainsValue(p->promised,
+			    CFRangeMake(0, CFArrayGetCount(p->promised)), t))
+				CFArrayAppendValue(p->promised, t);
+			if (t != NULL)
+				CFRelease(t);
+			at += l + 1;
+		}
+		/* The latest promiser answers for all of them. */
+		if (p->provider != MACH_PORT_NULL)
+			mach_port_deallocate(mach_task_self(), p->provider);
+		p->provider = port;
+		*result = 0;
+	}
+	mach_vm_deallocate(mach_task_self(), (mach_vm_address_t)(uintptr_t)kinds, kindsCnt);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+pbs_provider(mach_port_t server, audit_token_t token, pb_name_t name, mach_port_t *port,
+    int32_t *count)
+{
+	Pasteboard *p = find(userFor(token), name, 0);
+
+	*port = p != NULL ? p->provider : MACH_PORT_NULL;
+	*count = p != NULL ? p->count : 0;
 	return KERN_SUCCESS;
 }
 

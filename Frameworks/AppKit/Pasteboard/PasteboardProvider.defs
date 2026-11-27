@@ -1,0 +1,37 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * A process's pasteboard provider: the port a process gives the
+ * pasteboard server with the types it promised (Pasteboard.defs, promise).
+ * A reader of one of those types sends provide to it; the process writes
+ * the type's data to the server (set_data), from its main run loop, and
+ * answers. The reader waits at most ten seconds.
+ */
+
+subsystem PasteboardProvider 29400;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix pbp_;
+serverprefix pbps_;
+
+import "PasteboardTypes.h";
+
+type pb_name_t = c_string[*:256];
+
+WaitTime 10000;
+/* A message not sent (the provider timed out or is gone) is destroyed,
+   its rights with it. */
+ConsumeOnSendError Timeout;
+
+/* The data of type kind on pasteboard name, as promised for change count
+   count. result: 0 when it was written, -1 otherwise. */
+routine provide(
+	provider		: mach_port_t;
+	name			: pb_name_t;
+	kind			: pb_name_t;
+	count			: int32_t;
+	out result		: int32_t);

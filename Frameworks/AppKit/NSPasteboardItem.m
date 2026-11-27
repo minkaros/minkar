@@ -61,6 +61,15 @@
 -(BOOL)setString:(NSString *)string forType:(NSPasteboardType)type { return [self _setValue:[[string copy] autorelease] forType:type]; }
 -(BOOL)setPropertyList:(id)propertyList forType:(NSPasteboardType)type { return [self _setValue:propertyList forType:type]; }
 
+/* For NSPasteboard: a type's data provider and its value, as they are. */
+-(id)_dataProviderForType:(NSPasteboardType)type {
+   return [_providers objectForKey:type];
+}
+
+-(id)_storedValueForType:(NSPasteboardType)type {
+   return [_values objectForKey:type];
+}
+
 /* A provided type asks its provider once, when first read. */
 -(id)_valueForType:(NSPasteboardType)type {
    id value=[_values objectForKey:type];
@@ -129,6 +138,35 @@
 -(NSArray *)_canonicalTypes;
 @end
 
+/* The data of a pasteboard's item, read from the pasteboard when the
+   item is asked for it: reading an item does not make every other
+   application give what it promised. */
+@interface NSPasteboardItemReader : NSObject <NSPasteboardItemDataProvider> {
+   NSPasteboard *_pasteboard;
+}
+@end
+
+@implementation NSPasteboardItemReader
+
+-initWithPasteboard:(NSPasteboard *)pasteboard {
+   _pasteboard=[pasteboard retain];
+   return self;
+}
+
+-(void)dealloc {
+   [_pasteboard release];
+   [super dealloc];
+}
+
+-(void)pasteboard:(NSPasteboard *)pasteboard item:(NSPasteboardItem *)item provideDataForType:(NSPasteboardType)type {
+   NSData *data=[_pasteboard dataForType:type];
+
+   if(data!=nil)
+    [item setData:data forType:type];
+}
+
+@end
+
 @implementation NSPasteboard (NSPasteboardItems)
 
 /* One item with the types as written (the older aliases that -types adds
@@ -139,12 +177,9 @@
 
    if([types count]==0)
     return [NSArray array];
-   for(NSPasteboardType type in types){
-    NSData *data=[self dataForType:type];
+   NSPasteboardItemReader *reader=[[[NSPasteboardItemReader alloc] initWithPasteboard:self] autorelease];
 
-    if(data!=nil)
-     [item setData:data forType:type];
-   }
+   [item setDataProvider:reader forTypes:types];
    return [NSArray arrayWithObject:item];
 }
 

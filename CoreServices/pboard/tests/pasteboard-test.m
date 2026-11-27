@@ -31,10 +31,13 @@
  * One line per check, "ok" or "FAIL", then "pasteboard-test: N passed, M
  * failed"; the exit status is the number of failures. Runs as root (the
  * last check becomes nobody in a child process). "pasteboard-test types"
- * lists the general pasteboard's types instead.
+ * lists the general pasteboard's types instead. Promised data across
+ * processes: a child promises a type (an item with a data provider, as
+ * Firefox's drags do) and serves it from its run loop.
  */
 
 #import <AppKit/NSPasteboard.h>
+#import <AppKit/NSPasteboardItem.h>
 #import <Foundation/Foundation.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -68,6 +71,51 @@ check(BOOL ok, const char *what)
 }
 @end
 
+/* An item's data provider that writes to the pasteboard it is given. */
+@interface LaterProvider : NSObject <NSPasteboardItemDataProvider>
+@property int asked;
+@end
+
+@implementation LaterProvider
+- (void)pasteboard:(NSPasteboard *)pasteboard item:(NSPasteboardItem *)item
+    provideDataForType:(NSPasteboardType)type
+{
+	self.asked++;
+	[pasteboard setString:@"given by another process" forType:type];
+}
+@end
+
+/* A child that prints a line once it has promised, and its pipe. */
+static pid_t
+spawnPromiser(char *argv0, const char *mode, FILE **out)
+{
+	int fds[2];
+	pid_t pid;
+	posix_spawn_file_actions_t actions;
+	char *args[] = { argv0, (char *)mode, NULL };
+
+	if (pipe(fds) != 0)
+		return -1;
+	posix_spawn_file_actions_init(&actions);
+	posix_spawn_file_actions_adddup2(&actions, fds[1], 1);
+	posix_spawn_file_actions_addclose(&actions, fds[0]);
+	if (posix_spawn(&pid, argv0, &actions, NULL, args, environ) != 0)
+		pid = -1;
+	posix_spawn_file_actions_destroy(&actions);
+	close(fds[1]);
+	*out = fdopen(fds[0], "r");
+	return pid;
+}
+
+static int
+waitFor(pid_t pid)
+{
+	int status = -1;
+
+	waitpid(pid, &status, 0);
+	return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+
 static int
 run(char *const argv[])
 {
@@ -96,6 +144,31 @@ main(int argc, char *argv[])
 			for (NSString *t in [[NSPasteboard generalPasteboard] types])
 				printf("%s\n", [t UTF8String]);
 			return 0;
+		}
+		/* The promising child: an item with a provider on minkar.later,
+		   served from the run loop until asked once (or ten seconds);
+		   0 if it was asked exactly once. "promise-exit" promises and
+		   exits at once. */
+		if (argc == 2 && (strcmp(argv[1], "promise") == 0 || strcmp(argv[1], "promise-exit") == 0)) {
+			NSPasteboard *later = [NSPasteboard pasteboardWithName:@"minkar.later"];
+			NSPasteboardItem *item = [[[NSPasteboardItem alloc] init] autorelease];
+			LaterProvider *provider = [[[LaterProvider alloc] init] autorelease];
+			[later clearContents];
+			[item setString:@"written at once" forType:NSPasteboardTypeString];
+			[item setDataProvider:provider forTypes:@[ @"org.minkar.test.later" ]];
+			[later writeObjects:@[ item ]];
+			printf("promised %d\n", provider.asked);
+			fflush(stdout);
+			if (strcmp(argv[1], "promise-exit") == 0)
+				return 0;
+			NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:10];
+			while (provider.asked == 0 && [limit timeIntervalSinceNow] > 0)
+				[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				    beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+			/* A moment more: a second read must not ask again. */
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+			    beforeDate:[NSDate dateWithTimeIntervalSinceNow:1]];
+			return provider.asked == 1 ? 0 : 3;
 		}
 		/* Another user: 0 if it sees nothing of root's. */
 		if (argc == 2 && strcmp(argv[1], "stranger") == 0) {
@@ -166,6 +239,41 @@ main(int argc, char *argv[])
 		check(run(reader) == 0, "another process of the same user reads it");
 		char *stranger[] = { argv[0], "stranger", NULL };
 		check(run(stranger) == 0, "another user sees none of it");
+
+		/* Promised by another process. */
+		FILE *out = NULL;
+		char line[64] = "";
+		pid_t child = spawnPromiser(argv[0], "promise", &out);
+		check(child > 0 && out != NULL && fgets(line, sizeof(line), out) != NULL &&
+		    strcmp(line, "promised 0\n") == 0, "another process promises a type, asked nothing yet");
+		NSPasteboard *later = [NSPasteboard pasteboardWithName:@"minkar.later"];
+		check([[later types] containsObject:@"org.minkar.test.later"] &&
+		    [[later stringForType:NSPasteboardTypeString] isEqualToString:@"written at once"],
+		    "this one sees the promised type, and the item's written one");
+		NSArray *items = [later pasteboardItems];
+		check([items count] == 1 && [[items[0] types] containsObject:@"org.minkar.test.later"],
+		    "pasteboardItems lists it without asking for it");
+		NSDate *asked = [NSDate date];
+		NSString *given = [items count] == 1 ? [items[0] stringForType:@"org.minkar.test.later"] : nil;
+		check([given isEqualToString:@"given by another process"] && [asked timeIntervalSinceNow] > -5,
+		    "read, the other process's provider gives it, through the pasteboard it is passed");
+		check([[later stringForType:@"org.minkar.test.later"] isEqualToString:@"given by another process"],
+		    "read again, it is in the server");
+		check(child > 0 && waitFor(child) == 0, "the provider was asked exactly once");
+		if (out != NULL)
+			fclose(out);
+
+		/* A promiser that is gone: no data, and no wait. */
+		child = spawnPromiser(argv[0], "promise-exit", &out);
+		if (out != NULL) {
+			fgets(line, sizeof(line), out);
+			fclose(out);
+		}
+		if (child > 0)
+			waitFor(child);
+		asked = [NSDate date];
+		check([later stringForType:@"org.minkar.test.later"] == nil && [asked timeIntervalSinceNow] > -2,
+		    "a type promised by a process that exited gives nothing, at once");
 
 		/* Unique pasteboards. */
 		NSPasteboard *unique = [NSPasteboard pasteboardWithUniqueName];

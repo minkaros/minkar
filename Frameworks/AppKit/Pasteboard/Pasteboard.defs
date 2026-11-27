@@ -9,6 +9,12 @@
  * caller's user ID (the message's audit token), so no user reads another's.
  * Types are named as AppKit stores them (uniform type identifiers; AppKit
  * maps the older NS*PboardType names to them).
+ *
+ * A type can be promised instead of written: the process that promises it
+ * gives the server a port of its own (PasteboardProvider.defs), types
+ * lists the type, get_data answers that it is promised (result 1), and the
+ * reader asks that process for the data through the port provider gives.
+ * The server never waits on a provider.
  */
 
 subsystem Pasteboard 29300;
@@ -71,3 +77,25 @@ routine release(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
 	name			: pb_name_t);
+
+/* Types promised for the pasteboard's change count (count): their names,
+   each ending in a NUL, and the promising process's port (a send right,
+   kept until the pasteboard is cleared). result: 0, or -1 when the
+   pasteboard changed meanwhile. */
+routine promise(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	count			: int32_t;
+	kinds			: pb_bytes_t;
+	port			: mach_port_move_send_t;
+	out result		: int32_t);
+
+/* The port of the process that promised the pasteboard's types (null
+   when none did), and the change count it promised them for. */
+routine provider(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	out port		: mach_port_copy_send_t;
+	out count		: int32_t);
