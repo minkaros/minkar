@@ -32,6 +32,8 @@ Layout (GPT):
        /EFI/BOOT/BOOTX64.EFI            EFI loader (efiloader)
        /EFI/Minkar/                     (looked up by the loader)
        /Minkar/kernelcache              prelinked kernel + kexts
+       /Minkar/Boot/logo.raw            the boot screen's logo (tools/boot/pngraw.py)
+       /Minkar/Boot/Picker/*.raw        the boot picker's icons (tools/boot/picker-icons.py)
        /Minkar/org.minkar.boot.plist    boot-args, boot-file, boot-uuid,
                                         loader-pause, graphics-mode (when
                                         asked for)
@@ -56,6 +58,9 @@ import subprocess
 import sys
 import tempfile
 import uuid
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 'boot'))
+import pngraw  # noqa: E402
 
 # Volume UUID namespace for file systems (kFSUUIDNamespaceSHA1 in <uuid/namespace.h>).
 FS_UUID_NAMESPACE = uuid.UUID('B3E20F39-F292-11D6-97A4-00306543ECAC')
@@ -305,12 +310,15 @@ def run(*cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
 
 
-def boot_plist(boot_args, volume_uuid, loader_pause=0, graphics_mode=None):
+def boot_plist(boot_args, volume_uuid, loader_pause=0, graphics_mode=None, volume_name=None):
     config = {
         'boot-args': boot_args,
         'boot-file': '\\Minkar\\kernelcache',
         'boot-uuid': str(volume_uuid).upper(),
     }
+    if volume_name:
+        # The system's name in the boot picker (Alt held at power-on).
+        config['volume-name'] = volume_name
     if loader_pause:
         # Seconds the loader leaves its output up before the kernel starts.
         config['loader-pause'] = loader_pause
@@ -390,7 +398,17 @@ def build(args):
         shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'Minkar', 'kernelcache'))
         with open(os.path.join(esp_dir, 'Minkar', 'org.minkar.boot.plist'), 'wb') as f:
             f.write(boot_plist(args.boot_args, volume_uuid, args.loader_pause,
-                               args.graphics_mode))
+                               args.graphics_mode, args.volume_name))
+        # The boot screen's logo (the loader draws it unless booting verbose).
+        os.makedirs(os.path.join(esp_dir, 'Minkar', 'Boot'))
+        pngraw.main([args.boot_logo, os.path.join(esp_dir, 'Minkar', 'Boot', 'logo.raw')])
+        # The boot picker's icons (Alt held at power-on).
+        if args.picker_icons:
+            picker = os.path.join(esp_dir, 'Minkar', 'Boot', 'Picker')
+            os.makedirs(picker)
+            for name in sorted(os.listdir(args.picker_icons)):
+                if name.endswith('.raw'):
+                    shutil.copyfile(os.path.join(args.picker_icons, name), os.path.join(picker, name))
 
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)
         mounts.append(root_dir)
@@ -447,6 +465,12 @@ def main(argv=None):
     p.add_argument('--size-mb', type=int, default=2048)
     p.add_argument('--esp-mb', type=int, default=200)
     p.add_argument('--volume-name', default='Minkar')
+    p.add_argument('--boot-logo', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
+                                                    'Logo_Assets', 'Minkar', 'Boot',
+                                                    'MinkarBootLogo-White-512.png'),
+                   help='the boot screen\'s logo (a PNG, made /Minkar/Boot/logo.raw on the EFI partition)')
+    p.add_argument('--picker-icons', help='the boot picker\'s icons (tools/boot/picker-icons.py\'s directory), '
+                   'copied to /Minkar/Boot/Picker; without them the picker is a list in text')
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
     p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
                    'e.g. /sbin/minkarinit (installed as a %s link)' % LAUNCHD)

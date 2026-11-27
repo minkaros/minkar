@@ -34,8 +34,10 @@ EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 # EFI configuration tables' addresses (SMBIOS's for the kernel), the
 # bus and TSC frequencies measured on real Intel processors, and display
 # controllers' option ROMs as the firmware read them (for GPU drivers),
-# the firmware's startup sound turned off or on, and one boot's settings
-# for once (org.minkar.boot.once.plist, deleted as it is read).
+# the firmware's startup sound turned off or on, one boot's settings
+# for once (org.minkar.boot.once.plist, deleted as it is read), and the
+# graphical boot (the boot screen, Command-V for verbose mode, the boot
+# picker on Alt).
 EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0002-minkar-boot-paths.patch \
 			efiloader-0003-boot-volume.patch \
@@ -46,7 +48,8 @@ EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0008-loader-log.patch \
 			efiloader-0009-pci-option-roms.patch \
 			efiloader-0010-startup-sound.patch \
-			efiloader-0011-boot-once.patch
+			efiloader-0011-boot-once.patch \
+			efiloader-0012-graphical-boot.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
@@ -57,7 +60,10 @@ IMAGE ?=		${ROOT_BINARY_DIR}/Minkar.img
 IMAGE_SIZE_MB ?=	3072
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 # msgbuf: dmesg keeps the whole boot (a release kernel's 16 KB fill before
-# the login; the NVMe test reads its driver's boot lines there).
+# the login; the NVMe test reads its driver's boot lines there). -v: the
+# development and test images boot verbose (their console on the serial
+# port, which the tests read); the installer and the systems it installs
+# boot graphical (INSTALLER_BOOT_ARGS).
 BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1 msgbuf=1048576
 # PID 1 until launchd runs (gate M1); empty to boot /sbin/launchd itself.
 INIT ?=			/sbin/minkarinit
@@ -135,10 +141,12 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 	    { echo "${EFILOADER_SRC} is not at ${EFILOADER_COMMIT}"; exit 1; }
 	# The patches as a set: when it changes, the tree goes back to the
 	# pinned commit and they are applied again, in order (several touch
-	# the same files, so one cannot be checked on its own).
+	# the same files, so one cannot be checked on its own). The files they
+	# add to the loader are removed first (checkout leaves them).
 	cat ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,} | cksum > ${EFILOADER_SRC}/.minkar-patches.new
 	if ! cmp -s ${EFILOADER_SRC}/.minkar-patches.new ${EFILOADER_SRC}/.minkar-patches; then \
 	    git -C ${EFILOADER_SRC} checkout -q -- . && \
+	    git -C ${EFILOADER_SRC} clean -fq -- MdeModulePkg/Application/Loader && \
 	    for p in ${EFILOADER_PATCHES}; do \
 	        git -C ${EFILOADER_SRC} apply ${.CURDIR}/patches/$$p || exit 1; \
 	    done; \
@@ -173,11 +181,18 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 # cache stay out of it.
 TRUST_CACHE_EXCLUDE ?=	/usr/local/tests/codesign/outside
 
-image: ${LOADER}
+# The boot picker's icons (tools/boot/picker-icons.py), drawn once.
+PICKER_ICONS =		${ROOT_BINARY_DIR}/boot-picker-icons
+${PICKER_ICONS}/.done: ${.CURDIR:H}/tools/boot/picker-icons.py ${.CURDIR:H}/tools/boot/pngraw.py
+	${PYTHON} ${.CURDIR:H}/tools/boot/picker-icons.py ${PICKER_ICONS}
+	touch ${.TARGET}
+
+image: ${LOADER} ${PICKER_ICONS}/.done
 	${PYTHON} ${.CURDIR:H}/tools/mktrustcache.py \
 	    ${TRUST_CACHE_EXCLUDE:S/^/--exclude /} ${SYSROOT_DIR}
 	${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${IMAGE} \
+	    --picker-icons ${PICKER_ICONS} \
 	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \
 	    ${INIT_ARGS}
 
@@ -187,9 +202,11 @@ image: ${LOADER}
 # INSTALLER_ROOT_AUTHORIZED_KEYS: root's ssh keys, for the installation
 # tests only.
 INSTALLER_IMAGE ?=	${ROOT_BINARY_DIR}/MinkarInstaller.img
-# Its messages on the screen (serial=3 moves the console to a serial port,
-# which a computer's screen then never shows).
-INSTALLER_BOOT_ARGS ?=	-v keepsyms=1 msgbuf=1048576 panic_summary=1
+# The graphical boot (the logo and the bar; Command-V or the boot picker,
+# Alt, for verbose mode), and so, as bless keeps the medium's boot
+# settings, for the system it installs. No serial=3: it moves the console
+# to a serial port, which a computer's screen then never shows.
+INSTALLER_BOOT_ARGS ?=	keepsyms=1 msgbuf=1048576 panic_summary=1
 # The display's own mode (from its EDID) for the medium, and so, as bless
 # keeps the medium's boot settings, for the system it installs.
 INSTALLER_GRAPHICS_MODE ?=	native
@@ -203,12 +220,13 @@ INSTALLER_ARGS =	--root-authorized-keys ${INSTALLER_ROOT_AUTHORIZED_KEYS} --ssh-
 INSTALLER_ARGS +=	--init ${INIT}
 .endif
 
-installer-image: ${LOADER}
+installer-image: ${LOADER} ${PICKER_ICONS}/.done
 	${PYTHON} ${.CURDIR:H}/tools/mktrustcache.py \
 	    ${TRUST_CACHE_EXCLUDE:S/^/--exclude /} ${SYSROOT_DIR}
 	env -u ROOT_PASSWORD -u ROOT_AUTHORIZED_KEYS -u TEST_USER -u TEST_USER_PASSWORD \
 	    -u AUTO_LOGIN_USER ${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${INSTALLER_IMAGE} \
+	    --picker-icons ${PICKER_ICONS} \
 	    --size-mb ${INSTALLER_SIZE_MB} --volume-name "Minkar Installer" --boot-args "${INSTALLER_BOOT_ARGS}" \
 	    --graphics-mode ${INSTALLER_GRAPHICS_MODE} --installer-medium ${INSTALLER_ARGS}
 

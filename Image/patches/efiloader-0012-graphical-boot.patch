@@ -1,0 +1,973 @@
+Minkar: the graphical boot. Unless the boot arguments have -v or
+Command-V (the Windows key with V on a PC keyboard) is held, the loader
+draws the boot screen (black, Minkar's logo from \Minkar\Boot\logo.raw,
+a progress bar), keeps its own text for \Minkar\loader.log only, and
+gives the kernel a graphics console, which goes on with the bar.
+
+Alt held (or pressed) at power-on shows the boot picker: a row of round
+icons (\Minkar\Boot\Picker) with their names in the firmware's font:
+this system, verbose mode, other Minkar systems (named by their boot
+plist's volume-name), Windows and other EFI loaders; a start button
+under the chosen one and restart and shut down buttons at the bottom.
+Without the icons it is a list in text. "key-wait" in the boot plist
+sets how long the keys are looked for (500 ms). Everything the loader's
+files print goes through LogPrint.
+
+diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.c b/MdeModulePkg/Application/Loader/bootscreen.c
+--- a/MdeModulePkg/Application/Loader/bootscreen.c	1969-12-31 19:00:00.000000000 -0500
++++ b/MdeModulePkg/Application/Loader/bootscreen.c	2026-11-27 12:56:16.312573594 -0500
+@@ -0,0 +1,218 @@
++/*
++ * SPDX-License-Identifier: BSD-2-Clause
++ * Copyright (c) 2026 The Minkar contributors
++ * Part of Minkar.
++ *
++ * The graphical boot: the keys held at power-on (Alt for the boot picker,
++ * Command-V, the Windows key with V on a PC keyboard, for verbose mode),
++ * and the boot screen: a black screen with Minkar's logo and a progress
++ * bar, which the kernel goes on filling (osfmk/console/boot_progress.c
++ * draws the same bar in the same place).
++ *
++ * The geometry is the boot screen's design at 1920x1080 scaled to the
++ * screen's height: the logo in a box of 156 pixels centred 494 pixels
++ * down, the bar 320x5 pixels from 635 pixels down. The logo comes from
++ * \Minkar\Boot\logo.raw (tools/boot/pngraw.py: BGRX pixels already over
++ * black); the bar is drawn, a capsule in two colours.
++ */
++
++#include "loader.h"
++#include "bootscreen.h"
++#include <Protocol/SimpleTextInEx.h>
++#include <Protocol/GraphicsOutput.h>
++
++#define DESIGN_HEIGHT   1080
++#define LOGO_BOX        156
++#define LOGO_CENTRE_Y   494
++#define BAR_WIDTH       320
++#define BAR_HEIGHT      5
++#define BAR_TOP         635
++
++STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL kTrack = { 0x59, 0x55, 0x55, 0 };
++STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL kFill = { 0xf2, 0xf0, 0xf0, 0 };
++
++STATIC UINTN Scale(UINTN Value, UINTN Height)
++{
++    return (Value * Height + DESIGN_HEIGHT / 2) / DESIGN_HEIGHT;
++}
++
++BOOT_KEYS ReadBootKeys(UINTN WaitMs)
++{
++    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *In;
++    BOOLEAN Picker = FALSE, Verbose = FALSE;
++
++    if (gST->ConsoleInHandle == NULL ||
++        EFI_ERROR(gBS->HandleProtocol(gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid, (VOID **)&In)))
++        return BootKeysNone;
++
++    /* Modifier keys alone are reported only with the key state exposed. */
++    EFI_KEY_TOGGLE_STATE State = EFI_TOGGLE_STATE_VALID | EFI_KEY_STATE_EXPOSED;
++    EFI_STATUS Exposed = In->SetState(In, &State);
++    UINT32 Seen = 0;
++    UINTN Strokes = 0;
++    /* A key held since power-on gives no new keystroke (a modifier never
++       repeats): the shift state comes with every answer, keystroke or not
++       (EFI_NOT_READY), and is looked at either way. */
++    for (UINTN Waited = 0; Waited <= WaitMs; Waited += 10) {
++        for (;;) {
++            EFI_KEY_DATA Key;
++            ZeroMem(&Key, sizeof(Key));
++            EFI_STATUS Status = In->ReadKeyStrokeEx(In, &Key);
++            UINT32 Shift = Key.KeyState.KeyShiftState;
++            Seen |= Shift;
++            if (!EFI_ERROR(Status))
++                Strokes++;
++            if (Shift & EFI_SHIFT_STATE_VALID) {
++                if (Shift & (EFI_LEFT_ALT_PRESSED | EFI_RIGHT_ALT_PRESSED))
++                    Picker = TRUE;
++                if ((Shift & (EFI_LEFT_LOGO_PRESSED | EFI_RIGHT_LOGO_PRESSED)) &&
++                    (Key.Key.UnicodeChar == L'v' || Key.Key.UnicodeChar == L'V'))
++                    Verbose = TRUE;
++            }
++            if (EFI_ERROR(Status))
++                break;
++        }
++        gBS->Stall(10 * 1000);
++    }
++    State = EFI_TOGGLE_STATE_VALID;
++    In->SetState(In, &State);
++    Print(UEFI_STR("[] Boot keys: key state exposed %r, shift states seen 0x%x, %u keystrokes\n"),
++        Exposed, Seen, Strokes);
++    return Picker ? BootKeysPicker : Verbose ? BootKeysVerbose : BootKeysNone;
++}
++
++/* The logo, read whole: "MKBI", width, height, then BGRX rows. */
++STATIC EFI_GRAPHICS_OUTPUT_BLT_PIXEL *ReadLogo(UINT32 *Width, UINT32 *Height)
++{
++    EFI_FILE_HANDLE Root, File;
++    UINT8 Header[12];
++    UINTN Size = sizeof(Header);
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Pixels = NULL;
++
++    if (EFI_ERROR(OpenBootVolume(&Root)))
++        return NULL;
++    EFI_STATUS Status = Root->Open(Root, &File, UEFI_STR("\\Minkar\\Boot\\logo.raw"), EFI_FILE_MODE_READ, 0);
++    Root->Close(Root);
++    if (EFI_ERROR(Status))
++        return NULL;
++    if (!EFI_ERROR(File->Read(File, &Size, Header)) && Size == sizeof(Header) &&
++        CompareMem(Header, "MKBI", 4) == 0) {
++        *Width = *(UINT32 *)(Header + 4);
++        *Height = *(UINT32 *)(Header + 8);
++        if (*Width > 0 && *Width <= 2048 && *Height > 0 && *Height <= 2048) {
++            Size = (UINTN)*Width * *Height * sizeof(*Pixels);
++            Pixels = AllocatePool(Size);
++            UINTN Wanted = Size;
++            if (Pixels != NULL && (EFI_ERROR(File->Read(File, &Size, Pixels)) || Size != Wanted)) {
++                FreePool(Pixels);
++                Pixels = NULL;
++            }
++        }
++    }
++    File->Close(File);
++    return Pixels;
++}
++
++/* The logo scaled to Box x Box, each pixel the average of the source
++   pixels it covers (or the nearest one, when it is made larger). */
++STATIC VOID DrawLogo(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Width, UINTN Height)
++{
++    UINT32 SourceWidth, SourceHeight;
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Source = ReadLogo(&SourceWidth, &SourceHeight);
++    UINTN Box = Scale(LOGO_BOX, Height);
++
++    if (Source == NULL)
++        return;
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Out = AllocateZeroPool(Box * Box * sizeof(*Out));
++    if (Out != NULL) {
++        for (UINTN y = 0; y < Box; y++) {
++            UINTN y0 = y * SourceHeight / Box, y1 = (y + 1) * SourceHeight / Box;
++            if (y1 <= y0)
++                y1 = y0 + 1;
++            for (UINTN x = 0; x < Box; x++) {
++                UINTN x0 = x * SourceWidth / Box, x1 = (x + 1) * SourceWidth / Box;
++                UINTN R = 0, G = 0, B = 0, N = 0;
++                if (x1 <= x0)
++                    x1 = x0 + 1;
++                for (UINTN sy = y0; sy < y1 && sy < SourceHeight; sy++)
++                    for (UINTN sx = x0; sx < x1 && sx < SourceWidth; sx++) {
++                        EFI_GRAPHICS_OUTPUT_BLT_PIXEL *P = &Source[sy * SourceWidth + sx];
++                        R += P->Red;
++                        G += P->Green;
++                        B += P->Blue;
++                        N++;
++                    }
++                if (N > 0) {
++                    Out[y * Box + x].Red = (UINT8)(R / N);
++                    Out[y * Box + x].Green = (UINT8)(G / N);
++                    Out[y * Box + x].Blue = (UINT8)(B / N);
++                }
++            }
++        }
++        UINTN Top = Scale(LOGO_CENTRE_Y, Height);
++        Top = Top > Box / 2 ? Top - Box / 2 : 0;
++        GOP->Blt(GOP, Out, EfiBltBufferToVideo, 0, 0, (Width - Box) / 2, Top, Box, Box, 0);
++        FreePool(Out);
++    }
++    FreePool(Source);
++}
++
++/*
++ * The bar: a capsule (a rectangle with round ends), filled from the left
++ * to Percent. Each pixel is sampled 4x4 times (in eighths of a pixel) for
++ * its edges, over the black background.
++ */
++STATIC VOID DrawBar(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Width, UINTN Height, UINTN Percent)
++{
++    UINTN BarWidth = Scale(BAR_WIDTH, Height), BarHeight = Scale(BAR_HEIGHT, Height);
++    UINTN Left = (Width - BarWidth) / 2, Top = Scale(BAR_TOP, Height);
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Out;
++
++    if (BarHeight < 3)
++        BarHeight = 3;
++    if (Percent > 100)
++        Percent = 100;
++    Out = AllocateZeroPool(BarWidth * BarHeight * sizeof(*Out));
++    if (Out == NULL)
++        return;
++    INTN Radius = (INTN)BarHeight * 4;
++    INTN LeftCentre = (INTN)Left * 8 + Radius, RightCentre = (INTN)(Left + BarWidth) * 8 - Radius;
++    INTN Middle = (INTN)Top * 8 + (INTN)BarHeight * 4;
++    INTN FillEnd = (INTN)Left * 8 + (INTN)(BarWidth * 8 * Percent / 100);
++    for (UINTN y = 0; y < BarHeight; y++)
++        for (UINTN x = 0; x < BarWidth; x++) {
++            UINTN R = 0, G = 0, B = 0;
++            for (INTN j = 0; j < 4; j++)
++                for (INTN i = 0; i < 4; i++) {
++                    INTN sx = (INTN)(Left + x) * 8 + 2 * i + 1, sy = (INTN)(Top + y) * 8 + 2 * j + 1;
++                    INTN dx = sx < LeftCentre ? LeftCentre - sx : sx > RightCentre ? sx - RightCentre : 0;
++                    INTN dy = sy - Middle;
++                    if (dx * dx + dy * dy > Radius * Radius)
++                        continue;
++                    CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL *C = sx < FillEnd ? &kFill : &kTrack;
++                    R += C->Red;
++                    G += C->Green;
++                    B += C->Blue;
++                }
++            Out[y * BarWidth + x].Red = (UINT8)(R / 16);
++            Out[y * BarWidth + x].Green = (UINT8)(G / 16);
++            Out[y * BarWidth + x].Blue = (UINT8)(B / 16);
++        }
++    GOP->Blt(GOP, Out, EfiBltBufferToVideo, 0, 0, Left, Top, BarWidth, BarHeight, 0);
++    FreePool(Out);
++}
++
++VOID BootScreenShow(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Percent)
++{
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL Black = { 0, 0, 0, 0 };
++    UINTN Width = GOP->Mode->Info->HorizontalResolution, Height = GOP->Mode->Info->VerticalResolution;
++
++    GOP->Blt(GOP, &Black, EfiBltVideoFill, 0, 0, 0, 0, Width, Height, 0);
++    DrawLogo(GOP, Width, Height);
++    DrawBar(GOP, Width, Height, Percent);
++}
++
++VOID BootScreenProgress(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Percent)
++{
++    DrawBar(GOP, GOP->Mode->Info->HorizontalResolution, GOP->Mode->Info->VerticalResolution, Percent);
++}
+diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.h b/MdeModulePkg/Application/Loader/bootscreen.h
+--- a/MdeModulePkg/Application/Loader/bootscreen.h	1969-12-31 19:00:00.000000000 -0500
++++ b/MdeModulePkg/Application/Loader/bootscreen.h	2026-11-27 12:19:53.932472158 -0500
+@@ -0,0 +1,32 @@
++/*
++ * SPDX-License-Identifier: BSD-2-Clause
++ * Copyright (c) 2026 The Minkar contributors
++ * Part of Minkar.
++ *
++ * The graphical boot (bootscreen.c) and the boot picker (picker.c).
++ */
++#ifndef __BOOTSCREEN_H
++#define __BOOTSCREEN_H
++
++#include <Protocol/GraphicsOutput.h>
++
++typedef enum {
++    BootKeysNone,       /* the usual boot */
++    BootKeysVerbose,    /* Command-V: verbose mode */
++    BootKeysPicker,     /* Alt: the boot picker */
++} BOOT_KEYS;
++
++/* The keys held, looked at for WaitMs milliseconds. */
++BOOT_KEYS ReadBootKeys(UINTN WaitMs);
++
++/* The boot screen, its bar at Percent; the bar alone moved on. */
++VOID BootScreenShow(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Percent);
++VOID BootScreenProgress(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Percent);
++
++/* The boot picker: another volume's loader started from it, or the keys
++   for this system's boot (as usual, or verbose). */
++BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle);
++
++EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root);
++
++#endif
+diff -ruN a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/Loader/config.c
+--- a/MdeModulePkg/Application/Loader/config.c	2026-11-25 10:19:16.129208716 -0500
++++ b/MdeModulePkg/Application/Loader/config.c	2026-11-27 12:18:26.877681976 -0500
+@@ -41,6 +41,7 @@
+                        CSR_ALLOW_UNRESTRICTED_DTRACE | CSR_ALLOW_UNRESTRICTED_NVRAM |
+                        CSR_ALLOW_DEVICE_CONFIGURATION | CSR_ALLOW_ANY_RECOVERY_OS |
+                        CSR_ALLOW_UNAPPROVED_KEXTS,
++    .KeyWait         = 500,
+ };
+ 
+ /* TRUE for the XML whitespace that may appear between a </key> and its value. */
+@@ -91,6 +92,15 @@
+         gBootConfig.LoaderPause = (UINT32)AsciiStrDecimalToUintn(buf);
+         if(gBootConfig.LoaderPause > 120)
+             gBootConfig.LoaderPause = 120;
++    } else if(!isString && KeyMatch(key, keyLen, "key-wait")) {
++        /* Minkar: how long the keys held at power-on are looked for. */
++        CHAR8 buf[16];
++        UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
++        CopyMem(buf, val, n);
++        buf[n] = '\0';
++        gBootConfig.KeyWait = (UINT32)AsciiStrDecimalToUintn(buf);
++        if(gBootConfig.KeyWait > 5000)
++            gBootConfig.KeyWait = 5000;
+     } else if(!isString && KeyMatch(key, keyLen, "csr-active-config")) {
+         CHAR8 buf[32];
+         UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
+diff -ruN a/MdeModulePkg/Application/Loader/config.h b/MdeModulePkg/Application/Loader/config.h
+--- a/MdeModulePkg/Application/Loader/config.h	2026-11-25 10:19:16.127208811 -0500
++++ b/MdeModulePkg/Application/Loader/config.h	2026-11-27 12:18:08.758560397 -0500
+@@ -42,6 +42,7 @@
+     UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
+     CHAR8   GraphicsMode[16];   // "graphics-mode" -> "WIDTHxHEIGHT" or "max"; empty: the firmware's
+     CHAR8   StartupSound[8];    // "startup-sound" -> "off" or "on"; empty: left as it is
++    UINT32  KeyWait;            // "key-wait" -> milliseconds the boot keys are looked for (Minkar)
+ } BOOT_CONFIG;
+ 
+ extern BOOT_CONFIG gBootConfig;
+diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/Loader/loader.c
+--- a/MdeModulePkg/Application/Loader/loader.c	2026-11-25 10:19:16.127208811 -0500
++++ b/MdeModulePkg/Application/Loader/loader.c	2026-11-27 12:36:42.105408030 -0500
+@@ -29,6 +29,7 @@
+ #include "config.h"
+ #include "lzvn_decode.h"
+ #include <mach-o/fat.h>
++#include "bootscreen.h"
+ 
+ #define VERSION_STR UEFI_STR("v0.8 IN DEVELOPMENT")
+ 
+@@ -40,8 +41,10 @@
+  */
+ STATIC CHAR8 gLog[16384];
+ STATIC UINTN gLogLength;
++/* Minkar: the graphical boot is on: the log is kept, not shown. */
++STATIC BOOLEAN gQuiet;
+ 
+-STATIC UINTN EFIAPI LogPrint(IN CONST CHAR16 *Format, ...)
++UINTN EFIAPI LogPrint(IN CONST CHAR16 *Format, ...)
+ {
+     VA_LIST Args;
+     CHAR16 Line[512];
+@@ -50,12 +53,12 @@
+     VA_START(Args, Format);
+     Length = UnicodeVSPrint(Line, sizeof(Line), Format, Args);
+     VA_END(Args);
+-    Print(UEFI_STR("%s"), Line);
++    if (!gQuiet)
++        gST->ConOut->OutputString(gST->ConOut, Line);
+     for (UINTN i = 0; Line[i] != 0 && gLogLength < sizeof(gLog) - 1; i++)
+         gLog[gLogLength++] = (Line[i] < 0x80) ? (CHAR8)Line[i] : '?';
+     return Length;
+ }
+-#define Print LogPrint
+ /*
+  * Minkar: room reserved after the kernel for the device tree, the boot
+  * arguments and the copied EFI tables (see the layout in loader.h).
+@@ -96,6 +99,17 @@
+  * than one (the card's, and the console splitter's that forwards to it):
+  * the mode is set, and later read back for the kernel, on this one.
+  */
++/* Minkar: whether a boot argument (a whole word) is there. */
++STATIC BOOLEAN HasBootArg(CONST CHAR8 *Args, CONST CHAR8 *Arg)
++{
++    UINTN Length = AsciiStrLen(Arg);
++
++    for (CONST CHAR8 *p = Args; (p = AsciiStrStr(p, Arg)) != NULL; p += Length)
++        if ((p == Args || p[-1] == ' ') && (p[Length] == ' ' || p[Length] == '\0'))
++            return TRUE;
++    return FALSE;
++}
++
+ STATIC EFI_STATUS LocateGOP(EFI_GRAPHICS_OUTPUT_PROTOCOL **GOP)
+ {
+     if (gST->ConsoleOutHandle != NULL &&
+@@ -289,13 +303,15 @@
+      * inits, it wants to switch rather than start in graphics mode
+      */
+     v1->baseAddr = mode->FrameBufferBase;
+-    v1->display = FB_TEXT_MODE;
++    /* Minkar: in the graphical boot the kernel keeps the boot screen and
++       goes on with its bar (no text console on the screen). */
++    v1->display = gQuiet ? GRAPHICS_MODE : FB_TEXT_MODE;
+     v1->bytesPerRow = info->PixelsPerScanLine * 4; // UEFI only has RGBA, BGRA, or mono
+     v1->width = info->HorizontalResolution;
+     v1->height = info->VerticalResolution;
+     v1->depth = 32;
+ 
+-    v->display = FB_TEXT_MODE;
++    v->display = gQuiet ? GRAPHICS_MODE : FB_TEXT_MODE;
+     v->bytesPerRow = info->PixelsPerScanLine * 4;
+     v->width = info->HorizontalResolution;
+     v->height = info->VerticalResolution;
+@@ -828,6 +844,11 @@
+ /* Minkar: leave the reason on the screen before the firmware takes over. */
+ STATIC EFI_STATUS LoaderFail(CONST CHAR16 *What, EFI_STATUS Status)
+ {
++    if (gQuiet) {
++        /* Minkar: the reason shown, not just logged. */
++        gQuiet = FALSE;
++        gST->ConOut->ClearScreen(gST->ConOut);
++    }
+     Print(UEFI_STR("!! Error: %s: %r\n"), What, Status);
+     gBS->Stall(15 * 1000 * 1000);
+     return Status;
+@@ -1070,6 +1091,26 @@
+     SetGraphicsMode();
+     SetStartupSound();
+ 
++    /*
++     * Minkar: the graphical boot. Unless the boot arguments ask for
++     * verbose mode, or Command-V is held, the boot screen is shown and the
++     * loader's text only logged. Alt held: the boot picker.
++     */
++    BOOT_KEYS Keys = ReadBootKeys(gBootConfig.KeyWait);
++    if (Keys == BootKeysPicker)
++        Keys = RunPicker(ImageHandle);
++    BOOLEAN Verbose = HasBootArg(gBootConfig.BootArgs, "-v");
++    if (Keys == BootKeysVerbose && !Verbose) {
++        AsciiStrCatS(gBootConfig.BootArgs, sizeof(gBootConfig.BootArgs), " -v");
++        Verbose = TRUE;
++    }
++    EFI_GRAPHICS_OUTPUT_PROTOCOL *ScreenGOP = NULL;
++    if (!Verbose && !EFI_ERROR(LocateGOP(&ScreenGOP))) {
++        gQuiet = TRUE;
++        BootScreenShow(ScreenGOP, 0);
++    }
++    Print(UEFI_STR("[] Boot keys %d, %a boot\n"), (INT32)Keys, gQuiet ? "graphical" : "verbose");
++
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     if (Status == EFI_BUFFER_TOO_SMALL) {
+         /* Minkar: this map only counts memory; the kernel gets the final one. */
+@@ -1100,6 +1141,10 @@
+     Status = LoadKernel(&KernelBuffer, &KernelEntry, &KernelSize);
+     if (EFI_ERROR(Status)) {
+         /* Leave the reason on the screen before the firmware takes over. */
++        if (gQuiet) {
++            gQuiet = FALSE;
++            gST->ConOut->ClearScreen(gST->ConOut);
++        }
+         Print(UEFI_STR("!! Error: cannot load the kernel %a: %r\n"),
+             gBootConfig.KernelPath, Status);
+         gBS->Stall(15 * 1000 * 1000);
+@@ -1107,6 +1152,8 @@
+     }
+ 
+     Print(UEFI_STR("\n[] Memory: %u MB usable\n"), physPages * EFI_PAGE_SIZE / MB);
++    if (gQuiet)
++        BootScreenProgress(ScreenGOP, 10);
+ 
+     /* Sucks that we do this twice, but I need the ACPI tables to init DTB */
+     EFI_CONFIGURATION_TABLE *table = SystemTable->ConfigurationTable;
+@@ -1224,6 +1271,8 @@
+         /* Minkar: keep the loader's output up long enough to read it. */
+         Print(UEFI_STR("[] Pausing %u seconds (loader-pause)\n"), gBootConfig.LoaderPause);
+         gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
++    } else if (gQuiet) {
++        /* Minkar: the boot screen stays for the kernel. */
+     } else if (gGraphicsMode == (UINT32)-1) {
+         gST->ConOut->ClearScreen(gST->ConOut);
+     } else {
+@@ -1242,6 +1291,8 @@
+             Print(UEFI_STR("[] The firmware left graphics mode %u: setting it again\n"),
+                 gGraphicsMode);
+             GOP->SetMode(GOP, gGraphicsMode);
++            if (gQuiet)
++                BootScreenShow(GOP, 10);
+         }
+         if (!EFI_ERROR(GetVideoInfo(&videoV1, &video))) {
+             BootArgs->VideoV1 = videoV1;
+diff -ruN a/MdeModulePkg/Application/Loader/loader.h b/MdeModulePkg/Application/Loader/loader.h
+--- a/MdeModulePkg/Application/Loader/loader.h	2026-11-25 10:19:16.112209530 -0500
++++ b/MdeModulePkg/Application/Loader/loader.h	2026-11-27 12:33:51.252504859 -0500
+@@ -259,4 +259,12 @@
+ VOID FdtDump(FdtNode *root);
+ EFI_STATUS FdtSetStringProperty(FdtNode *root, CHAR8 *NodePath, CHAR8 *Name, CHAR8 *Data);
+ 
++/*
++ * Minkar: whatever any part of the loader prints goes through LogPrint
++ * (loader.c): kept for \Minkar\loader.log, and shown on the screen unless
++ * the graphical boot is on.
++ */
++UINTN EFIAPI LogPrint(IN CONST CHAR16 *Format, ...);
++#define Print(...) LogPrint(__VA_ARGS__)
++
+ #endif // __LOADER_H
+diff -ruN a/MdeModulePkg/Application/Loader/Loader.inf b/MdeModulePkg/Application/Loader/Loader.inf
+--- a/MdeModulePkg/Application/Loader/Loader.inf	2026-11-25 10:19:16.124208955 -0500
++++ b/MdeModulePkg/Application/Loader/Loader.inf	2026-11-27 13:20:22.383593593 -0500
+@@ -24,6 +24,8 @@
+   fdt.c
+   lzvn_decode.c
+   yyjson.c
++  bootscreen.c
++  picker.c
+ 
+ [Packages]
+   MdePkg/MdePkg.dec
+@@ -33,6 +35,8 @@
+   UefiApplicationEntryPoint
+   UefiLib
+   FileHandleLib
++  DevicePathLib
++  UefiRuntimeServicesTableLib
+ 
+ [Protocols]
+   gEfiLoadedImageProtocolGuid                   ## CONSUMES
+@@ -40,6 +44,9 @@
+   gEfiEdidActiveProtocolGuid                    ## SOMETIMES_CONSUMES
+   gEfiEdidDiscoveredProtocolGuid                ## SOMETIMES_CONSUMES
+   gEfiPciIoProtocolGuid                         ## SOMETIMES_CONSUMES
++  gEfiSimpleTextInputExProtocolGuid             ## SOMETIMES_CONSUMES
++  gEfiGraphicsOutputProtocolGuid                ## SOMETIMES_CONSUMES
++  gEfiHiiFontProtocolGuid                       ## SOMETIMES_CONSUMES
+ 
+ [FeaturePcd]
+   gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
+diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/Loader/picker.c
+--- a/MdeModulePkg/Application/Loader/picker.c	1969-12-31 19:00:00.000000000 -0500
++++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 13:23:31.436379712 -0500
+@@ -0,0 +1,460 @@
++/*
++ * SPDX-License-Identifier: BSD-2-Clause
++ * Copyright (c) 2026 The Minkar contributors
++ * Part of Minkar.
++ *
++ * The boot picker, shown when Alt is held at power-on: the system this
++ * loader belongs to (as usual, or in verbose mode), and the other volumes
++ * that can be started: other Minkar systems (their EFI partition has a
++ * kernel cache and its own loader; the name is their boot plist's
++ * "volume-name"), Windows, and any other removable-media loader
++ * (\EFI\BOOT\BOOTX64.EFI). Another volume's loader is started as it is.
++ *
++ * Drawn on black: a row of round icons (\Minkar\Boot\Picker, made by
++ * tools/boot/picker-icons.py) with their names (the firmware's font),
++ * the chosen one on a grey highlight with the start button under it, and
++ * the restart and shut down buttons at the bottom. Left and right choose
++ * an entry, down and up move between the entries and the buttons, Return
++ * starts or presses, Escape goes on as usual. Without the icons (or the
++ * graphics output) it is a list in text.
++ *
++ * The geometry is a design at 1920x1080 scaled to the screen's height.
++ */
++
++#include "loader.h"
++#include "bootscreen.h"
++#include <Library/DevicePathLib.h>
++#include <Library/UefiRuntimeServicesTableLib.h>
++#include <Protocol/HiiFont.h>
++#include <Protocol/SimpleTextInEx.h>
++
++#define MAX_ENTRIES     8
++#define DESIGN_HEIGHT   1080
++#define ICON_SIZE       150
++#define ICON_GAP        70
++#define HIGHLIGHT_PAD   16
++#define ROW_CENTRE_Y    470
++#define LABEL_GAP       26
++#define START_SIZE      44
++#define BUTTON_SIZE     40
++#define BUTTON_GAP      56
++#define BUTTONS_Y       960
++
++typedef struct {
++    UINT32 Width, Height;
++    UINT8 *Pixels;              /* BGRA, straight alpha */
++} ICON;
++
++typedef enum { IconMinkar, IconVerbose, IconDisk, IconStart, IconRestart, IconShutdown, IconCount } ICON_KIND;
++
++STATIC CONST CHAR16 *kIconFiles[IconCount] = {
++    UEFI_STR("minkar.raw"), UEFI_STR("verbose.raw"), UEFI_STR("disk.raw"),
++    UEFI_STR("start.raw"), UEFI_STR("restart.raw"), UEFI_STR("shutdown.raw"),
++};
++
++typedef struct {
++    CHAR16 Name[64];
++    EFI_HANDLE Volume;          /* NULL: this system */
++    CONST CHAR16 *Path;
++    BOOT_KEYS Keys;             /* for this system: as usual or verbose */
++    ICON_KIND Icon;
++} PICKER_ENTRY;
++
++STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL kBlack = { 0, 0, 0, 0 };
++STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL kHighlight = { 0x4e, 0x4a, 0x4a, 0 };
++STATIC CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL kText = { 0xf2, 0xf0, 0xf0, 0 };
++
++STATIC ICON gIcons[IconCount];
++
++STATIC BOOLEAN FileExists(EFI_FILE_HANDLE Root, CONST CHAR16 *Path)
++{
++    EFI_FILE_HANDLE File;
++
++    if (EFI_ERROR(Root->Open(Root, &File, (CHAR16 *)Path, EFI_FILE_MODE_READ, 0)))
++        return FALSE;
++    File->Close(File);
++    return TRUE;
++}
++
++/* The "volume-name" string of a boot plist, or Fallback. */
++STATIC VOID VolumeName(EFI_FILE_HANDLE Root, CHAR16 *Name, UINTN Size, CONST CHAR16 *Fallback)
++{
++    EFI_FILE_HANDLE File;
++    CHAR8 Plist[EFI_PAGE_SIZE];
++    UINTN Length = sizeof(Plist) - 1;
++
++    StrCpyS(Name, Size, Fallback);
++    if (EFI_ERROR(Root->Open(Root, &File, UEFI_STR("\\Minkar\\org.minkar.boot.plist"), EFI_FILE_MODE_READ, 0)))
++        return;
++    if (!EFI_ERROR(File->Read(File, &Length, Plist))) {
++        Plist[Length] = '\0';
++        CHAR8 *Key = AsciiStrStr(Plist, "<key>volume-name</key>");
++        CHAR8 *Value = Key != NULL ? AsciiStrStr(Key, "<string>") : NULL;
++        CHAR8 *End = Value != NULL ? AsciiStrStr(Value, "</string>") : NULL;
++        if (End != NULL && End - Value - 8 > 0 && (UINTN)(End - Value - 8) < Size) {
++            *End = '\0';
++            AsciiStrToUnicodeStrS(Value + 8, Name, Size);
++        }
++    }
++    File->Close(File);
++}
++
++STATIC UINTN FindEntries(EFI_HANDLE ImageHandle, PICKER_ENTRY *Entries)
++{
++    EFI_LOADED_IMAGE_PROTOCOL *Self = NULL;
++    EFI_HANDLE *Handles = NULL;
++    UINTN Count = 0, N = 0;
++    EFI_FILE_HANDLE Root;
++
++    gBS->HandleProtocol(ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Self);
++    if (!EFI_ERROR(OpenBootVolume(&Root))) {
++        VolumeName(Root, Entries[0].Name, ARRAY_SIZE(Entries[0].Name), UEFI_STR("Minkar"));
++        Root->Close(Root);
++    } else
++        StrCpyS(Entries[0].Name, ARRAY_SIZE(Entries[0].Name), UEFI_STR("Minkar"));
++    Entries[0].Keys = BootKeysNone;
++    Entries[0].Icon = IconMinkar;
++    StrCpyS(Entries[1].Name, ARRAY_SIZE(Entries[1].Name), UEFI_STR("Verbose mode"));
++    Entries[1].Keys = BootKeysVerbose;
++    Entries[1].Icon = IconVerbose;
++    N = 2;
++
++    if (EFI_ERROR(gBS->LocateHandleBuffer(ByProtocol, &gEfiSimpleFileSystemProtocolGuid, NULL, &Count, &Handles)))
++        return N;
++    for (UINTN i = 0; i < Count && N < MAX_ENTRIES; i++) {
++        EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *Fs;
++        if (Self != NULL && Handles[i] == Self->DeviceHandle)
++            continue;
++        if (EFI_ERROR(gBS->HandleProtocol(Handles[i], &gEfiSimpleFileSystemProtocolGuid, (VOID **)&Fs)) ||
++            EFI_ERROR(Fs->OpenVolume(Fs, &Root)))
++            continue;
++        PICKER_ENTRY *E = &Entries[N];
++        E->Volume = Handles[i];
++        E->Icon = IconDisk;
++        if (FileExists(Root, UEFI_STR("\\Minkar\\kernelcache")) &&
++            FileExists(Root, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"))) {
++            VolumeName(Root, E->Name, ARRAY_SIZE(E->Name), UEFI_STR("Minkar"));
++            E->Path = UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI");
++            E->Icon = IconMinkar;
++        } else if (FileExists(Root, UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi"))) {
++            StrCpyS(E->Name, ARRAY_SIZE(E->Name), UEFI_STR("Windows"));
++            E->Path = UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi");
++        } else if (FileExists(Root, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"))) {
++            StrCpyS(E->Name, ARRAY_SIZE(E->Name), UEFI_STR("EFI Boot"));
++            E->Path = UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI");
++        }
++        Root->Close(Root);
++        if (E->Path != NULL)
++            N++;
++    }
++    FreePool(Handles);
++    return N;
++}
++
++/* The icons, read whole: "MKBA", width, height, then BGRA. All or none. */
++STATIC BOOLEAN LoadIcons(VOID)
++{
++    EFI_FILE_HANDLE Root, File;
++    BOOLEAN Ok = TRUE;
++
++    if (EFI_ERROR(OpenBootVolume(&Root)))
++        return FALSE;
++    for (UINTN i = 0; i < IconCount && Ok; i++) {
++        CHAR16 Path[64];
++        UINT8 Header[12];
++        UINTN Size = sizeof(Header);
++        UnicodeSPrint(Path, sizeof(Path), UEFI_STR("\\Minkar\\Boot\\Picker\\%s"), kIconFiles[i]);
++        Ok = FALSE;
++        if (EFI_ERROR(Root->Open(Root, &File, Path, EFI_FILE_MODE_READ, 0)))
++            break;
++        if (!EFI_ERROR(File->Read(File, &Size, Header)) && Size == sizeof(Header) &&
++            CompareMem(Header, "MKBA", 4) == 0) {
++            gIcons[i].Width = *(UINT32 *)(Header + 4);
++            gIcons[i].Height = *(UINT32 *)(Header + 8);
++            if (gIcons[i].Width > 0 && gIcons[i].Width <= 512 && gIcons[i].Height > 0 && gIcons[i].Height <= 512) {
++                Size = (UINTN)gIcons[i].Width * gIcons[i].Height * 4;
++                UINTN Wanted = Size;
++                gIcons[i].Pixels = AllocatePool(Size);
++                Ok = gIcons[i].Pixels != NULL && !EFI_ERROR(File->Read(File, &Size, gIcons[i].Pixels)) &&
++                     Size == Wanted;
++            }
++        }
++        File->Close(File);
++    }
++    Root->Close(Root);
++    return Ok;
++}
++
++STATIC VOID FreeIcons(VOID)
++{
++    for (UINTN i = 0; i < IconCount; i++)
++        if (gIcons[i].Pixels != NULL) {
++            FreePool(gIcons[i].Pixels);
++            gIcons[i].Pixels = NULL;
++        }
++}
++
++STATIC UINTN Scale(UINTN Value, UINTN Height)
++{
++    return (Value * Height + DESIGN_HEIGHT / 2) / DESIGN_HEIGHT;
++}
++
++/* An icon at Size x Size over a plain background: each pixel the average
++   of the source pixels it covers, blended by their alpha. */
++STATIC VOID DrawIcon(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, ICON *Icon, UINTN Left, UINTN Top, UINTN Size,
++                     CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Back)
++{
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Out;
++
++    if (Size == 0 || (Out = AllocatePool(Size * Size * sizeof(*Out))) == NULL)
++        return;
++    for (UINTN y = 0; y < Size; y++) {
++        UINTN y0 = y * Icon->Height / Size, y1 = (y + 1) * Icon->Height / Size;
++        if (y1 <= y0)
++            y1 = y0 + 1;
++        for (UINTN x = 0; x < Size; x++) {
++            UINTN x0 = x * Icon->Width / Size, x1 = (x + 1) * Icon->Width / Size;
++            UINTN R = 0, G = 0, B = 0, A = 0, N = 0;
++            if (x1 <= x0)
++                x1 = x0 + 1;
++            for (UINTN sy = y0; sy < y1 && sy < Icon->Height; sy++)
++                for (UINTN sx = x0; sx < x1 && sx < Icon->Width; sx++) {
++                    UINT8 *P = &Icon->Pixels[(sy * Icon->Width + sx) * 4];
++                    B += P[0] * P[3];
++                    G += P[1] * P[3];
++                    R += P[2] * P[3];
++                    A += P[3];
++                    N++;
++                }
++            /* Premultiplied average, then over the background. */
++            UINTN Cover = N ? A / N : 0;
++            EFI_GRAPHICS_OUTPUT_BLT_PIXEL *O = &Out[y * Size + x];
++            O->Blue = (UINT8)((N ? B / N / 255 : 0) + Back->Blue * (255 - Cover) / 255);
++            O->Green = (UINT8)((N ? G / N / 255 : 0) + Back->Green * (255 - Cover) / 255);
++            O->Red = (UINT8)((N ? R / N / 255 : 0) + Back->Red * (255 - Cover) / 255);
++            O->Reserved = 0;
++        }
++    }
++    GOP->Blt(GOP, Out, EfiBltBufferToVideo, 0, 0, Left, Top, Size, Size, 0);
++    FreePool(Out);
++}
++
++/* A rounded rectangle (the chosen entry's highlight), its corners sampled
++   4x4 times over black. */
++STATIC VOID DrawHighlight(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, UINTN Left, UINTN Top, UINTN Width, UINTN Height,
++                          UINTN Radius, CONST EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Colour)
++{
++    EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Out = AllocateZeroPool(Width * Height * sizeof(*Out));
++
++    if (Out == NULL)
++        return;
++    INTN R8 = (INTN)Radius * 8;
++    for (UINTN y = 0; y < Height; y++)
++        for (UINTN x = 0; x < Width; x++) {
++            UINTN Hits = 0;
++            for (INTN j = 0; j < 4; j++)
++                for (INTN i = 0; i < 4; i++) {
++                    INTN sx = (INTN)x * 8 + 2 * i + 1, sy = (INTN)y * 8 + 2 * j + 1;
++                    INTN cx = sx < R8 ? R8 : sx > (INTN)Width * 8 - R8 ? (INTN)Width * 8 - R8 : sx;
++                    INTN cy = sy < R8 ? R8 : sy > (INTN)Height * 8 - R8 ? (INTN)Height * 8 - R8 : sy;
++                    if ((sx - cx) * (sx - cx) + (sy - cy) * (sy - cy) <= R8 * R8)
++                        Hits++;
++                }
++            Out[y * Width + x].Blue = (UINT8)(Colour->Blue * Hits / 16);
++            Out[y * Width + x].Green = (UINT8)(Colour->Green * Hits / 16);
++            Out[y * Width + x].Red = (UINT8)(Colour->Red * Hits / 16);
++        }
++    GOP->Blt(GOP, Out, EfiBltBufferToVideo, 0, 0, Left, Top, Width, Height, 0);
++    FreePool(Out);
++}
++
++/* A name in the firmware's font, centred on CentreX, made Zoom times
++   larger (each pixel repeated) on large screens. The firmware may give a
++   larger image than the text: its first row's size says what is text. */
++STATIC VOID DrawLabel(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, EFI_HII_FONT_PROTOCOL *Font, CONST CHAR16 *Text,
++                      UINTN CentreX, UINTN Top, UINTN Zoom)
++{
++    EFI_FONT_DISPLAY_INFO *Info;
++    EFI_IMAGE_OUTPUT *Image = NULL;
++    EFI_HII_ROW_INFO *Rows = NULL;
++    UINTN RowCount = 0;
++
++    if (Font == NULL)
++        return;
++    Info = AllocateZeroPool(sizeof(EFI_FONT_DISPLAY_INFO) + sizeof(CHAR16) * 2);
++    if (Info == NULL)
++        return;
++    Info->ForegroundColor = kText;
++    Info->BackgroundColor = kBlack;
++    Info->FontInfoMask = EFI_FONT_INFO_SYS_FONT | EFI_FONT_INFO_SYS_SIZE | EFI_FONT_INFO_SYS_STYLE;
++    EFI_STATUS Status = Font->StringToImage(Font, EFI_HII_IGNORE_LINE_BREAK, (EFI_STRING)Text, Info, &Image, 0, 0,
++                                            &Rows, &RowCount, NULL);
++    if (!EFI_ERROR(Status) && Image != NULL && Rows != NULL && RowCount > 0) {
++        UINTN TextW = MIN(Rows[0].LineWidth, Image->Width), TextH = MIN(Rows[0].LineHeight, Image->Height);
++        UINTN W = TextW * Zoom, H = TextH * Zoom;
++        EFI_GRAPHICS_OUTPUT_BLT_PIXEL *Out = W && H ? AllocatePool(W * H * sizeof(*Out)) : NULL;
++        if (Out != NULL) {
++            for (UINTN y = 0; y < H; y++)
++                for (UINTN x = 0; x < W; x++)
++                    Out[y * W + x] = Image->Image.Bitmap[(y / Zoom) * Image->Width + x / Zoom];
++            UINTN Left = CentreX > W / 2 ? CentreX - W / 2 : 0;
++            GOP->Blt(GOP, Out, EfiBltBufferToVideo, 0, 0, Left, Top, W, H, 0);
++            FreePool(Out);
++        }
++    }
++    if (Image != NULL) {
++        if (Image->Image.Bitmap != NULL)
++            FreePool(Image->Image.Bitmap);
++        FreePool(Image);
++    }
++    if (Rows != NULL)
++        FreePool(Rows);
++    FreePool(Info);
++}
++
++/*
++ * The whole picker. Focus: 0 the entries (Chosen is the one), 1 the restart
++ * button, 2 the shut down button.
++ */
++STATIC VOID DrawGraphical(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, EFI_HII_FONT_PROTOCOL *Font, PICKER_ENTRY *Entries,
++                          UINTN N, UINTN Chosen, UINTN Focus)
++{
++    UINTN W = GOP->Mode->Info->HorizontalResolution, H = GOP->Mode->Info->VerticalResolution;
++    UINTN Icon = Scale(ICON_SIZE, H), Gap = Scale(ICON_GAP, H), Pad = Scale(HIGHLIGHT_PAD, H);
++    UINTN Zoom = H >= 1800 ? 2 : 1;
++
++    /* Narrower when they do not fit across. */
++    while (N * Icon + (N - 1) * Gap + 2 * Pad > W * 9 / 10 && Icon > 48) {
++        Icon = Icon * 9 / 10;
++        Gap = Gap * 9 / 10;
++    }
++    UINTN RowWidth = N * Icon + (N - 1) * Gap;
++    UINTN Left = (W - RowWidth) / 2, Top = Scale(ROW_CENTRE_Y, H) - Icon / 2;
++    UINTN LabelTop = Top + Icon + Pad + Scale(LABEL_GAP, H) / 2;
++
++    GOP->Blt(GOP, (EFI_GRAPHICS_OUTPUT_BLT_PIXEL *)&kBlack, EfiBltVideoFill, 0, 0, 0, 0, W, H, 0);
++    for (UINTN i = 0; i < N; i++) {
++        UINTN x = Left + i * (Icon + Gap);
++        BOOLEAN Lit = (i == Chosen && Focus == 0);
++        if (Lit)
++            DrawHighlight(GOP, x - Pad, Top - Pad, Icon + 2 * Pad, Icon + 2 * Pad, Scale(18, H), &kHighlight);
++        DrawIcon(GOP, &gIcons[Entries[i].Icon], x, Top, Icon, Lit ? &kHighlight : &kBlack);
++        DrawLabel(GOP, Font, Entries[i].Name, x + Icon / 2, LabelTop, Zoom);
++    }
++    /* The start button, under the chosen entry's name. */
++    UINTN Start = Scale(START_SIZE, H);
++    UINTN cx = Left + Chosen * (Icon + Gap) + Icon / 2;
++    DrawIcon(GOP, &gIcons[IconStart], cx - Start / 2, LabelTop + Scale(46, H) * Zoom, Start, &kBlack);
++
++    /* Restart and shut down, at the bottom. */
++    UINTN Button = Scale(BUTTON_SIZE, H), BGap = Scale(BUTTON_GAP, H), By = Scale(BUTTONS_Y, H);
++    UINTN Bx = (W - 2 * Button - BGap) / 2;
++    for (UINTN b = 0; b < 2; b++) {
++        UINTN x = Bx + b * (Button + BGap);
++        BOOLEAN Lit = (Focus == b + 1);
++        if (Lit)
++            DrawHighlight(GOP, x - Pad / 2, By - Pad / 2, Button + Pad, Button + Pad, (Button + Pad) / 2, &kHighlight);
++        DrawIcon(GOP, &gIcons[b == 0 ? IconRestart : IconShutdown], x, By, Button, Lit ? &kHighlight : &kBlack);
++    }
++}
++
++STATIC VOID DrawText(PICKER_ENTRY *Entries, UINTN N, UINTN Chosen)
++{
++    EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *Out = gST->ConOut;
++    UINTN Columns = 80, Rows = 25;
++
++    Out->QueryMode(Out, Out->Mode->Mode, &Columns, &Rows);
++    Out->SetAttribute(Out, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
++    Out->ClearScreen(Out);
++    Out->EnableCursor(Out, FALSE);
++    UINTN Width = 40, Left = Columns > Width ? (Columns - Width) / 2 : 0;
++    UINTN Top = Rows > N + 6 ? (Rows - N - 6) / 2 : 0;
++    Out->SetCursorPosition(Out, Left, Top);
++    Out->OutputString(Out, UEFI_STR("Choose a startup disk"));
++    for (UINTN i = 0; i < N; i++) {
++        CHAR16 Line[64];
++        UnicodeSPrint(Line, sizeof(Line), UEFI_STR(" %-38s "), Entries[i].Name);
++        Out->SetCursorPosition(Out, Left, Top + 2 + i);
++        Out->SetAttribute(Out, i == Chosen ? EFI_TEXT_ATTR(EFI_BLACK, EFI_LIGHTGRAY)
++                                           : EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
++        Out->OutputString(Out, Line);
++    }
++    Out->SetAttribute(Out, EFI_TEXT_ATTR(EFI_DARKGRAY, EFI_BLACK));
++    Out->SetCursorPosition(Out, Left, Top + 3 + N);
++    Out->OutputString(Out, UEFI_STR("Up and down to choose, Return to start"));
++    Out->SetAttribute(Out, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
++}
++
++/* Another volume's loader started; back here if it returns. */
++STATIC VOID StartOther(EFI_HANDLE ImageHandle, PICKER_ENTRY *E)
++{
++    EFI_DEVICE_PATH_PROTOCOL *Path = FileDevicePath(E->Volume, E->Path);
++    EFI_HANDLE Image = NULL;
++
++    if (Path == NULL)
++        return;
++    if (!EFI_ERROR(gBS->LoadImage(FALSE, ImageHandle, Path, NULL, 0, &Image))) {
++        gST->ConOut->ClearScreen(gST->ConOut);
++        gBS->StartImage(Image, NULL, NULL);
++    }
++    FreePool(Path);
++}
++
++BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle)
++{
++    PICKER_ENTRY Entries[MAX_ENTRIES];
++    EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP = NULL;
++    EFI_HII_FONT_PROTOCOL *Font = NULL;
++    UINTN Chosen = 0, Focus = 0;
++
++    ZeroMem(Entries, sizeof(Entries));
++    UINTN N = FindEntries(ImageHandle, Entries);
++    BOOLEAN Graphical = LoadIcons() &&
++        !EFI_ERROR(gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiGraphicsOutputProtocolGuid, (VOID **)&GOP));
++    if (Graphical)
++        gBS->LocateProtocol(&gEfiHiiFontProtocolGuid, NULL, (VOID **)&Font);
++    Print(UEFI_STR("[] Boot picker: %u entries, %a%a\n"), N, Graphical ? "graphical" : "text",
++          Graphical && Font == NULL ? " (no font)" : "");
++    if (Graphical)
++        gST->ConOut->EnableCursor(gST->ConOut, FALSE);
++
++    for (;;) {
++        EFI_INPUT_KEY Key;
++        UINTN Index;
++        if (Graphical)
++            DrawGraphical(GOP, Font, Entries, N, Chosen, Focus);
++        else
++            DrawText(Entries, N, Chosen);
++        gBS->WaitForEvent(1, &gST->ConIn->WaitForKey, &Index);
++        if (EFI_ERROR(gST->ConIn->ReadKeyStroke(gST->ConIn, &Key)))
++            continue;
++        BOOLEAN Back = Graphical ? Key.ScanCode == SCAN_LEFT : Key.ScanCode == SCAN_UP;
++        BOOLEAN Next = Graphical ? Key.ScanCode == SCAN_RIGHT : Key.ScanCode == SCAN_DOWN;
++        if (Focus == 0 && Back && Chosen > 0)
++            Chosen--;
++        else if (Focus == 0 && Next && Chosen + 1 < N)
++            Chosen++;
++        else if (Graphical && Focus > 0 && (Key.ScanCode == SCAN_LEFT || Key.ScanCode == SCAN_RIGHT))
++            Focus = Key.ScanCode == SCAN_LEFT ? 1 : 2;
++        else if (Graphical && Key.ScanCode == SCAN_DOWN && Focus == 0)
++            Focus = 1;
++        else if (Graphical && Key.ScanCode == SCAN_UP && Focus > 0)
++            Focus = 0;
++        else if (Key.ScanCode == SCAN_ESC) {
++            Chosen = 0;
++            break;
++        } else if (Key.UnicodeChar == CHAR_CARRIAGE_RETURN) {
++            if (Focus == 1)
++                gRT->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
++            if (Focus == 2)
++                gRT->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
++            if (Entries[Chosen].Volume == NULL)
++                break;
++            StartOther(ImageHandle, &Entries[Chosen]);
++        }
++    }
++    FreeIcons();
++    gST->ConOut->ClearScreen(gST->ConOut);
++    Print(UEFI_STR("[] Boot picker: %s\n"), Entries[Chosen].Name);
++    return Entries[Chosen].Volume == NULL ? Entries[Chosen].Keys : BootKeysNone;
++}
