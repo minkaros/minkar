@@ -1569,8 +1569,14 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    [_display discardEventsMatchingMask:mask beforeEvent:event];
 }
 
+/* The event queued, and the run loop woken for it, as the reference does:
+   an app that stops its run loop posts an event to have run return
+   (Firefox quitting: [NSApp stop:] and an application-defined event);
+   it stayed asleep, Firefox's windows gone and the app still running. */
 -(void)postEvent:(NSEvent *)event atStart:(BOOL)atStart {
    [_display postEvent:event atStart:atStart];
+   if([self _wakeUp] < 0)
+    NSLog(@"Error waking runloop - write: %s", strerror(errno));
 }
 
 -_searchForAction:(SEL)action responder:target {
