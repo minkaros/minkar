@@ -39,6 +39,12 @@ LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} 
 LDADD += -framework CoreFoundation -framework Security -framework IOKit \
 	-framework OpenDirectory -lsqlite3 -lbsm
 
+# Not optimised: built with usr.sbin's -O2 (5127a96f1f) it ends every
+# client's request without an answer (AuthorizationCreate gives
+# errAuthorizationInternal, -60008); built without -O it works. The cause
+# in the imported sources is not found yet.
+CFLAGS += -O0
+
 all: to-sysroot
 
 to-sysroot: ${PROG}
