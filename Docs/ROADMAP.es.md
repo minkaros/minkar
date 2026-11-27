@@ -209,8 +209,7 @@ Carril A, en orden, para cerrar 19.6.0:
 1. Lo de hoy probado en el PC 1, y el gate M5 otra vez con una sesión abierta.
 2. Imprimir por USB.
 3. El arranque gráfico, del sistema instalado y del instalador.
-4. La anomalía puntual de W0 en el PC 1 (seis pares de ficheros extraídos que compartían datos), investigada.
-5. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
+4. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
    `main` y la etiqueta 19.6.0, con la confirmación del mantenedor; 19.6.0 sale como Pre Alpha.
 
 El carril BC en paralelo: BC2. La GPU (R2b en el PC 1) en paralelo; lo que necesita el PC 2 espera a 19.6.x.

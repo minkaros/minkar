@@ -204,8 +204,7 @@ Lane A, in order, to close 19.6.0:
 1. Today's work tried on PC 1, and gate M5 again with a session open.
 2. Printing over USB.
 3. The graphical boot, in the installed system and the installer.
-4. W0's one-time anomaly on PC 1 (six pairs of extracted files sharing their data) looked into.
-5. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
+4. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
    `main` and the 19.6.0 tag, with the maintainer's confirmation; 19.6.0 ships as Pre Alpha.
 
 Lane BC alongside: BC2. The GPU (R2b on PC 1) in parallel; what needs PC 2 waits for 19.6.x.
