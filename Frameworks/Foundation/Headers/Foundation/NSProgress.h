@@ -102,6 +102,8 @@ FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressFileCompletedCountKey;
 
 - (void)performAsCurrentWithPendingUnitCount:(int64_t)unitCount usingBlock:(void (NS_NOESCAPE ^)(void))work;
 
+- (void)publish;
+- (void)unpublish;
 @end
 
 @protocol NSProgressReporting <NSObject>

@@ -40,6 +40,10 @@
 #import <Foundation/NSProgress.h>
 #import <Foundation/NSURL.h>
 #import <Foundation/NSValue.h>
+#import <Foundation/NSDistributedNotificationCenter.h>
+#import <Foundation/NSProcessInfo.h>
+#import <Foundation/NSUUID.h>
+#import <Foundation/NSDate.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSKeyValueObserving.h>
@@ -83,6 +87,8 @@ static NSString *const kCurrentStackKey = @"NSProgressCurrentStack";
     NSString *_description;
     NSString *_additionalDescription;
     BOOL _cancelled, _paused, _cancellable, _pausable;
+    NSString *_publishedID;                 // while published
+    NSTimeInterval _announced;              // its fraction last told
 }
 
 @synthesize cancellationHandler = _cancellationHandler;
@@ -249,6 +255,7 @@ static NSMutableArray *currentStack(BOOL create) {
     [self didChangeValueForKey:@"fractionCompleted"];
     [self didChangeValueForKey:@"completedUnitCount"];
     [self _childChanged];
+    [self _announce:NO];
 }
 
 - (double)fractionCompleted {
@@ -417,6 +424,94 @@ USERINFO(fileCompletedCount, setFileCompletedCount, NSProgressFileCompletedCount
     return [NSString stringWithFormat:@"<%@: %p> Fraction completed: %.4f / Completed: %lld of %lld",
                                       [self class], (void *)self, self.fractionCompleted,
                                       (long long)self.completedUnitCount, (long long)self.totalUnitCount];
+}
+
+
+// Publishing: a progress about a file (fileURL in its user info; Firefox's
+// downloads) is told to the other processes while published, through the
+// distributed notification center, so a file manager can show it: when it
+// is published, as its fraction changes (at most twice a second) and when
+// it is unpublished. Each notification names the progress (an identifier),
+// the process, the file and the kinds, with the fraction. A process may ask
+// it to cancel with the cancel notification naming it.
+
+static NSString *const kPublished = @"org.minkar.NSProgress.published";
+static NSString *const kChanged = @"org.minkar.NSProgress.changed";
+static NSString *const kUnpublished = @"org.minkar.NSProgress.unpublished";
+static NSString *const kCancelRequest = @"org.minkar.NSProgress.cancel";
+
+- (NSDictionary *)_publishedInfo {
+    NSMutableDictionary *info = [NSMutableDictionary dictionary];
+    NSURL *url = [self userInfo][NSProgressFileURLKey];
+    info[@"id"] = _publishedID;
+    info[@"pid"] = @([[NSProcessInfo processInfo] processIdentifier]);
+    info[@"fraction"] = @([self fractionCompleted]);
+    info[@"total"] = @([self totalUnitCount]);
+    info[@"completed"] = @([self completedUnitCount]);
+    info[@"cancellable"] = @([self isCancellable]);
+    if ([url isFileURL])
+        info[@"path"] = [url path];
+    if (_kind != nil)
+        info[@"kind"] = _kind;
+    NSString *operation = [self userInfo][NSProgressFileOperationKindKey];
+    if (operation != nil)
+        info[@"operation"] = operation;
+    return info;
+}
+
+- (void)_announce:(BOOL)always {
+    NSString *published;
+    [_lock lock];
+    published = _publishedID;
+    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+    BOOL due = always || now - _announced >= 0.5 || [self fractionCompleted] >= 1;
+    if (published != nil && due)
+        _announced = now;
+    [_lock unlock];
+    if (published == nil || !due)
+        return;
+    [[NSDistributedNotificationCenter defaultCenter] postNotificationName:(always ? kPublished : kChanged)
+                                                                   object:published
+                                                                 userInfo:[self _publishedInfo]
+                                                       deliverImmediately:YES];
+}
+
+- (void)_cancelRequested:(NSNotification *)note {
+    if ([self isCancellable])
+        [self cancel];
+}
+
+// A published progress freed: no longer told, nor asked to cancel.
+- (void)dealloc {
+    if (_publishedID != nil)
+        [self unpublish];
+}
+
+- (void)publish {
+    [_lock lock];
+    if (_publishedID != nil) {
+        [_lock unlock];
+        return;
+    }
+    _publishedID = [[NSUUID UUID] UUIDString];
+    NSString *published = _publishedID;
+    [_lock unlock];
+    [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(_cancelRequested:)
+                                                            name:kCancelRequest object:published];
+    [self _announce:YES];
+}
+
+- (void)unpublish {
+    [_lock lock];
+    NSString *published = _publishedID;
+    NSDictionary *info = published != nil ? [self _publishedInfo] : nil;
+    _publishedID = nil;
+    [_lock unlock];
+    if (published == nil)
+        return;
+    [[NSDistributedNotificationCenter defaultCenter] removeObserver:self name:kCancelRequest object:published];
+    [[NSDistributedNotificationCenter defaultCenter] postNotificationName:kUnpublished object:published userInfo:info
+                                                       deliverImmediately:YES];
 }
 
 @end
