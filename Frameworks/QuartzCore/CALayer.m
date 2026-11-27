@@ -178,14 +178,44 @@ static void layerChanged(CALayer *layer);
    return result;
 }
 
+/* A layer's parent is not retained (the parent retains it): it is set
+   here, and cleared when the layer leaves the parent or the parent goes,
+   so it never points to a freed layer. A layer given to a new parent
+   leaves its old one first, as on the reference platform. */
 -(void)setSublayers:(NSArray *)sublayers {
+   NSArray        *old;
+   NSMutableArray *formerParents=nil;
+
    [treeLock() lock];
    sublayers=[sublayers copy];
-   [_sublayers release];
+   for(CALayer *layer in sublayers){
+    CALayer *parent=layer->_superlayer;
+
+    if(parent!=nil && parent!=self){
+     NSMutableArray *layers=[parent->_sublayers mutableCopy];
+
+     [layers removeObjectIdenticalTo:layer];
+     [parent->_sublayers release];
+     parent->_sublayers=[layers copy];
+     [layers release];
+     if(formerParents==nil)
+      formerParents=[NSMutableArray array];
+     [formerParents addObject:parent];
+    }
+   }
+   old=_sublayers;
    _sublayers=sublayers;
+   for(CALayer *layer in old)
+    if(layer->_superlayer==self && [sublayers indexOfObjectIdenticalTo:layer]==NSNotFound){
+     layer->_superlayer=nil;
+     [layer _setContext:nil];
+    }
    [_sublayers makeObjectsPerformSelector:@selector(_setSuperLayer:) withObject:self];
    [_sublayers makeObjectsPerformSelector:@selector(_setContext:) withObject:_context];
+   [old release];
    [treeLock() unlock];
+   for(CALayer *parent in formerParents)
+    layerChanged(parent);
    layerChanged(self);
 }
 
@@ -404,7 +434,14 @@ static void layerChanged(CALayer *layer);
    [_actions release];
    [_style release];
    [_contents release];
+   /* Its sublayers that live on have no parent now. */
+   [treeLock() lock];
+   for(CALayer *layer in _sublayers)
+    if(layer->_superlayer==self)
+     layer->_superlayer=nil;
    [_sublayers release];
+   _sublayers=nil;
+   [treeLock() unlock];
    [_animations release];
    [_minificationFilter release];
    [_magnificationFilter release];
