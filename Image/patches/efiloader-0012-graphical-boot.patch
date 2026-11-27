@@ -7,7 +7,8 @@ gives the kernel a graphics console, which goes on with the bar.
 Alt held (or pressed) at power-on shows the boot picker: a row of round
 icons (\Minkar\Boot\Picker) with their names in the firmware's font:
 this system, verbose mode, other Minkar systems (named by their boot
-plist's volume-name), Windows and other EFI loaders; a start button
+plist's volume-name), Windows, Linux (a shim, GRUB or systemd-boot under
+\EFI) and other EFI loaders, several on one EFI partition; a start button
 under the chosen one and restart and shut down buttons at the bottom.
 Without the icons it is a list in text. "key-wait" in the boot plist
 sets how long the keys are looked for (500 ms). Everything the loader's
@@ -509,8 +510,8 @@ diff -ruN a/MdeModulePkg/Application/Loader/Loader.inf b/MdeModulePkg/Applicatio
    gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
 diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/Loader/picker.c
 --- a/MdeModulePkg/Application/Loader/picker.c	1969-12-31 19:00:00.000000000 -0500
-+++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 13:23:31.436379712 -0500
-@@ -0,0 +1,460 @@
++++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 13:56:43.831840070 -0500
+@@ -0,0 +1,522 @@
 +/*
 + * SPDX-License-Identifier: BSD-2-Clause
 + * Copyright (c) 2026 The Minkar contributors
@@ -520,7 +521,9 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 + * loader belongs to (as usual, or in verbose mode), and the other volumes
 + * that can be started: other Minkar systems (their EFI partition has a
 + * kernel cache and its own loader; the name is their boot plist's
-+ * "volume-name"), Windows, and any other removable-media loader
++ * "volume-name"), Windows (\EFI\Microsoft\Boot\bootmgfw.efi), Linux (a
++ * shim, GRUB or systemd-boot under \EFI), each of them on any EFI
++ * partition, and else a partition's removable-media loader
 + * (\EFI\BOOT\BOOTX64.EFI). Another volume's loader is started as it is.
 + *
 + * Drawn on black: a row of round icons (\Minkar\Boot\Picker, made by
@@ -568,7 +571,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +typedef struct {
 +    CHAR16 Name[64];
 +    EFI_HANDLE Volume;          /* NULL: this system */
-+    CONST CHAR16 *Path;
++    CHAR16 Path[96];
 +    BOOT_KEYS Keys;             /* for this system: as usual or verbose */
 +    ICON_KIND Icon;
 +} PICKER_ENTRY;
@@ -612,6 +615,64 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +    File->Close(File);
 +}
 +
++STATIC UINTN AddEntry(PICKER_ENTRY *Entries, UINTN N, EFI_HANDLE Volume, CONST CHAR16 *Name,
++                      CONST CHAR16 *Path, ICON_KIND Icon)
++{
++    if (N >= MAX_ENTRIES)
++        return N;
++    StrCpyS(Entries[N].Name, ARRAY_SIZE(Entries[N].Name), Name);
++    StrCpyS(Entries[N].Path, ARRAY_SIZE(Entries[N].Path), Path);
++    Entries[N].Volume = Volume;
++    Entries[N].Icon = Icon;
++    return N + 1;
++}
++
++/* Names on FAT compare without case. */
++STATIC INTN SameName(CONST CHAR16 *A, CONST CHAR16 *B)
++{
++    for (;; A++, B++) {
++        CHAR16 a = (*A >= L'a' && *A <= L'z') ? *A - 32 : *A, b = (*B >= L'a' && *B <= L'z') ? *B - 32 : *B;
++        if (a != b)
++            return a - b;
++        if (a == 0)
++            return 0;
++    }
++}
++
++/* Linux's loaders in \EFI\<directory>: a shim (Secure Boot), else GRUB,
++   else systemd-boot's. One entry per directory that has one. */
++STATIC UINTN AddLinux(EFI_FILE_HANDLE Root, EFI_HANDLE Volume, PICKER_ENTRY *Entries, UINTN N)
++{
++    STATIC CONST CHAR16 *Loaders[] = {
++        UEFI_STR("shimx64.efi"), UEFI_STR("grubx64.efi"), UEFI_STR("systemd-bootx64.efi"),
++    };
++    EFI_FILE_HANDLE Dir;
++    UINT8 Buffer[sizeof(EFI_FILE_INFO) + 256 * sizeof(CHAR16)];
++
++    if (EFI_ERROR(Root->Open(Root, &Dir, UEFI_STR("\\EFI"), EFI_FILE_MODE_READ, 0)))
++        return N;
++    for (;;) {
++        UINTN Size = sizeof(Buffer);
++        EFI_FILE_INFO *Info = (EFI_FILE_INFO *)Buffer;
++        if (EFI_ERROR(Dir->Read(Dir, &Size, Buffer)) || Size == 0)
++            break;
++        if (!(Info->Attribute & EFI_FILE_DIRECTORY) || Info->FileName[0] == L'.' ||
++            SameName(Info->FileName, UEFI_STR("BOOT")) == 0 || SameName(Info->FileName, UEFI_STR("Microsoft")) == 0 ||
++            SameName(Info->FileName, UEFI_STR("Minkar")) == 0)
++            continue;
++        for (UINTN i = 0; i < ARRAY_SIZE(Loaders); i++) {
++            CHAR16 Path[96];
++            UnicodeSPrint(Path, sizeof(Path), UEFI_STR("\\EFI\\%s\\%s"), Info->FileName, Loaders[i]);
++            if (FileExists(Root, Path)) {
++                N = AddEntry(Entries, N, Volume, UEFI_STR("Linux"), Path, IconDisk);
++                break;
++            }
++        }
++    }
++    Dir->Close(Dir);
++    return N;
++}
++
 +STATIC UINTN FindEntries(EFI_HANDLE ImageHandle, PICKER_ENTRY *Entries)
 +{
 +    EFI_LOADED_IMAGE_PROTOCOL *Self = NULL;
@@ -641,26 +702,28 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +        if (EFI_ERROR(gBS->HandleProtocol(Handles[i], &gEfiSimpleFileSystemProtocolGuid, (VOID **)&Fs)) ||
 +            EFI_ERROR(Fs->OpenVolume(Fs, &Root)))
 +            continue;
-+        PICKER_ENTRY *E = &Entries[N];
-+        E->Volume = Handles[i];
-+        E->Icon = IconDisk;
++        UINTN Before = N;
 +        if (FileExists(Root, UEFI_STR("\\Minkar\\kernelcache")) &&
 +            FileExists(Root, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"))) {
-+            VolumeName(Root, E->Name, ARRAY_SIZE(E->Name), UEFI_STR("Minkar"));
-+            E->Path = UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI");
-+            E->Icon = IconMinkar;
-+        } else if (FileExists(Root, UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi"))) {
-+            StrCpyS(E->Name, ARRAY_SIZE(E->Name), UEFI_STR("Windows"));
-+            E->Path = UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi");
-+        } else if (FileExists(Root, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"))) {
-+            StrCpyS(E->Name, ARRAY_SIZE(E->Name), UEFI_STR("EFI Boot"));
-+            E->Path = UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI");
++            CHAR16 Name[64];
++            VolumeName(Root, Name, ARRAY_SIZE(Name), UEFI_STR("Minkar"));
++            N = AddEntry(Entries, N, Handles[i], Name, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"), IconMinkar);
++        } else {
++            if (FileExists(Root, UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi")))
++                N = AddEntry(Entries, N, Handles[i], UEFI_STR("Windows"),
++                             UEFI_STR("\\EFI\\Microsoft\\Boot\\bootmgfw.efi"), IconDisk);
++            N = AddLinux(Root, Handles[i], Entries, N);
++            /* Nothing known: the partition's removable-media loader. */
++            if (N == Before && FileExists(Root, UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI")))
++                N = AddEntry(Entries, N, Handles[i], UEFI_STR("EFI Boot"), UEFI_STR("\\EFI\\BOOT\\BOOTX64.EFI"),
++                             IconDisk);
 +        }
 +        Root->Close(Root);
-+        if (E->Path != NULL)
-+            N++;
 +    }
 +    FreePool(Handles);
++    for (UINTN i = 0; i < N; i++)
++        Print(UEFI_STR("[] Boot picker entry: %s%a%s\n"), Entries[i].Name, Entries[i].Volume ? " " : "",
++              Entries[i].Volume ? Entries[i].Path : UEFI_STR(""));
 +    return N;
 +}
 +
