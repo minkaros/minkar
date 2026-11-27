@@ -310,6 +310,19 @@ void vDSP_vsmaD(const double *a, vDSP_Stride ia, const double *b, const double *
     for (vDSP_Length k = 0; k < n; k++)
         d[k * id] = a[k * ia] * s + c[k * ic];
 }
+/* d = a * b + c, b and c scalars. */
+void vDSP_vsmsa(const float *a, vDSP_Stride ia, const float *b, const float *c, float *d, vDSP_Stride id,
+                vDSP_Length n) {
+    float s = *b, t = *c;
+    for (vDSP_Length k = 0; k < n; k++)
+        d[k * id] = a[k * ia] * s + t;
+}
+void vDSP_vsmsaD(const double *a, vDSP_Stride ia, const double *b, const double *c, double *d, vDSP_Stride id,
+                 vDSP_Length n) {
+    double s = *b, t = *c;
+    for (vDSP_Length k = 0; k < n; k++)
+        d[k * id] = a[k * ia] * s + t;
+}
 void vDSP_vma(const float *a, vDSP_Stride ia, const float *b, vDSP_Stride ib, const float *c, vDSP_Stride ic,
               float *d, vDSP_Stride id, vDSP_Length n) {
     for (vDSP_Length k = 0; k < n; k++)

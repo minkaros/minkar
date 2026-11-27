@@ -103,6 +103,10 @@ void vDSP_vsma(const float *a, vDSP_Stride ia, const float *b, const float *c, v
                vDSP_Stride id, vDSP_Length n);
 void vDSP_vsmaD(const double *a, vDSP_Stride ia, const double *b, const double *c, vDSP_Stride ic, double *d,
                 vDSP_Stride id, vDSP_Length n);
+void vDSP_vsmsa(const float *a, vDSP_Stride ia, const float *b, const float *c, float *d, vDSP_Stride id,
+                vDSP_Length n);
+void vDSP_vsmsaD(const double *a, vDSP_Stride ia, const double *b, const double *c, double *d, vDSP_Stride id,
+                 vDSP_Length n);
 void vDSP_vma(const float *a, vDSP_Stride ia, const float *b, vDSP_Stride ib, const float *c, vDSP_Stride ic,
               float *d, vDSP_Stride id, vDSP_Length n);
 void vDSP_vclip(const float *a, vDSP_Stride ia, const float *low, const float *high, float *c, vDSP_Stride ic,
