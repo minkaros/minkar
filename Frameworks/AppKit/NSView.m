@@ -18,6 +18,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <objc/runtime.h>
 #include <objc/message.h>
 #include <IOSurface/IOSurface.h>
+#import <AppKit/NSVisualEffectView.h>
+#import <AppKit/NSColorSpace.h>
+
+@interface NSVisualEffectView (MinkarMaterial)
+-(NSColor *)_materialColor;
+@end
 #include <SkyLight/SkyLight.h>
 #include <math.h>
 #import "NSLayout/NSLayoutInternal.h"
@@ -531,6 +537,75 @@ static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMut
    return YES;
 }
 
+/* The material color of the visual effect view the view is in, or nil. */
+static NSColor *backdropColorForView(NSView *view) {
+   for(NSView *v=[view superview];v!=nil;v=[v superview])
+    if([v isKindOfClass:[NSVisualEffectView class]] && [v respondsToSelector:@selector(_materialColor)])
+     return [(id)v _materialColor];
+   return nil;
+}
+
+/* A surface of one color, w x h, kept for the view while its size and
+   color stay. */
+static char backdropSurfaceKey;
+
+static IOSurfaceRef backdropSurface(NSView *view,size_t w,size_t h,NSColor *color) {
+   NSColor *rgb=[color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+   CGFloat  r=0,g=0,b=0,a=1;
+
+   if(rgb==nil)
+    return NULL;
+   [rgb getRed:&r green:&g blue:&b alpha:&a];
+   /* BGRA, premultiplied. */
+   uint32_t pixel=((uint32_t)lround(a*255)<<24)|((uint32_t)lround(r*a*255)<<16)|((uint32_t)lround(g*a*255)<<8)|
+                  (uint32_t)lround(b*a*255);
+   NSArray *kept=objc_getAssociatedObject(view,&backdropSurfaceKey);
+   if(kept!=nil && [[kept objectAtIndex:1] unsignedLongValue]==w && [[kept objectAtIndex:2] unsignedLongValue]==h &&
+      [[kept objectAtIndex:3] unsignedIntValue]==pixel)
+    return (IOSurfaceRef)[kept objectAtIndex:0];
+
+   NSDictionary *p=@{ (id)kIOSurfaceWidth: @(w), (id)kIOSurfaceHeight: @(h),
+                      (id)kIOSurfaceBytesPerElement: @4, (id)kIOSurfacePixelFormat: @((uint32_t)'BGRA') };
+   IOSurfaceRef surface=IOSurfaceCreate((CFDictionaryRef)p);
+   if(surface==NULL)
+    return NULL;
+   IOSurfaceLock(surface,0,NULL);
+   uint8_t *base=IOSurfaceGetBaseAddress(surface);
+   size_t   row=IOSurfaceGetBytesPerRow(surface);
+   for(size_t y=0;y<h;y++){
+    uint32_t *line=(uint32_t *)(base+y*row);
+    for(size_t x=0;x<w;x++)
+     line[x]=pixel;
+   }
+   IOSurfaceUnlock(surface,0,NULL);
+   objc_setAssociatedObject(view,&backdropSurfaceKey,
+      @[ (id)surface, @(w), @(h), @(pixel) ],OBJC_ASSOCIATION_RETAIN);
+   CFRelease(surface);
+   return surface;
+}
+
+/* The layers with what is behind them first: a visual effect view's
+   material (Firefox's tooltips, menus and panels draw on one). The view
+   leaves the window clear under its layers, which took that material away:
+   a tooltip's text showed on nothing (found on PC 1). */
+static NSData *prependBackdrop(NSView *self,CGRect rect,NSData *layers) {
+   NSColor *color=backdropColorForView(self);
+
+   if(color==nil || [color alphaComponent]<=0 || rect.size.width<1 || rect.size.height<1 ||
+      [layers length]/sizeof(SLSWindowLayer)>=kSLSMaxWindowLayers)
+    return layers;
+   size_t       w=(size_t)ceil(rect.size.width),h=(size_t)ceil(rect.size.height);
+   IOSurfaceRef surface=backdropSurface(self,w,h,color);
+   if(surface==NULL)
+    return layers;
+   SLSWindowLayer l={ IOSurfaceGetID(surface),(uint32_t)w,(uint32_t)h,
+                      (int32_t)floor(rect.origin.x),(int32_t)floor(rect.origin.y),
+                      (int32_t)floor(rect.origin.x),(int32_t)floor(rect.origin.y),(int32_t)w,(int32_t)h };
+   NSMutableData *out=[NSMutableData dataWithBytes:&l length:sizeof(l)];
+   [out appendData:layers];
+   return out;
+}
+
 /* The surfaces of the view's tree for the server, or nil when the tree
    must be drawn here. */
 static NSData *serverLayersForView(NSView *self) {
@@ -559,7 +634,7 @@ static NSData *serverLayersForView(NSView *self) {
    [CALayer _minkarUnlockTree];
    if(!flat || [out length]==0)
     return nil;
-   return out;
+   return prependBackdrop(self,rect,out);
 }
 
 /* Every view's surfaces in a window, by owner (a view's layer tree, an
