@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>USBGenericPrintingClass</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.minkar.print.USBGenericPrintingClass</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>USBGenericPrintingClass</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CFPlugInDynamicRegistration</key>
+	<string>NO</string>
+	<key>CFPlugInFactories</key>
+	<dict>
+		<key>BFF67118-83E8-47DE-AA72-2D9CA2B93089</key>
+		<string>USBGenericPrintingClassFactory</string>
+	</dict>
+	<key>CFPlugInTypes</key>
+	<dict>
+		<key>06047D16-53A2-11D6-9206-003065524592</key>
+		<array>
+			<string>BFF67118-83E8-47DE-AA72-2D9CA2B93089</string>
+		</array>
+	</dict>
+</dict>
+</plist>

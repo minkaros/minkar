@@ -24,6 +24,8 @@ SUBDIR += launchservicesd launchservicesd/tests
 # IOUSBLib, the USB plug-in apps load (IOUSBFamily's kext names it; CoreFoundation
 # and IOKit.framework are built by then).
 SUBDIR += ../Kernel/Extensions/IOUSBFamily/IOUSBLib
+# The USB printer class driver CUPS's usb backend loads.
+SUBDIR += USBGenericPrintingClass
 # The minimal loginwindow, the session's owner (WindowServer plan, 10.3).
 SUBDIR += loginwindow
 # The login window app loginwindow runs (M5).
