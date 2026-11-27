@@ -350,12 +350,12 @@ line = "apps"
 
 [[board.next]]
 title = "The graphical boot"
-note = "a logo and a progress bar, the boot picker with Option; 19.6.0 or 19.6.x, the maintainer to decide"
+note = "a logo and a progress bar, the boot picker with Option, Command-V for verbose; the system and the installer"
 line = "atlas"
 
 [[board.next]]
 title = "Minkar 19.6.0"
-note = "the release image without test accounts; devel to main and the tag, with the maintainer's confirmation"
+note = "Pre Alpha; the release image without test accounts; devel to main and the tag, with the maintainer's confirmation"
 line = "apps"
 
 [[board.later]]

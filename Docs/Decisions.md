@@ -9,9 +9,11 @@ recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-27 | 19.6.0 ships with `ProductFamily` "Pre Alpha" | [ROADMAP.md](ROADMAP.md#next-steps) |
+| 2026-11-27 | The graphical boot is part of 19.6.0, in the installed system and the installer; verbose stays optional | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-27 | Printing over USB (the USB user client, IOUSBLib, CUPS's USB backend) is part of 19.6.0 | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-26 | Firefox's own sources (MPL) and Mozilla's public symbols may be read to find what it expects of the system; the fixes go into Minkar, Firefox is not patched | [Compatibility.md](Compatibility.md) |
-| 2026-11-26 | A graphical boot: a logo and a progress bar, the boot picker only with Option, Command-V for verbose; its release (19.6.0 or 19.6.x) to decide | [ROADMAP.md](ROADMAP.md#next-steps) |
+| 2026-11-26 | A graphical boot: a logo and a progress bar, the boot picker only with Option, Command-V for verbose (release: the 2026-11-27 line) | [ROADMAP.md](ROADMAP.md#next-steps) |
 | 2026-11-25 | Atlas's look approved: light #ececec and dark #555555 windows, the menu bar #444444, a blue accent, sand folders | [Atlas.md](Atlas.md) |
 | 2026-11-25 | The tests on PC 2 and its GPU's clocks move to 19.6.x: PC 2 is the development host | [GPU.md](GPU.md) |
 | 2026-11-25 | AU7 (USB Audio Class 2.0) moves to 19.6.x: no USB audio interface to try it on | [ROADMAP.md](ROADMAP.md#audio-and-media) |

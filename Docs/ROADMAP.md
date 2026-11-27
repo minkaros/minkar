@@ -115,6 +115,7 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU6 and AU8–AU10; a
 - [x] Security's authorization: authd, the Authorization Agent, the panes' lock (tests `authorization`, `pane-lock`). `725fc8177d`
 - [x] Printing over the network: cupsd, its commands, the Printers pane and the print panel; a network printer prints from PC 1.
 - [ ] Printing over USB: `IOUSBInterfaceUserClient`, IOUSBLib's plug-in and CUPS's USB backend, tried on PC 1; in 19.6.0 since 27 Nov 2026.
+- [ ] Graphical boot, installed system and installer: a logo and a progress bar by default; verbose with Command-V or from the boot picker (Option).
 
 #### WebKit
 
@@ -202,10 +203,10 @@ Lane A, in order, to close 19.6.0:
 
 1. Today's work tried on PC 1, and gate M5 again with a session open.
 2. Printing over USB.
-3. The graphical boot: in 19.6.0 or 19.6.x, the maintainer to decide.
+3. The graphical boot, in the installed system and the installer.
 4. W0's one-time anomaly on PC 1 (six pairs of extracted files sharing their data) looked into.
 5. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
-   `main` and the 19.6.0 tag, with the maintainer's confirmation.
+   `main` and the 19.6.0 tag, with the maintainer's confirmation; 19.6.0 ships as Pre Alpha.
 
 Lane BC alongside: BC2. The GPU (R2b on PC 1) in parallel; what needs PC 2 waits for 19.6.x.
 

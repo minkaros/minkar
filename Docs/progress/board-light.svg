@@ -76,14 +76,14 @@
 <rect x="577" y="251" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="251" width="5" height="125" rx="2" fill="#bf3989"/>
 <text x="593" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">The graphical boot</text>
 <text x="593" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">a logo and a progress bar,</text>
-<text x="593" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the boot picker with Option;</text>
-<text x="593" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">19.6.0 or 19.6.x, the</text>
-<text x="593" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">maintainer to decide</text>
+<text x="593" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the boot picker with Option,</text>
+<text x="593" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Command-V for verbose; the</text>
+<text x="593" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">system and the installer</text>
 <rect x="577" y="386" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="386" width="5" height="125" rx="2" fill="#1a7f37"/>
 <text x="593" y="410" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Minkar 19.6.0</text>
-<text x="593" y="431" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the release image without</text>
-<text x="593" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">test accounts; devel to main</text>
-<text x="593" y="469" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and the tag, with the</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Pre Alpha; the release image</text>
+<text x="593" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">without test accounts; devel</text>
+<text x="593" y="469" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">to main and the tag, with the</text>
 <text x="593" y="488" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">maintainer&#x27;s confirmation</text>
 <rect x="842.5" y="70" width="261.5" height="923" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
