@@ -486,13 +486,31 @@ static BOOL isTranslation3D(CATransform3D t) {
    return isIdentity3D(t);
 }
 
-/* rect: the layer's bounds in window coordinates (from the window's top
-   left); yDown: its sublayers' space runs down; clip: what is seen. */
-static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMutableData *out) {
+/* A scale (either way up) and a move only, and not too small: a video's
+   frame drawn larger than the surface. */
+static BOOL isScale3D(CATransform3D t) {
+   if(t.m11<=1e-3 || fabs(t.m22)<=1e-3)
+    return NO;
+   t.m11=t.m22=1;
+   return isTranslation3D(t);
+}
+
+/* An IOSurface the server composes: BGRA, or 4:2:0 YCbCr it converts. */
+static BOOL serverSurfaceFormat(OSType format) {
+   return format=='BGRA' || format==0 || format=='420v' || format=='420f';
+}
+
+/* rect: the layer's drawn rectangle in window coordinates (from the
+   window's top left); yDown: its sublayers' space runs down; clip: what
+   is seen; flipped: drawn upside down (a scale turning it over). */
+static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,BOOL flipped,CGRect clip,NSMutableData *out) {
    if([layer isHidden])
     return YES;
+   CATransform3D transform=layerTransform(layer);
+   /* Scaled only when it is a surface alone (a video's frame). */
+   BOOL scaled=!isTranslation3D(transform);
    if([layer class]!=[CALayer class] || [layer opacity]!=1 || [layer mask]!=nil ||
-      !isTranslation3D(layerTransform(layer)) ||
+      (scaled && (!isScale3D(transform) || [layer contents]==nil || [[layer sublayers] count]>0)) ||
       !isIdentity3D([layer sublayerTransform]) ||
       [layer backgroundColor]!=NULL || [layer borderWidth]!=0 || [layer cornerRadius]!=0 ||
       [layer shadowOpacity]!=0 || !CGRectEqualToRect([layer contentsRect],CGRectMake(0,0,1,1)))
@@ -506,19 +524,31 @@ static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMut
      return NO;
     IOSurfaceRef surface=(IOSurfaceRef)contents;
     size_t       w=IOSurfaceGetWidth(surface),h=IOSurfaceGetHeight(surface);
-    OSType       format=IOSurfaceGetPixelFormat(surface);
-    /* Drawn one to one, as the server shows it. */
-    if((format!='BGRA' && format!=0) || w!=(size_t)rect.size.width || h!=(size_t)rect.size.height ||
-       rect.origin.x!=floor(rect.origin.x) || rect.origin.y!=floor(rect.origin.y))
+    CGRect       drawn=rect;
+    if(!serverSurfaceFormat(IOSurfaceGetPixelFormat(surface)))
      return NO;
-    if([out length]/sizeof(SLSWindowLayer)>=kSLSMaxWindowLayers)
+    if(scaled){
+     /* The whole surface fills the bounds, scaled with them. */
+     CGFloat scale=[layer contentsScale];
+     CGSize  size=[layer bounds].size;
+     if(w!=(size_t)lround(size.width*scale) || h!=(size_t)lround(size.height*scale))
+      return NO;
+     drawn=CGRectMake(round(rect.origin.x),round(rect.origin.y),round(rect.size.width),round(rect.size.height));
+    }
+    /* Else drawn one to one, as the server shows it. */
+    else if(w!=(size_t)rect.size.width || h!=(size_t)rect.size.height ||
+            rect.origin.x!=floor(rect.origin.x) || rect.origin.y!=floor(rect.origin.y))
      return NO;
-    CGRect seen=CGRectIntegral(CGRectIntersection(clip,rect));
+    if([out length]/sizeof(SLSWindowLayer)>=kSLSMaxWindowLayers || drawn.size.width<1 || drawn.size.height<1)
+     return NO;
+    CGRect seen=CGRectIntegral(CGRectIntersection(clip,drawn));
     if(!CGRectIsEmpty(seen)){
      SLSWindowLayer l={ IOSurfaceGetID(surface),(uint32_t)w,(uint32_t)h,
-                        (int32_t)rect.origin.x,(int32_t)rect.origin.y,
+                        (int32_t)drawn.origin.x,(int32_t)drawn.origin.y,
                         (int32_t)seen.origin.x,(int32_t)seen.origin.y,
-                        (int32_t)seen.size.width,(int32_t)seen.size.height };
+                        (int32_t)seen.size.width,(int32_t)seen.size.height,
+                        (uint32_t)drawn.size.width,(uint32_t)drawn.size.height,
+                        flipped?kSLSWindowLayerFlipped:0 };
      [out appendBytes:&l length:sizeof(l)];
     }
    }
@@ -526,12 +556,20 @@ static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,CGRect clip,NSMut
    CGRect bounds=[layer bounds];
    for(CALayer *sub in [layer sublayers]){
     CGRect frame=[sub frame];
-    CATransform3D move=layerTransform(sub);
-    CGFloat dx=frame.origin.x+move.m41-bounds.origin.x,dy=frame.origin.y+move.m42-bounds.origin.y;
+    CATransform3D t=layerTransform(sub);
+    /* The sublayer's bounds through its transform (a move, or a scale
+       about its anchor point): its extent in this layer's space. */
+    CGPoint anchor=[sub anchorPoint],position=[sub position];
+    CGSize  size=frame.size;
+    CGFloat ax=position.x+t.m11*(-anchor.x*size.width)+t.m41;
+    CGFloat ay0=position.y+t.m22*(-anchor.y*size.height)+t.m42;
+    CGFloat ay1=ay0+t.m22*size.height;
+    CGSize  extent=CGSizeMake(fabs(t.m11)*size.width,fabs(t.m22)*size.height);
+    CGFloat dx=ax-bounds.origin.x,dy=MIN(ay0,ay1)-bounds.origin.y;
     CGRect  child=CGRectMake(rect.origin.x+dx,
-                             yDown?rect.origin.y+dy:rect.origin.y+rect.size.height-dy-frame.size.height,
-                             frame.size.width,frame.size.height);
-    if(!flattenLayer(sub,child,yDown!=[sub isGeometryFlipped],clip,out))
+                             yDown?rect.origin.y+dy:rect.origin.y+rect.size.height-dy-extent.height,
+                             extent.width,extent.height);
+    if(!flattenLayer(sub,child,yDown!=[sub isGeometryFlipped],flipped!=(t.m22<0),clip,out))
      return NO;
    }
    return YES;
@@ -630,7 +668,7 @@ static NSData *serverLayersForView(NSView *self) {
       unless the root flips it. The app changes the tree from its own
       threads: it is read under the tree's lock. */
    [CALayer _minkarLockTree];
-   flat=flattenLayer(root,rect,[root isGeometryFlipped],rect,out);
+   flat=flattenLayer(root,rect,[root isGeometryFlipped],NO,rect,out);
    [CALayer _minkarUnlockTree];
    if(!flat || [out length]==0)
     return nil;
