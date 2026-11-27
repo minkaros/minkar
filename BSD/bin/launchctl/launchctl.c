@@ -2332,7 +2332,17 @@ init_data_protection(void)
 }
 #endif
 
+static /*
+ * Minkar (2026): the boot screen's bar (kern.boot_progress, drawn by the
+ * kernel until the window server takes the display).
+ */
 static void
+boot_progress(int percent)
+{
+	(void)sysctlbyname("kern.boot_progress", NULL, NULL, &percent, sizeof(percent));
+}
+
+void
 system_specific_bootstrap(bool sflag)
 {
 	int hnmib[] = { CTL_KERN, KERN_HOSTNAME };
@@ -2407,6 +2417,7 @@ system_specific_bootstrap(bool sflag)
 	} else {
 		do_potential_fsck();
 	}
+	boot_progress(50);
 
 #if TARGET_OS_EMBEDDED
 	if (path_check("/usr/libexec/tzinit")) {
@@ -2524,7 +2535,9 @@ system_specific_bootstrap(bool sflag)
 		load_launchd_items[2] = "system";
 	}
 
+	boot_progress(60);
 	(void)posix_assumes_zero(load_and_unload_cmd(load_launchd_items_cnt, load_launchd_items));
+	boot_progress(75);
 
 	/* See <rdar://problem/5066316>. */
 	if (!_launchctl_apple_internal) {

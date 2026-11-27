@@ -29,6 +29,7 @@
 #include <IOKit/graphics/IOGraphicsLib.h>
 #include <IOKit/graphics/IOGraphicsTypes.h>
 #include <math.h>
+#include <sys/sysctl.h>
 #include <stdio.h>
 #include <unistd.h>
 #import "WSDisplay.h"
@@ -192,6 +193,11 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_service = service;
 	_displayID = displayIDForService(service);
 	_menuBarHeight = kSLSMenuBarHeight;
+
+	/* The boot screen (the kernel's, with its progress bar) ends here:
+	 * the display is the window server's from now on. */
+	int done = 100;
+	(void)sysctlbyname("kern.boot_progress", NULL, NULL, &done, sizeof(done));
 
 	/* The framebuffer takes one server at a time: a window server that
 	 * just quit may still hold it for a moment (launchd starts the next
