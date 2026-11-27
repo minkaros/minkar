@@ -45,6 +45,9 @@ static void menuWillOpen(NSMenu *menu) {
                              backing:NSBackingStoreBuffered
                                defer:NO];
     [self setLevel:NSPopUpMenuWindowLevel];
+    /* Its corners rounded (NSMenuView): clear outside them. */
+    [self setOpaque:NO];
+    [self setBackgroundColor:[NSColor clearColor]];
 
     _releaseWhenClosed=YES;
     _view=view;

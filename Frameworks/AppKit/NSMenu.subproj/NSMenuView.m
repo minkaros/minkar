@@ -706,7 +706,48 @@ static void resetHelpMenu(NSMenu *menu) {
     NSPoint origin = itemArea.origin;
     float separatorHeight = [[self graphicsStyle] menuItemSeparatorSize].height; 
 
-    [[self graphicsStyle] drawMenuWindowBackgroundInRect:rect]; // FIXME: MenuBarBackground?	
+    /* A rounded surface, as the reference's menus (6 points): the four
+       corners of a context menu or a submenu, the bottom two of a menu
+       hanging from the menu bar (its top meets the bar). Clear outside,
+       in a window that is not opaque. */
+    {
+        CGFloat r = 6;
+        BOOL fromBar = ([[self menu] supermenu] != nil && [[self menu] supermenu] == [NSApp mainMenu]);
+        NSRect shape = NSInsetRect(bounds, 0.5, 0.5);
+        NSBezierPath *path = [NSBezierPath bezierPath];
+        BOOL flipped = [self isFlipped];
+        CGFloat top = flipped ? NSMinY(shape) : NSMaxY(shape), bottom = flipped ? NSMaxY(shape) : NSMinY(shape);
+        CGFloat rt = fromBar ? 0 : r;
+        CGFloat dy = flipped ? 1 : -1;      /* from the top towards the bottom */
+
+        [[NSColor clearColor] setFill];
+        NSRectFillUsingOperation(rect, NSCompositingOperationCopy);
+        [path moveToPoint:NSMakePoint(NSMinX(shape) + rt, top)];
+        [path lineToPoint:NSMakePoint(NSMaxX(shape) - rt, top)];
+        if (rt > 0)
+            [path curveToPoint:NSMakePoint(NSMaxX(shape), top + dy * rt)
+                 controlPoint1:NSMakePoint(NSMaxX(shape) - rt * 0.45, top)
+                 controlPoint2:NSMakePoint(NSMaxX(shape), top + dy * rt * 0.55)];
+        [path lineToPoint:NSMakePoint(NSMaxX(shape), bottom - dy * r)];
+        [path curveToPoint:NSMakePoint(NSMaxX(shape) - r, bottom)
+             controlPoint1:NSMakePoint(NSMaxX(shape), bottom - dy * r * 0.45)
+             controlPoint2:NSMakePoint(NSMaxX(shape) - r * 0.55, bottom)];
+        [path lineToPoint:NSMakePoint(NSMinX(shape) + r, bottom)];
+        [path curveToPoint:NSMakePoint(NSMinX(shape), bottom - dy * r)
+             controlPoint1:NSMakePoint(NSMinX(shape) + r * 0.45, bottom)
+             controlPoint2:NSMakePoint(NSMinX(shape), bottom - dy * r * 0.55)];
+        [path lineToPoint:NSMakePoint(NSMinX(shape), top + dy * rt)];
+        if (rt > 0)
+            [path curveToPoint:NSMakePoint(NSMinX(shape) + rt, top)
+                 controlPoint1:NSMakePoint(NSMinX(shape), top + dy * rt * 0.45)
+                 controlPoint2:NSMakePoint(NSMinX(shape) + rt * 0.55, top)];
+        [path closePath];
+        [[NSColor menuBackgroundColor] setFill];
+        [path fill];
+        [[NSColor windowFrameColor] setStroke];
+        [path setLineWidth:1];
+        [path stroke];
+    }
 
     /* Only the items in the rectangle; the content moved up by the
        scroll. */
