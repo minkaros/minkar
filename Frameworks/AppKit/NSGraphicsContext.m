@@ -150,14 +150,22 @@ NSMutableArray *NSCurrentFocusStack() {
    return _currentContext()->_focusStack;
 }
 
+/* Kept alive for the caller's autorelease pool: code saves the current
+   context, sets another and sets the saved one back; setting another
+   released the saved one, which was then used freed (Firefox's file icons,
+   drawn so, ended it). */
 +(NSGraphicsContext *)currentContext {
    NSGraphicsContext   *current=_currentContext();
 
-   return current;
+   return [[current retain] autorelease];
 }
 
 +(void)setCurrentContext:(NSGraphicsContext *)context {
    NSMutableDictionary *shared=[NSCurrentThread() sharedDictionary];
+
+   /* The one replaced lives on until the pool drains, as one fetched
+      before is expected to. */
+   [[[shared objectForKey:@"NSGraphicsContext"] retain] autorelease];
 
    if(context==nil)
     [shared setObject:[NSNull null] forKey:@"NSGraphicsContext"];
