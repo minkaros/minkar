@@ -50,4 +50,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+/* The files a drag carries: its file names, else its file URL (an app
+   that writes the file as the drag starts, as Firefox does with an image,
+   gives only that). Existing files only. */
+NSArray<NSURL *> *FilesDraggedFileURLs(NSPasteboard *pasteboard);
+
+
 NS_ASSUME_NONNULL_END

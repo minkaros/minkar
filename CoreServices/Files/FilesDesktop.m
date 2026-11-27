@@ -294,13 +294,7 @@ static NSImage *volumeIcon(void)
 
 static NSArray<NSURL *> *dropURLs(id<NSDraggingInfo> info)
 {
-    NSMutableArray *urls = [NSMutableArray array];
-    id paths = [[info draggingPasteboard] propertyListForType:NSFilenamesPboardType];
-    if ([paths isKindOfClass:[NSArray class]])
-        for (id p in paths)
-            if ([p isKindOfClass:[NSString class]])
-                [urls addObject:[NSURL fileURLWithPath:p]];
-    return urls;
+    return FilesDraggedFileURLs([info draggingPasteboard]);
 }
 
 - (NSURL *)dropFolderFor:(id<NSDraggingInfo>)info

@@ -600,3 +600,20 @@ static NSURL *attachedVolumeOf(NSURL *image)
 }
 
 @end
+
+NSArray<NSURL *> *FilesDraggedFileURLs(NSPasteboard *pasteboard)
+{
+    NSMutableArray *urls = [NSMutableArray array];
+    id paths = [pasteboard propertyListForType:NSFilenamesPboardType];
+    if ([paths isKindOfClass:[NSArray class]])
+        for (id p in paths)
+            if ([p isKindOfClass:[NSString class]])
+                [urls addObject:[NSURL fileURLWithPath:p]];
+    if ([urls count] == 0) {
+        NSString *text = [pasteboard stringForType:NSPasteboardTypeFileURL];
+        NSURL *url = [text length] > 0 ? [NSURL URLWithString:text] : nil;
+        if ([url isFileURL] && [[NSFileManager defaultManager] fileExistsAtPath:[url path]])
+            [urls addObject:[url URLByStandardizingPath]];
+    }
+    return urls;
+}

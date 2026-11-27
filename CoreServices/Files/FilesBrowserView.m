@@ -9,6 +9,7 @@
  * Command-Down opens. Atlas's provisional look.
  */
 
+#import "FilesOperations.h"
 #import "FilesBrowserView.h"
 #import "FilesColors.h"
 #include <sys/stat.h>
@@ -461,13 +462,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 
 static NSArray<NSURL *> *draggedURLs(id<NSDraggingInfo> info)
 {
-    NSMutableArray *urls = [NSMutableArray array];
-    id paths = [[info draggingPasteboard] propertyListForType:NSFilenamesPboardType];
-    if ([paths isKindOfClass:[NSArray class]])
-        for (id p in paths)
-            if ([p isKindOfClass:[NSString class]])
-                [urls addObject:[NSURL fileURLWithPath:p]];
-    return urls;
+    return FilesDraggedFileURLs([info draggingPasteboard]);
 }
 
 /* The folder a drop at the pointer goes into: a folder item under it (not
