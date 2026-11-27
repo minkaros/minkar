@@ -300,7 +300,7 @@ static void resetHelpMenu(NSMenu *menu) {
             width += IMAGE_TITLE_GAP;
         }
 
-        size = [[self graphicsStyle] menuItemTextSize:[item title]];
+        size = [self _titleSizeOfItem:item];
         ITEM_MAX(size);
 
         if([[item keyEquivalent] length] == 0) {
@@ -315,6 +315,15 @@ static void resetHelpMenu(NSMenu *menu) {
 		
         return NSMakeSize(width, MAX(height, kNSMenuItemHeight));
     }
+}
+
+/* An item's title as drawn: its attributed title (its own font) when it
+   has one. */
+-(NSSize)_titleSizeOfItem:(NSMenuItem *)item {
+    NSAttributedString *atitle = [item attributedTitle];
+    if(atitle != nil && [atitle length] > 0)
+        return [[self graphicsStyle] menuItemAttributedTextSize:atitle];
+    return [[self graphicsStyle] menuItemTextSize:[item title]];
 }
 
 -(NSSize)sizeForMenuItemImage:(NSMenuItem *)item {
@@ -353,7 +362,7 @@ static void resetHelpMenu(NSMenu *menu) {
             if ((titleAndIconWidth = size.width) > 0.0f)
                 anItemHasAnImage = YES;
 
-            size = [[self graphicsStyle] menuItemTextSize:[item title]];
+            size = [self _titleSizeOfItem:item];
             titleAndIconWidth += size.width;
             maxTitleWidth = MAX(maxTitleWidth, titleAndIconWidth);
             height = MAX(height, size.height);
@@ -850,7 +859,10 @@ static void resetHelpMenu(NSMenu *menu) {
 
             NSAttributedString *atitle = [item attributedTitle];
             if(atitle != nil && [atitle length] > 0) {
-                CENTER_PART_RECT_VERTICALLY([atitle size]);
+                /* With the margins the drawing takes off again: the text's
+                   own size alone left it no room, and nothing was drawn
+                   (Firefox's <select> items, in the select's font). */
+                CENTER_PART_RECT_VERTICALLY([[self graphicsStyle] menuItemAttributedTextSize:atitle]);
                 [[self graphicsStyle] drawAttributedMenuItemText:atitle
                                                           inRect:partRect
                                                          enabled:showsEnabled
