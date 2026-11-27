@@ -20,9 +20,9 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 
-#define super IOUSBNub
+#define super IOUSBHostDevice
 
-OSDefineMetaClassAndStructors(IOUSBDevice, IOUSBNub)
+OSDefineMetaClassAndStructors(IOUSBDevice, IOUSBHostDevice)
 
 static bool
 matchUSBNumber(OSDictionary *table, const char *key, UInt32 value)

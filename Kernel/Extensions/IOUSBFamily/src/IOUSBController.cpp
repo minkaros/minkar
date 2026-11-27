@@ -14,10 +14,27 @@
 #define super IOUSBBus
 
 /* See USB.h - only ever referenced by address, never actually called. */
-void IOUSBSyncCompletion(void *target, void *parameter, IOReturn status, UInt32 bufferSizeRemaining) { }
+/* A synchronous transfer's completion: the caller set *parameter to the
+   bytes asked for; what was not moved is taken off. */
+void IOUSBSyncCompletion(void *target, void *parameter, IOReturn status, UInt32 bufferSizeRemaining)
+{
+    if (parameter != NULL) {
+        UInt32 *count = (UInt32 *)parameter;
+        *count = bufferSizeRemaining < *count ? *count - bufferSizeRemaining : 0;
+    }
+}
 void IOUSBSyncIsoCompletion(void *target, void *parameter, IOReturn status, UInt32 bufferSizeRemaining) { }
 
 OSDefineMetaClassAndAbstractStructors(IOUSBController, IOUSBBus)
+
+IOReturn IOUSBController::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+                                       Endpoint *endpoint, bool isWrite, UInt32 *done, UInt32 timeoutMS)
+{
+    IOReturn ret = UIMReadWrite(buffer, address, endpoint, isWrite);
+    if (done != NULL)
+        *done = (ret == kIOReturnSuccess && buffer != NULL) ? (UInt32)buffer->getLength() : 0;
+    return ret;
+}
 
 bool IOUSBController::init(OSDictionary *propTable)
 {
@@ -133,41 +150,46 @@ IOReturn IOUSBController::DeviceRequest(IOUSBDevRequestDesc *request, USBDeviceA
     return ret;
 }
 
-IOReturn IOUSBController::Read(IOMemoryDescriptor *buffer, USBDeviceAddress address,
-                                Endpoint *endpoint, IOUSBCompletion *completion)
+/* Our UIM is synchronous: the transfer is done when it returns, and the
+   completion is called then with what was not moved. */
+IOReturn IOUSBController::transfer(IOMemoryDescriptor *buffer, USBDeviceAddress address, Endpoint *endpoint,
+                                   IOUSBCompletion *completion, bool isWrite, UInt32 timeoutMS)
 {
-    IOReturn ret = UIMReadWrite(buffer, address, endpoint, false);
+    UInt32 length = buffer ? (UInt32)buffer->getLength() : 0, done = 0;
+    IOReturn ret = UIMReadWrite(buffer, address, endpoint, isWrite, &done, timeoutMS);
     if (completion && completion->action)
         (*completion->action)(completion->target, completion->parameter, ret,
-                               buffer ? (UInt32)buffer->getLength() : 0);
+                               done < length ? length - done : 0);
     return ret;
 }
 
 IOReturn IOUSBController::Read(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+                                Endpoint *endpoint, IOUSBCompletion *completion)
+{
+    return transfer(buffer, address, endpoint, completion, false, 0);
+}
+
+/* The completion timeout bounds the whole transfer; without one, the
+   no-data timeout does (it is the shorter, so a reader asking for "no data
+   within N ms" gets its answer in about that time). */
+IOReturn IOUSBController::Read(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                 Endpoint *endpoint, IOUSBCompletion *completion,
                                 UInt32 noDataTimeout, UInt32 completionTimeout, IOByteCount reqCount)
 {
-    /* Our UIM is fully synchronous - the timeout/reqCount refinements this
-     * overload exists for in real Apple source (per-call timeout tuning,
-     * partial-length reads) aren't things any UIM we have supports. */
-    return Read(buffer, address, endpoint, completion);
+    return transfer(buffer, address, endpoint, completion, false, completionTimeout ? completionTimeout : noDataTimeout);
 }
 
 IOReturn IOUSBController::Write(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                  Endpoint *endpoint, IOUSBCompletion *completion)
 {
-    IOReturn ret = UIMReadWrite(buffer, address, endpoint, true);
-    if (completion && completion->action)
-        (*completion->action)(completion->target, completion->parameter, ret,
-                               buffer ? (UInt32)buffer->getLength() : 0);
-    return ret;
+    return transfer(buffer, address, endpoint, completion, true, 0);
 }
 
 IOReturn IOUSBController::Write(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                  Endpoint *endpoint, IOUSBCompletion *completion,
                                  UInt32 noDataTimeout, UInt32 completionTimeout, IOByteCount reqCount)
 {
-    return Write(buffer, address, endpoint, completion);
+    return transfer(buffer, address, endpoint, completion, true, completionTimeout ? completionTimeout : noDataTimeout);
 }
 
 IOReturn IOUSBController::IsocIO(IOMemoryDescriptor *buffer, UInt64 frameStart, UInt32 numFrames,

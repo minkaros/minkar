@@ -1,5 +1,6 @@
 /*
  * Copyright © 1998-2007 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -58,7 +59,7 @@ class IOUSBHubPolicyMaker;
 	IOUSBInterface objects to represent the interfaces of the device.
 */
 
-class IOUSBDevice : public IOUSBNub
+class IOUSBDevice : public IOUSBHostDevice
 {
     friend class IOUSBController;
     friend class IOUSBControllerV2;

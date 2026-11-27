@@ -1,5 +1,6 @@
 /*
  * Copyright © 1998-2007, 2012 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -38,7 +39,7 @@
 	to read the descriptors associated with an interface. When an interface is open()ed,
 	all its pipes are created
 */
-class IOUSBInterface : public IOUSBNub
+class IOUSBInterface : public IOUSBHostInterface
 {
     friend class IOUSBInterfaceUserClientV2;
     friend class IOUSBInterfaceUserClientV3;

@@ -13,9 +13,9 @@
 #include <IOKit/usb/IOUSBLog.h>
 #include <IOKit/IOLib.h>
 
-#define super IOUSBNub
+#define super IOUSBHostInterface
 
-OSDefineMetaClassAndStructors(IOUSBInterface, IOUSBNub)
+OSDefineMetaClassAndStructors(IOUSBInterface, IOUSBHostInterface)
 
 static bool
 matchUSBNumber(OSDictionary *table, const char *key, UInt32 value)
@@ -158,7 +158,27 @@ void IOUSBInterface::free()
 
 void IOUSBInterface::SetProperties(void)
 {
+    /* Minkar: apps reach the interface through IOUSBLib's plug-in, which
+       opens this user client (IOUSBInterfaceUserClientMinkar.cpp). */
+    setProperty("IOUserClientClass", "IOUSBInterfaceUserClient");
+    OSDictionary *plugInTypes = OSDictionary::withCapacity(1);
+    if (plugInTypes) {
+        OSString *path = OSString::withCString("IOUSBFamily.kext/Contents/PlugIns/IOUSBLib.bundle");
+        if (path) {
+            plugInTypes->setObject("2d9786c6-9ef3-11d4-ad51-000a27052861", path);
+            path->release();
+        }
+        setProperty("IOCFPlugInTypes", plugInTypes);
+        plugInTypes->release();
+    }
+    setProperty(kUSBAlternateSetting, (unsigned long long)_bAlternateSetting, 8);
+    setProperty(kUSBNumEndpoints, (unsigned long long)_bNumEndpoints, 8);
+    if (_configDesc)
+        setProperty(kUSBConfigurationValue, (unsigned long long)_configDesc->bConfigurationValue, 8);
     setProperty(kUSBInterfaceNumber, (unsigned long long)_bInterfaceNumber, 8);
+    /* The device's place on the bus, which apps read of the interface too. */
+    if (_device && _device->getProperty(kUSBDevicePropertyLocationID))
+        setProperty(kUSBDevicePropertyLocationID, _device->getProperty(kUSBDevicePropertyLocationID));
     setProperty(kUSBInterfaceClass, (unsigned long long)_bInterfaceClass, 8);
     setProperty(kUSBInterfaceSubClass, (unsigned long long)_bInterfaceSubClass, 8);
     setProperty(kUSBInterfaceProtocol, (unsigned long long)_bInterfaceProtocol, 8);

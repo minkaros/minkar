@@ -110,6 +110,17 @@ public:
     virtual IOReturn UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                    Endpoint *endpoint, bool isWrite) = 0;
 
+    /* The same, telling how many bytes moved (a read may end with a short
+       packet; by default, all of them), within timeoutMS when not 0 (the
+       UIM's own limit otherwise). */
+    virtual IOReturn UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+                                   Endpoint *endpoint, bool isWrite, UInt32 *done,
+                                   UInt32 timeoutMS = 0);
+
+private:
+    IOReturn transfer(IOMemoryDescriptor *buffer, USBDeviceAddress address, Endpoint *endpoint,
+                      IOUSBCompletion *completion, bool isWrite, UInt32 timeoutMS);
+
 protected:
     IOLock *_reqLock;
 };

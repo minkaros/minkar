@@ -1,5 +1,6 @@
 /*
  * Copyright © 1998-2012 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -67,6 +68,19 @@ public:
 	bool							USBComparePropertyInArray( OSDictionary *matching, const char *arrayName, const char * key, UInt32 * theProductIDThatMatched );
 	bool							USBComparePropertyInArrayWithMask( OSDictionary *matching, const char *arrayName, const char * key, const char * maskKey, UInt32 * theProductIDThatMatched );
 
+};
+
+/* Minkar: the class names apps built for API 19 and later match
+   (kIOUSBHostDeviceClassName, kIOUSBHostInterfaceClassName): IOUSBDevice
+   and IOUSBInterface are theirs, so either name finds them. */
+class IOUSBHostDevice : public IOUSBNub
+{
+    OSDeclareAbstractStructors(IOUSBHostDevice)
+};
+
+class IOUSBHostInterface : public IOUSBNub
+{
+    OSDeclareAbstractStructors(IOUSBHostInterface)
 };
 
 #ifdef __cplusplus
