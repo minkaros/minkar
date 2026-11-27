@@ -63,10 +63,12 @@ typedef struct {
 	uint32_t dstStride, srcStride;	/* pixels a row */
 	uint32_t mode, alpha;
 	int32_t size[2];	/* a shadow's window; a table's address */
+	int32_t drawSize[2];	/* kOverScaled: src drawn at this size (height < 0: flipped) */
+	int32_t srcSize[2];	/* kOverScaled: src's width and height */
 } WSComposeOp;
-_Static_assert(sizeof(WSComposeOp) == 64, "compose.comp's push constants");
+_Static_assert(sizeof(WSComposeOp) == 80, "compose.comp's push constants");
 
-enum { kFillBlack = 0, kOver = 1, kShadow = 2, kCopy = 3, kCopyTable = 4 };
+enum { kFillBlack = 0, kOver = 1, kShadow = 2, kCopy = 3, kCopyTable = 4, kOverScaled = 5 };
 
 /* What the loader gives, found once by name. */
 #define WS_VK_FUNCTIONS(X) \
@@ -815,6 +817,40 @@ alpha8(double alpha)
 		op.src = memory->_address + (uint64_t)((uintptr_t)pixels - start);
 		[_locked addObject:surface];
 	} else {
+		op.src = [self uploadPixels:pixels rowBytes:surface.rowBytes width:surface.width
+		    height:surface.height];
+		op.srcStride = surface.width;
+		[surface unlock];
+	}
+	if (op.src != 0)
+		[self run:op];
+}
+
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y width:(int)width height:(int)height
+    flipped:(BOOL)flipped clip:(SLSIntRect)clip alpha:(double)alpha
+{
+	/* The clip within the drawn rectangle; the shader reads src scaled. */
+	int x0 = MAX(clip.x, x), y0 = MAX(clip.y, y);
+	int x1 = MIN(clip.x + clip.width, x + width), y1 = MIN(clip.y + clip.height, y + height);
+	if (x1 <= x0 || y1 <= y0 || width <= 0 || height <= 0)
+		return;
+	WSComposeOp op = { .dst = _frame->_address, .rect = { x0, y0, x1 - x0, y1 - y0 },
+	    .srcOrigin = { x, y }, .dstStride = _rowBytes / 4, .srcStride = surface.rowBytes / 4,
+	    .mode = kOverScaled, .alpha = alpha8(alpha),
+	    .drawSize = { width, flipped ? -height : height },
+	    .srcSize = { (int32_t)surface.width, (int32_t)surface.height } };
+	WSVulkanBuffer *memory = [surface isKindOfClass:[WSIOSurfaceBacking class]] &&
+	    [(WSIOSurfaceBacking *)surface gpuBuffer] != 0 ?
+	    [self importIOSurface:(WSIOSurfaceBacking *)surface] : nil;
+	if ([_locked indexOfObjectIdenticalTo:surface] != NSNotFound)
+		[self submit];
+	const uint8_t *pixels = [surface lockFront];
+
+	if (memory != nil) {
+		op.src = memory->_address;
+		[_locked addObject:surface];
+	} else {
+		/* In the CPU's memory (a converted video frame): uploaded. */
 		op.src = [self uploadPixels:pixels rowBytes:surface.rowBytes width:surface.width
 		    height:surface.height];
 		op.srcStride = surface.width;

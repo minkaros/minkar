@@ -80,8 +80,9 @@
  */
 @interface WSIOSurfaceBacking : NSObject
 
-/* nil unless the surface exists and is BGRA, 4 bytes per pixel, of
- * this size. */
+/* nil unless the surface exists, of this size, and is BGRA (4 bytes per
+ * pixel) or 4:2:0 YCbCr ('420v', '420f'), whose pixels lockFront gives
+ * as BGRA (converted when the surface changed). */
 - (instancetype)initWithSurfaceID:(IOSurfaceID)surfaceID width:(uint32_t)width
     height:(uint32_t)height;
 

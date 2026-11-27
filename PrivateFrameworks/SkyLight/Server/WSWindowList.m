@@ -1144,7 +1144,8 @@ sameUnderLayer(WSUnderLayer *a, WSUnderLayer *b)
 
 	return [(WSIOSurfaceBacking *)a.surface surfaceID] == [(WSIOSurfaceBacking *)b.surface surfaceID] &&
 	    a.x == b.x && a.y == b.y && ca.x == cb.x && ca.y == cb.y && ca.width == cb.width &&
-	    ca.height == cb.height;
+	    ca.height == cb.height && a.drawWidth == b.drawWidth && a.drawHeight == b.drawHeight &&
+	    a.flipped == b.flipped;
 }
 
 /* Every layer of one list the same, in order, as the other's. */
@@ -1192,21 +1193,29 @@ wss_window_set_layers(mach_port_t server, audit_token_t token, uint32_t window,
 	int32_t ww = (int32_t)ceil(w.frame.width), wh = (int32_t)ceil(w.frame.height);
 	for (mach_msg_type_number_t i = 0; i < count; i++) {
 		SLSWindowLayer l = layers[i];
-		/* The part seen: inside the clip, the surface and the window. */
+		/* Drawn at its own size, or scaled to another (a video's frame). */
+		uint32_t dw = l.drawWidth != 0 ? l.drawWidth : l.width;
+		uint32_t dh = l.drawHeight != 0 ? l.drawHeight : l.height;
+		if (dw > 16384 || dh > 16384)
+			continue;
+		/* The part seen: inside the clip, the drawn surface and the window. */
 		int32_t x0 = MAX(MAX(l.clipX, l.x), 0), y0 = MAX(MAX(l.clipY, l.y), 0);
-		int32_t x1 = MIN(MIN(l.clipX + l.clipWidth, l.x + (int32_t)l.width), ww);
-		int32_t y1 = MIN(MIN(l.clipY + l.clipHeight, l.y + (int32_t)l.height), wh);
+		int32_t x1 = MIN(MIN(l.clipX + l.clipWidth, l.x + (int32_t)dw), ww);
+		int32_t y1 = MIN(MIN(l.clipY + l.clipHeight, l.y + (int32_t)dh), wh);
 		if (l.surfaceID == 0 || l.width == 0 || l.height == 0 || x1 <= x0 || y1 <= y0)
 			continue;
 		WSIOSurfaceBacking *backing = recentIOSurface(w, l.surfaceID, l.width, l.height);
 		if (backing == nil) {
-			*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of that size */
+			*result = kSLSErrorIllegalArgument;	/* none, or not BGRA or YCbCr of that size */
 			return KERN_SUCCESS;
 		}
 		WSUnderLayer *under = [[WSUnderLayer alloc] init];
 		under.surface = backing;
 		under.x = l.x;
 		under.y = l.y;
+		under.drawWidth = dw;
+		under.drawHeight = dh;
+		under.flipped = (l.flags & kSLSWindowLayerFlipped) != 0;
 		under.clip = (SLSIntRect){ x0, y0, x1 - x0, y1 - y0 };
 		[list addObject:under];
 	}

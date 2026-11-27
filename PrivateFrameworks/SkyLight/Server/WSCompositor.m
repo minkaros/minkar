@@ -205,6 +205,21 @@ WSDamageGlobalRect(SLSRect rect)
 /* Ticks with nothing to do before the display link sleeps. */
 static const unsigned kIdleTicks = 2;
 
+/* A layer under a window's content at (x, y) of the window, in clip:
+ * one to one, or scaled to its drawn size (a video's frame). */
+static void
+drawUnderLayer(id<WSCompositorBackend> backend, WSUnderLayer *under, int x, int y, SLSIntRect clip,
+    double alpha)
+{
+	WSSurface *surface = under.surface;
+
+	if (under.drawWidth == surface.width && under.drawHeight == surface.height && !under.flipped)
+		[backend drawSurface:surface x:x + under.x y:y + under.y clip:clip alpha:alpha];
+	else
+		[backend drawSurface:surface x:x + under.x y:y + under.y width:(int)under.drawWidth
+		    height:(int)under.drawHeight flipped:under.flipped clip:clip alpha:alpha];
+}
+
 /*
  * A window's rounded shape at x, y (w x h): the rectangle less its corners
  * outside a circle of kWSShadowCornerRadius, as AppKit clears them
@@ -592,8 +607,8 @@ backendClass(void)
 		for (WSUnderLayer *under in item.underLayers) {
 			SLSIntRect c = under.clip;
 			if (!cut) {
-				[_backend drawSurface:under.surface x:x + under.x y:y + under.y
-				    clip:(SLSIntRect){ x + c.x, y + c.y, c.width, c.height } alpha:item.alpha];
+				drawUnderLayer(_backend, under, x, y,
+				    (SLSIntRect){ x + c.x, y + c.y, c.width, c.height }, item.alpha);
 				continue;
 			}
 			pixman_region32_t part;
@@ -602,9 +617,9 @@ backendClass(void)
 			int nparts = 0;
 			pixman_box32_t *pb = pixman_region32_rectangles(&part, &nparts);
 			for (int k = 0; k < nparts; k++)
-				[_backend drawSurface:under.surface x:x + under.x y:y + under.y
-				    clip:(SLSIntRect){ pb[k].x1, pb[k].y1, pb[k].x2 - pb[k].x1, pb[k].y2 - pb[k].y1 }
-				    alpha:item.alpha];
+				drawUnderLayer(_backend, under, x, y,
+				    (SLSIntRect){ pb[k].x1, pb[k].y1, pb[k].x2 - pb[k].x1, pb[k].y2 - pb[k].y1 },
+				    item.alpha);
 			pixman_region32_fini(&part);
 		}
 		if (cut)

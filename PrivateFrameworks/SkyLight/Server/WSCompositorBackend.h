@@ -66,6 +66,10 @@
 /* Only the part of it in clip (the frame's pixels): a window's layer
  * seen through its parent's bounds. */
 - (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y clip:(SLSIntRect)clip alpha:(double)alpha;
+/* Scaled to width x height from (x, y) (filtered), upside down if
+ * flipped: a layer drawn at another size (a video's frame). */
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y width:(int)width height:(int)height
+    flipped:(BOOL)flipped clip:(SLSIntRect)clip alpha:(double)alpha;
 /* The windows are drawn; the clip goes. */
 - (void)endWindows;
 

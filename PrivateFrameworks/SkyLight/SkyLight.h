@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	25
+#define kSLSInterfaceVersion	26
 
 typedef int32_t SLSConnectionID;
 
@@ -532,7 +532,17 @@ typedef struct {
 	uint32_t width, height;
 	int32_t x, y;
 	int32_t clipX, clipY, clipWidth, clipHeight;
+	/* Interface version 26: drawn at drawWidth x drawHeight from x, y
+	 * (0, 0: its own size), scaled; upside down with
+	 * kSLSWindowLayerFlipped. The surface may also be 4:2:0 YCbCr of two
+	 * planes ('420v' video range, '420f' full range; its
+	 * IOSurfaceYCbCrMatrix value says 601, 709 or 2020, else 601): the
+	 * server converts it (a video's frame). */
+	uint32_t drawWidth, drawHeight;
+	uint32_t flags;
 } SLSWindowLayer;
+
+#define kSLSWindowLayerFlipped	0x1
 
 #define kSLSMaxWindowLayers	16
 

@@ -43,6 +43,10 @@
 @interface WSUnderLayer : NSObject
 @property (strong) id surface;		/* WSIOSurfaceBacking */
 @property int32_t x, y;
+/* Drawn at this size (the surface's own, or scaled), upside down if
+ * flipped. */
+@property uint32_t drawWidth, drawHeight;
+@property BOOL flipped;
 @property SLSIntRect clip;
 @end
 

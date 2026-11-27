@@ -312,6 +312,8 @@ SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID)
 	return result;
 }
 
+_Static_assert(sizeof(SLSWindowLayer) == 12 * 4, "WindowServer.defs' ws_window_layer_t");
+
 int
 SLSWindowSetLayers(SLSWindowID window, const SLSWindowLayer *layers, uint32_t count)
 {

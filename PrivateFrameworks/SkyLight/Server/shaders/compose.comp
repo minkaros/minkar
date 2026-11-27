@@ -27,9 +27,12 @@ layout(push_constant) uniform Op {
 	uint mode;
 	uint alpha;		// 0-255: the window's alpha (or the shade's)
 	ivec2 size;		// a shadow's window, width and height
+	ivec2 drawSize;		// kOverScaled: src drawn at this size (height < 0: upside down)
+	ivec2 srcSize;		// kOverScaled: src's width and height
 } op;
 
 const uint kFillBlack = 0u, kOver = 1u, kShadow = 2u, kCopy = 3u, kCopyTable = 4u;
+const uint kOverScaled = 5u;
 const int kRadius = 16;		// kWSShadowRadius
 const int kOffsetY = 6;		// kWSShadowOffsetY
 
@@ -48,6 +51,17 @@ uint over(uint s, uint d)
 	uint ia = 255u - channel(s, 3u), r = 0u;
 	for (uint i = 0u; i < 4u; i++)
 		r |= min(channel(s, i) + mul8(channel(d, i), ia), 255u) << (8u * i);
+	return r;
+}
+
+// Two pixels mixed by channel: a, and b by w (0-256).
+uint mixPixel(uint a, uint b, uint w)
+{
+	uint r = 0u;
+	for (uint i = 0u; i < 4u; i++) {
+		uint ca = channel(a, i), cb = channel(b, i);
+		r |= ((ca * (256u - w) + cb * w + 128u) >> 8) << (8u * i);
+	}
 	return r;
 }
 
@@ -92,6 +106,25 @@ void main()
 			dst.p[di] = v;
 		else
 			dst.p[di] = over(op.alpha < 255u ? scale(v, op.alpha) : v, dst.p[di]);
+	} else if (op.mode == kOverScaled) {
+		// The drawn pixel's centre in src's pixels (bilinear, edges
+		// held), from src's bottom row up when upside down.
+		ivec2 d = at - op.srcOrigin;
+		ivec2 drawn = abs(op.drawSize);
+		vec2 f = (vec2(d) + 0.5) * vec2(op.srcSize) / vec2(drawn) - 0.5;
+		if (op.drawSize.y < 0)
+			f.y = float(op.srcSize.y) - 1.0 - f.y;
+		f = clamp(f, vec2(0.0), vec2(op.srcSize - ivec2(1)));
+		ivec2 p0 = ivec2(floor(f));
+		ivec2 p1 = min(p0 + ivec2(1), op.srcSize - ivec2(1));
+		uvec2 w = uvec2((f - vec2(p0)) * 256.0 + 0.5);
+		Pixels src = Pixels(op.src);
+		uint a = src.p[uint(p0.y) * op.srcStride + uint(p0.x)];
+		uint b = src.p[uint(p0.y) * op.srcStride + uint(p1.x)];
+		uint c = src.p[uint(p1.y) * op.srcStride + uint(p0.x)];
+		uint e = src.p[uint(p1.y) * op.srcStride + uint(p1.x)];
+		uint v = mixPixel(mixPixel(a, b, w.x), mixPixel(c, e, w.x), w.y);
+		dst.p[di] = over(op.alpha < 255u ? scale(v, op.alpha) : v, dst.p[di]);
 	} else if (op.mode == kShadow) {
 		// The mask's pixel: its origin is the window's less the radius,
 		// lowered by the offset.

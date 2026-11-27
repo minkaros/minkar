@@ -248,6 +248,42 @@ shadowMask(int x, int y, int w, int h)
 	[surface unlock];
 }
 
+- (void)drawSurface:(WSSurface *)surface x:(int)x y:(int)y width:(int)width height:(int)height
+    flipped:(BOOL)flipped clip:(SLSIntRect)clip alpha:(double)alpha
+{
+	/* The clip within the drawn rectangle. */
+	int x0 = MAX(clip.x, x), y0 = MAX(clip.y, y);
+	int x1 = MIN(clip.x + clip.width, x + width), y1 = MIN(clip.y + clip.height, y + height);
+	if (x1 <= x0 || y1 <= y0 || width <= 0 || height <= 0)
+		return;
+	const uint8_t *pixels = [surface lockFront];
+	pixman_image_t *src = pixman_image_create_bits(PIXMAN_a8r8g8b8, surface.width,
+	    surface.height, (uint32_t *)(uintptr_t)pixels, surface.rowBytes);
+	pixman_image_t *mask = NULL;
+
+	/* From the drawn rectangle's pixels to the surface's: scaled, and
+	 * upside down from its bottom row when flipped. */
+	pixman_transform_t t;
+	pixman_fixed_t sx = pixman_double_to_fixed((double)surface.width / width);
+	pixman_fixed_t sy = pixman_double_to_fixed((double)surface.height / height);
+	pixman_transform_init_scale(&t, sx, flipped ? -sy : sy);
+	if (flipped)
+		pixman_transform_translate(&t, NULL, 0, pixman_int_to_fixed((int)surface.height));
+	pixman_image_set_transform(src, &t);
+	pixman_image_set_filter(src, PIXMAN_FILTER_BILINEAR, NULL, 0);
+	pixman_image_set_repeat(src, PIXMAN_REPEAT_PAD);
+	if (alpha < 1) {
+		pixman_color_t a = { 0, 0, 0, (uint16_t)(alpha * 0xffff) };
+		mask = pixman_image_create_solid_fill(&a);
+	}
+	pixman_image_composite32(PIXMAN_OP_OVER, src, mask, _shadow, x0 - x, y0 - y, 0, 0, x0, y0,
+	    x1 - x0, y1 - y0);
+	if (mask != NULL)
+		pixman_image_unref(mask);
+	pixman_image_unref(src);
+	[surface unlock];
+}
+
 - (void)endWindows
 {
 	pixman_image_set_clip_region32(_shadow, NULL);
