@@ -19,6 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <objc/message.h>
 #include <IOSurface/IOSurface.h>
 #import <AppKit/NSVisualEffectView.h>
+#import <AppKit/NSGlassEffectView.h>
 #import <AppKit/NSColorSpace.h>
 
 @interface NSVisualEffectView (MinkarMaterial)
@@ -575,12 +576,17 @@ static BOOL flattenLayer(CALayer *layer,CGRect rect,BOOL yDown,BOOL flipped,CGRe
    return YES;
 }
 
-/* The material color of the visual effect view the view is in, or nil. */
+/* The material color of the visual effect or glass view the view is in, else the
+   window's background color (nil when clear). An app may leave parts of
+   its surfaces clear for the window's background to show: Firefox does
+   so where its windows' background is (-moz-mac-window), and its dialogs
+   showed what was behind the window there. */
 static NSColor *backdropColorForView(NSView *view) {
    for(NSView *v=[view superview];v!=nil;v=[v superview])
-    if([v isKindOfClass:[NSVisualEffectView class]] && [v respondsToSelector:@selector(_materialColor)])
+    if(([v isKindOfClass:[NSVisualEffectView class]] || [v isKindOfClass:[NSGlassEffectView class]]) &&
+       [v respondsToSelector:@selector(_materialColor)])
      return [(id)v _materialColor];
-   return nil;
+   return [[view window] backgroundColor];
 }
 
 /* A surface of one color, w x h, kept for the view while its size and
