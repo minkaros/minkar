@@ -11,6 +11,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreText/CoreText.h>
 #import <ApplicationServices/Processes.h>
 #import <ApplicationServices/UniversalAccess.h>
+#import <ApplicationServices/Pasteboard.h>
+#import <ApplicationServices/AXTextMarker.h>
 /* PrintCore: from the SDK, or beside this header in the source tree. */
 #if __has_include(<PrintCore/PrintCore.h>)
 #import <PrintCore/PrintCore.h>

@@ -10,8 +10,8 @@ MK_WERROR = no
 FRAMEWORK = ApplicationServices
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = ApplicationServices.c Processes.c
-HEADERS = ApplicationServices.h Processes.h UniversalAccess.h
+SRCS = ApplicationServices.c Processes.c Pasteboard.c AXTextMarker.c
+HEADERS = ApplicationServices.h Processes.h UniversalAccess.h Pasteboard.h AXTextMarker.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
