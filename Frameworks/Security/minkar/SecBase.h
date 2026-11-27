@@ -71,6 +71,7 @@ enum {
     errSecDuplicateItem = -25299,
     errSecItemNotFound = -25300,
     errSecInteractionNotAllowed = -25308,
+    errSecNoTrustSettings = -25263,
     errSecDecode = -26275,
     errSecVerifyFailed = -67808,
     errSecUnsupportedFormat = -25256,

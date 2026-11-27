@@ -30,6 +30,7 @@ SecKeyRef _SecKeyCreateWithPKey(EVP_PKEY *pkey, Boolean isPrivate);
 int _SecCryptoVerify(EVP_PKEY *pkey, const char *digestName, const uint8_t *data, size_t length, Boolean isDigest,
                      const uint8_t *signature, size_t signatureLength);
 Boolean _SecCryptoAvailable(void);
+SecIdentityRef _SecIdentityCreate(SecCertificateRef certificate, SecKeyRef privateKey);
 /* A certificate's libcrypto X509 (owned by the certificate). */
 void *_SecCertificateGetX509(SecCertificateRef certificate);
 /* A policy's parts, for trust evaluation. */

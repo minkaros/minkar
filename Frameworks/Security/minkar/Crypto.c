@@ -20,9 +20,12 @@ typedef struct X509_name_st X509_NAME;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 typedef struct evp_md_st EVP_MD;
 typedef struct evp_md_ctx_st EVP_MD_CTX;
+typedef struct bignum_st BIGNUM;
 
 enum { EVP_PKEY_RSA = 6, EVP_PKEY_DSA = 116, EVP_PKEY_EC = 408 };
-enum { RSA_PKCS1_PADDING = 1, RSA_NO_PADDING = 3, RSA_PKCS1_OAEP_PADDING = 4 };
+enum { RSA_PKCS1_PADDING = 1, RSA_NO_PADDING = 3, RSA_PKCS1_OAEP_PADDING = 4, RSA_PKCS1_PSS_PADDING = 6 };
+/* PSS: the salt as long as the digest. */
+enum { RSA_PSS_SALTLEN_DIGEST = -1 };
 enum { NID_commonName = 13 };
 
 static struct {
@@ -60,6 +63,16 @@ static struct {
     void (*EVP_MD_CTX_free)(EVP_MD_CTX *);
     int (*EVP_DigestVerifyInit)(EVP_MD_CTX *, EVP_PKEY_CTX **, const EVP_MD *, void *, EVP_PKEY *);
     int (*EVP_DigestVerify)(EVP_MD_CTX *, const unsigned char *, size_t, const unsigned char *, size_t);
+    int (*EVP_PKEY_sign_init)(EVP_PKEY_CTX *);
+    int (*EVP_PKEY_sign)(EVP_PKEY_CTX *, unsigned char *, size_t *, const unsigned char *, size_t);
+    int (*EVP_DigestSignInit)(EVP_MD_CTX *, EVP_PKEY_CTX **, const EVP_MD *, void *, EVP_PKEY *);
+    int (*EVP_DigestSign)(EVP_MD_CTX *, unsigned char *, size_t *, const unsigned char *, size_t);
+    int (*EVP_PKEY_CTX_set_rsa_pss_saltlen)(EVP_PKEY_CTX *, int);
+    int (*i2d_PublicKey)(const EVP_PKEY *, unsigned char **);
+    int (*i2d_PrivateKey)(const EVP_PKEY *, unsigned char **);
+    int (*EVP_PKEY_get_bn_param)(const EVP_PKEY *, const char *, BIGNUM **);
+    int (*BN_bn2binpad)(const BIGNUM *, unsigned char *, int);
+    void (*BN_clear_free)(BIGNUM *);
 } C;
 
 static pthread_once_t sCryptoOnce = PTHREAD_ONCE_INIT;
@@ -78,6 +91,9 @@ static void loadCrypto(void) {
     LOAD(EVP_PKEY_decrypt_init); LOAD(EVP_PKEY_decrypt); LOAD(EVP_PKEY_encrypt_init); LOAD(EVP_PKEY_encrypt);
     LOAD(EVP_PKEY_CTX_set_rsa_padding); LOAD(EVP_PKEY_verify_init); LOAD(EVP_PKEY_verify); LOAD(EVP_PKEY_CTX_set_signature_md);
     LOAD(EVP_get_digestbyname); LOAD(EVP_MD_CTX_new); LOAD(EVP_MD_CTX_free); LOAD(EVP_DigestVerifyInit); LOAD(EVP_DigestVerify);
+    LOAD(EVP_PKEY_sign_init); LOAD(EVP_PKEY_sign); LOAD(EVP_DigestSignInit); LOAD(EVP_DigestSign);
+    LOAD(EVP_PKEY_CTX_set_rsa_pss_saltlen); LOAD(i2d_PublicKey); LOAD(i2d_PrivateKey); LOAD(EVP_PKEY_get_bn_param);
+    LOAD(BN_bn2binpad); LOAD(BN_clear_free);
     if (!ok) {
         dlclose(C.image);
         C.image = NULL;
@@ -107,6 +123,10 @@ const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA384 = CFSTR("algi
 const CFStringRef kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA512 = CFSTR("algid:sign:RSA:digest-PKCS1v15:SHA512");
 const CFStringRef kSecKeyAlgorithmRSASignatureRaw = CFSTR("algid:sign:RSA:raw");
 const CFStringRef kSecKeyAlgorithmECDSASignatureMessageX962SHA256 = CFSTR("algid:sign:ECDSA:message-X962:SHA256");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPSSSHA1 = CFSTR("algid:sign:RSA:digest-PSS:SHA1:SHA1:20");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPSSSHA256 = CFSTR("algid:sign:RSA:digest-PSS:SHA256:SHA256:32");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPSSSHA384 = CFSTR("algid:sign:RSA:digest-PSS:SHA384:SHA384:48");
+const CFStringRef kSecKeyAlgorithmRSASignatureDigestPSSSHA512 = CFSTR("algid:sign:RSA:digest-PSS:SHA512:SHA512:64");
 const CFStringRef kSecAttrKeyType = CFSTR("type");
 const CFStringRef kSecAttrKeyTypeRSA = CFSTR("42");
 const CFStringRef kSecAttrKeyTypeDSA = CFSTR("43");
@@ -260,13 +280,145 @@ int _SecCryptoVerify(EVP_PKEY *pkey, const char *digestName, const uint8_t *data
     return result;
 }
 
+/* The digest a signature algorithm names ("algid:sign:RSA:digest-PSS:SHA256:..."
+   names SHA256), or NULL when it names none (raw, PKCS1v15 over a
+   DigestInfo the caller made). */
+static const char *digestNameFor(SecKeyAlgorithm algorithm) {
+    static const char *const names[] = { "SHA512", "SHA384", "SHA256", "SHA224", "SHA1" };
+    for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++) {
+        CFStringRef name = CFStringCreateWithCString(NULL, names[i], kCFStringEncodingASCII);
+        Boolean found = CFStringFind(algorithm, name, 0).location != kCFNotFound;
+        CFRelease(name);
+        if (found)
+            return names[i];
+    }
+    return NULL;
+}
+
+static Boolean algorithmHas(SecKeyAlgorithm algorithm, CFStringRef part) {
+    return CFStringFind(algorithm, part, 0).location != kCFNotFound;
+}
+
+/* A signature with a private key: of a digest the caller made
+   (":digest-"), or of a message hashed here (":message-"). RSA as PKCS#1
+   v1.5, PSS or raw; ECDSA as X9.62 (DER). */
+CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error) {
+    struct __SecKey *k = (struct __SecKey *)key;
+    if (k == NULL || algorithm == NULL || dataToSign == NULL || !k->isPrivate) {
+        setError(error, errSecParam);
+        return NULL;
+    }
+    int id = C.EVP_PKEY_get_id(k->pkey);
+    Boolean rsa = algorithmHas(algorithm, CFSTR("algid:sign:RSA:")), ec = algorithmHas(algorithm, CFSTR("algid:sign:ECDSA:"));
+    if ((rsa && id != EVP_PKEY_RSA) || (ec && id != EVP_PKEY_EC) || (!rsa && !ec)) {
+        setError(error, errSecInvalidAlgorithm);
+        return NULL;
+    }
+    Boolean message = algorithmHas(algorithm, CFSTR(":message-")), pss = algorithmHas(algorithm, CFSTR("-PSS"));
+    Boolean raw = CFEqual(algorithm, kSecKeyAlgorithmRSASignatureRaw);
+    const char *digestName = raw ? NULL : digestNameFor(algorithm);
+    const EVP_MD *md = digestName != NULL ? C.EVP_get_digestbyname(digestName) : NULL;
+    const uint8_t *in = CFDataGetBytePtr(dataToSign);
+    size_t inLength = (size_t)CFDataGetLength(dataToSign), length = 0;
+    CFMutableDataRef out = NULL;
+    int ok = 0;
+
+    if ((message || pss) && md == NULL) {
+        setError(error, errSecInvalidAlgorithm);
+        return NULL;
+    }
+    if (message) {
+        EVP_MD_CTX *mctx = C.EVP_MD_CTX_new();
+        EVP_PKEY_CTX *pctx = NULL;
+        if (mctx != NULL && C.EVP_DigestSignInit(mctx, &pctx, md, NULL, k->pkey) > 0 &&
+            (!rsa || C.EVP_PKEY_CTX_set_rsa_padding(pctx, pss ? RSA_PKCS1_PSS_PADDING : RSA_PKCS1_PADDING) > 0) &&
+            (!pss || C.EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST) > 0) &&
+            C.EVP_DigestSign(mctx, NULL, &length, in, inLength) > 0) {
+            out = CFDataCreateMutable(NULL, 0);
+            CFDataSetLength(out, (CFIndex)length);
+            ok = C.EVP_DigestSign(mctx, CFDataGetMutableBytePtr(out), &length, in, inLength) > 0;
+        }
+        if (mctx != NULL)
+            C.EVP_MD_CTX_free(mctx);
+    } else {
+        EVP_PKEY_CTX *ctx = C.EVP_PKEY_CTX_new(k->pkey, NULL);
+        if (ctx != NULL && C.EVP_PKEY_sign_init(ctx) > 0 &&
+            (!rsa || C.EVP_PKEY_CTX_set_rsa_padding(ctx, raw ? RSA_NO_PADDING : pss ? RSA_PKCS1_PSS_PADDING
+                                                                                    : RSA_PKCS1_PADDING) > 0) &&
+            (md == NULL || C.EVP_PKEY_CTX_set_signature_md(ctx, md) > 0) &&
+            (!pss || C.EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, RSA_PSS_SALTLEN_DIGEST) > 0) &&
+            C.EVP_PKEY_sign(ctx, NULL, &length, in, inLength) > 0) {
+            out = CFDataCreateMutable(NULL, 0);
+            CFDataSetLength(out, (CFIndex)length);
+            ok = C.EVP_PKEY_sign(ctx, CFDataGetMutableBytePtr(out), &length, in, inLength) > 0;
+        }
+        if (ctx != NULL)
+            C.EVP_PKEY_CTX_free(ctx);
+    }
+    if (!ok) {
+        if (out != NULL)
+            CFRelease(out);
+        setError(error, errSecParam);
+        return NULL;
+    }
+    CFDataSetLength(out, (CFIndex)length);
+    return out;
+}
+
+/* The key as bytes: RSA as PKCS#1 (RSAPublicKey or RSAPrivateKey); EC as
+   the X9.63 point (04 || X || Y), followed by the private scalar K for a
+   private key. */
+CFDataRef SecKeyCopyExternalRepresentation(SecKeyRef key, CFErrorRef *error) {
+    struct __SecKey *k = (struct __SecKey *)key;
+    unsigned char *der = NULL;
+    int length, id;
+    CFMutableDataRef out;
+
+    if (k == NULL) {
+        setError(error, errSecParam);
+        return NULL;
+    }
+    id = C.EVP_PKEY_get_id(k->pkey);
+    if (id != EVP_PKEY_RSA && id != EVP_PKEY_EC) {
+        setError(error, errSecUnimplemented);
+        return NULL;
+    }
+    length = (id == EVP_PKEY_RSA && k->isPrivate) ? C.i2d_PrivateKey(k->pkey, &der) : C.i2d_PublicKey(k->pkey, &der);
+    if (length <= 0) {
+        setError(error, errSecDecode);
+        return NULL;
+    }
+    out = CFDataCreateMutable(NULL, 0);
+    CFDataAppendBytes(out, der, length);
+    free(der);
+    if (id == EVP_PKEY_EC && k->isPrivate) {
+        BIGNUM *scalar = NULL;
+        int size = (C.EVP_PKEY_get_bits(k->pkey) + 7) / 8;
+        if (C.EVP_PKEY_get_bn_param(k->pkey, "priv", &scalar) <= 0 || size <= 0) {
+            CFRelease(out);
+            setError(error, errSecDecode);
+            return NULL;
+        }
+        CFIndex at = CFDataGetLength(out);
+        CFDataSetLength(out, at + size);
+        int written = C.BN_bn2binpad(scalar, CFDataGetMutableBytePtr(out) + at, size);
+        C.BN_clear_free(scalar);
+        if (written != size) {
+            CFRelease(out);
+            setError(error, errSecDecode);
+            return NULL;
+        }
+    }
+    return out;
+}
+
 Boolean SecKeyVerifySignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef signedData, CFDataRef signature, CFErrorRef *error) {
     Boolean isDigest = algorithm != NULL && CFStringFind(algorithm, CFSTR(":digest-"), 0).location != kCFNotFound;
     if (key == NULL || signedData == NULL || signature == NULL || algorithm == NULL) {
         setError(error, errSecParam);
         return false;
     }
-    int ok = _SecCryptoVerify(_SecKeyGetPKey(key), "SHA256", CFDataGetBytePtr(signedData), (size_t)CFDataGetLength(signedData),
+    int ok = _SecCryptoVerify(_SecKeyGetPKey(key), digestNameFor(algorithm), CFDataGetBytePtr(signedData), (size_t)CFDataGetLength(signedData),
                               isDigest, CFDataGetBytePtr(signature), (size_t)CFDataGetLength(signature));
     if (ok != 1)
         setError(error, errSecVerifyFailed);

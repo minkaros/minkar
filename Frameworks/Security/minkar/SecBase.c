@@ -21,6 +21,7 @@ static const struct { OSStatus status; const char *message; } kMessages[] = {
     { errSecDuplicateItem, "The specified item already exists in the keychain." },
     { errSecItemNotFound, "The specified item could not be found in the keychain." },
     { errSecInteractionNotAllowed, "User interaction is not allowed." },
+    { errSecNoTrustSettings, "No trust settings were found." },
     { errSecDecode, "Unable to decode the provided data." },
     { errSecVerifyFailed, "A cryptographic verification failure has occurred." },
     { errSecUnknownFormat, "The item you are trying to import has an unknown format." },

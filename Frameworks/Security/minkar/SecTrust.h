@@ -40,6 +40,8 @@ CF_EXPORT OSStatus SecTrustSetAnchorCertificatesOnly(SecTrustRef trust, Boolean 
 CF_EXPORT OSStatus SecTrustCopyCustomAnchorCertificates(SecTrustRef trust,
                                                         CFArrayRef CF_RETURNS_RETAINED _Nullable *_Nonnull anchors);
 CF_EXPORT OSStatus SecTrustSetVerifyDate(SecTrustRef trust, CFDateRef verifyDate);
+CF_EXPORT OSStatus SecTrustSetNetworkFetchAllowed(SecTrustRef trust, Boolean allowFetch);
+CF_EXPORT OSStatus SecTrustGetNetworkFetchAllowed(SecTrustRef trust, Boolean *allowFetch);
 CF_EXPORT CFAbsoluteTime SecTrustGetVerifyTime(SecTrustRef trust);
 
 CF_EXPORT bool SecTrustEvaluateWithError(SecTrustRef trust, CFErrorRef _Nullable *_Nullable CF_RETURNS_RETAINED error)

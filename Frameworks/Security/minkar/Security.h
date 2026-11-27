@@ -25,6 +25,8 @@
 #include "SecCode.h"
 #include "SecPolicy.h"
 #include "SecTrust.h"
+#include "SecTrustSettings.h"
+#include "SecIdentity.h"
 #include "SecTask.h"
 
 #endif

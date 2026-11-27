@@ -117,6 +117,7 @@ struct __SecTrust {
     OSStatus failure;                 /* the first failure reported */
     CFArrayRef failures;              /* every failure, as CFNumbers */
     CFArrayRef chain;                 /* built and trusted, or NULL */
+    Boolean networkFetchAllowed;
     pthread_mutex_t lock;
 };
 
@@ -192,6 +193,7 @@ OSStatus SecTrustCreateWithCertificates(CFTypeRef certificates, CFTypeRef polici
     pthread_mutex_init(&t->lock, NULL);
     t->certificates = certs;
     t->policies = pols;
+    t->networkFetchAllowed = true;
     *trust = t;
     return errSecSuccess;
 }
@@ -260,6 +262,27 @@ OSStatus SecTrustSetVerifyDate(SecTrustRef trust, CFDateRef verifyDate) {
     replace((CFTypeRef *)&t->verifyDate, verifyDate);
     invalidate(t);
     pthread_mutex_unlock(&t->lock);
+    return errSecSuccess;
+}
+
+/* Whether missing intermediates and revocation may be fetched from the
+   network. Evaluation here uses only the certificates given and the
+   anchors, so the flag is kept and reported, and changes no result. */
+OSStatus SecTrustSetNetworkFetchAllowed(SecTrustRef trust, Boolean allowFetch) {
+    struct __SecTrust *t = (struct __SecTrust *)trust;
+    if (t == NULL)
+        return errSecParam;
+    pthread_mutex_lock(&t->lock);
+    t->networkFetchAllowed = allowFetch;
+    pthread_mutex_unlock(&t->lock);
+    return errSecSuccess;
+}
+
+OSStatus SecTrustGetNetworkFetchAllowed(SecTrustRef trust, Boolean *allowFetch) {
+    struct __SecTrust *t = (struct __SecTrust *)trust;
+    if (t == NULL || allowFetch == NULL)
+        return errSecParam;
+    *allowFetch = t->networkFetchAllowed;
     return errSecSuccess;
 }
 

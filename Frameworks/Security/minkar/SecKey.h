@@ -36,6 +36,10 @@ CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureRaw;
 CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureMessagePKCS1v15SHA256;
 CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureDigestPKCS1v15SHA256;
 CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmECDSASignatureMessageX962SHA256;
+CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureDigestPSSSHA1;
+CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureDigestPSSSHA256;
+CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureDigestPSSSHA384;
+CF_EXPORT const SecKeyAlgorithm kSecKeyAlgorithmRSASignatureDigestPSSSHA512;
 
 CF_EXPORT const CFStringRef kSecAttrKeyType;
 CF_EXPORT const CFStringRef kSecAttrKeyTypeRSA;
@@ -53,6 +57,8 @@ CFDictionaryRef SecKeyCopyAttributes(SecKeyRef key);
 SecKeyRef SecKeyCopyPublicKey(SecKeyRef key);
 CFDataRef SecKeyCreateEncryptedData(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef plaintext, CFErrorRef *error);
 CFDataRef SecKeyCreateDecryptedData(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef ciphertext, CFErrorRef *error);
+CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error);
+CFDataRef SecKeyCopyExternalRepresentation(SecKeyRef key, CFErrorRef *error);
 Boolean SecKeyVerifySignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef signedData, CFDataRef signature, CFErrorRef *error);
 Boolean SecKeyIsAlgorithmSupported(SecKeyRef key, int operation, SecKeyAlgorithm algorithm);
 
