@@ -29,6 +29,8 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/IOHIDShared.h>
 #include <IOKit/hidsystem/IOLLEvent.h>
+#include <IOKit/hidsystem/ev_keymap.h>
+#include <os/log.h>
 #include <mach/mach_time.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -372,6 +374,28 @@ WSInputLoadMouse(void)
 		    ![self translateKey:keyCode down:(nx->flags & mask) != 0 into:&e])
 			return;
 		break;
+	}
+	case NX_SYSDEFINED: {
+		/* The keyboard's sound keys (IOHIDSystem's auxiliary control
+		 * buttons: key type and state in the first word): pressed, the
+		 * volume hotkeys, for SystemUIServer; held, again as it
+		 * repeats them. Not key events for apps, as on the reference. */
+		if (nx->data.compound.subType != NX_SUBTYPE_AUX_CONTROL_BUTTONS) {
+			os_log_debug(OS_LOG_DEFAULT, "system-defined event, subtype %d", nx->data.compound.subType);
+			return;
+		}
+		uint32_t word = (uint32_t)nx->data.compound.misc.L[0];
+		uint32_t keyType = (word >> 16) & 0xFFFF, state = (word >> 8) & 0xFF;
+		os_log_info(OS_LOG_DEFAULT, "auxiliary key %u state %#x flags %#x", keyType, state,
+		    (unsigned)nx->flags);
+		if (state != NX_KEYDOWN)
+			return;
+		uint32_t hotkey = keyType == NX_KEYTYPE_SOUND_UP ? kSLSHotKeyVolumeUp
+		    : keyType == NX_KEYTYPE_SOUND_DOWN ? kSLSHotKeyVolumeDown
+		    : keyType == NX_KEYTYPE_MUTE ? kSLSHotKeyVolumeMute : 0;
+		if (hotkey != 0)
+			WSHotKeysSystemKey(hotkey, nx->flags);
+		return;
 	}
 	default:
 		return;

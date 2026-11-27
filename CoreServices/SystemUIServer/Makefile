@@ -14,8 +14,8 @@ SUBDIR =
 APP =		SystemUIServer
 APP_INSTALL_DIR = /System/Library/CoreServices
 SRCS =		main.m NotificationBanner.m NotificationSettings.m \
-		NotificationCenterExtra.m NotificationCenterUser.c SystemHotKeys.m
-FRAMEWORKS =	AppKit Carbon Foundation
+		NotificationCenterExtra.m NotificationCenterUser.c SystemHotKeys.m VolumeKeys.m
+FRAMEWORKS =	AppKit Carbon Foundation CoreAudio AudioToolbox
 MK_WERROR =	no
 CFLAGS +=	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks \

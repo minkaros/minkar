@@ -725,6 +725,12 @@ enum {
 	kSLSHotKeyDockHiding		= 52,	/* Option-Command-D: the Dock */
 	kSLSHotKeyPreviousInputSource	= 60,	/* Control-Space: SystemUIServer */
 	kSLSHotKeyNextInputSource	= 61,	/* Control-Option-Space */
+	/* Minkar's own, not keys: the keyboard's sound keys (IOHIDSystem's
+	 * system-defined events, NX_KEYTYPE_SOUND_UP, _SOUND_DOWN, _MUTE),
+	 * sent to their owner (SystemUIServer) with the modifiers held. */
+	kSLSHotKeyVolumeUp		= 250,
+	kSLSHotKeyVolumeDown		= 251,
+	kSLSHotKeyVolumeMute		= 252,
 	kSLSMaxSymbolicHotKeys		= 255
 };
 /* The connection becomes (claim) or stops being the hotkey's owner. The

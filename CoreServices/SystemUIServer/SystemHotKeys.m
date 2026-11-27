@@ -17,6 +17,7 @@
  */
 
 #import "SystemHotKeys.h"
+#import "VolumeKeys.h"
 #import <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
 #include <SkyLight/SkyLight.h>
@@ -26,6 +27,7 @@ static CFStringRef const kHotKeysDomain = CFSTR("com.apple.symbolichotkeys");
 
 @implementation SystemHotKeys {
     NSString *_currentSource, *_previousSource;
+    VolumeKeys *_volumeKeys;
 }
 
 static NSString *
@@ -82,7 +84,10 @@ applyUserHotKeys(void)
 - (void)start
 {
     static const uint32_t owned[] = { kSLSHotKeyScreenshot, kSLSHotKeyScreenshotToClipboard,
-                                      kSLSHotKeyPreviousInputSource, kSLSHotKeyNextInputSource };
+                                      kSLSHotKeyPreviousInputSource, kSLSHotKeyNextInputSource,
+                                      kSLSHotKeyVolumeUp, kSLSHotKeyVolumeDown, kSLSHotKeyVolumeMute };
+
+    _volumeKeys = [[VolumeKeys alloc] init];
 
     applyUserHotKeys();
     _currentSource = currentSourceID();
@@ -120,6 +125,12 @@ applyUserHotKeys(void)
         break;
     case kSLSHotKeyNextInputSource:
         [self selectNextSource];
+        break;
+    case kSLSHotKeyVolumeUp:
+    case kSLSHotKeyVolumeDown:
+    case kSLSHotKeyVolumeMute:
+        [_volumeKeys handleHotKey:[note.userInfo[@"hotKey"] unsignedIntValue]
+                            flags:[note.userInfo[@"flags"] unsignedIntegerValue]];
         break;
     }
 }

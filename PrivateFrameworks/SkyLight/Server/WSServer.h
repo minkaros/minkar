@@ -134,6 +134,9 @@ BOOL WSMayControlInput(WSConnection *connection);
 void WSHotKeysStart(void);
 BOOL WSHotKeysHandle(const SLSEvent *event, WSConnection *keyOwner, SLSWindowID keyWindow,
     WSConnection *front);
+/* A hotkey that no key makes (the keyboard's sound keys, WSInput.m): sent
+ * to its owner with the modifiers held. */
+void WSHotKeysSystemKey(uint32_t hotkey, uint32_t flags);
 /* Tells the HID system where the displays are now (WSInput.m). */
 void WSInputDisplaysChanged(void);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */

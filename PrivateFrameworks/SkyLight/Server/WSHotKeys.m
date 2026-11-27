@@ -81,13 +81,18 @@ static WSHotKey hotKeys[kSLSMaxSymbolicHotKeys + 1] = {
 	[kSLSHotKeyDockHiding]		= { 2, WSModifierCommand | WSModifierOption, YES, NO, YES },
 	[kSLSHotKeyPreviousInputSource]	= { 49, WSModifierControl, YES, NO, YES },
 	[kSLSHotKeyNextInputSource]	= { 49, WSModifierControl | WSModifierOption, YES, NO, YES },
+	/* No key matches them (0xFFFF): the sound keys send them. */
+	[kSLSHotKeyVolumeUp]		= { 0xFFFF, 0, YES, NO, YES },
+	[kSLSHotKeyVolumeDown]		= { 0xFFFF, 0, YES, NO, YES },
+	[kSLSHotKeyVolumeMute]		= { 0xFFFF, 0, YES, NO, YES },
 };
 
 /* The fixed ones, not changed by a preference or a user. */
 static BOOL
 fixed(uint32_t n)
 {
-	return n == kSLSHotKeyAppSwitcher || n == kSLSHotKeyAppSwitcherBackward || n == kSLSHotKeyForceQuit;
+	return n == kSLSHotKeyAppSwitcher || n == kSLSHotKeyAppSwitcherBackward || n == kSLSHotKeyForceQuit ||
+	    n == kSLSHotKeyVolumeUp || n == kSLSHotKeyVolumeDown || n == kSLSHotKeyVolumeMute;
 }
 /* The computer's: the defaults with /Library/Preferences' changes. */
 static WSHotKey computerHotKeys[kSLSMaxSymbolicHotKeys + 1];
@@ -161,6 +166,28 @@ WSHotKeysHandle(const SLSEvent *e, WSConnection *keyOwner, SLSWindowID keyWindow
 	}
 	pthread_mutex_unlock(&hotKeysLock);
 	return NO;
+}
+
+/* A key that is no key (the keyboard's sound keys): the hotkey sent to
+ * its owner, with the modifiers held (Shift: no feedback sound; Shift-
+ * Option: quarter steps, as on the reference). */
+void
+WSHotKeysSystemKey(uint32_t hotkey, uint32_t flags)
+{
+	if (hotkey == 0 || hotkey > kSLSMaxSymbolicHotKeys)
+		return;
+	pthread_mutex_lock(&hotKeysLock);
+	WSConnection *owner = owners[hotkey];
+	pthread_mutex_unlock(&hotKeysLock);
+	if (owner == nil)
+		return;
+	SLSEvent hot;
+	memset(&hot, 0, sizeof(hot));
+	hot.type = kSLSEventSymbolicHotKey;
+	hot.buttonNumber = hotkey;
+	hot.flags = flags & kModifierMask;
+	hot.timestamp = WSNanoseconds();
+	WSEventsEnqueue(owner, &hot);
 }
 
 /* ---- Routines ---- */
