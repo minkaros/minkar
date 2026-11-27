@@ -18,6 +18,8 @@
 - (void)beginFrameAtTime:(CFTimeInterval)currentTime timeStamp:(CVTimeStamp *)timeStamp;
 
 - (void)render;
+- (CGRect)updateBounds;
+- (void)addUpdateRect:(CGRect)rect;
 
 - (void)endFrame;
 

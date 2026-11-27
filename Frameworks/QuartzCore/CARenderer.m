@@ -347,6 +347,15 @@ void CATexImage2DCGImage(CGImageRef image){
    glPopMatrix();
 }
 
+/* Every frame draws the whole tree, so the area a frame updates is the
+   renderer's bounds, whatever rectangles are added. */
+-(CGRect)updateBounds {
+   return _bounds;
+}
+
+-(void)addUpdateRect:(CGRect)rect {
+}
+
 -(void)render {
    //glMatrixMode(GL_MODELVIEW);                                           
    glLoadIdentity();
