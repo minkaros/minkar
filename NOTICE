@@ -27,7 +27,8 @@ Apple open source (Darwin) - Apple Public Source License 2.0
 - XNU kernel (Kernel/xnu)
 - Kernel extensions: IOATAFamily, IOGraphics, IOPCIFamily (part),
   IOStorageFamily, hfs (the kext), msdosfs, AppleAPIC (part),
-  ApplePS2Controller (part), IOACPIFamily (part) (Kernel/Extensions)
+  ApplePS2Controller (part), IOACPIFamily (part), IOUSBFamily (part,
+  with its IOUSBLib plug-in, from IOUSBFamily-560.4.2) (Kernel/Extensions)
 - IOKitUser, kext_tools (Kernel)
 - dyld, objc4, Libsystem, libsystem_c, libsystem_info, libsystem_notify,
   libresolv, copyfile, removefile (Libraries; removefile has parts
