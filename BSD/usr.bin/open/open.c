@@ -10,6 +10,7 @@
  * the application it launches as its arguments.
  */
 
+#include <ctype.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreServices/CoreServices.h>
 #include <err.h>
@@ -45,6 +46,20 @@ fileURL(const char *path, Boolean isDirectory)
 {
 	return CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)path,
 	    (CFIndex)strlen(path), isDirectory);
+}
+
+/* A URL's scheme first: a letter, then letters, digits, '+', '-' or '.',
+   then ':' (RFC 3986); "C:" style or a lone word is not one. */
+static Boolean
+hasScheme(const char *text)
+{
+	size_t i = 0;
+
+	if (!isalpha((unsigned char)text[0]))
+		return false;
+	while (isalnum((unsigned char)text[i]) || text[i] == '+' || text[i] == '-' || text[i] == '.')
+		i++;
+	return i >= 2 && text[i] == ':';
 }
 
 /* An application by name ("TextEditor", "TextEditor.app") or path. */
@@ -154,11 +169,22 @@ main(int argc, char *argv[])
 	if (bundleID != NULL && (app = applicationWithIdentifier(bundleID)) == NULL)
 		errx(1, "Unable to find application with identifier '%s'", bundleID);
 
-	/* The items, as absolute file URLs; each must exist. */
+	/* The items: a URL with a scheme ("https://...", "mailto:...") as it
+	   is, unless a file has that name; otherwise an absolute file URL of
+	   a file that must exist. */
 	CFMutableArrayRef items = CFArrayCreateMutable(NULL, argc, &kCFTypeArrayCallBacks);
 	for (int i = 0; i < argc; i++) {
 		char path[PATH_MAX];
 		struct stat st;
+		if (stat(argv[i], &st) != 0 && hasScheme(argv[i])) {
+			CFURLRef url = CFURLCreateWithBytes(NULL, (const UInt8 *)argv[i], (CFIndex)strlen(argv[i]),
+			    kCFStringEncodingUTF8, NULL);
+			if (url == NULL)
+				errx(1, "%s is not a valid URL.", argv[i]);
+			CFArrayAppendValue(items, url);
+			CFRelease(url);
+			continue;
+		}
 		if (realpath(argv[i], path) == NULL || stat(path, &st) != 0)
 			errx(1, "The file %s does not exist.", argv[i]);
 		CFURLRef url = fileURL(path, S_ISDIR(st.st_mode));
