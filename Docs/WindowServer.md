@@ -3,7 +3,7 @@
 How Minkar's window server works today: its process, protocol, compositing and input,
 how it is tested, and the shortcuts and milestones still open. For anyone changing
 SkyLight, CoreGraphics' window and display services, or AppKit's side of them. Last
-reviewed: 2026-11-21. Part of Phase 4 of [ROADMAP.md](ROADMAP.md).
+reviewed: 2026-11-27. Part of Phase 4 of [ROADMAP.md](ROADMAP.md).
 
 Where the reference platform has a known design (process layout, user, permissions,
 window movement), the window server follows it. The protocol between AppKit and the
@@ -30,7 +30,7 @@ window server interface, Spaces, HDR.
 - `PrivateFrameworks/SkyLight/IPC/WindowServer.defs` (MIG) carries connections, windows,
   surfaces, displays, events, cursors, capture, the menu bar, hotkeys and measurements.
   Messages carry only their data; large data travels as out-of-line memory or memory
-  entries. Both sides check `kSLSInterfaceVersion` (24 today).
+  entries. Both sides check `kSLSInterfaceVersion` (27 today).
 - The client is `SkyLight.framework`, re-exported by CoreGraphics, so the private `CGS*`
   and `SLS*` functions third-party apps call resolve where they expect them. That subset
   comes from public information and observed behavior only.
@@ -66,13 +66,21 @@ drag regions, cursor rects and the symbolic hotkey table (`WSHotKeys`).
   its own damage.
 - `CAMetalLayer`'s drawables are IOSurfaces in VRAM composited where they are, so Vulkan
   apps present at the display's rate without CPU copies ([GPU.md](GPU.md)).
+- A window's layers (`SLSWindowSetLayers`): a view whose layer tree is only IOSurfaces
+  and clipping bounds (Firefox's tiles and video) gives the server its surfaces, drawn
+  under the window's pixels at every frame, one to one or scaled (bilinear) and flipped.
+  BGRA surfaces as they are; 4:2:0 YCbCr ones (`420v`, `420f`) converted with the matrix
+  their `IOSurfaceYCbCrMatrix` names. Under them goes the window's background color, or
+  the material of the visual effect or glass view they are in; a rounded window cuts them
+  to its shape. The app draws nothing for a new frame of its surfaces.
 - Displays (`WSDisplay`): the GOP framebuffer (`IOGOPFramebuffer`), `MinkarVirtioGPU`
   (each frame's rects transferred and flushed) and `MinkarAMDFramebuffer`. Modes, gamma
   and transfer tables, fades, mirroring and arrangement across several displays; permanent
   configurations in `/var/db/WindowServer/Displays.plist`.
 - Capture: `CGDisplayCreateImage`, `CGWindowListCreateImage`, display capture (the
   client gets a surface) and `CGDisplayStream` (frames in IOSurfaces; dirty rects only,
-  moved rects are not reported).
+  moved rects are not reported). The window list gives each window's title
+  (`kCGWindowName`) as its owner set it (`SLSSetWindowTitle`).
 
 ## Input
 
@@ -115,8 +123,8 @@ machines. The figures are in [GPU.md](GPU.md#measurements).
   `CAMetalLayer` presentation, page flips (GPU track G4). Left: the compositing
   performance gate on a reference PC (the display's refresh rate with several animated
   windows, WindowServer CPU no higher than the reference), part of a release after 25.x.
-- Later: layer trees committed by clients and composited by the server (its own ADR),
-  Spaces, a hardware cursor.
+- Later: whole layer trees committed by clients (opacity, transforms, animations) and
+  composited by the server (its own ADR), Spaces, a hardware cursor.
 
 WS0–WS5 are done (`cce7da92bc`, `030dba37c7`, `8512fe60ba`, `98237bf14e`, `e31dd0ef53`,
 `9d510ec6c2`, `9a472063c1`).

@@ -1,8 +1,8 @@
 # A guide to the source tree
 
-Where things are in Minkar's tree, and in what order they are built. The
-top-level `Makefile` builds these stages in turn (`bmake ONLY_STAGE=<stage>
-<stage>` builds one alone):
+Where things are in Minkar's tree, and in what order they are built. Last reviewed:
+2026-11-27. The top-level `Makefile` builds these stages in turn (`bmake
+ONLY_STAGE=<stage> <stage>` builds one alone):
 
 `BSD/hier`, `Developer`, `Kernel`, `Libraries`, `Frameworks`,
 `Kernel/Extensions`, `CoreServices`, `BSD`, `Frameworks/WebKit`,
@@ -64,10 +64,11 @@ system ([Compatibility.md](Compatibility.md#frameworks-the-designated-apps-ask-f
   `Carbon`, `OSAKit`.
 * 3D: `OpenGL` (CGL, Mesa underneath), `Metal`.
 * Media: `CoreAudio`, `AudioToolbox`, `AudioUnit`, `CoreMIDI`, `CoreMedia`,
-  `CoreVideo`, `VideoToolbox`, `AVFoundation`, `AVKit`, `MediaPlayer`.
+  `CoreVideo`, `VideoToolbox`, `AVFoundation`, `AVKit`, `MediaPlayer`, `Accelerate`,
+  `ScreenCaptureKit`.
 * Others: `WebKit` (the Cocoa API over WPE WebKit), `UserNotifications`,
-  `AddressBook`, `AuthenticationServices`, `LocalAuthentication`,
-  `CoreLocation`, `IOBluetooth`, `Vision`, `Combine` (OpenCombine),
+  `AddressBook`, `AuthenticationServices`, `LocalAuthentication`, `Accessibility`,
+  `CoreLocation`, `IOBluetooth`, `Vision`, `ScriptingBridge`, `Combine` (OpenCombine),
   `ExceptionHandling`, `XCTest`.
 
 `PrivateFrameworks` holds `SkyLight` (the window server's client library,

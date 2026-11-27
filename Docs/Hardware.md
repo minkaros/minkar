@@ -4,12 +4,12 @@ Minkar is tested on a short list of machines: one QEMU virtual machine and
 two documented physical PCs. Bugs on these are fixed first; other hardware
 is best effort. This page records what works on each machine, what does
 not yet, and how each fix was found. The [roadmap](ROADMAP.md) (Phase 1)
-tracks the list as a whole.
+tracks the list as a whole. Last reviewed: 2026-11-27.
 
 | Machine | Role | State |
 |---|---|---|
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
-| PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA or NVMe; the RX 6600's display on Minkar's driver (R1, R2), keyboard, network and HDMI sound work |
+| PC 1: Gigabyte H270N-WIFI | First physical PC | Installed from the USB medium, boots to the graphical login from SATA or NVMe; the RX 6600's display on Minkar's driver (R1, R2), keyboard, network, the board's and HDMI sound work |
 | PC 2: Intel Xeon E5-2697 v2 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 

@@ -6,7 +6,7 @@ apoya en el kernel y el runtime de Darwin (XNU, objc4, CoreFoundation), en su pr
 Foundation y su AppKit basado en Cocotron, y en el userland de FreeBSD, con código nuevo
 para los huecos. Su escritorio es Atlas, con su propio lenguaje visual.
 
-Última revisión: 21 nov 2026. Es una copia de [README.md](README.md) y se actualiza en el
+Última revisión: 27 nov 2026. Es una copia de [README.md](README.md) y se actualiza en el
 mismo commit.
 
 ## Estado
@@ -17,24 +17,23 @@ mismo commit.
 - Arranca en PC x86-64 genéricos (PC 1, PC 2) y en QEMU, desde SATA, NVMe o virtio, con todas las CPU
 - Una base Unix: launchd, red, SSH y 354 de las 367 órdenes del sistema de referencia
 - Objective-C, Swift 6.4, Foundation y Combine; siete herramientas libres pasan sus pruebas
-- Un servidor de ventanas que compone en la GPU y el escritorio Atlas: barra de menús, Dock, Files, Preferencias, notificaciones
-- Terminal, Monitor del sistema y Registros; imágenes de disco, también las comprimidas
-- WebKit sobre WPE, audio y vídeo (CoreAudio, AVFoundation, los medios de WebKit)
+- Un servidor de ventanas que compone en la GPU y el escritorio Atlas: inicio de sesión, barra de menús, Dock, Files, Preferencias
+- Terminal, Editor de texto, Monitor del sistema y Registros; imágenes de disco, impresión, un instalador del sistema
+- WebKit sobre WPE, audio, MIDI y vídeo (CoreAudio, CoreMIDI, AVFoundation, los medios de WebKit)
 - Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus y Sloth desde sus binarios publicados
 
 **En curso**
 
-- Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual
-- El gate BC en la CI y el conjunto de apps de la API 19 (carril BC)
-- Minkar 19.6.0 (gate M6): el instalador del sistema, la compresión de HFS+, el Editor de texto, W5 de WebKit
-- Drivers de GPU: los modos de pantalla de la RDNA2 del PC 1 (las pruebas del PC 2, en 19.6.x)
+- Minkar 19.6.0 (gate M6): imprimir por USB, la imagen final probada en el PC 1, la publicación
+- Firefox en el uso diario: existen todos los símbolos que importa; hechos sus mensajes sin comprobar
+- Drivers de GPU: la pantalla de la RDNA2 del PC 1 (R2b), después sus anillos y Vulkan (R3–R4)
 
 **Siguiente**
 
-- Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados
-- Después de 19.6.0: las apps A5–A10, las pruebas en el PC 2, Darwin 25, arm64 en QEMU, SwiftUI
+- 19.6.x: las apps A5–A10, MB4, D4, K4, audio USB, los casos del cargador (BC2), las pruebas en el PC 2
+- Después de 19.6.x: Darwin 25, arm64 en QEMU, SwiftUI
 
-_Actualizado el 2026-11-26, devel `04c182d470`_
+_Actualizado el 2026-11-27, devel `6e304752aa`_
 <!-- progress:readme:end -->
 
 Todos los hitos: [Docs/Progress.md](Docs/Progress.md). Qué apps funcionan y hasta dónde:

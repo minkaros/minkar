@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-26"
-commit  = "04c182d470"
+updated = "2026-11-27"
+commit  = "6e304752aa"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -78,7 +78,7 @@ rows = ["ws", "mb"]
 id = "M5"
 title = "M5 Atlas desktop"
 label = "M5"
-state = "current"
+state = "done"
 x = 760
 rows = ["mb", "dock", "files", "atlas"]
 
@@ -86,7 +86,7 @@ rows = ["mb", "dock", "files", "atlas"]
 id = "M6"
 title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
-state = "todo"
+state = "current"
 x = 970
 rows = ["mb", "dock", "files", "apps", "webkit", "audio", "bc"]
 
@@ -141,7 +141,7 @@ name = "Menus"
 color = "purple"
 doc = "Atlas.md#3-menus"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "partial"],
+  ["MB0", 650, "done"], ["MB1", 760, "done"], ["MB2", 865, "done"], ["MB3", 970, "done"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -170,7 +170,7 @@ id = "atlas"
 name = "Atlas"
 color = "pink"
 doc = "ROADMAP.md#phase-5--atlas-desktop"
-stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "done"], ["Visual design", 760, "todo"]]
+stations = [["LoginWindow", 570, "done"], ["Preferences", 660, "done"], ["Visual design", 760, "done"]]
 
 [[line]]
 id = "apps"
@@ -181,7 +181,7 @@ doc = "Atlas.md#5-applications"
 # on 2026-11-20) and DMG installs (Phase 6).
 stations = [
   ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "done"],
-  ["A3–A4 · DMG", 970, "partial"], ["A5–A10", 1025, "todo"],
+  ["A3–A4 · DMG", 970, "done"], ["A5–A10", 1025, "todo"],
 ]
 
 [[line]]
@@ -202,8 +202,8 @@ doc = "ROADMAP.md#webkit"
 # appkit-nib-archive 12/0); Minkar's ibtool compiles TextMate's xibs;
 # the apps still to build and run.
 stations = [
-  ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "done"],
-  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "partial"],
+  ["W0 deps", 650, "done"], ["W1 JSC", 710, "done"], ["W2 WebCore", 770, "done"],
+  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "done"],
 ]
 
 [[line]]
@@ -229,7 +229,7 @@ color = "teal"
 doc = "ROADMAP.md#audio-and-media"
 # AU1 to AU6 done (14–15 Nov); AU7 to AU10 part of Minkar 19.6.0 since
 # 2026-11-20 (D3), inside M6.
-stations = [["AU1–AU6", 865, "done"], ["AU7–AU10", 970, "todo"]]
+stations = [["AU1–AU6", 865, "done"], ["AU8–AU10", 970, "done"], ["AU7 USB", 1025, "todo"]]
 
 [[line]]
 id = "bc"
@@ -241,7 +241,7 @@ doc = "ROADMAP.md#lane-bc--binary-compatibility"
 # BC0 to BC4 are part of M6; BC5 on raises ProductVersion by app groups.
 stations = [
   ["Published apps", 700, "done"], ["BC0 gate", 760, "done"], ["BC1 matrix", 815, "done"],
-  ["BC2 loader", 865, "partial"], ["BC3 ABI", 915, "todo"], ["BC4 set 19", 970, "todo"],
+  ["BC2 loader", 865, "partial"], ["BC3 ABI", 915, "todo"], ["BC4 set 19", 970, "done"],
   ["BC5…", 1060, "todo"],
 ]
 
@@ -292,115 +292,109 @@ works = [
   "Boots on generic x86-64 PCs (PC 1, PC 2) and in QEMU, from SATA, NVMe or virtio, on every CPU",
   "A Unix base: launchd, networking, SSH, and 354 of the reference system's 367 commands",
   "Objective-C, Swift 6.4, Foundation and Combine; seven open source tools pass their tests",
-  "A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications",
-  "Terminal, System Monitor and Logs; disk images, compressed ones included",
-  "WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)",
+  "A GPU-composited window server and the Atlas desktop: login window, menu bar, Dock, Files, System Preferences",
+  "Terminal, Text Editor, System Monitor and Logs; disk images, printing, a system installer",
+  "WebKit on WPE, audio, MIDI and video (CoreAudio, CoreMIDI, AVFoundation, WebKit's media)",
   "Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus and Sloth from their published binaries",
 ]
 progress = [
-  "Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language",
-  "Gate BC in the CI and the API 19 app set (lane BC)",
-  "Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5",
-  "GPU drivers: the display modes on PC 1's RDNA2 (PC 2's tests in 19.6.x)",
+  "Minkar 19.6.0 (gate M6): printing over USB, the final image tried on PC 1, the release",
+  "Firefox in daily use: every symbol it imports exists; its unchecked messages done",
+  "GPU drivers: the display on PC 1's RDNA2 (R2b), then its rings and Vulkan (R3–R4)",
 ]
 next = [
-  "Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices",
-  "After 19.6.0: the apps A5–A10, the tests on PC 2, Darwin 25, arm64 in QEMU, SwiftUI",
+  "19.6.x: the apps A5–A10, MB4, D4, K4, USB audio, the loader cases (BC2), the tests on PC 2",
+  "After 19.6.x: Darwin 25, arm64 in QEMU, SwiftUI",
 ]
 works_es = [
   "Arranca en PC x86-64 genéricos (PC 1, PC 2) y en QEMU, desde SATA, NVMe o virtio, con todas las CPU",
   "Una base Unix: launchd, red, SSH y 354 de las 367 órdenes del sistema de referencia",
   "Objective-C, Swift 6.4, Foundation y Combine; siete herramientas libres pasan sus pruebas",
-  "Un servidor de ventanas que compone en la GPU y el escritorio Atlas: barra de menús, Dock, Files, Preferencias, notificaciones",
-  "Terminal, Monitor del sistema y Registros; imágenes de disco, también las comprimidas",
-  "WebKit sobre WPE, audio y vídeo (CoreAudio, AVFoundation, los medios de WebKit)",
+  "Un servidor de ventanas que compone en la GPU y el escritorio Atlas: inicio de sesión, barra de menús, Dock, Files, Preferencias",
+  "Terminal, Editor de texto, Monitor del sistema y Registros; imágenes de disco, impresión, un instalador del sistema",
+  "WebKit sobre WPE, audio, MIDI y vídeo (CoreAudio, CoreMIDI, AVFoundation, los medios de WebKit)",
   "Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus y Sloth desde sus binarios publicados",
 ]
 progress_es = [
-  "Atlas para el uso diario (gate M5): la ventana de inicio de sesión con Directory Services, la pantalla bloqueada, el lenguaje visual",
-  "El gate BC en la CI y el conjunto de apps de la API 19 (carril BC)",
-  "Minkar 19.6.0 (gate M6): el instalador del sistema, la compresión de HFS+, el Editor de texto, W5 de WebKit",
-  "Drivers de GPU: los modos de pantalla de la RDNA2 del PC 1 (las pruebas del PC 2, en 19.6.x)",
+  "Minkar 19.6.0 (gate M6): imprimir por USB, la imagen final probada en el PC 1, la publicación",
+  "Firefox en el uso diario: existen todos los símbolos que importa; hechos sus mensajes sin comprobar",
+  "Drivers de GPU: la pantalla de la RDNA2 del PC 1 (R2b), después sus anillos y Vulkan (R3–R4)",
 ]
 next_es = [
-  "Audio AU7–AU10: audio USB, MIDI, Audio Units, dispositivos agregados",
-  "Después de 19.6.0: las apps A5–A10, las pruebas en el PC 2, Darwin 25, arm64 en QEMU, SwiftUI",
+  "19.6.x: las apps A5–A10, MB4, D4, K4, audio USB, los casos del cargador (BC2), las pruebas en el PC 2",
+  "Después de 19.6.x: Darwin 25, arm64 en QEMU, SwiftUI",
 ]
 
-# The work board. "line" picks a card's colour; "here" marks a station of
-# the metro map as where work is.
 [board]
-here = "W5 apps"
+here = "BC4 set 19"
 
 [[board.now]]
-title = "WebKit: WPE as the engine"
-note = "WKWebView and WebView on WPE (W3, W4); the reference apps' web views next (W5)"
-line = "webkit"
-
-[[board.now]]
-title = "GPU: clocks, then G5"
-note = "G4 measured on PC 2; its clocks and the 3D path in 19.6.x (PC 2 is the development host)"
-line = "gpu"
-
-[[board.now]]
-title = "Roadmap v2: gate BC"
-note = "the designated apps' published binaries run at every gate; the compatibility matrix"
+title = "Firefox in daily use"
+note = "every symbol it imports exists; its unchecked messages (downloads, <select>, printing, drags) done; tried on PC 1"
 line = "bc"
 
+[[board.now]]
+title = "Printing over USB"
+note = "IOUSBInterfaceUserClient, IOUSBLib's plug-in and CUPS's USB backend, tried on PC 1; in 19.6.0"
+line = "apps"
+
+[[board.now]]
+title = "GPU: PC 1's RX 6600 (R2b)"
+note = "a display the firmware did not light, the scaler; then R3–R4 for WebRender and the compositor"
+line = "gpu"
+
 [[board.next]]
-title = "Desktop design and icons"
-note = "the maintainer's review, the weekend of 7–8 Nov"
+title = "Gate M6 with the final image"
+note = "installed from the USB medium on PC 1, a DMG's app run, gate BC; the full suite"
+line = "apps"
+
+[[board.next]]
+title = "The graphical boot"
+note = "a logo and a progress bar, the boot picker with Option; 19.6.0 or 19.6.x, the maintainer to decide"
 line = "atlas"
 
 [[board.next]]
-title = "M5: LoginWindow, Lock Screen"
-note = "the graphical login with a session per user; the system menu's Lock Screen with it"
-line = "mb"
-
-[[board.next]]
-title = "GPU: PC 1's RX 6600 (R2b)"
-note = "lighting a display the firmware did not (KVM elsewhere at start); smaller sizes"
-line = "gpu"
+title = "Minkar 19.6.0"
+note = "the release image without test accounts; devel to main and the tag, with the maintainer's confirmation"
+line = "apps"
 
 [[board.later]]
-group = "Minkar 19.6.0"
-items = [["Printing: cupsd and the Printers pane", "apps"], ["AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices", "audio"],
-  ["BC2–BC4: the loader, the ABI audit, the API 19 set", "bc"],
-  ["MB3: Lock Screen with the graphical login", "mb"], ["Security: the APSL sources replace the subset", "fw"],
-  ["The system installer: USB medium, first start", "apps"]]
+group = "Minkar 19.6.x"
+items = [["Apps A5–A10", "apps"], ["MB4, D4, K4", "mb"], ["AU7: USB audio", "audio"],
+  ["BC2–BC3: the loader, the ABI audit", "bc"], ["The tests on PC 2", "gpu"]]
 
 [[board.later]]
-group = "After 19.6.0"
-items = [["Apps A5–A10 (19.6.x)", "apps"], ["Darwin 25 (KX1–KX3, Minkar 25.x)", "kx"],
+group = "After 19.6.x"
+items = [["Darwin 25 (KX1–KX3, Minkar 25.x)", "kx"],
   ["arm64 boot in QEMU (ARM1–ARM3)", "arm"], ["SwiftUI: own layer, SwiftCrossUI engine (SU2–SU4)", "su"],
   ["Performance ≥ the reference system", "gpu"]]
 
 [[board.done]]
-title = "DMG installs"
-note = "Hex Fiend from its own DMG starts; HFS+ compression, Tcl.framework, archiving, gestures · 17 nov"
+title = "Firefox's imports, all of them"
+note = "2414 of 2414 symbols: ScreenCaptureKit, AuthenticationServices' passkeys, Accessibility, Security · 27 nov"
+line = "bc"
+
+[[board.done]]
+title = "Video composed by the server"
+note = "scaled and YCbCr layers composed by the window server: Firefox from 103 % to 7 % with a video · 27 nov"
+line = "ws"
+
+[[board.done]]
+title = "Gate M5"
+note = "from boot a session, an app from the Dock, Files, a resolution change, on PC 1 · 26 nov"
+line = "atlas"
+
+[[board.done]]
+title = "The visual language"
+note = "light and dark appearances, accent and highlight colors; approved by the maintainer · 25 nov"
+line = "atlas"
+
+[[board.done]]
+title = "AU8–AU10"
+note = "CoreMIDI, Audio Unit hosting and Accelerate, server plug-ins and aggregate devices · 24 nov"
+line = "audio"
+
+[[board.done]]
+title = "The system installer"
+note = "a USB medium that installs on PC 1, Setup at the first start; HFS+ compression written · 24 nov"
 line = "apps"
-
-[[board.done]]
-title = "Compressed disk images"
-note = "UDZO, UDBZ, ULFO and ADC images attached, the kernel decompressing; hdiutil convert writes them · 16 nov"
-line = "apps"
-
-[[board.done]]
-title = "D3: tile service and app switcher"
-note = "tile content views, attention bounces, Command-Tab in the Dock · 16 nov"
-line = "dock"
-
-[[board.done]]
-title = "MB2: standard menus"
-note = "alternates with Option, Help search, long menus fit, Enter Full Screen, menu accessibility · 16 nov"
-line = "mb"
-
-[[board.done]]
-title = "MB1: Menu Extras and status items"
-note = ".menu bundles (clock, volume, displays, network), Command-drag with the order kept, removal · 16 nov"
-line = "mb"
-
-[[board.done]]
-title = "K3: the desktop's icons"
-note = "volumes and ~/Desktop on the desktop, eject, DMG double-click; window levels as the API has them · 16 nov"
-line = "files"

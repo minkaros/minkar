@@ -1,119 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="963" viewBox="0 0 1120 963" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-26">
-<title>Minkar work board, 2026-11-26</title>
-<rect width="1120" height="963" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1001" viewBox="0 0 1120 1001" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-27">
+<title>Minkar work board, 2026-11-27</title>
+<rect width="1120" height="1001" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-26 · devel 04c182d470</text>
-<rect x="16" y="70" width="261.5" height="885" rx="10" fill="#151b23"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-27 · devel 6e304752aa</text>
+<rect x="16" y="70" width="261.5" height="923" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#3fb950"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">DMG installs</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Hex Fiend from its own DMG</text>
-<text x="42" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">starts; HFS+ compression,</text>
-<text x="42" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Tcl.framework, archiving,</text>
-<text x="42" y="216" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">gestures · 17 nov</text>
-<rect x="26" y="249" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="249" width="5" height="125" rx="2" fill="#3fb950"/>
-<text x="42" y="273" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Compressed disk images</text>
-<text x="42" y="294" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">UDZO, UDBZ, ULFO and ADC</text>
-<text x="42" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">images attached, the kernel</text>
-<text x="42" y="332" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">decompressing; hdiutil</text>
-<text x="42" y="351" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">convert writes them · 16 nov</text>
-<rect x="26" y="384" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="384" width="5" height="127" rx="2" fill="#f0883e"/>
-<text x="42" y="408" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">D3: tile service and app</text>
-<text x="42" y="429" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">switcher</text>
-<text x="42" y="450" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tile content views, attention</text>
-<text x="42" y="469" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">bounces, Command-Tab in the</text>
-<text x="42" y="488" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Dock · 16 nov</text>
-<rect x="26" y="521" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="521" width="5" height="125" rx="2" fill="#ab7df8"/>
-<text x="42" y="545" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">MB2: standard menus</text>
-<text x="42" y="566" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">alternates with Option, Help</text>
-<text x="42" y="585" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">search, long menus fit, Enter</text>
-<text x="42" y="604" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Full Screen, menu</text>
-<text x="42" y="623" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">accessibility · 16 nov</text>
-<rect x="26" y="656" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="656" width="5" height="146" rx="2" fill="#ab7df8"/>
-<text x="42" y="680" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">MB1: Menu Extras and</text>
-<text x="42" y="701" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">status items</text>
-<text x="42" y="722" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">.menu bundles (clock, volume,</text>
-<text x="42" y="741" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">displays, network),</text>
-<text x="42" y="760" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Command-drag with the order</text>
-<text x="42" y="779" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">kept, removal · 16 nov</text>
-<rect x="26" y="812" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="812" width="5" height="125" rx="2" fill="#3bc4b5"/>
-<text x="42" y="836" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">K3: the desktop&#x27;s icons</text>
-<text x="42" y="857" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">volumes and ~/Desktop on the</text>
-<text x="42" y="876" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">desktop, eject, DMG</text>
-<text x="42" y="895" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">double-click; window levels</text>
-<text x="42" y="914" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">as the API has them · 16 nov</text>
-<rect x="291.5" y="70" width="261.5" height="885" rx="10" fill="#151b23"/>
+<rect x="26" y="114" width="241.5" height="165" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="165" rx="2" fill="#8b949e"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Firefox&#x27;s imports, all of</text>
+<text x="42" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">them</text>
+<text x="42" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">2414 of 2414 symbols:</text>
+<text x="42" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">ScreenCaptureKit,</text>
+<text x="42" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">AuthenticationServices&#x27;</text>
+<text x="42" y="237" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">passkeys, Accessibility,</text>
+<text x="42" y="256" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Security · 27 nov</text>
+<rect x="26" y="289" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="289" width="5" height="146" rx="2" fill="#4493f8"/>
+<text x="42" y="313" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Video composed by the</text>
+<text x="42" y="334" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">server</text>
+<text x="42" y="355" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">scaled and YCbCr layers</text>
+<text x="42" y="374" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">composed by the window</text>
+<text x="42" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">server: Firefox from 103 % to</text>
+<text x="42" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">7 % with a video · 27 nov</text>
+<rect x="26" y="445" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="445" width="5" height="125" rx="2" fill="#f778ba"/>
+<text x="42" y="469" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Gate M5</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">from boot a session, an app</text>
+<text x="42" y="509" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">from the Dock, Files, a</text>
+<text x="42" y="528" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">resolution change, on PC 1 ·</text>
+<text x="42" y="547" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">26 nov</text>
+<rect x="26" y="580" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="580" width="5" height="125" rx="2" fill="#f778ba"/>
+<text x="42" y="604" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">The visual language</text>
+<text x="42" y="625" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">light and dark appearances,</text>
+<text x="42" y="644" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">accent and highlight colors;</text>
+<text x="42" y="663" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">approved by the maintainer ·</text>
+<text x="42" y="682" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">25 nov</text>
+<rect x="26" y="715" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="715" width="5" height="125" rx="2" fill="#3bc4b5"/>
+<text x="42" y="739" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">AU8–AU10</text>
+<text x="42" y="760" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CoreMIDI, Audio Unit hosting</text>
+<text x="42" y="779" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and Accelerate, server</text>
+<text x="42" y="798" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">plug-ins and aggregate</text>
+<text x="42" y="817" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">devices · 24 nov</text>
+<rect x="26" y="850" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="850" width="5" height="125" rx="2" fill="#3fb950"/>
+<text x="42" y="874" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">The system installer</text>
+<text x="42" y="895" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">a USB medium that installs on</text>
+<text x="42" y="914" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">PC 1, Setup at the first</text>
+<text x="42" y="933" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">start; HFS+ compression</text>
+<text x="42" y="952" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">written · 24 nov</text>
+<rect x="291.5" y="70" width="261.5" height="923" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
-<rect x="301.5" y="114" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#4493f8" stroke-width="2"/><rect x="301.5" y="114" width="5" height="106" rx="2" fill="#4493f8"/>
-<text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WebKit: WPE as the engine</text>
-<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WKWebView and WebView on WPE</text>
-<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">(W3, W4); the reference apps&#x27;</text>
-<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">web views next (W5)</text>
-<rect x="301.5" y="230" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="230" width="5" height="125" rx="2" fill="#f85149"/>
-<text x="317.5" y="254" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: clocks, then G5</text>
-<text x="317.5" y="275" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">G4 measured on PC 2; its</text>
-<text x="317.5" y="294" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">clocks and the 3D path in</text>
-<text x="317.5" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">19.6.x (PC 2 is the</text>
-<text x="317.5" y="332" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">development host)</text>
-<rect x="301.5" y="365" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="365" width="5" height="125" rx="2" fill="#8b949e"/>
-<text x="317.5" y="389" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Roadmap v2: gate BC</text>
-<text x="317.5" y="410" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the designated apps&#x27;</text>
-<text x="317.5" y="429" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">published binaries run at</text>
-<text x="317.5" y="448" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">every gate; the compatibility</text>
-<text x="317.5" y="467" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">matrix</text>
-<rect x="567" y="70" width="261.5" height="885" rx="10" fill="#151b23"/>
+<rect x="301.5" y="114" width="241.5" height="144" rx="8" fill="#0d1117" stroke="#8b949e" stroke-width="2"/><rect x="301.5" y="114" width="5" height="144" rx="2" fill="#8b949e"/>
+<text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Firefox in daily use</text>
+<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">every symbol it imports</text>
+<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">exists; its unchecked</text>
+<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">messages (downloads,</text>
+<text x="317.5" y="216" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">&lt;select&gt;, printing, drags)</text>
+<text x="317.5" y="235" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">done; tried on PC 1</text>
+<rect x="301.5" y="268" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="268" width="5" height="125" rx="2" fill="#3fb950"/>
+<text x="317.5" y="292" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Printing over USB</text>
+<text x="317.5" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">IOUSBInterfaceUserClient,</text>
+<text x="317.5" y="332" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">IOUSBLib&#x27;s plug-in and CUPS&#x27;s</text>
+<text x="317.5" y="351" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">USB backend, tried on PC 1;</text>
+<text x="317.5" y="370" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">in 19.6.0</text>
+<rect x="301.5" y="403" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="403" width="5" height="125" rx="2" fill="#f85149"/>
+<text x="317.5" y="427" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2b)</text>
+<text x="317.5" y="448" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">a display the firmware did</text>
+<text x="317.5" y="467" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">not light, the scaler; then</text>
+<text x="317.5" y="486" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">R3–R4 for WebRender and the</text>
+<text x="317.5" y="505" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">compositor</text>
+<rect x="567" y="70" width="261.5" height="923" rx="10" fill="#151b23"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NEXT</text>
-<rect x="577" y="114" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#f778ba"/>
-<text x="593" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Desktop design and icons</text>
-<text x="593" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the maintainer&#x27;s review, the</text>
-<text x="593" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">weekend of 7–8 Nov</text>
-<rect x="577" y="211" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="211" width="5" height="127" rx="2" fill="#ab7df8"/>
-<text x="593" y="235" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M5: LoginWindow, Lock</text>
-<text x="593" y="256" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Screen</text>
-<text x="593" y="277" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the graphical login with a</text>
-<text x="593" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">session per user; the system</text>
-<text x="593" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">menu&#x27;s Lock Screen with it</text>
-<rect x="577" y="348" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="348" width="5" height="125" rx="2" fill="#f85149"/>
-<text x="593" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R2b)</text>
-<text x="593" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">lighting a display the</text>
-<text x="593" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">firmware did not (KVM</text>
-<text x="593" y="431" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">elsewhere at start); smaller</text>
-<text x="593" y="450" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">sizes</text>
-<rect x="842.5" y="70" width="261.5" height="885" rx="10" fill="#151b23"/>
+<rect x="577" y="114" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="114" width="5" height="127" rx="2" fill="#3fb950"/>
+<text x="593" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Gate M6 with the final</text>
+<text x="593" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">image</text>
+<text x="593" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">installed from the USB medium</text>
+<text x="593" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">on PC 1, a DMG&#x27;s app run,</text>
+<text x="593" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">gate BC; the full suite</text>
+<rect x="577" y="251" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="251" width="5" height="125" rx="2" fill="#f778ba"/>
+<text x="593" y="275" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">The graphical boot</text>
+<text x="593" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">a logo and a progress bar,</text>
+<text x="593" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the boot picker with Option;</text>
+<text x="593" y="334" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">19.6.0 or 19.6.x, the</text>
+<text x="593" y="353" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">maintainer to decide</text>
+<rect x="577" y="386" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="386" width="5" height="125" rx="2" fill="#3fb950"/>
+<text x="593" y="410" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Minkar 19.6.0</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the release image without</text>
+<text x="593" y="450" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">test accounts; devel to main</text>
+<text x="593" y="469" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and the tag, with the</text>
+<text x="593" y="488" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">maintainer&#x27;s confirmation</text>
+<rect x="842.5" y="70" width="261.5" height="923" rx="10" fill="#151b23"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">LATER</text>
-<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 19.6.0</text>
+<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 19.6.x</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Printing: cupsd and the</text>
-<text x="874.5" y="172" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Printers pane</text>
-<circle cx="862.5" cy="191" r="4.5" fill="#3bc4b5"/>
-<text x="874.5" y="196" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">AU7–AU10: USB audio, MIDI,</text>
-<text x="874.5" y="216" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Audio Units, aggregate</text>
-<text x="874.5" y="236" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">devices</text>
-<circle cx="862.5" cy="255" r="4.5" fill="#8b949e"/>
-<text x="874.5" y="260" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">BC2–BC4: the loader, the ABI</text>
-<text x="874.5" y="280" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">audit, the API 19 set</text>
-<circle cx="862.5" cy="299" r="4.5" fill="#ab7df8"/>
-<text x="874.5" y="304" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB3: Lock Screen with the</text>
-<text x="874.5" y="324" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">graphical login</text>
-<circle cx="862.5" cy="343" r="4.5" fill="#d29922"/>
-<text x="874.5" y="348" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Security: the APSL sources</text>
-<text x="874.5" y="368" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">replace the subset</text>
-<circle cx="862.5" cy="387" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="392" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">The system installer: USB</text>
-<text x="874.5" y="412" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">medium, first start</text>
-<text x="856.5" y="450" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.0</text>
-<circle cx="862.5" cy="469" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="474" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A5–A10 (19.6.x)</text>
-<circle cx="862.5" cy="493" r="4.5" fill="#9198a1"/>
-<text x="874.5" y="498" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Darwin 25 (KX1–KX3, Minkar</text>
-<text x="874.5" y="518" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">25.x)</text>
-<circle cx="862.5" cy="537" r="4.5" fill="#f0883e"/>
-<text x="874.5" y="542" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">arm64 boot in QEMU</text>
-<text x="874.5" y="562" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">(ARM1–ARM3)</text>
-<circle cx="862.5" cy="581" r="4.5" fill="#ab7df8"/>
-<text x="874.5" y="586" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftUI: own layer,</text>
-<text x="874.5" y="606" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftCrossUI engine (SU2–SU4)</text>
-<circle cx="862.5" cy="625" r="4.5" fill="#f85149"/>
-<text x="874.5" y="630" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
-<text x="874.5" y="650" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
+<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A5–A10</text>
+<circle cx="862.5" cy="171" r="4.5" fill="#ab7df8"/>
+<text x="874.5" y="176" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB4, D4, K4</text>
+<circle cx="862.5" cy="195" r="4.5" fill="#3bc4b5"/>
+<text x="874.5" y="200" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">AU7: USB audio</text>
+<circle cx="862.5" cy="219" r="4.5" fill="#8b949e"/>
+<text x="874.5" y="224" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">BC2–BC3: the loader, the ABI</text>
+<text x="874.5" y="244" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">audit</text>
+<circle cx="862.5" cy="263" r="4.5" fill="#f85149"/>
+<text x="874.5" y="268" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">The tests on PC 2</text>
+<text x="856.5" y="306" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After 19.6.x</text>
+<circle cx="862.5" cy="325" r="4.5" fill="#9198a1"/>
+<text x="874.5" y="330" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Darwin 25 (KX1–KX3, Minkar</text>
+<text x="874.5" y="350" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">25.x)</text>
+<circle cx="862.5" cy="369" r="4.5" fill="#f0883e"/>
+<text x="874.5" y="374" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">arm64 boot in QEMU</text>
+<text x="874.5" y="394" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">(ARM1–ARM3)</text>
+<circle cx="862.5" cy="413" r="4.5" fill="#ab7df8"/>
+<text x="874.5" y="418" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftUI: own layer,</text>
+<text x="874.5" y="438" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">SwiftCrossUI engine (SU2–SU4)</text>
+<circle cx="862.5" cy="457" r="4.5" fill="#f85149"/>
+<text x="874.5" y="462" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Performance ≥ the reference</text>
+<text x="874.5" y="482" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">system</text>
 </svg>

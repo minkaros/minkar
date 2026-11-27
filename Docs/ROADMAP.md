@@ -1,7 +1,7 @@
 # Roadmap
 
 What Minkar aims at, how it is measured, what is done and what is open. Last reviewed:
-2026-11-21. Spanish copy: [ROADMAP.es.md](ROADMAP.es.md).
+2026-11-27. Spanish copy: [ROADMAP.es.md](ROADMAP.es.md).
 
 The state at a glance is [Progress.md](Progress.md), generated from
 `progress/status.toml`; how far each designated app gets is
@@ -89,35 +89,16 @@ Left from these phases:
 
 Gate M5: from boot, a graphical session starts, an app opens from the Dock, Files browses
 and the resolution changes from System Preferences, in the Atlas visual language. Detail:
-[Atlas.md](Atlas.md).
+[Atlas.md](Atlas.md). Passed on PC 1 on 26 Nov 2026 (the tests' `tools/m5-gate.sh`); run
+again with the final image.
 
-- [x] LoginWindow: authentication through Directory Services, the user's `LaunchAgents`, Lock Screen.
-  Directory Services done: OpenDirectory (APSL) and its service in `directoryd` (users,
-  groups, passwords; test `opendirectory`). The login window and the user's session done
-  (autoLoginUser, the users' list, the session's apps as the user, Log Out back to the window;
-  test `login-window`); the user's session an Aqua session in its own launchd, its `LaunchAgents`
-  loaded there, those limited to Aqua too (`d39d9b1b29`, `637ca4f310`, 24 Nov 2026); Lock Screen
-  (test `lock-screen`). On PC 1 the login window shows about 5 s after launchd (measured on
-  24 Nov 2026); when the firmware found no display at power-on (the KVM on the other machine)
-  the RX 6600's driver waits for the saved display to come, and the window shows then.
-- [x] Menus: MB0–MB3 done (MB4 in 19.6.x).
-- [x] Dock: D0–D3 done (D4 in 19.6.x).
-- [x] Files: K0–K3 done (K4 in 19.6.x).
-- [x] System Preferences: the app and its panes, with Notifications and Users & Groups (users
-  created, deleted, made administrators, passwords, login options; test `users-pane`). Reviewed
-  against the reference: General (appearance, accent and highlight colors, scroll bars, the
-  default browser; test `general-pane`), Notifications, Network with its Advanced sheet (test
-  `network-pane`), Displays, Date & Time (test `timezone-change`), Mouse, Sound, Keyboard (Text,
-  Input Sources, Shortcuts: the system-wide shortcuts with the reference's numbers in
-  com.apple.symbolichotkeys; tests `hotkeys`, `symbolic-hotkeys`), Dock (test `dock-pane`).
-- [x] AppKit and the Atlas visual language across the system. Done: the light and dark
-  appearances (Auto by the hour) and the accent color, followed by every app at once, the menu
-  bar, the Dock and the Menu Extras (highlighted in the accent, template icons tinted; Lucide's
-  icons); test `general-pane`. No fixed greys left in AppKit's controls and the apps (`4e680fc747`,
-  test `appkit-dark-controls`). Atlas's look approved by the maintainer (25 Nov 2026): light
-  #ececec and dark #555555 windows and controls, defined control borders, the menu bar #444444,
-  a blue accent, a green switch, sand folders (`97657a1692`, `14896a5867`, `228f82b367`).
-- [x] Commands: `lsappinfo` (test `lsappinfo`); `mdls`, `mdfind`, `mdutil` without an index, `mdfind` searching the disk (test `md-commands`); `say` through eSpeak NG, a process of its own (test `say`).
+- [x] LoginWindow: Directory Services, the user's Aqua session and its `LaunchAgents`, Lock Screen. `637ca4f310`
+- [x] Menus: MB0–MB3 (MB4 in 19.6.x).
+- [x] Dock: D0–D3 (D4 in 19.6.x).
+- [x] Files: K0–K3 (K4 in 19.6.x).
+- [x] System Preferences: the app and its panes, reviewed against the reference (tests `general-pane`, `users-pane`, `network-pane`).
+- [x] The Atlas visual language: light and dark appearances, accent and highlight colors; approved 25 Nov 2026. `97657a1692`
+- [x] Commands: `lsappinfo`, `mdls`, `mdfind`, `mdutil` (no index), `say` (tests `lsappinfo`, `md-commands`, `say`).
 
 ### Phase 6 — Applications and distribution
 
@@ -125,31 +106,34 @@ Gate M6, Minkar 19.6.0: installed on a physical machine from its own USB medium;
 downloaded, mounted and its app run; Atlas complete for daily use (MB2–MB3, D2–D3, K2–K3,
 A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU6 and AU8–AU10; app set 19 green (BC4).
 
-- [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks attached by the kernel's `MinkarDiskImage`; `hdiutil convert` and `create`.
-- [x] HFS+ compression (decmpfs): read through `MinkarFSCompression` (zlib, LZVN, LZFSE), written by `ditto --hfsCompression` (LZFSE; test `hfs-compression`).
-- [x] The rest of hfs's adaptation (`Kernel/_PROVENANCE`): the sysctl list's loop guard gone, the list built once (`a2bd5df4fd`); assertions from the kernel's configuration again (`e0ef2f1168`). Lote: 1043 tests and gate M2, 24 Nov 2026.
-- [x] System installer: a bootable USB image, the installer app, the first start (language, keyboard, time zone, the first administrator); no test accounts in the released image. Done in QEMU: `bmake installer-image` (I3), the Installer (I4: checks, the disk erased, the system copied compressed, `bless --setBoot`; under two minutes, 405 MB), Setup (I5); the installation test `tools/install-gate.sh` in the tests' repository (I6). Done on PC 1 (24 Nov 2026): the medium boots from a USB card reader and installs on the SATA disk in about four minutes; the installed system starts at the display's own mode, with Setup in Spanish and sound from the board's codec (`/var/log/install.log` on PC 1; commits 1b6817027b, 4bee1bce14). The medium is as large as its content (2112 MB, `installer-image`). The installation on PC 2 moved to 19.6.x (the maintainer's choice, 25 Nov 2026): PC 2 is the development host until there is another.
-- [x] Apps: A0–A4 done ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
-- [x] Commands: git's Tcl commands, gitk and git gui, on Tcl/Tk 8.6 (Aqua) with Carbon's HIShape and HITheme (`2055508f88`–`3dfb39907f`; tests `tcltk-git`, `carbon-hitheme`, 24 Nov 2026). Done too: `osascript`, our own interpreter of AppleScript's commonly used part (test `osascript`); `opendiff`, the differences in Text Editor (test `opendiff`). `tmutil` comes with backups in 19.6.x (the maintainer's choice, 23 Nov 2026).
+- [x] DMG: UDIF with ADC, zlib, bzip2, LZFSE and LZMA chunks; `hdiutil convert` and `create`.
+- [x] HFS+ compression: read (zlib, LZVN, LZFSE) and written by `ditto --hfsCompression` (test `hfs-compression`).
+- [x] hfs's adaptation finished: the sysctl list built once, assertions as the kernel's configuration says. `e0ef2f1168`
+- [x] System installer: USB medium, Installer and Setup; installs on PC 1 (24 Nov 2026; test `install-gate.sh`). `4bee1bce14`
+- [x] Apps: A0–A4 ([Atlas.md](Atlas.md#5-applications)); A5–A10 in 19.6.x.
+- [x] Commands: gitk and git gui on Tcl/Tk Aqua, `osascript`, `opendiff` (tests `tcltk-git`, `osascript`, `opendiff`); `tmutil` in 19.6.x.
+- [x] Security's authorization: authd, the Authorization Agent, the panes' lock (tests `authorization`, `pane-lock`). `725fc8177d`
+- [x] Printing over the network: cupsd, its commands, the Printers pane and the print panel; a network printer prints from PC 1.
+- [ ] Printing over USB: `IOUSBInterfaceUserClient`, IOUSBLib's plug-in and CUPS's USB backend, tried on PC 1; in 19.6.0 since 27 Nov 2026.
 
 #### WebKit
 
-- [x] W0 — its dependencies in `/usr/lib`: all 23 pass their own tests on PC 1 (`bmake w0-check`, 24 Nov 2026), FreeType and WOFF2 by Minkar's own tests, as theirs need downloads (`8db248db40`). Open: in one run six pairs of files extracted on PC 1 shared their data; not seen again, being looked into.
-- [x] W1 — JavaScriptCore with its JIT: all twelve JSTests suites pass on PC 1 (`bmake w1-check`, 24 Nov 2026: 28 133 tests; stress 20 141, mozilla-tests 2 247, microbenchmarks 1 597, wasm 1 450, modules 1 122, ChakraCore 877, es6 605, and the profiler and fuzz suites). Left out: 16 stress tests that need more than the 4 GiB a test is given (`Tests/W1/skip.txt`), and three wasm entries whose files the fetched tree does not have (JetStream2, the web platform tests). `27a2277e77`
+- [x] W0 — Its 23 dependencies in `/usr/lib` pass their tests on PC 1 (`bmake w0-check`). `8db248db40`
+- [x] W1 — JavaScriptCore with its JIT: the twelve JSTests suites pass on PC 1 (`bmake w1-check`; skips in `Tests/W1/skip.txt`). `27a2277e77`
 - [x] W2 — WebCore and the processes on a Minkar WPE platform. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — The older `WebView`. `86ed0b5d33`
-- [x] W5 — The designated apps' web views: Sparkle's release notes in Sloth 3.4 and Platypus 5.4.1, Platypus's Web View apps and TextMate 2.0.23's HTML output work from the published binaries (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; tests `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 Nov 2026). KeepingYouAwake moved to 19.6.x (the maintainer's choice, 24 Nov 2026): its updater needs code signatures read (BC2).
+- [x] W5 — The designated apps' web views, from their published binaries (tests `foundation-w5-apps`, `appkit-w5-apps`). `ac148eb478`
 
 #### Audio and media
 
 Minkar's own frameworks on FFmpeg (LGPL) and dav1d; no GTK, Qt or GStreamer.
 
 - [x] AU1–AU6 — IOAudioFamily and HDA, the audio service and CoreAudio, AudioToolbox, FFmpeg and dav1d, CoreMedia and AVFoundation, WebKit's media. `f39b73ee62`
-- [ ] AU7 — USB Audio Class 2.0. Moved to 19.6.x (the maintainer's choice, 25 Nov 2026): no USB audio interface to try it on.
-- [x] AU8 — CoreMIDI, framework and service: midiserver and CoreMIDI's client side, virtual endpoints between processes, the IAC Driver (test `coremidi`, 24 Nov 2026). `22ade151db`
-- [x] AU9 — Hosting Audio Units, and Accelerate: component bundles loaded, AUGraph, music devices, AUConverter, GenericOutput and MultiChannelMixer; vDSP, vForce and vImage's conversions (test `au-hosting`, 24 Nov 2026). `2f42b66c97`
-- [x] AU10 — Aggregate devices and device plug-ins; latency and drift measured against the reference. Audio server plug-ins hosted by audiod (`33ad929fb2`, test `hal-plugin`), aggregate devices (`fa1561eee4`, test `aggregate-device`), process taps (`e71a3fdb95`, test `process-tap`); the output's timing measured with the tests' `tools/audio-timing.c` on PC 1, in QEMU and on the reference (figures kept outside the repository): on PC 1 the cycle's jitter is 0.014 ms and the drift 0.2 ppm; the output runs two cycles ahead, one more than the reference (25 Nov 2026).
+- [ ] AU7 — USB Audio Class 2.0; in 19.6.x.
+- [x] AU8 — CoreMIDI: midiserver, virtual endpoints between processes, the IAC Driver (test `coremidi`). `22ade151db`
+- [x] AU9 — Hosting Audio Units; Accelerate's vDSP, vForce and vImage conversions (test `au-hosting`). `2f42b66c97`
+- [x] AU10 — Server plug-ins, aggregate devices, process taps; latency and drift measured on PC 1. `33ad929fb2`
 
 ### Lane BC — Binary compatibility
 
@@ -157,18 +141,18 @@ The designated apps' published x86-64 binaries start and work without recompilin
 apps and how far each gets are in [Compatibility.md](Compatibility.md). Install names,
 public ivar layouts and struct sizes stay as on the reference platform.
 
-- [x] BC0 — Gate BC (`bmake bc-check`) in the CI with every designated app: green on 26 Nov 2026 (run 45834032966, `17505a91f2`), the 17 apps run as the test user, 7 with a window, no regression.
+- [x] BC0 — Gate BC (`bmake bc-check`) in the CI with every designated app. `17505a91f2`
 - [x] BC1 — The generated matrix, [Compatibility.md](Compatibility.md).
-- [ ] BC2 — Loader cases: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, third-party signatures and hardened runtime, `SYSTEM_VERSION_COMPAT`; partial.
+- [ ] BC2 — Loader cases: chained fixups, `LC_BUILD_VERSION`, universal binaries, embedded frameworks, signatures and hardened runtime, `SYSTEM_VERSION_COMPAT`; partial.
 - [ ] BC3 — ABI audit from the type encodings in the apps' binaries, without the vendor's headers.
-- [x] BC4 — App set 19 green; part of M6. KeepingYouAwake moved to 19.6.x (24 Nov 2026): app set 19 closes 19.6.0 with the other six, which open their windows from their published binaries (`bmake bc-check`, 24 Nov 2026: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend; Skim too; [Compatibility.md](Compatibility.md)).
+- [x] BC4 — App set 19 green: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend (KeepingYouAwake in 19.6.x).
 - [ ] BC5… — One group of designated apps per `ProductVersion` rise.
 
 ### Lane ARM — arm64
 
 On the new kernel, in a virtual machine only for now.
 
-- [x] ARM0 — The userland and frameworks compile for arm64 in the CI (about 96 % of the objects); nothing is linked or booted. Green in the CI on 26 Nov 2026 (run 45834032966).
+- [x] ARM0 — The userland and frameworks compile for arm64 in the CI (about 96 % of the objects); nothing is linked or booted.
 - [ ] ARM1 — Darwin 25 boots on arm64 in a VM to gate M2; the boot target is not decided.
 - [ ] ARM2 — The desktop on arm64 in QEMU.
 - [ ] ARM3 — The designated apps' arm64 binaries start.
@@ -208,31 +192,22 @@ The core stays in one repository; the rest leaves it in steps. Detail in
 ### GPU track
 
 In parallel with everything, feeding the performance requirement. GCN 1.0 (PC 2): G1–G4
-done, G5 (Metal) left; the GPU's clocks, and every test on PC 2, moved to 19.6.x (the
-maintainer's choice, 25 Nov 2026: PC 2 is the development host until there is another). RDNA2 (PC 1): R0–R2 done, R2b next. Then
-Intel Gen9. Detail in [GPU.md](GPU.md).
+done, G5 (Metal) left; its clocks and the tests on PC 2 in 19.6.x. RDNA2 (PC 1): R0–R2
+done, R2b next; R3–R4 give WebRender and the compositor the GPU there. Then Intel Gen9.
+Detail in [GPU.md](GPU.md).
 
 ## Next steps
 
-The maintainer's order (23 Nov 2026). Lane A, one after another:
+Lane A, in order, to close 19.6.0:
 
-1. Printing: done (cupsd and its commands, the Printers pane); to be tried on a real printer on PC 1.
-2. W0–W3: window tabs (done), tiling (done), window restoration (done), Emoji & Symbols (done; Noto Emoji, monochrome).
-3. The commands of Phases 5 and 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
-   `opendiff` (done); `tmutil` moved to 19.6.x with backups.
-4. Security's authorization in full (the maintainer's choice, 23 Nov 2026): authd (the APSL
-   sources in the tree) with its rights database, the APSL client in Security.framework,
-   Atlas's Authorization Agent (the password window), `AuthorizationExecuteWithPrivileges`
-   through a setuid trampoline (done; test `image/authorization`); the panes' lock
-   (SecurityInterface) in Printers, Date & Time, Users & Groups and Network (SCHelper, APSL)
-   (done; test `image/pane-lock`); CUPS with the authorization rights, admin nested in
-   `_lpadmin`. Done.
-5. The system installer and HFS+ compression.
-6. WebKit: W0, W1, W5.
-7. LoginWindow: done (24 Nov 2026).
-8. The visual language: done (approved 25 Nov 2026).
+1. Today's work tried on PC 1, and gate M5 again with a session open.
+2. Printing over USB.
+3. The graphical boot: in 19.6.0 or 19.6.x, the maintainer to decide.
+4. W0's one-time anomaly on PC 1 (six pairs of extracted files sharing their data) looked into.
+5. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
+   `main` and the 19.6.0 tag, with the maintainer's confirmation.
 
-Lane BC alongside: BC2 (BC0 done: the CI is green, 26 Nov 2026). The GPU (R2b on PC 1) in parallel, as always; what needs PC 2 waits for 19.6.x.
+Lane BC alongside: BC2. The GPU (R2b on PC 1) in parallel; what needs PC 2 waits for 19.6.x.
 
 ## Risks
 

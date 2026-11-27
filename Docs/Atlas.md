@@ -3,7 +3,7 @@
 Atlas is Minkar's desktop: the session (login, menu bar, Dock, Files, System Preferences)
 and the apps a person needs every day. This document holds its design rules, how each
 part is built, and the milestones still open; for contributors to the desktop. Last
-reviewed: 2026-11-21. Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
+reviewed: 2026-11-27. Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
 
 Where the reference platform has a known design (which process does what, preference
 keys, public APIs, standard menus), Atlas follows it. A shortcut is allowed during
@@ -57,7 +57,7 @@ code marks it `// SHORTCUT(<milestone>):`.
 | Files (chapter 4) | K0–K4 | K0, K1, K2, K3 | K4 (19.6.x) |
 | Applications (chapter 5) | A0–A10 | A0, A1, A2, A3, A4 | A5–A10 (19.6.x) |
 | Notifications (5.4) | N0–N2 | N0, N1, N2 | — |
-| Window and text services (5.5) | W0–W4 | — | W0–W3 (19.6.0), W4 (to decide) |
+| Window and text services (5.5) | W0–W4 | W0, W1, W2, W3 | W4 (to decide) |
 
 The session's other parts (LoginWindow, System Preferences, the visual language) are
 items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -156,7 +156,9 @@ and Force Quit stays available.
   height; tells each app when it becomes or stops being the front app; lays out the status
   area; handles the reserved shortcuts; captures the pointer for an open menu.
 - **SystemUIServer:** hosts Menu Extra bundles (`.menu`) from
-  `/System/Library/CoreServices/Menu Extras`, listed in its `menuExtras` defaults.
+  `/System/Library/CoreServices/Menu Extras`, listed in its `menuExtras` defaults, and the
+  keyboard's sound keys (`VolumeKeys`: sixteen steps, quarter steps with Shift-Option,
+  mute, the level shown over every window).
 - **Services daemon:** builds the services list from `NSServices` and runs a service through
   the pasteboard (`NSPerformService`, `NSUpdateDynamicServices`).
 
@@ -165,12 +167,7 @@ and Force Quit stays available.
 - [x] MB0 — Menus in each app, the system menu, basic status items. `9d510ec6c2`
 - [x] MB1 — Menu Extras as `.menu` bundles and the full status item API. Local test `menubar-extras`.
 - [x] MB2 — Window menu, Open Recent, Help search, alternates, scrolling, Enter Full Screen, accessibility. Tests `menus-mb2`, `menus`.
-- [x] MB3 — The full system menu (19.6.0): System Preferences…, Recent Items,
-  Force Quit… and Command-Option-Escape, Sleep (the displays sleep where the machine
-  cannot), Lock Screen and Control-Command-Q (the login window for the session's user,
-  above everything, until its password is given). Tests: Restart asks apps to quit before
-  rebooting; Force Quit ends a hung test app. Local tests `system-menu`, `loginwindow`,
-  `lock-screen`.
+- [x] MB3 — The full system menu: Recent Items, Force Quit, Sleep, Lock Screen. Tests `system-menu`, `loginwindow`, `lock-screen`.
 - [ ] **MB4 — Services and the menu bar's behavior** (19.6.x): the services daemon and
   menu; hiding in full screen; auto-hide.
 
@@ -250,7 +247,8 @@ keeps room for them.
 - **Opening.** Through LaunchServices: default app per UTI, Open With, apps by bundle.
 - **File operations.** Copy, move, duplicate, rename, new folder, alias; with progress,
   cancel and undo; off the main thread. Drags between apps go through the window server
-  (`SLSPostDragEvent`) and the shared drag pasteboard.
+  (`SLSPostDragEvent`) and the shared drag pasteboard; a drop takes the drag's file names,
+  else its file URL (an app that writes the file as the drag starts, as Firefox does).
 - **Trash.** `~/.Trash` and `/.Trashes/<uid>` on other volumes; Put Back from the
   `org.minkar.trash.put-back` attribute `trashItemAtURL:` sets, so any app's trashed items
   can be put back.
@@ -266,20 +264,12 @@ keeps room for them.
 - [x] D1 — The Dock's new core, preferences in the reference keys, desktop pictures. `8cfe7115db`, `f6c2d254be`
 - [x] D2 — Reordering, tile menus, autohide, magnification, Open at Login, minimizing into tiles. `5c083e0b97`; test `dock-minimize`
 - [x] D3 — Dock tile service, minimized windows, the app switcher. Local test `dock-d3`.
-- [ ] **D4 — Stacks and Trash** (19.6.x). Done: the Trash tile (follows `~/.Trash`
-  without polling; open, empty after asking; app tiles dropped on it leave the Dock).
-  Left: stacks, files dropped on it, Put Back, other volumes' `.Trashes`.
-- [x] K0 — Prerequisites: fseventsd and FSEvents (`a2a333d45f`) with each volume's history,
-  device-relative streams and exclusions (`d87116be1c`; test `fsevents`); LaunchServices'
-  opening and Open With (`0331f57894`); the AppKit views apps build file browsers with,
-  checked with a test app (`06176ca807`, `f07b54ac00`; test `appkit-file-views`).
+- [ ] **D4 — Stacks and Trash** (19.6.x). Done: the Trash tile (files dropped go to the Trash, volumes are ejected; tests `drag-apps`, `desktop-icons`). Left: stacks, other volumes' `.Trashes`.
+- [x] K0 — Prerequisites: fseventsd and FSEvents, LaunchServices' Open With, AppKit's file views (tests `fsevents`, `appkit-file-views`). `d87116be1c`
 - [x] K1 — Browsing: sidebar, icon, list and column views, opening, Get Info, reveal. `896749b380`, `906f12eae4`
 - [x] K2 — File operations with progress and undo, drag and drop, Trash with Put Back, Open With. Tests `files-ops`, `drag-apps`.
 - [x] K3 — Desktop icons and volumes with eject, disk image double-click. Test `desktop-icons`.
 - [ ] **K4 — Later work** (19.6.x): search on the metadata index (`mdfind`), tags, previews.
-
-Known bug: ejecting a volume by dropping it on the Dock's Trash fails in the
-`desktop-icons` test (found 2026-11-21).
 
 Measured the same way in the VM and on the physical machines: idle CPU of the Dock and
 Files (near zero), and the time from a Dock click to the app's first window.
@@ -325,13 +315,7 @@ Help menu), Characters (ICU).
 
 - [x] A0 — App foundations and the template `Developer/Templates/AtlasApp`. `5a721456ef`, `fbef0a5927`; test `atlas-app`
 - [x] A1 — Terminal on libvterm 0.3.3, with tabs and Preferences. `d7b7c4f405`; test `terminal`
-- [x] **A2 — Text Editor for daily use** (19.6.0). Done: plain text, open and save,
-  `open -t`; find and replace through AppKit's Find panel (`10594b5eb5`, test
-  `text-editor-find`); encodings and line endings kept, and chosen in Save As (test
-  `text-editor-encodings`); rich text, opened and saved as RTF, Make Rich/Plain Text
-  (`01ee8bd8e6`, test `text-editor-rtf`); the ruler (`087039cdfd`, test `appkit-text-ruler`);
-  printing through AppKit's print panel, to a printer or a PDF (test `text-editor-print`).
-  Tests: a round trip in each encoding, find and replace, an RTF document reopened.
+- [x] A2 — Text Editor: plain and rich text, encodings, find and replace, the ruler, printing (tests `text-editor-*`, `appkit-text-ruler`). `01ee8bd8e6`
 - [x] A3 — System Monitor. `5a1c89ed68`; test `system-monitor`. Per-process energy waits for the power driver's data.
 - [x] A4 — Logs on `log --style ndjson`. `033761cf48`; test `logs`. Nothing writes crash reports yet.
 - [ ] **A5 — Screenshot.** Whole screen, window and selection; Command-Shift-3 and
@@ -377,37 +361,12 @@ app.
 
 ### 5.5 Window and text services the system adds (W0–W4)
 
-The system adds items to every app's menus; their services are not in Atlas yet. W0–W3
-are part of Minkar 19.6.0.
+The system adds items to every app's menus. W0–W3 are part of Minkar 19.6.0.
 
-- [x] **W0 — Window tabs.** `NSWindowTab`, `NSWindowTabGroup`, `tabbingMode`,
-  `tabbingIdentifier`, `addTabbedWindow:ordered:`, `userTabbingPreference`, the tab bar,
-  and the Window menu's tab items. Gate: two documents merge into one window with two tabs
-  and split again, from the menu and by dragging a tab. Done (23 Nov 2026): the tab bar
-  (choose, close, +, drag out, onto another window, within the bar), Prefer tabs from the
-  Dock pane, Show Tab Bar, Show Previous/Next Tab, Move Tab to New Window, Merge All
-  Windows; tests `appkit-window-tabs`, `text-editor-tabs`. Not yet: Show All Tabs (the
-  overview).
-- [x] **W1 — Tiling.** Tile Window to Left/Right of Screen, Move Window to Left/Right Side
-  of Screen, holding the zoom button, two full-screen windows side by side. Gate: two apps
-  share the screen and leave it as they came. Done (23 Nov 2026): the Window menu's items
-  (Move with Option), the zoom button's menu held, a tiled window back to its frame by
-  Exit Full Screen or the zoom button; test `window-tiling`. Not yet: choosing the other
-  half's window and moving the divider (they need spaces).
-- [x] **W2 — Window restoration.** `NSWindowRestoration`, `restorable`,
-  `encodeRestorableStateWithCoder:`, restoration at launch, Quit and Keep Windows. Gate:
-  Text Editor quit with two documents comes back with both, in their places. Done (23 Nov
-  2026): the state saved as the app quits keeping its windows (Quit and Keep Windows,
-  Option-Command-Q, or the General pane's choice) in `~/Library/Saved Application State`,
-  the windows made again at launch by their restoration classes; test
-  `text-editor-restore`. Not yet: saving while the app runs (after a crash), NSDocument's
-  own restoration, views' restorable state.
-- [x] **W3 — Emoji & Symbols.** The Edit menu's item and a character panel inserting
-  through `insertText:`. Gate: a character chosen is inserted into Text Editor. Done (23
-  Nov 2026): Emoji & Symbols (Control-Command-Space) at the end of every Edit menu; the
-  Characters panel (emoji and symbol categories, recently used, search by Unicode name);
-  test `text-editor-characters`. Not yet: an emoji font (the emoji categories draw blank;
-  the maintainer chooses the font), flags and skin tones (sequences).
+- [x] **W0 — Window tabs:** the tab bar, the Window menu's tab items, Prefer tabs (tests `appkit-window-tabs`, `text-editor-tabs`). Not yet: Show All Tabs.
+- [x] **W1 — Tiling:** the Window menu's items, the zoom button's menu (test `window-tiling`). Not yet: the other half's window, the divider (they need spaces).
+- [x] **W2 — Window restoration:** Quit and Keep Windows, restoration classes at launch (test `text-editor-restore`). Not yet: saving while running, NSDocument's own.
+- [x] **W3 — Emoji & Symbols:** the Edit menu's item and the Characters panel, Noto Emoji in one color (test `text-editor-characters`). Not yet: color emoji, sequences.
 - [ ] **W4 — Dictation.** *To decide:* it needs an on-device speech recognizer; until then
   the item is not shown.
 
@@ -415,7 +374,7 @@ are part of Minkar 19.6.0.
 
 - **M5:** from boot, a graphical session starts, an app opens from the Dock, Files
   browses, and the resolution changes from System Preferences, in the Atlas visual
-  language; MB1 is part of it.
+  language; MB1 is part of it. Passed on PC 1 on 26 Nov 2026 (the tests' `tools/m5-gate.sh`).
 - **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and D3, K2 and K3,
   the apps A0–A4, notifications N0–N1 and the window services W0–W3; the browser is not
   required.

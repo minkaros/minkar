@@ -6,7 +6,7 @@ on Darwin's kernel and runtime (XNU, objc4, CoreFoundation), its own Foundation 
 Cocotron-based AppKit, and FreeBSD's userland, with new code for the gaps. Its desktop is
 Atlas, with its own visual language.
 
-Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
+Last reviewed: 2026-11-27. Spanish: [README.es.md](README.es.md).
 
 ## Status
 
@@ -16,24 +16,23 @@ Last reviewed: 2026-11-21. Spanish: [README.es.md](README.es.md).
 - Boots on generic x86-64 PCs (PC 1, PC 2) and in QEMU, from SATA, NVMe or virtio, on every CPU
 - A Unix base: launchd, networking, SSH, and 354 of the reference system's 367 commands
 - Objective-C, Swift 6.4, Foundation and Combine; seven open source tools pass their tests
-- A GPU-composited window server and the Atlas desktop: menu bar, Dock, Files, System Preferences, notifications
-- Terminal, System Monitor and Logs; disk images, compressed ones included
-- WebKit on WPE, audio and video (CoreAudio, AVFoundation, WebKit's media)
+- A GPU-composited window server and the Atlas desktop: login window, menu bar, Dock, Files, System Preferences
+- Terminal, Text Editor, System Monitor and Logs; disk images, printing, a system installer
+- WebKit on WPE, audio, MIDI and video (CoreAudio, CoreMIDI, AVFoundation, WebKit's media)
 - Firefox, Thunderbird, Hex Fiend, Skim, TextMate, Platypus and Sloth from their published binaries
 
 **In progress**
 
-- Atlas for daily use (gate M5): the login window with Directory Services, Lock Screen, the visual language
-- Gate BC in the CI and the API 19 app set (lane BC)
-- Minkar 19.6.0 (gate M6): the system installer, HFS+ compression, Text Editor, WebKit's W5
-- GPU drivers: the display modes on PC 1's RDNA2 (PC 2's tests in 19.6.x)
+- Minkar 19.6.0 (gate M6): printing over USB, the final image tried on PC 1, the release
+- Firefox in daily use: every symbol it imports exists; its unchecked messages done
+- GPU drivers: the display on PC 1's RDNA2 (R2b), then its rings and Vulkan (R3–R4)
 
 **Next**
 
-- Audio AU7–AU10: USB audio, MIDI, Audio Units, aggregate devices
-- After 19.6.0: the apps A5–A10, the tests on PC 2, Darwin 25, arm64 in QEMU, SwiftUI
+- 19.6.x: the apps A5–A10, MB4, D4, K4, USB audio, the loader cases (BC2), the tests on PC 2
+- After 19.6.x: Darwin 25, arm64 in QEMU, SwiftUI
 
-_Updated 2026-11-26, devel `04c182d470`_
+_Updated 2026-11-27, devel `6e304752aa`_
 <!-- progress:readme:end -->
 
 Every milestone: [Docs/Progress.md](Docs/Progress.md). Which apps run and how far:

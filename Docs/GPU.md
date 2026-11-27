@@ -2,7 +2,7 @@
 
 The GPU track: which GPU families Minkar drives, in what order, what is left for each,
 and Minkar's own measurements. For contributors to the drivers, Mesa and the window
-server's compositor. Last reviewed: 2026-11-21.
+server's compositor. Last reviewed: 2026-11-27.
 
 The track runs in parallel with every release and is not cut back. Minkar 19.6.0 closes
 the functional gates; the performance requirement (equal to or better than the reference
@@ -61,6 +61,9 @@ The RX 6600 is Navi 23 (PCI 1002:73ff): GFX 10.3, display engine DCN 3.0.2 (amdg
 
 HDMI 2.0 rates (above 340 MHz, scrambled) are out, as on GCN 1.0. DisplayPort waits
 for a DisplayPort display. **Next:** R2b.
+
+Until R3 and R4, PC 1 composites on the CPU (pixman) and Firefox's WebRender draws in
+software; R4 gives the compositor Vulkan, and OpenGL through Mesa for WebRender.
 
 ## The performance requirement
 

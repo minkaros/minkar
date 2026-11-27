@@ -2,7 +2,7 @@
 
 How far each designated app's published binary gets on Minkar, and which frameworks those
 apps ask for that Minkar does not provide yet. For anyone choosing what to work on next.
-Last reviewed: 2026-11-21. Spanish copy: [Compatibility.es.md](Compatibility.es.md).
+Last reviewed: 2026-11-27. Spanish copy: [Compatibility.es.md](Compatibility.es.md).
 
 Framework work is ordered by this page and the noisy-stub log, whatever API level a symbol
 belongs to. The generated parts (between the `compat:` markers) come from `bmake progress`;
@@ -81,14 +81,14 @@ services) or deprecated.
 | CoreImage | 5 | 41 of 49 | Partial |
 | LocalAuthentication | 5 | 1 of 1 | Partial |
 | MediaPlayer | 5 | 17 of 25 | Partial |
-| Accelerate | 4 | 0 of 47 | Partial |
+| Accelerate | 4 | 47 of 47 | Partial |
 | CoreLocation | 4 | 7 of 7 | Partial |
-| CoreMIDI | 4 | 24 of 25 | Partial |
+| CoreMIDI | 4 | 25 of 25 | Partial |
 | QuickLookThumbnailing | 4 | 0 of 5 | Decide |
 | QuickLookUI | 4 | 0 of 5 | Decide |
-| ScreenCaptureKit | 4 | 0 of 14 | Decide |
-| Accessibility | 3 | 0 of 3 | Decide |
-| AuthenticationServices | 3 | 8 of 38 | Partial |
+| ScreenCaptureKit | 4 | 13 of 14 | Partial |
+| Accessibility | 3 | 3 of 3 | Partial |
+| AuthenticationServices | 3 | 35 of 38 | Partial |
 | ColorSync | 3 | 0 of 10 | Plan |
 | CryptoKit | 3 | 0 of 45 | Decide |
 | IOBluetooth | 3 | 1 of 8 | Partial |
@@ -96,10 +96,10 @@ services) or deprecated.
 | Network | 3 | 0 of 14 | Decide |
 | SwiftUI | 3 | 0 of 1022 | Plan (lane SU) |
 | Vision | 3 | 2 of 21 | Partial |
-| AudioUnit | 2 | 14 of 15 | Plan (AU9) |
+| AudioUnit | 2 | 15 of 15 | Plan (AU9) |
 | Kerberos | 2 | 0 of 27 | Decide |
-| OpenDirectory | 2 | 0 of 8 | Partial |
-| ScriptingBridge | 2 | 0 of 2 | Decide |
+| OpenDirectory | 2 | 8 of 8 | Partial |
+| ScriptingBridge | 2 | 2 of 2 | Partial |
 | AccessoryAccess | 1 | 0 of 3 | Decide |
 | AppIntents | 1 | 0 of 216 | Decide |
 | AVFAudio | 1 | 0 of 5 | Decide |
@@ -141,7 +141,8 @@ Decide. Symbols missing from the frameworks Minkar has are in the noisy-stub log
 
 - **Accelerate**: Partial — vDSP (arithmetic, Fourier transforms, filters), vForce and the vImage conversions the apps import (AU9); BLAS and LAPACK when an app asks for them.
 - **AudioUnit**: Plan (AU9) — the output unit exists; hosting third-party units and CoreAudioKit in AU9.
-- **AuthenticationServices**: Partial — no sign-on providers.
+- **Accessibility**: Partial — custom content and the non-blinking insertion point setting; no screen reader.
+- **AuthenticationServices**: Partial — no sign-on providers; passkey requests end unhandled (no authenticator yet).
 - **ColorSync**: Plan — on Little CMS.
 - **CoreImage**: Partial — CIFilter's registry, image units and a context over CoreGraphics; kernels and most filters left.
 - **CoreLocation**: Partial — location services off.
@@ -152,8 +153,9 @@ Decide. Symbols missing from the frameworks Minkar has are in the noisy-stub log
 - **MediaPlayer**: Partial — now playing and remote commands.
 - **Metal**: Plan (GPU track) — the API exists without a device; darling-metal and Indium.
 - **MetalKit**: Plan (GPU track) — `MTKView` draws for its delegate without a drawable.
-- **OpenDirectory**: Partial — the C interface exists; the Objective-C classes the apps import do not.
-- **ScriptingBridge**: Decide — needs the scripting component (Phase 6).
+- **OpenDirectory**: Partial — Directory Services through `directoryd`; local nodes only.
+- **ScreenCaptureKit**: Partial — displays, windows and applications captured at point resolution; no audio, no cursor drawn.
+- **ScriptingBridge**: Partial — the classes exist; no application is reached yet (no Open Scripting Architecture).
 - **StoreKit**: Out — the vendor's cloud service.
 - **SwiftUI**: Plan (lane SU) — Minkar's own public layer on a SwiftCrossUI-based engine; see [SwiftUI.md](SwiftUI.md).
 - **VideoToolbox**: Partial — decoding (H.264, HEVC, VP9, AV1) through FFmpeg; no encoder.
@@ -173,12 +175,14 @@ Speech, SpriteKit, SyncServices, SystemExtensions, Tk, TWAIN, VideoSubscriberAcc
 
 ## What Minkar provides
 
-AddressBook, AppKit, ApplicationServices (with PrintCore), AudioToolbox, AudioUnit (the
+Accelerate (vDSP, vForce, vImage's conversions), Accessibility (part), AddressBook, AppKit,
+ApplicationServices (with PrintCore), AudioToolbox, AudioUnit (the
 output unit), AVFoundation, AVKit, Carbon, CFNetwork, Cocoa, Combine, CoreAudio, CoreData,
 CoreFoundation, CoreGraphics, CoreImage (part), CoreMedia, CoreServices, CoreText,
 CoreVideo, DiskArbitration, ExceptionHandling, Foundation, ImageIO, IOKit, IOSurface,
 MediaPlayer, OpenDirectory (part), OpenGL (Mesa, in views and layers), OSAKit, PDFKit,
-PreferencePanes, Quartz, QuartzCore, QuickLook, Security (a subset), SecurityInterface (the lock), ServiceManagement,
+PreferencePanes, Quartz, QuartzCore, QuickLook, ScreenCaptureKit, ScriptingBridge (part), Security (a subset), SecurityInterface (the lock),
+ServiceManagement,
 System, SystemConfiguration, UniformTypeIdentifiers, UserNotifications, VideoToolbox
 (decoding), WebKit (on WPE WebKit's engine), XCTest, and JavaScriptCore (private).
 Present but waiting on hardware or a later block: CoreMIDI, Metal, MetalKit, Vision,
@@ -189,11 +193,11 @@ CoreLocation, LocalAuthentication, AuthenticationServices, IOBluetooth.
 | Service | Status | Notes |
 | --- | --- | --- |
 | Search indexing | Plan (19.6.x, K4) | `MDItem` and `mdls`, `mdfind` (it searches the disk), `mdutil`; no indexer yet (decided 2026-11-23) |
-| Printing to printers | Done | `cupsd` and its commands, the Printers pane, printing through PrintCore to IPP Everywhere printers that take PDF |
+| Printing to printers | Partial | Network printers that take PDF (IPP Everywhere) through `cupsd`, PrintCore and the Printers pane; USB printers in 19.6.0 |
 | Wi-Fi and Bluetooth | Decide | No drivers yet |
 | Camera and video capture | Decide | |
 | Authorization (authd, rights, administrator's password) | Done | APSL authd and client, Atlas's Authorization Agent, `AuthorizationExecuteWithPrivileges`, the panes' lock (SecurityInterface) |
 | Keychain with encryption | Plan | The current Security subset is replaced by the APSL Security sources |
 | Backups (`tmutil`) | Plan (19.6.x) | Moved with backups (decided 2026-11-23) |
-| Accessibility (screen reader, accessibility server) | Decide | |
+| Accessibility (screen reader, accessibility server) | Decide | The Accessibility framework's settings and custom content exist |
 | Voice assistant, dictation, cloud storage, app store, device handoff | Out | The vendor's services |

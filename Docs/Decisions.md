@@ -2,13 +2,25 @@
 
 Every decision the project has taken, one line each, newest first, with a link to where
 its detail lives: an ADR, a design document or the commit that made it. For anyone who
-wants to know why something is the way it is. Last reviewed: 2026-11-22.
+wants to know why something is the way it is. Last reviewed: 2026-11-27.
 
 A decision of architecture gets an ADR in [ADR/](ADR/) (0001–0009); the others are
 recorded here when they are taken. A line that a later one replaces says so.
 
 | Date | Decision | Detail |
 | --- | --- | --- |
+| 2026-11-27 | Printing over USB (the USB user client, IOUSBLib, CUPS's USB backend) is part of 19.6.0 | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
+| 2026-11-26 | Firefox's own sources (MPL) and Mozilla's public symbols may be read to find what it expects of the system; the fixes go into Minkar, Firefox is not patched | [Compatibility.md](Compatibility.md) |
+| 2026-11-26 | A graphical boot: a logo and a progress bar, the boot picker only with Option, Command-V for verbose; its release (19.6.0 or 19.6.x) to decide | [ROADMAP.md](ROADMAP.md#next-steps) |
+| 2026-11-25 | Atlas's look approved: light #ececec and dark #555555 windows, the menu bar #444444, a blue accent, sand folders | [Atlas.md](Atlas.md) |
+| 2026-11-25 | The tests on PC 2 and its GPU's clocks move to 19.6.x: PC 2 is the development host | [GPU.md](GPU.md) |
+| 2026-11-25 | AU7 (USB Audio Class 2.0) moves to 19.6.x: no USB audio interface to try it on | [ROADMAP.md](ROADMAP.md#audio-and-media) |
+| 2026-11-24 | KeepingYouAwake moves to 19.6.x: its updater needs code signatures read (BC2) | [ROADMAP.md](ROADMAP.md#lane-bc--binary-compatibility) |
+| 2026-11-24 | gitk and git gui on Tcl/Tk 8.6 (Aqua) with Minkar's own minimal HIToolbox | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
+| 2026-11-23 | The system installer: a USB medium straight into the Installer, the whole disk, the running system copied compressed, Setup at the first start | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
+| 2026-11-23 | Printing in 19.6.0: cupsd started by launchd, its commands and a Printers pane | [Compatibility.md](Compatibility.md#system-services-minkar-lacks) |
+| 2026-11-23 | Commands: `say` on eSpeak NG, `osascript` on Minkar's own AppleScript, `mdfind` without an index, emoji in one color (Noto Emoji); `tmutil` with backups in 19.6.x | [Userland.md](Userland.md) |
+| 2026-11-23 | Security's authorization in full: the APSL authd and client, an Authorization Agent, the panes' lock | [ROADMAP.md](ROADMAP.md#phase-6--applications-and-distribution) |
 | 2026-11-22 | The menu bar's icons are Lucide's (stroke 2; ISC), pinned by commit and SHA-256, in place of Material Symbols, chosen the same day | [Atlas.md](Atlas.md#1-scope-and-rules) |
 | 2026-11-22 | The menu bar's icons are Google's Material Symbols (Outlined, weight 400, 20 px; Apache-2.0), a second exception to no third-party artwork, pinned by commit and SHA-256; Faience's menu bar group goes | [Atlas.md](Atlas.md#1-scope-and-rules) |
 | 2026-11-21 | Platypus and Sloth are pinned to 5.4.1 and 3.4, their last releases with a minimum of 10.15 or lower, so they stay in app set 19 | [tools/symbols/reference-apps.tsv](../tools/symbols/reference-apps.tsv) |

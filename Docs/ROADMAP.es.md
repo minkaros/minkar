@@ -1,7 +1,7 @@
 # Hoja de ruta
 
 Qué busca Minkar, cómo se mide, qué está hecho y qué queda abierto. Última revisión:
-21 nov 2026. Es una copia de [ROADMAP.md](ROADMAP.md) y se actualiza en el mismo commit.
+27 nov 2026. Es una copia de [ROADMAP.md](ROADMAP.md) y se actualiza en el mismo commit.
 
 El estado de un vistazo está en [Progress.md](Progress.md), generada desde
 `progress/status.toml`; hasta dónde llega cada app designada, en
@@ -91,90 +91,72 @@ Lo que quedó de estas fases:
 
 Gate M5: desde el arranque empieza una sesión gráfica, se abre una app desde el Dock, Files
 navega y la resolución cambia desde Preferencias del sistema, con el lenguaje visual de
-Atlas. Detalle: [Atlas.md](Atlas.md).
+Atlas. Detalle: [Atlas.md](Atlas.md). Pasado en el PC 1 el 26 nov 2026 (`tools/m5-gate.sh`
+de las pruebas); se repite con la imagen final.
 
-- [x] LoginWindow: autenticación con Directory Services, los `LaunchAgents` del usuario, la pantalla bloqueada.
-  Directory Services hecho: OpenDirectory (APSL) y su servicio en `directoryd` (usuarios,
-  grupos, contraseñas; prueba `opendirectory`). Hechas la ventana de inicio de sesión y la sesión del usuario
-  (autoLoginUser, la lista de usuarios, las apps de la sesión como el usuario, Log Out de vuelta a la ventana;
-  prueba `login-window`); la sesión del usuario es una sesión Aqua en su propio launchd, con sus
-  `LaunchAgents` cargados allí, también los limitados a Aqua (`d39d9b1b29`, `637ca4f310`, 24 nov 2026);
-  la pantalla bloqueada (prueba `lock-screen`). En el PC 1 la ventana de inicio de sesión aparece unos
-  5 s después de launchd (medido el 24 nov 2026); si el firmware no encontró pantalla al encender (el
-  KVM en el otro equipo), el driver de la RX 6600 espera a que aparezca la pantalla guardada, y entonces
-  se muestra la ventana.
-- [x] Menús: MB0–MB3 hechos (MB4 en 19.6.x).
-- [x] Dock: D0–D3 hechos (D4 en 19.6.x).
-- [x] Files: K0–K3 hechos (K4 en 19.6.x).
-- [x] Preferencias del sistema: la app y sus paneles, con Notificaciones y Usuarios y grupos (usuarios
-  creados, eliminados, administradores, contraseñas, opciones de inicio de sesión; prueba `users-pane`).
-  Revisados frente a la referencia: General (aspecto, colores de acento y de resaltado, barras de
-  desplazamiento, el navegador por omisión; prueba `general-pane`), Notificaciones, Red con su hoja
-  Avanzado (prueba `network-pane`), Pantallas, Fecha y hora (prueba `timezone-change`), Ratón, Sonido,
-  Teclado (Texto, Fuentes de entrada, Atajos: los atajos de todo el sistema con los números de la
-  referencia en com.apple.symbolichotkeys; pruebas `hotkeys`, `symbolic-hotkeys`), Dock (prueba `dock-pane`).
-- [x] AppKit y el lenguaje visual de Atlas en todo el sistema. Hecho: los aspectos claro y oscuro
-  (Automático según la hora) y el color de acento, que todas las apps siguen al momento, la barra de
-  menús, el Dock y los Menu Extras (resaltados con el acento, iconos plantilla teñidos; iconos de
-  Lucide); prueba `general-pane`. Sin grises fijos en los controles de AppKit ni en las apps (`4e680fc747`,
-  prueba `appkit-dark-controls`). El aspecto de Atlas, aprobado por el mantenedor (25 nov 2026): ventanas
-  y controles #ececec en claro y #555555 en oscuro, bordes de control definidos, la barra de menús
-  #444444, acento azul, interruptor verde, carpetas color arena (`97657a1692`, `14896a5867`, `228f82b367`).
-- [x] Órdenes: `lsappinfo` (prueba `lsappinfo`); `mdls`, `mdfind`, `mdutil` sin índice, `mdfind` busca en el disco (prueba `md-commands`); `say` con eSpeak NG, en un proceso aparte (prueba `say`).
+- [x] LoginWindow: Directory Services, la sesión Aqua del usuario y sus `LaunchAgents`, la pantalla bloqueada. `637ca4f310`
+- [x] Menús: MB0–MB3 (MB4 en 19.6.x).
+- [x] Dock: D0–D3 (D4 en 19.6.x).
+- [x] Files: K0–K3 (K4 en 19.6.x).
+- [x] Preferencias del sistema: la app y sus paneles, revisados frente a la referencia (pruebas `general-pane`, `users-pane`, `network-pane`).
+- [x] El lenguaje visual de Atlas: aspectos claro y oscuro, colores de acento y de resaltado; aprobado el 25 nov 2026. `97657a1692`
+- [x] Órdenes: `lsappinfo`, `mdls`, `mdfind`, `mdutil` (sin índice), `say` (pruebas `lsappinfo`, `md-commands`, `say`).
 
 ### Fase 6 — Aplicaciones y distribución
 
 Gate M6, Minkar 19.6.0: instalado en una máquina física desde su propio medio USB; un DMG
-descargado, montado y su app ejecutada; Atlas completo para el uso diario (MB2–MB3,
-D2–D3, K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU6 y AU8–AU10; el conjunto de
-apps 19 en verde (BC4).
+descargado, montado y su app ejecutada; Atlas completo para el uso diario (MB2–MB3, D2–D3,
+K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU6 y AU8–AU10; el conjunto de apps
+19 en verde (BC4).
 
-- [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA conectados por el `MinkarDiskImage` del kernel; `hdiutil convert` y `create`.
-- [x] Compresión de HFS+ (decmpfs): lectura con `MinkarFSCompression` (zlib, LZVN, LZFSE), escritura con `ditto --hfsCompression` (LZFSE; prueba `hfs-compression`).
-- [x] El resto de la adaptación de hfs (`Kernel/_PROVENANCE`): fuera la protección contra el bucle de la lista de sysctl, que ya se construye una sola vez (`a2bd5df4fd`); las aserciones vuelven a depender de la configuración del núcleo (`e0ef2f1168`). Lote: 1043 pruebas y gate M2, 24 nov 2026.
-- [x] Instalador del sistema: una imagen USB arrancable, la app instaladora, el primer arranque (idioma, teclado, zona horaria, el primer administrador); sin cuentas de prueba en la imagen publicada. Hecho en QEMU: `bmake installer-image` (I3), el Instalador (I4: comprobaciones, borrado del disco, copia comprimida del sistema, `bless --setBoot`; menos de dos minutos, 405 MB), la Configuración inicial (I5); la prueba de instalación `tools/install-gate.sh` en el repositorio de pruebas (I6). Hecho en PC 1 (24 nov 2026): el medio arranca desde un lector de tarjetas USB e instala en el disco SATA en unos cuatro minutos; el sistema instalado arranca en el modo propio de la pantalla, con la Configuración inicial en español y sonido por el códec de la placa (`/var/log/install.log` en PC 1; commits 1b6817027b, 4bee1bce14). El medio tiene el tamaño de su contenido (2112 MB; `installer-image`). La instalación en el PC 2 pasa a 19.6.x (decisión del responsable, 25 nov 2026): el PC 2 es el servidor de desarrollo hasta que haya otro.
-- [x] Apps: A0–A4 hechas ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
-- [x] Órdenes: las órdenes Tcl de git, gitk y git gui, sobre Tcl/Tk 8.6 (Aqua) con HIShape y HITheme de Carbon (`2055508f88`–`3dfb39907f`; pruebas `tcltk-git`, `carbon-hitheme`, 24 nov 2026). Hecho también: `osascript`, intérprete propio de la parte más usada de AppleScript (prueba `osascript`); `opendiff`, las diferencias en Text Editor (prueba `opendiff`). `tmutil` llega con las copias de seguridad en 19.6.x (decisión del mantenedor, 23 nov 2026).
+- [x] DMG: UDIF con bloques ADC, zlib, bzip2, LZFSE y LZMA; `hdiutil convert` y `create`.
+- [x] Compresión de HFS+: lectura (zlib, LZVN, LZFSE) y escritura con `ditto --hfsCompression` (prueba `hfs-compression`).
+- [x] Adaptación de hfs terminada: la lista de sysctl se construye una vez, aserciones según la configuración del kernel. `e0ef2f1168`
+- [x] Instalador del sistema: medio USB, Instalador y Asistente; instala en el PC 1 (24 nov 2026; prueba `install-gate.sh`). `4bee1bce14`
+- [x] Apps: A0–A4 ([Atlas.md](Atlas.md#5-applications)); A5–A10 en 19.6.x.
+- [x] Órdenes: gitk y git gui sobre Tcl/Tk Aqua, `osascript`, `opendiff` (pruebas `tcltk-git`, `osascript`, `opendiff`); `tmutil` en 19.6.x.
+- [x] Autorización de Security: authd, el Authorization Agent, el candado de los paneles (pruebas `authorization`, `pane-lock`). `725fc8177d`
+- [x] Imprimir por red: cupsd, sus órdenes, el panel Impresoras y el panel de impresión; una impresora de red imprime desde el PC 1.
+- [ ] Imprimir por USB: `IOUSBInterfaceUserClient`, el plug-in de IOUSBLib y el backend USB de CUPS, probados en el PC 1; en 19.6.0 desde el 27 nov 2026.
 
 #### WebKit
 
-- [x] W0 — Sus dependencias en `/usr/lib`: las 23 pasan sus propias pruebas en PC 1 (`bmake w0-check`, 24 nov 2026); FreeType y WOFF2 con pruebas propias de Minkar, porque las suyas necesitan descargas (`8db248db40`). Abierto: en una ejecución seis parejas de ficheros extraídos en PC 1 compartían sus datos; no se ha vuelto a ver, se está investigando.
-- [x] W1 — JavaScriptCore con su JIT: las doce suites de JSTests pasan en el PC 1 (`bmake w1-check`, 24 nov 2026: 28 133 pruebas; stress 20 141, mozilla-tests 2 247, microbenchmarks 1 597, wasm 1 450, modules 1 122, ChakraCore 877, es6 605, y las de perfiladores y fuzz). Quedan fuera: 16 pruebas de stress que necesitan más de los 4 GiB que recibe cada prueba (`Tests/W1/skip.txt`) y tres entradas de wasm cuyos ficheros no trae el árbol descargado (JetStream2, las pruebas de la plataforma web). `27a2277e77`
+- [x] W0 — Sus 23 dependencias en `/usr/lib` pasan sus pruebas en el PC 1 (`bmake w0-check`). `8db248db40`
+- [x] W1 — JavaScriptCore con su JIT: las doce suites de JSTests pasan en el PC 1 (`bmake w1-check`; exclusiones en `Tests/W1/skip.txt`). `27a2277e77`
 - [x] W2 — WebCore y los procesos sobre una plataforma WPE de Minkar. `5abd93f984`
 - [x] W3 — `WKWebView`. `a5d929ebdd`
 - [x] W4 — El `WebView` antiguo. `86ed0b5d33`
-- [x] W5 — Las vistas web de las apps designadas: las notas de versión de Sparkle en Sloth 3.4 y Platypus 5.4.1, las apps Web View de Platypus y la salida HTML de TextMate 2.0.23 funcionan con los binarios publicados (`ac148eb478`, `08fd2eae3d`–`90b7403af9`; pruebas `foundation-w5-apps`, `appkit-w5-apps`, `webkit-url-protocol`, 24 nov 2026). KeepingYouAwake pasó a 19.6.x (decisión del mantenedor, 24 nov 2026): su actualizador necesita leer firmas de código (BC2).
+- [x] W5 — Las vistas web de las apps designadas, desde sus binarios publicados (pruebas `foundation-w5-apps`, `appkit-w5-apps`). `ac148eb478`
 
 #### Audio y medios
 
 Frameworks propios de Minkar sobre FFmpeg (LGPL) y dav1d; sin GTK, Qt ni GStreamer.
 
 - [x] AU1–AU6 — IOAudioFamily y HDA, el servicio de audio y CoreAudio, AudioToolbox, FFmpeg y dav1d, CoreMedia y AVFoundation, los medios de WebKit. `f39b73ee62`
-- [ ] AU7 — USB Audio Class 2.0. Pasa a 19.6.x (decisión del mantenedor, 25 nov 2026): no hay interfaz de audio USB con la que probarlo.
-- [x] AU8 — CoreMIDI, framework y servicio: midiserver y el lado cliente de CoreMIDI, extremos virtuales entre procesos, el driver IAC (prueba `coremidi`, 24 nov 2026). `22ade151db`
-- [x] AU9 — Alojar Audio Units, y Accelerate: bundles de componentes cargados, AUGraph, instrumentos musicales, AUConverter, GenericOutput y MultiChannelMixer; vDSP, vForce y las conversiones de vImage (prueba `au-hosting`, 24 nov 2026). `2f42b66c97`
-- [x] AU10 — Dispositivos agregados y plug-ins de dispositivo; latencia y deriva medidas frente a la referencia. Plug-ins del servidor de audio alojados por audiod (`33ad929fb2`, prueba `hal-plugin`), dispositivos agregados (`fa1561eee4`, prueba `aggregate-device`), taps de proceso (`e71a3fdb95`, prueba `process-tap`); la temporización de la salida medida con `tools/audio-timing.c` de las pruebas en PC 1, en QEMU y en la referencia (cifras fuera del repositorio): en PC 1 la variación del ciclo es de 0,014 ms y la deriva de 0,2 ppm; la salida va dos ciclos por delante, uno más que la referencia (25 nov 2026).
+- [ ] AU7 — USB Audio Class 2.0; en 19.6.x.
+- [x] AU8 — CoreMIDI: midiserver, extremos virtuales entre procesos, el IAC Driver (prueba `coremidi`). `22ade151db`
+- [x] AU9 — Alojar Audio Units; conversiones de vDSP, vForce y vImage de Accelerate (prueba `au-hosting`). `2f42b66c97`
+- [x] AU10 — Plug-ins del servidor, dispositivos agregados, tomas de proceso; latencia y deriva medidas en el PC 1. `33ad929fb2`
 
 ### Carril BC — Compatibilidad binaria
 
-Los binarios x86-64 publicados de las apps designadas arrancan y funcionan sin
-recompilarlos; las apps y hasta dónde llega cada una están en
-[Compatibility.es.md](Compatibility.es.md). Los nombres de instalación, la disposición de
-las ivars públicas y los tamaños de las structs se mantienen como en la plataforma de
-referencia.
+Los binarios x86-64 publicados de las apps designadas arrancan y funcionan sin recompilar;
+las apps y hasta dónde llega cada una están en [Compatibility.es.md](Compatibility.es.md).
+Los nombres de instalación, la disposición de los ivars públicos y los tamaños de las
+estructuras se mantienen como en la plataforma de referencia.
 
-- [x] BC0 — El gate BC (`bmake bc-check`) en la CI con todas las apps designadas: en verde el 26 nov 2026 (ejecución 45834032966, `17505a91f2`), las 17 apps con el usuario de pruebas, 7 con ventana, sin regresiones.
+- [x] BC0 — Gate BC (`bmake bc-check`) en la CI con todas las apps designadas. `17505a91f2`
 - [x] BC1 — La matriz generada, [Compatibility.es.md](Compatibility.es.md).
-- [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas de terceros y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
-- [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin los headers del fabricante.
-- [x] BC4 — El conjunto de apps 19 en verde; parte de M6. KeepingYouAwake pasó a 19.6.x (24 nov 2026): el conjunto 19 cierra 19.6.0 con las otras seis, que abren su ventana desde sus binarios publicados (`bmake bc-check`, 24 nov 2026: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend; también Skim; [Compatibility.es.md](Compatibility.es.md)).
+- [ ] BC2 — Casos del cargador: chained fixups, `LC_BUILD_VERSION`, binarios universales, frameworks incrustados, firmas y hardened runtime, `SYSTEM_VERSION_COMPAT`; parcial.
+- [ ] BC3 — Auditoría de ABI a partir de las codificaciones de tipos de los binarios de las apps, sin las cabeceras del fabricante.
+- [x] BC4 — El conjunto de apps 19 en verde: TextMate, Platypus, Sloth, Firefox, Thunderbird, Hex Fiend (KeepingYouAwake en 19.6.x).
 - [ ] BC5… — Un grupo de apps designadas por cada subida de `ProductVersion`.
 
 ### Carril ARM — arm64
 
 Con el kernel nuevo, y por ahora solo en una máquina virtual.
 
-- [x] ARM0 — El userland y los frameworks compilan para arm64 en la CI (cerca del 96 % de los objetos); no se enlaza ni se arranca nada. En verde en la CI el 26 nov 2026 (ejecución 45834032966).
+- [x] ARM0 — El userland y los frameworks compilan para arm64 en la CI (cerca del 96 % de los objetos); no se enlaza ni se arranca nada.
 - [ ] ARM1 — Darwin 25 arranca en arm64 en una VM hasta el gate M2; el destino de arranque no está decidido.
 - [ ] ARM2 — El escritorio en arm64 en QEMU.
 - [ ] ARM3 — Arrancan los binarios arm64 de las apps designadas.
@@ -215,33 +197,22 @@ El núcleo se queda en un repositorio; el resto sale por pasos. Detalle en
 ### Pista de la GPU
 
 En paralelo con todo, y base del requisito de rendimiento. GCN 1.0 (PC 2): G1–G4 hechos,
-falta G5 (Metal); los relojes de la GPU, y todas las pruebas en el PC 2, pasan a 19.6.x
-(decisión del responsable, 25 nov 2026: el PC 2 es el servidor de desarrollo hasta que haya
-otro). RDNA2 (PC 1): R0–R2 hechos; lo
-siguiente, R2b. Después, Intel Gen9. Detalle en [GPU.md](GPU.md).
+falta G5 (Metal); sus relojes y las pruebas en el PC 2, en 19.6.x. RDNA2 (PC 1): R0–R2
+hechos, sigue R2b; R3–R4 dan allí la GPU a WebRender y al compositor. Después Intel Gen9.
+Detalle en [GPU.md](GPU.md).
 
 ## Próximos pasos
 
-El orden del mantenedor (23 nov 2026). Carril A, uno tras otro:
+Carril A, en orden, para cerrar 19.6.0:
 
-1. Imprimir: hecho (cupsd y sus comandos, el panel Impresoras); falta probarlo con una impresora real en el PC 1.
-2. W0–W3: pestañas de ventana (hecho), mosaico (hecho), restauración de ventanas (hecho), Emoji y símbolos (hecho; Noto Emoji, monocromo).
-3. Los comandos de las fases 5 y 6: `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `say`, `osascript`,
-   `opendiff` (hecho); `tmutil` pasa a 19.6.x con las copias de seguridad.
-4. La autorización de Security completa (decisión del mantenedor, 23 nov 2026): authd (el código
-   APSL del árbol) con su base de derechos, el cliente APSL en Security.framework, el Agente de
-   autorización de Atlas (la ventana de contraseña), `AuthorizationExecuteWithPrivileges` con un
-   trampolín setuid (hecho; prueba `image/authorization`); el candado de los paneles
-   (SecurityInterface) en Impresoras, Fecha y hora, Usuarios y grupos y Red (SCHelper, APSL)
-   (hecho; prueba `image/pane-lock`); CUPS con los derechos de autorización, admin anidado
-   en `_lpadmin`. Hecho.
-5. El instalador del sistema y la compresión de HFS+.
-6. WebKit: W0, W1, W5.
-7. LoginWindow: hecho (24 nov 2026).
-8. El lenguaje visual: hecho (aprobado el 25 nov 2026).
+1. Lo de hoy probado en el PC 1, y el gate M5 otra vez con una sesión abierta.
+2. Imprimir por USB.
+3. El arranque gráfico: en 19.6.0 o en 19.6.x, a decisión del mantenedor.
+4. La anomalía puntual de W0 en el PC 1 (seis pares de ficheros extraídos que compartían datos), investigada.
+5. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
+   `main` y la etiqueta 19.6.0, con la confirmación del mantenedor.
 
-En paralelo, el carril BC: BC2 (BC0 hecho: la CI está en verde, 26 nov 2026).
-La GPU (R2b en el PC 1) en paralelo, como siempre; lo que necesita el PC 2 espera a 19.6.x.
+El carril BC en paralelo: BC2. La GPU (R2b en el PC 1) en paralelo; lo que necesita el PC 2 espera a 19.6.x.
 
 ## Riesgos
 
