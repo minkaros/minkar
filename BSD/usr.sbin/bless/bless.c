@@ -528,6 +528,36 @@ volume_uuid(const char *bsd, char *buf, size_t len)
 	return (ok);
 }
 
+/* The boot picker's icons, on the EFI partition's /Minkar/Boot/Picker. */
+static const char *kPickerIcons[] = {
+	"minkar.raw", "verbose.raw", "disk.raw", "start.raw", "restart.raw", "shutdown.raw",
+};
+
+/* A volume's name, as diskarbitrationd says it (the boot picker's name
+   for the system). */
+static bool
+volume_name(const char *bsd, char *buf, size_t len)
+{
+	DASessionRef session = DASessionCreate(kCFAllocatorDefault);
+	DADiskRef disk;
+	CFDictionaryRef d;
+	bool ok = false;
+
+	if (session == NULL)
+		return (false);
+	if ((disk = DADiskCreateFromBSDName(kCFAllocatorDefault, session, bsd)) != NULL) {
+		if ((d = DADiskCopyDescription(disk)) != NULL) {
+			CFStringRef name = CFDictionaryGetValue(d, kDADiskDescriptionVolumeNameKey);
+			if (name != NULL && CFGetTypeID(name) == CFStringGetTypeID())
+				ok = CFStringGetCString(name, buf, len, kCFStringEncodingUTF8);
+			CFRelease(d);
+		}
+		CFRelease(disk);
+	}
+	CFRelease(session);
+	return (ok);
+}
+
 static int
 set_boot(const char *volume, const char *bootefi)
 {
@@ -587,6 +617,21 @@ set_boot(const char *volume, const char *bootefi)
 			warn("%s", from);
 			goto out;
 		}
+		/* The boot screen's logo (a system without one boots with the
+		   bar alone). */
+		make_dir(tdir, "Minkar/Boot");
+		snprintf(from, sizeof(from), "%s/Minkar/Boot/logo.raw", rdir);
+		snprintf(to, sizeof(to), "%s/Minkar/Boot/logo.raw", tdir);
+		if (access(from, R_OK) == 0 && !copy_file(from, to))
+			warn("%s", from);
+		/* And the boot picker's icons. */
+		make_dir(tdir, "Minkar/Boot/Picker");
+		for (size_t i = 0; i < sizeof(kPickerIcons) / sizeof(kPickerIcons[0]); i++) {
+			snprintf(from, sizeof(from), "%s/Minkar/Boot/Picker/%s", rdir, kPickerIcons[i]);
+			snprintf(to, sizeof(to), "%s/Minkar/Boot/Picker/%s", tdir, kPickerIcons[i]);
+			if (access(from, R_OK) == 0 && !copy_file(from, to))
+				warn("%s", from);
+		}
 	}
 	/* The boot settings: the running system's, the volume this one. */
 	snprintf(from, sizeof(from), "%s/Minkar/org.minkar.boot.plist", rdir);
@@ -614,9 +659,20 @@ set_boot(const char *volume, const char *bootefi)
 		CFStringRef u = CFStringCreateWithCString(NULL, uuid, kCFStringEncodingUTF8);
 		CFDataRef data;
 
+		char name[256];
+
 		CFDictionarySetValue(plist, CFSTR("boot-uuid"), u);
 		CFDictionarySetValue(plist, CFSTR("boot-file"), CFSTR("\\Minkar\\kernelcache"));
 		CFRelease(u);
+		/* The name the boot picker shows: this volume's, not the running
+		   system's (an installer's medium is another volume). */
+		if (volume_name(tbsd, name, sizeof(name))) {
+			CFStringRef n = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
+			if (n != NULL) {
+				CFDictionarySetValue(plist, CFSTR("volume-name"), n);
+				CFRelease(n);
+			}
+		}
 		data = CFPropertyListCreateData(NULL, plist, kCFPropertyListXMLFormat_v1_0, 0, NULL);
 		snprintf(to, sizeof(to), "%s/Minkar/org.minkar.boot.plist", tdir);
 		{
