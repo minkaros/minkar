@@ -89,6 +89,7 @@
  */
 
 #include <console/video_console.h>
+#include <console/boot_progress.h>
 #include <console/serial_protos.h>
 
 #include <kern/kern_types.h>
@@ -3436,6 +3437,12 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 		}
 	}
 
+	/* Minkar (2026): a display driver's new framebuffer gets the boot
+	   screen drawn again, while the graphical boot goes on. */
+	if (boot_vinfo != NULL) {
+		boot_progress_screen(&vinfo);
+	}
+
     graphics_now = gc_graphics_boot && !gc_desire_text;
 	switch ( op )
 	{
@@ -3470,6 +3477,7 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			break;
 
 		case kPEDisableScreen:
+			boot_progress_pause(TRUE);	/* Minkar */
             if (gc_acquired) 
             {
                 gc_pause( TRUE, graphics_now );
@@ -3477,6 +3485,7 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			break;
 
 		case kPEEnableScreen:
+			boot_progress_pause(FALSE);	/* Minkar */
             if (gc_acquired) 
             {
                 gc_pause( FALSE, graphics_now );
@@ -3484,6 +3493,7 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			break;
 
 		case kPETextScreen:
+			boot_progress_stop();	/* Minkar: text instead */
 			if ( console_is_serial() ) break;
 
 			if ( gc_acquired == FALSE )
@@ -3501,6 +3511,7 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			break;
 
 		case kPEReleaseScreen:
+			boot_progress_stop();	/* Minkar */
 			gc_acquired = FALSE;
 			gc_desire_text = FALSE;
 			gc_enable( FALSE );
@@ -3572,6 +3583,11 @@ vcattach(void)
 	}
 #endif
 	simple_lock_init(&vc_progress_lock, 0);
+
+	/* Minkar (2026): the boot screen the loader drew goes on, its bar
+	   drawn by boot_progress.c. */
+	if ( gc_graphics_boot )
+		boot_progress_start(&vinfo);
 
 	if ( gc_graphics_boot == FALSE )
 	{

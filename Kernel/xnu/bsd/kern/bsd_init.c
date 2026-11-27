@@ -80,6 +80,8 @@
  */
 
 #include <sys/param.h>
+/* Minkar: the boot screen's bar (osfmk/console/boot_progress.c). */
+extern void boot_progress_set(unsigned int percent);
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/mount_internal.h>
@@ -976,6 +978,7 @@ bsd_init(void)
 #endif
 
 		bsd_init_kprintf("vfs_mountroot\n");
+		boot_progress_set(25);	/* Minkar: the boot screen's bar */
 		if (0 == (err = vfs_mountroot())) {
 			break;
 		}
@@ -1179,6 +1182,7 @@ bsdinit_task(void)
 
 	bsd_init_kprintf("bsd_do_post - done");
 
+	boot_progress_set(40);		/* Minkar: launchd starts */
 	load_init_program(p);
 	lock_trace = 1;
 }

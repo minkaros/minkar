@@ -328,6 +328,7 @@ osfmk/console/serial_general.c	standard
 osfmk/console/serial_console.c	optional	serial_console
 osfmk/console/video_scroll.c	optional	video_console
 osfmk/console/video_console.c	optional	video_console
+osfmk/console/boot_progress.c	optional	video_console
 
 
 osfmk/kern/telemetry.c			optional config_telemetry

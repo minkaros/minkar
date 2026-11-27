@@ -5027,3 +5027,35 @@ sysctl_get_vmobject_list_exit:
 
 SYSCTL_PROC(_vm, OID_AUTO, get_owned_vmobjects, CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_WR | CTLFLAG_MASKED | CTLFLAG_KERN | CTLFLAG_LOCKED | CTLFLAG_ANYBODY,
     0, 0, sysctl_get_owned_vmobjects, "A", "get owned vmobjects in task");
+
+/*
+ * Minkar (2026): kern.boot_progress, the boot screen's bar (0-100) from
+ * userland: launchctl's system bootstrap moves it on (root); 100, which
+ * ends the boot screen, any process may set (the window server, as it
+ * takes the display, runs as _windowserver). See
+ * osfmk/console/boot_progress.c.
+ */
+extern void boot_progress_set(unsigned int percent);
+extern unsigned int boot_progress_get(void);
+
+static int
+sysctl_boot_progress SYSCTL_HANDLER_ARGS
+{
+#pragma unused(oidp, arg1, arg2)
+	int value = 0, changed = 0;
+	int error = sysctl_io_number(req, (int)boot_progress_get(), sizeof(int), &value, &changed);
+
+	if (error == 0 && changed) {
+		if (value < 0 || value > 100) {
+			return EINVAL;
+		}
+		if (value != 100 && !kauth_cred_issuser(kauth_cred_get())) {
+			return EPERM;
+		}
+		boot_progress_set((unsigned int)value);
+	}
+	return error;
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, boot_progress, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_LOCKED,
+    0, 0, sysctl_boot_progress, "I", "the boot screen's progress, in percent");
