@@ -205,6 +205,25 @@ WSDamageGlobalRect(SLSRect rect)
 /* Ticks with nothing to do before the display link sleeps. */
 static const unsigned kIdleTicks = 2;
 
+/*
+ * A window's rounded shape at x, y (w x h): the rectangle less its corners
+ * outside a circle of kWSShadowCornerRadius, as AppKit clears them
+ * (NSThemeFrame), one span a row in the corners' rows.
+ */
+static void
+roundedShape(pixman_region32_t *shape, int x, int y, int w, int h)
+{
+	const int r = kWSShadowCornerRadius;
+
+	pixman_region32_init_rect(shape, x, y + r, (unsigned)w, (unsigned)(h - 2 * r));
+	for (int row = 0; row < r; row++) {
+		double dy = r - row - 0.5;
+		int inset = (int)ceil(r - sqrt((double)r * r - dy * dy));
+		pixman_region32_union_rect(shape, shape, x + inset, y + row, (unsigned)(w - 2 * inset), 1);
+		pixman_region32_union_rect(shape, shape, x + inset, y + h - 1 - row, (unsigned)(w - 2 * inset), 1);
+	}
+}
+
 @implementation WSCompositor {
 	WSDisplay *_display;
 	dispatch_queue_t _render;
@@ -563,12 +582,33 @@ backendClass(void)
 			pixman_region32_union_rect(&_live, &_live, x, y, surface.width,
 			    surface.height);
 		/* Its layers under its content, which shows over them where it
-		 * is clear (an app's tree of surfaces: Firefox's tiles). */
+		 * is clear (an app's tree of surfaces: Firefox's tiles); in a
+		 * rounded window, only inside its rounded shape (its corners
+		 * are clear, and the layers showed square through them). */
+		pixman_region32_t shape;
+		BOOL cut = item.rounded && item.underLayers.count > 0;
+		if (cut)
+			roundedShape(&shape, x, y, (int)ceil(item.frame.width), (int)ceil(item.frame.height));
 		for (WSUnderLayer *under in item.underLayers) {
 			SLSIntRect c = under.clip;
-			[_backend drawSurface:under.surface x:x + under.x y:y + under.y
-			    clip:(SLSIntRect){ x + c.x, y + c.y, c.width, c.height } alpha:item.alpha];
+			if (!cut) {
+				[_backend drawSurface:under.surface x:x + under.x y:y + under.y
+				    clip:(SLSIntRect){ x + c.x, y + c.y, c.width, c.height } alpha:item.alpha];
+				continue;
+			}
+			pixman_region32_t part;
+			pixman_region32_init_rect(&part, x + c.x, y + c.y, (unsigned)c.width, (unsigned)c.height);
+			pixman_region32_intersect(&part, &part, &shape);
+			int nparts = 0;
+			pixman_box32_t *pb = pixman_region32_rectangles(&part, &nparts);
+			for (int k = 0; k < nparts; k++)
+				[_backend drawSurface:under.surface x:x + under.x y:y + under.y
+				    clip:(SLSIntRect){ pb[k].x1, pb[k].y1, pb[k].x2 - pb[k].x1, pb[k].y2 - pb[k].y1 }
+				    alpha:item.alpha];
+			pixman_region32_fini(&part);
 		}
+		if (cut)
+			pixman_region32_fini(&shape);
 		[_backend drawSurface:surface x:x y:y alpha:item.alpha];
 		/* Its layer over it (a CAMetalLayer's drawable); each present
 		 * damages it, so it is not drawn again at every frame. */

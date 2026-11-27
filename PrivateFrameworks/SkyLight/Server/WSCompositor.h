@@ -53,6 +53,9 @@
 @property double alpha;
 @property BOOL solid;			/* a shielding window: opaque black */
 @property BOOL shadow;			/* drawn with a shadow */
+/* A window with rounded corners (a titled one: a shadow, a normal level):
+ * the layers under its content are cut to its rounded shape. */
+@property BOOL rounded;
 /* A layer over the window's content (SLSWindowSetLayerIOSurface): its
  * surface and where, in window coordinates. */
 @property (strong) id layerSurface;

@@ -1289,6 +1289,9 @@ WSWindowSnapshot(void)
 		WSSurface *surface = w.surface;
 		item.solid = w.shield && !(surface != nil && surface.committed);
 		item.shadow = w.hasShadow && !w.shield;
+		item.rounded = item.shadow && w.level >= 0 && w.level < 100 &&
+		    item.frame.width >= 3 * kWSShadowCornerRadius &&
+		    item.frame.height >= 3 * kWSShadowCornerRadius;
 		item.layerSurface = w.layerSurface;
 		item.layerRect = w.layerRect;
 		item.underLayers = w.underLayers;
