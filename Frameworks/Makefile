@@ -106,6 +106,8 @@ SUBDIR += AuthenticationServices
 SUBDIR += Accessibility
 SUBDIR += AVFoundation
 SUBDIR += AVKit
+# Screen and window capture (Firefox's screen sharing, 27 Nov 2026).
+SUBDIR += ScreenCaptureKit
 # VLC's and UTM's interfaces link it (21 Nov 2026).
 SUBDIR += ScriptingBridge
 # WebKit.framework is a stage of its own, after BSD (WPE WebKit): the
@@ -189,6 +191,7 @@ AuthenticationServices: Foundation
 Accessibility: Foundation
 AVFoundation: CoreMedia CoreVideo QuartzCore IOSurface CoreServices CoreGraphics AudioToolbox VideoToolbox
 AVKit: AppKit AVFoundation
+ScreenCaptureKit: AppKit CoreGraphics CoreMedia CoreVideo IOSurface
 UniformTypeIdentifiers: Foundation CoreServices
 # CUPS's configure links its checks with Security, SystemConfiguration,
 # CoreFoundation, libiconv and libz; without one, the pthread check fails.
