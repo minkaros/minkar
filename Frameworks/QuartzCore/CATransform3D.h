@@ -10,3 +10,11 @@ typedef struct {
 } CATransform3D;
 
 CA_EXPORT const CATransform3D CATransform3DIdentity;
+
+/* A translation, a scale and a rotation (radians, about the axis x, y,
+   z; the identity when the axis is zero). */
+CA_EXPORT CATransform3D CATransform3DMakeTranslation(CGFloat tx, CGFloat ty, CGFloat tz);
+CA_EXPORT CATransform3D CATransform3DMakeScale(CGFloat sx, CGFloat sy, CGFloat sz);
+CA_EXPORT CATransform3D CATransform3DMakeRotation(CGFloat angle, CGFloat x, CGFloat y, CGFloat z);
+/* a, then b (a * b, row vectors). */
+CA_EXPORT CATransform3D CATransform3DConcat(CATransform3D a, CATransform3D b);
