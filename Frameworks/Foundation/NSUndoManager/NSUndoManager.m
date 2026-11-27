@@ -473,10 +473,11 @@ static char discardableKey;
 
 - (NSString *)undoActionName
 {
-    if ([self canUndo])
+    if ([self canUndo] && _actionName != nil)
         return _actionName;
-    
-    return nil;
+
+    /* Nothing to undo: an empty name, as on the reference platform. */
+    return @"";
 }
 
 - (NSString *)undoMenuItemTitle
@@ -490,19 +491,19 @@ static char discardableKey;
     if (name != nil) {
         if ([name length] > 0)
             return [NSString stringWithFormat:@"Undo %@", name];
-
-        return @"Undo";
     }
 
-    return name;
+    /* No name: the plain title, never an empty item. */
+    return @"Undo";
 }
 
 - (NSString *)redoActionName
 {
-    if ([self canRedo])
+    if ([self canRedo] && _actionName != nil)
         return _actionName;
 
-    return nil;
+    /* Nothing to redo: an empty name, as on the reference platform. */
+    return @"";
 }
 
 - (NSString *)redoMenuItemTitle
@@ -515,11 +516,10 @@ static char discardableKey;
     if (name != nil) {
         if ([name length] > 0)
             return [NSString stringWithFormat:@"Redo %@", name];
-
-        return @"Redo";
     }
 
-    return name;
+    /* No name: the plain title, never an empty item. */
+    return @"Redo";
 }
 
 - (void)clearRedoStackIfStateIsNormal
