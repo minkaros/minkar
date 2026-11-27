@@ -11,7 +11,7 @@ APP =		Files
 APP_INSTALL_DIR = /System/Library/CoreServices
 SRCS =		main.m FilesOperations.m FilesDesktop.m FilesItem.m FilesIcons.m FilesBrowserView.m FilesColumnView.m FilesSidebarView.m \
 		FilesWindowController.m FilesInfoWindow.m FilesSegmentedControl.m FilesCommands.m FilesPathBar.m FilesPreferences.m FilesFind.m
-FRAMEWORKS =	Cocoa CoreServices CoreGraphics
+FRAMEWORKS =	Cocoa CoreServices CoreGraphics ApplicationServices
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness

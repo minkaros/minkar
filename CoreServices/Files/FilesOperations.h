@@ -50,10 +50,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-/* The files a drag carries: its file names, else its file URL (an app
-   that writes the file as the drag starts, as Firefox does with an image,
-   gives only that). Existing files only. */
+/* The files a drag carries: its file names, else its file URL. Existing
+   files only, and nothing of a drag that only promises its files (read
+   while the pointer moves, it would make the source write them). */
 NSArray<NSURL *> *FilesDraggedFileURLs(NSPasteboard *pasteboard);
+
+/* Whether a drag promises files its source writes where they are dropped
+   (Firefox does, with an image). */
+BOOL FilesDragPromisesFiles(NSPasteboard *pasteboard);
+
+/* A drop of promised files into a folder: the folder given to the source
+   as the paste location, and the files it wrote there. */
+NSArray<NSURL *> *FilesReceivePromisedFiles(NSPasteboard *pasteboard, NSURL *folder);
 
 
 NS_ASSUME_NONNULL_END

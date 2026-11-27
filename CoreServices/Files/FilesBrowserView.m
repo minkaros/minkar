@@ -496,6 +496,8 @@ static NSArray<NSURL *> *draggedURLs(id<NSDraggingInfo> info)
         _dropTarget = target;
         [self setNeedsDisplay:YES];
     }
+    if (folder != nil && [urls count] == 0 && FilesDragPromisesFiles([info draggingPasteboard]))
+        return NSDragOperationCopy;
     if (folder == nil || [urls count] == 0)
         return NSDragOperationNone;
     if ([NSEvent modifierFlags] & NSAlternateKeyMask)
@@ -531,7 +533,11 @@ static NSArray<NSURL *> *draggedURLs(id<NSDraggingInfo> info)
     [self setNeedsDisplay:YES];
     if (operation == NSDragOperationNone || folder == nil)
         return NO;
-    [self.delegate browserView:self dropURLs:draggedURLs(info) intoFolder:folder
+    NSArray<NSURL *> *urls = draggedURLs(info);
+    /* Promised files: written into the folder by their source. */
+    if ([urls count] == 0)
+        return [FilesReceivePromisedFiles([info draggingPasteboard], folder) count] > 0;
+    [self.delegate browserView:self dropURLs:urls intoFolder:folder
                        copying:operation == NSDragOperationCopy];
     return YES;
 }

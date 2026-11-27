@@ -9,6 +9,7 @@
  */
 
 #import "FilesOperations.h"
+#import <ApplicationServices/ApplicationServices.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -609,11 +610,37 @@ NSArray<NSURL *> *FilesDraggedFileURLs(NSPasteboard *pasteboard)
         for (id p in paths)
             if ([p isKindOfClass:[NSString class]])
                 [urls addObject:[NSURL fileURLWithPath:p]];
-    if ([urls count] == 0) {
+    if ([urls count] == 0 && !FilesDragPromisesFiles(pasteboard)) {
         NSString *text = [pasteboard stringForType:NSPasteboardTypeFileURL];
         NSURL *url = [text length] > 0 ? [NSURL URLWithString:text] : nil;
         if ([url isFileURL] && [[NSFileManager defaultManager] fileExistsAtPath:[url path]])
             [urls addObject:[url URLByStandardizingPath]];
     }
     return urls;
+}
+
+/* The type of a promised file (its URL, once written). */
+static NSString *const promisedFileType = @"com.apple.pasteboard.promised-file-url";
+
+BOOL FilesDragPromisesFiles(NSPasteboard *pasteboard)
+{
+    return [[pasteboard types] containsObject:promisedFileType];
+}
+
+NSArray<NSURL *> *FilesReceivePromisedFiles(NSPasteboard *pasteboard, NSURL *folder)
+{
+    PasteboardRef ref = NULL;
+
+    if (PasteboardCreate((__bridge CFStringRef)[pasteboard name], &ref) != noErr)
+        return @[];
+    OSStatus set = PasteboardSetPasteLocation(ref, (__bridge CFURLRef)folder);
+    CFRelease(ref);
+    if (set != noErr)
+        return @[];
+    /* Read, the type makes the source write the file and give its URL. */
+    NSString *text = [pasteboard stringForType:promisedFileType];
+    NSURL *url = [text length] > 0 ? [NSURL URLWithString:text] : nil;
+    if (![url isFileURL] || ![[NSFileManager defaultManager] fileExistsAtPath:[url path]])
+        return @[];
+    return @[ [url URLByStandardizingPath] ];
 }

@@ -326,6 +326,8 @@ static dev_t deviceOf(NSURL *url)
     NSURL *folder = [self dropFolderFor:info];
     NSArray<NSURL *> *urls = dropURLs(info);
 
+    if ([urls count] == 0 && FilesDragPromisesFiles([info draggingPasteboard]))
+        return NSDragOperationCopy;
     if ([urls count] == 0)
         return NSDragOperationNone;
     if ([NSEvent modifierFlags] & NSAlternateKeyMask)
@@ -355,6 +357,12 @@ static dev_t deviceOf(NSURL *url)
     [self setNeedsDisplay:YES];
     if (operation == NSDragOperationNone)
         return NO;
+    /* Promised files: written onto the desktop by their source. */
+    if ([urls count] == 0) {
+        BOOL received = [FilesReceivePromisedFiles([info draggingPasteboard], folder) count] > 0;
+        [desktop reload];
+        return received;
+    }
     os_log_info(OS_LOG_DEFAULT, "desktop drop %{public}s %lu into %{public}s",
                 operation == NSDragOperationCopy ? "copy" : "move", (unsigned long)[urls count],
                 [[folder path] fileSystemRepresentation]);
