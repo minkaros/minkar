@@ -133,12 +133,10 @@ const float NSWindowControlSpacing = 8;
         O2ContextClosePath(context);
         O2ContextFillPath(context);
         O2ContextRestoreGState(context);
-
-        O2ContextSetGrayStrokeColor(context, _NSSystemAppearanceIsDark() ? 0.24 : 0.8, 1);
-        O2ContextSetLineWidth(context, NSWindowEdgePad);
-        O2ContextBeginPath(context);
-        O2ContextAddArc(context, cx, cy, r - NSWindowEdgePad / 2, from, to, clockwise);
-        O2ContextStrokePath(context);
+        /* No line along the curve: the window's straight edges have none,
+           and in the dark appearance its fixed grey showed as dark marks
+           at the four corners (found on PC 1). The clear fill's edge is
+           antialiased against the window's own pixels. */
     }
     if(([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView) &&
        NSIntersectsRect(rect, NSMakeRect(0, NSMaxY(b) - NSWindowTitleHeight, NSWidth(b), NSWindowTitleHeight)))
