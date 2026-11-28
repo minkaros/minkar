@@ -19,6 +19,7 @@
 @interface SMProcess ()
 @property pid_t pid, parentPID;
 @property (copy) NSString *name, *path, *user;
+@property uid_t uid;
 @property double cpuPercent, cpuTime, readRate, writeRate;
 @property uint64_t memory, bytesRead, bytesWritten, cpuNanoseconds;
 @property int threads;
@@ -101,6 +102,7 @@ static uint64_t now(void)
         p.name = name[0] ? @(name) : @(bsd.pbi_comm);
         p.path = @(path);
         p.user = userName(bsd.pbi_uid);
+        p.uid = bsd.pbi_uid;
         p.startDate = [NSDate dateWithTimeIntervalSince1970:bsd.pbi_start_tvsec + bsd.pbi_start_tvusec / 1e6];
         if (proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &task, sizeof(task)) == sizeof(task)) {
             p.memory = task.pti_resident_size;
@@ -158,8 +160,19 @@ static uint64_t now(void)
         uint64_t page = (uint64_t)vm_kernel_page_size;
         _freeMemory = (uint64_t)vm.free_count * page;
         _wiredMemory = (uint64_t)vm.wire_count * page;
-        _usedMemory = _physicalMemory > _freeMemory ? _physicalMemory - _freeMemory : 0;
+        _compressedMemory = (uint64_t)vm.compressor_page_count * page;
+        /* Apps' memory (anonymous pages but purgeable ones), wired and
+           compressed are used; files' pages and purgeable ones are a cache. */
+        uint64_t internal = vm.internal_page_count > vm.purgeable_count ? vm.internal_page_count - vm.purgeable_count : 0;
+        _cachedMemory = ((uint64_t)vm.external_page_count + vm.purgeable_count) * page;
+        _usedMemory = (internal + vm.wire_count) * page + _compressedMemory;
+        if (_usedMemory > _physicalMemory)
+            _usedMemory = _physicalMemory;
     }
+    struct xsw_usage swap;
+    size_t swapSize = sizeof(swap);
+    if (sysctlbyname("vm.swapusage", &swap, &swapSize, NULL, 0) == 0)
+        _swapUsed = swap.xsu_used;
 
     struct ifaddrs *list = NULL;
     NSMutableArray *interfaces = [NSMutableArray array];

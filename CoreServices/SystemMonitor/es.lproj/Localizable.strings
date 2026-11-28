@@ -50,7 +50,15 @@
 
 /* The totals */
 "System: %.1f %%\nUser: %.1f %%\nIdle: %.1f %%\nProcessors: %d\nProcesses: %lu" = "Sistema: %.1f %%\nUsuario: %.1f %%\nInactivo: %.1f %%\nProcesadores: %d\nProcesos: %lu";
-"Physical memory: %@\nMemory used: %@\nWired memory: %@\nFree memory: %@" = "Memoria física: %@\nMemoria usada: %@\nMemoria fija: %@\nMemoria libre: %@";
+"Physical memory: %@\nMemory used: %@\nCached files: %@\nWired memory: %@\nCompressed: %@\nSwap used: %@" = "Memoria física: %@\nMemoria usada: %@\nArchivos en caché: %@\nMemoria fija: %@\nComprimida: %@\nSwap usado: %@";
+"All Processes" = "Todos los procesos";
+"My Processes" = "Mis procesos";
+"System Processes" = "Procesos del sistema";
+"Windowed Processes" = "Procesos con ventanas";
+"Update Frequency" = "Frecuencia de actualización";
+"Very Often (1 sec)" = "Muy a menudo (1 s)";
+"Often (2 sec)" = "A menudo (2 s)";
+"Normally (5 sec)" = "Normalmente (5 s)";
 "Data read: %@\nData written: %@" = "Datos leídos: %@\nDatos escritos: %@";
 "Data received: %@\nData sent: %@" = "Datos recibidos: %@\nDatos enviados: %@";
 

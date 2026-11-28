@@ -21,6 +21,17 @@
     return self;
 }
 
++ (NSUInteger)capacity
+{
+    return POINTS;
+}
+
+- (void)setHistory:(NSMutableArray<NSArray<NSNumber *> *> *)history
+{
+    _history = history ?: [NSMutableArray array];
+    [self setNeedsDisplay:YES];
+}
+
 - (void)addValues:(NSArray<NSNumber *> *)values
 {
     [_history addObject:values];

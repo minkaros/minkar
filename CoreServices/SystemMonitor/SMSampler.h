@@ -17,6 +17,7 @@
 @property (readonly, copy) NSString *name;
 @property (readonly, copy) NSString *path;
 @property (readonly, copy) NSString *user;
+@property (readonly) uid_t uid;
 @property (readonly) double cpuPercent;          /* of one processor, since the last sample */
 @property (readonly) double cpuTime;             /* seconds */
 @property (readonly) uint64_t memory;            /* resident bytes */
@@ -40,7 +41,11 @@
 @property (readonly, copy) NSArray<SMProcess *> *processes;
 @property (readonly, copy) NSArray<SMInterface *> *interfaces;
 @property (readonly) double userPercent, systemPercent, idlePercent;   /* of the whole machine */
+/* Used: apps' memory (anonymous pages, purgeable ones aside), wired and
+   compressed; cached: files' pages and purgeable ones, which the system
+   frees when it needs to; swap from vm.swapusage. */
 @property (readonly) uint64_t physicalMemory, usedMemory, wiredMemory, freeMemory;
+@property (readonly) uint64_t cachedMemory, compressedMemory, swapUsed;
 @property (readonly) double readRate, writeRate;   /* all processes */
 @property (readonly) double inRate, outRate;       /* all interfaces but loopback */
 @property (readonly) int processors;

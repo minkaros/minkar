@@ -63,6 +63,23 @@ static NSMenu *submenu(NSMenu *parent, NSString *title)
         [tab setTarget:self.windowController];
     }
     [view addItem:[NSMenuItem separatorItem]];
+    NSArray *filters = @[ NSLocalizedString(@"All Processes", nil), NSLocalizedString(@"My Processes", nil),
+        NSLocalizedString(@"System Processes", nil), NSLocalizedString(@"Windowed Processes", nil) ];
+    for (NSInteger i = 0; i < 4; i++) {
+        NSMenuItem *filter = item(view, filters[i], @selector(chooseProcessFilter:), nil, 0);
+        [filter setTag:i];
+        [filter setTarget:self.windowController];
+    }
+    [view addItem:[NSMenuItem separatorItem]];
+    NSMenu *frequency = submenu(view, NSLocalizedString(@"Update Frequency", nil));
+    NSArray *paces = @[ @[ @1, NSLocalizedString(@"Very Often (1 sec)", nil) ],
+        @[ @2, NSLocalizedString(@"Often (2 sec)", nil) ], @[ @5, NSLocalizedString(@"Normally (5 sec)", nil) ] ];
+    for (NSArray *pace in paces) {
+        NSMenuItem *every = item(frequency, pace[1], @selector(chooseUpdateInterval:), nil, 0);
+        [every setTag:[pace[0] integerValue]];
+        [every setTarget:self.windowController];
+    }
+    [view addItem:[NSMenuItem separatorItem]];
     [item(view, NSLocalizedString(@"Quit Process", nil), @selector(stopSelectedProcess:), @"q", opt)
         setTarget:self.windowController];
     [item(view, NSLocalizedString(@"Get Info", nil), @selector(showProcessInfo:), @"i", cmd)

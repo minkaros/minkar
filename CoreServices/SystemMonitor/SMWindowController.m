@@ -8,7 +8,8 @@
 #import "SMGraphView.h"
 #include <signal.h>
 
-#define INTERVAL 2.0
+static NSString *const SMUpdateIntervalKey = @"UpdateInterval";
+static NSString *const SMProcessFilterKey = @"ProcessFilter";
 
 static NSString *bytes(double value)
 {
@@ -64,6 +65,7 @@ static NSArray *columnsForTab(SMTab tab)
     SMGraphView *_graph;
     NSTextField *_summary;
     NSTimer *_timer;
+    NSMutableArray *_histories[4];
     NSString *_sortKey[4];
     BOOL _ascending[4];
     NSArray *_rows;
@@ -84,13 +86,98 @@ static NSArray *columnsForTab(SMTab tab)
     _sortKey[SMTabNetwork] = @"name";
     _ascending[SMTabNetwork] = YES;
     _searchString = @"";
+    for (int i = 0; i < 4; i++)
+        _histories[i] = [NSMutableArray array];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    double interval = [defaults doubleForKey:SMUpdateIntervalKey];
+    _updateInterval = (interval == 1 || interval == 5) ? interval : 2;
+    _processFilter = (SMProcessFilter)MAX(0, MIN(3, [defaults integerForKey:SMProcessFilterKey]));
     [self makeViews];
     [self setTab:SMTabCPU];
     [_sampler sample];
     [self refresh];
-    _timer = [NSTimer scheduledTimerWithTimeInterval:INTERVAL target:self selector:@selector(tick:)
-        userInfo:nil repeats:YES];
+    [self startTimer];
     return self;
+}
+
+- (void)dealloc
+{
+    [_timer invalidate];
+}
+
+/* Samples at the same pace while a menu is open, a window is moved or
+   resized, or an alert waits (common modes): the history's points stay
+   one interval apart. The timer holds the controller weakly. */
+- (void)startTimer
+{
+    __weak SMWindowController *weakSelf = self;
+
+    [_timer invalidate];
+    _timer = [NSTimer timerWithTimeInterval:_updateInterval repeats:YES block:^(NSTimer *timer) {
+        [weakSelf tick:timer];
+    }];
+    [_timer setTolerance:_updateInterval / 10];
+    [[NSRunLoop currentRunLoop] addTimer:_timer forMode:NSRunLoopCommonModes];
+}
+
+- (void)setUpdateInterval:(NSTimeInterval)interval
+{
+    _updateInterval = (interval == 1 || interval == 5) ? interval : 2;
+    [[NSUserDefaults standardUserDefaults] setDouble:_updateInterval forKey:SMUpdateIntervalKey];
+    [self startTimer];
+}
+
+- (void)setProcessFilter:(SMProcessFilter)filter
+{
+    _processFilter = filter;
+    [[NSUserDefaults standardUserDefaults] setInteger:filter forKey:SMProcessFilterKey];
+    [self refresh];
+}
+
+- (IBAction)chooseUpdateInterval:(id)sender
+{
+    [self setUpdateInterval:[sender tag]];
+}
+
+- (IBAction)chooseProcessFilter:(id)sender
+{
+    [self setProcessFilter:[sender tag]];
+}
+
+- (BOOL)validateMenuItem:(NSMenuItem *)item
+{
+    if ([item action] == @selector(chooseUpdateInterval:))
+        [item setState:[item tag] == (NSInteger)_updateInterval ? NSOnState : NSOffState];
+    else if ([item action] == @selector(chooseProcessFilter:))
+        [item setState:[item tag] == _processFilter ? NSOnState : NSOffState];
+    else if ([item action] == @selector(chooseTab:))
+        [item setState:[item tag] == _tab ? NSOnState : NSOffState];
+    else if ([item action] == @selector(stopSelectedProcess:) || [item action] == @selector(showProcessInfo:))
+        return [self selectedProcess] != nil;
+    return YES;
+}
+
+- (NSArray *)historyForTab:(SMTab)tab
+{
+    return [_histories[tab] copy];
+}
+
+/* Each sample adds a point to every tab's history. */
+- (void)recordHistories
+{
+    SMSampler *s = _sampler;
+    NSArray *points[4] = {
+        @[ @(s.userPercent + s.systemPercent), @(s.systemPercent) ],
+        @[ @(s.usedMemory) ],
+        @[ @(s.readRate), @(s.writeRate) ],
+        @[ @(s.inRate), @(s.outRate) ],
+    };
+    for (int i = 0; i < 4; i++) {
+        [_histories[i] addObject:points[i]];
+        while ([_histories[i] count] > [SMGraphView capacity])
+            [_histories[i] removeObjectAtIndex:0];
+    }
+    [_graph setNeedsDisplay:YES];
 }
 
 - (NSButton *)toolButton:(NSString *)image action:(SEL)action tip:(NSString *)tip frame:(NSRect)frame
@@ -115,6 +202,7 @@ static NSArray *columnsForTab(SMTab tab)
     CGFloat top = NSHeight(bounds) - 40;
 
     [window setTitle:NSLocalizedString(@"System Monitor", nil)];
+    [window setDelegate:self];
     [window setMinSize:NSMakeSize(600, 420)];
     /* Centered the first time; then where it was left (the frame saved as
        it moves and resizes), as on the reference. */
@@ -151,6 +239,8 @@ static NSArray *columnsForTab(SMTab tab)
     [scroll setBorderType:NSNoBorder];
     [scroll setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     _table = [[NSTableView alloc] initWithFrame:[[scroll contentView] bounds]];
+    /* The name takes the width the others leave, as on the reference. */
+    [_table setColumnAutoresizingStyle:NSTableViewFirstColumnOnlyAutoresizingStyle];
     [_table setDataSource:self];
     [_table setDelegate:self];
     [_table setUsesAlternatingRowBackgroundColors:YES];
@@ -175,7 +265,34 @@ static NSArray *columnsForTab(SMTab tab)
 - (void)tick:(NSTimer *)timer
 {
     [_sampler sample];
+    [self recordHistories];
     [self refresh];
+}
+
+/* The columns at their widths, the name's taking what is left (at least
+   its own): columns added one by one could leave the first as wide as
+   the table, the others out of sight. */
+- (void)fitColumns
+{
+    NSArray *specs = columnsForTab(_tab);
+    NSArray *columns = [_table tableColumns];
+    CGFloat others = 0, spacing = [_table intercellSpacing].width;
+    CGFloat width = NSWidth([[_table enclosingScrollView] documentVisibleRect]);
+
+    for (NSUInteger i = 0; i < [columns count] && i < [specs count]; i++) {
+        [columns[i] setWidth:[specs[i][2] doubleValue]];
+        if (i > 0)
+            others += [specs[i][2] doubleValue];
+    }
+    others += spacing * [columns count];
+    if ([columns count] > 0)
+        [columns[0] setWidth:MAX([specs[0][2] doubleValue], floor(width - others))];
+    [_table tile];
+}
+
+- (void)windowDidResize:(NSNotification *)note
+{
+    [self fitColumns];
 }
 
 - (void)setTab:(SMTab)tab
@@ -191,8 +308,9 @@ static NSArray *columnsForTab(SMTab tab)
         [column setEditable:NO];
         [_table addTableColumn:column];
     }
-    [_graph clear];
-    _graph.maximum = (tab == SMTabCPU) ? 100 : 0;
+    [self fitColumns];
+    _graph.history = _histories[tab];
+    _graph.maximum = (tab == SMTabCPU) ? 100 : (tab == SMTabMemory ? _sampler.physicalMemory : 0);
     _graph.colors = (tab == SMTabMemory) ? @[ [NSColor systemGreenColor] ] :
         @[ [NSColor controlAccentColor], [NSColor systemRedColor] ];
     [self refresh];
@@ -250,6 +368,23 @@ static NSArray *columnsForTab(SMTab tab)
     id selectedObject = (selected >= 0 && selected < (NSInteger)[_rows count]) ? _rows[selected] : nil;
     pid_t selectedPID = [selectedObject isKindOfClass:[SMProcess class]] ? [(SMProcess *)selectedObject pid] : -1;
 
+    if (_tab != SMTabNetwork && _processFilter != SMFilterAll) {
+        uid_t me = getuid();
+        NSMutableSet *windowed = [NSMutableSet set];
+        if (_processFilter == SMFilterWindowed)
+            for (NSRunningApplication *app in [[NSWorkspace sharedWorkspace] runningApplications])
+                if ([app activationPolicy] == NSApplicationActivationPolicyRegular)
+                    [windowed addObject:@([app processIdentifier])];
+        SMProcessFilter filter = _processFilter;
+        source = [source filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(SMProcess *p, NSDictionary *b) {
+            switch (filter) {
+            case SMFilterMine: return p.uid == me;
+            case SMFilterSystem: return p.uid != me && p.uid < 500;
+            case SMFilterWindowed: return [windowed containsObject:@(p.pid)];
+            default: return YES;
+            }
+        }]];
+    }
     if ([_searchString length])
         source = [source filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id row, NSDictionary *b) {
             return [[row name] rangeOfString:_searchString options:NSCaseInsensitiveSearch].location != NSNotFound;
@@ -279,23 +414,20 @@ static NSArray *columnsForTab(SMTab tab)
     case SMTabCPU:
         text = [NSString stringWithFormat:NSLocalizedString(@"System: %.1f %%\nUser: %.1f %%\nIdle: %.1f %%\nProcessors: %d\nProcesses: %lu", nil),
             s.systemPercent, s.userPercent, s.idlePercent, s.processors, (unsigned long)[s.processes count]];
-        [_graph addValues:@[ @(s.userPercent + s.systemPercent), @(s.systemPercent) ]];
         break;
     case SMTabMemory:
-        text = [NSString stringWithFormat:NSLocalizedString(@"Physical memory: %@\nMemory used: %@\nWired memory: %@\nFree memory: %@", nil),
-            bytes(s.physicalMemory), bytes(s.usedMemory), bytes(s.wiredMemory), bytes(s.freeMemory)];
-        [_graph addValues:@[ @(s.usedMemory) ]];
+        text = [NSString stringWithFormat:NSLocalizedString(@"Physical memory: %@\nMemory used: %@\nCached files: %@\nWired memory: %@\nCompressed: %@\nSwap used: %@", nil),
+            bytes(s.physicalMemory), bytes(s.usedMemory), bytes(s.cachedMemory), bytes(s.wiredMemory),
+            bytes(s.compressedMemory), bytes(s.swapUsed)];
         _graph.maximum = s.physicalMemory;
         break;
     case SMTabDisk:
         text = [NSString stringWithFormat:NSLocalizedString(@"Data read: %@\nData written: %@", nil),
             rate(s.readRate), rate(s.writeRate)];
-        [_graph addValues:@[ @(s.readRate), @(s.writeRate) ]];
         break;
     case SMTabNetwork:
         text = [NSString stringWithFormat:NSLocalizedString(@"Data received: %@\nData sent: %@", nil),
             rate(s.inRate), rate(s.outRate)];
-        [_graph addValues:@[ @(s.inRate), @(s.outRate) ]];
         break;
     }
     [_summary setStringValue:text];

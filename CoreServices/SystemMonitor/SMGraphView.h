@@ -13,4 +13,9 @@
 @property (copy) NSArray<NSColor *> *colors;
 - (void)addValues:(NSArray<NSNumber *> *)values;
 - (void)clear;
+/* The points shown, oldest first (each an array of the series' values):
+   a window keeps one history per tab and shows the one asked for. */
+@property (nonatomic, strong) NSMutableArray<NSArray<NSNumber *> *> *history;
+/* The most points a history keeps. */
++ (NSUInteger)capacity;
 @end
