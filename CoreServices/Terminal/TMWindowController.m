@@ -83,6 +83,9 @@
     terminal.exited = ^(TMTerminalView *view, int status) {
         [weakSelf terminal:view exitedWithStatus:status];
     };
+    terminal.wantsGrid = ^(TMTerminalView *view, int rows, int columns) {
+        [weakSelf terminal:view wantsRows:rows columns:columns];
+    };
     [_tabs addTabViewItem:item];
     [_tabs selectTabViewItem:item];
     [self updateTabBar];
@@ -90,6 +93,41 @@
     [[self window] makeFirstResponder:terminal];
     [self updateTitles];
     return terminal;
+}
+
+/* A new font: the tab shown keeps its rows and columns and the window
+   takes their size, its top left where it was (within the screen); the
+   other tabs fit the window. */
+- (void)terminal:(TMTerminalView *)terminal wantsRows:(int)rows columns:(int)columns
+{
+    if (terminal != [self currentTerminal]) {
+        [terminal fitToScrollView];
+        return;
+    }
+    NSWindow *window = [self window];
+    NSScrollView *scroll = [terminal enclosingScrollView];
+    NSSize want = [NSScrollView frameSizeForContentSize:[terminal contentSizeForRows:rows columns:columns]
+        hasHorizontalScroller:NO hasVerticalScroller:YES borderType:NSNoBorder];
+    NSSize have = [scroll frame].size;
+    NSRect frame = [window frame];
+    NSRect screen = [[window screen] ?: [NSScreen mainScreen] visibleFrame];
+
+    frame.size.width += want.width - have.width;
+    frame.size.height += want.height - have.height;
+    frame.origin.y = NSMaxY([window frame]) - frame.size.height;
+    if (!NSIsEmptyRect(screen)) {
+        frame.size.width = MIN(frame.size.width, NSWidth(screen));
+        frame.size.height = MIN(frame.size.height, NSHeight(screen));
+        if (NSMaxX(frame) > NSMaxX(screen))
+            frame.origin.x = MAX(NSMinX(screen), NSMaxX(screen) - NSWidth(frame));
+        if (NSMinY(frame) < NSMinY(screen))
+            frame.origin.y = NSMinY(screen);
+    }
+    if (NSEqualRects(frame, [window frame]))
+        [terminal fitToScrollView];
+    else
+        [window setFrame:frame display:YES];
+    [self updateTitles];
 }
 
 - (NSArray<TMTerminalView *> *)terminals

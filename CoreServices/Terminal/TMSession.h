@@ -33,6 +33,10 @@
 @property (readonly) BOOL exited;
 @property (readonly) VTermPos cursor;
 @property (readonly) BOOL cursorVisible;
+/* The cursor shape a program asked for (DECSCUSR, a
+   VTERM_PROP_CURSORSHAPE_ value); 0 while none has, or only the block
+   the terminal starts with: the preference's then. */
+@property (readonly) int cursorShape;
 @property (readonly) BOOL alternateScreen;
 /* Lines kept above the screen (10000 unless set). */
 @property (nonatomic) NSUInteger scrollbackLimit;

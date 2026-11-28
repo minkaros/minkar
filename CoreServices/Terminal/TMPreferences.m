@@ -8,7 +8,10 @@
 
 NSString *const TMPreferencesDidChangeNotification = @"TMPreferencesDidChangeNotification";
 
+NSString *const TMFontNameKey = @"FontName";
 NSString *const TMFontSizeKey = @"FontSize";
+NSString *const TMCursorShapeKey = @"CursorShape";
+NSString *const TMCursorBlinkKey = @"CursorBlink";
 NSString *const TMColumnsKey = @"Columns";
 NSString *const TMRowsKey = @"Rows";
 NSString *const TMScrollbackLinesKey = @"ScrollbackLines";
@@ -82,7 +85,10 @@ NSColor *TMColorOfHex(NSString *hex)
     NSArray *light = schemes()[@"Light"];
 
     return @{
+        TMFontNameKey : @"Agave-Regular",
         TMFontSizeKey : @13,
+        TMCursorShapeKey : @(TMCursorBlock),
+        TMCursorBlinkKey : @YES,
         TMColumnsKey : @80,
         TMRowsKey : @24,
         TMScrollbackLinesKey : @10000,
@@ -132,6 +138,42 @@ static double clamp(double value, double low, double high)
 - (void)setFontSize:(CGFloat)size
 {
     [self setValue:@(clamp(size, 8, 36)) forPreference:TMFontSizeKey];
+}
+
+- (NSString *)fontName
+{
+    return [_defaults stringForKey:TMFontNameKey] ?: @"Agave-Regular";
+}
+
+- (void)setFontName:(NSString *)name
+{
+    [self setValue:[name length] ? name : @"Agave-Regular" forPreference:TMFontNameKey];
+}
+
+- (NSFont *)fontOfSize:(CGFloat)size
+{
+    return [NSFont fontWithName:[self fontName] size:size] ?: [NSFont fontWithName:@"Agave-Regular" size:size] ?:
+        [NSFont userFixedPitchFontOfSize:size];
+}
+
+- (TMCursorShape)cursorShape
+{
+    return (TMCursorShape)clamp([_defaults integerForKey:TMCursorShapeKey], 0, 2);
+}
+
+- (void)setCursorShape:(TMCursorShape)shape
+{
+    [self setValue:@(shape) forPreference:TMCursorShapeKey];
+}
+
+- (BOOL)cursorBlink
+{
+    return [_defaults boolForKey:TMCursorBlinkKey];
+}
+
+- (void)setCursorBlink:(BOOL)blink
+{
+    [self setValue:@(blink) forPreference:TMCursorBlinkKey];
 }
 
 - (int)columns

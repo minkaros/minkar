@@ -14,9 +14,9 @@
 /* The controls, for tests. */
 @property (readonly) NSTabView *tabView;
 @property (readonly) NSTextField *shellField, *columnsField, *rowsField, *scrollbackField, *fontSizeField;
-@property (readonly) NSPopUpButton *exitPopUp, *bellPopUp, *schemePopUp;
+@property (readonly) NSPopUpButton *exitPopUp, *bellPopUp, *schemePopUp, *fontPopUp, *cursorShapePopUp;
 @property (readonly) NSColorWell *backgroundWell, *textWell, *cursorWell;
-@property (readonly) NSButton *accentCursorButton;
+@property (readonly) NSButton *accentCursorButton, *cursorBlinkButton;
 @property (readonly) NSArray<NSColorWell *> *paletteWells;
 /* Shows the values the preferences have now. */
 - (void)updateControls;

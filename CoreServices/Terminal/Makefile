@@ -20,7 +20,7 @@ VTERM_LICENSES != mkdir -p ${.OBJDIR}/Licenses && cp -f ${VTERM}/LICENSE ${.OBJD
 SRCS =		main.m TMAppDelegate.m TMWindowController.m TMTerminalView.m TMSession.m \
 		TMPreferences.m TMPreferencesController.m \
 		encoding.c keyboard.c mouse.c parser.c pen.c screen.c state.c unicode.c vterm.c
-FRAMEWORKS =	Cocoa
+FRAMEWORKS =	Cocoa CoreText CoreGraphics
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness \
 		-I${VTERM}/include -I${VTERM}/src

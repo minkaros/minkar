@@ -49,8 +49,13 @@
 "Play a sound" = "Reproducir un sonido";
 "Flash the screen" = "Destellar la pantalla";
 "Nothing" = "Nada";
-"Text size:" = "Tamaño del texto:";
-"points (Agave)" = "puntos (Agave)";
+"Font:" = "Tipo de letra:";
+"pt" = "pt";
+"Cursor shape:" = "Forma del cursor:";
+"Block" = "Bloque";
+"Underline" = "Subrayado";
+"Vertical bar" = "Barra vertical";
+"Blink cursor" = "Cursor intermitente";
 "Scheme:" = "Esquema:";
 "Light" = "Claro";
 "Dark" = "Oscuro";

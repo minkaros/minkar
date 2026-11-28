@@ -67,6 +67,14 @@ static int settermprop(VTermProp prop, VTermValue *val, void *user)
         self->_cursorVisible = val->boolean;
         [self.delegate sessionDidMoveCursor:self];
         break;
+    case VTERM_PROP_CURSORSHAPE:
+        /* The block libvterm reports on its own (reset, restore) leaves
+           the preference's shape until a program picks another. */
+        if (!(val->number == VTERM_PROP_CURSORSHAPE_BLOCK && self->_cursorShape == 0)) {
+            self->_cursorShape = val->number;
+            [self.delegate sessionDidMoveCursor:self];
+        }
+        break;
     case VTERM_PROP_ALTSCREEN:
         self->_alternateScreen = val->boolean;
         break;

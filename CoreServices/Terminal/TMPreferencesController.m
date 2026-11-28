@@ -121,9 +121,38 @@ static CGFloat row(NSView *view, NSString *text, CGFloat y)
     NSMutableArray *schemes = [NSMutableArray array];
     NSMutableArray *wells = [NSMutableArray array];
 
-    x = row(view, NSLocalizedString(@"Text size:", nil), top);
-    _fontSizeField = [self field:view frame:NSMakeRect(x, top, 50, 22)];
-    label(view, NSLocalizedString(@"points (Agave)", nil), NSMakeRect(x + 56, top + 1, 150, 18), NSLeftTextAlignment);
+    /* The fixed-pitch families, each by its plain face (regular weight,
+       upright), by name. */
+    x = row(view, NSLocalizedString(@"Font:", nil), top);
+    _fontPopUp = [self popUp:view frame:NSMakeRect(x, top - 2, 190, 26) titles:@[]];
+    NSFontManager *fm = [NSFontManager sharedFontManager];
+    NSMutableArray<NSArray *> *families = [NSMutableArray array];   /* name, face */
+    for (NSString *family in [fm availableFontFamilies]) {
+        NSString *best = nil;
+        NSInteger bestDistance = NSIntegerMax;
+        for (NSArray *member in [fm availableMembersOfFontFamily:family]) {
+            /* PostScript name, style, weight (5 regular), traits */
+            if ([member count] < 4 || ([member[3] unsignedIntegerValue] & (NSBoldFontMask | NSItalicFontMask)))
+                continue;
+            NSInteger distance = labs([member[2] integerValue] - 5);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = member[0];
+            }
+        }
+        NSFont *font = best ? [NSFont fontWithName:best size:12] : nil;
+        if (font != nil && [font isFixedPitch])
+            [families addObject:@[ family, best ]];
+    }
+    [families sortUsingComparator:^NSComparisonResult(NSArray *a, NSArray *b) {
+        return [a[0] localizedCaseInsensitiveCompare:b[0]];
+    }];
+    for (NSArray *family in families) {
+        [_fontPopUp addItemWithTitle:family[0]];
+        [[_fontPopUp lastItem] setRepresentedObject:family[1]];
+    }
+    _fontSizeField = [self field:view frame:NSMakeRect(x + 198, top, 44, 22)];
+    label(view, NSLocalizedString(@"pt", nil), NSMakeRect(x + 246, top + 1, 40, 18), NSLeftTextAlignment);
 
     for (NSString *name in [TMPreferences schemeNames])
         [schemes addObject:NSLocalizedString(name, nil)];
@@ -146,15 +175,25 @@ static CGFloat row(NSView *view, NSString *text, CGFloat y)
     [_accentCursorButton setAction:@selector(takeValue:)];
     [view addSubview:_accentCursorButton];
 
+    x = row(view, NSLocalizedString(@"Cursor shape:", nil), top - 148);
+    _cursorShapePopUp = [self popUp:view frame:NSMakeRect(x, top - 150, 140, 26) titles:@[
+        NSLocalizedString(@"Block", nil), NSLocalizedString(@"Underline", nil), NSLocalizedString(@"Vertical bar", nil) ]];
+    _cursorBlinkButton = [[NSButton alloc] initWithFrame:NSMakeRect(x + 150, top - 148, 160, 22)];
+    [_cursorBlinkButton setButtonType:NSSwitchButton];
+    [_cursorBlinkButton setTitle:NSLocalizedString(@"Blink cursor", nil)];
+    [_cursorBlinkButton setTarget:self];
+    [_cursorBlinkButton setAction:@selector(takeValue:)];
+    [view addSubview:_cursorBlinkButton];
+
     /* The sixteen ANSI colors: normal above, bright below. */
-    x = row(view, NSLocalizedString(@"ANSI colors:", nil), top - 150);
+    x = row(view, NSLocalizedString(@"ANSI colors:", nil), top - 186);
     for (int i = 0; i < 16; i++) {
-        NSColorWell *well = [self well:view frame:NSMakeRect(x + (i % 8) * 34, top - 152 - (i / 8) * 30, 30, 24)];
+        NSColorWell *well = [self well:view frame:NSMakeRect(x + (i % 8) * 34, top - 188 - (i / 8) * 30, 30, 24)];
         [well setTag:i];
         [wells addObject:well];
     }
-    label(view, NSLocalizedString(@"Normal", nil), NSMakeRect(x + 8 * 34 + 4, top - 151, 80, 18), NSLeftTextAlignment);
-    label(view, NSLocalizedString(@"Bright", nil), NSMakeRect(x + 8 * 34 + 4, top - 181, 80, 18), NSLeftTextAlignment);
+    label(view, NSLocalizedString(@"Normal", nil), NSMakeRect(x + 8 * 34 + 4, top - 187, 80, 18), NSLeftTextAlignment);
+    label(view, NSLocalizedString(@"Bright", nil), NSMakeRect(x + 8 * 34 + 4, top - 217, 80, 18), NSLeftTextAlignment);
     _paletteWells = wells;
     return view;
 }
@@ -216,6 +255,13 @@ static CGFloat row(NSView *view, NSString *text, CGFloat y)
     [_scrollbackField setIntegerValue:prefs.scrollbackLines];
     [_bellPopUp selectItemAtIndex:prefs.bell];
     [_fontSizeField setIntegerValue:(NSInteger)prefs.fontSize];
+    NSInteger font = [_fontPopUp indexOfItemWithRepresentedObject:prefs.fontName];
+    if (font < 0)
+        font = [_fontPopUp indexOfItemWithRepresentedObject:@"Agave-Regular"];
+    if (font >= 0)
+        [_fontPopUp selectItemAtIndex:font];
+    [_cursorShapePopUp selectItemAtIndex:prefs.cursorShape];
+    [_cursorBlinkButton setState:prefs.cursorBlink ? NSOnState : NSOffState];
     [_schemePopUp selectItemAtIndex:scheme == NSNotFound ? [_schemePopUp numberOfItems] - 1 : (NSInteger)scheme];
     [_backgroundWell setColor:prefs.backgroundColor];
     [_textWell setColor:prefs.textColor];
@@ -229,6 +275,12 @@ static CGFloat row(NSView *view, NSString *text, CGFloat y)
 - (void)preferencesDidChange:(NSNotification *)note
 {
     [self updateControls];
+}
+
+/* ⌘W (the Shell menu's Close Tab) closes this window too. */
+- (IBAction)closeTab:(id)sender
+{
+    [[self window] performClose:sender];
 }
 
 - (IBAction)takeValue:(id)sender
@@ -249,6 +301,12 @@ static CGFloat row(NSView *view, NSString *text, CGFloat y)
         prefs.bell = [_bellPopUp indexOfSelectedItem];
     else if (sender == _fontSizeField)
         prefs.fontSize = [_fontSizeField doubleValue];
+    else if (sender == _fontPopUp)
+        prefs.fontName = [[_fontPopUp selectedItem] representedObject];
+    else if (sender == _cursorShapePopUp)
+        prefs.cursorShape = [_cursorShapePopUp indexOfSelectedItem];
+    else if (sender == _cursorBlinkButton)
+        prefs.cursorBlink = [_cursorBlinkButton state] == NSOnState;
     else if (sender == _accentCursorButton)
         prefs.cursorColor = [_accentCursorButton state] == NSOnState ? nil : [_cursorWell color];
     /* A value out of range comes back clamped. */

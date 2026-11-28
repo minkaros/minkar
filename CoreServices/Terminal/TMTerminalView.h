@@ -7,7 +7,8 @@
 #import <Cocoa/Cocoa.h>
 #import "TMSession.h"
 
-/* A session's screen, its scrollback above, in a fixed-pitch font (Agave):
+/* A session's screen, its scrollback above, in a fixed-pitch font (Agave
+ * unless the preferences name another):
  * drawn cell by cell grid, typed into, selected with the mouse. It sits
  * in a scroll view whose size sets the session's rows and columns. */
 @interface TMTerminalView : NSView <TMSessionDelegate>
@@ -19,6 +20,9 @@
 /* Called when the session's title changes or its program ends. */
 @property (copy) void (^titleChanged)(TMTerminalView *view);
 @property (copy) void (^exited)(TMTerminalView *view, int status);
+/* Called when its font changes in a window: the rows and columns it
+   keeps, for the window to take the size they need. */
+@property (copy) void (^wantsGrid)(TMTerminalView *view, int rows, int columns);
 
 - (instancetype)initWithFrame:(NSRect)frame arguments:(NSArray<NSString *> *)arguments;
 /* The rows and columns that fit the scroll view now. */

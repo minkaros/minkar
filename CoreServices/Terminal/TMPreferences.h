@@ -13,7 +13,10 @@
 extern NSString *const TMPreferencesDidChangeNotification;
 
 /* The defaults' keys. */
+extern NSString *const TMFontNameKey;           /* a fixed-pitch font's PostScript name, "Agave-Regular" */
 extern NSString *const TMFontSizeKey;           /* number, 13 */
+extern NSString *const TMCursorShapeKey;        /* TMCursorShape */
+extern NSString *const TMCursorBlinkKey;        /* bool, YES */
 extern NSString *const TMColumnsKey;            /* number, 80 */
 extern NSString *const TMRowsKey;               /* number, 24 */
 extern NSString *const TMScrollbackLinesKey;    /* number, 10000 */
@@ -32,6 +35,12 @@ typedef NS_ENUM(NSInteger, TMShellExitAction) {
     TMShellExitKeepOpen = 2,
 };
 
+typedef NS_ENUM(NSInteger, TMCursorShape) {
+    TMCursorBlock = 0,
+    TMCursorUnderline = 1,
+    TMCursorBar = 2,
+};
+
 typedef NS_ENUM(NSInteger, TMBell) {
     TMBellSound = 0,
     TMBellFlash = 1,
@@ -43,7 +52,12 @@ typedef NS_ENUM(NSInteger, TMBell) {
 /* The names of the built-in schemes. */
 + (NSArray<NSString *> *)schemeNames;
 
+@property (nonatomic, copy) NSString *fontName;  /* PostScript name of a fixed-pitch font */
 @property (nonatomic) CGFloat fontSize;          /* 8 to 36 */
+@property (nonatomic) TMCursorShape cursorShape;
+@property (nonatomic) BOOL cursorBlink;
+/* The font the preferences name at a size: Agave if it is gone. */
+- (NSFont *)fontOfSize:(CGFloat)size;
 @property (nonatomic) int columns;               /* 20 to 400 */
 @property (nonatomic) int rows;                  /* 5 to 200 */
 @property (nonatomic) NSInteger scrollbackLines; /* 0 to 100000 */
