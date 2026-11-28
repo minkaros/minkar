@@ -1930,8 +1930,8 @@ static BOOL presentationOptionsValid(NSApplicationPresentationOptions o) {
                [self activateIgnoringOtherApps:(msg->options & NSApplicationActivateIgnoringOtherApps)!=0];
                break;
            case kLSSessionQuitRequest:
-               /* As the Quit item: the delegate may refuse. */
-               [self terminate:self];
+               /* As the reference's quit event: the delegate may refuse. */
+               [self _terminateFromSession];
                break;
            case kLSSessionHideRequest:
                [self hide:self];
@@ -2292,6 +2292,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
 /* The state kept as the app quits (NSWindowRestoration.m), taken before
    its documents close; nil: the windows close. */
 static NSData *quitState;
+static BOOL quitFromSession, quitApproved;
 
 /* Quit's alternate is named for what it does: the other choice than the
    user's (the General pane's Close windows when quitting an app). */
@@ -2309,13 +2310,33 @@ static NSData *quitState;
 -(void)_terminateTogglingKeepWindows:sender {
   [quitState release];
   quitState=[_NSEncodeRestorableState(_NSQuitKeepsWindows(YES)) retain];
+  quitFromSession=NO;
+  [self _terminateWithState];
+}
+
+/* A quit the system asks for (the Dock's Quit, Log Out, Restart, Shut
+   Down), as the reference's quit event does: the documents and the
+   delegate are asked first, and terminate: is called once they agree.
+   Apps that replace terminate: with their own (Firefox: it only posts
+   NSApplicationWillTerminateNotification and ends its own way) start
+   quitting in applicationShouldTerminate:. */
+-(void)_terminateFromSession {
+  [quitState release];
+  quitState=[_NSEncodeRestorableState(_NSQuitKeepsWindows(NO)) retain];
+  quitFromSession=YES;
   [self _terminateWithState];
 }
 
 -(void)terminate:sender
 {
+  if (quitApproved)
+    {
+      [self _terminateNow];
+      return;
+    }
   [quitState release];
   quitState=[_NSEncodeRestorableState(_NSQuitKeepsWindows(NO)) retain];
+  quitFromSession=NO;
   [self _terminateWithState];
 }
 
@@ -2340,16 +2361,30 @@ static NSData *quitState;
 
 -(void)replyToApplicationShouldTerminate:(BOOL)terminate
 {
-  if (terminate == YES)
+  if (terminate != YES)
     {
-      [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
-      _NSWriteRestorableState(quitState);
-      /* What the app set last (a window's frame saved as it closed) is
-         written before it goes, as on the reference. */
-      [[NSUserDefaults standardUserDefaults] synchronize];
-
-      exit(0);
+      quitFromSession=NO;
+      return;
     }
+  if (quitFromSession)
+    {
+      quitFromSession=NO;
+      quitApproved=YES;
+      [self terminate:self];
+      return;
+    }
+  [self _terminateNow];
+}
+
+-(void)_terminateNow
+{
+  [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
+  _NSWriteRestorableState(quitState);
+  /* What the app set last (a window's frame saved as it closed) is
+     written before it goes, as on the reference. */
+  [[NSUserDefaults standardUserDefaults] synchronize];
+
+  exit(0);
 }
 
 -(void)replyToOpenOrPrint:(NSApplicationDelegateReply)reply {
