@@ -180,12 +180,50 @@ static NSArray *columnsForTab(SMTab tab)
     [_graph setNeedsDisplay:YES];
 }
 
-- (NSButton *)toolButton:(NSString *)image action:(SEL)action tip:(NSString *)tip frame:(NSRect)frame
+/* The toolbar's two symbols, drawn here as template images (the button
+   gives them the controls' text color): a stop sign with a cross, to quit
+   a process, and an "i" in a circle, to inspect it. */
+static NSImage *SMSymbol(BOOL stop)
+{
+    NSImage *image = [NSImage imageWithSize:NSMakeSize(16, 16) flipped:NO drawingHandler:^BOOL(NSRect rect) {
+        [[NSColor blackColor] set];
+        if (stop) {
+            NSBezierPath *octagon = [NSBezierPath bezierPath];
+            for (int i = 0; i < 8; i++) {
+                CGFloat a = M_PI / 8 + i * M_PI / 4;
+                NSPoint p = NSMakePoint(8 + 7.2 * cos(a), 8 + 7.2 * sin(a));
+                if (i == 0) [octagon moveToPoint:p]; else [octagon lineToPoint:p];
+            }
+            [octagon closePath];
+            [octagon setLineWidth:1.4];
+            [octagon stroke];
+            NSBezierPath *cross = [NSBezierPath bezierPath];
+            [cross moveToPoint:NSMakePoint(5.3, 5.3)];
+            [cross lineToPoint:NSMakePoint(10.7, 10.7)];
+            [cross moveToPoint:NSMakePoint(5.3, 10.7)];
+            [cross lineToPoint:NSMakePoint(10.7, 5.3)];
+            [cross setLineWidth:1.6];
+            [cross setLineCapStyle:NSRoundLineCapStyle];
+            [cross stroke];
+        } else {
+            NSBezierPath *circle = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(1.2, 1.2, 13.6, 13.6)];
+            [circle setLineWidth:1.4];
+            [circle stroke];
+            [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(7, 10.2, 2, 2)] fill];
+            [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(7.1, 3.8, 1.8, 5.4) xRadius:0.6 yRadius:0.6] fill];
+        }
+        return YES;
+    }];
+    [image setTemplate:YES];
+    return image;
+}
+
+- (NSButton *)toolButton:(NSImage *)image action:(SEL)action tip:(NSString *)tip frame:(NSRect)frame
 {
     NSButton *button = [[NSButton alloc] initWithFrame:frame];
 
     [button setBezelStyle:NSRoundedBezelStyle];
-    [button setImage:[NSImage imageNamed:image]];
+    [button setImage:image];
     [button setImagePosition:NSImageOnly];
     [button setToolTip:tip];
     [button setTarget:self];
@@ -209,9 +247,9 @@ static NSArray *columnsForTab(SMTab tab)
     [window center];
     [window setFrameAutosaveName:@"SystemMonitor"];
 
-    [content addSubview:[self toolButton:NSImageNameStopProgressTemplate action:@selector(stopSelectedProcess:)
+    [content addSubview:[self toolButton:SMSymbol(YES) action:@selector(stopSelectedProcess:)
         tip:NSLocalizedString(@"Quit the selected process", nil) frame:NSMakeRect(12, top, 36, 26)]];
-    [content addSubview:[self toolButton:NSImageNameInfo action:@selector(showProcessInfo:)
+    [content addSubview:[self toolButton:SMSymbol(NO) action:@selector(showProcessInfo:)
         tip:NSLocalizedString(@"Show information about the selected process", nil) frame:NSMakeRect(52, top, 36, 26)]];
 
     _tabs = [[NSSegmentedControl alloc] initWithFrame:NSMakeRect(NSMidX(bounds) - 180, top, 360, 26)];
