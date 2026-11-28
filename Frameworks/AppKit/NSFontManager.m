@@ -153,6 +153,8 @@ static Class _fontPanelFactory;
    }
 }
 
+static NSFontTraitMask typefaceTraits(NSFontTypeface *typeface);
+
 -(NSArray *)availableMembersOfFontFamily:(NSString *)familyName {
    NSMutableArray *result=[NSMutableArray array];
    NSFontFamily   *family=[NSFontFamily fontFamilyWithName:familyName];
@@ -164,8 +166,11 @@ static Class _fontPanelFactory;
     NSString       *name=[typeface name];
     NSString       *traitName=[typeface traitName];
 
-	   // Callers expect an array of four objects
-    [result addObject:[NSArray arrayWithObjects:name,traitName, [NSNumber numberWithInt: 0], [NSNumber numberWithInt: 0], nil]];
+    /* As on the reference: PostScript name, face name, weight (0–15,
+       5 regular), traits. */
+    [result addObject:[NSArray arrayWithObjects:name,traitName?traitName:@"",
+      [NSNumber numberWithInteger:[typeface weight]],
+      [NSNumber numberWithUnsignedInteger:typefaceTraits(typeface)], nil]];
    }
 
    return result;
