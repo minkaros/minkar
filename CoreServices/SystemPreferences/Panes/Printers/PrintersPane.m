@@ -9,7 +9,8 @@
  * printers are available" with none; the default printer (Last Printer
  * Used, or one) and the default paper size below. + shows the printers
  * CUPS finds (its backends: the network's by DNS-SD, USB) and adds the
- * chosen one, or the one at an address typed, as an IPP Everywhere queue;
+ * chosen one, or the one at an address typed: an IPP Everywhere queue,
+ * or for a USB printer one of CUPS's generic PDF models (modelFor);
  * - deletes one, after a question; both are an administrator's, behind
  * the pane's lock (system.preferences.printing), and lpadmin runs as root
  * with its authorization. The defaults are each user's, CUPS's own: org.cups.PrintingPrefs's UseLastPrinter and
@@ -387,6 +388,7 @@ static void foundDevice(const char *deviceClass, const char *deviceID, const cha
     if (deviceURI == NULL || strchr(deviceURI, ':') == NULL || strstr(deviceURI, "://") == NULL)
         return;
     NSDictionary *device = @{ @"uri": [NSString stringWithUTF8String:deviceURI],
+                              @"id": [NSString stringWithUTF8String:deviceID ?: ""],
                               @"info": [NSString stringWithUTF8String:deviceInfo ?: deviceURI],
                               @"kind": [NSString stringWithUTF8String:deviceMakeAndModel ?: ""],
                               @"location": [NSString stringWithUTF8String:deviceLocation ?: ""] };
@@ -495,7 +497,35 @@ static NSString *addressURI(NSString *address)
     [[[self mainView] window] endSheet:_sheet returnCode:[sender tag] == 1 ? NSModalResponseOK : NSModalResponseCancel];
 }
 
-/* The chosen printer added as an IPP Everywhere queue, its name and
+/* The model a printer's queue uses: IPP Everywhere for one reached by
+   IPP; for another (USB, a raw network socket) one of CUPS's generic
+   models by the command sets its IEEE 1284 device ID lists: PDF in a PJL
+   job, or PDF as it is. nil: none of them fits (a printer that takes
+   only PCL or raster data needs a driver Minkar does not have yet). */
+static NSString *modelFor(NSDictionary *device)
+{
+    NSString *uri = [device[@"uri"] lowercaseString];
+    for (NSString *scheme in @[ @"ipp://", @"ipps://", @"http://", @"https://", @"dnssd://" ])
+        if ([uri hasPrefix:scheme])
+            return @"everywhere";
+    NSMutableSet *commands = [NSMutableSet set];
+    for (NSString *field in [device[@"id"] componentsSeparatedByString:@";"]) {
+        NSRange colon = [field rangeOfString:@":"];
+        if (colon.location == NSNotFound)
+            continue;
+        NSString *key = [[field substringToIndex:colon.location] uppercaseString];
+        if (![key isEqualToString:@"CMD"] && ![key isEqualToString:@"COMMAND SET"])
+            continue;
+        for (NSString *c in [[field substringFromIndex:colon.location + 1] componentsSeparatedByString:@","])
+            [commands addObject:[[c stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]
+                                    uppercaseString]];
+    }
+    if ([commands containsObject:@"PDF"])
+        return [commands containsObject:@"PJL"] ? @"generic-pdf-pjl.ppd" : @"generic-pdf.ppd";
+    return nil;
+}
+
+/* The chosen printer added with its model (modelFor), its name and
    location as typed. */
 - (void)addEnded:(NSModalResponse)response
 {
@@ -512,7 +542,18 @@ static NSString *addressURI(NSString *address)
         return;
     }
     NSString *name = [[_addName stringValue] length] ? [_addName stringValue] : d[@"info"];
-    NSMutableArray *arguments = [@[ @"-p", queueName(name), @"-E", @"-v", d[@"uri"], @"-m", @"everywhere",
+    NSString *model = modelFor(d);
+    if (model == nil) {
+        os_log_info(OS_LOG_DEFAULT, "printers: no model for %{public}s (%{public}s)", [d[@"uri"] UTF8String],
+                    [d[@"id"] ?: @"" UTF8String]);
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setMessageText:[NSString stringWithFormat:[self text:@"The printer “%@” could not be added."], name]];
+        [alert setInformativeText:[self text:@"It needs a printer driver Minkar does not have yet."]];
+        [alert runModal];
+        _sheet = nil;
+        return;
+    }
+    NSMutableArray *arguments = [@[ @"-p", queueName(name), @"-E", @"-v", d[@"uri"], @"-m", model,
                                     @"-D", name ] mutableCopy];
     if ([[_addLocation stringValue] length])
         [arguments addObjectsFromArray:@[ @"-L", [_addLocation stringValue] ]];

@@ -24,6 +24,7 @@
 "No printers were found." = "No se ha encontrado ninguna impresora.";
 "Add" = "Añadir";
 "The printer “%@” could not be added." = "No se ha podido añadir la impresora «%@».";
+"It needs a printer driver Minkar does not have yet." = "Necesita un controlador de impresora que Minkar aún no tiene.";
 "Address:" = "Dirección:";
 "Out of paper" = "Sin papel";
 "Paper jam" = "Atasco de papel";

@@ -1,0 +1,20 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# A CUPS filter (application/vnd.cups-pdf to application/pdf, for the
+# "Generic PDF Printer (PJL)" model): the PDF as it is, inside a PJL job
+# that switches the printer to PDF and ends the job. A printer that takes
+# PDF and PJL over USB (as PC 1's laser printer does) waits for more
+# data without the job's end, and would print the next job on the same
+# sheet. Arguments as CUPS gives a filter: job, user, title, copies,
+# options and the file (none: standard input).
+name=$(printf '%s' "${1:-minkar}" | tr -cd 'A-Za-z0-9_.-')
+printf '\033%%-12345X@PJL JOB NAME="%s"\r\n@PJL ENTER LANGUAGE=PDF\r\n' "$name"
+if [ $# -ge 6 ]; then
+	cat -- "$6" || exit 1
+else
+	cat || exit 1
+fi
+printf '\033%%-12345X@PJL EOJ NAME="%s"\r\n\033%%-12345X' "$name"

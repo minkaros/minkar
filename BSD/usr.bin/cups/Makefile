@@ -9,7 +9,10 @@
 # launchd. Without the reference's Authorization tags (cupsd's own
 # authentication), ColorSync (patches/: no printer color profiles) and
 # ApplicationServices, built after it (patches/: no PPD printer icons).
-# pdfcopy (pdf.convs) hands PDF to the printers that take it. Filters and
+# pdfcopy (pdf.convs) hands PDF to the printers that take it; two models
+# of our own for printers found by their device ID (the Printers pane):
+# generic-pdf.ppd (PDF as it is) and generic-pdf-pjl.ppd (PDF inside a PJL
+# job, pdftopjl), as USB laser printers take it. Filters and
 # backends run as _lp without CUPS's sandbox profile (as on Linux): its
 # SBPL is beyond what Minkar's sandbox reads yet.
 # TLS through OpenSSL (the reference platform's own TLS is not Minkar's),
@@ -50,7 +53,8 @@ ${BUILD}/scheduler/cupsd: ${.CURDIR}/Makefile ${.CURDIR}/MANIFEST
 	    ${TOOLS}/gmake -j${.MAKE.JOBS:U1} > ${.OBJDIR}/build.log 2>&1 || \
 	    { grep -B2 -A6 'error' ${.OBJDIR}/build.log | head -40; exit 1; }
 
-${.OBJDIR}/.installed: ${BUILD}/scheduler/cupsd
+${.OBJDIR}/.installed: ${BUILD}/scheduler/cupsd ${.CURDIR}/pdfcopy ${.CURDIR}/pdf.convs \
+    ${.CURDIR}/pdftopjl ${.CURDIR}/generic-pdf.ppd ${.CURDIR}/generic-pdf-pjl.ppd
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib ${MINKAR_SDKROOT}/usr/include/cups \
 	    ${SYSROOT_DIR}/usr/share/doc/cups
 	install -C -m 0555 -o 0 -g 0 ${BUILD}/cups/libcups.2.dylib ${SYSROOT_DIR}/usr/lib/
@@ -79,6 +83,10 @@ ${.OBJDIR}/.installed: ${BUILD}/scheduler/cupsd
 	install -C -m 0644 -o 0 -g 0 ${.CURDIR}/org.cups.cupsd.plist ${SYSROOT_DIR}/System/Library/LaunchDaemons/
 	install -C -m 0755 -o 0 -g 0 ${.CURDIR}/pdfcopy ${SYSROOT_DIR}/usr/libexec/cups/filter/
 	install -C -m 0644 -o 0 -g 0 ${.CURDIR}/pdf.convs ${SYSROOT_DIR}/usr/share/cups/mime/
+	install -C -m 0755 -o 0 -g 0 ${.CURDIR}/pdftopjl ${SYSROOT_DIR}/usr/libexec/cups/filter/
+	mkdir -p ${SYSROOT_DIR}/usr/share/cups/model
+	install -C -m 0644 -o 0 -g 0 ${.CURDIR}/generic-pdf.ppd ${.CURDIR}/generic-pdf-pjl.ppd \
+	    ${SYSROOT_DIR}/usr/share/cups/model/
 	touch ${.TARGET}
 
 clean: .PHONY
