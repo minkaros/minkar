@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
                  2009 Markus Hitter <mah@jump-ing.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -17,6 +18,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSColor.h>
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSTrackingArea.h>
+#import <AppKit/NSApplication.h>
+#import <AppKit/NSAppearance.h>
 
 #define TEXTFIELD_MARGIN     3.0
 
@@ -78,9 +81,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _trackingArea=trackingArea;
 }
 
+/* Minkar: the tip in the appearance shown: light yellow with dark text,
+   or in the dark a dark grey with light text (the text field's own color,
+   controlTextColor, is light there: light on the yellow it vanished). */
+-(void)_applyAppearanceColors
+{
+    BOOL dark = [[[NSApp effectiveAppearance] bestMatchFromAppearancesWithNames:
+        @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]] isEqualToString:NSAppearanceNameDarkAqua];
+
+    [self setBackgroundColor:dark ? [NSColor colorWithDeviceWhite:0.24 alpha:1.]
+                                  : [NSColor colorWithDeviceRed:1. green:1. blue:.88 alpha:1.]];
+    [_textField setTextColor:dark ? [NSColor colorWithDeviceWhite:0.93 alpha:1.]
+                                  : [NSColor colorWithDeviceWhite:0. alpha:1.]];
+}
+
 // NSWindow override.
 -(void)orderFront:sender
 {
+    [self _applyAppearanceColors];
     if (_sizeAdjusted == NO) {
         NSSize messageSize = NSZeroSize;
         NSRect windowFrame = [self frame];

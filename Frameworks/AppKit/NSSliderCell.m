@@ -273,6 +273,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return knobRect;
 }
 
+BOOL _NSSystemAppearanceIsDark(void);
+
 /* Without tick marks, the groove from its start to the knob is filled
    with the accent color, as the reference platform shows it. */
 -(void)_drawFilledPartFlipped:(BOOL)flipped {
@@ -295,7 +297,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     fill=NSMakeRect(NSMinX(bar),floor(NSMidY(bar)-2),NSMidX(knob)-NSMinX(bar),4);
    if(NSWidth(fill)<=0 || NSHeight(fill)<=0)
     return;
-   [(_NSAppearanceThemeColor(@"MinkarSliderFillColor") ?: [NSColor controlAccentColor]) setFill];
+   /* In the dark a light fill in the sunk groove, as far as the knob. */
+   if(_NSSystemAppearanceIsDark())
+    [[NSColor colorWithCalibratedWhite:0.80 alpha:1] setFill];
+   else
+    [(_NSAppearanceThemeColor(@"MinkarSliderFillColor") ?: [NSColor controlAccentColor]) setFill];
    [[NSBezierPath bezierPathWithRoundedRect:fill xRadius:2 yRadius:2] fill];
 }
 

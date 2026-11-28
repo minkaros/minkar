@@ -279,9 +279,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    /* Shown 64 points square whatever its size: Sparkle sets the app's own
       icon, 1024 points, and its panel filled the screen (24 Nov 2026). */
    NSSize iconSize=(icon!=nil)?NSMakeSize(64,64):NSZeroSize;
-   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:13],NSFontAttributeName,nil];
+   /* Minkar: the text in the appearance's label color (light in the dark
+      appearance), not the attributed string's default black. */
+   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:13],NSFontAttributeName,
+      [NSColor labelColor],NSForegroundColorAttributeName,nil];
    NSSize messageSize=NSZeroSize;
-   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:11],NSFontAttributeName,nil];
+   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:11],NSFontAttributeName,
+      [NSColor labelColor],NSForegroundColorAttributeName,nil];
    NSSize informativeSize=NSZeroSize;
    float messageInformativeGap=0.;
    NSDictionary *suppressionAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];

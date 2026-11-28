@@ -899,9 +899,18 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
     [path closePath];
    }
 
-   [(highlighted?atlasGray(0.92):atlasGray(1.0)) setFill];
-   [path fill];
-   [atlasGray(0.62) setStroke];
+   /* In the dark a light knob with a dark outline, clear against its
+      groove (a knob of the dark scale's grey vanished on it). */
+   if(_NSSystemAppearanceIsDark()){
+    [[NSColor colorWithCalibratedWhite:highlighted?0.78:0.86 alpha:1] setFill];
+    [path fill];
+    [[NSColor colorWithCalibratedWhite:0.10 alpha:1] setStroke];
+   }
+   else {
+    [(highlighted?atlasGray(0.92):atlasGray(1.0)) setFill];
+    [path fill];
+    [atlasGray(0.62) setStroke];
+   }
    [path setLineWidth:1];
    [path stroke];
 }
@@ -909,16 +918,24 @@ NSArray *_NSGraphicsStyleAccentChanged(void) {
 /* A thin rounded groove. */
 -(void)drawSliderTrackInRect:(NSRect)rect vertical:(BOOL)vertical hasTickMarks:(BOOL)hasTickMarks {
    NSRect groove=rect;
+   /* In the dark a groove sunk below the window, with an edge: where it
+      ends shows (the dark scale's grey was the window's). */
+   BOOL    dark=_NSSystemAppearanceIsDark();
+   CGFloat width=dark?6:4;
 
    if(vertical){
-    groove.size.width=4;
-    groove.origin.x=floor(NSMidX(rect)-2);
+    groove.size.width=width;
+    groove.origin.x=floor(NSMidX(rect)-width/2);
    }
    else {
-    groove.size.height=4;
-    groove.origin.y=floor(NSMidY(rect)-2);
+    groove.size.height=width;
+    groove.origin.y=floor(NSMidY(rect)-width/2);
    }
-   atlasRounded(groove,2,atlasGray(0.82),atlasGray(0.84),nil);
+   if(dark)
+    atlasRounded(groove,width/2,[NSColor colorWithCalibratedWhite:0.10 alpha:1],
+       [NSColor colorWithCalibratedWhite:0.10 alpha:1],[NSColor colorWithCalibratedWhite:0.05 alpha:1]);
+   else
+    atlasRounded(groove,2,atlasGray(0.82),atlasGray(0.84),nil);
 }
 
 -(void)drawSliderTickInRect:(NSRect)rect {
