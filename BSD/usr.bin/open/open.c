@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <unistd.h>
 
 #define TEXT_EDITOR_ID	"org.minkar.TextEditor"
@@ -85,7 +86,46 @@ applicationNamed(const char *name)
 		if (stat(path, &st) == 0)
 			return fileURL(path, true);
 	}
-	return NULL;
+	/* Then by the name it shows ("System Monitor" for SystemMonitor.app):
+	   its CFBundleDisplayName or CFBundleName, as on the reference. */
+	CFStringRef wanted = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
+	size_t n = strlen(name);
+	if (wanted != NULL && n > 4 && strcasecmp(name + n - 4, ".app") == 0) {
+		CFStringRef bare = CFStringCreateWithSubstring(NULL, wanted, CFRangeMake(0, CFStringGetLength(wanted) - 4));
+		CFRelease(wanted);
+		wanted = bare;
+	}
+	CFURLRef found = NULL;
+	for (size_t i = 0; wanted != NULL && found == NULL && i < sizeof(folders) / sizeof(folders[0]); i++) {
+		DIR *dir = opendir(folders[i]);
+		struct dirent *entry;
+		while (dir != NULL && found == NULL && (entry = readdir(dir)) != NULL) {
+			size_t len = strlen(entry->d_name);
+			if (len <= 4 || strcasecmp(entry->d_name + len - 4, ".app") != 0)
+				continue;
+			snprintf(path, sizeof(path), "%s/%s", folders[i], entry->d_name);
+			CFURLRef url = fileURL(path, true);
+			CFBundleRef bundle = url ? CFBundleCreate(NULL, url) : NULL;
+			static const char *const keys[] = { "CFBundleDisplayName", "CFBundleName" };
+			for (size_t k = 0; bundle != NULL && found == NULL && k < 2; k++) {
+				CFStringRef key = CFStringCreateWithCString(NULL, keys[k], kCFStringEncodingUTF8);
+				CFTypeRef value = CFBundleGetValueForInfoDictionaryKey(bundle, key);
+				if (value != NULL && CFGetTypeID(value) == CFStringGetTypeID() &&
+				    CFStringCompare(value, wanted, kCFCompareCaseInsensitive) == kCFCompareEqualTo)
+					found = CFRetain(url);
+				CFRelease(key);
+			}
+			if (bundle != NULL)
+				CFRelease(bundle);
+			if (url != NULL)
+				CFRelease(url);
+		}
+		if (dir != NULL)
+			closedir(dir);
+	}
+	if (wanted != NULL)
+		CFRelease(wanted);
+	return found;
 }
 
 static CFURLRef
