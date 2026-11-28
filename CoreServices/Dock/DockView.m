@@ -65,7 +65,7 @@ static CGFloat bounceHeight(DockTile *tile, CGFloat size)
     if (tile.bounceStart == 0)
         return 0;
     CFAbsoluteTime t = CFAbsoluteTimeGetCurrent() - tile.bounceStart;
-    if (!tile.bounceCritical && !tile.bounceLaunch && t >= 2 * kBouncePeriod)
+    if (!tile.bounceCritical && !tile.bounceLaunch && tile.bounceUntil == 0 && t >= 2 * kBouncePeriod)
         return 0;
     return round(size * 0.5 * fabs(sin(M_PI * fmod(t, kBouncePeriod) / kBouncePeriod)));
 }
@@ -1771,7 +1771,11 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
 {
     NSRunningApplication *app = note.userInfo[NSWorkspaceApplicationKey];
     DockTile *tile = [self tileForPID:[app processIdentifier]];
-    if (tile.bounceStart != 0) {
+    /* A launch bounce ends its bounce under way (bounce); one asking for
+       attention stops at once. */
+    if (tile.bounceStart != 0 && tile.bounceLaunch) {
+        [self bounce];
+    } else if (tile.bounceStart != 0 && tile.bounceUntil == 0) {
         tile.bounceStart = 0;
         [self bounce];
     }
@@ -1784,13 +1788,21 @@ static NSImage *ThumbnailFor(NSImage *window, NSImage *_Nullable appIcon)
     BOOL any = NO;
     CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
     for (DockTile *tile in _model.tiles) {
-        /* Bouncing while it starts: until its app has checked in (or 15 s). */
+        /* Bouncing while it starts: until its app has checked in (or 15 s),
+           then to the end of the bounce under way, at least one whole: an
+           app that starts at once stopped its tile in mid-air. */
         if (tile.bounceLaunch && ((tile.application != nil && ![tile.application isTerminated]) ||
                                   now - tile.bounceStart >= 15)) {
             tile.bounceLaunch = NO;
+            CFAbsoluteTime t = now - tile.bounceStart;
+            double bounces = MAX(1, ceil(t / kBouncePeriod));
+            tile.bounceUntil = tile.bounceStart + bounces * kBouncePeriod;
+        }
+        if (tile.bounceUntil != 0 && now >= tile.bounceUntil) {
+            tile.bounceUntil = 0;
             tile.bounceStart = 0;
         }
-        if (tile.bounceStart != 0 && !tile.bounceCritical && !tile.bounceLaunch &&
+        if (tile.bounceStart != 0 && !tile.bounceCritical && !tile.bounceLaunch && tile.bounceUntil == 0 &&
             now - tile.bounceStart >= 2 * kBouncePeriod)
             tile.bounceStart = 0;
         any |= tile.bounceStart != 0;

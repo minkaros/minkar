@@ -714,6 +714,7 @@ static BOOL badgeAllowed(NSRunningApplication *app)
     if (_launchAnimation && (tile.application == nil || [tile.application isTerminated])) {
         tile.bounceStart = CFAbsoluteTimeGetCurrent();
         tile.bounceLaunch = YES;
+        tile.bounceUntil = 0;
         os_log_info(OS_LOG_DEFAULT, "launch bounce %{public}s", [tile.label UTF8String]);
         [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
     }

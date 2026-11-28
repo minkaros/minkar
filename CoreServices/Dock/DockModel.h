@@ -36,6 +36,9 @@ typedef NS_ENUM(NSInteger, DockTileKind) {
 @property (nonatomic) BOOL bounceCritical;
 /* Bouncing while its app starts (launchanim): until it has launched. */
 @property (nonatomic) BOOL bounceLaunch;
+/* A launch bounce's end once its app checked in: the bounce under way
+   finished, at least one whole (0 while none is set). */
+@property (nonatomic) CFAbsoluteTime bounceUntil;
 /* A minimized window's tile: the server's window, its owner's pid. */
 @property (nonatomic, readonly) uint32_t windowID;
 @property (nonatomic, readonly) pid_t ownerPID;
