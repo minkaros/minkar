@@ -4,7 +4,12 @@ draws the boot screen (black, Minkar's logo from \Minkar\Boot\logo.raw,
 a progress bar), keeps its own text for \Minkar\loader.log only, and
 gives the kernel a graphics console, which goes on with the bar.
 
-Alt held (or pressed) at power-on shows the boot picker: a row of round
+The boot picker comes up at every graphical boot (not with -v), counting
+down "picker-timeout" seconds (5) and then starting the system as usual;
+any key stops the countdown (the maintainer's choice, 27 Nov 2026). A
+Minkar loader the picker starts gets the "minkar-picked" load options
+and shows no picker again. Alt held (or pressed) at power-on shows it
+also in verbose mode, without a countdown: a row of round
 icons (\Minkar\Boot\Picker) with their names in the firmware's font:
 this system, verbose mode, other Minkar systems (named by their boot
 plist's volume-name), Windows, Linux (a shim, GRUB or systemd-boot under
@@ -13,6 +18,7 @@ under the chosen one and restart and shut down buttons at the bottom.
 Without the icons it is a list in text. "key-wait" in the boot plist
 sets how long the keys are looked for (500 ms). Everything the loader's
 files print goes through LogPrint.
+
 
 diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.c b/MdeModulePkg/Application/Loader/bootscreen.c
 --- a/MdeModulePkg/Application/Loader/bootscreen.c	1969-12-31 19:00:00.000000000 -0500
@@ -238,8 +244,8 @@ diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.c b/MdeModulePkg/Applicat
 +}
 diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.h b/MdeModulePkg/Application/Loader/bootscreen.h
 --- a/MdeModulePkg/Application/Loader/bootscreen.h	1969-12-31 19:00:00.000000000 -0500
-+++ b/MdeModulePkg/Application/Loader/bootscreen.h	2026-11-27 12:19:53.932472158 -0500
-@@ -0,0 +1,32 @@
++++ b/MdeModulePkg/Application/Loader/bootscreen.h	2026-11-27 21:58:40.111580152 -0500
+@@ -0,0 +1,35 @@
 +/*
 + * SPDX-License-Identifier: BSD-2-Clause
 + * Copyright (c) 2026 The Minkar contributors
@@ -267,23 +273,27 @@ diff -ruN a/MdeModulePkg/Application/Loader/bootscreen.h b/MdeModulePkg/Applicat
 +
 +/* The boot picker: another volume's loader started from it, or the keys
 +   for this system's boot (as usual, or verbose). */
-+BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle);
++BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle, UINTN Timeout);
++
++/* The load options a loader the picker starts gets: it shows no picker. */
++#define PICKED_OPTION   L"minkar-picked"
 +
 +EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root);
 +
 +#endif
 diff -ruN a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/Loader/config.c
 --- a/MdeModulePkg/Application/Loader/config.c	2026-11-25 10:19:16.129208716 -0500
-+++ b/MdeModulePkg/Application/Loader/config.c	2026-11-27 12:18:26.877681976 -0500
-@@ -41,6 +41,7 @@
++++ b/MdeModulePkg/Application/Loader/config.c	2026-11-27 21:58:40.110580200 -0500
+@@ -41,6 +41,8 @@
                         CSR_ALLOW_UNRESTRICTED_DTRACE | CSR_ALLOW_UNRESTRICTED_NVRAM |
                         CSR_ALLOW_DEVICE_CONFIGURATION | CSR_ALLOW_ANY_RECOVERY_OS |
                         CSR_ALLOW_UNAPPROVED_KEXTS,
 +    .KeyWait         = 500,
++    .PickerTimeout   = 5,
  };
  
  /* TRUE for the XML whitespace that may appear between a </key> and its value. */
-@@ -91,6 +92,15 @@
+@@ -91,6 +93,25 @@
          gBootConfig.LoaderPause = (UINT32)AsciiStrDecimalToUintn(buf);
          if(gBootConfig.LoaderPause > 120)
              gBootConfig.LoaderPause = 120;
@@ -296,23 +306,34 @@ diff -ruN a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/
 +        gBootConfig.KeyWait = (UINT32)AsciiStrDecimalToUintn(buf);
 +        if(gBootConfig.KeyWait > 5000)
 +            gBootConfig.KeyWait = 5000;
++    } else if(!isString && KeyMatch(key, keyLen, "picker-timeout")) {
++        /* Minkar: the seconds the boot picker counts down before it
++           starts the system as usual. */
++        CHAR8 buf[16];
++        UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
++        CopyMem(buf, val, n);
++        buf[n] = '\0';
++        gBootConfig.PickerTimeout = (UINT32)AsciiStrDecimalToUintn(buf);
++        if(gBootConfig.PickerTimeout > 60)
++            gBootConfig.PickerTimeout = 60;
      } else if(!isString && KeyMatch(key, keyLen, "csr-active-config")) {
          CHAR8 buf[32];
          UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
 diff -ruN a/MdeModulePkg/Application/Loader/config.h b/MdeModulePkg/Application/Loader/config.h
 --- a/MdeModulePkg/Application/Loader/config.h	2026-11-25 10:19:16.127208811 -0500
-+++ b/MdeModulePkg/Application/Loader/config.h	2026-11-27 12:18:08.758560397 -0500
-@@ -42,6 +42,7 @@
++++ b/MdeModulePkg/Application/Loader/config.h	2026-11-27 21:58:40.110580200 -0500
+@@ -42,6 +42,8 @@
      UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
      CHAR8   GraphicsMode[16];   // "graphics-mode" -> "WIDTHxHEIGHT" or "max"; empty: the firmware's
      CHAR8   StartupSound[8];    // "startup-sound" -> "off" or "on"; empty: left as it is
 +    UINT32  KeyWait;            // "key-wait" -> milliseconds the boot keys are looked for (Minkar)
++    UINT32  PickerTimeout;      // "picker-timeout" -> seconds the picker counts down; 0: it waits (Minkar)
  } BOOT_CONFIG;
  
  extern BOOT_CONFIG gBootConfig;
 diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/Loader/loader.c
 --- a/MdeModulePkg/Application/Loader/loader.c	2026-11-25 10:19:16.127208811 -0500
-+++ b/MdeModulePkg/Application/Loader/loader.c	2026-11-27 12:36:42.105408030 -0500
++++ b/MdeModulePkg/Application/Loader/loader.c	2026-11-27 21:58:40.113580057 -0500
 @@ -29,6 +29,7 @@
  #include "config.h"
  #include "lzvn_decode.h"
@@ -396,19 +417,25 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
      Print(UEFI_STR("!! Error: %s: %r\n"), What, Status);
      gBS->Stall(15 * 1000 * 1000);
      return Status;
-@@ -1070,6 +1091,26 @@
+@@ -1070,6 +1091,32 @@
      SetGraphicsMode();
      SetStartupSound();
  
 +    /*
 +     * Minkar: the graphical boot. Unless the boot arguments ask for
-+     * verbose mode, or Command-V is held, the boot screen is shown and the
-+     * loader's text only logged. Alt held: the boot picker.
++     * verbose mode, or Command-V is held, the boot picker counts down
++     * (picker-timeout; any key stops it) and the boot screen is shown, the
++     * loader's text only logged. Alt held: the picker, also in verbose
++     * mode. Started by another Minkar's picker: no picker again.
 +     */
 +    BOOT_KEYS Keys = ReadBootKeys(gBootConfig.KeyWait);
-+    if (Keys == BootKeysPicker)
-+        Keys = RunPicker(ImageHandle);
 +    BOOLEAN Verbose = HasBootArg(gBootConfig.BootArgs, "-v");
++    EFI_LOADED_IMAGE_PROTOCOL *SelfImage = NULL;
++    BOOLEAN Picked = !EFI_ERROR(gBS->HandleProtocol(ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&SelfImage)) &&
++        SelfImage->LoadOptions != NULL && SelfImage->LoadOptionsSize >= sizeof(PICKED_OPTION) &&
++        CompareMem(SelfImage->LoadOptions, PICKED_OPTION, sizeof(PICKED_OPTION)) == 0;
++    if (Keys == BootKeysPicker || (Keys == BootKeysNone && !Verbose && !Picked))
++        Keys = RunPicker(ImageHandle, Keys == BootKeysPicker ? 0 : gBootConfig.PickerTimeout);
 +    if (Keys == BootKeysVerbose && !Verbose) {
 +        AsciiStrCatS(gBootConfig.BootArgs, sizeof(gBootConfig.BootArgs), " -v");
 +        Verbose = TRUE;
@@ -423,7 +450,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
      Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
      if (Status == EFI_BUFFER_TOO_SMALL) {
          /* Minkar: this map only counts memory; the kernel gets the final one. */
-@@ -1100,6 +1141,10 @@
+@@ -1100,6 +1147,10 @@
      Status = LoadKernel(&KernelBuffer, &KernelEntry, &KernelSize);
      if (EFI_ERROR(Status)) {
          /* Leave the reason on the screen before the firmware takes over. */
@@ -434,7 +461,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
          Print(UEFI_STR("!! Error: cannot load the kernel %a: %r\n"),
              gBootConfig.KernelPath, Status);
          gBS->Stall(15 * 1000 * 1000);
-@@ -1107,6 +1152,8 @@
+@@ -1107,6 +1158,8 @@
      }
  
      Print(UEFI_STR("\n[] Memory: %u MB usable\n"), physPages * EFI_PAGE_SIZE / MB);
@@ -443,7 +470,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
  
      /* Sucks that we do this twice, but I need the ACPI tables to init DTB */
      EFI_CONFIGURATION_TABLE *table = SystemTable->ConfigurationTable;
-@@ -1224,6 +1271,8 @@
+@@ -1224,6 +1277,8 @@
          /* Minkar: keep the loader's output up long enough to read it. */
          Print(UEFI_STR("[] Pausing %u seconds (loader-pause)\n"), gBootConfig.LoaderPause);
          gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
@@ -452,7 +479,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
      } else if (gGraphicsMode == (UINT32)-1) {
          gST->ConOut->ClearScreen(gST->ConOut);
      } else {
-@@ -1242,6 +1291,8 @@
+@@ -1242,6 +1297,8 @@
              Print(UEFI_STR("[] The firmware left graphics mode %u: setting it again\n"),
                  gGraphicsMode);
              GOP->SetMode(GOP, gGraphicsMode);
@@ -510,14 +537,16 @@ diff -ruN a/MdeModulePkg/Application/Loader/Loader.inf b/MdeModulePkg/Applicatio
    gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
 diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/Loader/picker.c
 --- a/MdeModulePkg/Application/Loader/picker.c	1969-12-31 19:00:00.000000000 -0500
-+++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 13:56:43.831840070 -0500
-@@ -0,0 +1,522 @@
++++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 21:58:40.112580105 -0500
+@@ -0,0 +1,563 @@
 +/*
 + * SPDX-License-Identifier: BSD-2-Clause
 + * Copyright (c) 2026 The Minkar contributors
 + * Part of Minkar.
 + *
-+ * The boot picker, shown when Alt is held at power-on: the system this
++ * The boot picker, shown at every graphical boot with a countdown (the
++ * maintainer's choice, 27 Nov 2026; untouched, the system starts as
++ * usual), and when Alt is held at power-on: the system this
 + * loader belongs to (as usual, or in verbose mode), and the other volumes
 + * that can be started: other Minkar systems (their EFI partition has a
 + * kernel cache and its own loader; the name is their boot plist's
@@ -893,7 +922,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 + * button, 2 the shut down button.
 + */
 +STATIC VOID DrawGraphical(EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP, EFI_HII_FONT_PROTOCOL *Font, PICKER_ENTRY *Entries,
-+                          UINTN N, UINTN Chosen, UINTN Focus)
++                          UINTN N, UINTN Chosen, UINTN Focus, UINTN Left_s)
 +{
 +    UINTN W = GOP->Mode->Info->HorizontalResolution, H = GOP->Mode->Info->VerticalResolution;
 +    UINTN Icon = Scale(ICON_SIZE, H), Gap = Scale(ICON_GAP, H), Pad = Scale(HIGHLIGHT_PAD, H);
@@ -932,9 +961,15 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +            DrawHighlight(GOP, x - Pad / 2, By - Pad / 2, Button + Pad, Button + Pad, (Button + Pad) / 2, &kHighlight);
 +        DrawIcon(GOP, &gIcons[b == 0 ? IconRestart : IconShutdown], x, By, Button, Lit ? &kHighlight : &kBlack);
 +    }
++    /* The countdown, between the row and the buttons, until a key. */
++    if (Left_s > 0) {
++        CHAR16 Line[64];
++        UnicodeSPrint(Line, sizeof(Line), UEFI_STR("Starting %s in %u s"), Entries[0].Name, Left_s);
++        DrawLabel(GOP, Font, Line, W / 2, Scale(840, H), Zoom);
++    }
 +}
 +
-+STATIC VOID DrawText(PICKER_ENTRY *Entries, UINTN N, UINTN Chosen)
++STATIC VOID DrawText(PICKER_ENTRY *Entries, UINTN N, UINTN Chosen, UINTN Left_s)
 +{
 +    EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *Out = gST->ConOut;
 +    UINTN Columns = 80, Rows = 25;
@@ -958,6 +993,12 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +    Out->SetAttribute(Out, EFI_TEXT_ATTR(EFI_DARKGRAY, EFI_BLACK));
 +    Out->SetCursorPosition(Out, Left, Top + 3 + N);
 +    Out->OutputString(Out, UEFI_STR("Up and down to choose, Return to start"));
++    if (Left_s > 0) {
++        CHAR16 Line[64];
++        UnicodeSPrint(Line, sizeof(Line), UEFI_STR("Starting %s in %u s "), Entries[0].Name, Left_s);
++        Out->SetCursorPosition(Out, Left, Top + 5 + N);
++        Out->OutputString(Out, Line);
++    }
 +    Out->SetAttribute(Out, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
 +}
 +
@@ -970,14 +1011,23 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +    if (Path == NULL)
 +        return;
 +    if (!EFI_ERROR(gBS->LoadImage(FALSE, ImageHandle, Path, NULL, 0, &Image))) {
++        /* Another Minkar's loader: chosen here, it shows no picker again. */
++        EFI_LOADED_IMAGE_PROTOCOL *Loaded = NULL;
++        if (E->Icon == IconMinkar &&
++            !EFI_ERROR(gBS->HandleProtocol(Image, &gEfiLoadedImageProtocolGuid, (VOID **)&Loaded))) {
++            Loaded->LoadOptions = (VOID *)PICKED_OPTION;
++            Loaded->LoadOptionsSize = sizeof(PICKED_OPTION);
++        }
 +        gST->ConOut->ClearScreen(gST->ConOut);
 +        gBS->StartImage(Image, NULL, NULL);
 +    }
 +    FreePool(Path);
 +}
 +
-+BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle)
++BOOT_KEYS RunPicker(EFI_HANDLE ImageHandle, UINTN Timeout)
 +{
++    EFI_EVENT Tick = NULL;
++    UINTN Left_s = Timeout;
 +    PICKER_ENTRY Entries[MAX_ENTRIES];
 +    EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP = NULL;
 +    EFI_HII_FONT_PROTOCOL *Font = NULL;
@@ -993,17 +1043,33 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +          Graphical && Font == NULL ? " (no font)" : "");
 +    if (Graphical)
 +        gST->ConOut->EnableCursor(gST->ConOut, FALSE);
++    /* A second's tick for the countdown. */
++    if (Left_s > 0 &&
++        (EFI_ERROR(gBS->CreateEvent(EVT_TIMER, TPL_CALLBACK, NULL, NULL, &Tick)) ||
++         EFI_ERROR(gBS->SetTimer(Tick, TimerPeriodic, 10000000))))
++        Left_s = 0;
 +
 +    for (;;) {
 +        EFI_INPUT_KEY Key;
-+        UINTN Index;
++        UINTN Index = 0;
 +        if (Graphical)
-+            DrawGraphical(GOP, Font, Entries, N, Chosen, Focus);
++            DrawGraphical(GOP, Font, Entries, N, Chosen, Focus, Left_s);
 +        else
-+            DrawText(Entries, N, Chosen);
-+        gBS->WaitForEvent(1, &gST->ConIn->WaitForKey, &Index);
++            DrawText(Entries, N, Chosen, Left_s);
++        EFI_EVENT Events[2] = { gST->ConIn->WaitForKey, Tick };
++        gBS->WaitForEvent(Left_s > 0 ? 2 : 1, Events, &Index);
++        if (Index == 1) {
++            /* Untouched to the end: the system, as usual. */
++            if (--Left_s == 0) {
++                Chosen = 0;
++                break;
++            }
++            continue;
++        }
 +        if (EFI_ERROR(gST->ConIn->ReadKeyStroke(gST->ConIn, &Key)))
 +            continue;
++        /* A key: the countdown stops. */
++        Left_s = 0;
 +        BOOLEAN Back = Graphical ? Key.ScanCode == SCAN_LEFT : Key.ScanCode == SCAN_UP;
 +        BOOLEAN Next = Graphical ? Key.ScanCode == SCAN_RIGHT : Key.ScanCode == SCAN_DOWN;
 +        if (Focus == 0 && Back && Chosen > 0)
@@ -1029,6 +1095,8 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +            StartOther(ImageHandle, &Entries[Chosen]);
 +        }
 +    }
++    if (Tick != NULL)
++        gBS->CloseEvent(Tick);
 +    FreeIcons();
 +    gST->ConOut->ClearScreen(gST->ConOut);
 +    Print(UEFI_STR("[] Boot picker: %s\n"), Entries[Chosen].Name);
