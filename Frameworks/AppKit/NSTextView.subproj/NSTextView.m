@@ -2073,9 +2073,10 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
                                     _font, NSFontAttributeName,
                                     style, NSParagraphStyleAttributeName,
                                     nil];
-        /* Minkar: the text color too: typed text was the default black
-           (a field edited in the dark showed black until it was left). */
-        if (_textColor != nil)
+        /* Minkar: a field editor's text color too: typed text was the
+           default black (a field edited in the dark showed black until it
+           was left). Not a document's: its saved RTF would keep the color. */
+        if (_textColor != nil && [self isFieldEditor])
             [attributes setObject:_textColor forKey:NSForegroundColorAttributeName];
         if (attributes && [attributes isEqualToDictionary:[self typingAttributes]] == NO) {
             [self setTypingAttributes:attributes];

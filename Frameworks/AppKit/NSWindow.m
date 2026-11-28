@@ -1979,11 +1979,8 @@ static char titlebarSeparatorKey;
    if (NSMinX(rect) < NSMinX(visRect)) {
     rect.origin.x = NSMinX(visRect);
    }
-   /* Minkar: as documented, the top edge on the screen, not the whole
-      window: a window may reach over the Dock (a window left there opens
-      there again, as on the reference). Its title bar stays reachable. */
-   if (NSMaxY(rect) < NSMinY(visRect) + 22) {
-    rect.origin.y = NSMinY(visRect) + 22 - rect.size.height;
+   if (NSMinY(rect) < NSMinY(visRect)) {
+    rect.origin.y = NSMinY(visRect);
    }
    return rect;
 }
@@ -2675,6 +2672,13 @@ static void sendAppearance(NSView *view,SEL selector) {
    if(appearing && ([self styleMask]&NSWindowStyleMaskTitled) && _parentWindow==nil){
     NSScreen *screen=[self screen]!=nil?[self screen]:[NSScreen mainScreen];
     NSRect    constrained=[self constrainFrameRect:_frame toScreen:screen];
+    /* Not pushed up off the Dock's room when its title bar shows: a window
+       left reaching over the Dock opens there again, as on the reference
+       (System Monitor opened 37 points up). A screen change still brings
+       a whole window on it (constrainFrameRect:toScreen:). */
+    if(NSHeight(constrained)==NSHeight(_frame) && NSMinY(constrained)>NSMinY(_frame) &&
+       NSMaxY(_frame)>=NSMinY([screen visibleFrame])+22 && NSMaxY(_frame)<=NSMaxY([screen visibleFrame]))
+     constrained.origin.y=_frame.origin.y;
 
     if(!NSEqualRects(constrained,_frame))
      [self setFrame:constrained display:NO];
