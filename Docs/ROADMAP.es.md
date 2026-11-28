@@ -117,8 +117,8 @@ K2–K3, A0–A4, N0–N1, W0–W3); WebKit hasta W5; audio AU1–AU6 y AU8–AU
 - [x] Órdenes: gitk y git gui sobre Tcl/Tk Aqua, `osascript`, `opendiff` (pruebas `tcltk-git`, `osascript`, `opendiff`); `tmutil` en 19.6.x.
 - [x] Autorización de Security: authd, el Authorization Agent, el candado de los paneles (pruebas `authorization`, `pane-lock`). `725fc8177d`
 - [x] Imprimir por red: cupsd, sus órdenes, el panel Impresoras y el panel de impresión; una impresora de red imprime desde el PC 1.
-- [ ] Imprimir por USB: `IOUSBInterfaceUserClient`, el plug-in de IOUSBLib y el backend USB de CUPS, probados en el PC 1; en 19.6.0 desde el 27 nov 2026.
-- [ ] Arranque gráfico, del sistema instalado y del instalador: logo y barra de progreso por omisión; modo detallado con Comando-V o desde el selector (Opción).
+- [x] Imprimir por USB: `IOUSBInterfaceUserClient`, el plug-in de IOUSBLib, el backend USB de CUPS, un anillo por endpoint bulk en el driver xHCI y los modelos PDF genéricos del panel Impresoras; una impresora láser añadida desde el panel imprime en el PC 1 (28 nov 2026; pruebas `usb-apps`, `printers-pane`). `e75ceafe13` `ed2cb97416`
+- [x] Arranque gráfico, del sistema instalado y del instalador: el selector con cuenta atrás, un logo y una barra que nunca se detiene, sin texto encima; modo detallado con Comando-V o desde el selector; visto en el PC 1 (28 nov 2026; pruebas `graphical-boot`, `loader-log`). `7e29e17901` `ee3d0b8e0b` `5e7c18a7b2`
 
 #### WebKit
 
@@ -206,10 +206,8 @@ Detalle en [GPU.md](GPU.md).
 
 Carril A, en orden, para cerrar 19.6.0:
 
-1. Lo de hoy probado en el PC 1, y el gate M5 otra vez con una sesión abierta.
-2. Imprimir por USB.
-3. El arranque gráfico, del sistema instalado y del instalador.
-4. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
+1. El gate M5 otra vez con una sesión abierta; por qué el PC 1 tarda cerca de un minuto en reiniciarse.
+2. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
    `main` y la etiqueta 19.6.0, con la confirmación del mantenedor; 19.6.0 sale como Pre Alpha.
 
 El carril BC en paralelo: BC2. La GPU (R2b en el PC 1) en paralelo; lo que necesita el PC 2 espera a 19.6.x.
