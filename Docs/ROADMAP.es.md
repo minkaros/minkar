@@ -92,7 +92,8 @@ Lo que quedó de estas fases:
 Gate M5: desde el arranque empieza una sesión gráfica, se abre una app desde el Dock, Files
 navega y la resolución cambia desde Preferencias del sistema, con el lenguaje visual de
 Atlas. Detalle: [Atlas.md](Atlas.md). Pasado en el PC 1 el 26 nov 2026 (`tools/m5-gate.sh`
-de las pruebas); se repite con la imagen final.
+de las pruebas), y otra vez el 28 nov 2026 por el mantenedor, con una sesión, en un sistema
+instalado desde el medio de publicación (`Minkar-19.6.0.img`, `b57f1c58dc`).
 
 - [x] LoginWindow: Directory Services, la sesión Aqua del usuario y sus `LaunchAgents`, la pantalla bloqueada. `637ca4f310`
 - [x] Menús: MB0–MB3 (MB4 en 19.6.x).
@@ -206,7 +207,7 @@ Detalle en [GPU.md](GPU.md).
 
 Carril A, en orden, para cerrar 19.6.0:
 
-1. El gate M5 otra vez con una sesión abierta; por qué el PC 1 tarda cerca de un minuto en reiniciarse.
+1. Por qué el PC 1 tarda cerca de un minuto en reiniciarse.
 2. Los gates M6 y BC con la imagen final; la suite completa; la imagen de publicación; `devel` a
    `main` y la etiqueta 19.6.0, con la confirmación del mantenedor; 19.6.0 sale como Pre Alpha.
 
