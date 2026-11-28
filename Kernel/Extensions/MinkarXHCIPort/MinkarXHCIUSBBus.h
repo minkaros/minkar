@@ -7,12 +7,10 @@
  * IOUSBCompositeDriver - work against xHCI devices MinkarXHCIPort doesn't
  * already special-case as hub/mass-storage/keyboard.
  *
- * Scope limit inherited from MinkarXHCIPort: configureBulkEndpoints()
- * configures a single bulk-in/out ring pair per slot (not indexed by
- * endpoint number). Interrupt-IN endpoints have a ring each, so a
- * composite HID device (a keyboard with media keys, a KVM switch's
- * keyboard and mouse) gets all of them. So this bus supports one bulk IN +
- * one bulk OUT and any number of interrupt-IN endpoints per device. USBDeviceAddress == the device's xHCI slot ID directly (no
+ * Bulk and interrupt-IN endpoints have a ring each, so a composite device
+ * (a printer with scanner and fax interfaces, a keyboard with media keys,
+ * a KVM switch's keyboard and mouse) gets all of them; interrupt-OUT and
+ * isochronous endpoints are not supported. USBDeviceAddress == the device's xHCI slot ID directly (no
  * separate bus-address abstraction - we own both ends).
  */
 

@@ -1253,16 +1253,13 @@ void MinkarXHCIPort::freeSlotResources(UInt32 slotId)
     if (sr.deviceCtxMem) { sr.deviceCtxMem->release(); sr.deviceCtxMem = NULL; }
     if (sr.inputCtxMem)  { sr.inputCtxMem->release();  sr.inputCtxMem = NULL; }
     if (sr.ep0RingMem)  { sr.ep0RingMem->release();  sr.ep0RingMem = NULL; sr.ep0Ring = NULL; }
-    if (sr.bulkInRingMem) {
-        sr.bulkInRingMem->release();
-        sr.bulkInRingMem = NULL;
-        sr.bulkInRing = NULL;
-    }
-    if (sr.bulkOutRingMem) {
-        sr.bulkOutRingMem->release();
-        sr.bulkOutRingMem = NULL;
-        sr.bulkOutRing = NULL;
-    }
+    for (int dir = 0; dir < 2; dir++)
+        for (int ep = 0; ep < 16; ep++) {
+            BulkRing &b = sr.bulk[dir][ep];
+            if (b.mem)
+                b.mem->release();
+            bzero(&b, sizeof(b));
+        }
     /* A new device may get this slot ID: none of its endpoints is ours. */
     for (int ep = 0; ep < 16; ep++)
         releaseInterruptEndpoint(fIntrIn[slotId][ep]);
@@ -1531,6 +1528,21 @@ bool MinkarXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
     return true;
 }
 
+/* A fresh ring for a bulk endpoint (the one it had, if any, freed). */
+bool MinkarXHCIPort::newBulkRing(BulkRing &b)
+{
+    if (b.mem)
+        b.mem->release();
+    bzero(&b, sizeof(b));
+    if (!allocRing(&b.mem, &b.ring, kRingTRBs))
+        return false;
+    b.enqueue = 0;
+    b.cycle = 1;
+    b.ring[kRingTRBs - 1].param = b.mem->getPhysicalAddress();
+    b.ring[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+    return true;
+}
+
 bool MinkarXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inMaxPkt,
                                            UInt8 outEp, UInt16 outMaxPkt)
 {
@@ -1563,25 +1575,19 @@ bool MinkarXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 in
                       (entries << SLOT_CTX_ENTRIES_SHIFT);
 
     if (inDCI) {
-        if (sr.bulkInRingMem) { sr.bulkInRingMem->release(); sr.bulkInRingMem = NULL; sr.bulkInRing = NULL; }
-        if (!allocRing(&sr.bulkInRingMem, &sr.bulkInRing, kRingTRBs)) return false;
-        sr.bulkInEnqueue = 0; sr.bulkInCycle = 1;
-        sr.bulkInRing[kRingTRBs - 1].param = sr.bulkInRingMem->getPhysicalAddress();
-        sr.bulkInRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+        BulkRing &b = sr.bulk[1][inEp];
+        if (!newBulkRing(b)) return false;
         ic->ep[inDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_IN << EP_CTX_TYPE_SHIFT) |
                                    ((UInt32)inMaxPkt << EP_CTX_MAXPKT_SHIFT);
-        ic->ep[inDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;
+        ic->ep[inDCI - 1].trDequeuePtr = b.mem->getPhysicalAddress() | 1;
         ic->ep[inDCI - 1].avgTrbLen_maxEsitLo = inMaxPkt;
     }
     if (outDCI) {
-        if (sr.bulkOutRingMem) { sr.bulkOutRingMem->release(); sr.bulkOutRingMem = NULL; sr.bulkOutRing = NULL; }
-        if (!allocRing(&sr.bulkOutRingMem, &sr.bulkOutRing, kRingTRBs)) return false;
-        sr.bulkOutEnqueue = 0; sr.bulkOutCycle = 1;
-        sr.bulkOutRing[kRingTRBs - 1].param = sr.bulkOutRingMem->getPhysicalAddress();
-        sr.bulkOutRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+        BulkRing &b = sr.bulk[0][outEp];
+        if (!newBulkRing(b)) return false;
         ic->ep[outDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_OUT << EP_CTX_TYPE_SHIFT) |
                                     ((UInt32)outMaxPkt << EP_CTX_MAXPKT_SHIFT);
-        ic->ep[outDCI - 1].trDequeuePtr = sr.bulkOutRingMem->getPhysicalAddress() | 1;
+        ic->ep[outDCI - 1].trDequeuePtr = b.mem->getPhysicalAddress() | 1;
         ic->ep[outDCI - 1].avgTrbLen_maxEsitLo = outMaxPkt;
     }
 
@@ -1770,9 +1776,14 @@ bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
     if (done) *done = 0;
     if (ccOut) *ccOut = 0;
     SlotResources &sr = fSlots[slotId];
-    volatile XHCITRB *ring = in ? sr.bulkInRing : sr.bulkOutRing;
-    UInt32 &enqueue = in ? sr.bulkInEnqueue : sr.bulkOutEnqueue;
-    UInt8 &cycle = in ? sr.bulkInCycle : sr.bulkOutCycle;
+    if (epNum == 0 || epNum > 15 || sr.bulk[in ? 1 : 0][epNum].ring == NULL) {
+        XHCI_Log("bulk transfer on slot=%u ep=%u in=%d: the endpoint is not configured", slotId, epNum, in);
+        return false;
+    }
+    BulkRing &b = sr.bulk[in ? 1 : 0][epNum];
+    volatile XHCITRB *ring = b.ring;
+    UInt32 &enqueue = b.enqueue;
+    UInt8 &cycle = b.cycle;
     UInt32 dci = in ? (epNum * 2 + 1) : (epNum * 2);
     UInt64 base = xferMem->getPhysicalAddress();
 
@@ -1798,9 +1809,7 @@ bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
          * the controller thinks it's at vs the physical TRB we just pushed. */
         XHCIDeviceContext *dc = (XHCIDeviceContext *)sr.deviceCtxMem->getBytesNoCopy();
         UInt32 epd0 = dc->ep[dci - 1].dword0;
-        UInt64 pushedPhys = ring == sr.bulkInRing
-            ? sr.bulkInRingMem->getPhysicalAddress()
-            : sr.bulkOutRingMem->getPhysicalAddress();
+        UInt64 pushedPhys = b.mem->getPhysicalAddress();
         /* A caller that takes the timeout as an answer (an app polling a
            bulk IN pipe) is told, not logged for. */
         if (ccOut) {
@@ -1852,11 +1861,7 @@ bool MinkarXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
      * this endpoint is actually configured, even though we never issue an
      * interrupt transfer on it ourselves (downstream port state is polled
      * directly via GetPortStatus instead). */
-    if (intrEp != 0 && intrEp < 16 && allocRing(&sr.bulkInRingMem, &sr.bulkInRing, kRingTRBs)) {
-        sr.bulkInEnqueue = 0;
-        sr.bulkInCycle = 1;
-        sr.bulkInRing[kRingTRBs - 1].param = sr.bulkInRingMem->getPhysicalAddress();
-        sr.bulkInRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+    if (intrEp != 0 && intrEp < 16 && newBulkRing(sr.bulk[1][intrEp])) {
 
         UInt32 intrDCI = intrEp * 2 + 1;
         ic->control.addFlags |= (1U << intrDCI);
@@ -1865,7 +1870,7 @@ bool MinkarXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
                                                   intrInterval ? intrInterval : 12) << 16;
         ic->ep[intrDCI - 1].dword1 = EP_CTX_CERR(3) | (3 /* interrupt */ << EP_CTX_TYPE_SHIFT) |
                                      ((UInt32)maxPkt << EP_CTX_MAXPKT_SHIFT);
-        ic->ep[intrDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;
+        ic->ep[intrDCI - 1].trDequeuePtr = sr.bulk[1][intrEp].mem->getPhysicalAddress() | 1;
         ic->ep[intrDCI - 1].avgTrbLen_maxEsitLo = maxPkt;
 
         UInt32 maxDCI = (ic->slot.dword0 >> SLOT_CTX_ENTRIES_SHIFT) & 0x1F;
@@ -2329,9 +2334,12 @@ void MinkarXHCIPort::resetBulkEndpoint(UInt32 slotId, UInt8 epNum, bool in, bool
         doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_RESET_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
     else if (state == 1 /* Running */)
         doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_STOP_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);
-    IOBufferMemoryDescriptor *ringMem = in ? sr.bulkInRingMem : sr.bulkOutRingMem;
-    UInt32 enqueue = in ? sr.bulkInEnqueue : sr.bulkOutEnqueue;
-    UInt8 cycle = in ? sr.bulkInCycle : sr.bulkOutCycle;
+    BulkRing &b = sr.bulk[in ? 1 : 0][epNum & 0xF];
+    if (b.mem == NULL)
+        return;
+    IOBufferMemoryDescriptor *ringMem = b.mem;
+    UInt32 enqueue = b.enqueue;
+    UInt8 cycle = b.cycle;
     UInt64 deq = ringMem->getPhysicalAddress() + (UInt64)enqueue * sizeof(XHCITRB);
     doCommand(deq | (cycle ? 1 : 0), 0,
               TRB_SET_TYPE(TRB_TYPE_SET_TR_DEQUEUE) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci), &rc, NULL, 1000);

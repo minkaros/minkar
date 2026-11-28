@@ -203,7 +203,17 @@ private:
     UInt8           fCmdDoneCC;
     UInt32          fCmdDoneSlot;
 
-    /* Per-slot device context + input context + transfer rings (EP0, bulk IN/OUT). */
+    /* A bulk endpoint's transfer ring (also a hub's interrupt endpoint's). */
+    struct BulkRing {
+        IOBufferMemoryDescriptor * mem;
+        volatile XHCITRB          * ring;
+        UInt32                      enqueue;
+        UInt8                       cycle;
+    };
+    /* Per-slot device context + input context + transfer rings: EP0, and
+     * one ring per bulk endpoint, by direction (0 OUT, 1 IN) and number: a
+     * composite device (a printer with scanner and fax interfaces) has
+     * bulk endpoints in several interfaces. */
     struct SlotResources {
         IOBufferMemoryDescriptor * deviceCtxMem;
         IOBufferMemoryDescriptor * inputCtxMem;
@@ -211,14 +221,7 @@ private:
         volatile XHCITRB          * ep0Ring;
         UInt32                      ep0Enqueue;
         UInt8                       ep0Cycle;
-        IOBufferMemoryDescriptor * bulkInRingMem;
-        volatile XHCITRB          * bulkInRing;
-        UInt32                      bulkInEnqueue;
-        UInt8                       bulkInCycle;
-        IOBufferMemoryDescriptor * bulkOutRingMem;
-        volatile XHCITRB          * bulkOutRing;
-        UInt32                      bulkOutEnqueue;
-        UInt8                       bulkOutCycle;
+        BulkRing                    bulk[2][16];
     };
     SlotResources fSlots[64]; /* index by slot ID, 0 unused */
     UInt8 fSlotRootPort[64];  /* 0-based root hub port for each slot */
@@ -320,8 +323,8 @@ private:
                                IOMemoryDescriptor *buffer, UInt64 bufOff);
     void resetHaltedInterruptEndpoint(InterruptInEndpoint &intr, UInt32 dci, UInt8 cc);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
-    bool bulkEndpointConfigured(UInt32 slotId, bool in) const
-        { return slotId < 64 && (in ? fSlots[slotId].bulkInRingMem : fSlots[slotId].bulkOutRingMem) != NULL; }
+    bool bulkEndpointConfigured(UInt32 slotId, UInt8 epNum, bool in) const
+        { return slotId < 64 && epNum < 16 && fSlots[slotId].bulk[in ? 1 : 0][epNum].mem != NULL; }
     bool interruptInEndpointConfigured(UInt32 slotId, UInt8 epNum) const
         { return slotId < 64 && epNum < 16 && fIntrIn[slotId][epNum].valid; }
     IOReturn interruptTransfer(UInt32 slotId, UInt8 epNum, IOMemoryDescriptor *buffer,
@@ -338,6 +341,7 @@ private:
                                   UInt32 parentHubSlot, UInt32 parentPortNum);
     bool controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
                          void *buf, UInt16 len, bool in);
+    bool newBulkRing(BulkRing &b);
     bool configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inMaxPkt,
                                 UInt8 outEp, UInt16 outMaxPkt);
     /* done, when given: the bytes moved (fewer than len when an IN

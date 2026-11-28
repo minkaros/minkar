@@ -26,12 +26,12 @@ IOReturn MinkarXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, En
             return kIOReturnSuccess;
 
         case kUSBBulk:
-            /* One bulk ring per direction per slot (see the header); each
-             * direction is configured when its pipe is opened, and asked
-             * of the port, which forgets them when the device goes. */
+            /* A ring per bulk endpoint (see the header), configured when
+             * its pipe is opened and asked of the port, which forgets them
+             * when the device goes. */
             if (endpoint->number == 0 || endpoint->number > 15)
                 return kIOReturnBadArgument;
-            if (fPort->bulkEndpointConfigured(slotId, endpoint->direction == kUSBIn))
+            if (fPort->bulkEndpointConfigured(slotId, endpoint->number, endpoint->direction == kUSBIn))
                 return kIOReturnSuccess;
             if (endpoint->direction == kUSBIn ?
                 !fPort->configureBulkEndpoints(slotId, endpoint->number, endpoint->maxPacketSize, 0, 0) :
