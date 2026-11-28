@@ -127,6 +127,28 @@ const float NSStringDrawerLargeDimension=1000000.;
 
 @end
 
+/* A clip rectangle widened to whole device pixels when the transform only
+   moves and flips (as a window's views draw): one on fractions of a pixel
+   costs a coverage mask the size of the window, made again for each
+   string, and text never reaches its edges' last fraction anyway. */
+static CGRect _NSRectOnDevicePixels(CGContextRef context,CGRect rect){
+   CGAffineTransform m=CGContextGetCTM(context);
+   CGFloat lo,hi;
+
+   if(m.b!=0 || m.c!=0 || fabs(m.a)!=1 || fabs(m.d)!=1)
+    return rect;
+   /* device = scale * user + translation, axis by axis */
+   lo=floor(MIN(m.a*CGRectGetMinX(rect),m.a*CGRectGetMaxX(rect))+m.tx);
+   hi=ceil(MAX(m.a*CGRectGetMinX(rect),m.a*CGRectGetMaxX(rect))+m.tx);
+   rect.origin.x=MIN((lo-m.tx)/m.a,(hi-m.tx)/m.a);
+   rect.size.width=hi-lo;
+   lo=floor(MIN(m.d*CGRectGetMinY(rect),m.d*CGRectGetMaxY(rect))+m.ty);
+   hi=ceil(MAX(m.d*CGRectGetMinY(rect),m.d*CGRectGetMaxY(rect))+m.ty);
+   rect.origin.y=MIN((lo-m.ty)/m.d,(hi-m.ty)/m.d);
+   rect.size.height=hi-lo;
+   return rect;
+}
+
 @implementation NSAttributedString(NSStringDrawer)
 
 // Draw self in the rect, clipped - add ellipsis if needed 
@@ -134,7 +156,7 @@ const float NSStringDrawerLargeDimension=1000000.;
 {
    CGContextRef graphicsPort=NSCurrentGraphicsPort();
    CGContextSaveGState(graphicsPort);
-   CGContextClipToRect(graphicsPort,rect);
+   CGContextClipToRect(graphicsPort,_NSRectOnDevicePixels(graphicsPort,rect));
 	
 	// In a perfect world, we could use the NSLineBreakByTruncatingTail attribute, but that's not supported for now
 	// by Cocotron
