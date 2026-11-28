@@ -774,8 +774,14 @@ static NSString *baseLanguage(NSString *name) {
                     [[languages objectAtIndex:0] isKindOfClass:[NSString class]]) {
                     NSString *preferred = [languages objectAtIndex:0];
                     /* Minkar: the bundle's localization the languages pick,
-                     * "es" finding Spanish.lproj, as on the reference. */
-                    chosen = [[[self class] preferredLocalizationsFromArray:[self localizations] forPreferences:languages] firstObject];
+                     * "es" finding Spanish.lproj, as on the reference. The
+                     * development localization (the keys' language) counts
+                     * though it has no folder: an app whose English is its
+                     * keys, with only es.lproj, stays English for (en, es). */
+                    NSMutableArray *available = [NSMutableArray arrayWithArray:[self localizations]];
+                    if (![available containsObject:[self developmentLocalization]])
+                        [available addObject:[self developmentLocalization]];
+                    chosen = [[[self class] preferredLocalizationsFromArray:available forPreferences:languages] firstObject];
                     NSRange separator = [preferred rangeOfCharacterFromSet:
                         [NSCharacterSet characterSetWithCharactersInString:@"-_"]];
                     if (separator.location != NSNotFound) {
