@@ -196,7 +196,11 @@ damageRect(WSWindow *w, SLSRect r)
 	WSDamageGlobalRect(r);
 }
 
-static const uint64_t kResizeWaitNs = 100000000;
+/* 400 ms: a heavy window (System Preferences' General pane at 3440x1440
+   on PC 1) took longer than 100 ms to draw its new size, and its new
+   frame's shadow and empty area showed first. A window resized by hand
+   commits each size at once, so it does not wait. */
+static const uint64_t kResizeWaitNs = 400000000;
 
 /* The resize shown: the old frame and the new one drawn again. */
 static void
