@@ -331,7 +331,14 @@ static NSString *option(cups_dest_t *dest, const char *name)
         return;
     }
     NSInteger row = [_found selectedRow];
-    [_add setEnabled:row >= 0];
+    /* A printer chosen in the list: its own address, the Address field
+       emptied and locked (it is for a printer the list does not show; a
+       USB printer chosen with text left there was added at that address,
+       and failed). None chosen: the field is free again. */
+    if (row >= 0)
+        [_addAddress setStringValue:@""];
+    [_addAddress setEnabled:row < 0];
+    [_add setEnabled:row >= 0 || [[_addAddress stringValue] length] > 0];
     if (row >= 0)
         [_addName setStringValue:_devices[(NSUInteger)row][@"info"]];
 }
@@ -533,10 +540,10 @@ static NSString *modelFor(NSDictionary *device)
     NSString *address = [[_addAddress stringValue] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     [_sheet orderOut:nil];
     NSDictionary *d = nil;
-    if ([address length] > 0)
-        d = @{ @"uri": addressURI(address), @"info": address };
-    else if (row >= 0 && (NSUInteger)row < [_devices count])
+    if (row >= 0 && (NSUInteger)row < [_devices count])
         d = _devices[(NSUInteger)row];
+    else if ([address length] > 0)
+        d = @{ @"uri": addressURI(address), @"info": address };
     if (response != NSModalResponseOK || d == nil) {
         _sheet = nil;
         return;

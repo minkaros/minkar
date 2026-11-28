@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 @implementation TMWindowController {
+    BOOL _placed;   /* placed: its frame is saved as it changes from then on */
     NSTabView *_tabs;
 }
 
@@ -54,6 +55,9 @@
                 break;
             }
     }
+    /* Saved from here on: sized to its rows and columns first, it was
+       saved at the origin before it was placed, and opened there. */
+    _placed = YES;
     return self;
 }
 
@@ -173,12 +177,14 @@
 
 - (void)windowDidMove:(NSNotification *)note
 {
-    [[self window] saveFrameUsingName:@"Terminal Window"];
+    if (_placed)
+        [[self window] saveFrameUsingName:@"Terminal Window"];
 }
 
 - (void)windowDidResize:(NSNotification *)note
 {
-    [[self window] saveFrameUsingName:@"Terminal Window"];
+    if (_placed)
+        [[self window] saveFrameUsingName:@"Terminal Window"];
     for (TMTerminalView *terminal in [self terminals])
         [terminal fitToScrollView];
     [self updateTitles];
@@ -186,7 +192,8 @@
 
 - (void)windowWillClose:(NSNotification *)note
 {
-    [[self window] saveFrameUsingName:@"Terminal Window"];
+    if (_placed)
+        [[self window] saveFrameUsingName:@"Terminal Window"];
     for (TMTerminalView *terminal in [self terminals])
         [terminal.session terminate];
     if (self.closed)
