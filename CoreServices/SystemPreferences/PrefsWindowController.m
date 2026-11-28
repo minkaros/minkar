@@ -258,9 +258,18 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
         BOOL down = pressed >= 0 && (NSUInteger)pressed < [panes count] && panes[(NSUInteger)pressed] == pane;
         [pane.icon drawInRect:icon fromRect:NSZeroRect operation:NSCompositeSourceOver
                      fraction:down ? 0.6 : 1 respectFlipped:YES hints:nil];
+        /* Two lines when one is not enough ("Usuarios y grupos" in
+           Spanish showed "Usuarios y" only), centred by the icon. */
+        CGFloat width = NSMaxX(rect) - NSMaxX(icon) - 14;
         NSSize size = [pane.label sizeWithAttributes:name];
-        [pane.label drawInRect:NSMakeRect(NSMaxX(icon) + 10, NSMidY(rect) - size.height / 2,
-                                          NSMaxX(rect) - NSMaxX(icon) - 14, size.height + 2)
+        CGFloat height = size.height;
+        if (size.width > width) {
+            NSRect needed = [pane.label boundingRectWithSize:NSMakeSize(width, 2 * size.height + 4)
+                                                     options:NSStringDrawingUsesLineFragmentOrigin
+                                                  attributes:name];
+            height = MIN(ceil(NSHeight(needed)), 2 * size.height);
+        }
+        [pane.label drawInRect:NSMakeRect(NSMaxX(icon) + 10, NSMidY(rect) - height / 2, width, height + 2)
                 withAttributes:name];
     }];
 }
