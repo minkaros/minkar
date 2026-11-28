@@ -28,6 +28,9 @@
 
 #import <Cocoa/Cocoa.h>
 #import <PreferencePanes/PreferencePanes.h>
+
+/* AppKit's: a color of the appearance theme shown (Atlas's accent). */
+extern NSColor *_NSAppearanceThemeColor(NSString *key);
 #include <CoreServices/CoreServices.h>
 #include <os/log.h>
 
@@ -410,8 +413,13 @@ static NSBox *separator(CGFloat y)
         [s setNeedsDisplay:YES];
     }
     NSInteger accent = self.accentIndex;
+    /* Blue is the appearance theme's own accent when it has one (Atlas's
+       #31679e, the maintainer's choice), the color blue gives. */
+    NSColor *themeBlue = _NSAppearanceThemeColor(@"MinkarAccentColor");
     for (GeneralSwatch *s in _swatches) {
         s.chosen = [s tag] == accent;
+        if (kAccents[[s tag]].value == 4)
+            s.color = themeBlue ?: rgb(kAccents[[s tag]].accent);
         [s setNeedsDisplay:YES];
     }
     [_accentName setStringValue:[self text:kAccents[accent].name]];

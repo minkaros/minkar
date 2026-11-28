@@ -86,6 +86,13 @@ static const NSAccentTones *currentAccent(void) {
     return &kAccents[0];
 }
 
+/* Whether an accent other than blue is chosen: blue (no key, or 4) is the
+   appearance theme's own accent when it has one (Atlas's #31679e). */
+static BOOL accentChosen(void) {
+    id value = globalValue(CFSTR("AppleAccentColor"));
+    return [value respondsToSelector:@selector(intValue)] && [value intValue] != 4;
+}
+
 /* "R G B Name": the highlight color chosen, else nil. */
 static NSColor *currentHighlight(void) {
     id value = globalValue(CFSTR("AppleHighlightColor"));
@@ -241,6 +248,10 @@ static NSMutableDictionary *themeColorCache;
 NSColor *_NSAppearanceThemeColor(NSString *key) {
     if (!themeActive || key == nil)
         return nil;
+    /* The theme's color for a chosen sidebar row is its accent's (Atlas's
+       blue): an accent chosen in General wins, as for the controls. */
+    if ([key isEqualToString:@"MinkarSidebarSelectionColor"] && accentChosen())
+        return [NSColor controlAccentColor];
     if (themeColorCache == nil)
         themeColorCache = [NSMutableDictionary new];
     id color = [themeColorCache objectForKey:key];
@@ -312,7 +323,7 @@ void _NSApplySystemAccentColors(void) {
     /* An appearance theme's own accent (Atlas's blue) while none is chosen
        in General: the controls, chosen rows and (unless a highlight is
        chosen) the text's selection, lighter. One chosen there wins. */
-    if (themeAccent != nil && globalValue(CFSTR("AppleAccentColor")) == nil) {
+    if (themeAccent != nil && !accentChosen()) {
         accent = rows = themeAccent;
         if (currentHighlight() == nil)
             selection = [themeAccent blendedColorWithFraction:0.6 ofColor:[NSColor whiteColor]];
