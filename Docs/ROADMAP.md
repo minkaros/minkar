@@ -114,8 +114,8 @@ A0–A4, N0–N1, W0–W3); WebKit through W5; audio AU1–AU6 and AU8–AU10; a
 - [x] Commands: gitk and git gui on Tcl/Tk Aqua, `osascript`, `opendiff` (tests `tcltk-git`, `osascript`, `opendiff`); `tmutil` in 19.6.x.
 - [x] Security's authorization: authd, the Authorization Agent, the panes' lock (tests `authorization`, `pane-lock`). `725fc8177d`
 - [x] Printing over the network: cupsd, its commands, the Printers pane and the print panel; a network printer prints from PC 1.
-- [ ] Printing over USB: `IOUSBInterfaceUserClient`, IOUSBLib's plug-in and CUPS's USB backend, tried on PC 1; in 19.6.0 since 27 Nov 2026.
-- [ ] Graphical boot, installed system and installer: a logo and a progress bar by default; verbose with Command-V or from the boot picker (Option).
+- [x] Printing over USB: `IOUSBInterfaceUserClient`, IOUSBLib's plug-in, CUPS's USB backend, a ring per bulk endpoint in the xHCI driver, and the Printers pane's generic PDF models; a laser printer added from the pane prints on PC 1 (28 Nov 2026; tests `usb-apps`, `printers-pane`). `e75ceafe13` `ed2cb97416`
+- [x] Graphical boot, installed system and installer: the boot picker with a countdown, a logo and a bar that never stands still, no text over them; verbose with Command-V or from the picker; seen on PC 1 (28 Nov 2026; tests `graphical-boot`, `loader-log`). `7e29e17901` `ee3d0b8e0b` `5e7c18a7b2`
 
 #### WebKit
 
@@ -201,10 +201,8 @@ Detail in [GPU.md](GPU.md).
 
 Lane A, in order, to close 19.6.0:
 
-1. Today's work tried on PC 1, and gate M5 again with a session open.
-2. Printing over USB.
-3. The graphical boot, in the installed system and the installer.
-4. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
+1. Gate M5 again with a session open; why PC 1 takes about a minute to restart.
+2. Gates M6 and BC with the final image; the full suite; the release image; `devel` to
    `main` and the 19.6.0 tag, with the maintainer's confirmation; 19.6.0 ships as Pre Alpha.
 
 Lane BC alongside: BC2. The GPU (R2b on PC 1) in parallel; what needs PC 2 waits for 19.6.x.
