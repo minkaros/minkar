@@ -17,9 +17,17 @@
  * drawn; turned on again, the screen is drawn whole. It ends at 100 % (the
  * window server sets it as it takes the display) or when the console
  * turns to text.
+ *
+ * The bar never stands still (the maintainer, 28 Nov 2026: it stopped at
+ * a step and then jumped): every 50 ms it creeps on toward the next step
+ * of the boot, slower as it nears 85 % of the way there, and catches up
+ * quickly, without a jump, when a step is reached. The tick starts at the
+ * 25 % step (bsd_init), when the kernel's timers run.
  */
 
 #include <kern/kalloc.h>
+#include <kern/thread_call.h>
+#include <kern/clock.h>
 #include <kern/simple_lock.h>
 #include <console/video_console.h>
 #include <console/boot_progress.h>
@@ -36,10 +44,15 @@
 #define TRACK_COLOUR    0x00555559u
 #define FILL_COLOUR     0x00f0f0f2u
 
+/* The steps the boot reports (loader, kernel, launchctl, window server). */
+static const unsigned int steps[] = { 10, 15, 25, 40, 50, 60, 75, 100 };
+
 static struct {
 	boolean_t       active;
 	boolean_t       paused;         /* the console off for a while */
-	unsigned int    percent;
+	unsigned int    percent;        /* the last step reported */
+	unsigned int    shown;          /* the bar drawn, in tenths of a percent */
+	thread_call_t   tick;
 	struct vc_info  screen;
 	uint32_t        *logo;          /* logoSize x logoSize pixels */
 	unsigned int    logoSize;
@@ -84,7 +97,7 @@ logo_box(const struct vc_info *v, unsigned int *left, unsigned int *top, unsigne
 /* A capsule (round ends), filled from the left to percent; each pixel
  * sampled 4x4 times (in eighths of a pixel) over black. */
 static void
-draw_bar(const struct vc_info *v, unsigned int percent)
+draw_bar(const struct vc_info *v, unsigned int permille)
 {
 	unsigned int width = scale(BAR_WIDTH, v->v_height), height = scale(BAR_HEIGHT, v->v_height);
 	unsigned int left, top = scale(BAR_TOP, v->v_height);
@@ -100,7 +113,7 @@ draw_bar(const struct vc_info *v, unsigned int percent)
 	int radius = (int)height * 4;
 	int leftCentre = (int)left * 8 + radius, rightCentre = (int)(left + width) * 8 - radius;
 	int middle = (int)top * 8 + (int)height * 4;
-	int fillEnd = (int)left * 8 + (int)(width * 8 * percent / 100);
+	int fillEnd = (int)left * 8 + (int)(width * 8 * permille / 1000);
 
 	for (unsigned int y = 0; y < height; y++) {
 		volatile uint32_t *row = pixel_row(v, top + y);
@@ -148,7 +161,7 @@ draw_screen(const struct vc_info *v)
 			}
 		}
 	}
-	draw_bar(v, bp.percent);
+	draw_bar(v, bp.shown);
 }
 
 void
@@ -174,6 +187,7 @@ boot_progress_start(const struct vc_info *v)
 	}
 	bp.screen = *v;
 	bp.percent = 10;
+	bp.shown = 100;
 	bp.active = TRUE;
 	boot_progress_set(15);	/* drawn now, or when the console is on again */
 }
@@ -196,9 +210,63 @@ boot_progress_screen(const struct vc_info *v)
 	simple_unlock(&bp_lock);
 }
 
+static void tick(thread_call_param_t p0, thread_call_param_t p1);
+
+static void
+schedule_tick(void)
+{
+	uint64_t deadline;
+
+	clock_interval_to_deadline(50, NSEC_PER_MSEC, &deadline);
+	thread_call_enter_delayed(bp.tick, deadline);
+}
+
+/* The bar a tick on: up to the last step reported quickly, then on toward
+ * the next step, slower as it nears 85 % of the way. */
+static void
+tick(__unused thread_call_param_t p0, __unused thread_call_param_t p1)
+{
+	boolean_t again;
+
+	simple_lock(&bp_lock, LCK_GRP_NULL);
+	again = bp.active;
+	if (bp.active) {
+		unsigned int floor = bp.percent * 10, next = 1000, ceiling, shown = bp.shown;
+		for (unsigned int i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
+			if (steps[i] > bp.percent) {
+				next = steps[i] * 10;
+				break;
+			}
+		}
+		ceiling = floor + (next - floor) * 85 / 100;
+		if (shown < floor) {
+			unsigned int step = (floor - shown) / 4;
+			shown += step > 5 ? step : 5;
+			if (shown > floor) {
+				shown = floor;
+			}
+		} else if (shown < ceiling) {
+			unsigned int step = (ceiling - shown) / 60;
+			shown += step > 1 ? step : 1;
+		}
+		if (shown != bp.shown) {
+			bp.shown = shown;
+			if (!bp.paused) {
+				draw_bar(&bp.screen, shown);
+			}
+		}
+	}
+	simple_unlock(&bp_lock);
+	if (again) {
+		schedule_tick();
+	}
+}
+
 void
 boot_progress_set(unsigned int percent)
 {
+	boolean_t start = FALSE;
+
 	if (!bp.active) {
 		return;
 	}
@@ -208,14 +276,28 @@ boot_progress_set(unsigned int percent)
 	simple_lock(&bp_lock, LCK_GRP_NULL);
 	if (bp.active && percent > bp.percent) {
 		bp.percent = percent;
-		if (!bp.paused) {
-			draw_bar(&bp.screen, percent);
+		/* Before the tick runs (and at the end), drawn at once. */
+		if (bp.tick == NULL || percent == 100) {
+			bp.shown = percent * 10;
+			if (!bp.paused) {
+				draw_bar(&bp.screen, bp.shown);
+			}
 		}
 		if (percent == 100) {
 			bp.active = FALSE;
 		}
+		start = (bp.active && bp.tick == NULL && percent >= 25);
 	}
 	simple_unlock(&bp_lock);
+	if (start) {
+		thread_call_t t = thread_call_allocate(tick, NULL);
+		if (t != NULL) {
+			simple_lock(&bp_lock, LCK_GRP_NULL);
+			bp.tick = t;
+			simple_unlock(&bp_lock);
+			schedule_tick();
+		}
+	}
 }
 
 void

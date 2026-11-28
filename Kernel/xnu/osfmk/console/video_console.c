@@ -3234,7 +3234,12 @@ gc_pause( boolean_t pause, boolean_t graphics_now )
 	VCPUTC_LOCK_LOCK( );
 
     disableConsoleOutput = (pause && !console_is_serial());
-    gc_enabled           = (!pause && graphics_now);
+    /* Minkar: the text console on again only when the console is not in
+       graphics (XNU's own logic; flipped in April 2026, a display driver
+       turning the screen on again drew the kernel's and fsck's text over
+       the boot screen: our loader passes graphics only for a graphical
+       boot, text for a verbose one). */
+    gc_enabled           = (!pause && !graphics_now);
 
     VCPUTC_LOCK_UNLOCK( );
 
@@ -3447,9 +3452,16 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 	switch ( op )
 	{
 		case kPEGraphicsMode:
+		{
+			/* Minkar: a display driver taking the screen says graphics
+			   whatever the boot; a verbose boot (-v) keeps its text. */
+			int verbose = 0;
+			if (PE_parse_boot_argn("-v", &verbose, sizeof(verbose)))
+				break;
 			gc_graphics_boot = TRUE;
 			gc_desire_text = FALSE;
 			break;
+		}
 
 		case kPETextMode:
 			gc_graphics_boot = FALSE;
