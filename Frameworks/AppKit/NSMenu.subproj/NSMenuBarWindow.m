@@ -44,6 +44,12 @@
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSEvent.h>
+
+/* Minkar: the system menu's texts in the user's language (AppKit's own
+   strings, es.lproj); they were English whatever the language. */
+static NSString *L(NSString *text) {
+    return [[NSBundle bundleForClass:[NSMenuBarWindow class]] localizedStringForKey:text value:text table:nil];
+}
 #include <servers/bootstrap.h>
 #include <sys/sysctl.h>
 #include "../../../CoreServices/loginwindow/LoginWindowRequest.h"
@@ -90,9 +96,13 @@ static BOOL updating;	/* setting the bars up changes the main menu too */
     [alert setMessageText:[NSString stringWithFormat:@"%@ %@", name ? name : @"Minkar",
         shown ? shown : @""]];
     [alert setInformativeText:[NSString stringWithFormat:
-        @"Kernel: Darwin %s\nProcessor: %s\nMemory: %.0f GB\nDisplay: %.0f × %.0f",
+        L(@"Kernel: Darwin %s\nProcessor: %s\nMemory: %.0f GB\nDisplay: %.0f × %.0f"),
         kernel, cpu, memory / 1073741824.0, screen.width, screen.height]];
-    [alert addButtonWithTitle:@"OK"];
+    [alert addButtonWithTitle:L(@"OK")];
+    /* The computer's icon, not the app's that shows the menu. */
+    NSImage *computer = [NSImage imageNamed:NSImageNameComputer];
+    if(computer != nil)
+        [alert setIcon:computer];
     [alert runModal];
 }
 
@@ -121,10 +131,10 @@ static BOOL sendLoginWindowRequest(uint32_t request) {
 - (void)request:(uint32_t)request question:(NSString *)question button:(NSString *)button {
     if(!([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)) {
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-        [alert setMessageText:question];
-        [alert setInformativeText:@"Applications that are open are asked to quit."];
-        [alert addButtonWithTitle:button];
-        [alert addButtonWithTitle:@"Cancel"];
+        [alert setMessageText:L(question)];
+        [alert setInformativeText:L(@"Applications that are open are asked to quit.")];
+        [alert addButtonWithTitle:L(button)];
+        [alert addButtonWithTitle:L(@"Cancel")];
         if([alert runModal] != NSAlertFirstButtonReturn)
             return;
     }
@@ -195,7 +205,7 @@ static NSArray *recentURLs(CFStringRef which) {
                              @[ @"Documents", (id)kLSSharedFileListRecentDocumentItems ] ]) {
         NSArray *urls = recentURLs((CFStringRef)[group objectAtIndex:1]);
         any |= [urls count] > 0;
-        NSMenuItem *header = [menu addItemWithTitle:[group objectAtIndex:0] action:NULL keyEquivalent:@""];
+        NSMenuItem *header = [menu addItemWithTitle:L([group objectAtIndex:0]) action:NULL keyEquivalent:@""];
         [header setEnabled:NO];
         for(NSURL *url in urls) {
             NSString *name = [[NSFileManager defaultManager] displayNameAtPath:[url path]];
@@ -209,7 +219,7 @@ static NSArray *recentURLs(CFStringRef which) {
         }
         [menu addItem:[NSMenuItem separatorItem]];
     }
-    NSMenuItem *clear = [menu addItemWithTitle:@"Clear Menu" action:@selector(clearRecent:) keyEquivalent:@""];
+    NSMenuItem *clear = [menu addItemWithTitle:L(@"Clear Menu") action:@selector(clearRecent:) keyEquivalent:@""];
     [clear setTarget:self];
     [clear setEnabled:any];	/* nothing to clear: dimmed, as on the reference */
 }
@@ -251,7 +261,7 @@ static NSMenuItem *systemMenuItem(void) {
     actions = [NSSystemMenuActions new];
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
     [menu setAutoenablesItems:NO];
-    NSString *logOut = [NSString stringWithFormat:@"Log Out %@…", NSFullUserName()];
+    NSString *logOut = [NSString stringWithFormat:L(@"Log Out %@…"), NSFullUserName()];
     /* Title, action, key equivalent (Command plus, unless other modifiers
        are named: o Option, c Control). */
     NSString *escape = [NSString stringWithFormat:@"%C", (unichar)27];
@@ -269,6 +279,8 @@ static NSMenuItem *systemMenuItem(void) {
             @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ] ];
     for(NSArray *entry in entries) {
         NSString *title = [entry objectAtIndex:0];
+        if(entry != [entries lastObject] || ![title isEqualToString:logOut])
+            title = L(title);
         if([title isEqualToString:@"-"]) {
             [menu addItem:[NSMenuItem separatorItem]];
             continue;

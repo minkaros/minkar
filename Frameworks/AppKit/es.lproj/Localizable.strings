@@ -154,3 +154,23 @@
 "Technical Symbols" = "Símbolos técnicos";
 "Latin" = "Latino";
 "Greek" = "Griego";
+
+/* The system menu (NSMenuBarWindow) and its alerts. */
+"About This Computer" = "Acerca de este ordenador";
+"System Preferences…" = "Preferencias del Sistema…";
+"Recent Items" = "Ítems recientes";
+"Force Quit…" = "Forzar salida…";
+"Sleep" = "Reposo";
+"Restart…" = "Reiniciar…";
+"Shut Down…" = "Apagar equipo…";
+"Lock Screen" = "Bloquear pantalla";
+"Log Out %@…" = "Cerrar la sesión de %@…";
+"Clear Menu" = "Borrar menú";
+"Restart" = "Reiniciar";
+"Shut Down" = "Apagar";
+"Log Out" = "Cerrar sesión";
+"Are you sure you want to restart your computer now?" = "¿Seguro que quieres reiniciar el ordenador ahora?";
+"Are you sure you want to shut down your computer now?" = "¿Seguro que quieres apagar el ordenador ahora?";
+"Are you sure you want to quit all applications and log out now?" = "¿Seguro que quieres salir de todas las aplicaciones y cerrar la sesión ahora?";
+"Applications that are open are asked to quit." = "Se pedirá a las aplicaciones abiertas que se cierren.";
+"Kernel: Darwin %s\nProcessor: %s\nMemory: %.0f GB\nDisplay: %.0f × %.0f" = "Kernel: Darwin %s\nProcesador: %s\nMemoria: %.0f GB\nPantalla: %.0f × %.0f";

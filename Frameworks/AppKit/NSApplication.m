@@ -1058,11 +1058,14 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     NSString* iconName = [[[NSBundle mainBundle] infoDictionary]
                           objectForKey:@"CFBundleIconFile"];
     if (iconName) {
-        // Minkar: the name may already have its .icns.
-        if ([[iconName pathExtension] length] == 0)
-            iconName = [iconName stringByAppendingPathExtension: @"icns"];
+        /* Minkar: the name as it is first (any image type: Atlas's apps
+           name a PNG without its extension), then with .icns, as the
+           reference does; the About window showed the generic icon. */
         NSImage* image = [NSImage imageNamed: iconName];
-        [self setApplicationIconImage: image];
+        if (image == nil && [[iconName pathExtension] length] == 0)
+            image = [NSImage imageNamed: [iconName stringByAppendingPathExtension: @"icns"]];
+        if (image != nil)
+            [self setApplicationIconImage: image];
     }
 
     /* If there are no menus loaded (e.g. we have no nib), make sure we at least have
