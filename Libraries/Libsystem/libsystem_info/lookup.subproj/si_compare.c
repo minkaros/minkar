@@ -233,6 +233,13 @@ si_destination_fill_netsrc(Destination *d)
 		os_log_debug(si_destination_log, "sockaddr is too big");
 		return;
 	}
+	// Minkar: an unspecified destination (0.0.0.0, ::) has no source to
+	// find; the kernel answers EINVAL, which was logged as an error on
+	// each lookup that sorted one (sshd's, for instance).
+	if ((d->d_dst.addr.sa.sa_family == AF_INET && d->d_dst.addr.sin.sin_addr.s_addr == INADDR_ANY) ||
+	    (d->d_dst.addr.sa.sa_family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(&d->d_dst.addr.sin6.sin6_addr))) {
+		return;
+	}
 	memcpy(&request._usa, &d->d_dst, d->d_dst.addr.sa.sa_len);
 	if (send(netsrc_sockfd, &request, sizeof(request), 0) != sizeof(request))
 	{
@@ -240,9 +247,10 @@ si_destination_fill_netsrc(Destination *d)
 			// fall back to version 1
 			version = NETSRC_VERSION1;
 			si_destination_fill_netsrc(d);
+			return;
 		}
 		// Expected when there is no route to host
-		os_log_error(si_destination_log, "send failed: %m");
+		os_log_debug(si_destination_log, "send failed: %m");
 		return;
 	}
 
