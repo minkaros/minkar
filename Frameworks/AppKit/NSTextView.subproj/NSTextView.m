@@ -2069,10 +2069,14 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     if (_isRichText == NO) {
         NSMutableParagraphStyle *style = [[[NSParagraphStyle defaultParagraphStyle] mutableCopy] autorelease];
         [style setAlignment: _textAlignment];
-        NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:
+        NSMutableDictionary *attributes = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                     _font, NSFontAttributeName,
                                     style, NSParagraphStyleAttributeName,
                                     nil];
+        /* Minkar: the text color too: typed text was the default black
+           (a field edited in the dark showed black until it was left). */
+        if (_textColor != nil)
+            [attributes setObject:_textColor forKey:NSForegroundColorAttributeName];
         if (attributes && [attributes isEqualToDictionary:[self typingAttributes]] == NO) {
             [self setTypingAttributes:attributes];
         }

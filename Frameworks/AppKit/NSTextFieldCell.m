@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -6,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <AppKit/NSTextView.h>
 #import <AppKit/NSTextFieldCell.h>
 #import <AppKit/NSBezierPath.h>
 #import <AppKit/NSApplication.h>
@@ -123,6 +125,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setDrawsBackground:(BOOL)flag {
    _drawsBackground=flag;
+}
+
+/* Minkar: the field editor in the cell's text color (the controls' text
+   color unless one is set: light in the dark), for the text, what is
+   typed and the insertion point. It kept its own black while editing,
+   and the text turned light only when the field was left. */
+-(NSText *)setUpFieldEditorAttributes:(NSText *)editor {
+   NSColor *color=[self textColor];
+
+   editor=[super setUpFieldEditorAttributes:editor];
+   if(color!=nil && ![self allowsEditingTextAttributes]){
+    [editor setTextColor:color];
+    if([editor isKindOfClass:[NSTextView class]]){
+     NSTextView          *view=(NSTextView *)editor;
+     NSMutableDictionary *typing=[NSMutableDictionary dictionaryWithDictionary:[view typingAttributes]];
+
+     [typing setObject:color forKey:NSForegroundColorAttributeName];
+     [view setTypingAttributes:typing];
+     [view setInsertionPointColor:color];
+    }
+   }
+   return editor;
 }
 
 -(void)setBezelStyle:(NSTextFieldBezelStyle)value {

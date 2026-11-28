@@ -122,7 +122,12 @@ const float WSWindowEdgePad = 2;
 -(void)layoutFrameSizeWithWidth:(CGFloat)width;
 @end
 
-@interface NSWindow ()
+@interface NSWindow () {
+    /* Resized without being drawn yet: its new frame goes to the server
+       with its next picture (flushWindow), or on the next turn of the run
+       loop when nothing draws. */
+    BOOL _wsFramePending;
+}
 
 - (NSRect) zoomedFrame;
 
@@ -1151,6 +1156,12 @@ static NSWindow *deferWSFrameOf;
        blinked when its magnification was turned on (PC 1). */
     BOOL atOnce=didSize && display && tellWS && !animate && _isVisible && ![self isMiniaturized] &&
         _flushDisabled == 0 && [NSView focusView] == nil;	/* not while a view draws */
+    /* Resized without display (System Preferences' window, to a pane's
+       size, its views laid out after): the new frame waits for the new
+       picture too. Told at once, the server drew the new frame's shadow
+       and empty area first, the window's picture a moment later. */
+    BOOL later=didSize && !display && tellWS && !animate && _isVisible && ![self isMiniaturized] &&
+        [NSView focusView] == nil;
 
     _frame=newFrame;
     _makeSureIsOnAScreen=YES;
@@ -1159,7 +1170,7 @@ static NSWindow *deferWSFrameOf;
         NSSize oldSize = [_backgroundView frame].size;
         [_backgroundView setFrameSize:_frame.size];
         [_backgroundView resizeSubviewsWithOldSize:oldSize];
-        if(atOnce)
+        if(atOnce || later)
             deferWSFrameOf=self;
         [self invalidateContextsWithNewSize:_frame.size forceRebuild:YES];
         deferWSFrameOf=nil;
@@ -1181,6 +1192,11 @@ static NSWindow *deferWSFrameOf;
         [self _updateWSState];
         _damageAll=YES;
         [self flushWindow];
+    }
+    else if(later) {
+        _wsFramePending=YES;
+        [_backgroundView setNeedsDisplay:YES];
+        [self performSelector:@selector(_sendPendingWSFrame) withObject:nil afterDelay:0];
     }
     // Sync WS to our new geometry & position before redisplaying
     else if(tellWS)
@@ -2336,11 +2352,30 @@ static BOOL hasExplicitKeyViewLoop(NSView *view) {
    _flushDisabled--;
 }
 
+/* A pending frame (setFrame:display:NO), drawn first, then sent with it. */
+-(void)_sendPendingWSFrame {
+    if(!_wsFramePending)
+        return;
+    [self displayIfNeeded];
+    if(_wsFramePending){
+        _wsFramePending=NO;
+        [self _updateWSState];
+        _damageAll=YES;
+        [self flushWindow];
+    }
+}
+
 -(void)flushWindow {
     if(_flushDisabled > 0)
         _flushNeeded=YES;
     else {
         _flushNeeded=NO;
+        /* The frame the server waits for, with the picture drawn for it. */
+        if(_wsFramePending){
+            _wsFramePending=NO;
+            [self _updateWSState];
+            _damageAll=YES;
+        }
 
         if(!([self isOpaque] && [_contentView isKindOfClass:[NSOpenGLView class]] && [_contentView isOpaque])) {
             O2ContextFlush(_context);
