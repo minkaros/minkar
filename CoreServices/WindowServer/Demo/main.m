@@ -168,7 +168,9 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
      * middle by popUpMenuPositioningItem:, Two placed there), "popupbutton"
      * (a pop-up button: Red, Green, Blue), "statusitem" (a status item
      * "Demo" with a menu: Status One, Status Two), "nostatusitem" (removes
-     * it), "refusequit" (its delegate refuses to quit from now on), "tags"
+     * it), "refusequit" (its delegate refuses to quit from now on),
+     * "backgroundonly" (a background-only process that refuses to quit, as
+     * a helper left behind by its app), "tags"
      * (the Test menu's item tags; Alpha's is 42), "smallredraw" (20 by 20
      * points of its view drawn again).
      */
@@ -540,7 +542,11 @@ static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummar
         [self addContextMenu];
     else if (strncmp(line, "popupbutton", 11) == 0)
         [self addPopUpButton];
-    else if (strncmp(line, "refusequit", 10) == 0) {
+    else if (strncmp(line, "backgroundonly", 14) == 0) {
+        self.refusesToQuit = YES;
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
+        printf("background only, refusing to quit\n");
+    } else if (strncmp(line, "refusequit", 10) == 0) {
         self.refusesToQuit = YES;
         printf("refusing to quit\n");
     } else if (strncmp(line, "statusitem", 10) == 0)

@@ -31,7 +31,8 @@
  * applications; it serves the requests of LoginWindowRequest.h: Log Out
  * asks every application to quit (LaunchServices' session), waits for them
  * and starts the session again; Restart and Shut Down do the same, then
- * call reboot(2). An application that does not quit cancels the request.
+ * call reboot(2). An application with a user interface that does not quit
+ * cancels the request; a background-only one left running is ended.
  * A session application that exits is started again, as launchd keeps the
  * reference platform's Dock alive (so "killall Dock" applies its
  * preferences); one that exits within RESPAWN_THROTTLE seconds of its start
@@ -768,7 +769,35 @@ runningApps(LSSessionApp **apps)
 	return count;
 }
 
-/* Asks every application to quit; YES once all have gone. */
+/* NSApplicationActivationPolicyProhibited: a background-only process
+ * (LSBackgroundOnly), such as an app's helper (Firefox GPU Helper). */
+#define kPolicyBackgroundOnly	2
+
+static const char *
+appName(const LSSessionApp *app)
+{
+	return app->bundleIdentifier[0] ? app->bundleIdentifier : app->name;
+}
+
+/* The applications with a user interface among apps[0..count). */
+static uint32_t
+withInterface(const LSSessionApp *apps, uint32_t count)
+{
+	uint32_t n = 0;
+
+	for (uint32_t i = 0; i < count; i++)
+		if (apps[i].activationPolicy != kPolicyBackgroundOnly)
+			n++;
+	return n;
+}
+
+/* Asks every application to quit; YES once all have gone. As on the
+ * reference, an application with a user interface that does not quit
+ * (it refused, or it hangs) cancels the request; a background-only one
+ * cannot: once the others are gone it is ended (SIGTERM, then SIGKILL
+ * after BACKGROUND_GRACE seconds), as a helper left behind by its app. */
+#define BACKGROUND_GRACE	5
+
 static int
 quitApplications(const char *what)
 {
@@ -777,23 +806,42 @@ quitApplications(const char *what)
 
 	for (uint32_t i = 0; i < count; i++) {
 		fprintf(stderr, "loginwindow: asking pid %d (%s) to quit\n", apps[i].pid,
-		    apps[i].bundleIdentifier[0] ? apps[i].bundleIdentifier : apps[i].name);
+		    appName(&apps[i]));
 		LSSessionQuit(apps[i].pid);
 	}
 	free(apps);
 	for (int tick = 0; tick < QUIT_TIMEOUT * 4; tick++) {
 		count = runningApps(&apps);
-		if (count == 0)
-			return 1;
-		if (tick == QUIT_TIMEOUT * 4 - 1)
+		if (withInterface(apps, count) == 0)
+			break;
+		if (tick == QUIT_TIMEOUT * 4 - 1) {
 			for (uint32_t i = 0; i < count; i++)
-				fprintf(stderr, "loginwindow: pid %d (%s) did not quit: %s cancelled\n",
-				    apps[i].pid, apps[i].bundleIdentifier[0] ?
-				    apps[i].bundleIdentifier : apps[i].name, what);
+				if (apps[i].activationPolicy != kPolicyBackgroundOnly)
+					fprintf(stderr, "loginwindow: pid %d (%s) did not quit: %s cancelled\n",
+					    apps[i].pid, appName(&apps[i]), what);
+			free(apps);
+			return 0;
+		}
 		free(apps);
 		usleep(250000);
 	}
-	return 0;
+	for (int tick = 0; count > 0; tick++) {
+		for (uint32_t i = 0; i < count; i++)
+			if (tick == 0 || tick == BACKGROUND_GRACE * 4) {
+				int sig = tick == 0 ? SIGTERM : SIGKILL;
+
+				fprintf(stderr, "loginwindow: pid %d (%s) still running in the background: %s\n",
+				    apps[i].pid, appName(&apps[i]), sig == SIGTERM ? "SIGTERM" : "SIGKILL");
+				kill(apps[i].pid, sig);
+			}
+		free(apps);
+		if (tick > BACKGROUND_GRACE * 4 + 8)
+			return 1;
+		usleep(250000);
+		count = runningApps(&apps);
+	}
+	free(apps);
+	return 1;
 }
 
 static void endSession(void);
