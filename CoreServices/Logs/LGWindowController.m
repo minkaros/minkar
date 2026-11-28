@@ -174,13 +174,17 @@ static NSTextView *textView(NSScrollView **scrollOut, NSRect frame)
 
     _table = [self tableIn:_messagesView frame:NSMakeRect(0, 150, w, top - 156)
         autoresizing:NSViewWidthSizable | NSViewHeightSizable];
-    [_table addTableColumn:[self column:@"timestamp" title:NSLocalizedString(@"Time", nil) width:190]];
-    [_table addTableColumn:[self column:@"type" title:NSLocalizedString(@"Type", nil) width:60]];
+    /* The time of day (the date and the rest below, in the message's
+       detail); the message takes the width the others leave. */
+    [_table addTableColumn:[self column:@"timestamp" title:NSLocalizedString(@"Time", nil) width:92]];
+    [_table addTableColumn:[self column:@"type" title:NSLocalizedString(@"Type", nil) width:52]];
     [_table addTableColumn:[self column:@"process" title:NSLocalizedString(@"Process", nil) width:110]];
-    [_table addTableColumn:[self column:@"pid" title:NSLocalizedString(@"PID", nil) width:50]];
-    [_table addTableColumn:[self column:@"subsystem" title:NSLocalizedString(@"Subsystem", nil) width:150]];
+    [_table addTableColumn:[self column:@"pid" title:NSLocalizedString(@"PID", nil) width:46]];
+    [_table addTableColumn:[self column:@"subsystem" title:NSLocalizedString(@"Subsystem", nil) width:140]];
     [_table addTableColumn:[self column:@"category" title:NSLocalizedString(@"Category", nil) width:90]];
-    [_table addTableColumn:[self column:@"message" title:NSLocalizedString(@"Message", nil) width:500]];
+    [_table addTableColumn:[self column:@"message" title:NSLocalizedString(@"Message", nil) width:300]];
+    [_table setColumnAutoresizingStyle:NSTableViewLastColumnOnlyAutoresizingStyle];
+    [self fitMessageColumn];
     [_table setUsesAlternatingRowBackgroundColors:YES];
 
     _detail = textView(&scroll, NSMakeRect(0, 24, w, 120));
@@ -212,12 +216,65 @@ static NSTextView *textView(NSScrollView **scrollOut, NSRect frame)
 
 /* ---- The messages ---- */
 
+/* The message column takes the width the others leave (at least its
+   own minimum); the others keep theirs. */
+- (void)fitMessageColumn
+{
+    NSArray *columns = [_table tableColumns];
+    CGFloat others = [_table intercellSpacing].width * [columns count];
+    CGFloat width = NSWidth([[_table enclosingScrollView] documentVisibleRect]);
+
+    for (NSUInteger i = 0; i + 1 < [columns count]; i++)
+        others += [columns[i] width];
+    if ([columns count] > 0)
+        [[columns lastObject] setWidth:MAX(200, floor(width - others))];
+    [_table tile];
+}
+
+/* New messages: only they go through the filters, and the table grows
+   by them (filtering every message kept again for each new group cost
+   more the longer the window stayed open). */
 - (void)addMessages:(NSArray *)messages
 {
+    BOOL atEnd = [self isAtEnd];
+    NSMutableArray *visible = [_visible mutableCopy];
+
     [_all addObjectsFromArray:messages];
-    if ([_all count] > MAX_MESSAGES)
-        [_all removeObjectsInRange:NSMakeRange(0, [_all count] - MAX_MESSAGES)];
-    [self applyFilters];
+    for (LGMessage *m in messages)
+        if ([self passes:m])
+            [visible addObject:m];
+    if ([_all count] > MAX_MESSAGES) {
+        NSRange gone = NSMakeRange(0, [_all count] - MAX_MESSAGES);
+        NSSet *dropped = [NSSet setWithArray:[_all subarrayWithRange:gone]];
+        [_all removeObjectsInRange:gone];
+        NSUInteger keep = 0;
+        while (keep < [visible count] && [dropped containsObject:visible[keep]])
+            keep++;
+        [visible removeObjectsInRange:NSMakeRange(0, keep)];
+    }
+    _visible = visible;
+    [self showVisibleScrollingToEnd:atEnd];
+}
+
+/* Following the newest: nothing selected and the last row in sight (a
+   look further up is not pulled back down by each new message). */
+- (BOOL)isAtEnd
+{
+    NSInteger rows = [_table numberOfRows];
+    NSRect visible = [[_table enclosingScrollView] documentVisibleRect];
+
+    return rows == 0 || ([_table selectedRow] < 0 && NSMaxY(visible) >= NSMaxY([_table rectOfRow:rows - 1]) - 1);
+}
+
+- (void)showVisibleScrollingToEnd:(BOOL)atEnd
+{
+    [_table noteNumberOfRowsChanged];
+    [_table setNeedsDisplay:YES];
+    if (atEnd && [_visible count])
+        [_table scrollRowToVisible:[_visible count] - 1];
+    [_countLabel setStringValue:[NSString stringWithFormat:NSLocalizedString(@"%lu of %lu messages%@", nil),
+        (unsigned long)[_visible count], (unsigned long)[_all count],
+        _paused ? NSLocalizedString(@" — paused", nil) : @""]];
 }
 
 - (NSArray *)messages
@@ -235,25 +292,25 @@ static BOOL has(NSString *text, NSString *part)
     return [part length] == 0 || [text rangeOfString:part options:NSCaseInsensitiveSearch].location != NSNotFound;
 }
 
+- (BOOL)passes:(LGMessage *)m
+{
+    if (_level == LGChoiceErrors && ![m.type isEqual:@"Error"] && ![m.type isEqual:@"Fault"])
+        return NO;
+    return has(m.process, _processFilter) && has(m.subsystem, _subsystemFilter) && has(m.message, _searchString);
+}
+
+/* Every message through the filters again (when they change). */
 - (void)applyFilters
 {
-    BOOL errorsOnly = (_level == LGChoiceErrors);
-    BOOL atEnd = [_table numberOfRows] == 0 || [_table selectedRow] < 0;
+    BOOL atEnd = [self isAtEnd];
     NSMutableArray *visible = [NSMutableArray array];
 
-    for (LGMessage *m in _all) {
-        if (errorsOnly && ![m.type isEqual:@"Error"] && ![m.type isEqual:@"Fault"])
-            continue;
-        if (has(m.process, _processFilter) && has(m.subsystem, _subsystemFilter) && has(m.message, _searchString))
+    for (LGMessage *m in _all)
+        if ([self passes:m])
             [visible addObject:m];
-    }
     _visible = visible;
     [_table reloadData];
-    if (atEnd && [_visible count])
-        [_table scrollRowToVisible:[_visible count] - 1];
-    [_countLabel setStringValue:[NSString stringWithFormat:NSLocalizedString(@"%lu of %lu messages%@", nil),
-        (unsigned long)[_visible count], (unsigned long)[_all count],
-        _paused ? NSLocalizedString(@" — paused", nil) : @""]];
+    [self showVisibleScrollingToEnd:atEnd];
 }
 
 - (void)setProcessFilter:(NSString *)value
@@ -405,8 +462,13 @@ static BOOL has(NSString *text, NSString *part)
 
     if (table == _sidebar)
         return sourceNames()[row];
-    if (table == _table)
-        return [_visible[row] valueForKey:key];
+    if (table == _table) {
+        LGMessage *m = _visible[row];
+        /* "2026-11-28 07:14:14.678097+0000": 07:14:14.678 */
+        if ([key isEqual:@"timestamp"] && [m.timestamp length] >= 23)
+            return [m.timestamp substringWithRange:NSMakeRange(11, 12)];
+        return [m valueForKey:key];
+    }
 
     NSString *path = _files[row];
     NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:NULL];

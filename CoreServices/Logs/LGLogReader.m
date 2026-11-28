@@ -34,6 +34,7 @@ static NSString *const kLog = @"/usr/bin/log";
     NSTask *_task;
     NSMutableData *_pending;
     BOOL _paused;
+    NSUInteger _generation;    /* of the last start: an older read is dropped */
 }
 
 static NSArray *levelArguments(LGLevel level)
@@ -95,23 +96,63 @@ static NSString *levelName(LGLevel level)
     _level = level;
     _pending = [NSMutableData data];
 
-    /* The last hour, read whole. */
-    NSTask *show = [NSTask new];
-    NSPipe *pipe = [NSPipe pipe];
-    [show setLaunchPath:kLog];
-    [show setArguments:[@[ @"show", @"--last", @"1h", @"--style", @"ndjson" ]
-        arrayByAddingObjectsFromArray:levelArguments(level)]];
-    [show setStandardOutput:pipe];
-    [show setStandardError:[NSFileHandle fileHandleWithNullDevice]];
-    @try {
-        [show launch];
-        NSData *all = [[pipe fileHandleForReading] readDataToEndOfFile];
-        [show waitUntilExit];
-        [self deliver:[self takeMessages:all]];
-    } @catch (NSException *e) {
-    }
-    _pending = [NSMutableData data];
-    [self startStream];
+    /* The last hour, read whole away from the main thread (the window
+       shows at once), handed over a few thousand at a time; then the
+       stream, from the main thread. A start again in between wins. */
+    NSUInteger generation = ++_generation;
+    NSArray *arguments = [@[ @"show", @"--last", @"1h", @"--style", @"ndjson" ]
+        arrayByAddingObjectsFromArray:levelArguments(level)];
+    __weak LGLogReader *weakSelf = self;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSTask *show = [NSTask new];
+        NSPipe *pipe = [NSPipe pipe];
+        NSArray *messages = @[];
+        [show setLaunchPath:kLog];
+        [show setArguments:arguments];
+        [show setStandardOutput:pipe];
+        [show setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+        @try {
+            [show launch];
+            NSData *all = [[pipe fileHandleForReading] readDataToEndOfFile];
+            [show waitUntilExit];
+            messages = [LGLogReader messagesInData:all];
+        } @catch (NSException *e) {
+        }
+        for (NSUInteger at = 0; at < [messages count]; at += 5000) {
+            NSArray *part = [messages subarrayWithRange:NSMakeRange(at, MIN(5000, [messages count] - at))];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                LGLogReader *reader = weakSelf;
+                if (reader != nil && reader->_generation == generation && reader.handler != nil)
+                    reader.handler(part);
+            });
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            LGLogReader *reader = weakSelf;
+            if (reader != nil && reader->_generation == generation) {
+                reader->_pending = [NSMutableData data];
+                [reader startStream];
+            }
+        });
+    });
+}
+
+/* Every complete line's message. */
++ (NSArray *)messagesInData:(NSData *)data
+{
+    NSMutableArray *messages = [NSMutableArray array];
+    const char *bytes = [data bytes];
+    NSUInteger start = 0, length = [data length];
+
+    for (NSUInteger i = 0; i < length; i++)
+        if (bytes[i] == '\n') {
+            if (i > start) {
+                LGMessage *m = [LGMessage messageWithJSONLine:[data subdataWithRange:NSMakeRange(start, i - start)]];
+                if (m != nil)
+                    [messages addObject:m];
+            }
+            start = i + 1;
+        }
+    return messages;
 }
 
 - (void)startStream
@@ -164,6 +205,7 @@ static NSString *levelName(LGLevel level)
 
 - (void)stop
 {
+    _generation++;
     if (_task != nil) {
         [[[_task standardOutput] fileHandleForReading] setReadabilityHandler:nil];
         if ([_task isRunning])
