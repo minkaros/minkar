@@ -333,7 +333,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/config.h b/MdeModulePkg/Application/
  extern BOOT_CONFIG gBootConfig;
 diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/Loader/loader.c
 --- a/MdeModulePkg/Application/Loader/loader.c	2026-11-25 10:19:16.127208811 -0500
-+++ b/MdeModulePkg/Application/Loader/loader.c	2026-11-27 21:58:40.113580057 -0500
++++ b/MdeModulePkg/Application/Loader/loader.c	2026-11-27 23:01:55.081737472 -0500
 @@ -29,6 +29,7 @@
  #include "config.h"
  #include "lzvn_decode.h"
@@ -417,7 +417,16 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
      Print(UEFI_STR("!! Error: %s: %r\n"), What, Status);
      gBS->Stall(15 * 1000 * 1000);
      return Status;
-@@ -1070,6 +1091,32 @@
+@@ -1065,11 +1086,52 @@
+     UINT8 *region = NULL;
+ 
+     gST->ConOut->ClearScreen(gST->ConOut);
++    /* Minkar: nothing on the screen until the boot is known to be
++       verbose (its text is shown then, from the log): a graphical boot
++       showed the loader's first lines before the picker. */
++    gQuiet = TRUE;
+     Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
+     LoadBootConfig();
      SetGraphicsMode();
      SetStartupSound();
  
@@ -444,13 +453,24 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
 +    if (!Verbose && !EFI_ERROR(LocateGOP(&ScreenGOP))) {
 +        gQuiet = TRUE;
 +        BootScreenShow(ScreenGOP, 0);
++    } else {
++        /* Verbose: the text so far, then all of it as it comes. */
++        gQuiet = FALSE;
++        for (UINTN i = 0; i < gLogLength; ) {
++            CHAR16 Chunk[129];
++            UINTN n = 0;
++            while (n < 128 && i < gLogLength)
++                Chunk[n++] = (CHAR16)gLog[i++];
++            Chunk[n] = 0;
++            gST->ConOut->OutputString(gST->ConOut, Chunk);
++        }
 +    }
 +    Print(UEFI_STR("[] Boot keys %d, %a boot\n"), (INT32)Keys, gQuiet ? "graphical" : "verbose");
 +
      Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
      if (Status == EFI_BUFFER_TOO_SMALL) {
          /* Minkar: this map only counts memory; the kernel gets the final one. */
-@@ -1100,6 +1147,10 @@
+@@ -1100,6 +1162,10 @@
      Status = LoadKernel(&KernelBuffer, &KernelEntry, &KernelSize);
      if (EFI_ERROR(Status)) {
          /* Leave the reason on the screen before the firmware takes over. */
@@ -461,7 +481,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
          Print(UEFI_STR("!! Error: cannot load the kernel %a: %r\n"),
              gBootConfig.KernelPath, Status);
          gBS->Stall(15 * 1000 * 1000);
-@@ -1107,6 +1158,8 @@
+@@ -1107,6 +1173,8 @@
      }
  
      Print(UEFI_STR("\n[] Memory: %u MB usable\n"), physPages * EFI_PAGE_SIZE / MB);
@@ -470,7 +490,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
  
      /* Sucks that we do this twice, but I need the ACPI tables to init DTB */
      EFI_CONFIGURATION_TABLE *table = SystemTable->ConfigurationTable;
-@@ -1224,6 +1277,8 @@
+@@ -1224,6 +1292,8 @@
          /* Minkar: keep the loader's output up long enough to read it. */
          Print(UEFI_STR("[] Pausing %u seconds (loader-pause)\n"), gBootConfig.LoaderPause);
          gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
@@ -479,7 +499,7 @@ diff -ruN a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/
      } else if (gGraphicsMode == (UINT32)-1) {
          gST->ConOut->ClearScreen(gST->ConOut);
      } else {
-@@ -1242,6 +1297,8 @@
+@@ -1242,6 +1312,8 @@
              Print(UEFI_STR("[] The firmware left graphics mode %u: setting it again\n"),
                  gGraphicsMode);
              GOP->SetMode(GOP, gGraphicsMode);
@@ -537,8 +557,8 @@ diff -ruN a/MdeModulePkg/Application/Loader/Loader.inf b/MdeModulePkg/Applicatio
    gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
 diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/Loader/picker.c
 --- a/MdeModulePkg/Application/Loader/picker.c	1969-12-31 19:00:00.000000000 -0500
-+++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 21:58:40.112580105 -0500
-@@ -0,0 +1,563 @@
++++ b/MdeModulePkg/Application/Loader/picker.c	2026-11-27 23:01:55.081737472 -0500
+@@ -0,0 +1,567 @@
 +/*
 + * SPDX-License-Identifier: BSD-2-Clause
 + * Copyright (c) 2026 The Minkar contributors
@@ -1035,8 +1055,12 @@ diff -ruN a/MdeModulePkg/Application/Loader/picker.c b/MdeModulePkg/Application/
 +
 +    ZeroMem(Entries, sizeof(Entries));
 +    UINTN N = FindEntries(ImageHandle, Entries);
++    /* The graphics output on the console's handle, else any: on PC 1's
++       firmware (a Gigabyte board's) the console's handle has none, and
++       the picker was a list in text. */
 +    BOOLEAN Graphical = LoadIcons() &&
-+        !EFI_ERROR(gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiGraphicsOutputProtocolGuid, (VOID **)&GOP));
++        (!EFI_ERROR(gBS->HandleProtocol(gST->ConsoleOutHandle, &gEfiGraphicsOutputProtocolGuid, (VOID **)&GOP)) ||
++         !EFI_ERROR(gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&GOP)));
 +    if (Graphical)
 +        gBS->LocateProtocol(&gEfiHiiFontProtocolGuid, NULL, (VOID **)&Font);
 +    Print(UEFI_STR("[] Boot picker: %u entries, %a%a\n"), N, Graphical ? "graphical" : "text",
