@@ -116,6 +116,9 @@ static NSArray *columnsForTab(SMTab tab)
 
     [window setTitle:NSLocalizedString(@"System Monitor", nil)];
     [window setMinSize:NSMakeSize(600, 420)];
+    /* Centered the first time; then where it was left (the frame saved as
+       it moves and resizes), as on the reference. */
+    [window center];
     [window setFrameAutosaveName:@"SystemMonitor"];
 
     [content addSubview:[self toolButton:NSImageNameStopProgressTemplate action:@selector(stopSelectedProcess:)

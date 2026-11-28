@@ -1963,8 +1963,11 @@ static char titlebarSeparatorKey;
    if (NSMinX(rect) < NSMinX(visRect)) {
     rect.origin.x = NSMinX(visRect);
    }
-   if (NSMinY(rect) < NSMinY(visRect)) {
-    rect.origin.y = NSMinY(visRect);
+   /* Minkar: as documented, the top edge on the screen, not the whole
+      window: a window may reach over the Dock (a window left there opens
+      there again, as on the reference). Its title bar stays reachable. */
+   if (NSMaxY(rect) < NSMinY(visRect) + 22) {
+    rect.origin.y = NSMinY(visRect) + 22 - rect.size.height;
    }
    return rect;
 }
@@ -4028,6 +4031,8 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     _frame.origin = NSMakePoint(x, height - y - _frame.size.height);
     /* The server has this frame: it is not sent back. */
     slsFrameIsKnown(_number, slsFrame(_frame));
+    /* Kept under its autosave name, as a move by setFrame: is. */
+    [self saveFrameUsingName:_autosaveFrameName];
     [self postNotificationName:NSWindowDidMoveNotification];
 }
 

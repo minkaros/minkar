@@ -40,14 +40,20 @@
         [self updateTabBar];
         [self updateTitles];
     }
-    [window cascadeTopLeftFromPoint:NSZeroPoint];
-    [window center];
-    /* Where the last window was left (moved, resized or closed), as on the
-       reference; a step down and right when another window is there. */
-    if ([window setFrameUsingName:@"Terminal Window"])
+    /* Centered the first time; then where the last window was left
+       (moved, resized or closed), as on the reference; steps down and
+       right while another window is there. */
+    if (![window setFrameUsingName:@"Terminal Window"])
+        [window center];
+    for (BOOL moved = YES; moved; ) {
+        moved = NO;
         for (NSWindow *other in [NSApp windows])
-            if (other != window && [other isVisible] && NSEqualPoints([other frame].origin, [window frame].origin))
+            if (other != window && [other isVisible] && NSEqualPoints([other frame].origin, [window frame].origin)) {
                 [window setFrameTopLeftPoint:[window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([window frame]), NSMaxY([window frame]))]];
+                moved = YES;
+                break;
+            }
+    }
     return self;
 }
 

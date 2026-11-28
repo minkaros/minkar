@@ -101,12 +101,20 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(480, 280)];
     [_window setDelegate:self];
-    /* Where the last window was left (moved, resized or closed), as on the
-       reference; a step down and right when another window is there. */
-    if ([_window setFrameUsingName:@"Files Window"])
+    /* Centered the first time; then where the last window was left
+       (moved, resized or closed), as on the reference; steps down and
+       right while another window is there. */
+    if (![_window setFrameUsingName:@"Files Window"])
+        [_window center];
+    for (BOOL moved = YES; moved; ) {
+        moved = NO;
         for (NSWindow *other in [NSApp windows])
-            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin))
+            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin)) {
                 [_window setFrameTopLeftPoint:[_window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]))]];
+                moved = YES;
+                break;
+            }
+    }
 
     FilesContentView *content = [[FilesContentView alloc] initWithFrame:[[_window contentView] frame]];
     content.controller = self;

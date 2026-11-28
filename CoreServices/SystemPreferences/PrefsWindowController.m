@@ -361,17 +361,15 @@ static NSArray<NSArray<PrefsPaneInfo *> *> *bySection(NSArray<PrefsPaneInfo *> *
         [_window _setTitlebarHeight:kBarHeight];
     [_window setReleasedWhenClosed:NO];
     [_window setDelegate:self];
-    /* Near the top of the screen: the panes grow downward. */
-    NSRect visible = [[NSScreen mainScreen] visibleFrame];
-    [_window setFrameTopLeftPoint:NSMakePoint(NSMinX(visible) + 180, NSMaxY(visible) - 40)];
-    /* Where it was left, as on the reference: its top left corner (its
-       height is the pane's). */
+    /* Centered the first time; then where it was left, as on the
+       reference: its top left corner (its height is the pane's). */
     NSRect initial = [_window frame];
     if ([_window setFrameUsingName:@"System Preferences"]) {
         NSPoint topLeft = NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]));
         [_window setFrame:initial display:NO];
         [_window setFrameTopLeftPoint:topLeft];
-    }
+    } else
+        [_window center];
     NSView *root = [[NSView alloc] initWithFrame:[[_window contentView] frame]];
     [_window setContentView:root];
 

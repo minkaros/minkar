@@ -125,6 +125,9 @@ static NSTextView *textView(NSScrollView **scrollOut, NSRect frame)
 
     [window setTitle:NSLocalizedString(@"Logs", nil)];
     [window setMinSize:NSMakeSize(720, 420)];
+    /* Centered the first time; then where it was left (the frame saved as
+       it moves and resizes), as on the reference. */
+    [window center];
     [window setFrameAutosaveName:@"Logs"];
 
     _sidebar = [self tableIn:content frame:NSMakeRect(0, 0, SIDEBAR, NSHeight(bounds)) autoresizing:NSViewHeightSizable];

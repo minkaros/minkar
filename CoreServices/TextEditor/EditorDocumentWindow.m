@@ -94,8 +94,6 @@ static NSString *withLF(NSString *text)
     return [text stringByReplacingOccurrencesOfString:@"\r" withString:@"\n"];
 }
 
-static NSPoint nextOrigin;
-
 - (void)makeWindowWithText:(id)text
 {
     NSRect visible = [[NSScreen mainScreen] visibleFrame];
@@ -107,12 +105,6 @@ static NSPoint nextOrigin;
         visible = NSMakeRect(0, 0, 1024, 768);
     NSRect frame = NSMakeRect(0, 0, MIN(640, NSWidth(visible) - 80), MIN(480, NSHeight(visible) - 80));
 
-    /* Each new window a step down and right of the last. */
-    if (NSEqualPoints(nextOrigin, NSZeroPoint) || nextOrigin.y - NSHeight(frame) < NSMinY(visible) ||
-        nextOrigin.x + NSWidth(frame) > NSMaxX(visible))
-        nextOrigin = NSMakePoint(NSMinX(visible) + 120, NSMaxY(visible) - 40);
-    frame.origin = NSMakePoint(nextOrigin.x, nextOrigin.y - NSHeight(frame));
-    nextOrigin = NSMakePoint(nextOrigin.x + 24, nextOrigin.y - 24);
 
     _window = [[NSWindow alloc] initWithContentRect:frame
         styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask
@@ -120,12 +112,20 @@ static NSPoint nextOrigin;
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(240, 160)];
     [_window setDelegate:self];
-    /* Where the last window was left (moved, resized or closed), as on the
-       reference; a step down and right when another window is there. */
-    if ([_window setFrameUsingName:@"Text Editor Window"])
+    /* Centered the first time; then where the last window was left
+       (moved, resized or closed), as on the reference; steps down and
+       right while another window is there. */
+    if (![_window setFrameUsingName:@"Text Editor Window"])
+        [_window center];
+    for (BOOL moved = YES; moved; ) {
+        moved = NO;
         for (NSWindow *other in [NSApp windows])
-            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin))
+            if (other != _window && [other isVisible] && NSEqualPoints([other frame].origin, [_window frame].origin)) {
                 [_window setFrameTopLeftPoint:[_window cascadeTopLeftFromPoint:NSMakePoint(NSMinX([_window frame]), NSMaxY([_window frame]))]];
+                moved = YES;
+                break;
+            }
+    }
 
     NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:[[_window contentView] bounds]];
     [scroll setHasVerticalScroller:YES];
